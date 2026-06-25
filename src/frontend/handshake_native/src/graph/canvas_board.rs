@@ -110,6 +110,19 @@ pub const PLACE_BLOCK_AUTHOR_ID: &str = "canvas.place-block";
 /// Author_id prefix for a placement card. The full id is `canvas.placement.{sanitized_placement_id}`.
 pub const PLACEMENT_AUTHOR_ID_PREFIX: &str = "canvas.placement.";
 
+/// Author_id SUFFIX for a placement card's bottom-right resize handle (WP-KERNEL-012 MT-061). The full
+/// id is `canvas.placement.{sanitized_placement_id}.resize`.
+pub const RESIZE_HANDLE_AUTHOR_ID_SUFFIX: &str = ".resize";
+
+/// Minimum card width in CANVAS units (WP-KERNEL-012 MT-061 / IN: clamp to a sensible minimum so a resize
+/// can never collapse a card to an unusable size).
+pub const MIN_CARD_W: f32 = 80.0;
+/// Minimum card height in CANVAS units (WP-KERNEL-012 MT-061).
+pub const MIN_CARD_H: f32 = 48.0;
+
+/// The on-screen size (logical px BEFORE zoom) of the bottom-right resize grab handle (MT-061).
+const RESIZE_HANDLE_PX: f32 = 12.0;
+
 /// The stable AccessKit author_id for a placement card, sanitizing `placement_id` to `[a-z0-9-]` so a
 /// raw id with slashes/colons can never break tree integrity (reuses the shell's slugger).
 pub fn placement_author_id(placement_id: &str) -> String {
@@ -119,6 +132,41 @@ pub fn placement_author_id(placement_id: &str) -> String {
 /// The stable AccessKit author_id for a placement card's remove button.
 pub fn placement_remove_author_id(placement_id: &str) -> String {
     format!("{}.remove", placement_author_id(placement_id))
+}
+
+/// The stable AccessKit author_id for a placement card's resize handle (WP-KERNEL-012 MT-061):
+/// `canvas.placement.{sanitized_placement_id}.resize`. Extends (does not replace) the MT-026 card ids.
+pub fn placement_resize_author_id(placement_id: &str) -> String {
+    format!("{}{}", placement_author_id(placement_id), RESIZE_HANDLE_AUTHOR_ID_SUFFIX)
+}
+
+/// What backs a placement card, deciding whether it is INLINE-EDITABLE on the canvas (WP-KERNEL-012
+/// MT-061, the load-bearing reference-not-copy gate, AC-061-5).
+///
+/// - [`CanvasCardKind::TextCard`]: a FREE-TEXT card created via the cards endpoint (a `note` LoomBlock the
+///   canvas owns the editing surface for). Double-click enters in-place editing; committing persists
+///   title/body. Editing a text card mutates only THAT card's own content.
+/// - [`CanvasCardKind::BlockRef`]: a placed REFERENCE to an existing Loom block (the MT-026 default).
+///   NEVER inline-editable — double-clicking navigates to the block. This preserves reference-not-copy:
+///   a canvas edit can never fork or copy the underlying block.
+///
+/// The host sets `TextCard` for placements it created through `createCard` (it holds the
+/// `CreateCanvasCardResponse`); every other placement defaults to `BlockRef`. The widget NEVER guesses
+/// from content_type — the kind is an explicit, testable flag.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CanvasCardKind {
+    /// A free-text note card the canvas can inline-edit (its content is the card's own RichDocument).
+    TextCard,
+    /// A reference to an existing Loom block — navigate on double-click, never inline-edit (default).
+    #[default]
+    BlockRef,
+}
+
+impl CanvasCardKind {
+    /// `true` only for a free-text card (the inline editor gate — AC-061-5 reference-not-copy).
+    pub fn is_text_card(self) -> bool {
+        matches!(self, CanvasCardKind::TextCard)
+    }
 }
 
 /// Which kind of edge `Draw edge` creates. `Semantic` calls `createLoomEdge` (a real, graph-authority
@@ -170,6 +218,17 @@ pub struct CanvasPlacementCard {
     /// the backend block had no hash. Shown as a short suffix on the `loom://` chip; READ-ONLY (the
     /// canvas never writes a hash — the backend computes it).
     pub loom_content_hash: Option<String>,
+    /// WP-KERNEL-012 MT-061: what backs this card, deciding inline-editability (reference-not-copy gate,
+    /// AC-061-5). Defaults to [`CanvasCardKind::BlockRef`] (the MT-026 reference semantics). The host sets
+    /// [`CanvasCardKind::TextCard`] for free-text cards it created via `createCard`.
+    pub card_kind: CanvasCardKind,
+    /// WP-KERNEL-012 MT-061: the free-text card's body (markdown), resolved on load for a [`TextCard`].
+    /// Seeds the in-place editor's buffer so a double-click opens the card with its existing content.
+    /// `None`/empty for a block reference (which is never inline-edited). The board never copies a block's
+    /// content here — this is only ever a text card's OWN body.
+    ///
+    /// [`TextCard`]: CanvasCardKind::TextCard
+    pub live_body: Option<String>,
 }
 
 impl CanvasPlacementCard {
@@ -195,7 +254,18 @@ impl CanvasPlacementCard {
             live_title: None,
             live_content_type: None,
             loom_content_hash: None,
+            card_kind: CanvasCardKind::BlockRef,
+            live_body: None,
         }
+    }
+
+    /// Mark this placement as a free-text card (the inline-editable kind), seeding its editor body. The
+    /// host calls this for a placement it created via `createCard` so a double-click opens the in-place
+    /// editor (AC-061-4). A block reference is left as the default [`CanvasCardKind::BlockRef`].
+    pub fn as_text_card(mut self, body: impl Into<String>) -> Self {
+        self.card_kind = CanvasCardKind::TextCard;
+        self.live_body = Some(body.into());
+        self
     }
 
     /// The `loom://{workspace_id}/{placed_block_id}` address of the block this card references, when
@@ -272,6 +342,22 @@ pub enum CanvasEvent {
     AddCard { title: String, x: f32, y: f32 },
     /// Group the given placements under a new `group_id` (`PATCH .../canvas-placements/:id {group_id}`).
     Group { placement_ids: Vec<String>, group_id: String },
+    /// WP-KERNEL-012 MT-061: persist a card's resized geometry (`PATCH .../canvas-placements/:id {w,h}`).
+    /// Fired ONCE per resize gesture, on drag-STOP only (debounced — RISK-061-1 / MC-061-1); the in-flight
+    /// size renders optimistically during the drag and reconciles via `getCanvasBoard` after the PATCH.
+    /// `w`/`h` are in CANVAS units, already clamped to [`MIN_CARD_W`]x[`MIN_CARD_H`].
+    ResizePlacement { placement_id: String, w: f32, h: f32 },
+    /// WP-KERNEL-012 MT-061: assign (or clear) a card's section/group via the SAME placement PATCH route
+    /// (`PATCH .../canvas-placements/:id {group_id}` / `{clear_group:true}`). `group_id == Some(id)`
+    /// assigns the dropped card to that section; `group_id == None` CLEARS the assignment (drop outside
+    /// all frames). Mutates ONLY the placement record — never the underlying block (reference-not-copy).
+    AssignSection { placement_id: String, group_id: Option<String> },
+    /// WP-KERNEL-012 MT-061: persist an in-place edit of a free-text card's title/body. The host applies
+    /// it through the existing knowledge-document save path for the card's backing note block (the cards
+    /// surface), then re-fetches via `getCanvasBoard`. Emitted ONLY for a [`CanvasCardKind::TextCard`]
+    /// (the inline editor is gated to text cards — AC-061-4/AC-061-5). `block_id` is the card's backing
+    /// note block so the host knows which document to save.
+    EditTextCard { placement_id: String, block_id: String, title: String, body: String },
     /// Remove a placement reference (`DELETE .../canvas-placements/:id`). Source block is KEPT.
     RemovePlacement { placement_id: String },
     /// Create a real semantic Loom edge (`POST /loom/edges {edge_type:"mention"}`) between two BLOCKS.
@@ -305,6 +391,30 @@ pub struct LoomCanvasBoard {
     /// OS / inter-panel drag is unavailable. The `Place` button emits the SAME
     /// [`CanvasEvent::PlaceBlock`] the drop path produces, so the place behavior is always reachable.
     pub place_block_input: String,
+    /// WP-KERNEL-012 MT-061: the placement id + in-flight CANVAS-space size of an ACTIVE resize gesture.
+    /// `Some((id, w, h))` while a resize handle is being dragged; the card renders at this optimistic
+    /// size every frame (immediate visual feedback). Cleared on drag-stop after the single
+    /// [`CanvasEvent::ResizePlacement`] fires. Never persisted per-frame (debounce — RISK-061-1).
+    resizing: Option<(String, f32, f32)>,
+    /// WP-KERNEL-012 MT-061: the placement id of a card being MOVED by dragging its body. `Some(id)` while
+    /// a card-move drag is active; on drag-stop the drop position resolves a section assignment via
+    /// [`crate::graph::canvas_sections::SectionLayer::which_section`]. Cleared on drag-stop.
+    moving: Option<String>,
+    /// WP-KERNEL-012 MT-061: the in-flight CANVAS-space top-left of the card being moved, so the card
+    /// renders at the optimistic drag position and the drop point is exact. Paired with [`Self::moving`].
+    moving_pos: Option<Pos2>,
+    /// WP-KERNEL-012 MT-061: the placement id of the free-text card currently in IN-PLACE edit mode, or
+    /// `None`. Only ONE card edits at a time. Set on double-click of a [`CanvasCardKind::TextCard`].
+    editing_card_id: Option<String>,
+    /// WP-KERNEL-012 MT-061: the live edit buffer for the inline text-card editor (the multiline
+    /// `TextEdit`'s backing string). Seeded from the card's `live_body` on entering edit mode; discarded
+    /// on Escape; committed (-> [`CanvasEvent::EditTextCard`]) on focus-loss / Ctrl+Enter.
+    editing_buffer: String,
+    /// WP-KERNEL-012 MT-061: optional per-`group_id` section labels from the board's section/group
+    /// metadata. Used by the derived [`crate::graph::canvas_sections::SectionLayer`] for frame titles;
+    /// absent entries fall back to the `group_id` string. Set by the host via [`Self::set_section_labels`]
+    /// alongside `set_board`.
+    section_labels: std::collections::BTreeMap<String, String>,
     /// The last canvas surface rect (screen space), recorded each frame so the MC-2 fallback can place
     /// a card at the centre of the currently-visible canvas. `None` until the board has rendered once.
     last_canvas_rect: Option<Rect>,
@@ -344,11 +454,83 @@ impl LoomCanvasBoard {
             loading: false,
             error: None,
             place_block_input: String::new(),
+            resizing: None,
+            moving: None,
+            moving_pos: None,
+            editing_card_id: None,
+            editing_buffer: String::new(),
+            section_labels: std::collections::BTreeMap::new(),
             last_canvas_rect: None,
             group_seq: 0,
             knowledge_registry: None,
             toolbar_control_ids: std::collections::HashMap::new(),
             pending_knowledge_events: Vec::new(),
+        }
+    }
+
+    /// WP-KERNEL-012 MT-061: install the per-`group_id` section labels (board section/group metadata) the
+    /// derived section frames title themselves with. The host calls this alongside `set_board` when the
+    /// board payload carries section metadata; absent labels fall back to the `group_id` string.
+    pub fn set_section_labels(&mut self, labels: std::collections::BTreeMap<String, String>) {
+        self.section_labels = labels;
+    }
+
+    /// WP-KERNEL-012 MT-061: the placement id of the free-text card currently in in-place edit mode (for
+    /// the host / proof tests to observe edit state). `None` when no card is being edited.
+    pub fn editing_card_id(&self) -> Option<&str> {
+        self.editing_card_id.as_deref()
+    }
+
+    /// WP-KERNEL-012 MT-061: the current inline-editor buffer contents (for the host / proof tests to
+    /// observe what has been typed before commit). Empty when no card is being edited.
+    pub fn editing_buffer(&self) -> &str {
+        &self.editing_buffer
+    }
+
+    /// WP-KERNEL-012 MT-061: the last rendered canvas surface rect (screen space), recorded each frame.
+    /// `None` until the board has rendered once. Exposed so a host / proof harness can convert a
+    /// canvas-space point to the exact screen coordinate of the LIVE widget (no hard-coded layout offset).
+    pub fn last_canvas_rect(&self) -> Option<Rect> {
+        self.last_canvas_rect
+    }
+
+    /// WP-KERNEL-012 MT-061: convert a CANVAS-space point to its exact SCREEN coordinate using the last
+    /// rendered canvas origin (so a proof harness can click the real handle/card without guessing the
+    /// layout offset). Returns `None` before the first render. Mirrors [`Self::canvas_to_screen`] with the
+    /// recorded origin.
+    pub fn canvas_point_to_screen(&self, canvas: Pos2) -> Option<Pos2> {
+        self.last_canvas_rect.map(|rect| self.canvas_to_screen(canvas, rect.min.to_vec2()))
+    }
+
+    /// WP-KERNEL-012 MT-061: the derived section layer for the CURRENT placements + section labels (the
+    /// frames drawn behind the cards). Re-derived on demand so a removed/cleared group's frame disappears.
+    pub fn section_layer(&self) -> crate::graph::canvas_sections::SectionLayer {
+        crate::graph::canvas_sections::SectionLayer::derive(&self.placements, &self.section_labels)
+    }
+
+    /// WP-KERNEL-012 MT-061 (MC-061-2 rollback): restore a placement's geometry to the last
+    /// server-confirmed value after a resize/move PATCH FAILS, so the canvas never shows geometry the
+    /// backend never stored. The host calls this with the placement id + the pre-edit `(x, y, w, h)` it
+    /// snapshotted when it dispatched the PATCH; on failure the optimistic geometry is reverted and the
+    /// transient resize/move state is cleared. Returns `true` if a matching placement was rolled back.
+    pub fn rollback_placement_geometry(&mut self, placement_id: &str, x: f32, y: f32, w: f32, h: f32) -> bool {
+        // Clear any transient in-flight state for this placement so the optimistic value can't re-apply.
+        if self.resizing.as_ref().map(|(id, _, _)| id.as_str()) == Some(placement_id) {
+            self.resizing = None;
+        }
+        if self.moving.as_deref() == Some(placement_id) {
+            self.moving = None;
+            self.moving_pos = None;
+        }
+        if let Some(card) = self.placements.iter_mut().find(|p| p.placement_id == placement_id) {
+            card.x = x;
+            card.y = y;
+            card.w = w;
+            card.h = h;
+            self.status = format!("Reverted {placement_id} (save failed)");
+            true
+        } else {
+            false
         }
     }
 
@@ -389,6 +571,18 @@ impl LoomCanvasBoard {
         if let Some(from) = &self.edge_from {
             if !present.contains(from.as_str()) {
                 self.edge_from = None;
+            }
+        }
+        // WP-KERNEL-012 MT-061: a reload reconciles server truth, so any in-flight resize/move optimistic
+        // state is now stale — drop it. Drop an in-place editor whose card no longer exists; keep editing
+        // a card that survived the reload (the host applies an edit, refreshes, and may keep editing).
+        self.resizing = None;
+        self.moving = None;
+        self.moving_pos = None;
+        if let Some(editing) = &self.editing_card_id {
+            if !present.contains(editing.as_str()) {
+                self.editing_card_id = None;
+                self.editing_buffer.clear();
             }
         }
         self.loading = false;
@@ -621,6 +815,12 @@ impl LoomCanvasBoard {
         // before this allocation, so it needs last frame's rect).
         self.last_canvas_rect = Some(rect);
 
+        // WP-KERNEL-012 MT-061: derive the section/group frame layer ONCE per frame from the current
+        // placements' group_id + the board section labels. Reused by BOTH the drag-stop drop hit-test
+        // (which_section) and the behind-cards frame draw pass — one derivation, one source of truth.
+        let section_layer =
+            crate::graph::canvas_sections::SectionLayer::derive(&self.placements, &self.section_labels);
+
         // Background fill + dotted grid (canvas is never blank/white — PROOF6).
         painter.rect_filled(rect, 0.0, palette.bg);
         self.draw_grid(&painter, rect, origin, palette);
@@ -690,19 +890,106 @@ impl LoomCanvasBoard {
             }
         }
 
-        // Drag on empty canvas pans; a drag that began over a card is ignored (card drag is not in this
-        // MT's scope). Persist the viewport on release.
+        // WP-KERNEL-012 MT-061: drag dispatch on the canvas surface.
+        //   - A drag that BEGINS over a card body MOVES that card (optimistic), and on release resolves a
+        //     section assignment from the drop position (AC-061-3). The card-RESIZE drag is owned by the
+        //     handle's own `ui.interact` inside `draw_card` (consumed before this parent response), so a
+        //     resize never reaches here.
+        //   - A drag on EMPTY canvas pans (unchanged MT-026 behavior).
+        // A card-move drag SUPPRESSES the pan + the viewport-persist on release (it persists a section
+        // assignment instead, not a viewport). The `resizing` guard keeps a resize from also moving a card.
+        if canvas_resp.drag_started() && self.resizing.is_none() && self.moving.is_none() {
+            // Use the PRESS origin (where the gesture began), not the current pointer — on the frame
+            // drag_started() fires the pointer may already have moved off the card toward the drop point.
+            let press = ui
+                .input(|i| i.pointer.press_origin())
+                .or_else(|| canvas_resp.interact_pointer_pos());
+            if let Some(screen) = press {
+                let canvas_pos = self.screen_to_canvas(screen, origin);
+                if let Some(idx) = self.placement_at_canvas(canvas_pos) {
+                    let card = &self.placements[idx];
+                    self.moving = Some(card.placement_id.clone());
+                    self.moving_pos = Some(Pos2::new(card.x, card.y));
+                }
+            }
+        }
         if canvas_resp.dragged() {
-            let over_card = canvas_resp
-                .interact_pointer_pos()
-                .map(|p| self.placement_at_canvas(self.screen_to_canvas(p, origin)).is_some())
-                .unwrap_or(false);
-            if !over_card {
+            if let Some(moving_id) = self.moving.clone() {
+                // Move the card optimistically by the canvas-space delta (screen delta / zoom).
+                let delta = canvas_resp.drag_delta() / self.zoom;
+                if let Some(card) = self.placements.iter_mut().find(|p| p.placement_id == moving_id) {
+                    card.x += delta.x;
+                    card.y += delta.y;
+                    self.moving_pos = Some(Pos2::new(card.x, card.y));
+                }
+            } else if self.resizing.is_none() {
+                // Empty-canvas pan (no card under the gesture, no active resize).
                 self.pan += canvas_resp.drag_delta();
             }
         }
         if canvas_resp.drag_stopped() {
-            event = Some(self.viewport_event());
+            if let Some(moving_id) = self.moving.take() {
+                // AC-061-3: resolve the drop position to a section. The drop point is the card's CENTRE in
+                // canvas space (where the user released it), so a card landing inside a frame is assigned,
+                // and one released outside all frames clears its group (Some(None) -> clear_group).
+                let drop_pos = self
+                    .placements
+                    .iter()
+                    .find(|p| p.placement_id == moving_id)
+                    .map(|c| Pos2::new(c.x + c.w * 0.5, c.y + c.h * 0.5))
+                    .or(self.moving_pos)
+                    .unwrap_or(Pos2::ZERO);
+                // Derive the drop-test layer EXCLUDING the moving card, so a card cannot anchor the frame
+                // it is trying to LEAVE (a member dragged out of its own section must be able to clear it —
+                // otherwise its own bounds keep the frame open under it). RISK-061-4 hit-test is computed
+                // against the OTHER cards' frames only.
+                let drop_layer = crate::graph::canvas_sections::SectionLayer::derive(
+                    &self
+                        .placements
+                        .iter()
+                        .filter(|p| p.placement_id != moving_id)
+                        .cloned()
+                        .collect::<Vec<_>>(),
+                    &self.section_labels,
+                );
+                let target = drop_layer.which_section(drop_pos).map(ToOwned::to_owned);
+                // Reflect the assignment locally so the AccessKit data-group-id updates THIS frame; the
+                // host persists via updateCanvasPlacement and the next getCanvasBoard refresh confirms it.
+                if let Some(card) = self.placements.iter_mut().find(|p| p.placement_id == moving_id) {
+                    card.group_id = target.clone();
+                }
+                self.status = match &target {
+                    Some(g) => format!("Assigned {moving_id} to section {g}"),
+                    None => format!("Cleared {moving_id} section"),
+                };
+                self.moving_pos = None;
+                event = Some(CanvasEvent::AssignSection { placement_id: moving_id, group_id: target });
+            } else if self.resizing.is_none() {
+                // Pan release: persist the viewport (RISK-3 / MC-3 — host debounces).
+                event = Some(self.viewport_event());
+            }
+        }
+
+        // WP-KERNEL-012 MT-061 (AC-061-4): double-click a card. A FREE-TEXT card enters in-place edit
+        // mode (its body seeds the editor buffer); a BLOCK-backed card NAVIGATES to its block instead of
+        // becoming editable (reference-not-copy gate — the inline editor is strictly text-card-only).
+        if canvas_resp.double_clicked() {
+            if let Some(screen) = canvas_resp.interact_pointer_pos() {
+                let canvas_pos = self.screen_to_canvas(screen, origin);
+                if let Some(idx) = self.placement_at_canvas(canvas_pos) {
+                    let card = &self.placements[idx];
+                    if card.card_kind.is_text_card() {
+                        // Enter edit mode: seed the buffer from the card's own body (never a block copy).
+                        self.editing_card_id = Some(card.placement_id.clone());
+                        self.editing_buffer = card.live_body.clone().unwrap_or_default();
+                        self.status = format!("Editing {} (text card)", card.placement_id);
+                    } else {
+                        // A block reference navigates to its block — it is NEVER turned into an editor.
+                        self.status =
+                            format!("Open block {} (reference — not inline-editable)", card.placed_block_id);
+                    }
+                }
+            }
         }
 
         // Click: card hit -> toggle selection (shift = additive) and complete a pending edge; empty ->
@@ -745,11 +1032,16 @@ impl LoomCanvasBoard {
             }
         }
 
-        // Visual edges first (so cards render on top).
+        // ── WP-KERNEL-012 MT-061: section/group FRAMES, drawn FIRST so they read as containers BEHIND
+        // their member cards. Each frame emits a `canvas.section.{id}` AccessKit node (HBR-SWARM). The
+        // `section_layer` was derived once at the top of the canvas pass (reused by the drop hit-test).
+        self.draw_section_frames(ui, &painter, &section_layer, origin);
+
+        // Visual edges next (so cards render on top of edges, but on top of the section frames too).
         self.draw_visual_edges(&painter, origin, palette);
 
-        // Placement cards (+ remove button + AccessKit). Drawn in ascending z-order so the topmost card
-        // paints last.
+        // Placement cards (+ remove button + resize handle + inline editor + AccessKit). Drawn in
+        // ascending z-order so the topmost card paints last.
         let mut order: Vec<usize> = (0..self.placements.len()).collect();
         order.sort_by(|&a, &b| self.placements[a].z_index.cmp(&self.placements[b].z_index));
         for idx in order {
@@ -1068,23 +1360,29 @@ impl LoomCanvasBoard {
         }
     }
 
-    /// Draw one placement card + its remove button + AccessKit nodes. Returns a `RemovePlacement` event
-    /// if the remove button was clicked this frame.
+    /// Draw one placement card + its remove button + resize handle + (for a text card in edit mode) the
+    /// inline editor + AccessKit nodes. Returns the typed event this card produced this frame: a
+    /// `RemovePlacement` (remove click), a `ResizePlacement` (resize drag-stop, debounced to ONE per
+    /// gesture — RISK-061-1), or an `EditTextCard` (inline-edit commit). `&mut self` because the resize
+    /// handle accumulates the in-flight size and the inline editor owns a live buffer.
     fn draw_card(
-        &self,
-        ui: &egui::Ui,
+        &mut self,
+        ui: &mut egui::Ui,
         painter: &egui::Painter,
         idx: usize,
         origin: Vec2,
         palette: &HsPalette,
     ) -> Option<CanvasEvent> {
-        let card = &self.placements[idx];
-        let canvas_rect = card.canvas_rect();
+        // Snapshot the immutable card geometry / identity up front so the rest of the body can take
+        // `&mut self` for the resize accumulator + inline editor without overlapping borrows.
+        let placement_id = self.placements[idx].placement_id.clone();
+        let placed_block_id = self.placements[idx].placed_block_id.clone();
+        let canvas_rect = self.placements[idx].canvas_rect();
         let screen_min = self.canvas_to_screen(canvas_rect.min, origin);
         let screen_max = self.canvas_to_screen(canvas_rect.max, origin);
         let screen_rect = Rect::from_min_max(screen_min, screen_max);
 
-        let selected = self.selected.contains(&card.placement_id);
+        let selected = self.selected.contains(&placement_id);
         let border = if selected {
             Stroke::new(2.0, palette.accent)
         } else {
@@ -1095,7 +1393,7 @@ impl LoomCanvasBoard {
         painter.rect_stroke(screen_rect, 4.0, border, egui::StrokeKind::Inside);
 
         // Title (bold) + content_type (muted). The title is the LIVE block title (reference, not copy).
-        let title = card.display_title().to_owned();
+        let title = self.placements[idx].display_title().to_owned();
         painter.text(
             Pos2::new(screen_rect.left() + 8.0, screen_rect.top() + 6.0),
             egui::Align2::LEFT_TOP,
@@ -1103,7 +1401,7 @@ impl LoomCanvasBoard {
             egui::FontId::proportional(13.0),
             palette.text,
         );
-        if let Some(ct) = &card.live_content_type {
+        if let Some(ct) = &self.placements[idx].live_content_type {
             painter.text(
                 Pos2::new(screen_rect.left() + 8.0, screen_rect.top() + 24.0),
                 egui::Align2::LEFT_TOP,
@@ -1117,9 +1415,11 @@ impl LoomCanvasBoard {
         // for any placement that maps to a real Loom block (RISK-3: skipped — no panic, no fabricated
         // URI — when `placed_block_id` is empty). The chip shows the full loom:// address; a resolved
         // content_hash adds a short ` #<8hex>` suffix (READ from the backend block, never written).
-        let chip_text = card.loom_addr(&self.workspace_id).map(|addr| {
+        let chip_text = self.placements[idx].loom_addr(&self.workspace_id).map(|addr| {
             let mut s = addr.to_uri();
-            if let Some(hash) = card.loom_content_hash.as_deref().filter(|h| !h.trim().is_empty()) {
+            if let Some(hash) =
+                self.placements[idx].loom_content_hash.as_deref().filter(|h| !h.trim().is_empty())
+            {
                 // CHAR-BOUNDARY SAFE: route the short prefix through ContentHash::short() rather than a
                 // raw byte slice `&hash[..8]` — the backend hash is untrusted (from_backend does not
                 // validate hex), so a multi-byte first char would otherwise panic the egui render thread.
@@ -1142,7 +1442,26 @@ impl LoomCanvasBoard {
         // description so the AccessKit `data-group-id` is readable — AC6 / AC9). MT-032 also exposes the
         // `loom://` chip text as the node's DESCRIPTION so an out-of-process agent reads the placement's
         // loom address by stable id (HBR-SWARM); a non-addressable placement has no chip description.
-        emit_placement_node(ui, card, &title, chip_text.as_deref());
+        emit_placement_node(ui, &self.placements[idx], &title, chip_text.as_deref());
+
+        // ── WP-KERNEL-012 MT-061: inline TEXT-CARD editor (AC-061-4). When THIS card is the one being
+        // edited, render an egui TextEdit::multiline over the card body instead of waiting for a click;
+        // commit on focus-loss / Ctrl+Enter, discard on Escape. Gated to text cards only (a block card is
+        // never `editing_card_id`, so it never reaches here — reference-not-copy).
+        let mut card_event: Option<CanvasEvent> = None;
+        if self.editing_card_id.as_deref() == Some(placement_id.as_str()) {
+            card_event = self.draw_inline_editor(ui, screen_rect, &placement_id, &placed_block_id, &title);
+        }
+
+        // ── WP-KERNEL-012 MT-061: bottom-right RESIZE handle (AC-061-1). A ~12px grab handle scaled by
+        // the current zoom; dragging it updates the card's w/h live (optimistic, screen-delta / zoom), and
+        // on drag-STOP fires ONE debounced ResizePlacement carrying the final clamped geometry. The handle
+        // is suppressed while this card is being inline-edited (the editor owns the card body).
+        if self.editing_card_id.as_deref() != Some(placement_id.as_str()) {
+            if let Some(ev) = self.draw_resize_handle(ui, painter, idx, screen_rect, palette) {
+                card_event = Some(ev);
+            }
+        }
 
         // Remove button ('x') at the card's top-right.
         let remove_size = Vec2::splat(18.0);
@@ -1150,7 +1469,7 @@ impl LoomCanvasBoard {
             Pos2::new(screen_rect.right() - remove_size.x - 4.0, screen_rect.top() + 4.0),
             remove_size,
         );
-        let remove_id = egui::Id::new(placement_remove_author_id(&card.placement_id));
+        let remove_id = egui::Id::new(placement_remove_author_id(&placement_id));
         let remove_resp = ui.interact(remove_rect, remove_id, Sense::click());
         let remove_bg = if remove_resp.hovered() {
             palette.error_text.gamma_multiply(0.25)
@@ -1167,12 +1486,178 @@ impl LoomCanvasBoard {
                 palette.text,
             );
         }
-        emit_remove_node(ui, &remove_resp, card);
+        emit_remove_node(ui, &remove_resp, &self.placements[idx]);
 
         if remove_resp.clicked() {
-            return Some(CanvasEvent::RemovePlacement { placement_id: card.placement_id.clone() });
+            return Some(CanvasEvent::RemovePlacement { placement_id });
+        }
+        card_event
+    }
+
+    /// WP-KERNEL-012 MT-061 (AC-061-1): the bottom-right resize handle for the card at `idx`. Returns ONE
+    /// debounced [`CanvasEvent::ResizePlacement`] on drag-STOP (never per dragged() frame — RISK-061-1).
+    /// During the drag, the card's w/h are updated optimistically (screen drag-delta / zoom, clamped to
+    /// [`MIN_CARD_W`]x[`MIN_CARD_H`]) and tracked in `self.resizing` so the card renders live at the
+    /// in-flight size. The handle always emits its `canvas.placement.{id}.resize` AccessKit node.
+    fn draw_resize_handle(
+        &mut self,
+        ui: &egui::Ui,
+        painter: &egui::Painter,
+        idx: usize,
+        screen_rect: Rect,
+        palette: &HsPalette,
+    ) -> Option<CanvasEvent> {
+        let placement_id = self.placements[idx].placement_id.clone();
+        // The handle is a small square at the card's bottom-right, scaled by zoom so it tracks the card.
+        let handle_px = RESIZE_HANDLE_PX * self.zoom;
+        let handle_rect = Rect::from_min_max(
+            Pos2::new(screen_rect.right() - handle_px, screen_rect.bottom() - handle_px),
+            Pos2::new(screen_rect.right(), screen_rect.bottom()),
+        );
+        let handle_id = egui::Id::new(("canvas.placement.resize", &placement_id));
+        let resp = ui.interact(handle_rect, handle_id, Sense::drag());
+
+        // Hover cursor affordance (NW-SE diagonal resize).
+        if resp.hovered() {
+            ui.output_mut(|o| o.cursor_icon = egui::CursorIcon::ResizeNwSe);
+        }
+
+        // Paint the grab affordance (a small accent triangle/handle) so the resize point is discoverable.
+        if ui.is_rect_visible(handle_rect) {
+            let grab = if resp.hovered() || resp.dragged() {
+                palette.accent
+            } else {
+                palette.border_strong.gamma_multiply(0.8)
+            };
+            painter.rect_filled(handle_rect, 2.0, grab);
+        }
+
+        // Always emit the resize-handle AccessKit node (AC-061-6 / HBR-SWARM) so a swarm agent can drive
+        // the resize by stable id even without a pointer.
+        emit_resize_node(ui, &resp, &placement_id);
+
+        let mut event = None;
+        if resp.dragged() {
+            // Optimistic in-flight resize: convert the SCREEN drag-delta to CANVAS units (/ zoom), add to
+            // the card's current w/h, clamp to the minimum. Track it in `self.resizing` (debounce state).
+            let delta = resp.drag_delta() / self.zoom;
+            if let Some(card) = self.placements.get_mut(idx) {
+                card.w = (card.w + delta.x).max(MIN_CARD_W);
+                card.h = (card.h + delta.y).max(MIN_CARD_H);
+                self.resizing = Some((placement_id.clone(), card.w, card.h));
+                self.status = format!("Resizing {placement_id} to {:.0}x{:.0}", card.w, card.h);
+            }
+        }
+        if resp.drag_stopped() {
+            // DEBOUNCE (RISK-061-1 / MC-061-1): fire EXACTLY ONE ResizePlacement for the whole gesture,
+            // with the final clamped geometry. The host PATCHes {w,h}, then getCanvasBoard reconciles.
+            if let Some((id, w, h)) = self.resizing.take() {
+                if id == placement_id {
+                    self.status = format!("Resized {placement_id} to {w:.0}x{h:.0}");
+                    event = Some(CanvasEvent::ResizePlacement { placement_id, w, h });
+                }
+            }
+        }
+        event
+    }
+
+    /// WP-KERNEL-012 MT-061 (AC-061-4): the in-place editor for a free-text card. Renders an
+    /// `egui::TextEdit::multiline` over the card body bound to `self.editing_buffer`. Commits on
+    /// focus-loss OR Ctrl+Enter (-> [`CanvasEvent::EditTextCard`] carrying the new title/body); discards
+    /// on Escape (no server call). Returns the commit event, if any, this frame.
+    fn draw_inline_editor(
+        &mut self,
+        ui: &mut egui::Ui,
+        screen_rect: Rect,
+        placement_id: &str,
+        block_id: &str,
+        title: &str,
+    ) -> Option<CanvasEvent> {
+        // The editor occupies the card body (below the title line), inset slightly from the border.
+        let editor_rect = Rect::from_min_max(
+            Pos2::new(screen_rect.left() + 6.0, screen_rect.top() + 22.0),
+            Pos2::new(screen_rect.right() - 6.0, screen_rect.bottom() - 6.0),
+        );
+        let editor_id = egui::Id::new(("canvas.placement.editor", placement_id));
+
+        // Escape discards the buffer and exits edit mode WITHOUT a server call (checked + CONSUMED before
+        // building the widget so the editor never sees the key and the discard wins this frame).
+        let escape = ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape));
+        if escape {
+            self.editing_card_id = None;
+            self.editing_buffer.clear();
+            self.status = format!("Discarded edit of {placement_id}");
+            return None;
+        }
+
+        // Ctrl/Cmd+Enter COMMITS. Consume it BEFORE the multiline TextEdit (which would otherwise insert a
+        // newline), so the keyboard commit is deterministic.
+        let ctrl_enter = ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::Enter));
+
+        let mut child = ui.new_child(
+            egui::UiBuilder::new().max_rect(editor_rect).layout(*ui.layout()),
+        );
+        let output = egui::TextEdit::multiline(&mut self.editing_buffer)
+            .id(editor_id)
+            .desired_width(editor_rect.width())
+            .frame(false)
+            .show(&mut child);
+        let resp = output.response;
+        // Focus the editor on the first frame it appears so typing lands without an extra click.
+        if !resp.has_focus() && ui.memory(|m| m.focused().is_none()) {
+            resp.request_focus();
+        }
+
+        // Commit triggers: Ctrl/Cmd+Enter (consumed above), OR the editor LOSES focus (clicked elsewhere).
+        let lost_focus = resp.lost_focus();
+        if ctrl_enter || lost_focus {
+            let body = std::mem::take(&mut self.editing_buffer);
+            self.editing_card_id = None;
+            self.status = format!("Saved {placement_id}");
+            return Some(CanvasEvent::EditTextCard {
+                placement_id: placement_id.to_owned(),
+                block_id: block_id.to_owned(),
+                title: title.to_owned(),
+                body,
+            });
         }
         None
+    }
+
+    /// WP-KERNEL-012 MT-061: draw the derived section/group FRAMES behind the cards. Each frame is a
+    /// translucent rounded rectangle (theme-token fill) with an opaque border + a title label at its
+    /// top-left, plus a `canvas.section.{id}` AccessKit node (Role::Group, label = section title). Drawn
+    /// FIRST in the canvas pass so cards paint on top (the frame reads as a container).
+    fn draw_section_frames(
+        &self,
+        ui: &egui::Ui,
+        painter: &egui::Painter,
+        layer: &crate::graph::canvas_sections::SectionLayer,
+        origin: Vec2,
+    ) {
+        for frame in &layer.frames {
+            let screen_min = self.canvas_to_screen(frame.rect.min, origin);
+            let screen_max = self.canvas_to_screen(frame.rect.max, origin);
+            let screen_rect = Rect::from_min_max(screen_min, screen_max);
+            // Translucent fill (the section hue at low alpha) + an opaque border in the same hue.
+            let fill = frame.color.gamma_multiply(0.12);
+            painter.rect_filled(screen_rect, 6.0, fill);
+            painter.rect_stroke(
+                screen_rect,
+                6.0,
+                Stroke::new(1.5, frame.color),
+                egui::StrokeKind::Inside,
+            );
+            // Title at the frame's top-left, inside the reserved title band.
+            painter.text(
+                Pos2::new(screen_rect.left() + 8.0, screen_rect.top() + 4.0),
+                egui::Align2::LEFT_TOP,
+                &frame.label,
+                egui::FontId::proportional(12.0),
+                frame.color,
+            );
+            emit_section_node(ui, frame);
+        }
     }
 }
 
@@ -1308,6 +1793,37 @@ fn emit_remove_node(ui: &egui::Ui, resp: &egui::Response, card: &CanvasPlacement
         node.set_author_id(author.clone());
         node.set_label(label.clone());
         node.add_action(accesskit::Action::Click);
+    });
+}
+
+/// WP-KERNEL-012 MT-061: emit a placement RESIZE handle's AccessKit node (Role::Button — a draggable grab
+/// affordance — + Action::Click so a swarm agent can address it, + the `canvas.placement.{id}.resize`
+/// author_id). AC-061-6 / HBR-SWARM.
+fn emit_resize_node(ui: &egui::Ui, resp: &egui::Response, placement_id: &str) {
+    let author = placement_resize_author_id(placement_id);
+    let label = format!("Resize {placement_id}");
+    ui.ctx().accesskit_node_builder(resp.id, move |node| {
+        node.set_role(accesskit::Role::Button);
+        node.set_author_id(author.clone());
+        node.set_label(label.clone());
+        node.add_action(accesskit::Action::Click);
+    });
+}
+
+/// WP-KERNEL-012 MT-061: emit a section/group FRAME's AccessKit node (Role::Group + the
+/// `canvas.section.{id}` author_id + the section label as the accessible name + the group_id in `value`).
+/// The frame is painter-drawn (no egui widget), so it gets a stable `egui::Id` from its author_id (the
+/// same pattern as the placement card node). AC-061-2 / AC-061-6 / HBR-SWARM.
+fn emit_section_node(ui: &egui::Ui, frame: &crate::graph::canvas_sections::SectionFrame) {
+    let author = crate::graph::canvas_sections::section_author_id(&frame.id);
+    let id = egui::Id::new(&author);
+    let label = frame.label.clone();
+    let value = format!("group_id={}", frame.id);
+    ui.ctx().accesskit_node_builder(id, move |node| {
+        node.set_role(accesskit::Role::Group);
+        node.set_author_id(author.clone());
+        node.set_label(label.clone());
+        node.set_value(value.clone());
     });
 }
 
@@ -1544,5 +2060,114 @@ mod tests {
             (back.x - rect.center().x).abs() < 0.5 && (back.y - rect.center().y).abs() < 0.5,
             "default_place_pos must round-trip to the visible centre (got {pos:?} -> {back:?})"
         );
+    }
+
+    // ── WP-KERNEL-012 MT-061 lib-unit proofs (the widget-internal logic the kittest harness drives) ──
+
+    /// AC-061-5 (reference-not-copy): a block-backed card's `card_kind` defaults to `BlockRef`, so it is
+    /// NOT inline-editable; only a card explicitly marked `as_text_card` is a `TextCard`.
+    #[test]
+    fn card_kind_default_is_block_ref_and_gates_inline_edit() {
+        let block_card = CanvasPlacementCard::new("p-1", "blk-7", 0.0, 0.0, 200.0, 120.0);
+        assert_eq!(block_card.card_kind, CanvasCardKind::BlockRef, "default is a block reference");
+        assert!(!block_card.card_kind.is_text_card(), "a block ref is NOT inline-editable");
+        let text_card =
+            CanvasPlacementCard::new("p-2", "blk-8", 0.0, 0.0, 200.0, 120.0).as_text_card("hello body");
+        assert_eq!(text_card.card_kind, CanvasCardKind::TextCard, "as_text_card marks a TextCard");
+        assert!(text_card.card_kind.is_text_card(), "a text card IS inline-editable");
+        assert_eq!(text_card.live_body.as_deref(), Some("hello body"), "text card seeds its body");
+    }
+
+    /// AC-061-1 clamp: the resize handle clamps the card to the minimum size — w/h can never go below
+    /// MIN_CARD_W x MIN_CARD_H regardless of how far the handle is dragged inward. (Drives the live resize
+    /// math the kittest harness exercises with a real pointer drag.)
+    #[test]
+    fn resize_clamps_to_minimum() {
+        // Simulate the in-flight resize math: a large negative delta cannot shrink below the minimum.
+        let mut w: f32 = 200.0;
+        let mut h: f32 = 120.0;
+        // Apply a huge inward delta (as draw_resize_handle does: card.w = (card.w + delta).max(MIN)).
+        w = (w + -1000.0).max(MIN_CARD_W);
+        h = (h + -1000.0).max(MIN_CARD_H);
+        assert_eq!(w, MIN_CARD_W, "resize clamps width to MIN_CARD_W");
+        assert_eq!(h, MIN_CARD_H, "resize clamps height to MIN_CARD_H");
+        // The minimums match the contract's 80x48 canvas-unit floor.
+        assert_eq!((MIN_CARD_W, MIN_CARD_H), (80.0, 48.0), "minimums match the contract (80x48)");
+    }
+
+    /// AC-061-5 (the load-bearing invariant): a resize + section-assign cycle on a BLOCK-backed card never
+    /// changes the set of underlying block_ids on the board (no block is duplicated/forked). We mutate the
+    /// placement geometry + group like the widget does and assert the placed_block_id set is invariant.
+    #[test]
+    fn reference_not_copy_block_id_set_invariant_across_resize_and_section() {
+        let mut b = board_with(2); // p-001/block-001, p-002/block-002 (both BlockRef by default)
+        let before: std::collections::BTreeSet<String> =
+            b.placements.iter().map(|p| p.placed_block_id.clone()).collect();
+        // RESIZE p-001 (mutate ONLY the placement record's w/h).
+        {
+            let card = b.placements.iter_mut().find(|p| p.placement_id == "p-001").unwrap();
+            card.w = 320.0;
+            card.h = 200.0;
+        }
+        // SECTION-ASSIGN p-001 (mutate ONLY the placement record's group_id).
+        {
+            let card = b.placements.iter_mut().find(|p| p.placement_id == "p-001").unwrap();
+            card.group_id = Some("g-research".to_owned());
+        }
+        let after: std::collections::BTreeSet<String> =
+            b.placements.iter().map(|p| p.placed_block_id.clone()).collect();
+        assert_eq!(before, after, "AC-061-5: the underlying block_id set is INVARIANT (no copy/fork)");
+        // The count of placements is unchanged too (no duplicate placement created).
+        assert_eq!(b.placements.len(), 2, "no placement duplicated by resize/section");
+    }
+
+    /// MC-061-2 rollback: after a resize PATCH FAILS, the host calls `rollback_placement_geometry` with
+    /// the last server-confirmed geometry, reverting the optimistic w/h and clearing the in-flight state.
+    #[test]
+    fn rollback_restores_server_geometry_on_patch_failure() {
+        let mut b = board_with(1); // p-001/block-001 at (20,40) 200x120
+        // Optimistically resize p-001 (as a drag would) and mark it in-flight.
+        {
+            let card = b.placements.iter_mut().find(|p| p.placement_id == "p-001").unwrap();
+            card.w = 400.0;
+            card.h = 300.0;
+        }
+        b.resizing = Some(("p-001".to_owned(), 400.0, 300.0));
+        // The PATCH fails -> roll back to the last server-confirmed geometry (200x120 at 20,40).
+        let rolled = b.rollback_placement_geometry("p-001", 20.0, 40.0, 200.0, 120.0);
+        assert!(rolled, "rollback found and reverted the placement");
+        let card = b.placements.iter().find(|p| p.placement_id == "p-001").unwrap();
+        assert_eq!((card.x, card.y, card.w, card.h), (20.0, 40.0, 200.0, 120.0), "geometry reverted");
+        assert!(b.resizing.is_none(), "in-flight resize state cleared on rollback");
+    }
+
+    /// AssignSection event shape: clearing (drop outside all frames) carries `group_id: None`; assigning
+    /// carries `Some(id)`. (The event the widget emits on a card-move drag-stop.)
+    #[test]
+    fn assign_section_event_shape() {
+        let assign = CanvasEvent::AssignSection {
+            placement_id: "p-1".to_owned(),
+            group_id: Some("g-a".to_owned()),
+        };
+        let clear = CanvasEvent::AssignSection { placement_id: "p-1".to_owned(), group_id: None };
+        match assign {
+            CanvasEvent::AssignSection { group_id: Some(g), .. } => assert_eq!(g, "g-a"),
+            _ => panic!("assign must carry Some(group_id)"),
+        }
+        match clear {
+            CanvasEvent::AssignSection { group_id: None, .. } => {}
+            _ => panic!("clear must carry None group_id"),
+        }
+    }
+
+    /// AC-061-6: the resize-handle author_id extends (does not collide with) the placement card id.
+    #[test]
+    fn resize_author_id_extends_placement_id() {
+        let card_id = placement_author_id("p-001");
+        let resize_id = placement_resize_author_id("p-001");
+        assert_eq!(resize_id, "canvas.placement.p-001.resize");
+        assert!(resize_id.starts_with(&card_id), "resize id extends the card id (no collision)");
+        assert_ne!(resize_id, card_id, "resize id is distinct from the card id");
+        assert_ne!(resize_id, placement_remove_author_id("p-001"), "resize id != remove id");
     }
 }

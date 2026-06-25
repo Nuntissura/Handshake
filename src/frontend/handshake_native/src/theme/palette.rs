@@ -416,3 +416,23 @@ pub fn graph_group_palette() -> [Color32; GRAPH_GROUP_PALETTE_LEN] {
         Color32::from_rgb(0x00, 0x89, 0x7B), // teal
     ]
 }
+
+/// Number of distinct default section-frame color tokens for the WP-KERNEL-012 MT-061 Loom canvas
+/// section/group frames.
+pub const CANVAS_SECTION_PALETTE_LEN: usize = 8;
+
+/// A stable 8-hue default palette for Obsidian-Canvas section/group FRAMES on the native Loom canvas
+/// (WP-KERNEL-012 MT-061). A section frame is derived per distinct `group_id`; its hue is assigned by the
+/// group's discovery order modulo this palette (a deterministic, theme-stable identity hue), NOT a
+/// semantic theme token — the same group_id always reads with the same frame hue across light/dark so the
+/// canvas grouping is visually stable. It lives in `palette.rs` because that is the sanctioned home for
+/// `Color32` literals: the no-hardcoded-color guard (`tests/test_theme.rs`
+/// `no_hardcoded_color32_outside_theme_module`) exempts `palette.rs`/`syntax.rs` ONLY, so the MT-061
+/// CONTROL-4 "NO `Color32::from_rgb` literal in canvas_board.rs / canvas_sections.rs" requirement is
+/// satisfied by sourcing every frame hue from this function. The hues reuse the graph-group vocabulary so
+/// a canvas section reads in the same visual family as its graph/tag group (interop legibility). The
+/// frame fill is drawn translucent at paint time (the caller applies a low-alpha multiply); these hues
+/// are the opaque identity colors.
+pub fn canvas_section_palette() -> [Color32; CANVAS_SECTION_PALETTE_LEN] {
+    graph_group_palette()
+}

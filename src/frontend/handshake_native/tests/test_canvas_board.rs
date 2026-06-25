@@ -189,7 +189,12 @@ fn canvas_accesskit_placements_and_toolbar() {
         "PROOF2: second placement label must equal its live block title"
     );
 
-    let placement_count = ids.iter().filter(|a| a.starts_with("canvas.placement.") && !a.ends_with(".remove")).count();
+    // WP-KERNEL-012 MT-061 added `canvas.placement.{id}.resize` handle nodes that share the prefix; the
+    // CARD count excludes both the `.remove` button and the `.resize` handle suffixes.
+    let placement_count = ids
+        .iter()
+        .filter(|a| a.starts_with("canvas.placement.") && !a.ends_with(".remove") && !a.ends_with(".resize"))
+        .count();
     assert_eq!(placement_count, 2, "PROOF2: exactly 2 placement nodes (got {placement_count})");
 
     println!("PROOF2/AC9: 2 placement nodes with live-title labels + toolbar ids present");
@@ -328,7 +333,8 @@ fn canvas_place_block_fallback_field() {
     let ids = author_ids(&harness);
     let placement_count = ids
         .iter()
-        .filter(|a| a.starts_with("canvas.placement.") && !a.ends_with(".remove"))
+        // MT-061 `.resize` handle nodes share the `canvas.placement.` prefix; exclude them (+ `.remove`).
+        .filter(|a| a.starts_with("canvas.placement.") && !a.ends_with(".remove") && !a.ends_with(".resize"))
         .count();
     assert_eq!(placement_count, 3, "PROOF3/AC4: 3 placement nodes after the place + refresh");
     assert!(ids.contains(&placement_author_id("p-003")), "PROOF3: the placed card node is present");

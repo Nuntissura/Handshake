@@ -7,6 +7,10 @@
 
 pub mod block_collection_view;
 pub mod canvas_board;
+// WP-KERNEL-012 MT-061 (E3): Obsidian-Canvas section/group FRAMES for the MT-026 canvas. Derives a
+// titled rounded-rectangle container per distinct placement `group_id` (drawn behind the cards) and owns
+// the deterministic which_section(drop_pos) hit-testing the canvas uses for drag-drop section assignment.
+pub mod canvas_sections;
 pub mod folder_tree;
 // WP-KERNEL-012 MT-060 (E3): the Obsidian-class graph control panel (search filter / tag+folder groups /
 // link-depth slider / orphan + size-by-degree toggles) rendered alongside the MT-021 graph canvas. Pure
@@ -27,6 +31,12 @@ pub use canvas_board::{
     DEFAULT_CARD_W, EDGE_MODE_AUTHOR_ID, GROUP_AUTHOR_ID, PAN_LEFT_AUTHOR_ID, PAN_RIGHT_AUTHOR_ID,
     PLACEMENT_AUTHOR_ID_PREFIX, PLACE_BLOCK_AUTHOR_ID, PLACE_BLOCK_INPUT_AUTHOR_ID,
     START_EDGE_AUTHOR_ID, STATUS_AUTHOR_ID, ZOOM_VALUE_AUTHOR_ID,
+};
+
+// WP-KERNEL-012 MT-061 (E3): the canvas section/group frame layer + hit-testing + AccessKit helper,
+// re-exported flat for the host pane + the proof tests.
+pub use canvas_sections::{
+    section_author_id, SectionFrame, SectionLayer, SECTION_AUTHOR_ID_PREFIX,
 };
 
 pub use graph_view::{
