@@ -103,7 +103,7 @@ struct PaletteState {
 /// rendered as a backdrop [`egui::Area`] (full-screen, behind the panel, catches click-to-dismiss) plus
 /// a centred [`egui::Window`] with the title bar hidden — both on the `Foreground` order so the palette
 /// sits above the workspace (AC10) but below a higher overlay the shell renders later (settings).
-pub fn show(ctx: &egui::Context, open_count: u64) -> PaletteOutcome {
+pub fn show(ctx: &egui::Context, open_count: u64, editor_available: bool) -> PaletteOutcome {
     let state_id = egui::Id::new("command-palette.state");
     let mut state: PaletteState = ctx
         .data_mut(|d| d.get_temp::<PaletteState>(state_id))
@@ -166,10 +166,12 @@ pub fn show(ctx: &egui::Context, open_count: u64) -> PaletteOutcome {
         return PaletteOutcome::Close;
     }
 
-    // Enter runs the selected ENABLED command (AC4 / AC7: disabled rows are not runnable).
+    // Enter runs the selected ENABLED command (AC4 / AC7: disabled rows are not runnable). MT-069: an
+    // EditorMenu command is enabled only when an editor pane is the focusable target (the live predicate),
+    // so the effective-disabled gate — not the static flag — decides runnability.
     if enter {
         if let Some(cmd) = filtered.get(state.selected_index) {
-            if !cmd.disabled {
+            if !crate::command_registry::effective_disabled(cmd, editor_available) {
                 outcome = PaletteOutcome::Run(cmd.id.to_owned());
             }
         }
@@ -273,11 +275,16 @@ pub fn show(ctx: &egui::Context, open_count: u64) -> PaletteOutcome {
                         }
                         for (idx, cmd) in rows.iter().enumerate() {
                             let is_selected = idx == sel && !rows.is_empty();
-                            let resp = command_row(ui, cmd, is_selected);
+                            // MT-069: the row's runnable/disabled state is the LIVE effective predicate
+                            // (an EditorMenu command needs an editor pane available), not just the static
+                            // catalog flag — so a stale-state editor row is honestly greyed (RISK-006).
+                            let row_disabled =
+                                crate::command_registry::effective_disabled(cmd, editor_available);
+                            let resp = command_row(ui, cmd, is_selected, row_disabled);
                             if resp.hovered() {
                                 hovered_index = Some(idx);
                             }
-                            if resp.clicked() && !cmd.disabled {
+                            if resp.clicked() && !row_disabled {
                                 clicked_command = Some(cmd.id.to_owned());
                             }
                         }
@@ -319,12 +326,18 @@ fn persist(ctx: &egui::Context, state_id: egui::Id, state: &PaletteState) {
 /// Render one command row as a full-width selectable button. The selected row uses egui's selection
 /// fill; a disabled row renders grayed and is added via `add_enabled(false, ..)` so it cannot be
 /// clicked into a run (AC7 — no fake-enable). Bold label on the left, muted description on the right.
-fn command_row(ui: &mut egui::Ui, cmd: &AppCommand, is_selected: bool) -> egui::Response {
+fn command_row(
+    ui: &mut egui::Ui,
+    cmd: &AppCommand,
+    is_selected: bool,
+    disabled: bool,
+) -> egui::Response {
     let author_id = format!("{ROW_AUTHOR_ID_PREFIX}{}", cmd.stable_id);
     let full_width = ui.available_width();
 
     // Build the row text: bold label + muted description, laid out as one button so the whole row is a
-    // single addressable ListBoxOption.
+    // single addressable ListBoxOption. `disabled` is the LIVE effective state (MT-069 predicate), not the
+    // raw catalog flag.
     let mut job = egui::text::LayoutJob::default();
     let strong = ui.visuals().strong_text_color();
     let weak = ui.visuals().weak_text_color();
@@ -332,7 +345,7 @@ fn command_row(ui: &mut egui::Ui, cmd: &AppCommand, is_selected: bool) -> egui::
         cmd.label,
         0.0,
         egui::TextFormat {
-            color: if cmd.disabled { weak } else { strong },
+            color: if disabled { weak } else { strong },
             ..Default::default()
         },
     );
@@ -341,13 +354,13 @@ fn command_row(ui: &mut egui::Ui, cmd: &AppCommand, is_selected: bool) -> egui::
         0.0,
         egui::TextFormat {
             color: weak,
-            italics: cmd.disabled,
+            italics: disabled,
             ..Default::default()
         },
     );
 
     let response = ui.add_enabled(
-        !cmd.disabled,
+        !disabled,
         egui::Button::selectable(is_selected, job)
             .truncate()
             .min_size(egui::vec2(full_width, 0.0)),
@@ -357,7 +370,6 @@ fn command_row(ui: &mut egui::Ui, cmd: &AppCommand, is_selected: bool) -> egui::
     // egui built for this row (SelectableLabel derives Role + Action::Click from its Sense). This adds
     // the out-of-process address while leaving egui's interactive role/actions intact.
     let label = cmd.label.to_owned();
-    let disabled = cmd.disabled;
     ui.ctx().accesskit_node_builder(response.id, move |node| {
         node.set_role(accesskit::Role::ListBoxOption);
         node.set_author_id(author_id);

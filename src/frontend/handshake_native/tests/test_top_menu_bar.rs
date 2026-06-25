@@ -389,6 +389,10 @@ fn menubar_widget_returns_command_palette_action() {
         project_drawer_open: true,
         bottom_drawer_open: false,
         has_active_tab: true,
+        editor_available: true,
+        editor_can_undo: true,
+        editor_can_redo: true,
+        editor_can_paste: true,
     };
     use std::sync::{Arc, Mutex};
     let captured: Arc<Mutex<Option<handshake_native::top_menu_bar::MenuBarAction>>> =

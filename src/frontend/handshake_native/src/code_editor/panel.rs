@@ -8557,6 +8557,16 @@ impl CodeEditorPanel {
         self.send_to_command_bus(CodeEditorAction::Save);
     }
 
+    /// WP-KERNEL-012 MT-069: dispatch a Save intent through the EXACT SAME command channel the keymap
+    /// Ctrl+S path uses (`send_to_command_bus(CodeEditorAction::Save)`), so a menu-bar / command-palette
+    /// "Save" routes to the MT-020 editor save path identically to a keyboard Save — one save substrate,
+    /// no shell-local write (MC-004 / RISK-004). The shell drains the channel in `drive_editor_mounts` and
+    /// records it as `last_editor_command`; the editor command owns the handshake_core write. Benign no-op
+    /// + trace when no host channel is wired (headless).
+    pub fn request_save_for_host(&self) {
+        self.request_save();
+    }
+
     /// Open the command palette (Ctrl+Shift+P). Routes to the SAME WP-011 command palette via the
     /// injected channel (implementation note — do NOT build a second palette). A no-op + trace when no
     /// host channel is wired.

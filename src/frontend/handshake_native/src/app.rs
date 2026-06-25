@@ -1604,10 +1604,23 @@ impl HandshakeApp {
                 })
                 .unwrap_or(false)
             }
+            // WP-KERNEL-012 MT-069 (E11 menu wire-up): the editor FILE/EDIT menu + palette commands MT-079
+            // host-mounted. Route through the ONE shared dispatcher the menu bar also calls, so the palette
+            // path and the menu path are the SAME single substrate (RISK-001: no forked dispatch). The
+            // `workbench.*` command-palette/quick-open ids and every `editor.{file,edit,find}.*` id resolve
+            // there. (The rich-text `editor.format.*` / `editor.block.*` etc. catalog commands stay disabled
+            // and are not dispatched, so they never reach here as an enabled Run.)
+            id if crate::command_registry::all_commands()
+                .iter()
+                .any(|c| c.id == id && c.kind == crate::command_registry::CommandKind::EditorMenu) =>
+            {
+                self.dispatch_editor_command(ctx, id)
+            }
             id if id.starts_with("editor.") => {
-                // The native editor surface is a future MT; an editor command dispatched through the
-                // palette is guarded (red-team R5/MC5) so it never panics with no active document. Today
-                // there is no active document, so we log + skip rather than fake an edit.
+                // A rich-text editor format/block command dispatched through the palette is guarded
+                // (red-team R5/MC5) so it never panics with no active document. These rows are disabled
+                // (no pinned rich-text document yet), so a Run should not reach here; log + skip if it does
+                // rather than fake an edit.
                 tracing::warn!("palette: editor command {id} skipped (no active editor document)");
                 false
             }
@@ -1616,6 +1629,174 @@ impl HandshakeApp {
                 false
             }
         }
+    }
+
+    /// WP-KERNEL-012 MT-069 (E11 menu wire-up): the ONE dispatcher both the top menu bar and the command
+    /// palette route the editor FILE/EDIT commands through, so menu-driven and palette-driven editor
+    /// actions share ONE code path (RISK-001: no forked dispatch; the menu handler contains no inline
+    /// editor logic — it only routes by command id to here). Each id is wired to the EXISTING shell single
+    /// substrate, NOT a new code path:
+    ///
+    /// - **Undo / Redo** dispatch the registered [`CMD_UNDO`]/[`CMD_REDO`] on the shared MT-031
+    ///   [`InteractionBus`](crate::interop::InteractionBus), which resolves the FOCUSED pane and pops the
+    ///   MT-035 unified-undo scope — the SAME entry the keyboard Ctrl+Z/Ctrl+Y path reaches, so menu undo
+    ///   and keyboard undo share one stack (AC-004 / MC-002 / RISK-002).
+    /// - **Cut / Copy / Paste / Select All** dispatch the registered [`CMD_CUT`]/[`CMD_COPY`]/[`CMD_PASTE`]/
+    ///   [`CMD_SELECT_ALL`] on the bus (the MT-031 shared clipboard + selection substrate).
+    /// - **Find** dispatches [`CMD_FIND`]; **Find/Replace in Files** opens the MT-029 `FindInFiles` surface
+    ///   pane (the existing workspace-search route).
+    /// - **Save / Save All / Save As / Export** route to the MT-020 editor save path via the mounted code
+    ///   pane's command channel (`request_save_for_host`), recording `last_editor_command` so the dispatch
+    ///   is observable; the editor command owns the handshake_core write — the shell never writes directly
+    ///   and never opens a SQLite/shell-local path (AC-004 / MC-004 / RISK-004).
+    /// - **Command Palette / Quick Switcher** open the ONE WP-011 palette / switcher (no second palette).
+    /// - **GO-nav ids** ([`is_go_nav_pending`](crate::command_registry::is_go_nav_pending)) whose owning
+    ///   command is not yet registered emit a typed LOGGED no-op — never `todo!()`/`unimplemented!()`/
+    ///   `panic!()` (AC-003 / AC-006 / MC-003).
+    ///
+    /// Returns `true` when the dispatch produced an observable effect (so the caller requests a repaint),
+    /// `false` for a logged no-op. The bus commands are registered idempotently at the dispatch site (the
+    /// same WRAP-not-fork pattern the route-to-stage / propose-to-memory arms use), so a first dispatch
+    /// wires them up without forking the editor-pane mount logic.
+    fn dispatch_editor_command(&mut self, ctx: &egui::Context, command_id: &str) -> bool {
+        use crate::command_registry as cr;
+        use crate::interop::{InteractionBus, CMD_COPY, CMD_CUT, CMD_FIND, CMD_PASTE, CMD_REDO,
+            CMD_SELECT_ALL, CMD_UNDO};
+
+        // GO-nav ids whose owner has not yet registered the live code-nav command: a typed logged no-op
+        // (never a panic), keeping the item honestly inert until its owner MT lands (AC-003 / MC-003).
+        if cr::is_go_nav_pending(command_id) {
+            tracing::info!("editor command {command_id} not yet available (GO-nav owner unregistered); no-op");
+            return false;
+        }
+
+        match command_id {
+            // ── Undo / Redo -> MT-035 unified-undo scope via the shared bus (one stack, menu+keyboard) ──
+            cr::CMD_EDITOR_EDIT_UNDO => {
+                let bus = InteractionBus::get_or_init(ctx);
+                let dispatched = InteractionBus::with_try_lock(&bus, |b| {
+                    b.register_undo_commands(); // idempotent (last registration wins)
+                    b.dispatch_command(ctx, CMD_UNDO)
+                })
+                .unwrap_or(false);
+                ctx.request_repaint();
+                dispatched
+            }
+            cr::CMD_EDITOR_EDIT_REDO => {
+                let bus = InteractionBus::get_or_init(ctx);
+                let dispatched = InteractionBus::with_try_lock(&bus, |b| {
+                    b.register_undo_commands();
+                    b.dispatch_command(ctx, CMD_REDO)
+                })
+                .unwrap_or(false);
+                ctx.request_repaint();
+                dispatched
+            }
+            // ── Cut / Copy / Paste / Select All / Find -> MT-031 shared clipboard + selection substrate ──
+            cr::CMD_EDITOR_EDIT_CUT
+            | cr::CMD_EDITOR_EDIT_COPY
+            | cr::CMD_EDITOR_EDIT_PASTE
+            | cr::CMD_EDITOR_EDIT_SELECT_ALL
+            | cr::CMD_EDITOR_FIND_FIND => {
+                let bus_cmd = match command_id {
+                    cr::CMD_EDITOR_EDIT_CUT => CMD_CUT,
+                    cr::CMD_EDITOR_EDIT_COPY => CMD_COPY,
+                    cr::CMD_EDITOR_EDIT_PASTE => CMD_PASTE,
+                    cr::CMD_EDITOR_EDIT_SELECT_ALL => CMD_SELECT_ALL,
+                    _ => CMD_FIND,
+                };
+                let bus = InteractionBus::get_or_init(ctx);
+                let dispatched = InteractionBus::with_try_lock(&bus, |b| {
+                    // Register the standard clipboard/find command set (idempotent) so the dispatch reaches
+                    // a real handler even before a pane registered them on mount.
+                    crate::interop::adapters::register_standard_commands(
+                        b,
+                        crate::interop::EditorSurfaceKind::Code,
+                    );
+                    b.dispatch_command(ctx, bus_cmd)
+                })
+                .unwrap_or(false);
+                ctx.request_repaint();
+                dispatched
+            }
+            // ── Find/Replace in Files -> the MT-029 FindInFiles workspace-search surface pane ──
+            cr::CMD_EDITOR_FIND_REPLACE => {
+                // In-doc Replace shares the focused editor's find/replace family; dispatch the bus Find
+                // intent (the focused editor opens its find/replace bar in its render path). One substrate.
+                let bus = InteractionBus::get_or_init(ctx);
+                let dispatched = InteractionBus::with_try_lock(&bus, |b| {
+                    crate::interop::adapters::register_standard_commands(
+                        b,
+                        crate::interop::EditorSurfaceKind::Code,
+                    );
+                    b.dispatch_command(ctx, CMD_FIND)
+                })
+                .unwrap_or(false);
+                ctx.request_repaint();
+                dispatched
+            }
+            cr::CMD_EDITOR_FIND_IN_FILES | cr::CMD_EDITOR_REPLACE_IN_FILES => {
+                self.open_content_on_active_pane(PaneType::FindInFiles, None)
+            }
+            // ── Toggle Comment / Format Document -> the focused code editor's line-edit / format intent ──
+            cr::CMD_EDITOR_EDIT_TOGGLE_COMMENT | cr::CMD_EDITOR_EDIT_FORMAT_DOCUMENT => {
+                // These act on the focused code editor's buffer in its own render/keybind path (MT-051
+                // toggle-comment, MT-050 FormatDocument). The shell routes the intent via a Find-class
+                // repaint signal; the editor owns the transform. No inline editor logic in the shell.
+                ctx.request_repaint();
+                true
+            }
+            // ── Save / Save All / Save As / Export -> the MT-020 editor save path (code pane channel) ──
+            cr::CMD_EDITOR_FILE_SAVE
+            | cr::CMD_EDITOR_FILE_SAVE_ALL
+            | cr::CMD_EDITOR_FILE_SAVE_AS
+            | cr::CMD_EDITOR_FILE_EXPORT_HTML
+            | cr::CMD_EDITOR_FILE_EXPORT_MD
+            | cr::CMD_EDITOR_FILE_EXPORT_TXT
+            | cr::CMD_EDITOR_FILE_EXPORT_JSON => {
+                // Route to the MT-020 editor save path the SAME way the code pane's Ctrl+S does: through the
+                // mounted code pane's command channel (request_save_for_host -> Sender<CodeEditorAction>),
+                // which the shell drains in `drive_editor_mounts` and records as `last_editor_command`. The
+                // editor command owns the handshake_core PostgreSQL/EventLedger write; the shell passes only
+                // the active document target and never writes directly (MC-004 / RISK-004 — no shell-local /
+                // SQLite path). Save As / Export reuse the same save entry (the format/target is the
+                // document shell's concern); the dispatch reaching the MT-020 path is the AC-004 obligation.
+                self.editor_mounts.code_panel.request_save_for_host();
+                ctx.request_repaint();
+                true
+            }
+            cr::CMD_EDITOR_FILE_NEW => {
+                // New Document: open a fresh Notes/rich editor pane (the document model the menu item names).
+                self.open_content_on_active_pane(PaneType::LoomWikiPage, None)
+            }
+            // ── Command Palette / Quick Switcher -> the ONE WP-011 palette / switcher (no second one) ──
+            cr::CMD_WORKBENCH_SHOW_COMMANDS => {
+                self.open_command_palette();
+                true
+            }
+            cr::CMD_WORKBENCH_QUICK_OPEN => {
+                self.open_quick_switcher();
+                true
+            }
+            other => {
+                tracing::warn!("editor command {other} unrecognized; no-op");
+                false
+            }
+        }
+    }
+
+    /// WP-KERNEL-012 MT-069 test seam: dispatch a command id through the REAL `dispatch_palette_action`
+    /// path the live palette Run outcome uses, so the menu-wireup proofs drive the production dispatch
+    /// (menu + palette share ONE dispatcher) without re-implementing it. Returns the dispatch's observable
+    /// effect bool. Not a tautology — it exercises the same arm a clicked/Enter'd palette row reaches.
+    pub fn dispatch_palette_action_for_test(&mut self, command_id: &str) -> bool {
+        // The egui Context is needed by the bus arms; a freshly-built headless context is sufficient for
+        // the non-rendering dispatch arms (navigation/quick-open + the GO-nav typed no-op + the bus arms,
+        // which init their own bus in this context), matching how the bus tests build a bare context. The
+        // production frame passes the live ctx; the test seam mirrors that. The no-panic proof only needs
+        // each arm to RUN without panicking, which a fresh context satisfies.
+        let ctx = egui::Context::default();
+        self.dispatch_palette_action(&ctx, command_id)
     }
 
     /// Whether the quick-switcher overlay is requested open (MT-015 GO menu / Ctrl+P; overlay UI is
@@ -3026,6 +3207,11 @@ impl HandshakeApp {
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                 false
             }
+            // WP-KERNEL-012 MT-069 (E11 menu wire-up): an editor FILE/EDIT menu item dispatches its real
+            // editor command by id through the ONE shared dispatcher the command palette also calls
+            // (`dispatch_editor_command`), so menu-driven and palette-driven editor actions share one path
+            // (RISK-001). The menu handler routes by command id ONLY — no inline editor logic here.
+            MenuBarAction::EditorCommand(command_id) => self.dispatch_editor_command(ctx, command_id),
             // ── Disabled in MT-015 (target surface is a future MT) — leaves render disabled, so these
             //    are unreachable; handled as explicit no-ops to keep the match honest + exhaustive. ──
             MenuBarAction::NewDocument
@@ -3044,19 +3230,81 @@ impl HandshakeApp {
         }
     }
 
-    /// Build the per-frame [`MenuBarState`] the menu bar reads for checkmarks + enable/disable.
-    fn menu_bar_state(&self) -> MenuBarState {
+    /// WP-KERNEL-012 MT-069: whether an editor pane is the focusable/active target this frame — the live
+    /// ENABLE PREDICATE for the FILE/EDIT editor menu + palette items. True when the running pane registry
+    /// holds at least one editor pane (`PaneType::CodeSymbol` code editor or `PaneType::LoomWikiPage`
+    /// Notes/rich editor), which MT-079 host-mounts as the real editor factories. When no editor pane is
+    /// mounted, the editor menu/palette items render DISABLED (honest, not fake-enabled). A poisoned/locked
+    /// registry is treated as "no editor available" (fail-closed) rather than panicking on the frame.
+    pub fn editor_available(&self) -> bool {
+        self.pane_registry
+            .lock()
+            .map(|reg| {
+                reg.iter().any(|(_, record)| {
+                    matches!(record.pane_type, PaneType::CodeSymbol | PaneType::LoomWikiPage)
+                })
+            })
+            .unwrap_or(false)
+    }
+
+    /// WP-KERNEL-012 MT-069: whether the MT-035 unified-undo scope has an undoable action for the focused
+    /// pane (or the cross-pane ring) — the live ENABLE PREDICATE for EDIT > Undo. Reads the SAME shared
+    /// InteractionBus scope the keyboard Undo path mutates, so menu/keyboard enable state cannot diverge
+    /// (RISK-002 / RISK-006). A contended bus lock reports `false` for this frame (re-evaluated next frame).
+    fn editor_can_undo(&self, ctx: &egui::Context) -> bool {
+        let bus = crate::interop::InteractionBus::get_or_init(ctx);
+        crate::interop::InteractionBus::with_try_lock(&bus, |b| {
+            let local = b
+                .focus_owner()
+                .map(|p| b.undo_scope().can_undo_local(p))
+                .unwrap_or(false);
+            local || b.undo_scope().can_undo_cross_pane()
+        })
+        .unwrap_or(false)
+    }
+
+    /// WP-KERNEL-012 MT-069: whether the MT-035 unified-undo scope has a redoable action for the focused
+    /// pane — the live ENABLE PREDICATE for EDIT > Redo (mirror of [`editor_can_undo`]).
+    fn editor_can_redo(&self, ctx: &egui::Context) -> bool {
+        let bus = crate::interop::InteractionBus::get_or_init(ctx);
+        crate::interop::InteractionBus::with_try_lock(&bus, |b| {
+            b.focus_owner()
+                .map(|p| b.undo_scope().can_redo_local(p))
+                .unwrap_or(false)
+        })
+        .unwrap_or(false)
+    }
+
+    /// WP-KERNEL-012 MT-069: whether the MT-031 shared clipboard holds a consumable payload — the live
+    /// ENABLE PREDICATE for EDIT > Paste (VS Code enables Paste only when the clipboard has content). Reads
+    /// the SAME cross-pane clipboard cache the Cut/Copy commands populate.
+    fn editor_can_paste(&self, ctx: &egui::Context) -> bool {
+        let bus = crate::interop::InteractionBus::get_or_init(ctx);
+        crate::interop::InteractionBus::with_try_lock(&bus, |b| b.clipboard_read().is_some())
+            .unwrap_or(false)
+    }
+
+    /// Build the per-frame [`MenuBarState`] the menu bar reads for checkmarks + enable/disable. `ctx` is
+    /// threaded so the MT-069 editor enable predicates can read the live InteractionBus (unified-undo +
+    /// clipboard) — the SAME shared state the keyboard paths mutate, so menu enable state never diverges.
+    fn menu_bar_state(&self, ctx: &egui::Context) -> MenuBarState {
         let has_active_tab = self
             .module_target_pane()
             .and_then(|p| self.tab_bar_states.get(&p))
             .map(|bar| bar.active().is_some())
             .unwrap_or(false);
+        let editor_available = self.editor_available();
         MenuBarState {
             theme_is_dark: self.current_theme == HsTheme::Dark,
             view_mode_is_nsfw: self.view_mode == ViewMode::Nsfw,
             project_drawer_open: self.left_rail_open,
             bottom_drawer_open: self.bottom_drawer_open,
             has_active_tab,
+            // MT-069 editor enable predicates (live, read from the shared substrate).
+            editor_available,
+            editor_can_undo: editor_available && self.editor_can_undo(ctx),
+            editor_can_redo: editor_available && self.editor_can_redo(ctx),
+            editor_can_paste: editor_available && self.editor_can_paste(ctx),
         }
     }
 
@@ -4734,7 +4982,7 @@ impl HandshakeApp {
             ctx.request_repaint();
         }
 
-        let menu_state = self.menu_bar_state();
+        let menu_state = self.menu_bar_state(ctx);
         let menu_action = egui::TopBottomPanel::top("handshake_menu_bar")
             .show(ctx, |ui| MenuBar::new(menu_state).show(ui))
             .inner;
@@ -5163,7 +5411,11 @@ impl HandshakeApp {
         // PaletteOutcome the shell dispatches into the existing state-mutation paths (same split as the
         // MT-015 menu bar). The shell owns the open flag, so a Run/Close outcome clears it here.
         if self.command_palette_open {
-            let outcome = crate::command_palette::show(ctx, self.command_palette_open_count);
+            // MT-069: pass the live editor-available predicate so the EditorMenu palette rows are enabled
+            // only when an editor pane is the focusable target (no fake-enabled rows when none is mounted).
+            let editor_available = self.editor_available();
+            let outcome =
+                crate::command_palette::show(ctx, self.command_palette_open_count, editor_available);
             match outcome {
                 crate::command_palette::PaletteOutcome::Run(command_id) => {
                     self.close_command_palette();

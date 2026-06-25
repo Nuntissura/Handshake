@@ -272,6 +272,13 @@ pub enum MenuBarAction {
     // HELP
     OpenSettings,
     ShowAbout,
+    /// WP-KERNEL-012 MT-069 (E11 menu wire-up): dispatch the editor FILE/EDIT command identified by the
+    /// carried stable command id (e.g. [`crate::command_registry::CMD_EDITOR_FILE_SAVE`]) through the ONE
+    /// shared shell editor-command dispatcher (`app.rs::dispatch_editor_command`). The menu handler routes
+    /// by COMMAND ID only — it contains no inline editor logic — so menu-driven and palette-driven editor
+    /// actions share one path (RISK-001). The leaf is enabled only when the command's live predicate holds
+    /// (an editor pane is available; Undo only when `can_undo`; Paste only when the clipboard has content).
+    EditorCommand(&'static str),
 }
 
 /// Action author-keys a swarm agent may dispatch out-of-process (HBR-SWARM). These are the overlay-
@@ -309,6 +316,22 @@ pub struct MenuBarState {
     pub bottom_drawer_open: bool,
     /// True when at least one pane has an active tab that can be closed (enables FILE > Close Tab).
     pub has_active_tab: bool,
+    /// WP-KERNEL-012 MT-069: true when an editor pane is the focusable/active target (a CodeSymbol code
+    /// editor or LoomWikiPage Notes editor is mounted). The live ENABLE PREDICATE for the FILE/EDIT editor
+    /// menu items WP-011 shipped disabled and MT-079 host-mounted: New/Save/Save All/Save As/Export, Cut/
+    /// Copy/Select All/Find/Replace/Find in Files/Toggle Comment/Format Document. When `false` those items
+    /// render DISABLED (honest, not fake-enabled).
+    pub editor_available: bool,
+    /// WP-KERNEL-012 MT-069: true when the MT-035 unified-undo scope reports an undoable action for the
+    /// focused pane (or the cross-pane ring) — the live ENABLE PREDICATE for EDIT > Undo (VS Code semantics:
+    /// Undo enabled only when there is something to undo).
+    pub editor_can_undo: bool,
+    /// WP-KERNEL-012 MT-069: true when the MT-035 unified-undo scope reports a redoable action for the
+    /// focused pane — the live ENABLE PREDICATE for EDIT > Redo.
+    pub editor_can_redo: bool,
+    /// WP-KERNEL-012 MT-069: true when the MT-031 shared clipboard holds a consumable payload — the live
+    /// ENABLE PREDICATE for EDIT > Paste (VS Code enables Paste only when the clipboard has content).
+    pub editor_can_paste: bool,
 }
 
 /// Stateless menu-bar widget. Construct per frame from a [`MenuBarState`] and call [`MenuBar::show`].
@@ -406,36 +429,61 @@ impl MenuBar {
     fn menu_items(&self, ui: &mut egui::Ui, menu: MenuId, action: &mut Option<MenuBarAction>) {
         match menu {
             MenuId::File => {
-                self.disabled_item(ui, "menu.file.new-document", "New Document", None, "Needs the document model (future MT)");
+                // WP-KERNEL-012 MT-069 (E11): the editor FILE items WP-011 shipped disabled are now LIVE
+                // (MT-079 host-mounted the editors). Each dispatches its real editor command by id through
+                // the shared shell dispatcher; enabled only when an editor pane is the focusable target. The
+                // WP-011 AccessKit author_ids (`menu.file.*`) are REUSED (flip to enabled, no new id minted).
+                let ed = self.state.editor_available;
+                self.item(ui, "menu.file.new-document", "New Document", Some("Ctrl+N"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_NEW), action);
                 self.disabled_item(ui, "menu.file.open-workspace", "Open Workspace…", None, "Needs the workspace picker (future MT)");
                 ui.separator();
-                self.disabled_item(ui, "menu.file.save", "Save", Some("Ctrl+S"), "Needs the document model (future MT)");
-                self.disabled_item(ui, "menu.file.save-all", "Save All", None, "Needs the document model (future MT)");
+                self.item(ui, "menu.file.save", "Save", Some("Ctrl+S"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_SAVE), action);
+                self.item(ui, "menu.file.save-all", "Save All", Some("Ctrl+K S"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_SAVE_ALL), action);
+                self.item(ui, "menu.file.save-as", "Save As…", Some("Ctrl+Shift+S"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_SAVE_AS), action);
+                ui.separator();
+                // Export Document: HTML / Markdown / Text / JSON — each routes to the MT-020 editor save/
+                // export path by its stable command id.
+                self.item(ui, "menu.file.export-html", "Export Document: HTML", None, ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_EXPORT_HTML), action);
+                self.item(ui, "menu.file.export-md", "Export Document: Markdown", None, ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_EXPORT_MD), action);
+                self.item(ui, "menu.file.export-txt", "Export Document: Text", None, ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_EXPORT_TXT), action);
+                self.item(ui, "menu.file.export-json", "Export Document: JSON", None, ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_EXPORT_JSON), action);
                 ui.separator();
                 self.item(ui, "menu.file.close-tab", "Close Tab", None, self.state.has_active_tab, MenuBarAction::CloseActiveTab, action);
                 self.item(ui, "menu.file.quit", "Quit", None, true, MenuBarAction::QuitApp, action);
             }
             MenuId::Edit => {
-                // The editor surface is a future MT; every EDIT leaf is disabled + disclosed.
-                self.disabled_item(ui, "menu.edit.undo", "Undo", Some("Ctrl+Z"), "Needs the editor surface (future MT)");
-                self.disabled_item(ui, "menu.edit.redo", "Redo", Some("Ctrl+Shift+Z"), "Needs the editor surface (future MT)");
+                // WP-KERNEL-012 MT-069 (E11): the editor EDIT items WP-011 shipped disabled are now LIVE
+                // (MT-079 host-mounted the editors). Each dispatches its real editor command by id through
+                // the shared shell dispatcher; the WP-011 AccessKit author_ids (`menu.edit.*`) are REUSED
+                // (flip to enabled, no new id minted). Undo/Redo route to the SAME MT-035 unified-undo stack
+                // the keyboard path uses; Cut/Copy/Paste/Select All to the MT-031 shared clipboard; Find/
+                // Replace to the focused editor's find family. Enable predicates are LIVE (RISK-006): Undo
+                // only when `can_undo`, Redo only when `can_redo`, Paste only when the clipboard has content.
+                let ed = self.state.editor_available;
+                self.item(ui, "menu.edit.undo", "Undo", Some("Ctrl+Z"), self.state.editor_can_undo, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_UNDO), action);
+                self.item(ui, "menu.edit.redo", "Redo", Some("Ctrl+Shift+Z"), self.state.editor_can_redo, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_REDO), action);
                 ui.separator();
-                self.disabled_item(ui, "menu.edit.cut", "Cut", Some("Ctrl+X"), "Needs the editor surface (future MT)");
-                self.disabled_item(ui, "menu.edit.copy", "Copy", Some("Ctrl+C"), "Needs the editor surface (future MT)");
-                self.disabled_item(ui, "menu.edit.paste", "Paste", Some("Ctrl+V"), "Needs the editor surface (future MT)");
+                self.item(ui, "menu.edit.cut", "Cut", Some("Ctrl+X"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_CUT), action);
+                self.item(ui, "menu.edit.copy", "Copy", Some("Ctrl+C"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_COPY), action);
+                self.item(ui, "menu.edit.paste", "Paste", Some("Ctrl+V"), self.state.editor_can_paste, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_PASTE), action);
+                self.item(ui, "menu.edit.select-all", "Select All", Some("Ctrl+A"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_SELECT_ALL), action);
                 ui.separator();
-                // WP-KERNEL-012 MT-050: EDIT-menu 'Format Document' (Alt+Shift+F). The leaf is present +
-                // addressable now; it renders DISABLED with the contract's no-formatter tooltip until the
-                // live editor is host-mounted (E11 MT-069) and a formatter is attached, at which point the
-                // host wires it to `CodeEditorPanel::request_format_document` reflecting
-                // `formatter_available` (the `code_editor::formatting::menu_descriptors` helper supplies the
-                // enabled-state + author_id so this menu file is not forked beyond a minimal additive entry —
-                // RISK-007). The disabled_item path sets the AccessKit node disabled so a swarm agent
-                // observes the same gating the human sees (MC-003 / AC-003).
-                self.disabled_item(ui, crate::code_editor::FORMAT_DOCUMENT_MENU_AUTHOR_ID, "Format Document", Some("Alt+Shift+F"), crate::code_editor::NO_FORMATTER_TOOLTIP);
+                // WP-KERNEL-012 MT-051 / MT-050: Toggle Comment + Format Document. The Format Document leaf
+                // KEEPS its MT-050 AccessKit author_id (`FORMAT_DOCUMENT_MENU_AUTHOR_ID`); it now dispatches
+                // the real editor.edit.formatDocument command when an editor pane is the target (RISK-007:
+                // no new menu infra, the existing leaf flips to enabled).
+                self.item(ui, "menu.edit.toggle-comment", "Toggle Comment", Some("Ctrl+/"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_TOGGLE_COMMENT), action);
+                self.item(ui, crate::code_editor::FORMAT_DOCUMENT_MENU_AUTHOR_ID, "Format Document", Some("Alt+Shift+F"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_FORMAT_DOCUMENT), action);
                 ui.separator();
-                self.disabled_item(ui, "menu.edit.find-replace", "Find / Replace", Some("Ctrl+F"), "Needs the editor surface (future MT)");
-                self.disabled_item(ui, "menu.edit.find-all", "Find in All Documents", Some("Ctrl+Shift+F"), "Needs workspace search (future MT)");
+                self.item(ui, "menu.edit.find-replace", "Find", Some("Ctrl+F"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FIND_FIND), action);
+                self.item(ui, "menu.edit.replace", "Replace", Some("Ctrl+H"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FIND_REPLACE), action);
+                self.item(ui, "menu.edit.find-all", "Find in Files", Some("Ctrl+Shift+F"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FIND_IN_FILES), action);
+                self.item(ui, "menu.edit.replace-all", "Replace in Files", Some("Ctrl+Shift+H"), ed, MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_REPLACE_IN_FILES), action);
+                ui.separator();
+                // Command Palette + Quick Switcher are also reachable from EDIT (AC-002 lists them here);
+                // they open the ONE WP-011 palette / switcher — always available (no editor needed).
+                self.item(ui, "menu.edit.command-palette", "Command Palette", Some("Ctrl+Shift+P"), true, MenuBarAction::EditorCommand(crate::command_registry::CMD_WORKBENCH_SHOW_COMMANDS), action);
+                self.item(ui, "menu.edit.quick-switcher", "Quick Switcher", Some("Ctrl+P"), true, MenuBarAction::EditorCommand(crate::command_registry::CMD_WORKBENCH_QUICK_OPEN), action);
             }
             MenuId::View => {
                 // Theme: two FLAT checkmark items (a check on the currently active theme; selectable_label
@@ -500,6 +548,18 @@ impl MenuBar {
                 // open_symbol_palette entry point the Ctrl+Shift+O keybind reaches (AC-005) — one path, no
                 // divergence. DISTINCT from the Quick Switcher leaf above (global, Ctrl+P). No fake-enable.
                 self.disabled_item(ui, GO_SYMBOL_IN_FILE_AUTHOR_ID, "Go to Symbol in File…", Some("Ctrl+Shift+O"), MENU_GO_EDITOR_DISABLED_REASON);
+                ui.separator();
+                // WP-KERNEL-012 MT-069 (E11): the four code-navigation GO items the contract names (Go to
+                // Definition / References / Symbol / Line). Their OWNING code-nav command ids are NOT yet
+                // registered on the shell command bus (the live F12/Shift+F12 host run is a carried-forward
+                // item), so they render DISABLED with a disclosed reason — NEVER fake-enabled, NEVER a
+                // todo!()/unimplemented!()/panic!() (AC-003 / MC-003). If dispatched anyway (e.g. by id via
+                // an agent), the shell emits a typed LOGGED no-op (`is_go_nav_pending`). The author_ids are
+                // the stable command ids so a swarm agent can SEE the items and read that they are pending.
+                self.disabled_item(ui, crate::command_registry::CMD_EDITOR_GO_TO_DEFINITION, "Go to Definition", Some("F12"), MENU_GO_EDITOR_DISABLED_REASON);
+                self.disabled_item(ui, crate::command_registry::CMD_EDITOR_GO_TO_REFERENCES, "Go to References", Some("Shift+F12"), MENU_GO_EDITOR_DISABLED_REASON);
+                self.disabled_item(ui, crate::command_registry::CMD_EDITOR_GO_TO_SYMBOL, "Go to Symbol in Workspace…", Some("Ctrl+T"), MENU_GO_EDITOR_DISABLED_REASON);
+                self.disabled_item(ui, crate::command_registry::CMD_EDITOR_GO_TO_LINE, "Go to Line…", Some("Ctrl+G"), MENU_GO_EDITOR_DISABLED_REASON);
             }
             MenuId::Run => {
                 self.item(ui, "menu.run.swarm-board", "Open Swarm Board", None, true, MenuBarAction::OpenSwarmBoard, action);
@@ -606,6 +666,10 @@ mod tests {
             project_drawer_open: true,
             bottom_drawer_open: false,
             has_active_tab: true,
+            editor_available: true,
+            editor_can_undo: true,
+            editor_can_redo: true,
+            editor_can_paste: true,
         }
     }
 
@@ -644,6 +708,7 @@ mod tests {
                 MenuBarAction::OpenTerminal => "terminal",
                 MenuBarAction::OpenSettings => "settings",
                 MenuBarAction::ShowAbout => "about",
+                MenuBarAction::EditorCommand(_) => "editor-command",
             }
         }
         // Spot-check a representative sample so the match is also exercised at runtime.
