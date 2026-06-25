@@ -310,6 +310,41 @@ impl PaneRegistry {
     }
 }
 
+/// WP-KERNEL-012 MT-062: the stable pane id under which the Outgoing Links pane
+/// ([`crate::rich_editor::wikilinks::outgoing_links_panel::OutgoingLinksPanel`]) docks in the shell. A
+/// fixed kebab/dotted key (NOT a per-instance `pane-a`-style id) so the shell can `dock`/`show` the
+/// pane and a swarm agent can address it deterministically (AC-007 / PT-005). The pane is a Loom
+/// knowledge surface attached to the active block/document, so its record uses the existing
+/// [`PaneType::LoomBlock`] variant — no new `PaneType` variant is forked (that would ripple through
+/// every exhaustive `PaneType` match across the shell); the STABLE ADDRESS is this pane id string.
+pub const OUTGOING_LINKS_PANE_ID: &str = "loom.outgoing_links";
+
+/// Register the WP-KERNEL-012 MT-062 Outgoing Links pane into `registry` under the stable
+/// [`OUTGOING_LINKS_PANE_ID`] (`"loom.outgoing_links"`), bound to the active `document_id` content (the
+/// source of outgoing links) for `project_id`. Re-registering keeps the already-assigned AccessKit node
+/// id (see [`PaneRegistry::insert`]), so an agent that targeted the pane does not lose its handle when
+/// the active document changes. Returns the pane id for convenience.
+///
+/// This is the E3 registration the MT requires NOW; the host wiring of the pane's `on_open` closure to
+/// the real MT-030 navigation bus + the live dock placement land at E11 (MT-069), like the other panes.
+pub fn register_outgoing_links_pane(
+    registry: &mut PaneRegistry,
+    project_id: impl Into<String>,
+    document_id: Option<String>,
+) -> PaneId {
+    let pane_id: PaneId = Arc::from(OUTGOING_LINKS_PANE_ID);
+    registry.insert(PaneRecord::new(
+        pane_id.clone(),
+        PaneType::LoomBlock,
+        project_id,
+        document_id,
+        LockState::Unlocked,
+        DirtyState::Clean,
+        PaneAuthority::System,
+    ));
+    pane_id
+}
+
 /// Context handed to a `PaneFactory::render`. Carries the egui id base for the pane and the project
 /// id; a real `BackendClient` handle will be threaded through here once concrete surfaces are built
 /// (MT-006+). Kept as an explicit struct now so adding the backend handle later is a field add, not
@@ -699,5 +734,34 @@ mod tests {
                 PaneHostWidget::show(ui, &reg, |_t| &factory as &dyn PaneFactory);
             });
         });
+    }
+
+    /// WP-KERNEL-012 MT-062 (PT-005 / AC-007 pane half): the Outgoing Links pane registers under the
+    /// stable `loom.outgoing_links` id, is retrievable by that id, carries a stable AccessKit node id,
+    /// and binds the active document as its content. Re-registering keeps the same AccessKit id.
+    #[test]
+    fn registers_outgoing_links_pane_under_stable_id() {
+        let mut reg = PaneRegistry::new();
+        let id = register_outgoing_links_pane(&mut reg, "project-1", Some("DOC-active".to_owned()));
+        assert_eq!(id.as_ref(), OUTGOING_LINKS_PANE_ID);
+        assert_eq!(OUTGOING_LINKS_PANE_ID, "loom.outgoing_links");
+
+        let pid: PaneId = Arc::from(OUTGOING_LINKS_PANE_ID);
+        let rec = reg.get(&pid).expect("loom.outgoing_links pane registered");
+        assert_eq!(rec.content_id.as_deref(), Some("DOC-active"), "active document bound as pane content");
+        let node = reg.accesskit_id(&pid).expect("accesskit id assigned");
+        assert!(node.0 >= PaneRegistry::ACCESSKIT_ID_BASE, "pane id sits in the pane id space (>= 100)");
+
+        // The pane's AccessKit node carries the stable pane id as its author_id (the swarm address).
+        let (_nid, akn) = reg
+            .build_accesskit_node(&pid, accesskit::Role::Group)
+            .expect("node built");
+        assert_eq!(akn.author_id(), Some("loom.outgoing_links"), "author_id equals the stable pane id");
+
+        // Re-register on a document change: the AccessKit id is stable across the in-place update.
+        let before = reg.accesskit_id(&pid).unwrap();
+        register_outgoing_links_pane(&mut reg, "project-1", Some("DOC-other".to_owned()));
+        assert_eq!(reg.accesskit_id(&pid).unwrap(), before, "AccessKit id stable across re-register");
+        assert_eq!(reg.get(&pid).unwrap().content_id.as_deref(), Some("DOC-other"));
     }
 }

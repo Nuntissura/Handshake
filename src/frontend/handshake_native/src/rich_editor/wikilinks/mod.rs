@@ -44,6 +44,11 @@ pub mod backlinks_panel;
 pub mod client;
 pub mod confirm;
 pub mod inline_view;
+/// WP-KERNEL-012 MT-062: the Outgoing Links pane (the third leg of the Obsidian links triad alongside
+/// MT-015 backlinks + MT-024 unlinked mentions). Lists every wikilink/transclusion emanating FROM the
+/// active document, split into Resolved/Unresolved buckets; clicks route through the MT-030 nav seam.
+/// See [`outgoing_links_panel`].
+pub mod outgoing_links_panel;
 pub mod parser;
 /// WP-KERNEL-012 MT-057: the wikilink RESOLUTION engine (exact ref/title/alias resolution + the
 /// create-from-unresolved command-bus intent) layered on the MT-015 wikilink engine. See
