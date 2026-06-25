@@ -1186,6 +1186,21 @@ pub fn status_bar_action_for_id(id: &str, state: &StatusBarSegmentState) -> Opti
 // hold NO egui state and perform NO mutation (dispatch happens at the wiring site, exactly as the
 // MT-019 primitive's `into_items()`/`show_on` split requires).
 //
+// ── WIRING STATUS (HONEST — read before judging the ACs): NOT YET WIRED INTO THE LIVE RENDER LOOP ──
+// As of this MT-070 commit these builders/mappers and `show_editor_body_menu` / `show_node_menu` have
+// NO product call site. The LIVE code-editor body right-click menu is still
+// `code_editor/panel.rs::render_editor_context_menu` (a separate pre-existing 2-entry egui menu offering
+// only Rename Symbol + Quick Fix); the canvas/loom node right-click menus are still the MT-021
+// `canvas_node_context_items` / `loom_node_context_items` surfaces. None of those panes call this
+// MT-070 layer. Wiring the click-through requires editing `code_editor/panel.rs`, `canvas_board.rs`,
+// `loom_graph.rs`, and `quick_switcher.rs` — ALL OUTSIDE the MT-070 `allowed_paths` allowlist
+// (`context_menu_surfaces.rs`, `navigation_bus.rs`, `lib.rs`, + the 2 test files). The contract
+// `scope.summary` mandates those call-site edits, which `allowed_paths` forbids: a packet contradiction
+// raised as a typed BLOCKER (BLOCKER-MT-070-ALLOWED-PATHS-VS-SCOPE) to the Orchestrator rather than
+// resolved by an undisclosed scope expansion (CX-218L, MC-070-6, GLOBAL-SCOPE-005). The phrase "the
+// wiring site dispatches …" below describes the call site that MUST be added once the orchestrator
+// reconciles the contract; it does NOT claim such a site exists in this commit.
+//
 // DISPATCH-ONLY (RISK-070-1/MC-070-1, RISK-070-4/MC-070-4): every required entry resolves to a REAL,
 // already-built editor action — never a placeholder/no-op/TODO. The bindings reuse:
 //   - Rename Symbol    -> the MT-048 code-panel rename action (the SAME `begin_rename` path F2 + the
@@ -1520,9 +1535,15 @@ pub fn node_navigation_target(
 /// the live `availability`, renders it through the MT-019 [`ContextMenu::show_on`] primitive (which emits
 /// the Role::Menu container + Role::MenuItem nodes carrying the stable `ctx-menu.{id}` author_ids —
 /// AC-070-9), and maps the confirmed id back to its real action through [`editor_body_action_for_id`]
-/// (so a disabled/dead entry can never fire — AC-070-5). The wiring site then dispatches the returned
-/// action through the code panel (the same path F2 / Ctrl+. / the format menu / F12 use). Reuses the
-/// WP-011 primitive verbatim — NO new menu-rendering infrastructure (AC-070-7 / RISK-070-4).
+/// (so a disabled/dead entry can never fire — AC-070-5). Reuses the WP-011 primitive verbatim — NO new
+/// menu-rendering infrastructure (AC-070-7 / RISK-070-4).
+///
+/// NOT YET CALLED FROM PRODUCT CODE: the intended caller is `code_editor/panel.rs::render_editor_context_menu`
+/// (which today shows only its own 2-entry inline menu and does NOT call this helper). Adding that call
+/// and dispatching the returned [`EditorBodyMenuAction`] through the code panel
+/// (begin_rename / quick_fix / request_format_selection / go-to-def / `EditorEvent::CreateNote`) is the
+/// remaining click-through wiring, blocked because `code_editor/panel.rs` is outside the MT-070
+/// `allowed_paths` (BLOCKER-MT-070-ALLOWED-PATHS-VS-SCOPE).
 pub fn show_editor_body_menu(
     response: &egui::Response,
     availability: EditorBodyAvailability,
@@ -1536,6 +1557,12 @@ pub fn show_editor_body_menu(
 /// action a confirmed enabled entry maps to, or `None`. The node-surface twin of
 /// [`show_editor_body_menu`]: same WP-011 primitive, same no-dead-handler mapping (AC-070-4), same
 /// Role::Menu / Role::MenuItem AccessKit emission (AC-070-9).
+///
+/// NOT YET CALLED FROM PRODUCT CODE: the intended callers are `canvas_board.rs` / `loom_graph.rs` (which
+/// today attach the MT-021 node menus and do NOT call this helper). Adding those calls and feeding the
+/// returned [`NodeMenuAction`] through [`node_navigation_target`] -> [`crate::navigation_bus::dispatch`]
+/// on the live shell is the remaining click-through wiring, blocked because `canvas_board.rs` /
+/// `loom_graph.rs` are outside the MT-070 `allowed_paths` (BLOCKER-MT-070-ALLOWED-PATHS-VS-SCOPE).
 pub fn show_node_menu(
     response: &egui::Response,
     availability: NodeMenuAvailability,

@@ -45,6 +45,22 @@
 //! click-through is INDIRECT, inside the `ShellNavigator::open_code_symbol` / `open_document` arms the
 //! mounted editor panes own). A missing real navigator seam is a typed [`NavError`], never a panic and
 //! never a placeholder.
+//!
+//! ## WIRING STATUS (HONEST — read before judging AC-070-3): NO PRODUCT CALLER YET
+//!
+//! As of this MT-070 commit, [`dispatch`] has NO product call site. The only non-test references to this
+//! module are its own definition + `lib.rs` (`pub mod navigation_bus;`). The quick-switcher confirm path
+//! (`quick_switcher.rs` -> `app.rs`) does NOT call [`dispatch`]; MT-079 already routes quick-switcher /
+//! link selections by calling the `ShellNavigator` `open_*` seams DIRECTLY, so AC-070-3 is satisfied at
+//! runtime by MT-079's direct seam wiring, NOT by this bus. This `NavigationTarget` layer therefore sits
+//! BETWEEN the quick-switcher and the shell with no live caller. The `test_navigation_bus.rs` proofs
+//! drive [`dispatch`] against a REAL `HandshakeApp` (genuine), but nothing in the running app invokes it.
+//! Wiring the quick-switcher / canvas / loom call sites to route THROUGH this bus requires editing
+//! `quick_switcher.rs`, `canvas_board.rs`, and `loom_graph.rs` — all OUTSIDE the MT-070 `allowed_paths`.
+//! That contract contradiction (and whether AC-070-3 should instead be reconciled/retired against MT-079)
+//! is raised as a typed BLOCKER (BLOCKER-MT-070-ALLOWED-PATHS-VS-SCOPE) to the Orchestrator. The "this is
+//! the function the quick-switcher confirm path … call" phrasing on [`dispatch`] below names the INTENDED
+//! caller, not an existing one.
 
 use crate::pane_registry::PaneId;
 use crate::quick_switcher::{NavDispatchOutcome, ShellNavigator};
@@ -62,8 +78,12 @@ pub enum NavigationTarget {
     EditorAtSymbol { pane_id: PaneId, symbol: String },
     /// Open the code editor at a byte location (MT-008 peek/go-to-def landing). Reconciles to
     /// [`ShellNavigator::open_code_symbol`] using the `symbol` carried alongside the location (the live
-    /// code-nav seam resolves by symbol, not raw byte; the offset is the in-pane reveal target the
-    /// mounted pane scrolls to). `pane_id` is the stable code-pane id.
+    /// code-nav seam resolves by symbol, not raw byte). KNOWN GAP (carried, not yet applied): `byte_offset`
+    /// is the intended in-pane scroll/reveal target, but the current `reveal` arm routes through
+    /// `open_code_symbol(symbol)` only and does NOT forward the offset — the live `ShellNavigator` exposes
+    /// no scroll-to-byte seam, so a peek lands on the symbol, not the precise byte. Forwarding the offset
+    /// needs a new mounted-pane reveal seam (owned by the code-pane MT, outside MT-070 `allowed_paths`);
+    /// tracked under BLOCKER-MT-070-ALLOWED-PATHS-VS-SCOPE. `pane_id` is the stable code-pane id.
     EditorAtLocation {
         pane_id: PaneId,
         symbol: String,
@@ -161,10 +181,11 @@ impl<N: ShellNavigator + ?Sized> NavHandler for N {
         match target {
             NavigationTarget::EditorAtSymbol { symbol, .. } => self.open_code_symbol(symbol),
             // EditorAtLocation reveals through the same code-symbol seam (the live code-nav resolves by
-            // symbol); the byte offset is the in-pane scroll target the mounted code pane applies after
-            // the pane is focused. No separate navigator method exists for a raw byte offset, so reusing
-            // open_code_symbol keeps ONE tab-open path (no forked navigation) — the contract's
-            // "reconcile against the live ShellNavigator types, do NOT invent drifting variants".
+            // symbol). NOTE: `byte_offset` is intentionally IGNORED here — no `ShellNavigator` seam accepts
+            // a raw byte offset, so reusing open_code_symbol keeps ONE tab-open path (no forked
+            // navigation), at the cost that the pane lands on the symbol, not the precise byte. Honestly
+            // applying the offset needs a new mounted-pane scroll-to-byte reveal seam owned by the code-pane
+            // MT (outside MT-070 allowed_paths) — see the variant doc + BLOCKER-MT-070-ALLOWED-PATHS-VS-SCOPE.
             NavigationTarget::EditorAtLocation { symbol, .. } => self.open_code_symbol(symbol),
             NavigationTarget::OpenNote { note_id } => self.open_document(note_id),
             NavigationTarget::RevealNode { node_id, .. } => self.open_loom_block(node_id),
