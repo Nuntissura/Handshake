@@ -120,10 +120,18 @@ impl Default for IndentStyle {
 
 /// Detect the indent style of `text`. If any line's LEADING indentation contains a tab, the file is
 /// tab-indented ([`IndentKind::Tabs`], size kept at the default display width 4). Otherwise infer the
-/// space size from the MOST COMMON positive leading-space delta between consecutive indented lines,
-/// defaulting to 4 when nothing conclusive is found (MC-007). Mixed/empty files fall back to the
-/// [`DEFAULT`](IndentStyle::DEFAULT) (Spaces 4), so the Tab key never flips to a surprising mode
+/// space size from the MOST COMMON positive leading-space delta between consecutive DISTINCT indent
+/// levels, defaulting to 4 when nothing conclusive is found (MC-007). Mixed/empty files fall back to
+/// the [`DEFAULT`](IndentStyle::DEFAULT) (Spaces 4), so the Tab key never flips to a surprising mode
 /// (RISK-007).
+///
+/// Conservative single-level rule (RISK-007 hardening, adversarial review must-fix #1): when there is
+/// only ONE distinct space-indent level (no consecutive-level delta to measure), the function does NOT
+/// infer the unit from that lone level — a single `        deep` line (8 spaces) is NOT evidence that
+/// one indent unit is 8 spaces. With no delta evidence the result is the [`DEFAULT`] (Spaces 4). Any
+/// inferred unit is clamped to the sane VS-Code-style set {2, 4, 8}; an out-of-set or ambiguous
+/// inference collapses to 4. This keeps `Tab`/`Dedent` on the conventional 4-space unit instead of
+/// silently flipping the document's indent unit on a file that happens to have one deep indent.
 pub fn detect_indent(text: &str) -> IndentStyle {
     let mut saw_leading_tab = false;
     // Histogram of leading-space counts on space-indented lines.
@@ -147,11 +155,11 @@ pub fn detect_indent(text: &str) -> IndentStyle {
     if space_indents.is_empty() {
         return IndentStyle::DEFAULT;
     }
-    // Infer the unit from the most common positive delta between consecutive distinct indent levels,
-    // and as a fallback the most common nonzero indent itself. VS Code's inference is more elaborate;
-    // this is the deterministic, defensible subset the MT names ("the most common positive leading-space
-    // delta"). gcd-style: the smallest indent is usually the unit, but the most common delta is more
-    // robust to outliers.
+    // Infer the unit ONLY from the most common positive delta between consecutive DISTINCT indent
+    // levels. The MT names exactly this ("the most common positive leading-space delta"). A single lone
+    // indent level produces NO delta, and we deliberately do NOT fall back to that lone level as the
+    // unit (that is the RISK-007 mis-inference the review caught: one 8-space line -> size 8 -> Dedent
+    // removes 8). With no delta evidence we keep the safe default unit (4).
     let mut deltas: std::collections::HashMap<usize, usize> = std::collections::HashMap::new();
     let mut sorted = space_indents.clone();
     sorted.sort_unstable();
@@ -166,11 +174,16 @@ pub fn detect_indent(text: &str) -> IndentStyle {
         .iter()
         .max_by_key(|(delta, count)| (*count, std::cmp::Reverse(**delta)))
         .map(|(delta, _)| *delta)
-        // No delta (a single indent level): use that level as the unit.
-        .or_else(|| sorted.first().copied())
-        .filter(|n| *n > 0)
-        .unwrap_or(4);
-    IndentStyle { kind: IndentKind::Spaces, size: inferred }
+        // No delta evidence (single distinct indent level, or no indented lines after dedup):
+        // keep the safe default unit rather than guessing from a lone level (RISK-007).
+        .unwrap_or(IndentStyle::DEFAULT.size);
+    // Clamp to the sane VS-Code-style unit set; anything else collapses to the default (4). This stops
+    // an odd one-off delta (e.g. 3, 5, 7) from becoming the live Tab/Dedent unit mid-edit.
+    let size = match inferred {
+        2 | 4 | 8 => inferred,
+        _ => IndentStyle::DEFAULT.size,
+    };
+    IndentStyle { kind: IndentKind::Spaces, size }
 }
 
 /// A text encoding the editor can read on load + display in the status bar. The default is UTF-8.
@@ -335,6 +348,23 @@ mod tests {
         // Empty / no indent -> default Spaces 4 (MC-007).
         assert_eq!(detect_indent(""), IndentStyle::DEFAULT);
         assert_eq!(detect_indent("a\nb\nc\n"), IndentStyle::DEFAULT);
+    }
+
+    #[test]
+    fn indent_single_lone_level_stays_default_not_eight() {
+        // RISK-007 / adversarial-review must-fix #1: a SINGLE lone indent level is NOT evidence of the
+        // indent unit. One 8-space line must NOT make detect_indent infer size=8 (which previously
+        // regressed DedentLine to remove 8 spaces). With no consecutive-level delta to measure, the unit
+        // stays the safe default (Spaces 4) so Tab/Dedent keeps the conventional 4-space step.
+        assert_eq!(detect_indent("        deep"), IndentStyle::DEFAULT, "lone 8-space line -> default 4");
+        assert_eq!(detect_indent("    one\n    two\n    three"), IndentStyle::DEFAULT, "one repeated 4-space level (no delta) -> default 4");
+        assert_eq!(detect_indent("      six"), IndentStyle::DEFAULT, "lone 6-space line -> default 4");
+        // An odd inferred delta (3) is out of the sane set {2,4,8} and collapses to the default.
+        assert_eq!(detect_indent("x\n   a\n      b").size, 4, "out-of-set delta (3) clamps to default 4");
+        // 8-space unit is honored only with real delta evidence (two distinct levels 8 apart).
+        let eight_unit = detect_indent("a\n        b\n                c");
+        assert_eq!(eight_unit.kind, IndentKind::Spaces);
+        assert_eq!(eight_unit.size, 8, "real 8-space delta evidence -> size 8");
     }
 
     #[test]

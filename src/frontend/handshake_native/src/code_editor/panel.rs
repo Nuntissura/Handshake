@@ -896,6 +896,14 @@ pub struct CodeEditorPanel {
     /// language picker. Read by [`resolved_language`](Self::resolved_language) (override beats shebang /
     /// content / extension — RISK-003) and persists across re-render + re-focus (RISK-004).
     language_override: Mutex<Option<super::language_mode::LanguageId>>,
+    /// MT-071 (perf, adversarial-review must-fix #4) the cached resolved language keyed on
+    /// `(buffer_version, override)`. [`resolved_language`](Self::resolved_language) is called every frame
+    /// the status bar renders; without a cache it would `buffer().to_string()` the WHOLE document each
+    /// frame (an O(buffer) copy that scales with file size). The cache recomputes only when the buffer
+    /// version bumps (an edit) or the user override changes, so an idle frame is a cheap version+override
+    /// compare. `None` until the first resolve.
+    resolved_language_cache:
+        Mutex<Option<(u64, Option<super::language_mode::LanguageId>, super::language_mode::LanguageDetection)>>,
     /// MT-071 the document's active line-ending style (LF / CRLF). Seeded from the buffer on build
     /// ([`Eol::detect`](super::file_meta::Eol::detect)); the status-bar EOL segment + its "Convert to
     /// LF/CRLF" actions read + set it. Behind a `Mutex` for the same `Sync` reason as the buffer.
@@ -1397,6 +1405,9 @@ impl CodeEditorPanel {
             // none (auto-detect); encoding UTF-8; render-whitespace off. These hang off the doc model so
             // they survive re-render + re-focus and the language resolver / draw path read them.
             language_override: Mutex::new(None),
+            // MT-071 perf cache (must-fix #4): empty until the first resolve; recomputed only on a buffer
+            // edit or an override change, so the per-frame status-bar resolve is a cheap key compare.
+            resolved_language_cache: Mutex::new(None),
             eol: Mutex::new(detected_eol),
             encoding: Mutex::new(super::file_meta::Encoding::default()),
             render_whitespace: std::sync::atomic::AtomicBool::new(false),
@@ -4024,6 +4035,31 @@ impl CodeEditorPanel {
     /// [`detected.display_label()`](super::language_mode::LanguageId::display_label) + a source hint.
     pub fn resolved_language(&self) -> super::language_mode::LanguageDetection {
         let override_id = self.language_override();
+        // Perf cache (must-fix #4): the status bar resolves the language every frame. Recompute ONLY when
+        // the buffer version bumped (an edit) or the override changed; otherwise return the cached
+        // detection without a whole-buffer `to_string()` copy. The cache key is `(buffer_version,
+        // override)` — both inputs that can change the resolved language.
+        let version = self.buffer_version.load(Ordering::Relaxed);
+        {
+            let cache = self.resolved_language_cache.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some((cached_version, cached_override, detection)) = cache.as_ref() {
+                if *cached_version == version && *cached_override == override_id {
+                    return detection.clone();
+                }
+            }
+        }
+        let detection = self.compute_resolved_language(override_id.clone());
+        *self.resolved_language_cache.lock().unwrap_or_else(|e| e.into_inner()) =
+            Some((version, override_id, detection.clone()));
+        detection
+    }
+
+    /// MT-071: the uncached language resolve (the body [`resolved_language`](Self::resolved_language)
+    /// caches). Copies the buffer ONCE per cache miss (an edit / override change), not per frame.
+    fn compute_resolved_language(
+        &self,
+        override_id: Option<super::language_mode::LanguageId>,
+    ) -> super::language_mode::LanguageDetection {
         let full_text = self.buffer().to_string();
         // The first line is enough for the shebang sniff; cap the bytes so a huge buffer does not copy
         // its whole head needlessly (the detector only reads the first line of `first_bytes`).

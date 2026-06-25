@@ -106,15 +106,32 @@ pub struct LanguageDetection {
     pub source: DetectionSource,
 }
 
+/// Process-cached bundled+heuristic picker list. The set is CONSTANT for the life of the process (the
+/// bundled grammars + the heuristic families never change at runtime), so it is computed ONCE on first
+/// use and cloned thereafter. This is the perf-lens fix (adversarial-review must-fix #4): the status bar
+/// renders every frame, and `available_languages()` previously rebuilt a whole
+/// [`LanguageRegistry::with_bundled_languages`] (which constructs tree-sitter grammar objects +
+/// highlight queries) on EVERY call — a per-frame grammar construction once the cluster is live. The
+/// cache reduces that to a one-time build + a cheap `Vec<LanguageId>` clone per frame.
+static AVAILABLE_LANGUAGES: std::sync::OnceLock<Vec<LanguageId>> = std::sync::OnceLock::new();
+
 /// The bundled language family ids (the MT-001 registry's `with_bundled_languages` set) plus the
 /// heuristic-only families the content/shebang layers can resolve to. Plain Text is always offered.
 /// The first element is always plain text so the picker leads with "Plain Text". Sourced from the
 /// registry's bundled grammar coverage so the picker set tracks the highlighter (AC-001).
+///
+/// The constant result is process-cached (see [`AVAILABLE_LANGUAGES`]); each call after the first clones
+/// the cached list instead of rebuilding the tree-sitter registry (per-frame status-bar safe).
 pub fn available_languages() -> Vec<LanguageId> {
-    // Anchor the bundled grammar set against the live registry so the two never silently drift: the
-    // registry highlights exactly the families `language_id_for_extension` maps, and we enumerate the
-    // bundled extensions through it. (A future `register` call adds a grammar; extend the seed list +
-    // `language_id_for_extension` together and this picker grows with it.)
+    AVAILABLE_LANGUAGES.get_or_init(compute_available_languages).clone()
+}
+
+/// Build the bundled+heuristic picker list ONCE (called by the [`AVAILABLE_LANGUAGES`] cache). Anchors
+/// the bundled grammar set against the live registry so the two never silently drift: the registry
+/// highlights exactly the families `language_id_for_extension` maps, and we enumerate the bundled
+/// extensions through it. (A future `register` call adds a grammar; extend the seed list +
+/// `language_id_for_extension` together and this picker grows with it.)
+fn compute_available_languages() -> Vec<LanguageId> {
     let registry = LanguageRegistry::with_bundled_languages();
     let mut out = vec![LanguageId::plain_text()];
     // Bundled grammar families (verified registered: rust via `.rs`, javascript via `.js`).

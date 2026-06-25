@@ -38,7 +38,10 @@ use crate::stage_pane::{StageContent, StagePane};
 use crate::split_layout::{DividerColors, SplitDragState, SplitLayoutWidget, SplitWeights};
 use crate::tab_bar::{TabBar, TabBarColors, TabBarState, TabState, TAB_BAR_HEIGHT};
 use crate::theme::{self, HsTheme};
-use crate::top_menu_bar::{MenuBar, MenuBarAction, MenuBarState};
+use crate::top_menu_bar::{
+    EditorMetaSegmentState, EditorSegmentAction, EditorStatusSegments, MenuBar, MenuBarAction,
+    MenuBarState,
+};
 
 /// Stable AccessKit id for the theme-toggle button. egui maps `accesskit::NodeId` directly
 /// from an `egui::Id`'s u64 value (egui 0.33 `Id::accesskit_id`), so a fixed-value `Id`
@@ -1945,6 +1948,82 @@ impl HandshakeApp {
     /// proof enqueues a `pending_events` entry on this SAME state and asserts it reaches the nav bus).
     pub fn mounted_rich_state(&self) -> Arc<Mutex<RichEditorState>> {
         Arc::clone(&self.editor_mounts.rich_state)
+    }
+
+    /// WP-KERNEL-012 MT-071: whether the FOCUSED pane this frame is the mounted code editor
+    /// (`PaneType::CodeSymbol`). Reads the MT-035 [`InteractionBus`](crate::interop::InteractionBus)
+    /// focus owner (the SAME focus seam the unified-undo enable predicates use) and resolves it against
+    /// the pane registry. The editor status-bar segments render ONLY when this is true, so they HIDE the
+    /// moment a non-code pane takes focus (AC-005) and never carry stale editor metadata. A contended bus
+    /// lock or poisoned registry fails closed (no segments this frame, re-evaluated next frame).
+    fn focused_pane_is_code_editor(&self, ctx: &egui::Context) -> bool {
+        let bus = crate::interop::InteractionBus::get_or_init(ctx);
+        let focus_owner: Option<PaneId> =
+            crate::interop::InteractionBus::with_try_lock(&bus, |b| b.focus_owner().cloned())
+                .flatten();
+        let Some(focus_owner) = focus_owner else {
+            return false;
+        };
+        self.pane_registry
+            .lock()
+            .map(|reg| {
+                reg.get(&focus_owner)
+                    .map(|record| matches!(record.pane_type, PaneType::CodeSymbol))
+                    .unwrap_or(false)
+            })
+            .unwrap_or(false)
+    }
+
+    /// WP-KERNEL-012 MT-071: the live editor file-metadata snapshot for the status-bar segments, or
+    /// `None` when the focused pane is NOT a code editor (so the cluster hides — AC-005). Built each frame
+    /// from the SAME mounted [`CodeEditorPanel`](crate::code_editor::panel::CodeEditorPanel) the host
+    /// drives (the single doc-model source of truth — RISK-004), so the segments reflect the active
+    /// document's real language / EOL / indent / encoding / whitespace state and never a parallel store.
+    fn editor_segment_state(&self, ctx: &egui::Context) -> Option<EditorMetaSegmentState> {
+        if !self.focused_pane_is_code_editor(ctx) {
+            return None;
+        }
+        Some(EditorMetaSegmentState::from_panel(&self.editor_mounts.code_panel))
+    }
+
+    /// WP-KERNEL-012 MT-071: apply a typed [`EditorSegmentAction`] the status-bar segment emitted back
+    /// onto the FOCUSED code document's MT-010 model (the "segment reports, the shell applies" discipline
+    /// — RISK-004). Each arm routes to the existing panel mutator: language override, single-undo EOL
+    /// convert, indent style (flips the Tab key), in-process encoding reopen (surfacing the typed `Err`),
+    /// render-whitespace flip, or clipboard copy. Returns `true` when the action mutated state worth a
+    /// repaint. NO backend call (the encoding reopen is the in-process MT-010 re-decode — RISK-005).
+    fn apply_editor_segment_action(&self, ctx: &egui::Context, action: EditorSegmentAction) -> bool {
+        let panel = &self.editor_mounts.code_panel;
+        match action {
+            EditorSegmentAction::SetLanguage(lang) => {
+                panel.set_language_override(Some(lang));
+                true
+            }
+            EditorSegmentAction::ConvertEol(eol) => panel.convert_eol(eol),
+            EditorSegmentAction::SetIndent(style) => {
+                panel.set_indent_style(style);
+                true
+            }
+            EditorSegmentAction::ReopenWithEncoding(encoding) => {
+                match panel.reopen_with_encoding(encoding) {
+                    Ok(()) => true,
+                    Err(message) => {
+                        // Surface the typed reopen failure (e.g. in-memory buffer with no file path) as an
+                        // honest non-fatal note rather than a silent no-op — the encoding does not change.
+                        eprintln!("MT-071 reopen-with-encoding: {message}");
+                        false
+                    }
+                }
+            }
+            EditorSegmentAction::SetRenderWhitespace(on) => {
+                panel.set_render_whitespace(on);
+                true
+            }
+            EditorSegmentAction::CopySegmentText(text) => {
+                ctx.copy_text(text);
+                true
+            }
+        }
     }
 
     /// WP-KERNEL-012 MT-079: the shared session-context cell the editor mounts read each frame (tests
@@ -5111,28 +5190,48 @@ impl HandshakeApp {
         };
         // The health segment is hidden iff the operator hid it via the status-bar menu (MT-021).
         let health_hidden = self.statusbar_hidden.contains("health");
-        let status_action = egui::TopBottomPanel::bottom("handshake_status_bar")
-            .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    let action = if health_hidden {
-                        // Hidden segment: render a neutral non-interactive placeholder so the bar is
-                        // never blank (and the segment can still be restored via a settings surface).
-                        ui.label("");
-                        None
-                    } else {
-                        self.status_bar_segment(ui, &status_text)
-                    };
-                    // MT-030: the quick-switcher nav-status segment (the editor-pane typed seam) renders
-                    // here when present so the seam outcome is PERCEIVABLE (rendered label + live
-                    // AccessKit node) after the overlay closes; a no-op when no nav status is set.
-                    self.quick_switcher_nav_status_segment(ui);
-                    action
+        // WP-KERNEL-012 MT-071: the live editor file-metadata segment cluster reads the FOCUSED code
+        // document's metadata this frame (None hides it — AC-005). Resolved BEFORE the panel closure so
+        // the immutable bus/registry reads do not overlap the `&mut self` status-bar segment borrow.
+        let editor_segment_state = self.editor_segment_state(ctx);
+        let (status_action, editor_segment_action) =
+            egui::TopBottomPanel::bottom("handshake_status_bar")
+                .show(ctx, |ui| {
+                    ui.horizontal(|ui| {
+                        let action = if health_hidden {
+                            // Hidden segment: render a neutral non-interactive placeholder so the bar is
+                            // never blank (and the segment can still be restored via a settings surface).
+                            ui.label("");
+                            None
+                        } else {
+                            self.status_bar_segment(ui, &status_text)
+                        };
+                        // MT-030: the quick-switcher nav-status segment (the editor-pane typed seam)
+                        // renders here when present so the seam outcome is PERCEIVABLE (rendered label +
+                        // live AccessKit node) after the overlay closes; a no-op when no nav status is set.
+                        self.quick_switcher_nav_status_segment(ui);
+                        // WP-KERNEL-012 MT-071: mount the five editor file-metadata segments (LanguageMode
+                        // / EOL / Indent / Encoding / RenderWhitespace) in the RIGHT cluster of the LIVE
+                        // status bar (NOT a standalone harness). They render only when a code pane is
+                        // focused; the returned typed action is applied to the doc model after the panel
+                        // closes (so no `&mut` to the panel is held inside the egui closure).
+                        let editor_action = ui
+                            .with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                EditorStatusSegments::new(editor_segment_state.clone()).show(ui)
+                            })
+                            .inner;
+                        (action, editor_action)
+                    })
+                    .inner
                 })
-                .inner
-            })
-            .inner;
+                .inner;
         if let Some(action) = status_action {
             if self.apply_status_bar_action(ctx, "health", &status_text, action) {
+                ctx.request_repaint();
+            }
+        }
+        if let Some(action) = editor_segment_action {
+            if self.apply_editor_segment_action(ctx, action) {
                 ctx.request_repaint();
             }
         }

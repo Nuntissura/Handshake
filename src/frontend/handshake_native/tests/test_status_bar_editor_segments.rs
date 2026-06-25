@@ -74,8 +74,11 @@ fn author_nodes(harness: &Harness<'_>) -> Vec<(String, String, Option<String>)> 
 }
 
 /// A state-less harness rendering the five segments from `state` (or hiding them when `None`), capturing
-/// the typed action a click/menu produces. Drives the SAME `EditorStatusSegments::show` path the live
-/// status bar wires (no new menu infra) so the AccessKit nodes + activation are the production path.
+/// the typed action a click/menu produces. This is a WIDGET-LEVEL harness exercising the production
+/// `EditorStatusSegments::show` render + popup + AccessKit path in isolation (the same widget the live
+/// status bar mounts), so the per-segment node/activation behavior is the production path. The LIVE-SHELL
+/// mount + focus-driven hide/show (the cluster wired into `HandshakeApp`'s real `handshake_status_bar`
+/// bottom panel) is proven separately by the `live_shell_*` tests below against the running app.
 fn segments_harness(
     state: Option<EditorMetaSegmentState>,
     captured: std::sync::Arc<std::sync::Mutex<Option<EditorSegmentAction>>>,
@@ -379,4 +382,154 @@ fn segments_screenshot_to_external_artifact_root() {
     }
     // No repo-local artifact dir may exist after the run (the PNG goes to the external root only).
     assert_no_local_artifact_dir();
+}
+
+// ── LIVE-SHELL WIRING (adversarial-review must-fix #2/#3): the five segments are MOUNTED in the real
+//    `HandshakeApp` status bar and driven by the FOCUSED pane, NOT a standalone harness. ─────────────────
+
+use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
+use handshake_native::backend_client::HealthInfo;
+use handshake_native::interop::InteractionBus;
+use handshake_native::pane_registry::{
+    DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
+};
+
+/// A live shell with the seeded `pane-a` re-typed to the mounted CODE editor (`PaneType::CodeSymbol`)
+/// and `pane-b` to a NON-code Notes pane (`PaneType::LoomWikiPage`) — so focusing `pane-a` must SHOW the
+/// editor segments and focusing `pane-b` must HIDE them (AC-004/AC-005 against the real status bar). A
+/// runtime is returned alongside so it outlives the harness (a dropped runtime unbinds the mounts).
+fn live_editor_shell() -> (HandshakeApp, tokio::runtime::Runtime) {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("build runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_string(),
+        db_status: "ok".to_string(),
+        migration_version: Some(1),
+    }));
+    app.set_runtime_handle(runtime.handle().clone());
+    {
+        let registry = app.pane_registry();
+        let mut guard = registry.lock().expect("registry");
+        guard.insert(PaneRecord::new(
+            PaneId::from("pane-a"),
+            PaneType::CodeSymbol,
+            DEFAULT_PROJECT_ID,
+            None,
+            LockState::Unlocked,
+            DirtyState::Clean,
+            PaneAuthority::System,
+        ));
+        guard.insert(PaneRecord::new(
+            PaneId::from("pane-b"),
+            PaneType::LoomWikiPage,
+            DEFAULT_PROJECT_ID,
+            None,
+            LockState::Unlocked,
+            DirtyState::Clean,
+            PaneAuthority::System,
+        ));
+    }
+    (app, runtime)
+}
+
+/// Count the `status-bar-*` editor-segment author_ids in the LIVE app AccessKit tree.
+fn live_segment_count(harness: &Harness<'_, HandshakeApp>) -> usize {
+    let mut n = 0;
+    for node in harness.root().children_recursive() {
+        if let Some(a) = node.accesskit_node().author_id() {
+            if a.starts_with("status-bar-") {
+                n += 1;
+            }
+        }
+    }
+    n
+}
+
+/// Set the InteractionBus focus owner to `pane_id` (the focus seam the live status bar reads to decide
+/// whether the focused pane is a code editor), then run frames so the status bar re-resolves.
+fn focus_pane(harness: &mut Harness<'_, HandshakeApp>, pane_id: &str) {
+    let bus = InteractionBus::get_or_init(&harness.ctx);
+    {
+        let mut guard = bus.lock().unwrap_or_else(|e| e.into_inner());
+        guard.set_focus_owner(PaneId::from(pane_id));
+    }
+    harness.run_steps(2);
+}
+
+#[test]
+fn live_shell_status_bar_shows_five_segments_when_code_pane_focused() {
+    // AC-004 against the REAL shell: with the mounted code pane focused, the live `handshake_status_bar`
+    // bottom panel renders the five editor segments reading the active document's metadata — proven in the
+    // running `HandshakeApp` tree, NOT a hand-built test panel.
+    let (app, _rt) = live_editor_shell();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+
+    focus_pane(&mut harness, "pane-a");
+    assert_eq!(
+        live_segment_count(&harness),
+        5,
+        "the LIVE status bar renders five editor segments when the code pane is focused"
+    );
+    // The segments carry the contract author_ids (role=Button) in the live tree.
+    for segment in EditorSegment::ALL {
+        let found = harness.root().children_recursive().any(|node| {
+            node.accesskit_node().author_id() == Some(segment.author_id())
+        });
+        assert!(found, "{} present in the LIVE app status bar", segment.author_id());
+    }
+}
+
+#[test]
+fn live_shell_status_bar_hides_segments_when_non_code_pane_focused() {
+    // AC-005 against the REAL shell: focusing a NON-code pane (Notes) hides all five editor segments in the
+    // live status bar; re-focusing the code pane brings them back. The hide/show is driven by the real
+    // focus seam + pane registry, not a hand-passed Some/None.
+    let (app, _rt) = live_editor_shell();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+
+    // Code pane focused -> five segments.
+    focus_pane(&mut harness, "pane-a");
+    assert_eq!(live_segment_count(&harness), 5, "five segments with the code pane focused");
+
+    // Non-code pane focused -> hidden.
+    focus_pane(&mut harness, "pane-b");
+    assert_eq!(
+        live_segment_count(&harness),
+        0,
+        "no editor segments when a non-code pane is focused (AC-005, live shell)"
+    );
+
+    // Re-focus the code pane -> they re-appear with metadata.
+    focus_pane(&mut harness, "pane-a");
+    assert_eq!(live_segment_count(&harness), 5, "segments re-appear when the code pane regains focus");
+}
+
+#[test]
+fn live_shell_segment_action_applies_to_focused_document() {
+    // Coverage gap the review named: prove the host actually APPLIES an EditorSegmentAction back onto the
+    // focused document through the live shell. Drive the render-whitespace toggle via the same panel the
+    // status bar mounts and confirm the doc-model flag the MT-001 draw path reads actually flips — i.e.
+    // the action->mutation dispatch the live status bar performs is real, not just emitted.
+    let (app, _rt) = live_editor_shell();
+    let code_panel = app.mounted_code_panel();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+    focus_pane(&mut harness, "pane-a");
+
+    assert!(!code_panel.render_whitespace(), "render-whitespace starts off");
+    // Click the live whitespace segment in the real status bar -> the host applies SetRenderWhitespace.
+    harness.get_by_label("Whitespace").click();
+    harness.run_steps(2);
+    assert!(
+        code_panel.render_whitespace(),
+        "clicking the LIVE whitespace segment flipped the doc-model flag the MT-001 draw path reads"
+    );
 }
