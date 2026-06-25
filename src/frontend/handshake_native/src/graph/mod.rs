@@ -11,6 +11,13 @@ pub mod canvas_board;
 // titled rounded-rectangle container per distinct placement `group_id` (drawn behind the cards) and owns
 // the deterministic which_section(drop_pos) hit-testing the canvas uses for drag-drop section assignment.
 pub mod canvas_sections;
+// WP-KERNEL-012 MT-067 (E10 — Calendar/Pillar 2 interop): the daily journal panel host surface that melts
+// the MT-019 daily-note system together with the Calendar. It REUSES the MT-019 date nav (no second
+// date-picker) and the `crate::interop::CalendarInteropService` reads, renders a clickable CalendarEvent
+// chip (bus-only focus, no calendar-pane import) and a read-only "Edited during this block" activity strip,
+// and shows the typed-blocker empty-states for the absent `/calendar/` routes. The loom surface is `graph/`
+// (the contract's `loom/` path is fictional — VERIFIED), so the panel lives here alongside the graph views.
+pub mod daily_journal_panel;
 pub mod folder_tree;
 // WP-KERNEL-012 MT-060 (E3): the Obsidian-class graph control panel (search filter / tag+folder groups /
 // link-depth slider / orphan + size-by-degree toggles) rendered alongside the MT-021 graph canvas. Pure
@@ -52,6 +59,15 @@ pub use graph_controls::{
     GraphControlsEvent, GraphGroup, GroupKind, NodeVisibility, DEPTH_AUTHOR_ID, DIM_ALPHA,
     GROUP_AUTHOR_ID_PREFIX, ORPHAN_AUTHOR_ID, SEARCH_AUTHOR_ID as GRAPH_FILTER_SEARCH_AUTHOR_ID,
     SIZE_DEGREE_AUTHOR_ID, TOGGLE_AUTHOR_ID,
+};
+
+// WP-KERNEL-012 MT-067 (E10): the daily journal panel + its state/event types + AccessKit author_ids,
+// re-exported flat for the host pane + the proof tests.
+pub use daily_journal_panel::{
+    activity_item_author_id, collect_edited_doc_ids, ActivityCorrelation, DailyJournalEvent,
+    DailyJournalPanel, DailyJournalState, DAILY_JOURNAL_ACTIVITY_ITEM_AUTHOR_ID_PREFIX,
+    DAILY_JOURNAL_ACTIVITY_STRIP_AUTHOR_ID, DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID,
+    DAILY_JOURNAL_DATE_HEADER_AUTHOR_ID, DAILY_JOURNAL_PANEL_AUTHOR_ID,
 };
 
 pub use folder_tree::{

@@ -201,7 +201,11 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 # its locked graph (the handshake_core backend's chrono is a SEPARATE crate's graph) — this is the only
 # NEW dependency family MT-017 adds. Clipboard reuses the EXISTING `egui::Context::copy_text` surface
 # (used in app.rs / debug_console.rs), so NO `arboard` direct dep is added.
-chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+# WP-KERNEL-012 MT-067 (E10 Calendar interop): the `serde` feature is added so the Calendar interop domain
+# types (`CalendarEvent`/`ActivitySpan` with `DateTime<Utc>` window fields) derive `Deserialize` directly
+# from the backend ISO-8601 wire (RFC-3339) — no manual string parse + no second date type. This is a
+# feature ADD on the already-present `chrono`, NOT a new dependency family.
+chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 # WP-KERNEL-012 MT-036 (E5 — one event ledger): `uuid` (v4) generates the per-event `event_id` and the
 # per-session `session_id` (a non-nil UUID the verified Flight Recorder `runtime_chat_event` endpoint
 # REQUIRES). uuid 1.23.x is ALREADY in the locked graph transitively (Cargo.lock pins 1.23.3 via the egui/

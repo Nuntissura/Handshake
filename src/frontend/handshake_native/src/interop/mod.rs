@@ -38,6 +38,12 @@ pub mod cross_ref;
 // to an MT-014 `hsLink` embed atom; the absent embed-back route is the typed blocker
 // `StageInteropError::EmbedBackEndpointAbsent` (no backend route added).
 pub mod stage_interop;
+// WP-KERNEL-012 MT-067 (E10 — Calendar/Pillar 2 interop): the editors <-> Calendar edge. The daily-note
+// half is REAL — `open_or_create_daily_note` DELEGATES to the MT-019 daily-note service (idempotent,
+// single doc/date). The calendar-event + activity-spans halves are TYPED BLOCKERS: handshake_core has NO
+// `/calendar/` HTTP routes in this build, so both reads return `InteropError::EndpointUnavailable` (the
+// designed empty-state path) — no backend route added, no event/span fabricated, no DB/SQLite touched.
+pub mod calendar_interop;
 
 pub use interaction_bus::{
     command_list_item_author_id, default_keybind_for, interaction_bus_id, ClipboardPayload, CommandBus,
@@ -69,6 +75,12 @@ pub use stage_interop::{
     register_embed_stage_capture_command, route_to_stage, CanvasNodeRef, EmbedNodeView, RouteAck,
     StageArtifactRef, StageClient, StageEmbedProvenance, StageInteropError, StageManifest,
     StageRoutePayload, StageRouteSource, STAGE_CAPTURE_REF_KIND,
+};
+
+pub use calendar_interop::{
+    pick_event_for_date, ActivitySpan, CalendarEvent, CalendarInteropService, DailyNoteBinding, DocId,
+    InteropError, InteropResult, CMD_FOCUS_CALENDAR_EVENT, CMD_OPEN_DAILY_NOTE_FOR_DATE,
+    CMD_OPEN_DOCUMENT as CMD_OPEN_ACTIVITY_DOCUMENT,
 };
 
 // ── MT-035 (E5 unified undo) — the per-pane "Undo ({n})" title-bar indicator ──────────────────────────

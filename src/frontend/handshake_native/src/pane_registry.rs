@@ -420,6 +420,44 @@ pub fn register_stage_pane(
     pane_id
 }
 
+/// WP-KERNEL-012 MT-067 (E10 — Calendar/Pillar 2 interop): the stable pane id under which the daily journal
+/// panel ([`crate::graph::daily_journal_panel::DailyJournalPanel`]) docks in the shell — the date header +
+/// MT-019 nav + the linked CalendarEvent chip + the read-only activity correlation strip. A fixed dotted
+/// key (NOT a per-instance `pane-a`-style id) so the shell can `dock`/`show` the pane and a swarm agent can
+/// address it deterministically (AC-6). This pane hosts the daily-note/journal surface, so it uses the
+/// EXISTING [`PaneType::LoomDailyJournal`] variant (the natural fit MT-019 already declares) rather than
+/// forking a new `PaneType`; the STABLE ADDRESS is this pane id string plus the panel's own AccessKit
+/// container id `daily-journal-panel`.
+pub const DAILY_JOURNAL_PANE_ID: &str = "loom.daily_journal";
+
+/// Register the WP-KERNEL-012 MT-067 daily journal pane into `registry` under the stable
+/// [`DAILY_JOURNAL_PANE_ID`] (`"loom.daily_journal"`), bound to the active daily-note `document_id` content
+/// for `project_id`. Re-registering keeps the already-assigned AccessKit node id (see
+/// [`PaneRegistry::insert`]), so an agent that targeted the pane does not lose its handle when the active
+/// date/note changes. Returns the pane id for convenience.
+///
+/// This is the E10 registration the MT requires NOW (the pane is dockable through the EXISTING registry API
+/// — no new docking system is invented, AC-6). The host wiring of the date-selected drain (MT-030's
+/// date-selected -> `open_or_create_daily_note`) and the live dock placement land at E11 (MT-069), like the
+/// other panes.
+pub fn register_daily_journal_pane(
+    registry: &mut PaneRegistry,
+    project_id: impl Into<String>,
+    document_id: Option<String>,
+) -> PaneId {
+    let pane_id: PaneId = Arc::from(DAILY_JOURNAL_PANE_ID);
+    registry.insert(PaneRecord::new(
+        pane_id.clone(),
+        PaneType::LoomDailyJournal,
+        project_id,
+        document_id,
+        LockState::Unlocked,
+        DirtyState::Clean,
+        PaneAuthority::System,
+    ));
+    pane_id
+}
+
 /// Context handed to a `PaneFactory::render`. Carries the egui id base for the pane and the project
 /// id; a real `BackendClient` handle will be threaded through here once concrete surfaces are built
 /// (MT-006+). Kept as an explicit struct now so adding the backend handle later is a field add, not
@@ -919,5 +957,45 @@ mod tests {
             "AccessKit id stable across re-register (handle preserved)"
         );
         assert_eq!(reg.get(&pid).unwrap().content_id.as_deref(), Some("ART-other"));
+    }
+
+    /// WP-KERNEL-012 MT-067 (AC-6 pane-id half): the daily journal pane registers under the stable
+    /// `loom.daily_journal` id (using the existing `LoomDailyJournal` PaneType — not a forked variant), is
+    /// retrievable by that id, carries a stable AccessKit node id (the swarm address), and binds the active
+    /// daily-note document. Re-registering on a date/note change keeps the SAME AccessKit id so an agent
+    /// that targeted the pane does not lose its handle.
+    #[test]
+    fn registers_daily_journal_pane_under_stable_id() {
+        let mut reg = PaneRegistry::new();
+        let id = register_daily_journal_pane(&mut reg, "project-1", Some("DOC-2026-06-21".to_owned()));
+        assert_eq!(id.as_ref(), DAILY_JOURNAL_PANE_ID);
+        assert_eq!(DAILY_JOURNAL_PANE_ID, "loom.daily_journal");
+
+        let pid: PaneId = Arc::from(DAILY_JOURNAL_PANE_ID);
+        let rec = reg.get(&pid).expect("loom.daily_journal registered");
+        assert_eq!(
+            rec.content_id.as_deref(),
+            Some("DOC-2026-06-21"),
+            "active daily-note document bound to the pane"
+        );
+        assert_eq!(rec.pane_type, PaneType::LoomDailyJournal, "uses the existing LoomDailyJournal type");
+        let node = reg.accesskit_id(&pid).expect("accesskit id assigned");
+        assert!(node.0 >= PaneRegistry::ACCESSKIT_ID_BASE, "pane id sits in the pane id space (>= 100)");
+
+        // The pane's AccessKit node carries the stable pane id as its author_id (the swarm address).
+        let (_nid, akn) = reg
+            .build_accesskit_node(&pid, accesskit::Role::Group)
+            .expect("node built");
+        assert_eq!(akn.author_id(), Some("loom.daily_journal"), "author_id equals the stable pane id");
+
+        // Re-register on a date/note change: the AccessKit id is stable across the in-place update.
+        let before = reg.accesskit_id(&pid).unwrap();
+        register_daily_journal_pane(&mut reg, "project-1", Some("DOC-2026-06-22".to_owned()));
+        assert_eq!(
+            reg.accesskit_id(&pid).unwrap(),
+            before,
+            "AccessKit id stable across re-register (handle preserved)"
+        );
+        assert_eq!(reg.get(&pid).unwrap().content_id.as_deref(), Some("DOC-2026-06-22"));
     }
 }

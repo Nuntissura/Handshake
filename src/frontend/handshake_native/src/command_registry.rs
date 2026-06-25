@@ -254,6 +254,38 @@ const APP_COMMANDS: &[AppCommand] = &[
         stable_id: "hs-fems-palette-propose-to-memory",
         disabled: false,
     },
+    // WP-KERNEL-012 MT-067 (E10 — Calendar/Pillar 2 interop): the three daily-note <-> Calendar bus
+    // commands. The daily journal panel + MT-030's calendar pane communicate ONLY through these bus
+    // commands (NO calendar-pane internal import — RISK-4/MC-4). The single source of truth for the ids is
+    // `crate::interop::calendar_interop::{CMD_OPEN_DAILY_NOTE_FOR_DATE, CMD_FOCUS_CALENDAR_EVENT,
+    // CMD_OPEN_DOCUMENT}`. All three are palette-driven (no keybind — does NOT steal a VS Code binding).
+    AppCommand {
+        id: crate::interop::calendar_interop::CMD_OPEN_DAILY_NOTE_FOR_DATE,
+        kind: CommandKind::App,
+        label: "Daily Note: Open for Date",
+        description: "Open or create the daily note for the selected calendar date (idempotent — one note per date).",
+        keywords: &["daily", "note", "journal", "calendar", "date", "open", "pillar 2", "interop"],
+        stable_id: "hs-daily-note-palette-open-for-date",
+        disabled: false,
+    },
+    AppCommand {
+        id: crate::interop::calendar_interop::CMD_FOCUS_CALENDAR_EVENT,
+        kind: CommandKind::App,
+        label: "Daily Note: Focus Calendar Event",
+        description: "Focus or open the linked calendar event for the current daily note in the calendar pane.",
+        keywords: &["daily", "note", "calendar", "event", "focus", "pillar 2", "interop"],
+        stable_id: "hs-daily-note-palette-focus-calendar-event",
+        disabled: false,
+    },
+    AppCommand {
+        id: crate::interop::calendar_interop::CMD_OPEN_DOCUMENT,
+        kind: CommandKind::App,
+        label: "Activity: Open Edited Document",
+        description: "Navigate to a document edited during the calendar block (read-only activity correlation).",
+        keywords: &["activity", "document", "open", "edited", "calendar", "correlation", "pillar 2", "interop"],
+        stable_id: "hs-activity-palette-open-document",
+        disabled: false,
+    },
 ];
 
 /// A representative subset (13 entries) of the React `EDITOR_COMMANDS` catalog
