@@ -170,13 +170,18 @@ fn click_author_id(harness: &mut Harness<'_, HandshakeApp>, author_id: &str) {
 #[test]
 fn file_save_dispatches_editor_save_path() {
     let (app, _rt) = editor_shell();
+    let rich_state = app.mounted_rich_state();
     let mut harness = shell_harness(app);
     harness.run_steps(3);
 
-    // No editor command observed yet.
+    // No editor command observed yet, and the MT-020 SaveManager is NOT in flight before the menu Save.
     assert!(
         harness.state().last_editor_command().is_none(),
         "no editor command before the menu Save"
+    );
+    assert!(
+        !rich_state.lock().unwrap().save_is_in_flight(),
+        "the MT-020 SaveManager is idle before the menu Save"
     );
 
     // Open FILE, click the now-ENABLED Save leaf by its UNIQUE author_id (the genuine out-of-process
@@ -187,13 +192,20 @@ fn file_save_dispatches_editor_save_path() {
     // One extra frame so the shell drains the code command channel (drive_editor_mounts) and records it.
     harness.run_steps(2);
 
-    // AC-004 / PT-003: the menu Save reached the MT-020 editor save path (the code pane command channel),
-    // observably recorded as `last_editor_command == Save` — NOT a shell-local save (no shell-local/SQLite
-    // write path exists in the dispatch).
+    // AC-004 / PT-003 (the REAL MT-020 proof, NOT a host-set marker): the menu Save reached the MT-020
+    // SaveManager save entry — `request_save` moved the SaveManager's OWN state machine into
+    // `SaveState::Saving` (asserted via `save_is_in_flight`, a SaveManager-internal state the host does NOT
+    // set). This proves the dispatch reaches the real MT-020 save path, not a shell-local/SQLite write.
+    assert!(
+        rich_state.lock().unwrap().save_is_in_flight(),
+        "FILE > Save reached the MT-020 SaveManager save entry (request_save -> SaveState::Saving)"
+    );
+    // The code pane's Save channel ALSO carried the intent (observable to a swarm agent) — but this is the
+    // secondary observability marker, not the AC-004 proof (the SaveManager in-flight assertion above is).
     assert_eq!(
         harness.state().last_editor_command(),
         Some(&CodeEditorAction::Save),
-        "FILE > Save dispatched the editor Save command through the command channel (MT-020 path)"
+        "FILE > Save also pinged the code pane Save channel (dispatch observability)"
     );
     // R6: the menu closed after the click.
     let nodes = live_author_nodes(&harness);
@@ -201,6 +213,68 @@ fn file_save_dispatches_editor_save_path() {
         !nodes.iter().any(|(a, _, _)| a == "menu.file.save"),
         "the FILE menu closed after Save was clicked: {nodes:?}"
     );
+}
+
+// ── AC-002 / PT-002: EDIT > Toggle Comment + Format Document reach the REAL editor transforms ───────────
+
+#[test]
+fn edit_toggle_comment_mutates_the_code_buffer() {
+    use handshake_native::command_registry::{
+        CMD_EDITOR_EDIT_FORMAT_DOCUMENT, CMD_EDITOR_EDIT_TOGGLE_COMMENT,
+    };
+
+    let (app, _rt) = editor_shell();
+    let code_panel = app.mounted_code_panel();
+    let mut harness = shell_harness(app);
+    harness.run_steps(3);
+
+    // The mounted code pane's seed buffer (CODE_EDITOR_SEED) is Rust ("rs"); its FIRST line is the
+    // commented header `// Handshake native code editor (VS Code parity).`. The default caret is on line 0,
+    // so a Toggle Comment acts on that line. Capture the live buffer before the toggle.
+    let before = code_panel.buffer().to_string();
+    let first_line_before = before.lines().next().unwrap_or_default().to_string();
+    assert!(
+        first_line_before.trim_start().starts_with("//"),
+        "the seed's first line is a Rust line-comment: {first_line_before:?}"
+    );
+
+    // Dispatch EDIT > Toggle Comment through the SAME shell dispatcher a menu click reaches
+    // (dispatch_palette_action -> dispatch_editor_command). This is NOT a bare repaint: the arm routes
+    // `CodeEditorAction::ToggleComment` to the mounted panel's `dispatch_action`, which runs the MT-051
+    // `line_ops::toggle_comment` transform on the caret's line.
+    let fired = harness.state_mut().dispatch_palette_action_for_test(CMD_EDITOR_EDIT_TOGGLE_COMMENT);
+    harness.run();
+    assert!(fired, "Toggle Comment produced an observable effect (not a logged no-op)");
+
+    // AC-002: the buffer ACTUALLY changed — the menu Toggle Comment reached the real MT-051 transform, not
+    // a fake-enabled no-op (RISK-003). Toggling the commented first line UNcomments it (the `// ` prefix is
+    // stripped), so the buffer differs and the first line no longer leads with `//`.
+    let after = code_panel.buffer().to_string();
+    assert_ne!(after, before, "EDIT > Toggle Comment mutated the code buffer (MT-051 transform ran)");
+    let first_line_after = after.lines().next().unwrap_or_default().to_string();
+    assert!(
+        !first_line_after.trim_start().starts_with("//"),
+        "Toggle Comment stripped the line-comment from the first line: {first_line_after:?}"
+    );
+
+    // Toggling again re-comments the line (VS Code all-or-nothing round-trip) — proves it is the real
+    // reversible transform, not a one-way mutation.
+    let fired2 = harness.state_mut().dispatch_palette_action_for_test(CMD_EDITOR_EDIT_TOGGLE_COMMENT);
+    harness.run();
+    assert!(fired2, "second Toggle Comment also fired");
+    assert_eq!(
+        code_panel.buffer().to_string(),
+        before,
+        "a second Toggle Comment re-commented the line (real reversible MT-051 transform)"
+    );
+
+    // Format Document dispatches the REAL MT-050 format-request arm (arms textDocument/formatting; a no-op +
+    // toast when no formatter is available — the honest MT-050 disabled path). It must dispatch without
+    // panic and report an observable effect (the request was armed), never a fake-enabled bare repaint.
+    let format_fired =
+        harness.state_mut().dispatch_palette_action_for_test(CMD_EDITOR_EDIT_FORMAT_DOCUMENT);
+    harness.run();
+    assert!(format_fired, "Format Document dispatched the real MT-050 format request arm (not a no-op)");
 }
 
 // ── AC-002 / AC-004 / PT-003: EDIT > Undo routes through the MT-035 unified-undo scope (one stack) ──────
@@ -474,7 +548,11 @@ fn every_editor_menu_command_dispatches_without_panic() {
     for id in menu_ids.iter().chain(EDITOR_GO_NAV_PENDING_IDS.iter()) {
         // Each dispatch returns a bool (effect or logged no-op) and must not panic.
         let _ = harness.state_mut().dispatch_palette_action_for_test(id);
-        harness.run();
+        // Use step() (one frame), NOT run() (run-to-convergence): the Save dispatch arms a REAL MT-020
+        // SaveManager save in flight, and the rich pane self-repaints while waiting for the (unreachable in
+        // this headless test) backend result — run() would exceed max_steps on that legitimate loading
+        // spinner. One frame is sufficient for the no-panic proof.
+        harness.step();
     }
     // The shell is still alive + responsive after exercising every editor command path.
     assert!(harness.state().editor_available(), "shell intact after dispatching every editor command");

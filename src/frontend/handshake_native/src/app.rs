@@ -1738,15 +1738,26 @@ impl HandshakeApp {
             cr::CMD_EDITOR_FIND_IN_FILES | cr::CMD_EDITOR_REPLACE_IN_FILES => {
                 self.open_content_on_active_pane(PaneType::FindInFiles, None)
             }
-            // ── Toggle Comment / Format Document -> the focused code editor's line-edit / format intent ──
+            // ── Toggle Comment / Format Document -> the focused code editor's REAL transform ──────────────
             cr::CMD_EDITOR_EDIT_TOGGLE_COMMENT | cr::CMD_EDITOR_EDIT_FORMAT_DOCUMENT => {
-                // These act on the focused code editor's buffer in its own render/keybind path (MT-051
-                // toggle-comment, MT-050 FormatDocument). The shell routes the intent via a Find-class
-                // repaint signal; the editor owns the transform. No inline editor logic in the shell.
+                // Route the intent to the SAME `dispatch_action` entry the code editor's keymap reaches:
+                // `ToggleComment` -> MT-051 `apply_line_transform(line_ops::toggle_comment)` (a real,
+                // observable buffer mutation), `FormatDocument` -> MT-050 `request_format_document` (arms a
+                // real `textDocument/formatting` request; a no-op + toast when no formatter is available —
+                // the honest MT-050 disabled path, never a fake effect). The shell does NOT re-implement the
+                // transform; it dispatches the editor's own command id to the mounted code panel
+                // (`dispatch_action` takes `&self` via interior mutability), so menu + keymap share ONE path
+                // (MC-001 / RISK-001). This is NOT a bare repaint — the editor buffer/request actually moves.
+                let action = if command_id == cr::CMD_EDITOR_EDIT_TOGGLE_COMMENT {
+                    crate::code_editor::keymap::CodeEditorAction::ToggleComment
+                } else {
+                    crate::code_editor::keymap::CodeEditorAction::FormatDocument
+                };
+                self.editor_mounts.code_panel.dispatch_action(action);
                 ctx.request_repaint();
                 true
             }
-            // ── Save / Save All / Save As / Export -> the MT-020 editor save path (code pane channel) ──
+            // ── Save / Save All / Save As / Export -> the MT-020 editor SaveManager save entry ───────────
             cr::CMD_EDITOR_FILE_SAVE
             | cr::CMD_EDITOR_FILE_SAVE_ALL
             | cr::CMD_EDITOR_FILE_SAVE_AS
@@ -1754,13 +1765,16 @@ impl HandshakeApp {
             | cr::CMD_EDITOR_FILE_EXPORT_MD
             | cr::CMD_EDITOR_FILE_EXPORT_TXT
             | cr::CMD_EDITOR_FILE_EXPORT_JSON => {
-                // Route to the MT-020 editor save path the SAME way the code pane's Ctrl+S does: through the
-                // mounted code pane's command channel (request_save_for_host -> Sender<CodeEditorAction>),
-                // which the shell drains in `drive_editor_mounts` and records as `last_editor_command`. The
-                // editor command owns the handshake_core PostgreSQL/EventLedger write; the shell passes only
-                // the active document target and never writes directly (MC-004 / RISK-004 — no shell-local /
-                // SQLite path). Save As / Export reuse the same save entry (the format/target is the
-                // document shell's concern); the dispatch reaching the MT-020 path is the AC-004 obligation.
+                // Invoke the REAL MT-020 SaveManager save entry on the mounted document pane — the SAME
+                // `RichEditorState::request_save_for_host` -> `SaveManager::request_save` path the rich
+                // editor's own Ctrl+S reaches (one save substrate, no fork — MC-004 / RISK-004). The
+                // SaveManager owns the `PUT /knowledge/documents/{id}/save` handshake_core write; the shell
+                // never writes directly and never opens a SQLite/shell-local path. `request_save` moves the
+                // SaveManager into `SaveState::Saving` (its OWN state machine, not a host-set marker), which
+                // is the AC-004 "dispatch reaches the MT-020 save entry" obligation, provable via
+                // `mounted_rich_state().save_is_in_flight()`. The code pane's Save channel is ALSO pinged so
+                // a focused code pane's save intent stays observable to a swarm agent (`last_editor_command`).
+                self.invoke_editor_save();
                 self.editor_mounts.code_panel.request_save_for_host();
                 ctx.request_repaint();
                 true
@@ -1783,6 +1797,48 @@ impl HandshakeApp {
                 false
             }
         }
+    }
+
+    /// WP-KERNEL-012 MT-069: invoke the MT-020 editor save path for a menu/palette FILE > Save / Save As /
+    /// Export dispatch. Reaches the REAL [`crate::rich_editor::save::save_manager::SaveManager`] save entry
+    /// on the mounted document pane (the `request_save` -> `SaveState::Saving` transition + the
+    /// `PUT /knowledge/documents/{id}/save` backend call the rich editor's own Ctrl+S reaches), NOT a
+    /// shell-local write. If the mounted rich pane has no save context yet (the mount's `wire_if_needed`
+    /// installs embed + wikilink context but not save context), this installs one from the live bound
+    /// session runtime first (the MT-020 carried-forward host-mount wiring this menu dispatch completes for
+    /// the Save path), so the menu Save reaches a real SaveManager rather than a typed-carry marker. Returns
+    /// `true` when the SaveManager save entry was reached, `false` when no runtime is bound (a headless
+    /// current-thread shell with no runtime — the honest "save not yet wireable" path; the leaf is still
+    /// enabled because an editor pane is present, and the code-pane channel still carries the intent).
+    fn invoke_editor_save(&mut self) -> bool {
+        let rich = Arc::clone(&self.editor_mounts.rich_state);
+        let mut state = match rich.lock() {
+            Ok(s) => s,
+            Err(p) => p.into_inner(),
+        };
+        // Install the MT-020 save context on first save if the mount has not (the mount threads embed +
+        // wikilink context but not save context). Use the live bound runtime + active workspace so the
+        // SaveManager spawns the real backend call off the frame thread (HBR-QUIET).
+        if !state.has_save_context() {
+            if let Some(rt) = self.runtime_handle.clone() {
+                // The mounted Notes pane binds to the workspace root until a document is opened; the save
+                // entry's document target is the active workspace document id (the mount's bound id, falling
+                // back to the active project). doc_version 0 is the unsaved/new-document base; the first save
+                // result rebases it (SaveManager bumps `doc_version` on a successful save — never hardcoded).
+                let doc_id = if self.active_project_id.is_empty() {
+                    DEFAULT_PROJECT_ID.to_owned()
+                } else {
+                    self.active_project_id.clone()
+                };
+                state.set_save_context(doc_id, 0, rt);
+            } else {
+                // No runtime bound (headless current-thread shell): the save path is not wireable this run.
+                tracing::debug!("editor Save: no runtime bound; MT-020 save context not installed");
+                return false;
+            }
+        }
+        // Reach the REAL SaveManager save entry (request_save -> SaveState::Saving + backend PUT).
+        state.request_save_for_host()
     }
 
     /// WP-KERNEL-012 MT-069 test seam: dispatch a command id through the REAL `dispatch_palette_action`

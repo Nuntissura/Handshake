@@ -335,6 +335,42 @@ impl RichEditorState {
         self.draft = Some(draft);
     }
 
+    /// True when this pane has an installed MT-020 save context (a [`SaveManager`] is bound). The host
+    /// menu Save predicate / wiring consults this to decide whether to invoke the real save path or
+    /// install a save context first.
+    pub fn has_save_context(&self) -> bool {
+        self.save.is_some()
+    }
+
+    /// True while the MT-020 [`SaveManager`] has a canonical save in flight (`SaveState::Saving`). This
+    /// is the SaveManager's OWN state machine (set inside `request_save`), not a host-set marker — the
+    /// menu Save proof asserts THIS to show the dispatch reached the real MT-020 save entry.
+    pub fn save_is_in_flight(&self) -> bool {
+        self.save.as_ref().map(|s| s.is_saving()).unwrap_or(false)
+    }
+
+    /// WP-KERNEL-012 MT-069: trigger a canonical save of the live document through the MT-020
+    /// [`SaveManager`] — the SAME entry point the rich editor's own Ctrl+S ([`RichDispatch::Save`] ->
+    /// `trigger_save`) reaches. Captures the current `content_json` from the doc (never a stale
+    /// snapshot), records it as the pending local content (so a resulting 409 conflict carries the
+    /// operator's version), and calls [`SaveManager::request_save`], which moves the manager to
+    /// `SaveState::Saving` and (with a runtime) spawns the real `PUT /knowledge/documents/{id}/save`
+    /// backend call off the frame thread. Returns `true` when the save entry was reached (a save context
+    /// is installed), `false` when no save context exists (the honest "save not yet wireable" path the
+    /// host keeps the leaf disabled for). No shell-local / SQLite write — the SaveManager owns the
+    /// handshake_core PostgreSQL/EventLedger write (MC-004 / RISK-004).
+    pub fn request_save_for_host(&mut self) -> bool {
+        let content =
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&self.doc);
+        if let Some(save) = self.save.as_mut() {
+            save.set_pending_local_content(content.clone());
+            save.request_save(content);
+            true
+        } else {
+            false
+        }
+    }
+
     /// TEST SEAM: install pre-built save + draft managers (with mock backends + no runtime) so the
     /// conflict window / draft banner / Ctrl+S flow can be exercised headlessly.
     pub fn with_save_managers(
@@ -1337,12 +1373,9 @@ impl RichEditorWidget {
     /// resulting 409 conflict carries the operator's version), and asks the save manager to save.
     /// No-op when no save context is installed or a save is already in flight (MC-002).
     fn trigger_save(state: &mut RichEditorState) {
-        let content =
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
-        if let Some(save) = state.save.as_mut() {
-            save.set_pending_local_content(content.clone());
-            save.request_save(content);
-        }
+        // One save substrate: the keyboard Ctrl+S path and the host menu Save both route to
+        // `RichEditorState::request_save_for_host` (MT-020 SaveManager), so they can never diverge.
+        let _ = state.request_save_for_host();
     }
 
     // ── WP-KERNEL-012 MT-041 (E7): consolidated editor-action AccessKit surface ──────────────────────
