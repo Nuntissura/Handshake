@@ -49,8 +49,8 @@ use crate::accessibility::knowledge_action_registry::{
 // WP-KERNEL-012 MT-060: the Obsidian-class control panel + its pure filter/group/sizing fns. The view
 // OWNS a `GraphControls`, renders it each frame, and CONSUMES the pure results in the live painter pass.
 use crate::graph::graph_controls::{
-    assign_group_color, compute_visibility, node_degree, node_radius, GraphControls,
-    GraphControlsEvent, NodeVisibility, DIM_ALPHA,
+    assign_group_color, compute_visibility, node_radius, GraphControls, GraphControlsEvent,
+    NodeVisibility, DIM_ALPHA,
 };
 use crate::theme::HsPalette;
 
@@ -118,17 +118,23 @@ impl GraphMode {
 ///
 /// ## Group-identity fields (WP-KERNEL-012 MT-060)
 ///
-/// `tags` and `folder_path` are the OPTIONAL group-identity the MT-060 control panel matches against
-/// for tag/folder GROUP coloring. They default EMPTY: the `views/all` / `graph-search` payload the
-/// MT-021 backend client parses (`backend_client::block_to_node`) carries ONLY `block_id` / `title` /
-/// `content_type` — it does NOT yet expose per-node tag identity or folder-path identity. So the node's
-/// group identity is host-populated from the SAME identity surfaces the trees use (MT-023 tag identity =
-/// a tag-hub's `title`; MT-022 folder identity = the `loom_folders` folder-path string sanitized by
-/// [`crate::project_tree::stable_part`]) via [`GraphNode::with_tags`] / [`GraphNode::with_folder_path`],
-/// NEVER re-derived from raw strings inside the widget (RISK-1 / MC-1). When the host has no tag/folder
-/// identity for a node (the current backend gap — disclosed as a TYPED BLOCKER in the MT handoff), the
-/// node simply matches no group and falls back to its `content_type` colour, exactly as before. This is
-/// a CLIENT-SIDE field on the already-loaded vec — it adds NO backend endpoint and NO network call.
+/// `tags` and `folder_path` are the group-identity the MT-060 control panel matches against for tag/folder
+/// GROUP colouring. They default EMPTY because the `views/all` / `graph-search` payload the MT-021 backend
+/// client parses (`backend_client::block_to_node`) carries ONLY `block_id` / `title` / `content_type` — the
+/// backend `LoomBlock` row exposes NO per-node `tag_ids` or `folder_id` output field (verified against
+/// `src/backend/handshake_core/src/storage/loom.rs`: `tag_ids` exists only as a search *filter input*, never
+/// on the block payload). So a graph node's tag/folder identity is NOT carried inline.
+///
+/// Instead it is populated by a REAL CLIENT-SIDE CROSS-REFERENCE against the SAME membership surfaces the
+/// trees use, keyed by `block_id` (RISK-1 / MC-1 — the identity the trees use, NOT re-derived from raw
+/// strings): the MT-023 tag tree's `GET /loom/tags/{hub}/blocks` member lists and the MT-022 folder tree's
+/// `GET /loom/folders/{folder}/blocks` member lists. [`LoomGraphView::apply_group_identity`] takes those
+/// membership maps (the exact `{identity -> member block_ids}` shape those endpoints already yield) and
+/// fills each node's `tags`/`folder_path` by matching its `block_id`. This adds NO backend endpoint and NO
+/// network call of its own — it reuses payloads the folder/tag panels already fetch. When a node is in no
+/// folder/tag membership list, it matches no group and falls back to its `content_type` colour, as before.
+/// The [`GraphNode::with_tags`] / [`GraphNode::with_folder_path`] builders are the per-node setters that
+/// cross-reference (and direct unit-test seams); the host drives them through `apply_group_identity`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GraphNode {
     pub block_id: String,
@@ -286,6 +292,12 @@ pub struct LoomGraphView {
     /// MT-060: the cached per-node group colour overlay (`block_id -> Color32`), recomputed alongside
     /// `visibility`. A node absent from this map falls back to its `content_type` colour.
     group_colors: HashMap<String, Color32>,
+    /// MT-060 (must-fix / MC-4 / RISK-4): the cached per-node edge degree (`block_id -> degree`), recomputed
+    /// in [`Self::recompute_overlays`] ONCE per load / `FiltersChanged`. The painter reads this instead of
+    /// calling [`node_degree`](crate::graph::graph_controls::node_degree) for every node every frame, so the paint pass stays O(nodes) (never the
+    /// O(nodes × edges) per-frame scan the red-team flagged). A node absent from this map is treated as
+    /// degree 0.
+    node_degrees: HashMap<String, usize>,
     /// MT-060: true once [`Self::controls`].`groups` have been discovered for the current node set, so the
     /// idempotent discovery runs once per load (re-running is still safe — discovery is idempotent).
     groups_discovered: bool,
@@ -324,6 +336,7 @@ impl Default for LoomGraphView {
             controls: GraphControls::default(),
             visibility: HashMap::new(),
             group_colors: HashMap::new(),
+            node_degrees: HashMap::new(),
             groups_discovered: false,
             knowledge_registry: None,
             last_canvas_rect: None,
@@ -369,9 +382,61 @@ impl LoomGraphView {
         self.recompute_overlays();
     }
 
+    /// MT-060 (RISK-1 / MC-1): populate every loaded node's tag/folder GROUP identity by a REAL CLIENT-SIDE
+    /// CROSS-REFERENCE against the SAME membership surfaces the trees use, keyed by `block_id`. This is the
+    /// production path that makes AC3 group-colouring live in the running app — NOT a test-only builder.
+    ///
+    /// - `tag_membership`: `{tag identity (the MT-023 tag-hub title) -> the hub's member block_ids}`, exactly
+    ///   the shape the tag tree's `GET /loom/tags/{hub}/blocks` already yields (`HubMember.block_id` /
+    ///   `LeafBlock.block_id`). A node is given a tag identity for every hub whose member list contains its
+    ///   `block_id`.
+    /// - `folder_membership`: `{folder path identity (the MT-022 `loom_folders` path) -> the folder's member
+    ///   block_ids}`, exactly the shape the folder tree's `GET /loom/folders/{folder}/blocks` already yields
+    ///   (`LeafBlock.block_id`). A node is given the DEEPEST (longest-path) folder whose member list contains
+    ///   its `block_id`, so the folder GROUP matches the most-specific subtree (the folder tree's own rule).
+    ///
+    /// Reuses payloads the folder/tag panels already fetch, so it adds NO backend endpoint and NO network
+    /// call of its own (AC7 / AC8). Then re-discovers groups + recomputes overlays so the new identity is
+    /// immediately reflected in the legend + the painter. Idempotent: re-applying overwrites identity from
+    /// the same membership without duplicating groups (discovery is keyed on the stable group key).
+    pub fn apply_group_identity(
+        &mut self,
+        tag_membership: &HashMap<String, std::collections::HashSet<String>>,
+        folder_membership: &HashMap<String, std::collections::HashSet<String>>,
+    ) {
+        for node in &mut self.nodes {
+            // Tags: every hub whose member set contains this node's block_id (sorted for determinism).
+            let mut tags: Vec<String> = tag_membership
+                .iter()
+                .filter(|(_, members)| members.contains(&node.block_id))
+                .map(|(tag, _)| tag.clone())
+                .collect();
+            tags.sort_unstable();
+            node.tags = tags;
+            // Folder: the DEEPEST folder path whose member set contains this node's block_id (most-specific
+            // subtree wins, matching the folder tree's leaf placement). Ties broken lexicographically for
+            // determinism. `None` when the node is in no folder.
+            node.folder_path = folder_membership
+                .iter()
+                .filter(|(_, members)| members.contains(&node.block_id))
+                .map(|(path, _)| path.clone())
+                .max_by(|a, b| a.len().cmp(&b.len()).then_with(|| a.cmp(b)));
+        }
+        // Re-discover groups from the now-populated identity (idempotent — user enabled/colour survive) and
+        // recompute the overlays so the painter immediately reflects the cross-referenced identity.
+        self.controls.discover_groups(&self.nodes);
+        self.groups_discovered = true;
+        self.recompute_overlays();
+    }
+
     /// MT-060: recompute the cached visibility + group-colour overlays from the CURRENT controls + the
     /// loaded vecs. Called on load and on each [`GraphControlsEvent::FiltersChanged`]. A SEPARATE overlay
     /// keyed by `block_id` — it NEVER mutates `nodes`/`edges` (RISK-6 / MC-6). O(nodes + edges) (MC-4).
+    ///
+    /// MT-060 perf (must-fix / MC-4 / RISK-4): the per-node edge `degree` is cached HERE (once per load /
+    /// `FiltersChanged`), NOT recomputed per node per frame in the hot paint loop. The painter reads
+    /// [`Self::node_degrees`] instead of calling `node_degree` for every circle every frame, keeping the
+    /// paint pass O(nodes) rather than O(nodes x edges).
     pub fn recompute_overlays(&mut self) {
         self.visibility = compute_visibility(
             &self.nodes,
@@ -388,6 +453,30 @@ impl LoomGraphView {
                 }
             }
         }
+        // Cache per-node degree in ONE O(nodes + edges) pass (must-fix / MC-4 / RISK-4): seed every node at
+        // 0, then tally each edge's endpoints once. The painter reads this map instead of an O(edges) scan
+        // per node per frame. A self-loop (source == target) counts ONCE, matching [`node_degree`].
+        self.node_degrees.clear();
+        for node in &self.nodes {
+            self.node_degrees.insert(node.block_id.clone(), 0);
+        }
+        for e in &self.edges {
+            if let Some(d) = self.node_degrees.get_mut(&e.source) {
+                *d += 1;
+            }
+            if e.target != e.source {
+                if let Some(d) = self.node_degrees.get_mut(&e.target) {
+                    *d += 1;
+                }
+            }
+        }
+    }
+
+    /// MT-060: the cached edge degree for `block_id` (the value the painter uses for size-by-degree),
+    /// or 0 when the node is absent from the cache. Reads the SAME map the painter reads, so a test
+    /// asserting this matches exactly what renders (must-fix / MC-4 perf cache).
+    pub fn node_degree_cached(&self, block_id: &str) -> usize {
+        self.node_degrees.get(block_id).copied().unwrap_or(0)
     }
 
     /// The canvas [`Rect`] the last [`Self::show`] allocated (the area the nodes/edges paint into, AFTER
@@ -767,8 +856,11 @@ impl LoomGraphView {
                 .unwrap_or_else(|| content_type_color(&node.content_type, palette));
             let color = if dimmed { dim_color(base_color) } else { base_color };
             // Size-by-degree: radius scales with the node's edge degree (clamped to 3x base). World-space
-            // base radius is NODE_RADIUS; the screen radius multiplies by zoom (as before).
-            let degree = node_degree(&node.block_id, &self.edges);
+            // base radius is NODE_RADIUS; the screen radius multiplies by zoom (as before). The degree is
+            // read from the cache recompute_overlays built in ONE O(nodes+edges) pass — NOT recomputed per
+            // node per frame (must-fix / MC-4 / RISK-4: the paint pass stays O(nodes), and on the default
+            // size_by_degree=off path node_radius ignores the value, so no degree work is wasted per frame).
+            let degree = self.node_degrees.get(&node.block_id).copied().unwrap_or(0);
             let world_r = node_radius(NODE_RADIUS, degree, self.controls.size_by_degree);
             let r = world_r * self.zoom;
             painter.circle_filled(screen, r, color);

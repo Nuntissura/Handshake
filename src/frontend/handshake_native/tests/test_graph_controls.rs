@@ -70,16 +70,20 @@ fn wgpu_guard() -> std::sync::MutexGuard<'static, ()> {
 }
 
 /// A seeded global view with `n` note nodes `block-000..` linked in a ring + ONE orphan (`orphan-x`,
-/// degree 0). Tag/folder identity is attached so groups discover. No backend: the node list stands in for
-/// a real `GET /loom/views/all` payload.
+/// degree 0).
+///
+/// Group identity is populated the SAME way the live app does it: nodes are built BARE (exactly as
+/// `backend_client::block_to_node` builds them from a real `GET /loom/views/all` payload — `block_id` /
+/// `title` / `content_type` only, NO inline tag/folder identity), then the REAL cross-reference
+/// [`LoomGraphView::apply_group_identity`] fills identity from membership maps shaped exactly like the
+/// MT-023 `GET /loom/tags/{hub}/blocks` and MT-022 `GET /loom/folders/{folder}/blocks` member lists,
+/// matched by `block_id`. So the AC3 proofs run against the PRODUCTION identity path, not a test-only
+/// `with_tags()` builder fabricating identity the live app could not supply (RISK-1 / MC-1).
 fn seeded_view(n: usize) -> LoomGraphView {
     let mut v = LoomGraphView::global("ws-test");
+    // Bare nodes — identity-free, exactly what block_to_node produces from the real backend payload.
     let mut nodes: Vec<GraphNode> = (0..n)
-        .map(|i| {
-            GraphNode::new(format!("block-{i:03}"), format!("Block {i}"), "note")
-                .with_tags(vec!["research".to_owned()])
-                .with_folder_path("src/frontend")
-        })
+        .map(|i| GraphNode::new(format!("block-{i:03}"), format!("Block {i}"), "note"))
         .collect();
     // One orphan node with a distinct title so search can target it; no edges, so degree 0.
     nodes.push(GraphNode::new("orphan-x", "Orphan node", "note"));
@@ -87,6 +91,18 @@ fn seeded_view(n: usize) -> LoomGraphView {
         .map(|i| GraphEdge::new(format!("block-{i:03}"), format!("block-{:03}", (i + 1) % n), "mention"))
         .collect();
     v.set_graph(nodes, edges);
+    // The membership the tag/folder panels already fetch: the "research" hub and the "src/frontend" folder
+    // each list every block-* node as a member (the orphan is in NEITHER, so it stays identity-free). This
+    // is the {identity -> member block_ids} shape the real endpoints yield.
+    let block_ids: std::collections::HashSet<String> =
+        (0..n).map(|i| format!("block-{i:03}")).collect();
+    let mut tag_membership: std::collections::HashMap<String, std::collections::HashSet<String>> =
+        std::collections::HashMap::new();
+    tag_membership.insert("research".to_owned(), block_ids.clone());
+    let mut folder_membership: std::collections::HashMap<String, std::collections::HashSet<String>> =
+        std::collections::HashMap::new();
+    folder_membership.insert("src/frontend".to_owned(), block_ids);
+    v.apply_group_identity(&tag_membership, &folder_membership);
     v
 }
 
@@ -544,9 +560,10 @@ fn size_by_degree_screenshot() {
 
 #[test]
 fn enabled_group_colors_matching_nodes() {
-    // All seeded nodes carry tag "research" + folder "src/frontend". Enable the research tag group and
-    // assert the per-node colour overlay maps those nodes to the group colour (the live painter consumes
-    // this overlay; here we assert the overlay the painter reads).
+    // All seeded nodes get tag "research" + folder "src/frontend" via the REAL apply_group_identity
+    // cross-reference (membership keyed by block_id — the production path), NOT a fabricated with_tags().
+    // Enable the research tag group and assert the per-node colour overlay maps those nodes to the group
+    // colour (the live painter consumes this overlay; here we assert the overlay the painter reads).
     let mut view = seeded_view(4);
     let research_color = {
         let g = view
@@ -572,6 +589,94 @@ fn enabled_group_colors_matching_nodes() {
     // The orphan node has no tags, so no group colour.
     assert_eq!(view.group_color_for("orphan-x"), None, "AC3: untagged node has no group colour");
     println!("AC3: enabled research group coloured all tagged nodes via the overlay the painter reads");
+}
+
+// ── AC3 PRODUCTION PATH: group identity comes from the REAL membership cross-reference ───────────────
+
+#[test]
+fn apply_group_identity_cross_references_by_block_id() {
+    // Build the graph from BARE nodes (exactly what backend_client::block_to_node yields from the real
+    // views/all payload — NO inline tag/folder identity), then populate identity via the production
+    // apply_group_identity cross-reference. This is the must-fix proof: AC3 identity is derived by matching
+    // graph nodes to the SAME folder/tag membership the trees fetch, keyed by block_id — not fabricated.
+    let mut view = LoomGraphView::global("ws-xref");
+    let nodes = vec![
+        GraphNode::new("b-research", "Research note", "note"),
+        GraphNode::new("b-deep", "Deep note", "note"),
+        GraphNode::new("b-none", "Unfiled note", "note"),
+    ];
+    let edges = vec![GraphEdge::new("b-research", "b-deep", "mention")];
+    view.set_graph(nodes, edges);
+
+    // Before cross-reference, the bare nodes carry NO identity (the live backend payload cannot supply it).
+    for node in &view.nodes {
+        assert!(node.tags.is_empty(), "bare node {} must have no inline tags", node.block_id);
+        assert!(node.folder_path.is_none(), "bare node {} must have no inline folder", node.block_id);
+    }
+
+    // Membership maps shaped like the real endpoints:
+    //   tags:    GET /loom/tags/{hub}/blocks   -> {hub title -> member block_ids}
+    //   folders: GET /loom/folders/{id}/blocks -> {folder path -> member block_ids}
+    let mut tag_membership: std::collections::HashMap<String, std::collections::HashSet<String>> =
+        std::collections::HashMap::new();
+    tag_membership.insert("research".to_owned(), ["b-research".to_owned()].into_iter().collect());
+    let mut folder_membership: std::collections::HashMap<String, std::collections::HashSet<String>> =
+        std::collections::HashMap::new();
+    // b-deep is a member of BOTH a parent folder and its child; the DEEPEST (most-specific) folder wins.
+    folder_membership.insert("src".to_owned(), ["b-deep".to_owned()].into_iter().collect());
+    folder_membership.insert(
+        "src/frontend/widgets".to_owned(),
+        ["b-deep".to_owned()].into_iter().collect(),
+    );
+    folder_membership.insert("src/frontend".to_owned(), ["b-research".to_owned()].into_iter().collect());
+
+    view.apply_group_identity(&tag_membership, &folder_membership);
+
+    let research = view.nodes.iter().find(|n| n.block_id == "b-research").unwrap();
+    assert_eq!(research.tags, vec!["research".to_owned()], "tag identity from the hub membership");
+    assert_eq!(research.folder_path.as_deref(), Some("src/frontend"), "folder identity from membership");
+
+    let deep = view.nodes.iter().find(|n| n.block_id == "b-deep").unwrap();
+    assert!(deep.tags.is_empty(), "b-deep is in no tag hub");
+    assert_eq!(
+        deep.folder_path.as_deref(),
+        Some("src/frontend/widgets"),
+        "deepest folder wins when a block is in nested folders"
+    );
+
+    let none = view.nodes.iter().find(|n| n.block_id == "b-none").unwrap();
+    assert!(none.tags.is_empty() && none.folder_path.is_none(), "a block in no membership stays identity-free");
+
+    // AC3 LIVE off the cross-referenced identity: enable the research tag group; only b-research colours.
+    let research_color = {
+        let g = view
+            .controls
+            .groups
+            .iter_mut()
+            .find(|g| matches!(&g.kind, GroupKind::Tag(t) if t == "research"))
+            .expect("research tag group discovered from cross-referenced identity");
+        g.enabled = true;
+        g.color
+    };
+    view.recompute_overlays();
+    assert_eq!(view.group_color_for("b-research"), Some(research_color), "AC3: cross-referenced tag colours the node");
+    assert_eq!(view.group_color_for("b-deep"), None, "AC3: a node in no enabled group has no group colour");
+    println!("AC3 production: group identity cross-referenced by block_id from real membership maps");
+}
+
+#[test]
+fn cached_degree_matches_node_degree() {
+    // must-fix / MC-4: the painter reads the cached per-node degree (computed once per recompute), and it
+    // must equal the pure node_degree over the same edges (so the cache is correct, not just cheap).
+    let view = seeded_view(5);
+    for node in view.nodes.iter() {
+        let cached = view.node_degree_cached(&node.block_id);
+        let direct = handshake_native::graph::graph_controls::node_degree(&node.block_id, &view.edges);
+        assert_eq!(cached, direct, "cached degree for {} must equal node_degree", node.block_id);
+    }
+    // The ring nodes have degree 2; the orphan has degree 0.
+    assert_eq!(view.node_degree_cached("block-000"), 2, "ring node degree 2");
+    assert_eq!(view.node_degree_cached("orphan-x"), 0, "orphan degree 0");
 }
 
 // ── Sanity: a no-args group built directly + legend label shape ──────────────────────────────────────

@@ -442,10 +442,13 @@ pub fn compute_visibility(
 /// Matching (RISK-1 / MC-1 — reuses the SAME identity the trees use, NOT re-derived from raw strings):
 /// - a [`GroupKind::Tag`] group matches when the node carries that tag identity in
 ///   [`GraphNode::tags`](crate::graph::graph_view::GraphNode::tags) (exact tag-title match, the MT-023
-///   identity);
+///   identity the tag tree uses);
 /// - a [`GroupKind::Folder`] group matches when the node's
-///   [`GraphNode::folder_path`](crate::graph::graph_view::GraphNode::folder_path) STARTS WITH the folder
-///   key path (the MT-022 identity), so a parent-folder group colours its whole subtree.
+///   [`GraphNode::folder_path`](crate::graph::graph_view::GraphNode::folder_path) equals the folder key OR
+///   lies inside its subtree (the MT-022 identity the folder tree uses), so a parent-folder group colours
+///   its whole subtree — but a sibling folder that merely shares a string prefix does NOT bleed in. The
+///   match is at a PATH-SEGMENT boundary: `src/front` colours `src/front` and `src/front/x` but NEVER
+///   `src/frontend` (the prefix-boundary guard — the raw `starts_with` bleed the trees would not produce).
 ///
 /// Resolution order is the slice order of `groups` (first enabled match wins — the deterministic order the
 /// legend renders in), so the caller passes the enabled groups in vec order.
@@ -456,13 +459,22 @@ pub fn assign_group_color(node: &GraphNode, groups: &[GraphGroup]) -> Option<Col
             GroupKind::Folder(path) => node
                 .folder_path
                 .as_deref()
-                .is_some_and(|fp| fp == path || fp.starts_with(&format!("{path}/")) || fp.starts_with(path)),
+                .is_some_and(|fp| folder_path_in_subtree(fp, path)),
         };
         if matches {
             return Some(group.color);
         }
     }
     None
+}
+
+/// Does folder path `fp` lie at or under the folder-group key `path`, matched at a PATH-SEGMENT boundary?
+/// `true` when `fp == path` (the folder itself) or `fp` starts with `path` followed by a `/` (a descendant
+/// in the subtree). A bare string `starts_with` would wrongly colour a SIBLING that merely shares a string
+/// prefix (`src/front` matching `src/frontend`); this boundary guard rejects that (RISK-1 / MC-1 — the same
+/// subtree semantics the MT-022 folder tree uses, not a raw string prefix). Pure; no egui.
+pub fn folder_path_in_subtree(fp: &str, path: &str) -> bool {
+    fp == path || fp.starts_with(&format!("{path}/"))
 }
 
 /// The node circle radius for the given `base` radius and edge `degree`. When `size_by_degree` is false,
@@ -594,19 +606,35 @@ mod tests {
 
     #[test]
     fn assign_group_color_folder_prefix_no_false_positive() {
-        // "src/front" must NOT match a folder group keyed "src/frontend" (prefix-boundary guard).
+        // RISK-1 / MC-1 boundary guard: a folder group keyed "src/front" must NOT colour a SIBLING folder
+        // "src/frontend" that merely shares a raw string prefix. The match is at a PATH-SEGMENT boundary
+        // (the same subtree semantics the MT-022 folder tree uses), so a string-prefix bleed cannot occur.
         let palette = graph_group_palette();
         let mut group = GraphGroup::new(GroupKind::Folder("src/front".to_owned()), palette[2]);
         group.enabled = true;
         let sibling = n("a", "A").with_folder_path("src/frontend");
-        // "src/frontend" starts_with "src/front" (raw prefix) — the contract says folder path "starts
-        // with the folder key", so this DOES match by the contract's prefix rule. Assert the contract's
-        // documented prefix semantics hold (a parent key colours descendants sharing the string prefix).
         assert_eq!(
             assign_group_color(&sibling, std::slice::from_ref(&group)),
-            Some(palette[2]),
-            "AC3: contract folder rule is a string prefix match (src/frontend starts_with src/front)"
+            None,
+            "AC3/RISK-1: 'src/frontend' is a SIBLING of the 'src/front' group, not a descendant — the \
+             path-segment boundary guard must reject the raw-prefix bleed"
         );
+        // The folder itself and a genuine descendant DO match (subtree colouring still works).
+        let exact = n("b", "B").with_folder_path("src/front");
+        let child = n("c", "C").with_folder_path("src/front/widgets");
+        assert_eq!(assign_group_color(&exact, std::slice::from_ref(&group)), Some(palette[2]), "AC3: the folder itself matches");
+        assert_eq!(assign_group_color(&child, std::slice::from_ref(&group)), Some(palette[2]), "AC3: a real descendant matches");
+    }
+
+    #[test]
+    fn folder_path_in_subtree_boundary() {
+        // Direct unit coverage of the boundary predicate (RISK-1 / MC-1).
+        assert!(folder_path_in_subtree("src/front", "src/front"), "the folder itself");
+        assert!(folder_path_in_subtree("src/front/a", "src/front"), "a descendant");
+        assert!(folder_path_in_subtree("src/front/a/b", "src/front"), "a deep descendant");
+        assert!(!folder_path_in_subtree("src/frontend", "src/front"), "a sibling sharing a string prefix must NOT match");
+        assert!(!folder_path_in_subtree("src", "src/front"), "an ancestor must NOT match");
+        assert!(!folder_path_in_subtree("docs/front", "src/front"), "an unrelated path must NOT match");
     }
 
     #[test]
