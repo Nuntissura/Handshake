@@ -14,7 +14,12 @@
 //!   prefix-namespaced (code./rich.) and persist into the SEPARATE editor_keybindings list, never the
 //!   WP-011 app keybindings map.
 
+use egui_kittest::Harness;
+use handshake_native::app::{HandshakeApp, HealthDisplayState};
+use handshake_native::backend_client::HealthInfo;
 use handshake_native::code_editor::keymap::CodeEditorAction;
+use handshake_native::code_editor::keymap_settings::KeymapSettings;
+use handshake_native::settings_dialog::SettingsOutcome;
 use handshake_native::settings_editor_section::{
     editor_action_catalog, EditorActionSurface, CODE_ACTION_ID_PREFIX, RICH_ACTION_ID_PREFIX,
 };
@@ -114,6 +119,69 @@ fn editor_action_ids_are_namespaced_and_unique() {
     // The `undo` bare-name collision is resolved by the prefix — both exist, distinct.
     assert!(ids.contains("code.undo"), "code.undo present");
     assert!(ids.contains("rich.undo"), "rich.undo present");
+}
+
+/// AC-005 (LIVE side): a CODE keybinding override rebinds the running MT-079 code-editor keymap, not
+/// only the Settings table. Driving an `EditorKeybindingChanged` for `code.open_find` to a chord that is
+/// UNBOUND by default makes the live panel's keymap resolve that chord to `OpenFind` in the same frame;
+/// resetting reverts it. Proven against the live `CodeEditorPanel::keymap()`, not the persisted struct.
+/// (Rich-editor overrides have no live keymap seam on the mounted rich editor yet — typed follow-up
+/// blocker — so only the code side is asserted live here.)
+#[test]
+fn code_keybinding_override_rebinds_the_live_panel_keymap() {
+    let app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_string(),
+        db_status: "ok".to_string(),
+        migration_version: Some(1),
+    }));
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.state_mut().open_settings();
+    harness.run();
+
+    // A chord that is NOT bound to anything in the default VS Code table (so a default-keymap hit can't
+    // masquerade as the override taking effect).
+    let override_chord_str = "Mod+Alt+J";
+    let chord = KeymapSettings::chord_from_str(override_chord_str).expect("parseable test chord");
+
+    // Baseline: the default keymap does NOT resolve this chord to OpenFind (it is unbound).
+    let panel0 = harness.state().mounted_code_panel();
+    assert_ne!(
+        panel0.keymap().resolve(chord),
+        Some(CodeEditorAction::OpenFind),
+        "baseline: {override_chord_str} is not the default OpenFind binding"
+    );
+
+    // Apply the override through the same wired outcome the live control produces.
+    harness
+        .state_mut()
+        .apply_settings_outcome_for_test(SettingsOutcome::EditorKeybindingChanged {
+            action_id: "code.open_find".to_owned(),
+            chord: override_chord_str.to_owned(),
+        });
+    harness.run();
+
+    // LIVE EFFECT: the running panel's keymap now resolves the override chord to OpenFind.
+    let panel = harness.state().mounted_code_panel();
+    assert_eq!(
+        panel.keymap().resolve(chord),
+        Some(CodeEditorAction::OpenFind),
+        "AC-005 (live): the custom chord rebinds OpenFind on the running code-editor keymap"
+    );
+
+    // Reset reverts the live keymap: the override chord no longer resolves to OpenFind.
+    harness
+        .state_mut()
+        .apply_settings_outcome_for_test(SettingsOutcome::EditorKeybindingReset {
+            action_id: "code.open_find".to_owned(),
+        });
+    harness.run();
+    let panel = harness.state().mounted_code_panel();
+    assert_ne!(
+        panel.keymap().resolve(chord),
+        Some(CodeEditorAction::OpenFind),
+        "AC-005 (live): resetting reverts the live keymap to the default binding"
+    );
 }
 
 /// The default chord column is sourced from the SAME default keymap the live editor uses (honest

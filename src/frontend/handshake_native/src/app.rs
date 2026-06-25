@@ -3040,6 +3040,75 @@ impl HandshakeApp {
         }
     }
 
+    /// WP-KERNEL-012 MT-072: push the persisted [`EditorPrefs`](crate::workspace_settings::EditorPrefs)
+    /// into the LIVE MT-079-mounted code panel so a Settings edit takes effect on the running editor in
+    /// the SAME frame (not just persisted). Reuses the panel's existing `&self` interior-mutability slots
+    /// (no panel.rs edit, no parallel state):
+    /// - `tab_size` + `insert_spaces` -> [`CodeEditorPanel::set_indent_settings`];
+    /// - `render_whitespace` (any non-`None` mode draws) -> [`CodeEditorPanel::set_render_whitespace`];
+    /// - `word_wrap` -> [`CodeEditorPanel::set_wrap_enabled`] + [`CodeEditorPanel::set_wrap_column`]
+    ///   (`Off` => disabled; `On` => enabled, viewport-edge wrap; `BoundedColumn(n)` => enabled at `n`).
+    ///
+    /// `editor_font_size` is NOT applied here: the mounted [`CodeEditorPanel`] exposes no font-size slot
+    /// today, so wiring it would require an editor-mount/panel.rs change OUTSIDE this MT's allowed_paths.
+    /// That sub-field is the typed follow-up blocker recorded in the MT handoff (the pref still persists +
+    /// round-trips; only its live application is deferred).
+    fn sync_editor_prefs_to_panel(&self) {
+        use crate::workspace_settings::WordWrapMode;
+        let prefs = &self.workspace_settings.editor_prefs;
+        let panel = &self.editor_mounts.code_panel;
+        panel.set_indent_settings(prefs.tab_size as usize, prefs.insert_spaces);
+        panel.set_render_whitespace(prefs.render_whitespace.draws_whitespace());
+        match prefs.word_wrap {
+            WordWrapMode::Off => {
+                panel.set_wrap_enabled(false);
+                panel.set_wrap_column(None);
+            }
+            WordWrapMode::On => {
+                panel.set_wrap_enabled(true);
+                panel.set_wrap_column(None);
+            }
+            WordWrapMode::BoundedColumn(col) => {
+                panel.set_wrap_enabled(true);
+                panel.set_wrap_column(Some(col as usize));
+            }
+        }
+    }
+
+    /// WP-KERNEL-012 MT-072: rebind the LIVE code-editor keymap from the persisted `editor_keybindings`
+    /// overrides so a custom binding overrides the default for that action on the running editor (AC-005
+    /// live side), not only in the Settings table. Reuses the existing override-application path exactly:
+    /// the `code.`-prefixed overrides are projected into a [`KeymapSettings`] (bare action name + chord)
+    /// and applied via the panel's [`CodeEditorPanel::reload_keymap_from_settings`] — the SAME seam the
+    /// `~/.handshake/keymap.json` reload uses (so an unparseable chord / unknown action is skipped, never
+    /// a panic). An override with no `code.` prefix is a rich-editor binding, which has no live keymap
+    /// seam on the mounted rich editor today (`rich_editor/formatting/keymap.rs` is a fixed
+    /// `resolve_shortcut`, OUTSIDE this MT's allowed_paths) — those are the typed follow-up blocker; the
+    /// override still persists + lists default-vs-custom in the table.
+    fn sync_editor_keymap_to_panel(&self) {
+        use crate::code_editor::keymap_settings::{KeymapOverride, KeymapSettings};
+        use crate::settings_editor_section::CODE_ACTION_ID_PREFIX;
+        let overrides = self
+            .workspace_settings
+            .editor_keybindings
+            .iter()
+            .filter_map(|kb| {
+                kb.action_id
+                    .strip_prefix(CODE_ACTION_ID_PREFIX)
+                    .map(|bare| KeymapOverride {
+                        action: bare.to_owned(),
+                        chord: kb.chord.clone(),
+                    })
+            })
+            .collect();
+        let settings = KeymapSettings { overrides };
+        // `from_settings` layers the overrides over the VS Code defaults, so clearing an override and
+        // re-syncing reverts that action to its default (custom-if-present-else-default — AC-005).
+        self.editor_mounts
+            .code_panel
+            .reload_keymap_from_settings(&settings);
+    }
+
     /// Apply a wired [`crate::settings_dialog::SettingsOutcome`] against the live shell state (MT-018).
     /// Returns `true` if app state changed (so the caller repaints). A wired change mutates
     /// `workspace_settings` (and the in-memory theme/view_mode flags where they map) and schedules a
@@ -3103,6 +3172,9 @@ impl HandshakeApp {
             // fields ride the same serialized settings struct.
             O::EditorPrefsChanged(prefs) => {
                 self.workspace_settings.editor_prefs = prefs;
+                // WIRE-INTO-LIVE (MT-072 note 87): push the new prefs into the running MT-079 code panel
+                // so the edit takes effect this frame, not only on the persisted blob.
+                self.sync_editor_prefs_to_panel();
                 self.schedule_settings_save();
                 true
             }
@@ -3115,11 +3187,17 @@ impl HandshakeApp {
                 // Stored in the SEPARATE editor_keybindings list (NOT the WP-011 keybindings map — the
                 // backend deny-unknown-validates that map; RISK-001).
                 self.workspace_settings.set_editor_chord(&action_id, chord);
+                // WIRE-INTO-LIVE (AC-005 live side): rebind the running code-editor keymap so a code
+                // chord override takes effect on the editor, not only in the Settings table. (Rich-editor
+                // overrides have no live keymap seam yet — typed follow-up blocker; see helper doc.)
+                self.sync_editor_keymap_to_panel();
                 self.schedule_settings_save();
                 true
             }
             O::EditorKeybindingReset { action_id } => {
                 if self.workspace_settings.clear_editor_chord(&action_id) {
+                    // Re-sync so the cleared action reverts to its default on the live editor too.
+                    self.sync_editor_keymap_to_panel();
                     self.schedule_settings_save();
                     return true;
                 }
@@ -3155,6 +3233,12 @@ impl HandshakeApp {
                             crate::workspace_settings::SettingsViewMode::Nsfw => ViewMode::Nsfw,
                             crate::workspace_settings::SettingsViewMode::Sfw => ViewMode::Sfw,
                         };
+                        // WIRE-INTO-LIVE (MT-072): apply the loaded editor prefs + code-keymap overrides
+                        // to the running MT-079 editor so a stored workspace opens with its persisted
+                        // editor configuration in effect (parity with theme/view_mode above), not only
+                        // after the user re-touches a control.
+                        self.sync_editor_prefs_to_panel();
+                        self.sync_editor_keymap_to_panel();
                         self.settings_persist_error = None;
                     }
                     Err(msg) => self.settings_persist_error = Some(msg),

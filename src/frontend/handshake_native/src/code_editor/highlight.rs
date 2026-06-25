@@ -147,13 +147,24 @@ impl HighlightScope {
 /// Every mode resolves EVERY scope to a concrete color: there is no gap and no panic on any
 /// `HighlightScope` lookup (AC-004 — a test iterates all variants for all three modes).
 ///
-/// FOLLOW-UP WIRING NOTE (panel.rs is OUTSIDE MT-072's allowed_paths): the existing
-/// `code_editor::panel::scope_to_color(scope, &HsSyntaxTokens)` still reads the theme's fixed
-/// `HsSyntaxTokens`. To make the live code editor pick up palette changes, the host should route its
-/// per-frame syntax color lookup through THIS function with the workspace's `syntax_palette`. That
-/// host edit lives in `panel.rs` / the editor mount (not allowed by this MT's scope), so it is recorded
-/// as a typed follow-up in the MT handoff; this function is the seam it routes through, and it is
-/// directly proven live here + in the MT tests.
+/// TYPED FOLLOW-UP BLOCKER (panel.rs + minimap.rs are OUTSIDE MT-072's allowed_paths, and unlike the
+/// editor-prefs + code-keymap wiring there is NO public `&self` seam on the mounted panel to inject the
+/// palette into the per-frame render): the live render call sites
+/// `code_editor::panel::scope_to_color(scope, &HsSyntaxTokens)` (panel.rs single-line + multi-line draw
+/// paths) and `minimap::scope_to_color` still read the theme's fixed `HsSyntaxTokens`, so a Custom
+/// swatch edit changes THIS seam's resolved color (proven live in the MT tests) but does NOT yet repaint
+/// the running editor. Routing those render sites through `resolve_scope_color(scope, &syntax_palette)`
+/// requires editing panel.rs/minimap.rs (a render-call-site change with no settings-flow seam to route
+/// through), which is the editor-highlight wiring follow-up packet recorded in the MT handoff. AC-003 is
+/// therefore SEAM-PROVEN (this function reacts live), NOT live-proven at the editor surface; the WP
+/// validator must record AC-003 as seam-only, not GREEN. This function is the seam that follow-up routes
+/// through, and it is directly proven live here + in the MT tests.
+///
+/// (Contrast: editor PREFS — tab size / insert-spaces / render-whitespace / word-wrap — and the CODE
+/// keybinding overrides ARE wired into the live editor in `app.rs` via the panel's existing public
+/// `set_indent_settings` / `set_render_whitespace` / `set_wrap_*` / `reload_keymap_from_settings`
+/// setters, so those are live-proven. Only the syntax-color render path, the editor FONT SIZE — no panel
+/// slot — and RICH keybinding overrides — no live rich keymap seam — remain typed follow-up blockers.)
 pub fn resolve_scope_color(
     scope: HighlightScope,
     palette: &crate::workspace_settings::SyntaxPalette,

@@ -205,6 +205,111 @@ fn editor_prefs_change_persists_via_existing_put_and_reloads() {
     );
 }
 
+// ── AC-001 (LIVE side) / MT-072 note 87: editor prefs WIRE INTO the running MT-079 code panel ────────
+//
+// Persistence (above) proves the blob is PUT. This proves the WIRE-INTO-LIVE half: applying an
+// EditorPrefsChanged outcome (and loading prefs from a stored blob) drives the live mounted
+// `CodeEditorPanel` — tab size / insert-spaces / render-whitespace / word-wrap reflect the new values in
+// the same frame, NOT only the persisted struct. (editor_font_size has no panel slot today — typed
+// follow-up blocker — so it is intentionally NOT asserted on the panel here.)
+#[test]
+fn editor_prefs_change_drives_the_live_code_panel() {
+    let transport = StubSettingsTransport::with_loaded(None);
+    let handle = leak_runtime_handle();
+    let mut app = ok_app();
+    app.set_runtime_handle(handle);
+    app.set_settings_transport(transport);
+
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.state_mut().open_settings();
+    harness.run();
+
+    // Baseline: the mounted panel holds the seeded defaults (tab 4, spaces on, no whitespace glyphs, no
+    // wrap) BEFORE any settings change reaches it.
+    let panel0 = harness.state().mounted_code_panel();
+    assert_eq!(panel0.indent_settings(), (4, true), "baseline indent = default (4, spaces)");
+    assert!(!panel0.render_whitespace(), "baseline render-whitespace OFF");
+    assert!(!panel0.is_wrap_enabled(), "baseline word-wrap OFF");
+
+    // Apply a full editor-prefs change through the same wired outcome the live controls produce.
+    let new_prefs = EditorPrefs {
+        editor_font_size: 18.0,
+        tab_size: 8,
+        insert_spaces: false,
+        word_wrap: WordWrapMode::BoundedColumn(100),
+        render_whitespace: RenderWhitespaceMode::All,
+    };
+    harness
+        .state_mut()
+        .apply_settings_outcome_for_test(SettingsOutcome::EditorPrefsChanged(new_prefs));
+    harness.run();
+
+    // LIVE EFFECT: the SAME mounted panel now reflects the new prefs — proven against the panel's own
+    // public state, not the persisted blob.
+    let panel = harness.state().mounted_code_panel();
+    assert_eq!(
+        panel.indent_settings(),
+        (8, false),
+        "MT-072 note 87: tab_size + insert_spaces wired into the live code panel"
+    );
+    assert!(
+        panel.render_whitespace(),
+        "MT-072 note 87: render_whitespace=All draws whitespace on the live panel"
+    );
+    assert!(panel.is_wrap_enabled(), "MT-072 note 87: word_wrap enabled on the live panel");
+    assert_eq!(
+        panel.wrap_config().wrap_column,
+        Some(100),
+        "MT-072 note 87: BoundedColumn(100) sets the live wrap column"
+    );
+}
+
+// ── AC-001 (LIVE side, load path): editor prefs from a STORED blob apply to the live panel on load ───
+#[test]
+fn loaded_editor_prefs_apply_to_the_live_code_panel() {
+    // A stored blob carrying non-default editor prefs (tab 2, hard tabs, whitespace boundary, wrap on).
+    let stored = serde_json::json!({
+        "schema_id": "hsk.workspace_settings_state@1",
+        "theme": "dark",
+        "custom_theme_tokens": {},
+        "keybindings": {},
+        "settings": { "view_mode": "NSFW", "swarm_board_default_open": false },
+        "editor_prefs": {
+            "editor_font_size": 15.0,
+            "tab_size": 2,
+            "insert_spaces": false,
+            "word_wrap": "on",
+            "render_whitespace": "boundary",
+        },
+    });
+    let transport = StubSettingsTransport::with_loaded(Some(stored));
+    let handle = leak_runtime_handle();
+    let mut app = ok_app();
+    app.set_runtime_handle(handle);
+    app.set_settings_transport(transport.clone());
+
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.state_mut().open_settings();
+    let loaded = run_until(&mut harness, 80, |app| {
+        transport.load_calls() >= 1 && app.workspace_settings().editor_prefs.tab_size == 2
+    });
+    assert!(loaded, "the stored blob loaded via GET");
+
+    // The load drain pushed the stored prefs into the live mounted panel (parity with theme/view_mode,
+    // which the load drain also applies live).
+    let panel = harness.state().mounted_code_panel();
+    assert_eq!(
+        panel.indent_settings(),
+        (2, false),
+        "loaded editor prefs (tab 2, hard tabs) applied to the live code panel"
+    );
+    assert!(panel.render_whitespace(), "loaded render_whitespace=boundary draws on the live panel");
+    assert!(panel.is_wrap_enabled(), "loaded word_wrap=on enabled wrap on the live panel");
+    assert_eq!(panel.wrap_config().wrap_column, None, "word_wrap=on wraps at the viewport edge (no column)");
+}
+
 // ── AC-006: a legacy WP-011-era settings doc (no editor keys) loads cleanly via GET ──────────────────
 #[test]
 fn legacy_settings_doc_loads_cleanly_without_editor_keys() {
