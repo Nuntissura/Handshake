@@ -133,6 +133,15 @@ pub fn wikilink_kind_by_prefix() -> &'static HashMap<&'static str, &'static str>
             ("hs_slideshow", "slideshow"),
             // WP-KERNEL-012 MT-034: the code-symbol cross-reference prefix.
             ("code", "code"),
+            // WP-KERNEL-012 MT-068 (E10 — editors<->Locus cross-references): the `locus:` prefix is the
+            // SIBLING of `code:` (the THIRD cross-ref discriminator after the MT-014 media embeds + the
+            // MT-034 code refs). A `[[locus:wp/WP-KERNEL-012]]` token in a note is the EXISTING `hsLink`
+            // inline atom (ref_kind="locus"), NOT an invented node, so it round-trips `content_json`
+            // (AC-006) and the backend backlink indexer keys it on the normalized `locus://` ref value.
+            // The `locus://wp/{id}` / `locus://mt/{id}` URI form is parsed by
+            // [`crate::interop::locus_interop::parse_locus_ref`]; this table entry lets the same wikilink
+            // machinery author it as `[[locus:...]]` and render it through the shared CrossRef chip path.
+            ("locus", "locus"),
         ]
         .into_iter()
         .collect()

@@ -397,6 +397,41 @@ pub fn dispatch_code_ref_open(
     None
 }
 
+/// Bridge a clicked LOCUS-ref chip ([`EditorEvent::WikilinkActivated`] with `ref_kind="locus"`) to the
+/// cross-pane Open-Locus-Ref command on the [`InteractionBus`](crate::interop::InteractionBus) — the
+/// editors->Locus dispatch (WP-KERNEL-012 MT-068, AC-003). The SIBLING of [`dispatch_code_ref_open`]: the
+/// MT-015 chip renderer reports a clicked `hsLink` atom as a `WikilinkActivated` event carrying
+/// `ref_kind`/`ref_value`; for a Locus ref the `ref_value` is the `locus://` ref (the WP/MT resolution
+/// key). This stages the NORMALIZED ref on the bus and dispatches
+/// [`CMD_OPEN_LOCUS_REF`](crate::interop::CMD_OPEN_LOCUS_REF), so the click fires the ONE named cross-pane
+/// command (not a per-pane ad-hoc callback). The shell drains the staged ref and routes it through the
+/// SAME MT-030 nav seam the other cross-refs use (NO new navigation channel — RISK-007).
+///
+/// The staged value is the normalized `locus://` ref (via [`crate::interop::locus_interop::parse_locus_ref`])
+/// when the `ref_value` parses, so the shell re-parses it to the WP/MT record without re-deriving the key;
+/// a non-parsing value still dispatches the raw ref (the shell shows a typed "cannot resolve" state rather
+/// than silently dropping). Returns `Some(staged_ref)` when a locus-ref was dispatched, `None` for a
+/// non-locus event (a `code`/`wp`/`note`/… ref routes through its own path).
+pub fn dispatch_locus_ref_open(
+    ctx: &egui::Context,
+    bus: &mut crate::interop::InteractionBus,
+    event: &crate::rich_editor::wikilinks::inline_view::EditorEvent,
+) -> Option<String> {
+    use crate::rich_editor::wikilinks::inline_view::EditorEvent;
+    if let EditorEvent::WikilinkActivated { ref_kind, ref_value, .. } = event {
+        if ref_kind == crate::interop::locus_interop::LOCUS_REF_KIND {
+            // Stage the NORMALIZED `locus://` ref so resolution + the shell agree on one key; a raw value
+            // that does not parse still dispatches (the shell renders a typed cannot-resolve state).
+            let staged = crate::interop::locus_interop::parse_locus_ref(ref_value)
+                .map(|r| r.normalized)
+                .unwrap_or_else(|| ref_value.clone());
+            bus.open_locus_ref(ctx, staged.clone());
+            return Some(staged);
+        }
+    }
+    None
+}
+
 /// The search transport behind [`find_notes_referencing_symbol`]. A trait (not hard reqwest calls) so
 /// the content-type-restriction + hit-mapping + de-dup logic is unit-testable with a counted mock and
 /// NO backend (the proven MT-014/MT-015 fetcher-trait pattern). The production impl

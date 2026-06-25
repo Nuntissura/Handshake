@@ -101,6 +101,13 @@ pub const CMD_EMBED_STAGE_CAPTURE: &str = "interop.embed-stage-capture";
 /// `EditorPaneNotMounted` until the code pane mounts at E11/MT-069 — never a faked jump). This is the
 /// melt-together note->code navigation primitive, the symmetric counterpart of [`CMD_OPEN_DOCUMENT`].
 pub const CMD_OPEN_CODE_SYMBOL: &str = "interop.open-code-symbol";
+/// WP-KERNEL-012 MT-068 (E10 — editors<->Locus cross-refs): cross-pane Open-Locus-Ref command id. A
+/// clicked Locus chip (`locus://wp/{id}` / `locus://mt/{id}`) in a note/comment dispatches this with the
+/// target `locus://` ref staged via [`InteractionBus::request_open_locus_ref`]; the shell drains
+/// [`InteractionBus::take_pending_locus_ref`] each frame and routes it through the SAME MT-030 nav seam the
+/// other cross-refs use (NavTarget for the WP/MT record). This is the melt-together note->work-unit
+/// navigation primitive, the SIBLING of [`CMD_OPEN_CODE_SYMBOL`] (NO new navigation channel — RISK-007).
+pub const CMD_OPEN_LOCUS_REF: &str = "interop.open-locus-ref";
 /// WP-KERNEL-012 MT-035 (E5 — unified undo): the local-first Undo command id (VS Code Ctrl+Z). Dispatch
 /// undoes the most recent action in the FOCUSED pane's ring (POLICY-1), falling back to nothing if that
 /// ring is empty. The focused pane id is staged on the bus ([`InteractionBus::focus_owner`]).
@@ -354,6 +361,11 @@ pub struct InteractionBus {
     /// and routes it through the MT-030 ShellNavigator `open_code_symbol` seam. `None` when nothing is
     /// pending.
     pending_code_symbol: Option<String>,
+    /// WP-KERNEL-012 MT-068 (E10): the `locus://` ref an Open-Locus-Ref request staged (from a clicked
+    /// Locus chip). The shell drains it via [`Self::take_pending_locus_ref`] each frame and routes it
+    /// through the SAME MT-030 nav seam (NavTarget for the WP/MT record). `None` when nothing is pending.
+    /// SIBLING of [`Self::pending_code_symbol`] — no new navigation channel (RISK-007).
+    pending_locus_ref: Option<String>,
     /// WP-KERNEL-012 MT-035 (E5): the ONE unified undo scope every pane shares (POLICY-1..5). Session-
     /// scoped, in-memory only — the bus is held in egui app data which is NOT persisted, so the scope is
     /// empty on restart (POLICY-3). The scope itself cannot serialize (no `Serialize` impl).
@@ -396,6 +408,7 @@ impl InteractionBus {
             pending_navigation: None,
             pending_stage_content: None,
             pending_code_symbol: None,
+            pending_locus_ref: None,
             undo_scope: UnifiedUndoScope::new(),
             undo_runtime: None,
             event_emitter: None,
@@ -755,6 +768,62 @@ impl InteractionBus {
     pub fn open_code_symbol(&mut self, ctx: &egui::Context, symbol_entity_id: impl Into<String>) -> bool {
         self.request_open_code_symbol(symbol_entity_id);
         self.dispatch_command(ctx, CMD_OPEN_CODE_SYMBOL)
+    }
+
+    // ── Cross-pane Open-Locus-Ref navigation (MT-068 editors<->Locus cross-refs) ─────────────────────────
+
+    /// Stage a `locus://` ref for a cross-pane Open-Locus-Ref (called just before dispatching
+    /// [`CMD_OPEN_LOCUS_REF`], e.g. from a clicked Locus chip). The shell drains it next frame via
+    /// [`Self::take_pending_locus_ref`] and routes it through the SAME MT-030 nav seam the other cross-refs
+    /// use (a NavTarget for the WP/MT record). The staged value is the normalized `locus://` ref so the
+    /// shell can re-parse it to the WP/MT record without re-deriving the key.
+    pub fn request_open_locus_ref(&mut self, locus_ref: impl Into<String>) {
+        self.pending_locus_ref = Some(locus_ref.into());
+    }
+
+    /// The `locus://` ref staged for a cross-pane Locus open, WITHOUT consuming it (tests / peek).
+    pub fn pending_locus_ref(&self) -> Option<&str> {
+        self.pending_locus_ref.as_deref()
+    }
+
+    /// Take (and clear) the staged `locus://` ref. The shell calls this each frame; `Some(ref)` means route
+    /// an open-locus-ref to that work unit, `None` means nothing pending.
+    pub fn take_pending_locus_ref(&mut self) -> Option<String> {
+        self.pending_locus_ref.take()
+    }
+
+    /// Register the cross-pane Open-Locus-Ref command (MT-068). Its handler is a no-op on the bus itself
+    /// (the `locus://` ref was staged by [`Self::request_open_locus_ref`] BEFORE dispatch, consumed by the
+    /// shell drain) — the command exists so a clicked Locus chip dispatches a REAL, named, addressable
+    /// cross-pane action rather than a per-pane ad-hoc callback. Idempotent (last registration wins).
+    /// Mirrors [`Self::register_open_code_symbol_command`] exactly (the MT-032/MT-034 pattern) — NO new
+    /// navigation channel (RISK-007).
+    pub fn register_open_locus_ref_command(&mut self) {
+        self.register_command(CommandDescriptor {
+            id: CMD_OPEN_LOCUS_REF,
+            name: "OpenLocusRef",
+            label: "Open Locus Reference".to_owned(),
+            keywords: vec![
+                "open".to_owned(),
+                "locus".to_owned(),
+                "work".to_owned(),
+                "packet".to_owned(),
+                "microtask".to_owned(),
+            ],
+            keybind: None,
+            // The locus ref was staged before dispatch (a generic handler carries no payload — the
+            // stage-then-dispatch split is the contract point); request a repaint so the shell drains it.
+            handler: Arc::new(|ctx, _bus| ctx.request_repaint()),
+        });
+    }
+
+    /// Stage `locus_ref` and dispatch [`CMD_OPEN_LOCUS_REF`] in one call (the clicked Locus chip path —
+    /// AC-003). Returns `true` when the command was found and dispatched (it always is once
+    /// [`Self::register_open_locus_ref_command`] ran). The staged ref is then readable via
+    /// [`Self::pending_locus_ref`] until the shell drains it.
+    pub fn open_locus_ref(&mut self, ctx: &egui::Context, locus_ref: impl Into<String>) -> bool {
+        self.request_open_locus_ref(locus_ref);
+        self.dispatch_command(ctx, CMD_OPEN_LOCUS_REF)
     }
 
     // ── Unified undo scope (MT-035 — POLICY-1..5) ──────────────────────────────────────────────────────

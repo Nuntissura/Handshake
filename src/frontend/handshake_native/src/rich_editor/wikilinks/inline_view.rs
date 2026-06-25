@@ -148,6 +148,36 @@ pub fn code_ref_chip_author_id(symbol_ref: &str) -> String {
     format!("code-ref-chip-{symbol_ref}")
 }
 
+/// True when this hsLink atom is a WP-KERNEL-012 MT-068 LOCUS cross-reference (ref_kind="locus"). A locus
+/// ref gets a distinct chip author_id (`locus-ref-chip-{kind}-{id}`) and a work-unit-styled label so it
+/// reads as a Locus WP/MT pill, not a generic wikilink. The SIBLING of [`is_code_ref`].
+pub fn is_locus_ref(link: &HsLinkNode) -> bool {
+    link.ref_kind == crate::interop::locus_interop::LOCUS_REF_KIND
+}
+
+/// The AccessKit author_id for a LOCUS-reference chip (`locus-ref-chip-{kind}-{id}` per the MT-068
+/// contract, e.g. `locus-ref-chip-wp-WP-KERNEL-012`). The `kind` (`wp`/`mt`) + the work-unit `id` are
+/// parsed from the chip's `ref_value` (the `locus://` ref); a `ref_value` that does not parse falls back to
+/// hashing the raw value so the chip is still addressable (never a panic). Ids are stable across frames so
+/// a swarm agent / kittest can target the chip by the work unit it references, and DE-DUPLICATED by
+/// construction (the same (kind,id) yields the same id).
+pub fn locus_ref_chip_author_id(ref_value: &str) -> String {
+    match crate::interop::locus_interop::parse_locus_ref(ref_value) {
+        Some(r) => format!("locus-ref-chip-{}-{}", r.kind.as_str(), r.id),
+        // A non-parsing locus ref (defensive) is still addressable via the deterministic hash.
+        None => format!("locus-ref-chip-unknown-{}", fnv1a_hash(ref_value.as_bytes())),
+    }
+}
+
+/// The SHORT display name for a Locus `locus://` ref: the work-unit id (e.g. `locus://wp/WP-KERNEL-012` ->
+/// `WP-KERNEL-012`). Falls back to the whole value when it does not parse (never a panic).
+pub fn locus_ref_short_name(ref_value: &str) -> String {
+    match crate::interop::locus_interop::parse_locus_ref(ref_value) {
+        Some(r) => r.id,
+        None => ref_value.to_owned(),
+    }
+}
+
 /// The SHORT display name for a code-symbol key/label (the last `::` segment, then the last `#`
 /// segment — `path/to/file.rs#Mod::MyStruct` -> `MyStruct`), per the MT-034 chip rendering note
 /// ("Show the symbol_key short form: last '::' segment"). Falls back to the whole string when there is
@@ -179,6 +209,18 @@ pub fn chip_label(link: &HsLinkNode) -> String {
         };
         return if link.resolved {
             format!("‹›{name}")
+        } else {
+            format!("? {name} (unresolved)")
+        };
+    }
+    if is_locus_ref(link) {
+        // MT-068: a Locus chip shows the short work-unit id with a small work-unit glyph (a clipboard/task
+        // marker), so it reads as a Locus WP/MT pill. An UNRESOLVED/UNAVAILABLE locus ref (the record was
+        // not found, or — the designed path in this build — the Locus READ API is not exposed) shows the
+        // greyed `unresolved` text + the `?` prefix, without crashing (AC-005 / AC-006).
+        let name = locus_ref_short_name(&link.ref_value);
+        return if link.resolved {
+            format!("⎘ {name}")
         } else {
             format!("? {name} (unresolved)")
         };

@@ -44,12 +44,21 @@ pub mod stage_interop;
 // `/calendar/` HTTP routes in this build, so both reads return `InteropError::EndpointUnavailable` (the
 // designed empty-state path) — no backend route added, no event/span fabricated, no DB/SQLite touched.
 pub mod calendar_interop;
+// WP-KERNEL-012 MT-068 (E10 — Locus/Pillar 6 interop): the editors <-> Locus cross-reference edge. A
+// `locus://wp/{id}` / `locus://mt/{id}` ref in a note/comment is the EXISTING `hsLink` atom
+// (ref_kind="locus", the SIBLING of the MT-034 code_ref node); clicking it dispatches `open-locus-ref` on
+// the MT-031 bus (routed via the same MT-030 nav seam). `resolve_locus_ref` reads a WP/MT record's
+// title/summary via the bound READ API — ABSENT in this build, so it returns the typed blocker
+// `LocusReadApiUnavailable` (the designed empty-state path). The reverse direction
+// (`find_documents_referencing`) reuses the MT-034 loom search-v2 mechanism keyed on the normalized
+// `locus://` ref. READ + REFERENCE ONLY: no Locus record is ever created/mutated/transitioned/deleted.
+pub mod locus_interop;
 
 pub use interaction_bus::{
     command_list_item_author_id, default_keybind_for, interaction_bus_id, ClipboardPayload, CommandBus,
     CommandDescriptor, CommandHandler, EditorSurfaceKind, InteractionBus, SharedSelection, CMD_COPY,
-    CMD_CUT, CMD_EMBED_STAGE_CAPTURE, CMD_FIND, CMD_OPEN_CODE_SYMBOL, CMD_OPEN_DOCUMENT, CMD_PASTE,
-    CMD_REDO, CMD_ROUTE_TO_STAGE,
+    CMD_CUT, CMD_EMBED_STAGE_CAPTURE, CMD_FIND, CMD_OPEN_CODE_SYMBOL, CMD_OPEN_DOCUMENT,
+    CMD_OPEN_LOCUS_REF, CMD_PASTE, CMD_REDO, CMD_ROUTE_TO_STAGE,
     CMD_SELECT_ALL, CMD_COMMAND_PALETTE, CMD_UNDO, CMD_UNDO_CROSS_PANE, COMMAND_LIST_ITEM_AUTHOR_PREFIX,
     COMMAND_PALETTE_SEARCH_AUTHOR_ID, COMMAND_PALETTE_TRIGGER_AUTHOR_ID, INTERACTION_BUS_KEY,
 };
@@ -64,9 +73,15 @@ pub use drag_payload::{
 };
 
 pub use cross_ref::{
-    dispatch_code_ref_open, find_notes_referencing_symbol, find_notes_with, percent_encode_symbol,
-    resolve_code_ref, resolve_code_ref_with, CodeRef, CrossRefError, FindNotesHttp, FindNotesSearch,
-    NoteRef, SymbolDwellTracker, CODE_REF_KIND, NOTE_REFS_DWELL_MS, NOTE_REFS_SEARCH_LIMIT,
+    dispatch_code_ref_open, dispatch_locus_ref_open, find_notes_referencing_symbol, find_notes_with,
+    percent_encode_symbol, resolve_code_ref, resolve_code_ref_with, CodeRef, CrossRefError,
+    FindNotesHttp, FindNotesSearch, NoteRef, SymbolDwellTracker, CODE_REF_KIND, NOTE_REFS_DWELL_MS,
+    NOTE_REFS_SEARCH_LIMIT,
+};
+
+pub use locus_interop::{
+    normalize_locus_id, parse_locus_ref, DocumentRef, LocusInteropError, LocusInteropService, LocusRecord,
+    LocusRef, LocusRefKind, LocusResult, LOCUS_REF_KIND, LOCUS_URI_SCHEME,
 };
 
 pub use stage_interop::{

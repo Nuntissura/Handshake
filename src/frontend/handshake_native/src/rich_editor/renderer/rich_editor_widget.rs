@@ -2407,7 +2407,7 @@ impl RichEditorWidget {
     ) -> Option<crate::rich_editor::wikilinks::inline_view::EditorEvent> {
         use crate::rich_editor::wikilinks::inline_view::{
             chip_author_id, chip_rect_for_span, code_ref_chip_author_id, create_affordance_author_id,
-            is_code_ref, EditorEvent, CHIP_ROLE,
+            is_code_ref, is_locus_ref, locus_ref_chip_author_id, EditorEvent, CHIP_ROLE,
         };
 
         let rect = chip_rect_for_span(spec.local_start, spec.local_end, origin);
@@ -2435,6 +2435,10 @@ impl RichEditorWidget {
             )
         } else if is_code_ref(&spec.link) {
             code_ref_chip_author_id(&spec.link.ref_value)
+        } else if is_locus_ref(&spec.link) {
+            // WP-KERNEL-012 MT-068: a Locus ref gets the contract `locus-ref-chip-{kind}-{id}` id (the
+            // WP/MT the chip references — what a kittest / swarm agent targets), Role::Link.
+            locus_ref_chip_author_id(&spec.link.ref_value)
         } else {
             chip_author_id(&spec.link.ref_value)
         };
@@ -3463,7 +3467,7 @@ fn wikilink_chip_specs(
     painter: &egui::Painter,
     resolver_index: &crate::rich_editor::wikilinks::resolver::ResolverIndex,
 ) -> Vec<WikilinkChipSpec> {
-    use crate::rich_editor::wikilinks::inline_view::{chip_colors, chip_label, is_code_ref};
+    use crate::rich_editor::wikilinks::inline_view::{chip_colors, chip_label, is_code_ref, is_locus_ref};
     use crate::rich_editor::wikilinks::resolver::{resolve_wikilink, WikilinkResolution};
     use egui::epaint::text::cursor::CCursor;
 
@@ -3494,7 +3498,10 @@ fn wikilink_chip_specs(
                 // link, the resolver index is consulted: if it now resolves (e.g. a note created earlier
                 // this session, or an alias), the link is treated as resolved (no create offer); only a
                 // still-Unresolved result offers the create affordance keyed on the title.
-                let create_title = if link.resolved || is_code_ref(link) {
+                // A locus ref (MT-068) references a governed WP/MT work unit, NOT a note, so — like a code
+                // ref — it is NEVER a create-from-unresolved-note candidate even when greyed (the greyed
+                // state means the record/endpoint is unavailable, not "create a note named WP-KERNEL-012").
+                let create_title = if link.resolved || is_code_ref(link) || is_locus_ref(link) {
                     None
                 } else {
                     match resolve_wikilink(resolver_index, &link.ref_value) {
