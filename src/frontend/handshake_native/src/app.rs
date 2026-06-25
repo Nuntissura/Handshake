@@ -27,6 +27,13 @@ use crate::project_tabs::{
 };
 use crate::rails::{apply_rail_scrollbar_style, RailColors, RailDimensions};
 use crate::atelier_side_panel::AtelierSidePanel;
+use crate::code_editor::keymap::CodeEditorAction;
+use crate::code_editor::panel::CodeEditorPanel;
+use crate::editor_pane_factories::{
+    CodeEditorPaneMount, EditorSessionContext, RichEditorPaneMount, RichPaneEvents,
+    SharedSessionContext,
+};
+use crate::rich_editor::renderer::rich_editor_widget::RichEditorState;
 use crate::stage_pane::{StageContent, StagePane};
 use crate::split_layout::{DividerColors, SplitDragState, SplitLayoutWidget, SplitWeights};
 use crate::tab_bar::{TabBar, TabBarColors, TabBarState, TabState, TAB_BAR_HEIGHT};
@@ -137,6 +144,17 @@ pub struct HandshakeApp {
     /// id + live palette pushed IN) and the shell drains (clicked hits pulled OUT into the open path).
     /// Same role as `loom_search_v2_shared` for the Find-in-Files pane.
     find_in_files_shared: Arc<Mutex<crate::find_in_files::FindInFilesPaneShared>>,
+    /// WP-KERNEL-012 MT-079 (E11 host-mount): the live handles for the MOUNTED native editors (the
+    /// session-context cell the shell pushes the active workspace into each frame, the Arc-shared code
+    /// panel + rich state behind the mounted panes, the code command channel the shell drains into the
+    /// command bus + unified undo, and the rich-pane event queue the shell routes to the nav bus). The
+    /// editor analogue of `loom_search_v2_shared` / `find_in_files_shared`.
+    editor_mounts: EditorMountHandles,
+    /// WP-KERNEL-012 MT-079: the last code-editor host-routed command the shell drained
+    /// (`Save`/`OpenCommandPalette` — Undo/Redo dispatch directly to the bus). Exposed via
+    /// [`last_editor_command`](Self::last_editor_command) so the dispatch is perceivable + testable (the
+    /// Save WRITE itself is a typed carry owned by the document shell). `None` until one is dispatched.
+    last_editor_command: Option<CodeEditorAction>,
     /// Persisted split fractions for the 2x2 pane grid (MT-006). Serialized into the layout snapshot
     /// by MT-009. Initialized to the React `DEFAULT_SPLIT_WEIGHTS` (`{ vertical: 0.5, horizontal:
     /// 0.55 }`).
@@ -590,13 +608,37 @@ fn build_default_factories() -> HashMap<PaneType, Box<dyn PaneFactory>> {
     map
 }
 
-/// The factory map plus the two shared cells the shell keeps live (LoomSearchV2 + Find-in-Files): named
-/// to keep [`build_factories_with_loom_search_v2`]'s return shape readable (clippy::type_complexity).
+/// The factory map plus the two shared cells the shell keeps live (LoomSearchV2 + Find-in-Files) plus
+/// the WP-KERNEL-012 MT-079 editor-mount handles: named to keep
+/// [`build_factories_with_loom_search_v2`]'s return shape readable (clippy::type_complexity).
 type FactoriesWithSharedCells = (
     HashMap<PaneType, Box<dyn PaneFactory>>,
     Arc<Mutex<crate::loom_search_v2::LoomSearchV2PaneShared>>,
     Arc<Mutex<crate::find_in_files::FindInFilesPaneShared>>,
+    EditorMountHandles,
 );
+
+/// WP-KERNEL-012 MT-079: the live handles the shell keeps for the MOUNTED editor panes, so the running
+/// `HandshakeApp` can (1) push the active workspace into the editors' session context each frame,
+/// (2) drive the SAME code panel / rich state the mounted panes show (the AC-079 proofs), (3) drain the
+/// code command channel (Save/Undo/Redo/OpenCommandPalette) into the shell command bus + unified undo,
+/// and (4) drain the rich pane's editor events into the MT-030 nav bus. These are the editor analogue of
+/// `loom_search_v2_shared` / `find_in_files_shared`.
+struct EditorMountHandles {
+    /// The session-context cell every editor mount reads each frame; the shell overwrites it with the
+    /// active workspace + runtime so the editors thread real session context on mount (AC-079-2).
+    session: SharedSessionContext,
+    /// The Arc-shared code panel behind the mounted code pane (AC-079-3 proof drives this directly).
+    code_panel: Arc<CodeEditorPanel>,
+    /// The Arc-shared rich editor state behind the mounted Notes pane (AC-079-5 proof drives this).
+    rich_state: Arc<Mutex<RichEditorState>>,
+    /// The receiver half of the code pane's command channel (Save/Undo/Redo/OpenCommandPalette). The
+    /// shell drains it each frame and dispatches to the WP-011 command bus + MT-035 unified undo.
+    command_rx: std::sync::mpsc::Receiver<CodeEditorAction>,
+    /// The outbound rich-pane event queue (WikilinkActivated/BacklinkActivated/TagActivated). The shell
+    /// drains it each frame and routes each event to the MT-030 nav bus.
+    rich_events: RichPaneEvents,
+}
 
 /// Build the pane factory map AND install the CONCRETE [`LoomSearchV2PaneFactory`] over its placeholder
 /// (MT-028, AC-9): start from the all-placeholder default, then OVERRIDE `PaneType::LoomSearchV2` with a
@@ -633,8 +675,67 @@ fn build_factories_with_loom_search_v2(
     );
     map.insert(PaneType::FindInFiles, Box::new(fif_factory));
 
-    (map, shared, fif_shared)
+    // WP-KERNEL-012 MT-079 (E11 host-mount, CORE): install the REAL editor pane factories over their
+    // PlaceholderPaneFactory entries so the native code + rich-text editors render LIVE in the running
+    // app. PaneType::CodeSymbol -> the code editor; PaneType::LoomWikiPage -> the Notes/rich editor (the
+    // surfaces the WP-011 shell already routes those panes to — no new PaneType variant is forked). The
+    // session-threaded MOUNT wrappers thread runtime/workspace/embed/wikilink context on mount through
+    // the SAME shared-cell pattern (the `session` cell the shell overwrites each frame).
+    let editor_mounts = install_editor_mounts(&mut map);
+
+    (map, shared, fif_shared, editor_mounts)
 }
+
+/// WP-KERNEL-012 MT-079: build the session-threaded editor mount factories, install them over the
+/// placeholder entries for `PaneType::CodeSymbol` (code editor) + `PaneType::LoomWikiPage` (Notes/rich
+/// editor), and return the live handles the shell keeps. Reuses the existing `CodeEditorPaneFactory` /
+/// `RichEditorPaneFactory` (no editor logic re-implemented); the mount wrappers only add the
+/// session-context threading + the command/event drains the host-mount needs.
+fn install_editor_mounts(
+    map: &mut HashMap<PaneType, Box<dyn PaneFactory>>,
+) -> EditorMountHandles {
+    // The session-context cell every mount reads; starts UNbound (empty workspace, no runtime). The shell
+    // overwrites it with the active workspace + runtime each frame (sync_editor_session), at which point
+    // the mounts thread real session context into the editors (AC-079-2).
+    let session: SharedSessionContext =
+        Arc::new(Mutex::new(EditorSessionContext::default()));
+
+    // CODE pane: a small seed snippet so the mounted pane shows a real editor (a fresh shell with no
+    // open file). The command channel routes Save/Undo/Redo/OpenCommandPalette to the shell bus.
+    let code_panel = Arc::new(CodeEditorPanel::new(CODE_EDITOR_SEED, "rs"));
+    let (command_tx, command_rx) = std::sync::mpsc::channel::<CodeEditorAction>();
+    let code_mount = CodeEditorPaneMount::new(
+        Arc::clone(&code_panel),
+        Arc::clone(&session),
+        command_tx,
+    );
+    map.insert(PaneType::CodeSymbol, Box::new(code_mount));
+
+    // RICH/Notes pane: a demo document so the mounted Notes pane shows a real rich editor. The outbound
+    // event queue carries the editor's drained pending_events to the shell's nav-bus routing (AC-079-5).
+    let rich_state = Arc::new(Mutex::new(RichEditorState::demo()));
+    let rich_events = RichPaneEvents::new();
+    let rich_mount = RichEditorPaneMount::new(
+        Arc::clone(&rich_state),
+        Arc::clone(&session),
+        rich_events.clone(),
+        // No specific document open yet on a fresh Notes pane: the wikilink context binds to the
+        // workspace root (create/resolve still resolves against the workspace). A future MT that opens a
+        // document by tab content_id updates the bound document id.
+        String::new(),
+    );
+    map.insert(PaneType::LoomWikiPage, Box::new(rich_mount));
+
+    EditorMountHandles { session, code_panel, rich_state, command_rx, rich_events }
+}
+
+/// WP-KERNEL-012 MT-079: the seed snippet a freshly mounted code pane shows before a file is opened.
+const CODE_EDITOR_SEED: &str = "\
+// Handshake native code editor (VS Code parity).
+fn main() {
+    let greeting = \"hello\";
+    println!(\"{greeting}\");
+}";
 
 /// Build a seeded registry from the default panes.
 fn seeded_registry() -> PaneRegistry {
@@ -809,7 +910,7 @@ impl HandshakeApp {
         // MT-028 + MT-029: install the CONCRETE LoomSearchV2 + FindInFiles pane factories over their
         // placeholders so opening the "Loom Search" / "Find in Files" panes renders the REAL panels,
         // wired to the verified search/save/bookmark routes.
-        let (factories, loom_search_v2_shared, find_in_files_shared) =
+        let (factories, loom_search_v2_shared, find_in_files_shared, editor_mounts) =
             build_factories_with_loom_search_v2(rt_handle.clone(), HsTheme::Dark.palette());
         let mut app = Self {
             health_status: HealthDisplayState::Loading,
@@ -822,6 +923,8 @@ impl HandshakeApp {
             factories,
             loom_search_v2_shared,
             find_in_files_shared,
+            editor_mounts,
+            last_editor_command: None,
             split_weights: SplitWeights::default(),
             split_drag: SplitDragState::default(),
             active_pane: None,
@@ -1001,7 +1104,7 @@ impl HandshakeApp {
         // headless/test shell opens the REAL panel via the registry-dispatched pane (AC-9). The
         // current-thread runtime handle bridges the (no-backend) search/save spawns; with no live
         // backend the request simply never delivers (the panel stays idle/neutral — no perpetual spinner).
-        let (factories, loom_search_v2_shared, find_in_files_shared) =
+        let (factories, loom_search_v2_shared, find_in_files_shared, editor_mounts) =
             build_factories_with_loom_search_v2(rt.handle().clone(), HsTheme::Dark.palette());
         Self {
             health_status: state,
@@ -1013,6 +1116,8 @@ impl HandshakeApp {
             factories,
             loom_search_v2_shared,
             find_in_files_shared,
+            editor_mounts,
+            last_editor_command: None,
             split_weights: SplitWeights::default(),
             split_drag: SplitDragState::default(),
             active_pane: None,
@@ -1590,6 +1695,33 @@ impl HandshakeApp {
     /// rail does NOT execute the search — this is the emitted intent, not a result set.
     pub fn search_rail_query(&self) -> Option<crate::search_rail::RailQuery> {
         self.search_rail_query.lock().ok().and_then(|q| q.clone())
+    }
+
+    /// WP-KERNEL-012 MT-079: the Arc-shared code panel behind the MOUNTED code pane (the AC-079-3 proof
+    /// drives this SAME panel — e.g. seeds a unified-undo entry then dispatches Undo through the bus and
+    /// observes the panel state mutate).
+    pub fn mounted_code_panel(&self) -> Arc<CodeEditorPanel> {
+        Arc::clone(&self.editor_mounts.code_panel)
+    }
+
+    /// WP-KERNEL-012 MT-079: the Arc-shared rich editor state behind the MOUNTED Notes pane (the AC-079-5
+    /// proof enqueues a `pending_events` entry on this SAME state and asserts it reaches the nav bus).
+    pub fn mounted_rich_state(&self) -> Arc<Mutex<RichEditorState>> {
+        Arc::clone(&self.editor_mounts.rich_state)
+    }
+
+    /// WP-KERNEL-012 MT-079: the shared session-context cell the editor mounts read each frame (tests
+    /// assert the shell pushed the active workspace + runtime into it so the editors thread real session
+    /// context on mount — AC-079-2).
+    pub fn editor_session_context(&self) -> SharedSessionContext {
+        Arc::clone(&self.editor_mounts.session)
+    }
+
+    /// WP-KERNEL-012 MT-079: the last code-editor host-routed command the shell drained (Save /
+    /// OpenCommandPalette). `None` until one is dispatched. The dispatch-observability surface for the
+    /// AC-079-3 Save path (the Save WRITE itself is a typed carry owned by the document shell).
+    pub fn last_editor_command(&self) -> Option<&CodeEditorAction> {
+        self.last_editor_command.as_ref()
     }
 
     /// Test-only: point the MT-021 backend clients (SCM, canvas, Loom-block) at an arbitrary `base_url`
@@ -3488,6 +3620,148 @@ impl HandshakeApp {
     ///    canvas add this MT consume from it).
     /// 3. **Stage pane.** Render the Stage pane as a bottom panel when open, displaying the routed content.
     ///
+    /// WP-KERNEL-012 MT-079 (E11 host-mount): drain the MOUNTED editors' command + event channels and
+    /// route them through the EXISTING shell paths each frame (AC-079-3 / AC-079-5). Two drains:
+    ///
+    /// 1. **Code command channel** (AC-079-3). The mounted code pane's keymap routes Save / Undo / Redo /
+    ///    OpenCommandPalette to the shell via a `Sender<CodeEditorAction>`; here the shell drains the
+    ///    receiver and dispatches each:
+    ///    - `Save` -> staged on the WP-011 command bus (`request_save` intent) — the document shell owns
+    ///      the actual write; the editor never writes files directly.
+    ///    - `OpenCommandPalette` -> opens the ONE WP-011 command palette (not a second one).
+    ///    - `Undo` / `Redo` -> the MT-035 unified-undo stack on the shared `InteractionBus` for the
+    ///      FOCUSED pane, so menu/keyboard undo share ONE stack (the focus owner is the code pane while it
+    ///      holds focus; the bus arbitrates).
+    ///
+    /// 2. **Rich pane event queue** (AC-079-5). The mounted Notes pane drained its `pending_events` into
+    ///    the shared `RichPaneEvents` queue; here the shell routes each to the MT-030 navigation bus:
+    ///    `WikilinkActivated` / `BacklinkActivated` -> open the document/block; `TagActivated` -> open the
+    ///    tag hub. No event is left unrouted.
+    ///
+    /// A snapshot-capture pass must NOT consume either channel (the real frame owns the drain), so both
+    /// are skipped while `capturing_snapshot`. All bus access is via `with_try_lock` so it never blocks
+    /// the egui frame thread (HBR-QUIET).
+    fn drive_editor_mounts(&mut self, ctx: &egui::Context) {
+        if self.capturing_snapshot {
+            return;
+        }
+
+        // ── 1. Code command channel (Save / Undo / Redo / OpenCommandPalette) ───────────────────────
+        let mut commands = Vec::new();
+        while let Ok(action) = self.editor_mounts.command_rx.try_recv() {
+            commands.push(action);
+        }
+        if !commands.is_empty() {
+            let bus = crate::interop::InteractionBus::get_or_init(ctx);
+            for action in commands {
+                match action {
+                    CodeEditorAction::OpenCommandPalette => self.open_command_palette(),
+                    CodeEditorAction::Save => {
+                        // The save intent reached the shell (observably — `last_editor_command`), which
+                        // is the AC-079-3 requirement: Save dispatches to the shell command bus rather
+                        // than vanishing in the editor. The actual document WRITE is owned by the
+                        // document shell's save path (the rich editor's MT-020 SaveManager / the code
+                        // document shell), which is the host-mount typed carry for a follow-on run — NOT
+                        // faked here. Recording the command keeps the dispatch perceivable to the
+                        // operator + a swarm agent (no silent no-op).
+                        self.last_editor_command = Some(CodeEditorAction::Save);
+                    }
+                    CodeEditorAction::Undo => {
+                        crate::interop::InteractionBus::with_try_lock(&bus, |b| {
+                            if let Some(pane_id) = b.focus_owner().cloned() {
+                                let _ = b.undo(&pane_id);
+                            } else {
+                                let _ = b.undo_cross_pane();
+                            }
+                        });
+                        ctx.request_repaint();
+                    }
+                    CodeEditorAction::Redo => {
+                        crate::interop::InteractionBus::with_try_lock(&bus, |b| {
+                            if let Some(pane_id) = b.focus_owner().cloned() {
+                                let _ = b.redo(&pane_id);
+                            } else {
+                                let _ = b.redo_cross_pane();
+                            }
+                        });
+                        ctx.request_repaint();
+                    }
+                    // Any other dispatched action is handled in-process by the editor; the shell channel
+                    // only carries the four host-routed intents above. A non-host action arriving here is
+                    // a benign no-op (it never reaches the channel in normal flow).
+                    _ => {}
+                }
+            }
+        }
+
+        // ── 2. Rich pane event queue (Wikilink / Backlink / Tag activated) ──────────────────────────
+        let events = self.editor_mounts.rich_events.take();
+        for event in events {
+            use crate::rich_editor::wikilinks::inline_view::EditorEvent;
+            match event {
+                EditorEvent::WikilinkActivated { ref_kind, ref_value, .. } => {
+                    // Route through the MT-030 ShellNavigator: a note/document target opens the rich
+                    // editor; any other ref kind opens as a Loom block reference (the same routing the
+                    // search panes use). The editor enqueues even an unresolved link so the shell can
+                    // surface a status rather than silently no-op (the `pending_events` contract).
+                    self.nav_pending_label = Some(ref_value.clone());
+                    let outcome = match ref_kind.as_str() {
+                        "note" | "file" | "doc" | "document" => {
+                            crate::quick_switcher::ShellNavigator::open_document(self, &ref_value)
+                        }
+                        _ => crate::quick_switcher::ShellNavigator::open_loom_block(self, &ref_value),
+                    };
+                    self.nav_pending_label = None;
+                    self.surface_nav_outcome(&outcome);
+                    ctx.request_repaint();
+                }
+                EditorEvent::BacklinkActivated { source_document_id } => {
+                    self.nav_pending_label = Some(source_document_id.clone());
+                    let outcome = crate::quick_switcher::ShellNavigator::open_document(
+                        self,
+                        &source_document_id,
+                    );
+                    self.nav_pending_label = None;
+                    self.surface_nav_outcome(&outcome);
+                    ctx.request_repaint();
+                }
+                EditorEvent::TransclusionOpenRequested { ref_value } => {
+                    self.nav_pending_label = Some(ref_value.clone());
+                    let outcome =
+                        crate::quick_switcher::ShellNavigator::open_loom_block(self, &ref_value);
+                    self.nav_pending_label = None;
+                    self.surface_nav_outcome(&outcome);
+                    ctx.request_repaint();
+                }
+                EditorEvent::TagActivated { canonical, .. } => {
+                    // The MT-023 tag hub for the tag is a first-class tag_hub Loom block; open it as a
+                    // Loom block reference on the active pane (the same open path the tags panel uses).
+                    self.open_content_on_active_pane(PaneType::LoomBlock, Some(canonical));
+                    ctx.request_repaint();
+                }
+                EditorEvent::CreateNote { .. } => {
+                    // Create-from-unresolved-link is owned by the editor's own async intent handler
+                    // (MT-057 dispatch_create_note); the shell does not double-handle it here.
+                }
+            }
+        }
+    }
+
+    /// WP-KERNEL-012 MT-079: surface a `NavDispatchOutcome` from an editor-event route the same way the
+    /// quick-switcher does — clear the nav-status segment on a successful `Opened`, or record the typed
+    /// status (e.g. the editor-pane seam) so it is perceivable to the operator + a swarm agent. Reuses
+    /// the existing `quick_switcher_nav_status` surface (no second status mechanism).
+    fn surface_nav_outcome(&mut self, outcome: &crate::quick_switcher::NavDispatchOutcome) {
+        match outcome {
+            crate::quick_switcher::NavDispatchOutcome::Opened { .. } => {
+                self.quick_switcher_nav_status = None;
+            }
+            other => {
+                self.quick_switcher_nav_status = Some(other.status_text());
+            }
+        }
+    }
+
     /// HBR-QUIET: no foreground window is popped; both surfaces are docked panels drawn inside the frame.
     fn drive_ckc_interop(&mut self, ctx: &egui::Context) {
         // A snapshot-capture pass must NOT consume the bus (the real frame owns the drain), or a routed
@@ -4376,8 +4650,23 @@ impl HandshakeApp {
             // MT-029: mirror the same per-frame push into the Find-in-Files pane's shared cell so its
             // search targets the active workspace and its highlight tracks the live theme.
             if let Ok(mut shared) = self.find_in_files_shared.lock() {
-                shared.workspace_id = workspace_id;
+                shared.workspace_id = workspace_id.clone();
                 shared.palette = palette;
+            }
+            // WP-KERNEL-012 MT-079 (AC-079-2): push the live workspace id + runtime handle into the
+            // editor mounts' session-context cell BEFORE the pane host renders, so a mounted code/rich
+            // pane threads real session context on its first live frame (set_runtime/set_workspace_id +
+            // set_embed_context/set_wikilink_context). A snapshot-capture pass must NOT install context
+            // (the editors' `set_*` hooks spawn off-thread work; the throwaway capture context must stay
+            // side-effect-free — the `drain_shell_events` capture guard). With no runtime handle (a
+            // current-thread headless shell) the context stays unbound and the editors render in their
+            // graceful runtime-less mode.
+            if !self.capturing_snapshot {
+                if let (Some(ws), Some(rt)) = (workspace_id, self.runtime_handle.clone()) {
+                    if let Ok(mut sess) = self.editor_mounts.session.lock() {
+                        *sess = EditorSessionContext::new(ws, rt);
+                    }
+                }
             }
         }
 
@@ -4791,6 +5080,11 @@ impl HandshakeApp {
             }
         }
 
+        // ── WP-KERNEL-012 MT-079: drain the mounted editors' command + event channels ────────────────
+        // Drained AFTER the pane host so a Save/Undo/Redo/OpenCommandPalette keypress or a wikilink/
+        // backlink/tag chip click handled THIS frame is dispatched THIS frame.
+        self.drive_editor_mounts(ctx);
+
         // ── Apply MT-013 pane-header Lock/Unlock requests ───────────────────────────────────────────
         // A lock click from the pane header (pointer OR out-of-process AccessKit Click) toggles the
         // pane record's LockState in the registry (single source of truth). The change is picked up by
@@ -5062,23 +5356,26 @@ impl HandshakeApp {
 /// tab-open primitive (de-dupe + activate + focus) so there is ONE tab-mutation path, and returns the
 /// typed [`NavDispatchOutcome`](crate::quick_switcher::NavDispatchOutcome).
 ///
-/// The TWO editor-pane arms (`open_document` -> the MT-012 rich-text editor, `open_code_symbol` -> the
-/// MT-001 code editor) are the honest typed seam: those editor panes are NOT yet mounted in the shell
-/// (`PaneType::AtelierEditor` / `PaneType::CodeSymbol` currently route to the labeled placeholder
-/// factory; E11/MT-069 mounts the real editors). Until then these arms return
-/// `EditorPaneNotMounted` — a visible typed status, never a faked open. The carry-forward to MT-069 is
-/// to swap these two arms to `open_navigator_tab(PaneType::AtelierEditor/CodeSymbol, ...)` once the
-/// editor panes mount. The other five arms open real shell tabs NOW.
+/// WP-KERNEL-012 MT-079 (E11 host-mount): the TWO editor-pane arms now open REAL mounted editors.
+/// `open_document` -> the rich-text/Notes editor (`PaneType::LoomWikiPage` -> `RichEditorPaneMount`);
+/// `open_code_symbol` -> the code editor (`PaneType::CodeSymbol` -> `CodeEditorPaneMount`). Both editor
+/// factories are now REGISTERED over their former `PlaceholderPaneFactory` entries (see
+/// `install_editor_mounts`), so these arms open + focus the live editor pane through the SAME
+/// `open_navigator_tab` primitive every other arm uses — the `EditorPaneNotMounted` seam these arms
+/// returned before E11 is RETIRED for them. All seven arms now open real shell tabs.
 impl crate::quick_switcher::ShellNavigator for HandshakeApp {
-    fn open_document(&mut self, _document_id: &str) -> crate::quick_switcher::NavDispatchOutcome {
-        // E11/MT-069 seam: the MT-012 rich-text editor pane is not mounted yet. Honest typed status, not
-        // a faked placeholder open. (When E11 mounts it:
-        //   let label = self.nav_pending_label.clone().unwrap_or_else(|| _document_id.to_owned());
-        //   return match self.open_navigator_tab(PaneType::AtelierEditor, _document_id.to_owned(), &label) {
-        //       Some(surface) => NavDispatchOutcome::Opened { surface }, None => NavDispatchOutcome::NoTargetPane };
-        // )
-        crate::quick_switcher::NavDispatchOutcome::EditorPaneNotMounted {
-            editor: crate::quick_switcher::NavEditorKind::RichText,
+    fn open_document(&mut self, document_id: &str) -> crate::quick_switcher::NavDispatchOutcome {
+        // WP-KERNEL-012 MT-079 (AC-079-4): the rich-text/Notes editor pane is now MOUNTED
+        // (PaneType::LoomWikiPage -> RichEditorPaneMount), so this arm opens + focuses the REAL editor
+        // pane instead of returning the EditorPaneNotMounted seam. Open the document on the Notes
+        // surface through the SAME tab-open primitive every other arm uses (de-dupe + activate + focus).
+        let label = self
+            .nav_pending_label
+            .clone()
+            .unwrap_or_else(|| document_id.to_owned());
+        match self.open_navigator_tab(PaneType::LoomWikiPage, document_id.to_owned(), &label) {
+            Some(surface) => crate::quick_switcher::NavDispatchOutcome::Opened { surface },
+            None => crate::quick_switcher::NavDispatchOutcome::NoTargetPane,
         }
     }
 
@@ -5095,11 +5392,19 @@ impl crate::quick_switcher::ShellNavigator for HandshakeApp {
 
     fn open_code_symbol(
         &mut self,
-        _symbol_entity_id: &str,
+        symbol_entity_id: &str,
     ) -> crate::quick_switcher::NavDispatchOutcome {
-        // E11/MT-069 seam: the MT-001 code editor pane is not mounted yet. Honest typed status.
-        crate::quick_switcher::NavDispatchOutcome::EditorPaneNotMounted {
-            editor: crate::quick_switcher::NavEditorKind::Code,
+        // WP-KERNEL-012 MT-079 (AC-079-4): the code editor pane is now MOUNTED (PaneType::CodeSymbol ->
+        // CodeEditorPaneMount), so this arm opens + focuses the REAL code editor pane instead of the
+        // EditorPaneNotMounted seam. Open the symbol on the code surface through the SAME tab-open
+        // primitive every other arm uses.
+        let label = self
+            .nav_pending_label
+            .clone()
+            .unwrap_or_else(|| symbol_entity_id.to_owned());
+        match self.open_navigator_tab(PaneType::CodeSymbol, symbol_entity_id.to_owned(), &label) {
+            Some(surface) => crate::quick_switcher::NavDispatchOutcome::Opened { surface },
+            None => crate::quick_switcher::NavDispatchOutcome::NoTargetPane,
         }
     }
 

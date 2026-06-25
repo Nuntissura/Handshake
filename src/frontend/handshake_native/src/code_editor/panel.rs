@@ -8536,6 +8536,15 @@ impl CodeEditorPanel {
         self.send_to_command_bus(CodeEditorAction::Undo);
     }
 
+    /// WP-KERNEL-012 MT-079 test seam: dispatch Undo through the REAL command channel the keymap uses
+    /// (the SAME `send_to_command_bus(CodeEditorAction::Undo)` path Ctrl+Z takes), so the AC-079-3 proof
+    /// drives the production dispatch path end-to-end (the shell drain then routes it to the unified-undo
+    /// bus) rather than calling the bus directly. Not a tautology: it exercises the mount-installed
+    /// command sender.
+    pub fn request_undo_for_test(&self) {
+        self.undo();
+    }
+
     /// Redo (Ctrl+Y / Ctrl+Shift+Z) — routed to the host unified-undo stack, same as [`undo`](Self::undo).
     fn redo(&self) {
         self.send_to_command_bus(CodeEditorAction::Redo);
@@ -8761,6 +8770,14 @@ impl CodeEditorPaneFactory {
     /// factory owning a `&mut` (the registry borrows `&dyn PaneFactory` at render time).
     pub fn new(panel: CodeEditorPanel) -> Self {
         Self { panel: Arc::new(panel), bus_registered: std::sync::atomic::AtomicBool::new(false) }
+    }
+
+    /// WP-KERNEL-012 MT-079: build a factory over an EXISTING `Arc<CodeEditorPanel>` so the
+    /// session-threading host-mount wrapper (`editor_pane_factories::CodeEditorPaneMount`) and this
+    /// inner factory render the SAME panel state. `new` wraps a fresh panel in its own Arc, which would
+    /// give the mount and the inner render two different panels; this constructor shares one Arc.
+    pub fn from_arc(panel: Arc<CodeEditorPanel>) -> Self {
+        Self { panel, bus_registered: std::sync::atomic::AtomicBool::new(false) }
     }
 
     /// The Arc-shared panel this factory renders (so a test/host can drive the SAME panel state the

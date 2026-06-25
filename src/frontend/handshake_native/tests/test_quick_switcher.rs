@@ -916,15 +916,17 @@ fn dispatch_target_routes_every_target_to_the_right_method() {
     assert_eq!(outcome, NavDispatchOutcome::Unsupported);
 }
 
-// ── Editor-pane seam END-TO-END through the real shell: a document hit -> typed not-mounted status ─────
+// ── A document hit OPENS the now-mounted rich-text editor END-TO-END through the real shell ───────────
 //
-// Selecting a `document` (KRD-) hit resolves to `Document`, which dispatches to the shell's
-// `open_document` arm. Because the MT-012 rich-text editor pane is NOT yet mounted (E11/MT-069), the
-// shell returns `EditorPaneNotMounted` — surfaced via `quick_switcher_nav_status()` — and opens NO tab.
-// This is the honest typed seam (no silent no-op, no faked placeholder open). The switcher still closes.
+// WP-KERNEL-012 MT-079 (E11 host-mount, AC-079-4) UPDATED the pre-mount contract: selecting a
+// `document` (KRD-) hit resolves to `Document`, which dispatches to the shell's `open_document` arm.
+// The rich-text/Notes editor pane is now MOUNTED (`PaneType::LoomWikiPage` -> `RichEditorPaneMount`), so
+// the arm OPENS + focuses the real Notes editor tab (carrying the document content id) through the SAME
+// `open_navigator_tab` primitive every other arm uses — the `EditorPaneNotMounted` seam this hit
+// surfaced BEFORE the host-mount is RETIRED (no nav-status seam, no faked open). The switcher closes.
 
 #[test]
-fn document_hit_surfaces_editor_pane_not_mounted_seam() {
+fn document_hit_opens_mounted_rich_editor_tab() {
     let stub = StubTransport {
         hits: vec![make_hit(
             "document",
@@ -957,46 +959,31 @@ fn document_hit_surfaces_editor_pane_not_mounted_seam() {
         !harness.state().quick_switcher_open(),
         "Enter on the document hit closed the switcher"
     );
-    // ... but the editor pane is not mounted, so a TYPED status is surfaced (not a silent no-op).
+    // ... and because the rich-text/Notes editor pane is now MOUNTED, the `open_document` arm OPENED it:
+    // an Opened outcome means NO not-mounted seam status is surfaced (the seam is retired for this hit).
     assert_eq!(
         harness.state().quick_switcher_nav_status(),
-        Some("Rich-text editor pane not mounted yet (E11/MT-069)"),
-        "the document hit surfaced the honest editor-pane seam status"
+        None,
+        "AC-079-4: the document hit OPENED the mounted Notes editor (no editor-pane-not-mounted seam)"
     );
-    // ... AND that status is PERCEIVABLE after the overlay closed: it renders as a status-bar segment
-    // and emits a live `quick-switcher.nav-status` AccessKit node (Role::Status) carrying the seam text,
-    // so an operator AND a swarm agent reading the AccessKit tree can see the seam outcome. This is the
-    // visibility assertion the must_fix demands — NOT just that the private getter returns Some.
-    harness.run();
-    let nav_node = live_author_nodes(&harness)
-        .into_iter()
-        .find(|(a, _, _)| a == "quick-switcher.nav-status")
-        .unwrap_or_else(|| {
-            panic!(
-                "the editor-pane seam status must be a LIVE AccessKit node, not only a getter; nodes: {:?}",
-                live_author_nodes(&harness)
-            )
-        });
-    assert_eq!(nav_node.1, "Status", "the nav-status node carries Role::Status");
-    assert_eq!(
-        nav_node.2.as_deref(),
-        Some("Rich-text editor pane not mounted yet (E11/MT-069)"),
-        "the perceivable nav-status node carries the seam text the operator/agent reads"
-    );
-    // ... and NO rich-text/Atelier editor tab was opened for the document (no faked placeholder open).
-    // The seeded shell ships default tabs, so the precise check is that the document's target pane type
-    // (AtelierEditor) never appears AND no tab carries the document content id.
-    let faked_doc_tab = harness
+    // ... and a REAL Notes/rich editor tab was opened for the document on the active pane, carrying the
+    // document content id (the mounted-arm end-to-end open, not a faked placeholder). The Notes editor
+    // mounts under `PaneType::LoomWikiPage`.
+    let opened_doc_tab = harness
         .state()
         .tab_bar_states()
         .values()
         .flat_map(|bar| bar.tabs.iter())
         .any(|t| {
-            t.pane_type == PaneType::AtelierEditor || t.content_id.as_deref() == Some("KRD-501")
+            t.pane_type == PaneType::LoomWikiPage && t.content_id.as_deref() == Some("KRD-501")
         });
     assert!(
-        !faked_doc_tab,
-        "the editor-pane seam opened NO Atelier/document tab (no faked placeholder open)"
+        opened_doc_tab,
+        "AC-079-4: the document hit opened a real LoomWikiPage (Notes editor) tab carrying KRD-501"
+    );
+    assert!(
+        harness.state().active_pane().is_some(),
+        "opening the mounted editor focused a pane (the tab-open primitive activates + focuses)"
     );
 }
 

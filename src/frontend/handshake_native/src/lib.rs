@@ -25,6 +25,13 @@ pub mod context_menu;
 pub mod context_menu_surfaces;
 pub mod debug_console;
 pub mod drawer;
+// WP-KERNEL-012 MT-079 (E11 host-mount): the session-threaded editor pane factories that mount the REAL
+// native code + rich-text editors into the running HandshakeApp shell (replacing the PlaceholderPaneFactory
+// for the editor PaneTypes), thread per-pane session context (runtime/workspace/embed/wikilink) through the
+// established shared-cell pattern, wire the shell command sender into the code pane, and drain the rich
+// editor's pending_events to the shell's nav-bus routing. The CORE mount (AC-079-1..5); the fuller
+// canvas/graph/side-pane mounts stay typed carries.
+pub mod editor_pane_factories;
 pub mod error;
 // WP-KERNEL-012 MT-036 (E5 — one event ledger across surfaces): the single NativeEditorEventEmitter that
 // turns a native editor action into a typed NativeEditorEvent and ships it to the EXISTING handshake_core
