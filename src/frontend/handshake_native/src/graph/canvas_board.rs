@@ -123,6 +123,16 @@ pub const MIN_CARD_H: f32 = 48.0;
 /// The on-screen size (logical px BEFORE zoom) of the bottom-right resize grab handle (MT-061).
 const RESIZE_HANDLE_PX: f32 = 12.0;
 
+/// WP-KERNEL-012 MT-061 typed-blocker text: the create-only route the MT contract named for text-card
+/// "create/edit". Verified create-only in `src/backend/handshake_core/src/api/loom.rs`
+/// (`create_canvas_card` -> `import_markdown_to_loom` + `place_block_on_canvas`, returns a NEW card).
+pub const TEXT_CARD_EDIT_ATTEMPTED_ROUTE: &str =
+    "POST /workspaces/{ws}/loom/canvas-boards/{block_id}/cards (create_canvas_card — CREATE-ONLY)";
+/// WP-KERNEL-012 MT-061 typed-blocker text: the REAL edit route the MT contract did NOT bind, with the
+/// shape it requires (none of which the inline-edit event currently carries).
+pub const TEXT_CARD_EDIT_REQUIRED_ROUTE: &str = "PUT /knowledge/documents/{rich_document_id}/save \
+     {expected_version:i64, content_json:ProseMirror Value} — UNBOUND by MT-061";
+
 /// The stable AccessKit author_id for a placement card, sanitizing `placement_id` to `[a-z0-9-]` so a
 /// raw id with slashes/colons can never break tree integrity (reuses the shell's slugger).
 pub fn placement_author_id(placement_id: &str) -> String {
@@ -144,8 +154,10 @@ pub fn placement_resize_author_id(placement_id: &str) -> String {
 /// MT-061, the load-bearing reference-not-copy gate, AC-061-5).
 ///
 /// - [`CanvasCardKind::TextCard`]: a FREE-TEXT card created via the cards endpoint (a `note` LoomBlock the
-///   canvas owns the editing surface for). Double-click enters in-place editing; committing persists
-///   title/body. Editing a text card mutates only THAT card's own content.
+///   canvas owns the editing surface for). Double-click enters in-place editing; committing would mutate
+///   only THAT card's own content. NOTE (MT-061 typed blocker): commit currently emits
+///   [`CanvasEvent::TextCardEditBlocked`] — the cards endpoint is create-only and the real edit route
+///   (`PUT /knowledge/documents/:id/save`) was not bound by this MT (RISK-061-5 / MC-061-5).
 /// - [`CanvasCardKind::BlockRef`]: a placed REFERENCE to an existing Loom block (the MT-026 default).
 ///   NEVER inline-editable — double-clicking navigates to the block. This preserves reference-not-copy:
 ///   a canvas edit can never fork or copy the underlying block.
@@ -352,12 +364,39 @@ pub enum CanvasEvent {
     /// assigns the dropped card to that section; `group_id == None` CLEARS the assignment (drop outside
     /// all frames). Mutates ONLY the placement record — never the underlying block (reference-not-copy).
     AssignSection { placement_id: String, group_id: Option<String> },
-    /// WP-KERNEL-012 MT-061: persist an in-place edit of a free-text card's title/body. The host applies
-    /// it through the existing knowledge-document save path for the card's backing note block (the cards
-    /// surface), then re-fetches via `getCanvasBoard`. Emitted ONLY for a [`CanvasCardKind::TextCard`]
-    /// (the inline editor is gated to text cards — AC-061-4/AC-061-5). `block_id` is the card's backing
-    /// note block so the host knows which document to save.
-    EditTextCard { placement_id: String, block_id: String, title: String, body: String },
+    /// WP-KERNEL-012 MT-061: a CONTRACT-MANDATED TYPED BLOCKER (binds_backend_api[1] +
+    /// RISK-061-5 / MC-061-5: "If it cannot edit an existing card, emit a typed blocker"). The inline
+    /// text-card editor is a real, proven LIVE surface (double-click -> `TextEdit::multiline` -> type ->
+    /// Escape-discard), but COMMITTING the edit has NO bindable backend route this MT may use:
+    ///
+    ///   - The contract names `POST .../canvas-boards/:block_id/cards` for text-card "create/edit", but
+    ///     that handler (`create_canvas_card`, `src/backend/handshake_core/src/api/loom.rs`) is
+    ///     CREATE-ONLY — it `import_markdown_to_loom` + `place_block_on_canvas` and returns a NEW
+    ///     `{block, rich_document_id, placement}`. There is NO PATCH/PUT route to edit an EXISTING card.
+    ///   - The REAL edit route is `PUT /knowledge/documents/:document_id/save`, which the MT contract did
+    ///     NOT bind. It needs the card's `rich_document_id` (from `CreateCanvasCardResponse`, NOT the loom
+    ///     `block_id`), an `expected_version: i64` optimistic-concurrency token, and `content_json` as a
+    ///     ProseMirror `Value` (NOT a plain markdown `body` string). The double-click event has none of
+    ///     those, so the edit cannot be persisted as specified.
+    ///
+    /// Per the HARD no-backend-rewrite constraint, the widget emits this typed blocker on commit instead
+    /// of a false persistence event; the host surfaces it and the Orchestrator must re-scope the binding
+    /// (bind `PUT /knowledge/documents/:id/save` with `rich_document_id` + `expected_version` +
+    /// `content_json`) before text-card-EDIT persistence (AC-061-4) is bindable. Emitted ONLY for a
+    /// [`CanvasCardKind::TextCard`] (the inline editor is gated to text cards — AC-061-4/AC-061-5).
+    /// `block_id` is the card's backing note block (carried for diagnostics — it is the WRONG key for the
+    /// save route, which is part of why the binding is blocked). `pending_body` is the edited buffer the
+    /// host would persist once a real binding exists.
+    TextCardEditBlocked {
+        placement_id: String,
+        block_id: String,
+        title: String,
+        pending_body: String,
+        /// The exact create-only route the contract named for text-card edit.
+        attempted_route: &'static str,
+        /// The real edit route the contract did NOT bind, with its required (currently-unavailable) shape.
+        required_route: &'static str,
+    },
     /// Remove a placement reference (`DELETE .../canvas-placements/:id`). Source block is KEPT.
     RemovePlacement { placement_id: String },
     /// Create a real semantic Loom edge (`POST /loom/edges {edge_type:"mention"}`) between two BLOCKS.
@@ -408,7 +447,8 @@ pub struct LoomCanvasBoard {
     editing_card_id: Option<String>,
     /// WP-KERNEL-012 MT-061: the live edit buffer for the inline text-card editor (the multiline
     /// `TextEdit`'s backing string). Seeded from the card's `live_body` on entering edit mode; discarded
-    /// on Escape; committed (-> [`CanvasEvent::EditTextCard`]) on focus-loss / Ctrl+Enter.
+    /// on Escape; on focus-loss / Ctrl+Enter the commit emits the typed blocker
+    /// [`CanvasEvent::TextCardEditBlocked`] (no bindable persistence route — RISK-061-5 / MC-061-5).
     editing_buffer: String,
     /// WP-KERNEL-012 MT-061: optional per-`group_id` section labels from the board's section/group
     /// metadata. Used by the derived [`crate::graph::canvas_sections::SectionLayer`] for frame titles;
@@ -1363,7 +1403,8 @@ impl LoomCanvasBoard {
     /// Draw one placement card + its remove button + resize handle + (for a text card in edit mode) the
     /// inline editor + AccessKit nodes. Returns the typed event this card produced this frame: a
     /// `RemovePlacement` (remove click), a `ResizePlacement` (resize drag-stop, debounced to ONE per
-    /// gesture — RISK-061-1), or an `EditTextCard` (inline-edit commit). `&mut self` because the resize
+    /// gesture — RISK-061-1), or a `TextCardEditBlocked` typed blocker (inline-edit commit — the cards
+    /// endpoint is create-only, so the edit cannot persist; RISK-061-5). `&mut self` because the resize
     /// handle accumulates the in-flight size and the inline editor owns a live buffer.
     fn draw_card(
         &mut self,
@@ -1562,9 +1603,11 @@ impl LoomCanvasBoard {
     }
 
     /// WP-KERNEL-012 MT-061 (AC-061-4): the in-place editor for a free-text card. Renders an
-    /// `egui::TextEdit::multiline` over the card body bound to `self.editing_buffer`. Commits on
-    /// focus-loss OR Ctrl+Enter (-> [`CanvasEvent::EditTextCard`] carrying the new title/body); discards
-    /// on Escape (no server call). Returns the commit event, if any, this frame.
+    /// `egui::TextEdit::multiline` over the card body bound to `self.editing_buffer`. The live edit
+    /// surface (open / type / Escape-discard) is fully proven; but committing on focus-loss OR Ctrl+Enter
+    /// emits the CONTRACT-MANDATED typed blocker [`CanvasEvent::TextCardEditBlocked`] (the cards endpoint
+    /// is create-only and the real save route is unbound by this MT — RISK-061-5 / MC-061-5), NOT a false
+    /// persistence event. Escape discards with no event. Returns the commit/blocker event, if any.
     fn draw_inline_editor(
         &mut self,
         ui: &mut egui::Ui,
@@ -1611,14 +1654,22 @@ impl LoomCanvasBoard {
         // Commit triggers: Ctrl/Cmd+Enter (consumed above), OR the editor LOSES focus (clicked elsewhere).
         let lost_focus = resp.lost_focus();
         if ctrl_enter || lost_focus {
-            let body = std::mem::take(&mut self.editing_buffer);
+            let pending_body = std::mem::take(&mut self.editing_buffer);
             self.editing_card_id = None;
-            self.status = format!("Saved {placement_id}");
-            return Some(CanvasEvent::EditTextCard {
+            // CONTRACT-MANDATED TYPED BLOCKER (RISK-061-5 / MC-061-5): the cards endpoint cannot edit an
+            // existing card and the real edit route was not bound by this MT, so the commit emits a typed
+            // blocker rather than a false persistence event. See [`CanvasEvent::TextCardEditBlocked`].
+            self.status = format!(
+                "Text-card edit BLOCKED for {placement_id}: cards endpoint is create-only; \
+                 PUT /knowledge/documents/:id/save is unbound by this MT"
+            );
+            return Some(CanvasEvent::TextCardEditBlocked {
                 placement_id: placement_id.to_owned(),
                 block_id: block_id.to_owned(),
                 title: title.to_owned(),
-                body,
+                pending_body,
+                attempted_route: TEXT_CARD_EDIT_ATTEMPTED_ROUTE,
+                required_route: TEXT_CARD_EDIT_REQUIRED_ROUTE,
             });
         }
         None

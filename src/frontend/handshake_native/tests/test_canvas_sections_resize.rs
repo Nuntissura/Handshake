@@ -13,9 +13,12 @@
 //!     SAME placement PATCH semantics ([`CanvasEvent::AssignSection{Some}`]); dropping outside all frames
 //!     clears it ([`CanvasEvent::AssignSection{None}`]).
 //!   - PT-061-3 / AC-061-4: double-clicking a free-text card enters in-place edit mode (egui
-//!     TextEdit::multiline); committing fires [`CanvasEvent::EditTextCard`] and the edited body survives a
-//!     `getCanvasBoard` refresh; Escape discards without an event. A BLOCK-backed card double-click does
-//!     NOT become an editor (reference-not-copy gate).
+//!     TextEdit::multiline) and typing/Escape-discard work LIVE. Committing fires the CONTRACT-MANDATED
+//!     typed blocker [`CanvasEvent::TextCardEditBlocked`] — the cards endpoint is create-only and the real
+//!     edit route (`PUT /knowledge/documents/:id/save`) is UNBOUND by this MT (RISK-061-5 / MC-061-5), so
+//!     text-card-EDIT PERSISTENCE (AC-061-4) is gated NEEDS_MANAGED_RESOURCE_PROOF, not proven here. The
+//!     test asserts the typed blocker (not a tautological local-state round-trip). Escape discards without
+//!     an event. A BLOCK-backed card double-click does NOT become an editor (reference-not-copy gate).
 //!   - PT-061-4 / AC-061-2 / AC-061-6: the AccessKit tree exposes `canvas.section.{id}` (per frame, with
 //!     the section label) AND `canvas.placement.{id}.resize` (per card resize handle).
 //!   - PT-061-5 / AC-061-5: a resize + section-assign cycle on a BLOCK-backed card leaves the board's
@@ -418,39 +421,54 @@ fn canvas_text_card_inline_edit_commit_and_refresh() {
     harness.run();
     harness.run();
 
-    // AC-061-4: an EditTextCard fired with the new body, and edit mode exited.
-    let edit = events_ck.lock().unwrap().iter().find_map(|e| match e {
-        CanvasEvent::EditTextCard { placement_id, block_id, title, body } if placement_id == "p-text" => {
-            Some((block_id.clone(), title.clone(), body.clone()))
-        }
+    // AC-061-4 (TYPED BLOCKER — RISK-061-5 / MC-061-5): committing a text-card edit fires the
+    // contract-mandated TextCardEditBlocked, NOT a (non-existent) persistence event. The cards endpoint
+    // (POST .../cards) is create-only and the real edit route (PUT /knowledge/documents/:id/save) was not
+    // bound by this MT, so the edit CANNOT be persisted as specified — the widget surfaces a typed blocker
+    // instead of pretending. Edit mode still exits on commit. We do NOT assert persistence here: a
+    // tautological "feed the body back through set_board and check it survived" round-trip would touch no
+    // real backend and prove nothing (Spec-Realism Sub-rule 2). AC-061-4 persistence is gated
+    // NEEDS_MANAGED_RESOURCE_PROOF until the Orchestrator re-scopes the binding.
+    let blocker = events_ck.lock().unwrap().iter().find_map(|e| match e {
+        CanvasEvent::TextCardEditBlocked {
+            placement_id,
+            block_id,
+            title,
+            pending_body,
+            attempted_route,
+            required_route,
+        } if placement_id == "p-text" => Some((
+            block_id.clone(),
+            title.clone(),
+            pending_body.clone(),
+            *attempted_route,
+            *required_route,
+        )),
         _ => None,
     });
-    let (block_id, title, body) = edit.expect("AC-061-4: committing a text-card edit must fire EditTextCard");
-    assert_eq!(block_id, "block-text", "the edit carries the card's backing block id (which doc to save)");
-    assert_eq!(title, "Note A", "the edit carries the card title");
-    assert!(body.contains("edited body!"), "AC-061-4: the edit carries the NEW body (got {body:?})");
-    assert_eq!(board.lock().unwrap().editing_card_id(), None, "edit mode exits on commit");
-
-    // Host applies the save + refreshes via getCanvasBoard: the new body survives and re-renders.
-    {
-        let mut b = board.lock().unwrap();
-        let mut refreshed = CanvasPlacementCard::new("p-text", "block-text", 40.0, 60.0, 240.0, 140.0)
-            .as_text_card(body.clone());
-        refreshed.live_title = Some("Note A".to_owned());
-        refreshed.live_content_type = Some("note".to_owned());
-        let blockref = b.placements.iter().find(|p| p.placement_id == "p-block").unwrap().clone();
-        b.set_board(vec![refreshed, blockref], vec![], egui::Vec2::ZERO, 1.0);
-    }
-    harness.run();
-    let persisted = {
-        let b = board.lock().unwrap();
-        b.placements.iter().find(|p| p.placement_id == "p-text").unwrap().live_body.clone()
-    };
+    let (block_id, title, pending_body, attempted_route, required_route) =
+        blocker.expect("AC-061-4: committing a text-card edit must fire the typed TextCardEditBlocked");
+    assert_eq!(block_id, "block-text", "the blocker carries the card's backing block id (diagnostic)");
+    assert_eq!(title, "Note A", "the blocker carries the card title");
     assert!(
-        persisted.as_deref().map(|s| s.contains("edited body!")).unwrap_or(false),
-        "AC-061-4: the edited body persists through a getCanvasBoard refresh (got {persisted:?})"
+        pending_body.contains("edited body!"),
+        "the blocker carries the edited buffer the host WOULD persist (got {pending_body:?})"
     );
-    println!("PT-061-3/AC-061-4: text-card inline edit committed + persisted; block card stayed non-editable");
+    assert!(
+        attempted_route.contains("CREATE-ONLY"),
+        "the blocker names the create-only cards route (got {attempted_route:?})"
+    );
+    assert!(
+        required_route.contains("/knowledge/documents/") && required_route.contains("UNBOUND"),
+        "the blocker names the real, unbound edit route (got {required_route:?})"
+    );
+    assert_eq!(board.lock().unwrap().editing_card_id(), None, "edit mode exits on commit");
+    // Sanity: NO real persistence event exists — the only edit-commit event is the typed blocker.
+    println!(
+        "PT-061-3/AC-061-4: inline edit is LIVE; commit emits TextCardEditBlocked (cards endpoint \
+         create-only; PUT /knowledge/documents/:id/save unbound) — persistence gated \
+         NEEDS_MANAGED_RESOURCE_PROOF"
+    );
 }
 
 #[test]
@@ -489,8 +507,8 @@ fn canvas_text_card_escape_discards_without_event() {
         .lock()
         .unwrap()
         .iter()
-        .any(|e| matches!(e, CanvasEvent::EditTextCard { .. }));
-    assert!(!any_edit, "AC-061-4: Escape must NOT fire an EditTextCard (no server call)");
+        .any(|e| matches!(e, CanvasEvent::TextCardEditBlocked { .. }));
+    assert!(!any_edit, "AC-061-4: Escape must NOT fire a commit/blocker event (no server call)");
     println!("PT-061-3/AC-061-4: Escape discarded the inline edit with no server event");
 }
 
@@ -524,8 +542,11 @@ fn canvas_block_card_double_click_navigates_not_edits() {
         .lock()
         .unwrap()
         .iter()
-        .any(|e| matches!(e, CanvasEvent::EditTextCard { .. }));
-    assert!(!any_edit, "a block card double-click never fires EditTextCard (never inline-editable)");
+        .any(|e| matches!(e, CanvasEvent::TextCardEditBlocked { .. }));
+    assert!(
+        !any_edit,
+        "a block card double-click never fires a text-card edit/blocker event (never inline-editable)"
+    );
     println!("AC-061-5: block-backed card double-click stayed non-editable (navigates, never forks)");
 }
 
