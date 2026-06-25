@@ -345,6 +345,44 @@ pub fn register_outgoing_links_pane(
     pane_id
 }
 
+/// WP-KERNEL-012 MT-063 (E9 — FEMS interop): the stable pane id under which the Relevant Memory side
+/// panel ([`crate::fems::relevant_memory_panel::RelevantMemoryPanel`]) docks in the shell. A fixed
+/// dotted key (NOT a per-instance `pane-a`-style id) so the shell can `dock`/`show` the pane and a swarm
+/// agent can address it deterministically (AC-007 / PT-005). The pane is a Loom knowledge surface
+/// attached to the active document/selection context, so its record uses the existing
+/// [`PaneType::Placeholder`] label rather than forking a new `PaneType` variant (which would ripple
+/// through every exhaustive `PaneType` match across the shell); the STABLE ADDRESS is this pane id
+/// string + the panel's own AccessKit container id `relevant-memory-panel`.
+pub const RELEVANT_MEMORY_PANE_ID: &str = "fems.relevant_memory";
+
+/// Register the WP-KERNEL-012 MT-063 Relevant Memory pane into `registry` under the stable
+/// [`RELEVANT_MEMORY_PANE_ID`] (`"fems.relevant_memory"`), bound to the active `document_id` context
+/// (the document whose memory is surfaced) for `project_id`. Re-registering keeps the already-assigned
+/// AccessKit node id (see [`PaneRegistry::insert`]), so an agent that targeted the pane does not lose
+/// its handle when the active document changes. Returns the pane id for convenience.
+///
+/// This is the E9 registration the MT requires NOW (the pane is dockable through the EXISTING registry
+/// API — no new docking system is invented). The host wiring of the panel's `nav_bus` closure to the
+/// real MT-030 navigation bus, the MT-031 interaction-bus context subscription (focus/SharedSelection
+/// -> `refresh_for_context`), and the live dock placement land at E11 (MT-069), like the other panes.
+pub fn register_relevant_memory_pane(
+    registry: &mut PaneRegistry,
+    project_id: impl Into<String>,
+    document_id: Option<String>,
+) -> PaneId {
+    let pane_id: PaneId = Arc::from(RELEVANT_MEMORY_PANE_ID);
+    registry.insert(PaneRecord::new(
+        pane_id.clone(),
+        PaneType::Placeholder("Relevant Memory".to_owned()),
+        project_id,
+        document_id,
+        LockState::Unlocked,
+        DirtyState::Clean,
+        PaneAuthority::System,
+    ));
+    pane_id
+}
+
 /// Context handed to a `PaneFactory::render`. Carries the egui id base for the pane and the project
 /// id; a real `BackendClient` handle will be threaded through here once concrete surfaces are built
 /// (MT-006+). Kept as an explicit struct now so adding the backend handle later is a field add, not

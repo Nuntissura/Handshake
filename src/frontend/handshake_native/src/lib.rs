@@ -41,6 +41,14 @@ pub mod graph;
 pub mod loom_graph;
 pub mod source_control;
 pub mod event_bus;
+// WP-KERNEL-012 MT-063 (E9 — FEMS interop): the editors' READ-ONLY consumer of the Pillar 12 FEMS
+// retrieval capsule (MemoryPack). `fems::memory_client` is the typed read client + deserialized
+// MemoryPack model (3 kinds, provenance-first source, <=24 items hard-capped client-side, <=500 token
+// advisory budget) that reuses the WP-011 `backend_client` shared reqwest pool; `fems::relevant_memory_panel`
+// is the side panel that renders the capsule provenance-first. The FEMS read route is ABSENT in the
+// current handshake_core build, so `fetch_pack` returns the typed blocker `EndpointMissing` and the panel
+// renders the empty-state banner (the designed primary path — no backend add).
+pub mod fems;
 pub mod find_in_files;
 pub mod installer;
 pub mod interop;
