@@ -95,6 +95,11 @@ pub enum NativeEditorAction {
     UndoFired,
     /// Content was routed to the Stage pane (route-to-stage command — LIVE wired, MT-033).
     RouteToStage,
+    /// A review-gated FEMS memory-write PROPOSAL was submitted from the editor (MT-064, E9). This is the
+    /// `FR-EVT-MEM-001` (`memory_write_proposed`) marker carried in the payload `action` — NOT a new
+    /// ledger `event_type` (the `event_type` stays the CLOSED backend vocabulary per the MT-036 schema).
+    /// The editor only ever proposes (review-gated); the commit is downstream and never editor-direct.
+    MemoryWriteProposed,
 }
 
 impl NativeEditorAction {
@@ -108,6 +113,7 @@ impl NativeEditorAction {
             NativeEditorAction::CrossRefInserted => "cross_ref_inserted",
             NativeEditorAction::UndoFired => "undo_fired",
             NativeEditorAction::RouteToStage => "route_to_stage",
+            NativeEditorAction::MemoryWriteProposed => "memory_write_proposed",
         }
     }
 }
@@ -947,13 +953,13 @@ mod tests {
         use NativeEditorAction::*;
         let actions = [
             DocumentSaved, CodeEdit, EmbedCreated, CanvasNodePlaced, CrossRefInserted, UndoFired,
-            RouteToStage,
+            RouteToStage, MemoryWriteProposed,
         ];
         let mut seen = std::collections::HashSet::new();
         for a in actions {
             assert!(seen.insert(a.as_str()), "duplicate action wire string {}", a.as_str());
         }
-        assert_eq!(seen.len(), 7);
+        assert_eq!(seen.len(), 8);
     }
 
     #[test]

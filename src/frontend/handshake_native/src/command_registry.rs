@@ -219,6 +219,24 @@ const APP_COMMANDS: &[AppCommand] = &[
         stable_id: "hs-stage-palette-route",
         disabled: false,
     },
+    // WP-KERNEL-012 MT-064 (E9 — FEMS memory-write proposal): the discoverable palette entry for the
+    // "Propose to Memory" command. It turns the current selection into a review-gated FEMS memory-write
+    // PROPOSAL (never a direct commit) and submits it to the review-gated FEMS write path; the proposal
+    // builder + dialog + typed blocker + FR payload shape live in `fems::memory_proposal`. The runtime
+    // handler is registered on the MT-031 InteractionBus (the same WRAP-not-fork split route-to-stage
+    // uses) via `fems::memory_proposal::register_propose_to_memory_command`; this catalog row makes the
+    // action SEEABLE + addressable in the palette (HBR-SWARM, AC-006). Enabled (palette-driven; no
+    // keybind — does NOT steal a VS Code binding, RISK-010). The single source of truth for the id +
+    // label is `fems::memory_proposal::{FEMS_PROPOSE_COMMAND_ID, FEMS_PROPOSE_COMMAND_LABEL}`.
+    AppCommand {
+        id: crate::fems::memory_proposal::FEMS_PROPOSE_COMMAND_ID,
+        kind: CommandKind::App,
+        label: crate::fems::memory_proposal::FEMS_PROPOSE_COMMAND_LABEL,
+        description: "Propose the current selection as a review-gated FEMS memory write (never a direct commit).",
+        keywords: &["memory", "fems", "propose", "pillar 12", "review", "episodic", "semantic", "procedural"],
+        stable_id: "hs-fems-palette-propose-to-memory",
+        disabled: false,
+    },
 ];
 
 /// A representative subset (13 entries) of the React `EDITOR_COMMANDS` catalog

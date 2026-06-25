@@ -18,6 +18,14 @@
 //! other panes; MT-063 registers the pane factory now and proves the client/panel at the widget level.
 
 pub mod memory_client;
+// WP-KERNEL-012 MT-064 (E9 — FEMS memory-write proposal from the editor): turns the current editor
+// selection into a typed, review-gated FEMS memory-write PROPOSAL (never a direct commit), submits it to
+// the EXISTING review-gated FEMS write path, and emits an FR-EVT-MEM-001 (memory_write_proposed) event
+// through the MT-036 NativeEditorEventEmitter on success. The proposal WRITE endpoint is ABSENT in the
+// current handshake_core build (verified read-only), so `submit_proposal` returns the typed blocker
+// `MissingEndpoint` and writes nothing — never a silent direct-memory fallback (the designed primary
+// path). content_hash REUSES the MT-032 loom content-hash primitive (no second hashing scheme).
+pub mod memory_proposal;
 pub mod relevant_memory_panel;
 
 pub use memory_client::{
@@ -29,4 +37,13 @@ pub use relevant_memory_panel::{
     mem_item_author_id, mem_source_author_id, FnNavigationBus, MemoryNavTarget, NavigationBus,
     RelevantMemoryPanel, ENDPOINT_MISSING_BANNER, MEM_ITEM_AUTHOR_PREFIX, MEM_SOURCE_AUTHOR_PREFIX,
     NO_MEMORY_TEXT, RELEVANT_MEMORY_LIST_AUTHOR_ID, RELEVANT_MEMORY_PANEL_AUTHOR_ID,
+};
+
+pub use memory_proposal::{
+    build_proposal, content_hash_of_selection, fems_class_author_id, proposal_path,
+    register_propose_to_memory_command, submit_proposal, submit_proposal_and_emit,
+    HandshakeCoreClient, MemoryClass, MemoryProposalError, MemorySourceProvenance,
+    MemoryWriteProposal, ProposalAck, ProposeDialogOutcome, ProposeToMemoryDialog,
+    FEMS_CLASS_AUTHOR_PREFIX, FEMS_PROPOSE_COMMAND_ID, FEMS_PROPOSE_COMMAND_LABEL,
+    FEMS_PROPOSE_CONFIRM_AUTHOR_ID, FEMS_PROPOSE_DIALOG_AUTHOR_ID, PROPOSE_TO_MEMORY_COMMAND,
 };
