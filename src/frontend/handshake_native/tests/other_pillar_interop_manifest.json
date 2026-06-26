@@ -1,0 +1,61 @@
+[
+  {
+    "scenario_id": "OP-01",
+    "edge": "stage",
+    "pillar": "Pillar 17 (Stage)",
+    "description": "Route a rich-text selection to the Stage pane, then embed-back the produced Stage artifact into the originating note as an MT-014 hsLink NodeView carrying SHA-256 manifest provenance of the routed payload. Provable-NOW: the route-leg payload builds + the embed-back NodeView's sha256 EQUALS the recomputed SHA-256 of the exact routed bytes (CTRL-3). BLOCKED: the live route round-trip against real PostgreSQL + the STAGE_ROUTE/STAGE_EMBED_BACK FR events (route + native-editor FR ingestion absent, no managed PG).",
+    "surfaces_involved": ["rich-text editor", "Stage pane (Pillar 17)", "command bus (interop.route-to-stage)", "EventLedger / Flight Recorder"],
+    "backend_apis_called": ["POST /workspaces/{ws}/stage/route (ABSENT)", "GET /workspaces/{ws}/stage/artifacts/{id} (ABSENT)", "PUT /workspaces/{ws}/knowledge/documents/{doc_id}", "GET /workspaces/{ws}/knowledge/documents/{doc_id}", "GET /api/flight_recorder"],
+    "accesskit_ids": ["stage-pane", "stage-routed-content", "stage-capture-embed-back"],
+    "expected_fr_events": ["STAGE_ROUTE", "STAGE_EMBED_BACK"],
+    "proof_fn": "other_pillar_op01_stage_route_embed_back",
+    "live_proof_fn": "other_pillar_op01_stage_route_embed_back_live",
+    "status": "BLOCKED",
+    "blocker": "missing_api: POST /stage/route + GET /workspaces/{ws}/stage/artifacts/{id} absent (Pillar 17, MT-066: route-to-stage is bus-only, embed-back read absent) + native-editor FR ingestion absent (MT-036 closed-schema gap) + no_managed_postgres",
+    "provable_now": "route-leg payload + embed-back MT-014 NodeView sha256 == recomputed SHA-256 of routed bytes (CTRL-3); proven by other_pillar_op01_stage_route_embed_back (non-ignored). The live half goes green unchanged when the routes + FR ingestion + a managed PG land."
+  },
+  {
+    "scenario_id": "OP-02",
+    "edge": "calendar",
+    "pillar": "Pillar 2 (Calendar)",
+    "description": "Bind a daily note to a real CalendarEvent row (bidirectional reference) and correlate an ActivitySpan for the bound day to the set of edited documents. Provable-NOW: the open-or-create daily-note binding is idempotent and DELEGATES to the MT-019 service (single doc/date), and the ActivitySpan correlation returns the edited documents. BLOCKED: the live PG bind + correlation + the CALENDAR_EVENT_BOUND/ACTIVITY_SPAN_CORRELATED FR events (calendar routes absent, no managed PG).",
+    "surfaces_involved": ["rich-text daily note", "daily-journal panel (Pillar 2)", "MT-019 daily-note service", "ActivitySpan correlation", "EventLedger / Flight Recorder"],
+    "backend_apis_called": ["PUT /workspaces/{ws}/loom/journals/{date} (MT-019, exists)", "GET /workspaces/{ws}/calendar/events (ABSENT)", "GET /workspaces/{ws}/calendar/activity-spans (ABSENT)", "GET /api/flight_recorder"],
+    "accesskit_ids": ["daily-journal-panel", "daily-journal-calendar-event-chip", "daily-journal-activity-strip"],
+    "expected_fr_events": ["CALENDAR_EVENT_BOUND", "ACTIVITY_SPAN_CORRELATED"],
+    "proof_fn": "other_pillar_op02_calendar_bind_activity_span",
+    "live_proof_fn": "other_pillar_op02_calendar_bind_activity_span_live",
+    "status": "BLOCKED",
+    "blocker": "missing_api: GET /workspaces/{ws}/calendar/events + /workspaces/{ws}/calendar/activity-spans absent (Pillar 2, MT-067) + no_managed_postgres",
+    "provable_now": "idempotent daily-note binding delegates to MT-019 (single DocId across two opens) + ActivitySpan correlation returns edited_documents; proven by other_pillar_op02_calendar_bind_activity_span (non-ignored). The daily-note PUT route exists; the calendar event/activity-span routes are the gap."
+  },
+  {
+    "scenario_id": "OP-03",
+    "edge": "locus",
+    "pillar": "Pillar 6 (Locus)",
+    "description": "Resolve a locus:// cross-reference in a note to its WP/MT target, and reverse-lookup the WP/MT to list the referencing document(s) from the persisted reverse index. Provable-NOW: the locus:// ref parses + resolves (mock-200 projection -> non-empty title) and the reverse lookup lists the referencing note keyed on the single normalized key, driven through the REAL MT-034 find_notes_with pipeline. BLOCKED: the live PG resolve + reverse against the real /locus/ routes + the LOCUS_REF_RESOLVED/LOCUS_REVERSE_LOOKUP FR events (locus routes absent, no managed PG).",
+    "surfaces_involved": ["rich-text editor (locus-ref chip)", "Locus interop service (Pillar 6)", "MT-034 find_notes_with reverse index", "EventLedger / Flight Recorder"],
+    "backend_apis_called": ["GET /workspaces/{ws}/locus/work-packets/{id} (ABSENT)", "GET /workspaces/{ws}/locus/microtasks/{id} (ABSENT)", "Loom Search v2 (find_notes_with, exists)", "GET /api/flight_recorder"],
+    "accesskit_ids": ["locus-ref-chip-wp-WP-KERNEL-012", "locus-ref-chip-mt-MT-066", "locus-refby-{document_id}"],
+    "expected_fr_events": ["LOCUS_REF_RESOLVED", "LOCUS_REVERSE_LOOKUP"],
+    "proof_fn": "other_pillar_op03_locus_resolve_reverse",
+    "live_proof_fn": "other_pillar_op03_locus_resolve_reverse_live",
+    "status": "BLOCKED",
+    "blocker": "missing_api: GET /workspaces/{ws}/locus/work-packets/{id} + /workspaces/{ws}/locus/microtasks/{id} absent (Pillar 6, MT-068: kernel data model only, no HTTP route) + no_managed_postgres",
+    "provable_now": "locus:// parse + mock-200 resolve projection (non-empty title) + reverse lookup lists referencing doc keyed on locus://mt/mt-066 via the REAL MT-034 pipeline; proven by other_pillar_op03_locus_resolve_reverse (non-ignored). The Loom search index exists; the /locus/ HTTP routes are the gap."
+  },
+  {
+    "scenario_id": "OP-04",
+    "edge": "swarm",
+    "pillar": "Pillar 17 + 2 + 6 (all three edges, swarm parity)",
+    "description": "An out-of-process-style agent reaches AND activates each of the three interop edges (Stage, Calendar, Locus) PURELY via stable AccessKit author_ids (no coordinates, no label-scraping), verifying each id is present + STABLE across two re-queries + the AccessKit Click dispatch reaches the node. The swarm reachability/stability/dispatch half is PROVEN (non-ignored). BLOCKED: the live edge-drive that hits the backend + the per-edge FR events (same gaps as OP-01..OP-03).",
+    "surfaces_involved": ["Stage pane", "daily-journal panel", "rich-text editor (locus chip)", "AccessKit registry (MT-041/042/066/067/068)", "EventLedger / Flight Recorder"],
+    "backend_apis_called": ["(none for the provable-NOW reachability half)", "the OP-01/02/03 routes for the gated live edge-drive (ABSENT)", "GET /api/flight_recorder"],
+    "accesskit_ids": ["stage-capture-embed-back", "stage-pane", "stage-routed-content", "daily-journal-calendar-event-chip", "daily-journal-panel", "daily-journal-activity-strip", "locus-ref-chip-wp-WP-KERNEL-012"],
+    "expected_fr_events": ["STAGE_ROUTE", "STAGE_EMBED_BACK", "CALENDAR_EVENT_BOUND", "ACTIVITY_SPAN_CORRELATED", "LOCUS_REF_RESOLVED", "LOCUS_REVERSE_LOOKUP"],
+    "proof_fn": "other_pillar_op04_swarm_accesskit",
+    "status": "PASS",
+    "provable_now": "all 3 interop-edge triggers reached + role-confirmed + stable across two frame re-queries + activated via an AccessKit Click dispatch, purely by author_id (CTRL-5); proven by other_pillar_op04_swarm_accesskit (non-ignored). The live edge-drive + FR-event half is the gated OP-01..OP-03 live proofs.",
+    "blocker": ""
+  }
+]

@@ -284,3 +284,13 @@ egui_kittest = { version = "0.33", features = ["wgpu"] }
 # (dumpbin is absent — toolkit_spike_verdict.json), parses the PE import table the same way, and
 # adds NO new dependency family. See test_single_binary.rs header for the deviation rationale.
 object = "0.36"
+
+# WP-KERNEL-012 MT-074 (E10 other-pillar interop proof suite): the contract mandates registering the
+# suite as an explicit [[test]] with harness = true (the default libtest harness — the suite uses #[test]
+# functions, kittest harnesses, and the standard #[ignore]/#[cfg(feature="integration")] gates). The file
+# would also be auto-discovered under tests/, but the explicit [[test]] is the contract requirement and
+# pins the canonical test name the proof_targets grep (`cargo test -p handshake-native -- other_pillar_interop`).
+[[test]]
+name = "test_other_pillar_interop_proofs"
+path = "tests/test_other_pillar_interop_proofs.rs"
+harness = true
