@@ -378,12 +378,17 @@ fn delete(ctx: &mut EditContext<'_>, backward: bool) -> bool {
             // sibling / not at a block boundary.
             return apply_formatting_command(ctx, &FormattingCommand::MergeBackward);
         }
-        (offset - 1, offset, offset - 1)
+        // MT-077 AC4: Backspace deletes the whole GRAPHEME CLUSTER before the caret (a family ZWJ
+        // emoji / combining sequence / flag / Hangul syllable removes all its codepoints, not one).
+        let prev = prev_grapheme_in_leaf(ctx.doc, &pos, offset);
+        (prev, offset, prev)
     } else {
         if offset >= len {
             return false;
         }
-        (offset, offset + 1, offset)
+        // MT-077 AC4: forward Delete removes the whole grapheme cluster after the caret.
+        let next = next_grapheme_in_leaf(ctx.doc, &pos, offset);
+        (offset, next, offset)
     };
     let tx = Transaction::new(
         vec![Step::DeleteText { path: pos.path.clone(), start, end }],
@@ -400,15 +405,23 @@ fn delete(ctx: &mut EditContext<'_>, backward: bool) -> bool {
     }
 }
 
-/// Move the caret horizontally by `delta` chars within its leaf, clamped to
-/// `0..=leaf_len`. `extend` keeps the anchor (Shift+Arrow builds a range); otherwise the
-/// selection collapses to the new head. Cross-leaf motion is out of the vertical-slice
-/// scope: the caret clamps at the leaf boundary.
+/// Move the caret horizontally one GRAPHEME CLUSTER within its leaf, clamped to `0..=leaf_len`. `delta`
+/// carries only the DIRECTION (negative = left, positive = right); the step size is one grapheme cluster
+/// (MT-077 AC3) so a family ZWJ emoji / combining sequence / flag / Hangul syllable is crossed whole, not
+/// one codepoint at a time. `extend` keeps the anchor (Shift+Arrow builds a range); otherwise the
+/// selection collapses to the new head. Cross-leaf motion is out of the vertical-slice scope: the caret
+/// clamps at the leaf boundary.
 fn move_horizontal(ctx: &mut EditContext<'_>, delta: i64, extend: bool) -> bool {
     let pos = head(ctx);
     let len = leaf_len(ctx.doc, &pos);
-    let cur = pos.char_offset.min(len) as i64;
-    let next = (cur + delta).clamp(0, len as i64) as usize;
+    let cur = pos.char_offset.min(len);
+    let next = if delta < 0 {
+        prev_grapheme_in_leaf(ctx.doc, &pos, cur)
+    } else if delta > 0 {
+        next_grapheme_in_leaf(ctx.doc, &pos, cur)
+    } else {
+        cur
+    };
     if next == pos.char_offset && !extend {
         // Already collapsed at the boundary; nothing visible changes.
         if matches!(ctx.selection, Selection::Text { anchor, head } if anchor == head) {
@@ -417,6 +430,42 @@ fn move_horizontal(ctx: &mut EditContext<'_>, delta: i64, extend: bool) -> bool 
     }
     set_head(ctx, DocPosition::new(pos.path, next), extend);
     true
+}
+
+/// The CHAR offset of the previous grapheme-cluster boundary `< char_offset` within the text leaf
+/// addressed by `pos` (MT-077 AC3/AC4). Resolves the leaf text and delegates to the shared
+/// `text_intl::grapheme` module in CHAR units (the rich editor's rope is char-addressed). A leaf that
+/// does not resolve, or an offset of 0, returns the floor (0 / a single char step) so the caret never
+/// stalls. The leaf text is bounded (one inline run), so materializing it is cheap; the shared module
+/// additionally windows the segmentation for very long leaves (RISK-1).
+fn prev_grapheme_in_leaf(doc: &BlockNode, pos: &DocPosition, char_offset: usize) -> usize {
+    if char_offset == 0 {
+        return 0;
+    }
+    match resolve_leaf(doc, &pos.path) {
+        Some(leaf) => {
+            let text = leaf.text.to_string();
+            crate::text_intl::grapheme::prev_grapheme_boundary_chars(&text, char_offset)
+        }
+        // No resolvable leaf: fall back to a single char step so Backspace/LEFT still moves.
+        None => char_offset.saturating_sub(1),
+    }
+}
+
+/// The CHAR offset of the next grapheme-cluster boundary `> char_offset` within the addressed text leaf
+/// (MT-077 AC3/AC4). Char-unit sibling of [`prev_grapheme_in_leaf`].
+fn next_grapheme_in_leaf(doc: &BlockNode, pos: &DocPosition, char_offset: usize) -> usize {
+    match resolve_leaf(doc, &pos.path) {
+        Some(leaf) => {
+            let text = leaf.text.to_string();
+            let len = text.chars().count();
+            if char_offset >= len {
+                return len;
+            }
+            crate::text_intl::grapheme::next_grapheme_boundary_chars(&text, char_offset)
+        }
+        None => char_offset + 1,
+    }
 }
 
 /// Move the caret to the start (`to_start`) or end of its leaf (Home/End in the
@@ -581,6 +630,68 @@ mod tests {
         let mut ctx0 = ctx_at(&mut doc, &mut sel0, &mut undo);
         apply_action(&mut ctx0, EditAction::MoveLeft { extend: false });
         assert!(matches!(&sel0, Selection::Text { head, .. } if head.char_offset == 0));
+    }
+
+    // ── MT-077: grapheme-cluster caret movement + delete in the rich editor (AC3/AC4) ─────────────
+
+    fn doc_with(text: &str) -> BlockNode {
+        BlockNode::doc(vec![BlockNode::paragraph(text)])
+    }
+
+    #[test]
+    fn rich_caret_right_crosses_family_emoji_whole() {
+        // AC3 (MANDATORY): "a👨‍👩‍👧b" — chars: a, then 5 scalars of the family cluster, then b.
+        // From char offset 1 (start of the family cluster), RIGHT lands AFTER the whole cluster.
+        let family = "👨‍👩‍👧";
+        let family_scalars = family.chars().count(); // 5
+        let mut doc = doc_with(&format!("a{family}b"));
+        let mut sel = Selection::caret(DocPosition::new(vec![0, 0], 1));
+        let mut undo = UndoManager::new();
+        let mut ctx = ctx_at(&mut doc, &mut sel, &mut undo);
+        apply_action(&mut ctx, EditAction::MoveRight { extend: false });
+        // The caret crosses all family scalars in one move: 1 -> 1 + family_scalars.
+        assert!(matches!(&sel, Selection::Text { head, .. } if head.char_offset == 1 + family_scalars),
+            "RIGHT crosses the whole family emoji cluster (expected char offset {})", 1 + family_scalars);
+    }
+
+    #[test]
+    fn rich_backspace_deletes_whole_family_emoji() {
+        // AC4 (MANDATORY): Backspace over a family emoji removes all its scalars, leaving "ab".
+        let family = "👨‍👩‍👧";
+        let family_scalars = family.chars().count();
+        let mut doc = doc_with(&format!("a{family}b"));
+        // Caret after the family cluster: 1 (a) + family_scalars.
+        let mut sel = Selection::caret(DocPosition::new(vec![0, 0], 1 + family_scalars));
+        let mut undo = UndoManager::new();
+        let mut ctx = ctx_at(&mut doc, &mut sel, &mut undo);
+        assert!(apply_action(&mut ctx, EditAction::DeleteBackward));
+        assert_eq!(leaf_text(&doc), "ab", "the whole family emoji is deleted as one grapheme");
+        assert!(matches!(&sel, Selection::Text { head, .. } if head.char_offset == 1));
+    }
+
+    #[test]
+    fn rich_forward_delete_removes_whole_flag() {
+        // AC4: forward Delete over a flag removes the whole 2-scalar cluster.
+        let flag = "🇯🇵";
+        let mut doc = doc_with(&format!("{flag}x"));
+        let mut sel = Selection::caret(DocPosition::new(vec![0, 0], 0));
+        let mut undo = UndoManager::new();
+        let mut ctx = ctx_at(&mut doc, &mut sel, &mut undo);
+        assert!(apply_action(&mut ctx, EditAction::DeleteForward));
+        assert_eq!(leaf_text(&doc), "x", "the whole flag is deleted as one grapheme");
+    }
+
+    #[test]
+    fn rich_caret_left_crosses_combining_accent() {
+        // AC3: "xe\u{0301}y" chars: x, e, combining-mark, y. From char 3 (after the mark), LEFT lands
+        // at char 1 (before the base 'e'), crossing the whole "é" cluster.
+        let mut doc = doc_with("xe\u{0301}y");
+        let mut sel = Selection::caret(DocPosition::new(vec![0, 0], 3));
+        let mut undo = UndoManager::new();
+        let mut ctx = ctx_at(&mut doc, &mut sel, &mut undo);
+        apply_action(&mut ctx, EditAction::MoveLeft { extend: false });
+        assert!(matches!(&sel, Selection::Text { head, .. } if head.char_offset == 1),
+            "LEFT crosses the whole combining sequence to char offset 1");
     }
 
     #[test]

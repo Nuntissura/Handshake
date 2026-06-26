@@ -109,6 +109,13 @@ pub mod stash_shelf;
 // object-safe; #[allow(dead_code)] — no production code calls it at runtime (the contract's explicit seam).
 pub mod surface_extension_seam;
 pub mod tab_bar;
+// WP-KERNEL-012 MT-077 (E13 — i18n text segmentation): the SHARED Unicode-correct text-mechanics module
+// reused by BOTH editors (NOT duplicated). `text_intl::grapheme` = UAX#29 grapheme-cluster caret movement
+// (family ZWJ emoji / combining marks / flags / Hangul move as one cluster), LOCAL to the caret for perf;
+// `text_intl::linebreak` = UAX#14 break opportunities + kinsoku that SUPPLEMENT egui's native CJK Galley
+// wrap where it falls short (Korean Hangul + no-break-after-opening-bracket); `text_intl::counts` =
+// UAX#29 word count + grapheme-cluster char count for the MT-019 footer. Pure logic (no egui, no Color32).
+pub mod text_intl;
 pub mod theme;
 pub mod top_menu_bar;
 // WP-KERNEL-012 MT-035 (E5 — unified undo scope): the ONE session-scoped in-memory undo authority

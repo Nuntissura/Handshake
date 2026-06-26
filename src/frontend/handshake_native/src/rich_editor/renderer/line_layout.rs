@@ -311,6 +311,69 @@ pub fn block_style(block: &BlockNode) -> BlockTextStyle {
     }
 }
 
+// ── WP-KERNEL-012 MT-077 (E13): CJK line-breaking ──────────────────────────────────────────────────
+//
+// CJK WRAP MECHANISM (verified — the MT-077 RISK-2 "verify egui Galley wrap FIRST" steer):
+//
+// The rich editor wraps via egui's `LayoutJob` -> `Galley` (this module builds the job; the renderer
+// calls `painter.layout_job`). egui's `epaint::Galley` does its OWN line-breaking and ALREADY wraps CJK
+// natively. Verified by reading the locked source `epaint-0.33.3/src/text/text_layout.rs`
+// (`RowBreakCandidates::add`) + `epaint-0.33.3/src/text/font.rs`:
+//   - `is_cjk(c)` = ideographs (U+4E00..=U+9FFF, ext-A) + Hiragana + Katakana → each is a break
+//     candidate, so a spaceless Han/Kana paragraph WRAPS to multiple rows within the wrap width with the
+//     MT-075 bundled NotoSansSC font. This is the AC1 base case — NO break-table is needed for it.
+//   - `is_cjk_break_allowed(next)` encodes KINSOKU: it FORBIDS a break before a closing
+//     bracket/punctuation (`）」』】、。` …), exactly the AC2 "no break BEFORE a closing bracket/period"
+//     rule. So the common kinsoku case is correct in egui.
+//
+// The GAPS egui misses (and where the shared `text_intl::linebreak` UAX#14 table SUPPLEMENTS it):
+//   1. Korean Hangul — egui has an explicit `TODO: Add support for Korean Hangul`, so a long Hangul run
+//      does NOT wrap. [`is_hangul_break_supplement_needed`] detects a Hangul-bearing paragraph so a
+//      renderer can opt into the supplemental break opportunities from `text_intl::break_opportunities`.
+//   2. "No break AFTER an opening bracket" — egui forbids breaking before a closing bracket but not
+//      after an opening one; `text_intl::linebreak` carries that UAX#14 rule.
+//
+// HONEST SCOPE: the rich editor relies on egui's native Galley wrap for the proven AC1/AC2 CJK (Han +
+// Kana) path (the screenshot is a Chinese paragraph). The `text_intl::linebreak` module is the UAX#14
+// authority for the Hangul + opening-bracket gaps, exposed for renderer use; the helper below lets a
+// renderer cheaply decide when egui's native wrap is insufficient. Full RTL/bidi + Arabic/Indic shaping
+// remains MT-078.
+
+/// Whether `text` contains Korean Hangul, which egui's native Galley wrap does NOT treat as a CJK break
+/// candidate (the `TODO: Add support for Korean Hangul` gap). A renderer that must wrap a long Hangul run
+/// consults `text_intl::break_opportunities` for the UAX#14 break points egui omits; for Han/Kana/Latin
+/// it can rely on egui's native wrap. Cheap O(n) scan; returns `false` for the common (non-Hangul) case
+/// so the supplemental path is only taken when genuinely needed.
+pub fn is_hangul_break_supplement_needed(text: &str) -> bool {
+    text.chars()
+        .any(|c| crate::text_intl::linebreak::break_class(c) == crate::text_intl::BreakClass::Hangul)
+}
+
+/// Lay out a single CJK/Latin paragraph string into a [`epaint::Galley`] at `wrap_width`, returning the
+/// galley so a caller (a test or a renderer) can inspect its `.rows`. This is the headless AC1 proof
+/// surface: it drives egui's REAL Galley wrapping (the same path the renderer uses) so a test can assert
+/// a spaceless CJK run wider than `wrap_width` produces more than one visual row. Uses the proportional
+/// family (which the MT-075 fallback chain backs with NotoSansSC) at [`BASE_FONT_SIZE`].
+pub fn layout_paragraph_galley(
+    ctx: &egui::Context,
+    text: &str,
+    wrap_width: f32,
+    palette: &HsPalette,
+) -> std::sync::Arc<egui::Galley> {
+    let mut job = LayoutJob::default();
+    job.wrap.max_width = wrap_width;
+    job.append(
+        text,
+        0.0,
+        TextFormat {
+            font_id: FontId::new(BASE_FONT_SIZE, FontFamily::Proportional),
+            color: palette.text,
+            ..Default::default()
+        },
+    );
+    ctx.fonts_mut(|f| f.layout_job(job))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -450,5 +513,66 @@ mod tests {
             vec![Child::Text(TextLeaf::new("x"))],
         );
         assert_eq!(block_style(&h).size, BASE_FONT_SIZE * HEADING_SCALE[2]);
+    }
+
+    // ── MT-077 AC1/AC2: CJK line-breaking via egui's native Galley wrap ────────────────────────────
+
+    /// Build a headless egui Context with the MT-075 bundled CJK font fallback chain installed so the
+    /// galley layouter can shape Han/Kana glyphs (without fonts, a CJK run renders as tofu boxes that may
+    /// not measure the same). Runs one frame so `set_fonts` takes effect before the test lays out.
+    #[cfg(feature = "bundled-fonts")]
+    fn ctx_with_cjk_fonts() -> egui::Context {
+        let ctx = egui::Context::default();
+        ctx.set_fonts(crate::app::HandshakeApp::build_font_definitions());
+        let _ = ctx.run(Default::default(), |_| {});
+        ctx
+    }
+
+    /// A long spaceless Chinese paragraph (no whitespace anywhere) — the canonical AC1 CJK run.
+    const CJK_PARAGRAPH: &str =
+        "这是一个很长的中文段落里面完全没有任何空格所以传统的按空白换行的算法要么会让文字溢出可视区域要么永远不会换行必须按照统一码标准在表意文字之间断行";
+
+    #[test]
+    #[cfg(feature = "bundled-fonts")]
+    fn cjk_paragraph_wraps_to_multiple_rows() {
+        // AC1: a spaceless CJK run WIDER than the wrap width must wrap to >1 visual row (egui's native
+        // Galley CJK wrap), not overflow and not collapse to a single line.
+        let ctx = ctx_with_cjk_fonts();
+        let pal = dark();
+        // A narrow wrap width forces multiple rows for the long paragraph.
+        let galley = layout_paragraph_galley(&ctx, CJK_PARAGRAPH, 120.0, &pal);
+        assert!(
+            galley.rows.len() > 1,
+            "AC1: a long spaceless CJK paragraph must wrap to >1 row at a 120pt wrap width; got {} row(s)",
+            galley.rows.len()
+        );
+        // It must also actually fit the wrap width (no catastrophic overflow): every row's width is
+        // within a glyph of the wrap bound (egui may overrun by at most one un-breakable glyph).
+        let max_row_w = galley.rows.iter().map(|r| r.rect().width()).fold(0.0_f32, f32::max);
+        assert!(
+            max_row_w <= 120.0 + BASE_FONT_SIZE * 2.0,
+            "AC1: wrapped rows stay near the wrap width (max row width {max_row_w} vs wrap 120)"
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "bundled-fonts")]
+    fn ascii_paragraph_wrap_unchanged_no_regression() {
+        // AC7: an ASCII paragraph still wraps at spaces (word wrap), unchanged. A long ASCII line at a
+        // narrow width wraps to multiple rows broken at spaces.
+        let ctx = ctx_with_cjk_fonts();
+        let pal = dark();
+        let ascii = "the quick brown fox jumps over the lazy dog and then keeps running far away";
+        let galley = layout_paragraph_galley(&ctx, ascii, 120.0, &pal);
+        assert!(galley.rows.len() > 1, "ASCII still wraps at spaces; got {} row(s)", galley.rows.len());
+    }
+
+    #[test]
+    fn hangul_supplement_detection() {
+        // AC2-adjacent: the renderer can detect the egui Hangul gap so it knows when to consult the
+        // text_intl UAX#14 supplement. Han/Latin do NOT need it; Hangul does.
+        assert!(!is_hangul_break_supplement_needed("这是中文"), "Han is handled by egui natively");
+        assert!(!is_hangul_break_supplement_needed("hello world"), "Latin needs no supplement");
+        assert!(is_hangul_break_supplement_needed("오늘"), "Hangul needs the supplemental break table");
     }
 }

@@ -236,6 +236,18 @@ pulldown-cmark = { version = "0.11", default-features = false }
 # is pulled on Windows). The synchronous `FileDialog::save_file()` is used on the dedicated dialog
 # thread, so no async runtime feature is needed.
 rfd = "0.14"
+# WP-KERNEL-012 MT-077 (E13 — i18n text segmentation): the two field-standard, mature, pure-Rust Unicode
+# segmentation crates (research verified 2026-06-26; reject hand-rolled char-class tables per the MT note).
+# - `unicode-segmentation` (UAX#29): grapheme-cluster + word boundaries — graphemes()/unicode_words()/
+#   GraphemeCursor for the grapheme caret + word count. ALREADY in the locked graph transitively (1.13.x via
+#   the existing dependency tree), so declaring it as a direct dep adds NO new family — it only makes the
+#   API directly callable. MIT OR Apache-2.0.
+# - `unicode-linebreak` (UAX#14): line-break opportunities incl. CJK + kinsoku classes. The ONE NEW
+#   dependency family MT-077 adds (~159 LOC + a generated Unicode table; Apache-2.0; pure-Rust, no native
+#   build). Supplements egui's native CJK Galley wrap where it falls short (Korean Hangul + opening-bracket
+#   kinsoku — verified gaps in epaint-0.33.3). Cargo.lock pins both resolved versions (commit it).
+unicode-segmentation = "1.13"
+unicode-linebreak = "0.1"
 
 # MT-027 production screenshot: the live OS-window grab uses Win32 GDI `PrintWindow` (focus-safe — never
 # SetForegroundWindow/BringWindowToTop). `windows-sys` is already in the locked graph transitively; here

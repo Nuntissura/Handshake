@@ -139,16 +139,20 @@ fn collect_text(node: &serde_json::Value, out: &mut String) {
     }
 }
 
-/// The word count of `text`: the number of whitespace-separated tokens (the contract footer formula).
+/// The word count of `text` (MT-077: Unicode-correct, NOT whitespace tokens). Delegates to the shared
+/// `text_intl::word_count`, which uses UAX#29 word boundaries so a spaceless CJK sentence counts
+/// sensibly (per-ideograph) instead of collapsing to a single whitespace token. For ordinary ASCII
+/// prose this equals the old whitespace count (AC5/AC7). DOCUMENTED rule: a "word" is a UAX#29 word.
 pub fn word_count(text: &str) -> usize {
-    text.split_whitespace().filter(|w| !w.is_empty()).count()
+    crate::text_intl::word_count(text)
 }
 
-/// The character count of `text`: total Unicode scalar values (chars), matching the rope char-count
-/// semantics the contract names ("total rope char count across all TextLeafs"). The collected plain
-/// text is the concatenation of every text leaf, so its char count is that total.
+/// The character count of `text` (MT-077: GRAPHEME CLUSTERS, NOT scalars). Delegates to the shared
+/// `text_intl::char_count`, so a family ZWJ emoji counts as 1 user-perceived character (not 7
+/// codepoints), a combining-accent sequence as 1, a flag as 1, a Hangul syllable as 1 (AC6). DOCUMENTED
+/// choice: grapheme clusters are what a human counts as "one character" (rationale in text_intl::counts).
 pub fn char_count(text: &str) -> usize {
-    text.chars().count()
+    crate::text_intl::char_count(text)
 }
 
 /// Render a footer "Saved" relative-time string from a [`SaveStatus`]. Kept simple + non-animating

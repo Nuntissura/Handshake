@@ -320,12 +320,13 @@ impl CursorSet {
             let range = if c.is_selection() {
                 c.range()
             } else {
-                // Backspace: remove the char immediately before the head (none at offset 0).
+                // Backspace: remove the whole GRAPHEME CLUSTER immediately before the head (MT-077 AC4)
+                // so deleting a family emoji removes ALL its codepoints, not one. None at offset 0.
                 let head = c.head;
                 if head == 0 {
                     0..0
                 } else {
-                    let prev = prev_char_boundary(head, buffer);
+                    let prev = prev_grapheme(head, buffer);
                     prev..head
                 }
             };
@@ -375,9 +376,10 @@ impl CursorSet {
                 c.range()
             } else {
                 let head = c.head;
-                // Delete the char AFTER the caret. At EOF `next_char_boundary` returns `head`, so the
-                // range is empty (`head..head`) — a no-op, matching VS Code's Delete-at-EOF.
-                let next = next_char_boundary(head, buffer);
+                // Delete the whole GRAPHEME CLUSTER AFTER the caret (MT-077 AC4). At EOF `next_grapheme`
+                // returns `head`, so the range is empty (`head..head`) — a no-op, matching VS Code's
+                // Delete-at-EOF.
+                let next = next_grapheme(head, buffer);
                 if next > head {
                     head..next
                 } else {
@@ -601,8 +603,10 @@ fn clamp_to_char_boundary(offset: usize, len: usize, buffer: &TextBuffer) -> usi
     }
 }
 
-/// The largest char boundary `<= offset`. Used to snap a mid-char offset down (clamp) and to find the
-/// previous char for Backspace / WordLeft. Returns 0 if none below.
+/// The largest char boundary `<= offset`. Used to snap a mid-char offset down (clamp). Returns 0 if
+/// none below. NOTE: this is the CLAMP helper (snap a stored offset to a valid byte). Caret MOVEMENT and
+/// Backspace use [`prev_grapheme`] / [`next_grapheme`] instead so a multi-codepoint grapheme cluster is
+/// crossed whole (MT-077 AC3/AC4) rather than one codepoint at a time.
 fn prev_char_boundary(offset: usize, buffer: &TextBuffer) -> usize {
     let mut o = offset.min(buffer.len_bytes());
     while o > 0 {
@@ -614,7 +618,50 @@ fn prev_char_boundary(offset: usize, buffer: &TextBuffer) -> usize {
     0
 }
 
-/// The smallest char boundary `> offset` (the next char start). Returns `len_bytes` if none above.
+/// The previous GRAPHEME-CLUSTER boundary `< offset` (MT-077 AC3/AC4). Caret LEFT / Backspace move/delete
+/// by a whole user-perceived character: a family ZWJ emoji, a combining-accent sequence, a flag, or a
+/// Hangul syllable crosses in ONE step rather than tearing the cluster. Delegates to the shared
+/// `text_intl::grapheme` module, which segments only a LOCAL window around the caret for perf (RISK-1),
+/// not the whole buffer. The code buffer is byte-addressed, so this works in byte offsets directly.
+///
+/// `byte_slice_to_string` materializes only a bounded window around the caret (not the whole document),
+/// keeping each keypress O(window) regardless of line length. The window is sized to comfortably contain
+/// any realistic grapheme cluster plus the shared module's own local window, so the local answer equals
+/// the global answer for any cluster a human can author.
+fn prev_grapheme(offset: usize, buffer: &TextBuffer) -> usize {
+    let len = buffer.len_bytes();
+    // Snap the caret DOWN to a char boundary (returns the offset unchanged when already on one — NOT a
+    // step back; `clamp_to_char_boundary` is the snap, `prev_char_boundary` would step one char left).
+    let off = clamp_to_char_boundary(offset.min(len), len, buffer);
+    if off == 0 {
+        return 0;
+    }
+    // Materialize a bounded window ending AT the caret; segment within it. The window start is the
+    // caret minus a local span, SNAPPED to a char boundary HERE (not left to byte_slice_to_string) so
+    // the `win_start` variable EXACTLY matches the window's first byte — otherwise the `win_start +
+    // local` remap below would be off by the snap delta on non-ASCII text at the window edge.
+    let win_start = clamp_to_char_boundary(
+        off.saturating_sub(crate::text_intl::GRAPHEME_LOCAL_WINDOW_BYTES),
+        len,
+        buffer,
+    );
+    let window = buffer.byte_slice_to_string(win_start..off);
+    // The caret sits at the END of the window; the previous grapheme boundary within the window, mapped
+    // back to an absolute buffer offset, is `win_start + local`.
+    let local = crate::text_intl::prev_grapheme_boundary(&window, window.len());
+    let candidate = win_start + local;
+    // Safety: if the window started mid-cluster (the cluster straddled win_start), `local == 0` means the
+    // boundary is at or before win_start; fall back to a single char step so the caret still advances.
+    if candidate < off {
+        // Snap to a char boundary defensively (byte_slice_to_string already char-aligned the window).
+        clamp_to_char_boundary(candidate, len, buffer)
+    } else {
+        prev_char_boundary(off, buffer)
+    }
+}
+
+/// The smallest char boundary `> offset` (the next char start). Returns `len_bytes` if none above. The
+/// CLAMP/forward-scan helper; caret movement uses [`next_grapheme`].
 fn next_char_boundary(offset: usize, buffer: &TextBuffer) -> usize {
     let len = buffer.len_bytes();
     let mut o = offset.min(len);
@@ -627,12 +674,35 @@ fn next_char_boundary(offset: usize, buffer: &TextBuffer) -> usize {
     len
 }
 
+/// The next GRAPHEME-CLUSTER boundary `> offset` (MT-077 AC3/AC4). Caret RIGHT / forward-delete move by a
+/// whole user-perceived character. Local-window segmentation (RISK-1) over the byte-addressed buffer.
+fn next_grapheme(offset: usize, buffer: &TextBuffer) -> usize {
+    let len = buffer.len_bytes();
+    let off = clamp_to_char_boundary(offset.min(len), len, buffer);
+    if off >= len {
+        return len;
+    }
+    let win_end = (off + crate::text_intl::GRAPHEME_LOCAL_WINDOW_BYTES).min(len);
+    let window = buffer.byte_slice_to_string(off..win_end);
+    // The caret sits at the START of the window; the next grapheme boundary within the window maps to
+    // `off + local`.
+    let local = crate::text_intl::next_grapheme_boundary(&window, 0);
+    let candidate = off + local;
+    if candidate > off {
+        clamp_to_char_boundary(candidate, len, buffer)
+    } else {
+        next_char_boundary(off, buffer)
+    }
+}
+
 /// Move a single byte offset one unit in `direction`. Char-boundary and line-boundary safe; never
 /// returns an out-of-range or mid-char offset.
 fn move_offset(offset: usize, direction: MoveDir, buffer: &TextBuffer) -> usize {
     match direction {
-        MoveDir::Left => prev_char_boundary(offset, buffer),
-        MoveDir::Right => next_char_boundary(offset, buffer),
+        // MT-077 AC3: caret LEFT/RIGHT move by a whole GRAPHEME CLUSTER, not one codepoint, so a family
+        // ZWJ emoji / combining sequence / flag / Hangul syllable is never split mid-cluster.
+        MoveDir::Left => prev_grapheme(offset, buffer),
+        MoveDir::Right => next_grapheme(offset, buffer),
         MoveDir::Up => {
             let (line, col) = byte_to_line_col(offset, buffer);
             if line == 0 {
@@ -766,6 +836,84 @@ mod tests {
         set.move_all(MoveDir::Right, &buf);
         // Right of 'é' is byte 3 (the 'l'), never byte 2 (mid-char).
         assert_eq!(set.primary().head, 3);
+    }
+
+    // ── MT-077: grapheme-cluster caret movement + delete (AC3/AC4) ─────────────────────────────────
+
+    #[test]
+    fn caret_right_crosses_family_emoji_whole() {
+        // AC3 (MANDATORY): a family ZWJ emoji (man+woman+girl ≈ 7 codepoints, 17 bytes) is ONE cluster;
+        // RIGHT must cross all of it in ONE keypress, never landing inside.
+        let family = "👨‍👩‍👧";
+        let buf = TextBuffer::new(family);
+        let mut set = CursorSet::single(0);
+        set.move_all(MoveDir::Right, &buf);
+        assert_eq!(set.primary().head, family.len(), "RIGHT crosses the whole family emoji ({} bytes)", family.len());
+        assert!(family.len() > 7, "sanity: the family emoji is multi-codepoint");
+    }
+
+    #[test]
+    fn caret_left_crosses_combining_accent_whole() {
+        // AC3: "e"+U+0301 is one cluster; from after it, LEFT lands at 0, not between the base and mark.
+        let s = "e\u{0301}"; // é as base + combining mark, 3 bytes
+        let buf = TextBuffer::new(s);
+        let mut set = CursorSet::single(s.len());
+        set.move_all(MoveDir::Left, &buf);
+        assert_eq!(set.primary().head, 0, "LEFT crosses the whole combining sequence");
+    }
+
+    #[test]
+    fn backspace_deletes_whole_family_emoji() {
+        // AC4 (MANDATORY): Backspace over a family emoji removes ALL its codepoints, leaving "ab".
+        let family = "👨‍👩‍👧";
+        let mut buf = TextBuffer::new(&format!("a{family}b"));
+        // Caret after the family emoji: a(1) + family(len).
+        let caret = 1 + family.len();
+        let mut set = CursorSet::single(caret);
+        let applied = set.delete_at_all(&mut buf);
+        assert_eq!(applied, 1);
+        assert_eq!(buf.to_string(), "ab", "the whole family emoji is deleted as one grapheme");
+        assert_eq!(set.primary().head, 1, "caret lands where the cluster started");
+    }
+
+    #[test]
+    fn forward_delete_removes_whole_flag() {
+        // AC4: forward Delete over a flag (two regional indicators) removes the whole cluster.
+        let flag = "🇯🇵";
+        let mut buf = TextBuffer::new(&format!("{flag}x"));
+        let mut set = CursorSet::single(0);
+        let applied = set.delete_forward_at_all(&mut buf);
+        assert_eq!(applied, 1);
+        assert_eq!(buf.to_string(), "x", "the whole flag is deleted as one grapheme");
+    }
+
+    #[test]
+    fn prev_grapheme_window_edge_aligned_on_non_ascii() {
+        // Regression: when the local window start lands MID multi-byte char, the win_start variable must
+        // be snapped to match the materialized window's first byte, else prev_grapheme maps the local
+        // boundary back to a wrong absolute offset. Build a buffer of multi-byte chars long enough that
+        // the caret's window start (caret - 256) lands inside a 3-byte char, then Backspace must remove
+        // exactly the ONE preceding char (each CJK char here is its own grapheme cluster), not tear it.
+        let cjk = "中".repeat(200); // 200 * 3 = 600 bytes; window (256) starts mid-char
+        let mut buf = TextBuffer::new(&cjk);
+        let caret = buf.len_bytes(); // at EOF, after the last 中
+        let mut set = CursorSet::single(caret);
+        let applied = set.delete_at_all(&mut buf);
+        assert_eq!(applied, 1, "exactly one CJK grapheme removed");
+        assert_eq!(buf.to_string(), "中".repeat(199), "Backspace removed exactly the last 中, not a torn byte");
+        assert_eq!(set.primary().head, buf.len_bytes(), "caret at the new EOF");
+    }
+
+    #[test]
+    fn ascii_caret_and_delete_unchanged_no_regression() {
+        // AC7: ASCII still moves/deletes one char at a time (each ASCII char is its own cluster).
+        let mut buf = TextBuffer::new("abc");
+        let mut set = CursorSet::single(0);
+        set.move_all(MoveDir::Right, &buf);
+        assert_eq!(set.primary().head, 1, "RIGHT over ASCII is one byte");
+        let mut set2 = CursorSet::single(2);
+        set2.delete_at_all(&mut buf);
+        assert_eq!(buf.to_string(), "ac", "Backspace removes one ASCII char");
     }
 
     #[test]
