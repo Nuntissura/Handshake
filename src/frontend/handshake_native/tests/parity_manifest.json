@@ -110,7 +110,7 @@
     "status": "PASS"
   },
   {
-    "backend_api": "POST /workspaces/{id}/knowledge/documents, GET /workspaces/{id}/knowledge/documents/{doc_id}",
+    "backend_api": "POST /knowledge/documents (workspace_id in body), GET /knowledge/documents/{doc_id}",
     "cluster": "E2",
     "description": "Block document model: create a doc with heading/paragraph/list/table/code-block nodes, serialize to JSON, reload, verify node count + types. (PG-binding via knowledge_documents create/load.)",
     "feature_id": "E2-11",
@@ -121,7 +121,7 @@
     "status": "REQUIRES_PG"
   },
   {
-    "backend_api": "GET /workspaces/{id}/knowledge/documents/{doc_id}",
+    "backend_api": "POST /knowledge/documents (workspace_id in body), GET /knowledge/documents/{doc_id}",
     "cluster": "E2",
     "description": "WYSIWYG heading render: H1-H6 render at visually distinct sizes (egui TextStyle check) against a loaded doc.",
     "feature_id": "E2-12",
@@ -132,22 +132,22 @@
     "status": "REQUIRES_PG"
   },
   {
-    "backend_api": "PUT /workspaces/{id}/knowledge/documents/{doc_id}",
+    "backend_api": "POST /knowledge/documents (workspace_id in body), GET /knowledge/documents/{doc_id}",
     "cluster": "E2",
     "description": "Table: insert 3x3 table, set cell (1,1) text, read back via doc model + persisted document.",
     "feature_id": "E2-13",
-    "native_impl_fn": "document_model table node insert/edit + PUT /knowledge/documents/{doc_id}",
+    "native_impl_fn": "document_model table node insert/edit + POST/GET /knowledge/documents",
     "native_impl_module": "handshake_native::rich_editor::document_model",
     "proof_fn": "parity_table_insert_cell",
     "react_ref": "app/src/components/DocumentView.tsx",
     "status": "REQUIRES_PG"
   },
   {
-    "backend_api": "GET /workspaces/{id}/assets/{asset_id}",
+    "backend_api": "GET /workspaces/{id}/assets/{asset_id}/content (asset bytes; bare /assets/{id} is metadata JSON)",
     "cluster": "E2",
-    "description": "Embed image: insert an [[HS_images:assetId]] node pointing to a real PG-stored asset; verify embed resolves (GET assets/{asset_id}).",
+    "description": "Embed image: insert an [[HS_images:assetId]] node pointing to a real PG-stored asset; verify embed resolves (GET assets/{asset_id}/content).",
     "feature_id": "E2-14",
-    "native_impl_fn": "HsLinkNode (HS_images) + GET /workspaces/{id}/assets/{asset_id}",
+    "native_impl_fn": "HsLinkNode (HS_images) + GET /workspaces/{id}/assets/{asset_id}/content",
     "native_impl_module": "handshake_native::rich_editor::embeds",
     "proof_fn": "parity_embed_image_resolve",
     "react_ref": "app/src/components/HsLinkView.tsx",
@@ -176,29 +176,29 @@
     "status": "REQUIRES_PG"
   },
   {
-    "backend_api": "PUT /workspaces/{id}/knowledge/documents/{doc_id}",
+    "backend_api": "POST /knowledge/documents, PUT /knowledge/documents/{doc_id}/save (expected_version+content_json)",
     "cluster": "E2",
     "description": "Slash command: trigger '/' menu, select 'heading', verify node inserted into the persisted doc.",
     "feature_id": "E2-17",
-    "native_impl_fn": "slash_commands heading insert + PUT /knowledge/documents/{doc_id}",
+    "native_impl_fn": "slash_commands heading insert + PUT /knowledge/documents/{doc_id}/save",
     "native_impl_module": "handshake_native::rich_editor::slash_commands",
     "proof_fn": "parity_slash_command_heading",
     "react_ref": "app/src/components/DocumentView.tsx",
     "status": "REQUIRES_PG"
   },
   {
-    "backend_api": "PUT/GET /workspaces/{id}/knowledge/documents/{doc_id}",
+    "backend_api": "POST /knowledge/documents (property in content_json doc attrs), GET /knowledge/documents/{doc_id}",
     "cluster": "E2",
-    "description": "Properties panel: set a doc property key/value, save, reload, verify property present.",
+    "description": "Properties panel: set a doc property key/value (persisted as doc-level content_json attrs; no separate properties column), reload, verify property present.",
     "feature_id": "E2-18",
-    "native_impl_fn": "properties set/save + PUT+GET /knowledge/documents/{doc_id}",
+    "native_impl_fn": "properties set in content_json attrs + POST/GET /knowledge/documents",
     "native_impl_module": "handshake_native::rich_editor::properties",
     "proof_fn": "parity_properties_panel",
     "react_ref": "app/src/components/DocumentView.tsx",
     "status": "REQUIRES_PG"
   },
   {
-    "backend_api": "PUT/GET /workspaces/{id}/knowledge/documents/{doc_id}",
+    "backend_api": "POST /knowledge/documents, PUT /knowledge/documents/{doc_id}/save, GET /knowledge/documents/{doc_id}",
     "cluster": "E2",
     "description": "Find/replace in rich doc: insert text, find 'foo', replace with 'bar', verify final persisted content.",
     "feature_id": "E2-19",
@@ -220,9 +220,9 @@
     "status": "REQUIRES_PG"
   },
   {
-    "backend_api": "GET /workspaces/{id}/knowledge/documents/{doc_id}/projection?format=html",
+    "backend_api": "GET /knowledge/documents/{doc_id}/projection?format=html (returns JSON {rich_document_id, projection})",
     "cluster": "E2",
-    "description": "Save-to-format HTML: export a doc to HTML projection via GET knowledge/documents/{doc_id}/projection?format=html, verify non-empty HTML.",
+    "description": "Save-to-format HTML: export a doc to HTML projection via GET knowledge/documents/{doc_id}/projection?format=html, verify non-empty projection.",
     "feature_id": "E2-21",
     "native_impl_fn": "save projection + GET /knowledge/documents/{doc_id}/projection?format=html",
     "native_impl_module": "handshake_native::rich_editor::save",
@@ -231,7 +231,7 @@
     "status": "REQUIRES_PG"
   },
   {
-    "backend_api": "PG-backed draft store (PUT/GET draft)",
+    "backend_api": "PUT /knowledge/documents/{doc_id}/draft (base_doc_version+base_content_sha256+content_json), GET /knowledge/documents/{doc_id}/draft",
     "cluster": "E2",
     "description": "Draft recovery: write a draft, simulate crash (drop in-memory state), reload, verify draft content restored.",
     "feature_id": "E2-22",
@@ -242,22 +242,22 @@
     "status": "REQUIRES_PG"
   },
   {
-    "backend_api": "GET /workspaces/{id}/loom/graph",
+    "backend_api": "GET /workspaces/{id}/loom/graph/local?start_block_id={id}&max_depth=2",
     "cluster": "E3",
     "description": "Local graph: create 3 blocks with edges, call graph API at depth 2, verify node+edge counts.",
     "feature_id": "E3-23",
-    "native_impl_fn": "loom_graph + GET /workspaces/{id}/loom/graph?depth=2",
+    "native_impl_fn": "loom_graph + GET /workspaces/{id}/loom/graph/local",
     "native_impl_module": "handshake_native::loom_graph",
     "proof_fn": "parity_local_graph",
     "react_ref": "app/src/components/LoomBlockPanel.tsx",
     "status": "REQUIRES_PG"
   },
   {
-    "backend_api": "GET /workspaces/{id}/loom/graph",
+    "backend_api": "GET /workspaces/{id}/loom/graph/global",
     "cluster": "E3",
     "description": "Global graph: call graph API at depth 1 over workspace, verify workspace root appears.",
     "feature_id": "E3-24",
-    "native_impl_fn": "loom_graph + GET /workspaces/{id}/loom/graph?depth=1",
+    "native_impl_fn": "loom_graph + GET /workspaces/{id}/loom/graph/global",
     "native_impl_module": "handshake_native::loom_graph",
     "proof_fn": "parity_global_graph",
     "react_ref": "app/src/components/LoomBlockPanel.tsx",
@@ -297,11 +297,11 @@
     "status": "REQUIRES_PG"
   },
   {
-    "backend_api": "PUT/GET /workspaces/{id}/loom/blocks/{block_id}",
+    "backend_api": "PUT /workspaces/{id}/loom/blocks/{block_id}/pin-order, GET /workspaces/{id}/loom/views/pins",
     "cluster": "E3",
-    "description": "Pins: pin a block (set pinned flag), query pinned view, verify block in result.",
+    "description": "Pins: set a block's pin-order ordinal, query the pins Loom view, verify block in result.",
     "feature_id": "E3-28",
-    "native_impl_fn": "sidebar_panel pin flag + pinned view query",
+    "native_impl_fn": "sidebar_panel pin-order + pins-view query",
     "native_impl_module": "handshake_native::graph::sidebar_panel",
     "proof_fn": "parity_pins",
     "react_ref": "app/src/components/LoomBlockPanel.tsx",
@@ -341,11 +341,11 @@
     "status": "REQUIRES_PG"
   },
   {
-    "backend_api": "GET /workspaces/{id}/loom/blocks/{block_id} (wiki-page projection)",
+    "backend_api": "GET /workspaces/{id}/loom/wiki/{projection_id} (rendered_content)",
     "cluster": "E3",
-    "description": "Wiki-page projection: call wiki-page endpoint for a block, verify wikilinks resolved.",
+    "description": "Wiki-page projection: call the wiki projection endpoint for a compiled page, verify rendered_content with resolved wikilinks.",
     "feature_id": "E3-32",
-    "native_impl_fn": "wiki_page_panel + wiki-page projection",
+    "native_impl_fn": "wiki_page_panel + GET /workspaces/{id}/loom/wiki/{projection_id}",
     "native_impl_module": "handshake_native::graph::wiki_page_panel",
     "proof_fn": "parity_wiki_page_projection",
     "react_ref": "app/src/components/LoomWikiPagePanel.tsx",
@@ -363,18 +363,18 @@
     "status": "REQUIRES_PG"
   },
   {
-    "backend_api": "POST /workspaces/{id}/loom/block-views + /block-views/{view_id}/query",
+    "backend_api": "POST /workspaces/{id}/loom/views/definitions + /views/definitions/{block_id}/results",
     "cluster": "E3",
     "description": "Block-collection table view: create a block_view (content_type='view_def'), call queryBlockViewResults, verify row count > 0.",
     "feature_id": "E3-34",
-    "native_impl_fn": "block_collection_view + POST /loom/block-views/{view_id}/query",
+    "native_impl_fn": "block_collection_view + POST /loom/views/definitions/{block_id}/results",
     "native_impl_module": "handshake_native::graph::block_collection_view",
     "proof_fn": "parity_block_collection_table",
     "react_ref": "app/src/components/BlockCollectionView.tsx",
     "status": "REQUIRES_PG"
   },
   {
-    "backend_api": "POST /workspaces/{id}/loom/block-views/{view_id}/query",
+    "backend_api": "POST /workspaces/{id}/loom/views/definitions/{block_id}/results",
     "cluster": "E3",
     "description": "Block-collection Kanban: move a Kanban card (update tag edge), re-query, verify card appears in new column.",
     "feature_id": "E3-35",
@@ -385,7 +385,7 @@
     "status": "REQUIRES_PG"
   },
   {
-    "backend_api": "POST /workspaces/{id}/loom/block-views/{view_id}/query",
+    "backend_api": "POST /workspaces/{id}/loom/views/definitions/{block_id}/results",
     "cluster": "E3",
     "description": "Block-collection calendar: query calendar view for today's date, verify daily journal block appears.",
     "feature_id": "E3-36",
@@ -418,11 +418,11 @@
     "status": "REQUIRES_PG"
   },
   {
-    "backend_api": "POST /workspaces/{id}/loom/search-v2 (mode=semantic, pgvector)",
+    "backend_api": "POST /workspaces/{id}/loom/search-v2 (no mode param; semantic via query_embedding/semantic_available, pgvector)",
     "cluster": "E4",
-    "description": "Semantic search (pgvector): call loom_search_v2 with mode=semantic against the mt250 fixture, verify hits non-empty. Requires pgvector extension + embedded vector on the test block.",
+    "description": "Semantic search (pgvector): call loom_search_v2 against the mt250 fixture, assert semantic_available=true (pgvector kNN contributed; needs a configured embedding model) + hits non-empty. Requires pgvector extension + embedded vector on the test block.",
     "feature_id": "E4-39",
-    "native_impl_fn": "loom_search_v2 mode=semantic + mt250_workspace_search_fixture",
+    "native_impl_fn": "loom_search_v2 (query_embedding/semantic_available) + mt250_workspace_search_fixture",
     "native_impl_module": "handshake_native::loom_search_v2",
     "proof_fn": "parity_semantic_search",
     "react_ref": "app/src/components/LoomSearchV2Panel.tsx",
@@ -440,11 +440,11 @@
     "status": "REQUIRES_PG"
   },
   {
-    "backend_api": "POST /workspaces/{id}/loom/block-views",
+    "backend_api": "POST /workspaces/{id}/loom/views/definitions",
     "cluster": "E4",
     "description": "Save-results-as-view: after a search, call createBlockView with the query, verify the new view block has content_type='view_def' and query embedded.",
     "feature_id": "E4-41",
-    "native_impl_fn": "loom_search_v2 save_as_view + POST /loom/block-views",
+    "native_impl_fn": "loom_search_v2 save_as_view + POST /loom/views/definitions",
     "native_impl_module": "handshake_native::loom_search_v2",
     "proof_fn": "parity_save_results_as_view",
     "react_ref": "app/src/components/LoomSearchV2Panel.tsx",
@@ -462,11 +462,11 @@
     "status": "REQUIRES_PG"
   },
   {
-    "backend_api": "GET /workspaces/{id}/loom/quick-switcher",
+    "backend_api": "POST/GET /workspaces/{id}/loom/quick-switcher/recents",
     "cluster": "E4",
-    "description": "Quick-switcher: call quick-switcher endpoint with a partial block title, verify the matching block surfaces.",
+    "description": "Quick-switcher: record a recent selection for a block, GET the recents, verify the block surfaces (the recents surface; there is no ?q= prefix-search route).",
     "feature_id": "E4-43",
-    "native_impl_fn": "quick_switcher + GET /workspaces/{id}/loom/quick-switcher",
+    "native_impl_fn": "quick_switcher + POST/GET /workspaces/{id}/loom/quick-switcher/recents",
     "native_impl_module": "handshake_native::quick_switcher",
     "proof_fn": "parity_quick_switcher",
     "react_ref": "app/src/components/LoomSearchV2Panel.tsx",

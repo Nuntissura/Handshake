@@ -15,6 +15,21 @@
 //!
 //! NO mock smuggling (RISK-2/CTRL-2): each proof calls the REAL backend route via `pg_proof_support`
 //! with real block/board/view ids and real content; no sqlite, no in-memory stub, no hard-coded result.
+//!
+//! ## Route shapes verified against api/loom.rs (2026-06-26 route audit)
+//!
+//! The graph is split: `/loom/graph/local` (needs `start_block_id`, returns LoomGraph) and
+//! `/loom/graph/global` (loom.rs:264-272) — there is NO bare `/loom/graph`. Pins set via
+//! `PUT /loom/blocks/{id}/pin-order` and list via `GET /loom/views/pins` (loom.rs:111-113,255-258,
+//! 3112) — there is NO `/loom/blocks?pinned=`. Saved views are `/loom/views/definitions` (POST) and
+//! `/loom/views/definitions/{block_id}/results` (POST), returning BlockViewRecord{block,definition} /
+//! BlockViewResults{kind,blocks,groups,total_returned} (loom.rs:357-368) — NOT `/loom/block-views`.
+//! Wiki projection is `/loom/wiki/{projection_id}` returning a body with `rendered_content`
+//! (loom.rs:168-171,766) — NOT the plain block GET. Canvas placement body is
+//! { placed_block_id, x, y, w, h } -> LoomCanvasPlacement{placement_id} echoed in the board GET's
+//! `placements` (loom.rs:3716-3754). These were transcribed from the REAL router, not from the
+//! contract's drifted `binds_backend_api` list. Per Spec-Realism Sub-rule 3 the "REAL route" claim is
+//! re-asserted only after a managed-PG run exercises them.
 
 mod parity_manifest_support;
 mod pg_proof_support;
@@ -25,10 +40,16 @@ use pg_proof_support::{require_live_backend, LiveBackend};
 // ── E3-23: local graph — 3 blocks + edges, graph API depth 2, verify node+edge counts ────────────
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (GET /loom/graph?depth=2)"]
+#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID + HSK_TEST_BLOCK_ID (GET /loom/graph/local)"]
 fn parity_local_graph() {
     let be: LiveBackend = require_live_backend();
-    let graph = be.get_json(&format!("/workspaces/{}/loom/graph?depth=2", be.workspace_id));
+    // The REAL local-graph route is /loom/graph/local with a REQUIRED start_block_id + max_depth
+    // (loom.rs:264-271); it returns LoomGraph { nodes, edges, ... }.
+    let block_id = be.require_block_id();
+    let graph = be.get_json(&format!(
+        "/workspaces/{}/loom/graph/local?start_block_id={block_id}&max_depth=2",
+        be.workspace_id
+    ));
     let nodes = graph.get("nodes").and_then(|n| n.as_array()).map(|a| a.len()).unwrap_or(0);
     let edges = graph.get("edges").and_then(|e| e.as_array()).map(|a| a.len()).unwrap_or(0);
     assert!(nodes >= 1, "E3-23: the local graph (depth 2) must report >= 1 node (got {nodes})");
@@ -40,10 +61,11 @@ fn parity_local_graph() {
 // ── E3-24: global graph — depth 1 over workspace, verify workspace root appears ──────────────────
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (GET /loom/graph?depth=1)"]
+#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (GET /loom/graph/global)"]
 fn parity_global_graph() {
     let be = require_live_backend();
-    let graph = be.get_json(&format!("/workspaces/{}/loom/graph?depth=1", be.workspace_id));
+    // The REAL global-graph route is /loom/graph/global (loom.rs:268-272); returns LoomGraph { nodes, .. }.
+    let graph = be.get_json(&format!("/workspaces/{}/loom/graph/global", be.workspace_id));
     let nodes = graph.get("nodes").and_then(|n| n.as_array()).cloned().unwrap_or_default();
     assert!(!nodes.is_empty(), "E3-24: the global graph (depth 1) must report >= 1 node");
     println!("E3-24 PASS: global graph depth-1 -> {} nodes (workspace root present)", nodes.len());
@@ -111,20 +133,24 @@ fn parity_tags_and_hubs() {
 // ── E3-28: pins — pin a block, query pinned view, verify in result ───────────────────────────────
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_BLOCK_ID (pin flag + pinned view)"]
+#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_BLOCK_ID (PUT /loom/blocks/{id}/pin-order + GET /loom/views/pins)"]
 fn parity_pins() {
     let be = require_live_backend();
     let block_id = be.require_block_id();
+    // The REAL pin surface is the reorderable Pins-grid ordinal: PUT /loom/blocks/{id}/pin-order with
+    // { pin_order } (loom.rs:111-113,726), then the pinned LIST is the `pins` Loom view
+    // GET /loom/views/pins -> { view_type: "pins", blocks: [...] } (loom.rs:255-258,3112). There is no
+    // `/loom/blocks?pinned=` filter route.
     be.put_json(
-        &format!("/workspaces/{}/loom/blocks/{block_id}", be.workspace_id),
-        &serde_json::json!({ "pinned": true }),
+        &format!("/workspaces/{}/loom/blocks/{block_id}/pin-order", be.workspace_id),
+        &serde_json::json!({ "pin_order": 0 }),
     );
-    let pinned = be.get_json(&format!("/workspaces/{}/loom/blocks?pinned=true", be.workspace_id));
+    let pinned = be.get_json(&format!("/workspaces/{}/loom/views/pins", be.workspace_id));
     assert!(
         serde_json::to_string(&pinned).unwrap().contains(&block_id),
-        "E3-28: the pinned block {block_id} must appear in the pinned view"
+        "E3-28: the pinned block {block_id} must appear in the pins view (got {pinned})"
     );
-    println!("E3-28 PASS: pinned block {block_id} appears in the pinned view");
+    println!("E3-28 PASS: pinned block {block_id} appears in the pins view");
     mark_pass("E3-28");
 }
 
@@ -189,18 +215,23 @@ fn parity_breadcrumbs() {
 // ── E3-32: wiki-page projection — call for a block, verify wikilinks resolved ────────────────────
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_BLOCK_ID (wiki-page projection)"]
+#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WIKI_PROJECTION_ID (GET /loom/wiki/{projection_id})"]
 fn parity_wiki_page_projection() {
     let be = require_live_backend();
-    let block_id = be.require_block_id();
-    let wiki = be.get_json(&format!("/workspaces/{}/loom/blocks/{block_id}", be.workspace_id));
-    // The wiki-page projection (handshake_native::graph::wiki_page_panel) renders resolved wikilinks; a
-    // non-empty rendered/content body proves the projection resolved.
-    let has_body = wiki.get("rendered_content").is_some()
-        || wiki.get("content").is_some()
-        || wiki.get("body").is_some();
-    assert!(has_body, "E3-32: the wiki-page projection must return a rendered body (got {wiki})");
-    println!("E3-32 PASS: wiki-page projection for {block_id} resolved wikilinks");
+    // The REAL wiki-page projection surface is /loom/wiki/{projection_id} (loom.rs:168-171,880), NOT the
+    // plain block GET. It returns LoomWikiProjection (flattened) + staleness_verdict; the flattened
+    // `rendered_content` (loom.rs:766, storage/loom.rs) is the compiled wiki markdown with resolved
+    // wikilinks. A managed-PG run seeds a wiki page and sets HSK_TEST_WIKI_PROJECTION_ID.
+    let projection_id = std::env::var("HSK_TEST_WIKI_PROJECTION_ID")
+        .expect("E3-32 requires_pg: set HSK_TEST_WIKI_PROJECTION_ID to a real compiled wiki page id");
+    let wiki = be.get_json(&format!("/workspaces/{}/loom/wiki/{projection_id}", be.workspace_id));
+    let has_body = wiki
+        .get("rendered_content")
+        .and_then(|c| c.as_str())
+        .map(|s| !s.is_empty())
+        .unwrap_or(false);
+    assert!(has_body, "E3-32: the wiki-page projection must return non-empty rendered_content (got {wiki})");
+    println!("E3-32 PASS: wiki-page projection {projection_id} resolved wikilinks");
     mark_pass("E3-32");
 }
 
@@ -213,12 +244,14 @@ fn parity_canvas_board_placement() {
     let block_id = be.require_block_id();
     let board_id = std::env::var("HSK_TEST_BOARD_ID")
         .expect("E3-33 requires_pg: set HSK_TEST_BOARD_ID to a real canvas board id");
+    // The REAL place-block body is { placed_block_id, x, y, w, h } (PlaceBlockRequest, loom.rs:3716);
+    // it returns a LoomCanvasPlacement whose id field is `placement_id` (storage/loom.rs:1376).
     let placement = be.post_json(
         &format!("/workspaces/{}/loom/canvas-boards/{board_id}/placements", be.workspace_id),
-        &serde_json::json!({ "block_id": block_id, "x": 100.0, "y": 100.0 }),
+        &serde_json::json!({ "placed_block_id": block_id, "x": 100.0, "y": 100.0, "w": 200.0, "h": 120.0 }),
     );
-    let placement_id = placement["placement_id"].as_str().or_else(|| placement["id"].as_str())
-        .expect("E3-33: placement returns an id");
+    let placement_id = placement["placement_id"].as_str()
+        .expect("E3-33: placement returns a placement_id");
     // Verify the placement appears in the board GET response (the AC: "verifies the placement is
     // returned in the board GET response").
     let board = be.get_json(&format!("/workspaces/{}/loom/canvas-boards/{board_id}", be.workspace_id));
@@ -233,24 +266,26 @@ fn parity_canvas_board_placement() {
 // ── E3-34: block-collection table view — create view_def, query, verify row count > 0 ────────────
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (POST /loom/block-views + query)"]
+#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (POST /loom/views/definitions + /results)"]
 fn parity_block_collection_table() {
     let be = require_live_backend();
+    // The REAL saved-view create route is /loom/views/definitions with a typed
+    // BlockViewDefinition { kind, query, columns, ... } (loom.rs:357,1614); it returns
+    // BlockViewRecord { block, definition }. The view id is record.block.block_id.
     let view = be.post_json(
-        &format!("/workspaces/{}/loom/block-views", be.workspace_id),
-        &serde_json::json!({ "content_type": "view_def", "title": "parity-e3-34",
-            "query": { "view": "table", "content_type": null } }),
+        &format!("/workspaces/{}/loom/views/definitions", be.workspace_id),
+        &serde_json::json!({ "title": "parity-e3-34",
+            "definition": { "kind": "table", "columns": ["title", "updated"] } }),
     );
-    let view_id = view["id"].as_str().or_else(|| view["view_id"].as_str())
-        .expect("E3-34: block-view returns an id");
+    let view_id = view_block_id(&view);
+    // Execute via /results (BlockViewResultsRequest { limit?, offset? }) -> BlockViewResults
+    // { kind, blocks, groups, total_returned } (loom.rs:366,1643).
     let results = be.post_json(
-        &format!("/workspaces/{}/loom/block-views/{view_id}/query", be.workspace_id),
+        &format!("/workspaces/{}/loom/views/definitions/{view_id}/results", be.workspace_id),
         &serde_json::json!({}),
     );
-    let rows = results.get("rows").and_then(|r| r.as_array()).map(|a| a.len())
-        .or_else(|| results.as_array().map(|a| a.len()))
-        .unwrap_or(0);
-    assert!(rows > 0, "E3-34: the table view query must return > 0 rows (got {rows})");
+    let rows = results.get("blocks").and_then(|r| r.as_array()).map(|a| a.len()).unwrap_or(0);
+    assert!(rows > 0, "E3-34: the table view query must return > 0 blocks (got {rows})");
     println!("E3-34 PASS: block-collection table view returned {rows} row(s)");
     mark_pass("E3-34");
 }
@@ -270,8 +305,9 @@ fn parity_block_collection_kanban() {
         &format!("/workspaces/{}/loom/blocks/{block_id}", be.workspace_id),
         &serde_json::json!({ "tags": [target_column] }),
     );
+    // Re-query via the REAL /loom/views/definitions/{id}/results route (loom.rs:366), not /block-views.
     let results = be.post_json(
-        &format!("/workspaces/{}/loom/block-views/{view_id}/query", be.workspace_id),
+        &format!("/workspaces/{}/loom/views/definitions/{view_id}/results", be.workspace_id),
         &serde_json::json!({}),
     );
     let s = serde_json::to_string(&results).unwrap();
@@ -292,9 +328,12 @@ fn parity_block_collection_calendar() {
     let view_id = std::env::var("HSK_TEST_VIEW_ID")
         .expect("E3-36 requires_pg: set HSK_TEST_VIEW_ID to a real calendar view_def id");
     let today = "2026-06-26";
+    // The calendar bucketing lives in the saved view's definition (calendar_date_field); the REAL
+    // results route is /loom/views/definitions/{id}/results with { limit?, offset? } (loom.rs:366,4073).
+    // The seeded daily-journal block carries today's date, so it surfaces in the calendar results.
     let results = be.post_json(
-        &format!("/workspaces/{}/loom/block-views/{view_id}/query", be.workspace_id),
-        &serde_json::json!({ "date": today }),
+        &format!("/workspaces/{}/loom/views/definitions/{view_id}/results", be.workspace_id),
+        &serde_json::json!({}),
     );
     assert!(
         serde_json::to_string(&results).unwrap().contains(today),
@@ -302,4 +341,18 @@ fn parity_block_collection_calendar() {
     );
     println!("E3-36 PASS: calendar view for {today} surfaced the daily journal block");
     mark_pass("E3-36");
+}
+
+// ── helper (pure) ────────────────────────────────────────────────────────────────────────────────
+
+/// Extract the saved-view block id from a BlockViewRecord create response. The view IS a typed
+/// LoomBlock, so its id is `record.block.block_id` (loom.rs:1634); tolerate flat fallbacks.
+fn view_block_id(view: &serde_json::Value) -> String {
+    view.get("block")
+        .and_then(|b| b.get("block_id"))
+        .and_then(|v| v.as_str())
+        .or_else(|| view.get("block_id").and_then(|v| v.as_str()))
+        .or_else(|| view.get("id").and_then(|v| v.as_str()))
+        .expect("E3-34: block-view record returns block.block_id")
+        .to_owned()
 }

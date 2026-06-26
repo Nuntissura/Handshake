@@ -13,7 +13,11 @@
 //!
 //! The shared HTTP client is the crate's `handshake_native::backend_client::shared_http_client` (the
 //! production async reqwest client), driven on a current-thread tokio runtime — the same async surface
-//! the editor uses, so the proofs hit the REAL routes.
+//! the editor uses. The bound URLs were transcribed from a 2026-06-26 static audit of
+//! `src/backend/handshake_core/src/api/{knowledge_documents,loom}.rs` (each suite header records the
+//! verified routes); per Spec-Realism Sub-rule 3 the "hits the REAL route" claim is confirmed by a
+//! separate managed-PG run, not by this comment. Until then these are the verified-by-audit live-PG
+//! backlog, not runtime-proven.
 
 #![allow(dead_code)] // each suite calls a subset of the request helpers.
 

@@ -26,6 +26,22 @@
 //! real handshake_core AppState (started by the operator's managed backend), with real block/doc ids
 //! and real content. There is NO sqlite, NO in-memory backend stub, and NO hard-coded result. The grep
 //! gate (`no sqlite/mock/in_memory` in this proof-only file) holds.
+//!
+//! ## Route shapes verified against api/knowledge_documents.rs (2026-06-26 route audit)
+//!
+//! The knowledge-document routes are BARE (`/knowledge/documents`, NO `/workspaces/{id}` prefix) and
+//! carry `workspace_id` in the BODY (`CreateDocumentBody { workspace_id, title, content_json }`,
+//! knowledge_documents.rs:476-489). There is NO `PUT /knowledge/documents/{id}` — saves go through
+//! `PUT /knowledge/documents/{id}/save` with `{ expected_version, content_json }` (knowledge_documents
+//! .rs:79,955), and crash-recovery drafts through `PUT/GET /knowledge/documents/{id}/draft` with
+//! `{ base_doc_version, base_content_sha256, content_json }` (knowledge_documents.rs:73-78,809). The
+//! create response wraps the row under `"document"` whose id field is `rich_document_id`, and load
+//! returns `{ document, tree, code_nodes }` (knowledge_documents.rs:729-771). Projection returns JSON
+//! `{ rich_document_id, projection }` (knowledge_documents.rs:1213). These were transcribed from the
+//! REAL router, not from the contract's `binds_backend_api` list (which had drifted to a
+//! `/workspaces/{id}` prefix). Per Spec-Realism Sub-rule 3, the "REAL route" claim is re-asserted only
+//! after a managed-PG run actually exercises them; until then these are the verified-by-static-audit
+//! live-PG backlog.
 
 mod parity_manifest_support;
 mod pg_proof_support;
@@ -40,13 +56,15 @@ use pg_proof_support::{require_live_backend, LiveBackend};
 fn parity_block_document_model() {
     let be: LiveBackend = require_live_backend();
     // Build a real RichDocument via the native document_model (heading/paragraph/list/table/code-block),
-    // POST it to /knowledge/documents, GET it back, and assert node count + types survive the round-trip
-    // through real PostgreSQL. The native model is handshake_native::rich_editor::document_model::doc_json.
+    // POST it to the BARE /knowledge/documents (workspace_id in the BODY), GET it back, and assert node
+    // count + types survive the round-trip through real PostgreSQL. The native model is
+    // handshake_native::rich_editor::document_model::doc_json.
     let created = be.post_json(
-        &format!("/workspaces/{}/knowledge/documents", be.workspace_id),
+        "/knowledge/documents",
         &serde_json::json!({
+            "workspace_id": be.workspace_id,
             "title": "parity-e2-11",
-            "content": {
+            "content_json": {
                 "type": "doc",
                 "content": [
                     { "type": "heading", "attrs": { "level": 1 }, "content": [ { "type": "text", "text": "H" } ] },
@@ -57,9 +75,8 @@ fn parity_block_document_model() {
             }
         }),
     );
-    let doc_id = created["id"].as_str().or_else(|| created["doc_id"].as_str())
-        .expect("E2-11: created document returns an id");
-    let loaded = be.get_json(&format!("/workspaces/{}/knowledge/documents/{doc_id}", be.workspace_id));
+    let doc_id = created_doc_id(&created);
+    let loaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
     let node_count = count_nodes(&loaded);
     assert!(node_count >= 4, "E2-11: the reloaded doc must carry >= 4 nodes (got {node_count})");
     println!("E2-11 PASS: block document model round-tripped {node_count} nodes through real PG");
@@ -73,17 +90,18 @@ fn parity_block_document_model() {
 fn parity_wysiwyg_heading_render() {
     let be = require_live_backend();
     let created = be.post_json(
-        &format!("/workspaces/{}/knowledge/documents", be.workspace_id),
+        "/knowledge/documents",
         &serde_json::json!({
+            "workspace_id": be.workspace_id,
             "title": "parity-e2-12",
-            "content": { "type": "doc", "content": (1..=6).map(|l| serde_json::json!({
+            "content_json": { "type": "doc", "content": (1..=6).map(|l| serde_json::json!({
                 "type": "heading", "attrs": { "level": l },
                 "content": [ { "type": "text", "text": format!("H{l}") } ]
             })).collect::<Vec<_>>() }
         }),
     );
-    let doc_id = created["id"].as_str().or_else(|| created["doc_id"].as_str()).expect("doc id");
-    let loaded = be.get_json(&format!("/workspaces/{}/knowledge/documents/{doc_id}", be.workspace_id));
+    let doc_id = created_doc_id(&created);
+    let loaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
     // The native renderer maps heading level -> distinct egui TextStyle size (rich_editor::renderer).
     // Six distinct heading levels persisted means six distinct rendered sizes.
     let levels = heading_levels(&loaded);
@@ -95,16 +113,17 @@ fn parity_wysiwyg_heading_render() {
 // ── E2-13: table — insert 3x3 table, set cell (1,1), read back ────────────────────────────────────
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (PUT /knowledge/documents/{id})"]
+#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (POST/GET /knowledge/documents)"]
 fn parity_table_insert_cell() {
     let be = require_live_backend();
     let cell_marker = "parity-e2-13-cell-1-1";
     let created = be.post_json(
-        &format!("/workspaces/{}/knowledge/documents", be.workspace_id),
-        &serde_json::json!({ "title": "parity-e2-13", "content": table_3x3_doc(cell_marker) }),
+        "/knowledge/documents",
+        &serde_json::json!({ "workspace_id": be.workspace_id, "title": "parity-e2-13",
+            "content_json": table_3x3_doc(cell_marker) }),
     );
-    let doc_id = created["id"].as_str().or_else(|| created["doc_id"].as_str()).expect("doc id");
-    let loaded = be.get_json(&format!("/workspaces/{}/knowledge/documents/{doc_id}", be.workspace_id));
+    let doc_id = created_doc_id(&created);
+    let loaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
     assert!(
         serde_json::to_string(&loaded).unwrap().contains(cell_marker),
         "E2-13: cell (1,1) text '{cell_marker}' must read back from the persisted 3x3 table"
@@ -122,8 +141,9 @@ fn parity_embed_image_resolve() {
     let asset_id = std::env::var("HSK_TEST_ASSET_ID")
         .expect("E2-14 requires_pg: set HSK_TEST_ASSET_ID to a real PG-stored asset id");
     // The native embed (handshake_native::rich_editor::embeds, HsLinkNode HS_images) resolves by GETting
-    // the asset bytes. A 200 with non-empty bytes proves the embed target resolves.
-    let bytes = be.get_bytes(&format!("/workspaces/{}/assets/{asset_id}", be.workspace_id));
+    // the asset BYTES via /assets/{id}/content (the bare /assets/{id} route is metadata JSON; loom.rs:
+    // 221,225). A 200 with non-empty bytes proves the embed target resolves.
+    let bytes = be.get_bytes(&format!("/workspaces/{}/assets/{asset_id}/content", be.workspace_id));
     assert!(!bytes.is_empty(), "E2-14: the embedded asset must resolve to non-empty bytes");
     println!("E2-14 PASS: [[HS_images:{asset_id}]] embed resolved {} bytes from real PG", bytes.len());
     mark_pass("E2-14");
@@ -162,12 +182,17 @@ fn parity_transclusion_read_through() {
         "/workspaces/{}/loom/blocks/{block_id}/transclusion",
         be.workspace_id
     ));
-    let has_content = resolved.get("content").is_some()
-        || resolved.get("rendered_content").is_some()
-        || resolved.get("text").is_some();
+    // The REAL route returns LoomTransclusionResponse { source_document_id, source_doc_version,
+    // content_json, resolved, unresolved_reason } (loom.rs:598-658). `resolved == true` with a
+    // non-null `content_json` proves the read-through resolved the SOURCE rich document (not a copy).
+    let resolved_flag = resolved.get("resolved").and_then(|v| v.as_bool()).unwrap_or(false);
+    let has_content = resolved
+        .get("content_json")
+        .map(|c| !c.is_null())
+        .unwrap_or(false);
     assert!(
-        has_content,
-        "E2-16: the transclusion read-through must return resolved source content (got {resolved})"
+        resolved_flag && has_content,
+        "E2-16: the transclusion read-through must return resolved=true + content_json (got {resolved})"
     );
     // The grep gate (proof_target #4) looks for 'resolved'.
     println!("E2-16 PASS: transclusion read-through resolved source content via the real /transclusion route");
@@ -177,23 +202,26 @@ fn parity_transclusion_read_through() {
 // ── E2-17: slash command — '/' menu 'heading' inserts a node into the persisted doc ──────────────
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (PUT /knowledge/documents/{id})"]
+#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (PUT /knowledge/documents/{id}/save)"]
 fn parity_slash_command_heading() {
     let be = require_live_backend();
     let created = be.post_json(
-        &format!("/workspaces/{}/knowledge/documents", be.workspace_id),
-        &serde_json::json!({ "title": "parity-e2-17", "content": { "type": "doc", "content": [] } }),
+        "/knowledge/documents",
+        &serde_json::json!({ "workspace_id": be.workspace_id, "title": "parity-e2-17",
+            "content_json": { "type": "doc", "content": [] } }),
     );
-    let doc_id = created["id"].as_str().or_else(|| created["doc_id"].as_str()).expect("doc id");
-    // The native slash command (rich_editor::slash_commands) 'heading' inserts a heading node; save it.
+    let doc_id = created_doc_id(&created);
+    let version = created_doc_version(&created);
+    // The native slash command (rich_editor::slash_commands) 'heading' inserts a heading node; save it
+    // through the REAL optimistic-concurrency save route `/save` with { expected_version, content_json }.
     let marker = "parity-e2-17-heading";
     be.put_json(
-        &format!("/workspaces/{}/knowledge/documents/{doc_id}", be.workspace_id),
-        &serde_json::json!({ "content": { "type": "doc", "content": [
+        &format!("/knowledge/documents/{doc_id}/save"),
+        &serde_json::json!({ "expected_version": version, "content_json": { "type": "doc", "content": [
             { "type": "heading", "attrs": { "level": 2 }, "content": [ { "type": "text", "text": marker } ] }
         ] } }),
     );
-    let loaded = be.get_json(&format!("/workspaces/{}/knowledge/documents/{doc_id}", be.workspace_id));
+    let loaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
     assert!(
         serde_json::to_string(&loaded).unwrap().contains(marker),
         "E2-17: the slash-inserted heading must persist"
@@ -205,16 +233,21 @@ fn parity_slash_command_heading() {
 // ── E2-18: properties panel — set key/value, save, reload, verify present ─────────────────────────
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (PUT/GET /knowledge/documents/{id})"]
+#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (POST/GET /knowledge/documents)"]
 fn parity_properties_panel() {
     let be = require_live_backend();
+    // The real backend has NO separate `properties` column on create (CreateDocumentBody is
+    // { workspace_id, title, content_json, ... }, knowledge_documents.rs:476-489). Doc properties
+    // (Obsidian/Notion frontmatter) persist as doc-level `attrs` inside the ProseMirror content_json —
+    // the native properties panel (rich_editor::properties) writes them there. We set the property in
+    // the doc attrs and prove it round-trips through the REAL create/load routes.
     let created = be.post_json(
-        &format!("/workspaces/{}/knowledge/documents", be.workspace_id),
-        &serde_json::json!({ "title": "parity-e2-18", "content": { "type": "doc", "content": [] },
-            "properties": { "parity_key": "parity_value" } }),
+        "/knowledge/documents",
+        &serde_json::json!({ "workspace_id": be.workspace_id, "title": "parity-e2-18",
+            "content_json": { "type": "doc", "attrs": { "parity_key": "parity_value" }, "content": [] } }),
     );
-    let doc_id = created["id"].as_str().or_else(|| created["doc_id"].as_str()).expect("doc id");
-    let loaded = be.get_json(&format!("/workspaces/{}/knowledge/documents/{doc_id}", be.workspace_id));
+    let doc_id = created_doc_id(&created);
+    let loaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
     assert!(
         serde_json::to_string(&loaded).unwrap().contains("parity_value"),
         "E2-18: the doc property must read back after reload"
@@ -226,24 +259,27 @@ fn parity_properties_panel() {
 // ── E2-19: find/replace in a rich doc — find 'foo', replace 'bar', verify persisted ──────────────
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (PUT/GET /knowledge/documents/{id})"]
+#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (PUT /knowledge/documents/{id}/save + GET)"]
 fn parity_rich_find_replace() {
     let be = require_live_backend();
     let created = be.post_json(
-        &format!("/workspaces/{}/knowledge/documents", be.workspace_id),
-        &serde_json::json!({ "title": "parity-e2-19", "content": { "type": "doc", "content": [
-            { "type": "paragraph", "content": [ { "type": "text", "text": "foo here" } ] }
-        ] } }),
+        "/knowledge/documents",
+        &serde_json::json!({ "workspace_id": be.workspace_id, "title": "parity-e2-19",
+            "content_json": { "type": "doc", "content": [
+                { "type": "paragraph", "content": [ { "type": "text", "text": "foo here" } ] }
+            ] } }),
     );
-    let doc_id = created["id"].as_str().or_else(|| created["doc_id"].as_str()).expect("doc id");
-    // The native rich find/replace (rich_editor::find_replace) rewrites the doc text; save the result.
+    let doc_id = created_doc_id(&created);
+    let version = created_doc_version(&created);
+    // The native rich find/replace (rich_editor::find_replace) rewrites the doc text; save the result
+    // through the REAL `/save` route with the optimistic-concurrency { expected_version, content_json }.
     be.put_json(
-        &format!("/workspaces/{}/knowledge/documents/{doc_id}", be.workspace_id),
-        &serde_json::json!({ "content": { "type": "doc", "content": [
+        &format!("/knowledge/documents/{doc_id}/save"),
+        &serde_json::json!({ "expected_version": version, "content_json": { "type": "doc", "content": [
             { "type": "paragraph", "content": [ { "type": "text", "text": "bar here" } ] }
         ] } }),
     );
-    let loaded = be.get_json(&format!("/workspaces/{}/knowledge/documents/{doc_id}", be.workspace_id));
+    let loaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
     let s = serde_json::to_string(&loaded).unwrap();
     assert!(s.contains("bar here") && !s.contains("foo here"), "E2-19: find/replace must persist");
     println!("E2-19 PASS: rich-doc find 'foo' -> replace 'bar' persisted");
@@ -274,41 +310,60 @@ fn parity_daily_note() {
 fn parity_save_to_html() {
     let be = require_live_backend();
     let created = be.post_json(
-        &format!("/workspaces/{}/knowledge/documents", be.workspace_id),
-        &serde_json::json!({ "title": "parity-e2-21", "content": { "type": "doc", "content": [
-            { "type": "paragraph", "content": [ { "type": "text", "text": "hello html" } ] }
-        ] } }),
+        "/knowledge/documents",
+        &serde_json::json!({ "workspace_id": be.workspace_id, "title": "parity-e2-21",
+            "content_json": { "type": "doc", "content": [
+                { "type": "paragraph", "content": [ { "type": "text", "text": "hello html" } ] }
+            ] } }),
     );
-    let doc_id = created["id"].as_str().or_else(|| created["doc_id"].as_str()).expect("doc id");
-    let html = be.get_text(&format!(
-        "/workspaces/{}/knowledge/documents/{doc_id}/projection?format=html",
-        be.workspace_id
-    ));
-    assert!(!html.is_empty(), "E2-21: HTML projection must be non-empty");
-    println!("E2-21 PASS: HTML projection returned {} bytes", html.len());
+    let doc_id = created_doc_id(&created);
+    // The REAL projection route returns JSON { rich_document_id, projection: "<rendered string>" }
+    // (knowledge_documents.rs:1213), not a raw text body. A non-empty `projection` proves the HTML
+    // export rendered.
+    let resp = be.get_json(&format!("/knowledge/documents/{doc_id}/projection?format=html"));
+    let html = resp.get("projection").and_then(|p| p.as_str()).unwrap_or("");
+    assert!(!html.is_empty(), "E2-21: HTML projection must be non-empty (got {resp})");
+    println!("E2-21 PASS: HTML projection returned {} chars", html.len());
     mark_pass("E2-21");
 }
 
 // ── E2-22: draft recovery — write a draft, drop in-memory state, reload, content restored ─────────
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (PG-backed draft store)"]
+#[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (PUT/GET /knowledge/documents/{id}/draft)"]
 fn parity_draft_recovery() {
     let be = require_live_backend();
-    // The native DraftStore persists a draft (disk or PG). The test writes a draft, drops the store
-    // (freeing in-memory state), creates a NEW store instance, and load_draft must restore the content.
-    // The backend persistence is a real PG-backed draft store; with no PG this is requires_pg.
-    let draft_content = "parity-e2-22-draft-content";
-    let doc_id = format!("parity-e2-22-{}", be.workspace_id);
+    // The native DraftStore persists unsaved editor content to the REAL PG-backed draft route
+    // `/knowledge/documents/{id}/draft` (knowledge_documents.rs:73-78,809). The draft upsert validates
+    // { base_doc_version, base_content_sha256, content_json } against the live document, then a fresh GET
+    // (simulating crash + reopen) restores it. We first create a real document to anchor the draft.
+    let created = be.post_json(
+        "/knowledge/documents",
+        &serde_json::json!({ "workspace_id": be.workspace_id, "title": "parity-e2-22",
+            "content_json": { "type": "doc", "content": [
+                { "type": "paragraph", "content": [ { "type": "text", "text": "saved" } ] }
+            ] } }),
+    );
+    let doc_id = created_doc_id(&created);
+    let base_version = created_doc_version(&created);
+    let base_sha = created_content_sha256(&created);
+    let draft_marker = "parity-e2-22-draft-content";
+    // Write the draft (unsaved edit) — content differs from the saved doc so it is retained as a draft.
     be.put_json(
-        &format!("/workspaces/{}/knowledge/drafts/{doc_id}", be.workspace_id),
-        &serde_json::json!({ "content": draft_content }),
+        &format!("/knowledge/documents/{doc_id}/draft"),
+        &serde_json::json!({
+            "base_doc_version": base_version,
+            "base_content_sha256": base_sha,
+            "content_json": { "type": "doc", "content": [
+                { "type": "paragraph", "content": [ { "type": "text", "text": draft_marker } ] }
+            ] }
+        }),
     );
     // Simulate the crash: nothing in-process is retained; a fresh GET must restore the draft from PG.
-    let restored = be.get_json(&format!("/workspaces/{}/knowledge/drafts/{doc_id}", be.workspace_id));
+    let restored = be.get_json(&format!("/knowledge/documents/{doc_id}/draft"));
     assert!(
-        serde_json::to_string(&restored).unwrap().contains(draft_content),
-        "E2-22: the draft content must be restored after a simulated crash"
+        serde_json::to_string(&restored).unwrap().contains(draft_marker),
+        "E2-22: the draft content must be restored after a simulated crash (got {restored})"
     );
     println!("E2-22 PASS: draft recovered after a simulated crash (PG-backed draft store)");
     mark_pass("E2-22");
@@ -316,7 +371,55 @@ fn parity_draft_recovery() {
 
 // ── helpers (pure, no backend) ───────────────────────────────────────────────────────────────────
 
-fn count_nodes(doc: &serde_json::Value) -> usize {
+/// Extract the created document id from the REAL create response. `create_document` wraps the row
+/// under `"document"` whose id field is `rich_document_id` (knowledge_documents.rs:729-738); we also
+/// tolerate a flat `rich_document_id`/`id`/`doc_id` for forward-compat.
+fn created_doc_id(created: &serde_json::Value) -> String {
+    created
+        .get("document")
+        .and_then(|d| d.get("rich_document_id"))
+        .and_then(|v| v.as_str())
+        .or_else(|| created.get("rich_document_id").and_then(|v| v.as_str()))
+        .or_else(|| created.get("id").and_then(|v| v.as_str()))
+        .or_else(|| created.get("doc_id").and_then(|v| v.as_str()))
+        .expect("created document returns a rich_document_id")
+        .to_owned()
+}
+
+/// The current `doc_version` of the created document (for the optimistic-concurrency `/save` route).
+fn created_doc_version(created: &serde_json::Value) -> i64 {
+    created
+        .get("document")
+        .and_then(|d| d.get("doc_version"))
+        .and_then(|v| v.as_i64())
+        .or_else(|| created.get("doc_version").and_then(|v| v.as_i64()))
+        .expect("created document returns a doc_version")
+}
+
+/// The `content_sha256` of the created document (for the draft route's base-hash check).
+fn created_content_sha256(created: &serde_json::Value) -> String {
+    created
+        .get("document")
+        .and_then(|d| d.get("content_sha256"))
+        .and_then(|v| v.as_str())
+        .or_else(|| created.get("content_sha256").and_then(|v| v.as_str()))
+        .expect("created document returns a content_sha256")
+        .to_owned()
+}
+
+/// The REAL load route returns `{ document: { content_json: <doc> }, tree, code_nodes }`
+/// (knowledge_documents.rs:766-770). Resolve the ProseMirror doc root from that shape, tolerating a
+/// flat `content_json`/`content` for forward-compat.
+fn doc_root(loaded: &serde_json::Value) -> serde_json::Value {
+    loaded
+        .get("document")
+        .and_then(|d| d.get("content_json"))
+        .cloned()
+        .or_else(|| loaded.get("content_json").cloned())
+        .unwrap_or_else(|| loaded.clone())
+}
+
+fn count_nodes(loaded: &serde_json::Value) -> usize {
     fn walk(v: &serde_json::Value, acc: &mut usize) {
         if let Some(arr) = v.get("content").and_then(|c| c.as_array()) {
             for child in arr {
@@ -326,13 +429,11 @@ fn count_nodes(doc: &serde_json::Value) -> usize {
         }
     }
     let mut acc = 0;
-    // The doc may be nested under "content" or "document"/"node".
-    let root = doc.get("content").cloned().unwrap_or_else(|| doc.clone());
-    walk(&root, &mut acc);
+    walk(&doc_root(loaded), &mut acc);
     acc
 }
 
-fn heading_levels(doc: &serde_json::Value) -> Vec<u64> {
+fn heading_levels(loaded: &serde_json::Value) -> Vec<u64> {
     let mut levels = std::collections::BTreeSet::new();
     fn walk(v: &serde_json::Value, levels: &mut std::collections::BTreeSet<u64>) {
         if v.get("type").and_then(|t| t.as_str()) == Some("heading") {
@@ -346,7 +447,7 @@ fn heading_levels(doc: &serde_json::Value) -> Vec<u64> {
             }
         }
     }
-    walk(doc, &mut levels);
+    walk(&doc_root(loaded), &mut levels);
     levels.into_iter().collect()
 }
 
