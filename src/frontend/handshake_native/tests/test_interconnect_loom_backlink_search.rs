@@ -63,6 +63,39 @@ fn count_hs_links(content_json: &serde_json::Value) -> usize {
     n
 }
 
+/// The created document id from a `POST /knowledge/documents` response: `document.rich_document_id`
+/// (verified against knowledge_documents.rs:729-737), with verified fallbacks. Mirrors test_parity_rich_editor.
+fn created_doc_id(created: &serde_json::Value) -> String {
+    created
+        .get("document")
+        .and_then(|d| d.get("rich_document_id"))
+        .and_then(|v| v.as_str())
+        .or_else(|| created.get("rich_document_id").and_then(|v| v.as_str()))
+        .or_else(|| created.get("id").and_then(|v| v.as_str()))
+        .expect("requires_pg: created document returns a rich_document_id (document.rich_document_id)")
+        .to_owned()
+}
+
+/// The current `doc_version` for the optimistic-concurrency `/save` route. Defaults to 1 when absent.
+fn created_doc_version(created: &serde_json::Value) -> i64 {
+    created
+        .get("document")
+        .and_then(|d| d.get("doc_version"))
+        .and_then(|v| v.as_i64())
+        .or_else(|| created.get("doc_version").and_then(|v| v.as_i64()))
+        .unwrap_or(1)
+}
+
+/// The note's source Loom block id from a create response (the backlink source); falls back to the doc id.
+fn created_note_block_id(created: &serde_json::Value, doc_id: &str) -> String {
+    created
+        .get("document")
+        .and_then(|d| d.get("block_id").or_else(|| d.get("loom_block_id")))
+        .and_then(|v| v.as_str())
+        .unwrap_or(doc_id)
+        .to_owned()
+}
+
 /// Create a Loom block of the given content_type; return its block id. (requires_pg helper.)
 fn create_block(be: &LiveBackend, content_type: &str, title: &str) -> String {
     let ws = &be.workspace_id;
@@ -101,16 +134,16 @@ fn interconnect_ic10_backlink_cross_surface() {
          (save-calls-backlink contract); if this fails the native save dropped the link — typed blocker"
     );
     let created = be.post_json(
-        &format!("/workspaces/{ws}/knowledge/documents"),
-        &serde_json::json!({ "title": "IC-10 note A", "content_json": content_json }),
+        "/knowledge/documents",
+        &serde_json::json!({ "workspace_id": ws, "title": "IC-10 note A", "content_json": content_json }),
     );
-    let doc_id = created["document_id"].as_str().or_else(|| created["id"].as_str())
-        .expect("requires_pg: doc A id").to_owned();
-    let loom_a = created["block_id"].as_str().unwrap_or(&doc_id).to_owned();
-    // Re-save (PUT) carrying the same atoms — the explicit save that triggers the indexer.
+    let doc_id = created_doc_id(&created);
+    let version = created_doc_version(&created);
+    let loom_a = created_note_block_id(&created, &doc_id);
+    // Re-save carrying the same atoms via the REAL /save route — the explicit save that triggers the indexer.
     let _ = be.put_json(
-        &format!("/workspaces/{ws}/knowledge/documents/{doc_id}"),
-        &serde_json::json!({ "content_json": to_content_json_value(&doc_a) }),
+        &format!("/knowledge/documents/{doc_id}/save"),
+        &serde_json::json!({ "expected_version": version, "content_json": to_content_json_value(&doc_a) }),
     );
 
     // GET /loom/blocks/{B}/backlinks must contain loom_A after the save.
@@ -123,7 +156,7 @@ fn interconnect_ic10_backlink_cross_surface() {
     }).unwrap_or(false);
     assert!(found, "IC-10: GET /loom/blocks/{loom_b}/backlinks contains loom_A after note A is saved");
 
-    let _ = be.delete(&format!("/workspaces/{ws}/knowledge/documents/{doc_id}"));
+    let _ = be.delete(&format!("/knowledge/documents/{doc_id}"));
     let _ = be.delete(&format!("/workspaces/{ws}/loom/blocks/{loom_b}"));
     mark_status("IC-10", "PASS");
     println!("IC-10 LIVE-PG PASS: backlinks of loom_B contain loom_A after save (save-calls-backlink CTRL-2 ok)");
@@ -150,7 +183,7 @@ fn interconnect_ic11_search_v2_across_surfaces() {
     // with `search_index_not_ready`, NOT a trivial pass.
     let mut hits = Vec::new();
     let mut found_both = false;
-    for _ in 0..5 {
+    for attempt in 0..5 {
         let resp = be.post_json(
             &format!("/workspaces/{ws}/loom/search-v2"),
             &serde_json::json!({ "query": PROBE, "graph_boost": 1.0, "limit": 25 }),
@@ -162,7 +195,9 @@ fn interconnect_ic11_search_v2_across_surfaces() {
             found_both = true;
             break;
         }
-        std::thread::sleep(Duration::from_millis(200));
+        if attempt < 4 {
+            std::thread::sleep(Duration::from_millis(200));
+        }
     }
     assert!(found_both, "IC-11 / CTRL-6: search_index_not_ready — both blocks not indexed within 1s budget");
 
@@ -220,19 +255,25 @@ fn ic12_graph_renders_two_nodes_without_panic() {
 }
 
 #[test]
-#[ignore = "requires_pg: live PostgreSQL + seeded workspace with a loom_A->loom_B edge. GET /loom/graph \
-            depth=2 returns both nodes + the connecting edge. Never mocks PG."]
+#[ignore = "requires_pg: live PostgreSQL + seeded workspace with a loom_A->loom_B edge. GET \
+            /workspaces/{ws}/loom/graph/local?start_block_id=loom_A&max_depth=2 returns both nodes + the \
+            connecting edge. Never mocks PG."]
 fn interconnect_ic12_graph_cross_surface_edges() {
     let be = require_live_backend();
     let ws = be.workspace_id.clone();
     let loom_a = std::env::var("HSK_TEST_LOOM_A").expect("requires_pg: seed HSK_TEST_LOOM_A (a block linked to B)");
-    let graph = be.get_json(&format!("/workspaces/{ws}/loom/graph?block_id={loom_a}&depth=2"));
+    // The REAL block-neighborhood graph route is /loom/graph/local (loom.rs:264 local_loom_graph) with query
+    // params start_block_id + max_depth, returning storage::LoomGraph { nodes, edges, .. } (loom.rs:996).
+    // There is NO bare /loom/graph route (only /graph/traverse, /graph/local, /graph/global).
+    let graph = be.get_json(&format!(
+        "/workspaces/{ws}/loom/graph/local?start_block_id={loom_a}&max_depth=2"
+    ));
     let nodes = graph["nodes"].as_array().cloned().unwrap_or_default();
     let edges = graph["edges"].as_array().cloned().unwrap_or_default();
     assert!(nodes.len() >= 2, "IC-12: the graph returns >= 2 nodes (loom_A + loom_B)");
     assert!(!edges.is_empty(), "IC-12: the graph returns a connecting edge between the cross-surface nodes");
     mark_status("IC-12", "PASS");
-    println!("IC-12 LIVE-PG PASS: graph depth=2 from loom_A has {} nodes + {} edges", nodes.len(), edges.len());
+    println!("IC-12 LIVE-PG PASS: graph/local max_depth=2 from loom_A has {} nodes + {} edges", nodes.len(), edges.len());
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -263,15 +304,20 @@ fn interconnect_ic13_ai_link_suggestion() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// IC-14 — Quick-switcher surfaces items from both editors (requires_pg): GET /loom/quick-switcher?q=PROBE
-// returns entries from BOTH the note (knowledge_rich_document) and the code block (code_file); each result
-// has block_id, title, content_type, updated_at.
+// IC-14 — Quick-switcher surfaces items from both editors (requires_pg). ROUTE-SHAPE CORRECTION
+// (verified 2026-06-26): the quick-switcher q-driven cross-surface query is served by the workspace search
+// route GET /workspaces/{ws}/loom/search?q=... (loom.rs:277 search_loom_blocks; q-param LoomSearchQueryParams
+// at :3346); the /loom/quick-switcher route is RECENTS-ONLY (/quick-switcher/recents, limit param, NO q —
+// loom.rs:298). There is NO q-based quick-switcher route, so this scenario binds the REAL search route that
+// backs the quick-switcher's type-to-find. Each hit is a LoomBlockSearchResult { block: LoomBlock, score }
+// (storage/loom.rs:572), so block_id/title/content_type/updated_at live under r["block"]. Both surfaces
+// (note=knowledge_rich_document, code=code_file) must appear.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-#[ignore = "requires_pg: live PostgreSQL + seeded workspace. GET /loom/quick-switcher?q=XSEARCH_PROBE \
-            returns BOTH a note + a code block; each result carries block_id/title/content_type/updated_at. \
-            Never mocks PG."]
+#[ignore = "requires_pg: live PostgreSQL + seeded workspace. GET /workspaces/{ws}/loom/search?q=XSEARCH_PROBE \
+            (the q-route backing the quick-switcher; /quick-switcher is recents-only, no q) returns BOTH a \
+            note + a code block; each hit's block carries block_id/title/content_type/updated_at. Never mocks PG."]
 fn interconnect_ic14_quick_switcher_both_editors() {
     let be = require_live_backend();
     let ws = be.workspace_id.clone();
@@ -281,33 +327,39 @@ fn interconnect_ic14_quick_switcher_both_editors() {
 
     let mut results = Vec::new();
     let mut found_both = false;
-    for _ in 0..5 {
-        let resp = be.get_json(&format!("/workspaces/{ws}/loom/quick-switcher?q={PROBE}"));
+    for attempt in 0..5 {
+        // The REAL q-route backing the quick-switcher: GET /loom/search?q= -> Vec<LoomBlockSearchResult>.
+        let resp = be.get_json(&format!("/workspaces/{ws}/loom/search?q={PROBE}"));
         results = resp["results"].as_array().cloned()
             .or_else(|| resp.as_array().cloned()).unwrap_or_default();
-        let has_note = results.iter().any(|r| r["block_id"].as_str() == Some(note_block.as_str()));
-        let has_code = results.iter().any(|r| r["block_id"].as_str() == Some(code_block.as_str()));
+        let block_id = |r: &serde_json::Value| -> Option<String> {
+            r["block"]["block_id"].as_str().or_else(|| r["block_id"].as_str()).map(str::to_owned)
+        };
+        let has_note = results.iter().any(|r| block_id(r).as_deref() == Some(note_block.as_str()));
+        let has_code = results.iter().any(|r| block_id(r).as_deref() == Some(code_block.as_str()));
         if has_note && has_code {
             found_both = true;
             break;
         }
-        std::thread::sleep(Duration::from_millis(200));
+        if attempt < 4 {
+            std::thread::sleep(Duration::from_millis(200));
+        }
     }
-    assert!(found_both, "IC-14: quick-switcher returns BOTH the note + code block for {PROBE}");
-    // Each result carries the required fields.
+    assert!(found_both, "IC-14: the quick-switcher q-route returns BOTH the note + code block for {PROBE}");
+    // Each matching result's block carries the required fields.
     for r in &results {
-        if r["block_id"].as_str() == Some(note_block.as_str())
-            || r["block_id"].as_str() == Some(code_block.as_str())
-        {
-            assert!(r.get("title").is_some(), "IC-14: result has a title");
-            assert!(r.get("content_type").is_some(), "IC-14: result has a content_type");
-            assert!(r.get("updated_at").is_some(), "IC-14: result has updated_at");
+        let block = r.get("block").unwrap_or(r);
+        let bid = block["block_id"].as_str();
+        if bid == Some(note_block.as_str()) || bid == Some(code_block.as_str()) {
+            assert!(block.get("title").is_some(), "IC-14: result block has a title");
+            assert!(block.get("content_type").is_some(), "IC-14: result block has a content_type");
+            assert!(block.get("updated_at").is_some(), "IC-14: result block has updated_at");
         }
     }
     let _ = be.delete(&format!("/workspaces/{ws}/loom/blocks/{note_block}"));
     let _ = be.delete(&format!("/workspaces/{ws}/loom/blocks/{code_block}"));
     mark_status("IC-14", "PASS");
-    println!("IC-14 LIVE-PG PASS: quick-switcher returned BOTH the note + code block with full fields");
+    println!("IC-14 LIVE-PG PASS: the quick-switcher q-route returned BOTH the note + code block with full fields");
 }
 
 // ── Hygiene guard (runs in the default suite). ────────────────────────────────────────────────────────

@@ -55,6 +55,45 @@ fn doc_with_ckc_embed(ref_kind: &str, ref_value: &str, label: &str) -> BlockNode
     BlockNode::doc(vec![para])
 }
 
+/// The created document id from a `POST /knowledge/documents` response. The real handler returns
+/// `{ "document": created, ... }` where the id lives at `document.rich_document_id`
+/// (verified against src/backend/handshake_core/src/api/knowledge_documents.rs:729-737); this mirrors the
+/// proven `created_doc_id` helper in test_parity_rich_editor.rs. Verified fallbacks only.
+fn created_doc_id(created: &serde_json::Value) -> String {
+    created
+        .get("document")
+        .and_then(|d| d.get("rich_document_id"))
+        .and_then(|v| v.as_str())
+        .or_else(|| created.get("rich_document_id").and_then(|v| v.as_str()))
+        .or_else(|| created.get("id").and_then(|v| v.as_str()))
+        .expect("requires_pg: created document returns a rich_document_id (document.rich_document_id)")
+        .to_owned()
+}
+
+/// The current `doc_version` of a `POST /knowledge/documents` response, for the optimistic-concurrency
+/// `/save` route (`{ expected_version, content_json }`). Defaults to 1 when absent.
+fn created_doc_version(created: &serde_json::Value) -> i64 {
+    created
+        .get("document")
+        .and_then(|d| d.get("doc_version"))
+        .and_then(|v| v.as_i64())
+        .or_else(|| created.get("doc_version").and_then(|v| v.as_i64()))
+        .unwrap_or(1)
+}
+
+/// Extract the `content_json` doc value from a `GET /knowledge/documents/{id}` load response. The real
+/// handler returns `{ "document": document, "tree": ..., "code_nodes": ... }` where the persisted blob is
+/// `document.content_json` (verified against knowledge_documents.rs:766-770). Falls back to a top-level
+/// `content_json` (the create-body echo) when the load wrapper is absent.
+fn loaded_content_json(loaded: &serde_json::Value) -> serde_json::Value {
+    loaded
+        .get("document")
+        .and_then(|d| d.get("content_json"))
+        .or_else(|| loaded.get("content_json"))
+        .cloned()
+        .unwrap_or_else(|| loaded.clone())
+}
+
 /// Find the first hsLink atom's `(refKind, refValue)` in a content_json doc value.
 fn first_hs_link(content_json: &serde_json::Value) -> Option<(String, String)> {
     fn walk(v: &serde_json::Value) -> Option<(String, String)> {
@@ -205,76 +244,101 @@ fn ic01_ic02_ic04_ckc_embed_atom_shape_round_trips() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// IC-01..IC-04 — BACKEND-PERSISTENCE half: #[ignore] + requires_pg. The routes EXIST; the durable
-// save/reload/placement/backlink round-trips need a LIVE managed PostgreSQL. NEVER mocked, NEVER faked.
+// IC-01..IC-04 — BACKEND-PERSISTENCE half: #[ignore] + requires_pg. The routes EXIST (verified against the
+// real handshake_core route table, 2026-06-26); the durable save/reload/placement/backlink round-trips need
+// a LIVE managed PostgreSQL. NEVER mocked, NEVER faked.
+// VERIFIED REAL ROUTES (the route-shape drift the review flagged is corrected here):
+//   - asset-create = POST /workspaces/{ws}/loom/import (loom.rs:217 import_loom_asset -> create_asset);
+//     there is NO bare POST /workspaces/{ws}/assets route (only GET /assets/{id}[/content|/thumbnail|/tiers]).
+//   - knowledge docs are merged BARE (no /workspaces prefix): POST /knowledge/documents (workspace_id in
+//     body), GET /knowledge/documents/{id}, PUT /knowledge/documents/{id}/save ({expected_version,content_json}).
+//   - the create response wraps the doc: { "document": { rich_document_id, doc_version, .. }, .. }.
 // Run with: cargo test -p handshake-native --test test_interconnect_ckc_to_note -- --ignored
 //   (set HSK_TEST_BASE + HSK_TEST_WORKSPACE_ID; the operator seeds the workspace).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
 #[ignore = "requires_pg: live Handshake-managed PostgreSQL + seeded workspace (HSK_TEST_WORKSPACE_ID). \
-            Drag CKC image into note: POST /assets, PUT /knowledge/documents, reload returns the hsLink \
-            node with the asset id; GET /assets/{id} == 200. Never mocks PG."]
+            Drag CKC image into note: POST /workspaces/{ws}/loom/import (the managed asset-create path), \
+            POST /knowledge/documents, PUT /knowledge/documents/{doc_id}/save, reload returns the hsLink \
+            node with the asset id; GET /workspaces/{ws}/assets/{id} == 200. Never mocks PG."]
 fn interconnect_ic01_ckc_image_into_note() {
     let be = require_live_backend();
     let ws = be.workspace_id.clone();
-    // (1) create an asset row (POST /workspaces/{id}/assets) — the operator-seeded backend accepts it.
+    // (1) create an asset row via the REAL managed asset-create route POST /workspaces/{ws}/loom/import
+    //     (verified: loom.rs:217 import_loom_asset -> storage.create_asset; there is NO bare POST /assets
+    //     route). The import returns { block_id, asset_id, content_hash } (LoomImportResult, loom.rs:1871).
     let asset = be.post_json(
-        &format!("/workspaces/{ws}/assets"),
-        &serde_json::json!({ "file_name": "sunset.png", "content_type": "image/png" }),
+        &format!("/workspaces/{ws}/loom/import"),
+        &serde_json::json!({
+            "bytes_b64": "aW1hZ2UtYnl0ZXM=", // "image-bytes"
+            "original_filename": "sunset.png",
+            "mime": "image/png"
+        }),
     );
-    let asset_id = asset["asset_id"].as_str().or_else(|| asset["id"].as_str())
-        .expect("requires_pg: the assets route returns an asset id").to_owned();
+    let asset_id = asset["asset_id"].as_str()
+        .expect("requires_pg: POST /loom/import returns an asset_id (LoomImportResult.asset_id)").to_owned();
     // (2) create a note carrying the CKC image embed hsLink (refKind=HS_images, refValue=asset_id).
     let doc = doc_with_ckc_embed("HS_images", &asset_id, "sunset.png");
     let content_json = to_content_json_value(&doc);
     let created = be.post_json(
-        &format!("/workspaces/{ws}/knowledge/documents"),
-        &serde_json::json!({ "title": "IC-01 note", "content_json": content_json }),
+        "/knowledge/documents",
+        &serde_json::json!({ "workspace_id": ws, "title": "IC-01 note", "content_json": content_json }),
     );
-    let doc_id = created["document_id"].as_str().or_else(|| created["id"].as_str())
-        .expect("requires_pg: created document id").to_owned();
-    // (3) save (PUT) the note with the embed; (4) reload + assert the hsLink node with the asset id.
+    let doc_id = created_doc_id(&created);
+    let version = created_doc_version(&created);
+    // (3) save via the REAL optimistic-concurrency route PUT /knowledge/documents/{doc_id}/save
+    //     ({ expected_version, content_json }); (4) reload + assert the hsLink node with the asset id.
     let _ = be.put_json(
-        &format!("/workspaces/{ws}/knowledge/documents/{doc_id}"),
-        &serde_json::json!({ "content_json": to_content_json_value(&doc) }),
+        &format!("/knowledge/documents/{doc_id}/save"),
+        &serde_json::json!({ "expected_version": version, "content_json": to_content_json_value(&doc) }),
     );
-    let reloaded = be.get_json(&format!("/workspaces/{ws}/knowledge/documents/{doc_id}"));
-    let (rk, rv) = first_hs_link(&reloaded["content_json"]).expect("reloaded doc carries an hsLink");
+    let reloaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
+    let (rk, rv) = first_hs_link(&loaded_content_json(&reloaded)).expect("reloaded doc carries an hsLink");
     assert_eq!(rk, "HS_images", "IC-01: reloaded embed is the HS_images hsLink");
     assert_eq!(rv, asset_id, "IC-01: reloaded embed points at the asset id");
-    // The embedded asset renders: GET /assets/{asset_id} == 200.
+    // The embedded asset renders: GET /workspaces/{ws}/assets/{asset_id} == 200.
     assert_eq!(be.get_status(&format!("/workspaces/{ws}/assets/{asset_id}")), 200);
     // Idempotent cleanup (DropGuard-style best-effort).
-    let _ = be.delete(&format!("/workspaces/{ws}/knowledge/documents/{doc_id}"));
-    let _ = be.delete(&format!("/workspaces/{ws}/assets/{asset_id}"));
+    let _ = be.delete(&format!("/knowledge/documents/{doc_id}"));
     mark_status("IC-01", "PASS");
     println!("IC-01 LIVE-PG PASS: CKC image embedded + reloaded with asset {asset_id}; GET /assets == 200");
 }
 
 #[test]
 #[ignore = "requires_pg: live PostgreSQL + seeded workspace. Drag CKC video into note (content_type \
-            video/mp4): saved doc carries an hsLink node refKind=video. Never mocks PG."]
+            video/mp4) via POST /workspaces/{ws}/loom/import, POST /knowledge/documents, PUT \
+            /knowledge/documents/{doc_id}/save: saved doc carries an hsLink node refKind=video. Never mocks PG."]
 fn interconnect_ic02_ckc_video_into_note() {
     let be = require_live_backend();
     let ws = be.workspace_id.clone();
+    // Managed asset-create via the REAL POST /workspaces/{ws}/loom/import (no bare POST /assets route).
     let asset = be.post_json(
-        &format!("/workspaces/{ws}/assets"),
-        &serde_json::json!({ "file_name": "clip.mp4", "content_type": "video/mp4" }),
+        &format!("/workspaces/{ws}/loom/import"),
+        &serde_json::json!({
+            "bytes_b64": "dmlkZW8tYnl0ZXM=", // "video-bytes"
+            "original_filename": "clip.mp4",
+            "mime": "video/mp4"
+        }),
     );
-    let asset_id = asset["asset_id"].as_str().or_else(|| asset["id"].as_str())
-        .expect("requires_pg: asset id").to_owned();
+    let asset_id = asset["asset_id"].as_str()
+        .expect("requires_pg: POST /loom/import returns an asset_id").to_owned();
     let doc = doc_with_ckc_embed("video", &asset_id, "clip.mp4");
     let created = be.post_json(
-        &format!("/workspaces/{ws}/knowledge/documents"),
-        &serde_json::json!({ "title": "IC-02 note", "content_json": to_content_json_value(&doc) }),
+        "/knowledge/documents",
+        &serde_json::json!({ "workspace_id": ws, "title": "IC-02 note",
+            "content_json": to_content_json_value(&doc) }),
     );
-    let doc_id = created["document_id"].as_str().or_else(|| created["id"].as_str())
-        .expect("requires_pg: doc id").to_owned();
-    let reloaded = be.get_json(&format!("/workspaces/{ws}/knowledge/documents/{doc_id}"));
-    let (rk, _rv) = first_hs_link(&reloaded["content_json"]).expect("reloaded doc carries an hsLink");
+    let doc_id = created_doc_id(&created);
+    let version = created_doc_version(&created);
+    let _ = be.put_json(
+        &format!("/knowledge/documents/{doc_id}/save"),
+        &serde_json::json!({ "expected_version": version, "content_json": to_content_json_value(&doc) }),
+    );
+    let reloaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
+    let (rk, _rv) = first_hs_link(&loaded_content_json(&reloaded)).expect("reloaded doc carries an hsLink");
     assert_eq!(rk, "video", "IC-02: reloaded embed is the video hsLink");
-    let _ = be.delete(&format!("/workspaces/{ws}/knowledge/documents/{doc_id}"));
+    let _ = be.delete(&format!("/knowledge/documents/{doc_id}"));
     mark_status("IC-02", "PASS");
     println!("IC-02 LIVE-PG PASS: CKC video embedded as an hsLink(video) and reloaded");
 }
@@ -338,12 +402,25 @@ fn interconnect_ic04_ckc_character_wikilink_backlink() {
     // The note carries a character ref hsLink (ref_value = the character block id); save it.
     let doc = doc_with_ckc_embed("character", &character_block_id, "Aria");
     let created = be.post_json(
-        &format!("/workspaces/{ws}/knowledge/documents"),
-        &serde_json::json!({ "title": "IC-04 note", "content_json": to_content_json_value(&doc) }),
+        "/knowledge/documents",
+        &serde_json::json!({ "workspace_id": ws, "title": "IC-04 note",
+            "content_json": to_content_json_value(&doc) }),
     );
-    let doc_id = created["document_id"].as_str().or_else(|| created["id"].as_str())
-        .expect("requires_pg: doc id").to_owned();
-    let note_block_id = created["block_id"].as_str().unwrap_or(&doc_id).to_owned();
+    let doc_id = created_doc_id(&created);
+    let version = created_doc_version(&created);
+    // The note's source Loom block id (the backlink source). The create response wraps the doc under
+    // `document`; the loom block id is the rich_document_id-keyed block (fall back to the doc id).
+    let note_block_id = created
+        .get("document")
+        .and_then(|d| d.get("block_id").or_else(|| d.get("loom_block_id")))
+        .and_then(|v| v.as_str())
+        .unwrap_or(&doc_id)
+        .to_owned();
+    // Explicitly save via the REAL /save route — the save is what registers the backlink server-side.
+    let _ = be.put_json(
+        &format!("/knowledge/documents/{doc_id}/save"),
+        &serde_json::json!({ "expected_version": version, "content_json": to_content_json_value(&doc) }),
+    );
     // The backlink the save registers: GET backlinks of the character block contains the note's block id.
     let backlinks = be.get_json(&format!("/workspaces/{ws}/loom/blocks/{character_block_id}/backlinks"));
     let found = backlinks.as_array().map(|a| {
@@ -353,7 +430,7 @@ fn interconnect_ic04_ckc_character_wikilink_backlink() {
         })
     }).unwrap_or(false);
     assert!(found, "IC-04: the note's block id appears as a backlink of the character block");
-    let _ = be.delete(&format!("/workspaces/{ws}/knowledge/documents/{doc_id}"));
+    let _ = be.delete(&format!("/knowledge/documents/{doc_id}"));
     let _ = be.delete(&format!("/workspaces/{ws}/loom/blocks/{character_block_id}"));
     mark_status("IC-04", "PARTIAL");
     println!(

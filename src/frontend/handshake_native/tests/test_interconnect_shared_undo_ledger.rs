@@ -10,8 +10,11 @@
 //!
 //! IC-17 (event-ledger) binds the Flight Recorder backend and needs a LIVE managed PostgreSQL, so it is
 //! `#[ignore]` + `requires_pg`. CTRL-7 VERIFY-OR-BLOCKER (read-only, 2026-06-26): the `GET /events` ledger
-//! query endpoint EXISTS (`src/backend/handshake_core/src/api/flight_recorder.rs` routes `/events` +
-//! `/flight_recorder` -> `list_events`), so IC-17 is requires_pg, NOT BLOCKED.
+//! query endpoint EXISTS (`src/backend/handshake_core/src/api/flight_recorder.rs:74` routes BARE `/events` +
+//! `/flight_recorder` -> `list_events`), so IC-17 is requires_pg, NOT BLOCKED. ROUTE SHAPE (corrected): the
+//! route is BARE `/events` (NO `/workspaces` prefix), filtered by the `wsid` QUERY param, and returns a bare
+//! `Vec<FlightEvent>` (no `events` wrapper). Knowledge-doc saves use the BARE `/knowledge/documents/{id}/save`
+//! route ({expected_version,content_json}); the create response wraps the doc under `document.rich_document_id`.
 //!
 //! Artifact hygiene (CX-212E): no artifact under `src/`.
 
@@ -238,9 +241,10 @@ fn interconnect_ic18_undo_scope_policy() {
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-#[ignore = "requires_pg: live PostgreSQL + seeded workspace (HSK_TEST_WORKSPACE_ID). GET /events (Flight \
-            Recorder list_events) returns >= 2 KNOWLEDGE_RICH_DOCUMENT_SAVED events for the note in order; \
-            the second carries the wikilink ref. CTRL-7: the endpoint EXISTS (verified). Never mocks PG."]
+#[ignore = "requires_pg: live PostgreSQL + seeded workspace (HSK_TEST_WORKSPACE_ID). GET /events?wsid={ws} \
+            (the BARE Flight Recorder list_events route, no /workspaces prefix) returns >= 2 \
+            KNOWLEDGE_RICH_DOCUMENT_SAVED events for the note in order; the second carries the wikilink ref. \
+            CTRL-7: the endpoint EXISTS (verified). Never mocks PG."]
 fn interconnect_ic17_event_ledger_records() {
     use handshake_native::rich_editor::document_model::doc_json::to_content_json_value;
     use handshake_native::rich_editor::document_model::node::{BlockNode, Child, HsLinkNode, NodeKind, TextLeaf};
@@ -250,46 +254,87 @@ fn interconnect_ic17_event_ledger_records() {
 
     // (1) create a note, (2) save it (insert text), (3) add a wikilink, (4) save again.
     let plain = BlockNode::doc(vec![BlockNode::paragraph("event ledger note")]);
+    // Knowledge docs are merged BARE (no /workspaces prefix): POST /knowledge/documents (workspace_id in
+    // body), PUT /knowledge/documents/{id}/save ({expected_version,content_json}); the create response wraps
+    // the doc as { "document": { rich_document_id, doc_version, .. }, .. } (verified knowledge_documents.rs).
     let created = be.post_json(
-        &format!("/workspaces/{ws}/knowledge/documents"),
-        &serde_json::json!({ "title": "IC-17 note", "content_json": to_content_json_value(&plain) }),
+        "/knowledge/documents",
+        &serde_json::json!({ "workspace_id": ws, "title": "IC-17 note",
+            "content_json": to_content_json_value(&plain) }),
     );
-    let doc_id = created["document_id"].as_str().or_else(|| created["id"].as_str())
-        .expect("requires_pg: doc id").to_owned();
-    let note_block_id = created["block_id"].as_str().unwrap_or(&doc_id).to_owned();
+    let doc_id = created
+        .get("document")
+        .and_then(|d| d.get("rich_document_id"))
+        .and_then(|v| v.as_str())
+        .or_else(|| created.get("rich_document_id").and_then(|v| v.as_str()))
+        .or_else(|| created.get("id").and_then(|v| v.as_str()))
+        .expect("requires_pg: created document returns a rich_document_id (document.rich_document_id)")
+        .to_owned();
+    let mut version = created
+        .get("document")
+        .and_then(|d| d.get("doc_version"))
+        .and_then(|v| v.as_i64())
+        .or_else(|| created.get("doc_version").and_then(|v| v.as_i64()))
+        .unwrap_or(1);
+    let note_block_id = created
+        .get("document")
+        .and_then(|d| d.get("block_id").or_else(|| d.get("loom_block_id")))
+        .and_then(|v| v.as_str())
+        .unwrap_or(&doc_id)
+        .to_owned();
 
-    // Save #1 (plain).
-    let _ = be.put_json(
-        &format!("/workspaces/{ws}/knowledge/documents/{doc_id}"),
-        &serde_json::json!({ "content_json": to_content_json_value(&plain) }),
+    // Save #1 (plain) via the REAL /save route.
+    let save1 = be.put_json(
+        &format!("/knowledge/documents/{doc_id}/save"),
+        &serde_json::json!({ "expected_version": version, "content_json": to_content_json_value(&plain) }),
     );
+    // Advance the optimistic-concurrency version from the save response so save #2 is accepted.
+    version = save1
+        .get("document")
+        .and_then(|d| d.get("doc_version"))
+        .and_then(|v| v.as_i64())
+        .or_else(|| save1.get("doc_version").and_then(|v| v.as_i64()))
+        .unwrap_or(version + 1);
     // Save #2 (with a wikilink ref in the body).
     let mut para = BlockNode::new(NodeKind::Paragraph);
     para.children.push(Child::Text(TextLeaf::new("now links ")));
     para.children.push(Child::HsLink(HsLinkNode::new("file", "linked-block-1", "linked")));
     let with_link = BlockNode::doc(vec![para]);
     let _ = be.put_json(
-        &format!("/workspaces/{ws}/knowledge/documents/{doc_id}"),
-        &serde_json::json!({ "content_json": to_content_json_value(&with_link) }),
+        &format!("/knowledge/documents/{doc_id}/save"),
+        &serde_json::json!({ "expected_version": version, "content_json": to_content_json_value(&with_link) }),
     );
 
-    // GET /events: >= 2 KNOWLEDGE_RICH_DOCUMENT_SAVED events for the note, in order.
-    let events = be.get_json(&format!("/workspaces/{ws}/events?limit=50"));
-    let arr = events["events"].as_array().cloned()
-        .or_else(|| events.as_array().cloned()).unwrap_or_default();
+    // The REAL Flight Recorder query route is BARE GET /events (flight_recorder.rs:74; alias /flight_recorder)
+    // filtered by the `wsid` QUERY param (NOT a /workspaces path prefix), returning a bare Vec<FlightEvent>
+    // (no `events` wrapper) where each event carries event_type/wsids/payload.
+    let events = be.get_json(&format!("/events?wsid={ws}"));
+    let arr = events.as_array().cloned()
+        .or_else(|| events["events"].as_array().cloned()).unwrap_or_default();
     let saved: Vec<&serde_json::Value> = arr.iter().filter(|e| {
         let kind = e["event_type"].as_str().or_else(|| e["kind"].as_str()).unwrap_or("");
         kind.to_uppercase().contains("KNOWLEDGE_RICH_DOCUMENT_SAVED")
             && (e["source_block_id"].as_str() == Some(note_block_id.as_str())
-                || e.to_string().contains(&note_block_id))
+                || e.to_string().contains(&note_block_id)
+                || e.to_string().contains(&doc_id))
     }).collect();
     assert!(
         saved.len() >= 2,
         "IC-17: GET /events returns >= 2 KNOWLEDGE_RICH_DOCUMENT_SAVED events for the note (got {})",
         saved.len()
     );
+    // AC: the SECOND save event's payload carries the wikilink block reference (linked-block-1). The two
+    // saves were issued in order, so the later matching event is the wikilink save. Order the matches by
+    // timestamp when present so the assertion does not depend on the server's return order.
+    let mut ordered = saved.clone();
+    ordered.sort_by_key(|e| e["timestamp"].as_str().unwrap_or("").to_owned());
+    let second = ordered.get(1).expect("IC-17: a second KNOWLEDGE_RICH_DOCUMENT_SAVED event");
+    assert!(
+        second.to_string().contains("linked-block-1"),
+        "IC-17: the second save event's payload carries the wikilink block reference (got {second})"
+    );
 
-    let _ = be.delete(&format!("/workspaces/{ws}/knowledge/documents/{doc_id}"));
+    let _ = be.delete(&format!("/knowledge/documents/{doc_id}"));
     mark_status("IC-17", "PASS");
     println!("IC-17 LIVE-PG PASS: {} KNOWLEDGE_RICH_DOCUMENT_SAVED events recorded for the note", saved.len());
 }

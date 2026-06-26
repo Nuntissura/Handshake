@@ -1,12 +1,13 @@
 [
   {
     "backend_apis_called": [
-      "POST /workspaces/{id}/assets",
-      "PUT /workspaces/{id}/knowledge/documents/{doc_id}",
-      "GET /workspaces/{id}/knowledge/documents/{doc_id}",
+      "POST /workspaces/{id}/loom/import",
+      "POST /knowledge/documents",
+      "PUT /knowledge/documents/{doc_id}/save",
+      "GET /knowledge/documents/{doc_id}",
       "GET /workspaces/{id}/assets/{asset_id}"
     ],
-    "description": "Drag CKC image into note: a CKC media asset is embedded as an hsLink node (refKind=HS_images/media) in a saved note; reload returns the node with the asset id.",
+    "description": "Drag CKC image into note: a CKC media asset (created via the managed POST /workspaces/{id}/loom/import asset-create path) is embedded as an hsLink node (refKind=HS_images) in a saved note; reload returns the node with the asset id. Routes verified 2026-06-26: there is NO bare POST /assets route; knowledge docs are merged bare (no /workspaces prefix) and save uses the /save suffix; create returns document.rich_document_id.",
     "edge": "ckc_media_to_note_embed",
     "proof_fn": "interconnect_ic01_ckc_image_into_note",
     "scenario_id": "IC-01",
@@ -19,11 +20,12 @@
   },
   {
     "backend_apis_called": [
-      "POST /workspaces/{id}/assets",
-      "PUT /workspaces/{id}/knowledge/documents/{doc_id}",
-      "GET /workspaces/{id}/knowledge/documents/{doc_id}"
+      "POST /workspaces/{id}/loom/import",
+      "POST /knowledge/documents",
+      "PUT /knowledge/documents/{doc_id}/save",
+      "GET /knowledge/documents/{doc_id}"
     ],
-    "description": "Drag CKC video into note: same as IC-01 with content_type=video/mp4; saved doc carries an hsLink node refKind=video.",
+    "description": "Drag CKC video into note: same as IC-01 with mime=video/mp4 (asset via POST /workspaces/{id}/loom/import); saved doc carries an hsLink node refKind=video. Routes corrected 2026-06-26 (no bare POST /assets; bare knowledge docs; /save suffix; document.rich_document_id).",
     "edge": "ckc_media_to_note_embed",
     "proof_fn": "interconnect_ic02_ckc_video_into_note",
     "scenario_id": "IC-02",
@@ -55,7 +57,8 @@
   {
     "backend_apis_called": [
       "POST /workspaces/{id}/loom/blocks",
-      "PUT /workspaces/{id}/knowledge/documents/{doc_id}",
+      "POST /knowledge/documents",
+      "PUT /knowledge/documents/{doc_id}/save",
       "GET /workspaces/{id}/loom/blocks/{character_block_id}/backlinks"
     ],
     "blocker": "ckc_character_content_type_absent_in_LoomBlockContentType_enum: backend has no ckc_character variant; scenario uses note fallback and is PARTIAL (typed blocker, no backend edit in this MT)",
@@ -141,10 +144,11 @@
   {
     "backend_apis_called": [
       "POST /workspaces/{id}/loom/blocks",
-      "PUT /workspaces/{id}/knowledge/documents/{doc_id}",
+      "POST /knowledge/documents",
+      "PUT /knowledge/documents/{doc_id}/save",
       "GET /workspaces/{id}/loom/blocks/{loom_B}/backlinks"
     ],
-    "description": "Backlink appears across surfaces: saving note A (with a wikilink to code-block B) registers a Loom backlink edge B<-A in PG. CTRL-2: the save-calls-backlink contract is verified at the call-site level (the native save dispatches the backlink upsert); the full PG round-trip is requires_pg.",
+    "description": "Backlink appears across surfaces: saving note A (with a wikilink to code-block B) registers a Loom backlink edge B<-A in PG. CTRL-2: the save-calls-backlink contract is verified at the call-site level (the native save dispatches the backlink upsert via the real PUT /knowledge/documents/{doc_id}/save route); the full PG round-trip is requires_pg. Save route corrected 2026-06-26 (/save suffix; document.rich_document_id).",
     "edge": "loom_backlink_search",
     "proof_fn": "interconnect_ic10_backlink_cross_surface",
     "scenario_id": "IC-10",
@@ -174,9 +178,9 @@
   },
   {
     "backend_apis_called": [
-      "GET /workspaces/{id}/loom/graph"
+      "GET /workspaces/{id}/loom/graph/local?start_block_id={loom_A}&max_depth=2"
     ],
-    "description": "Graph view shows cross-surface edges: GET /loom/graph depth=2 from loom_A returns both loom_A and loom_B as nodes with a connecting edge; the native force-directed layout places both at distinct positions without panic.",
+    "description": "Graph view shows cross-surface edges: GET /workspaces/{id}/loom/graph/local?start_block_id=loom_A&max_depth=2 returns both loom_A and loom_B as nodes with a connecting edge; the native force-directed layout places both at distinct positions without panic. Route corrected 2026-06-26: there is NO bare /loom/graph; the real block-neighborhood route is /loom/graph/local (start_block_id+max_depth) returning {nodes,edges}.",
     "edge": "loom_backlink_search",
     "proof_fn": "interconnect_ic12_graph_cross_surface_edges",
     "scenario_id": "IC-12",
@@ -207,9 +211,9 @@
   },
   {
     "backend_apis_called": [
-      "GET /workspaces/{id}/loom/quick-switcher"
+      "GET /workspaces/{id}/loom/search?q=XSEARCH_PROBE"
     ],
-    "description": "Quick-switcher surfaces items from both editors: GET /loom/quick-switcher?q=XSEARCH_PROBE returns entries from both the note (knowledge_rich_document) and the code block (code_file); each result has block_id, title, content_type, updated_at.",
+    "description": "Quick-switcher surfaces items from both editors: the quick-switcher's q-driven cross-surface query is served by GET /workspaces/{id}/loom/search?q=XSEARCH_PROBE (route corrected 2026-06-26: /loom/quick-switcher is recents-only with a limit param and NO q; the real q-route backing the quick-switcher is /loom/search). Returns entries from both the note (knowledge_rich_document) and the code block (code_file); each hit's block carries block_id, title, content_type, updated_at.",
     "edge": "loom_backlink_search",
     "proof_fn": "interconnect_ic14_quick_switcher_both_editors",
     "scenario_id": "IC-14",
@@ -223,9 +227,9 @@
   },
   {
     "backend_apis_called": [
-      "GET /workspaces/{id}/knowledge/documents/{doc_id}"
+      "GET /knowledge/documents/{doc_id}"
     ],
-    "description": "Undo crosses rich editor edit: a rich-text edit (insert EDIT_A) is pushed onto the ONE shared undo stack; one undo reverts it so the content no longer contains EDIT_A. SUBSTRATE proof (no PG): the SAME Arc<Mutex<InteractionBus>> undo scope reverts the rich edit. The backend version-revert half is requires_pg.",
+    "description": "Undo crosses rich editor edit: a rich-text edit (insert EDIT_A) is pushed onto the ONE shared undo stack; one undo reverts it so the content no longer contains EDIT_A. SUBSTRATE proof (no PG): the SAME Arc<Mutex<InteractionBus>> undo scope reverts the rich edit. The backend version-revert half is requires_pg (bare GET /knowledge/documents/{doc_id}, no /workspaces prefix).",
     "edge": "shared_undo_ledger",
     "proof_fn": "interconnect_ic15_undo_rich_editor",
     "scenario_id": "IC-15",
@@ -249,10 +253,11 @@
   },
   {
     "backend_apis_called": [
-      "PUT /workspaces/{id}/knowledge/documents/{doc_id}",
-      "GET /workspaces/{id}/events"
+      "POST /knowledge/documents",
+      "PUT /knowledge/documents/{doc_id}/save",
+      "GET /events?wsid={id}"
     ],
-    "description": "Event-ledger records cross-surface actions: a sequence of note saves + a wikilink insert produces >=2 KNOWLEDGE_RICH_DOCUMENT_SAVED events in the ledger in order. CTRL-7: the GET /events (Flight Recorder list_events) endpoint EXISTS (verified 2026-06-26 in src/backend/handshake_core/src/api/flight_recorder.rs route /events + /flight_recorder) -> requires_pg, NOT BLOCKED.",
+    "description": "Event-ledger records cross-surface actions: a sequence of note saves + a wikilink insert produces >=2 KNOWLEDGE_RICH_DOCUMENT_SAVED events in the ledger in order, and the second event's payload carries the wikilink block reference. CTRL-7: the GET /events (Flight Recorder list_events) endpoint EXISTS (verified 2026-06-26 in src/backend/handshake_core/src/api/flight_recorder.rs:74 BARE route /events + /flight_recorder) -> requires_pg, NOT BLOCKED. Routes corrected 2026-06-26: events is BARE /events filtered by the wsid query param (no /workspaces prefix, bare Vec<FlightEvent>); knowledge saves use the bare /knowledge/documents/{doc_id}/save route.",
     "edge": "shared_undo_ledger",
     "proof_fn": "interconnect_ic17_event_ledger_records",
     "scenario_id": "IC-17",
