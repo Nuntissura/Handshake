@@ -40,9 +40,12 @@
 
 use std::path::{Path, PathBuf};
 
+use egui_kittest::kittest::Queryable;
 use egui_kittest::Harness;
 use unicode_segmentation::UnicodeSegmentation;
 
+use handshake_native::code_editor::virtual_lines::code_line_bidi;
+use handshake_native::code_editor::CodeEditorPanel;
 use handshake_native::rich_editor::document_model::{
     from_json_string, to_json_string, BlockNode, Child, DocPosition, Selection, UndoManager,
 };
@@ -401,4 +404,113 @@ fn arabic_state_screenshot() {
         }
     }
     assert_no_local_artifact_dir();
+}
+
+// ── AC1 + AC3 + AC5 (CODE EDITOR integration): the bidi wiring reaches the LIVE code-editor render path ─
+//
+// The pure `text_intl::bidi` / `virtual_lines::code_line_bidi` unit tests prove the helper RETURNS the
+// right values, but the must-fix (adversarial review) is that the helper must be CONSUMED by the live
+// code-editor render loop (`panel.rs::render_line` / `render_visual_row_fragment`), not left as dead
+// scaffolding. These tests drive the REAL `CodeEditorPanel` over RTL/Arabic source and assert the wired
+// render output appears on screen via the live AccessKit label tree — the integration, not the helper.
+
+/// Drive the real `CodeEditorPanel` over `text` for two settled frames and return the harness so its
+/// on-screen labels can be queried. `wgpu()` matches the other code-editor panel tests; fonts are installed
+/// on the fresh kittest context so RTL glyphs resolve (no tofu) exactly as live.
+fn code_panel_harness<'a>(text: &'a str, ext: &'a str) -> Harness<'a, ()> {
+    let panel = CodeEditorPanel::new(text, ext);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(560.0, 240.0))
+        .wgpu()
+        .build_ui(move |ui| {
+            handshake_native::app::HandshakeApp::install_fonts(ui.ctx());
+            panel.show(ui);
+        });
+    harness.run();
+    harness.run();
+    harness
+}
+
+#[test]
+fn code_editor_rtl_line_is_reordered_and_wired() {
+    // AC1/AC3 (CODE editor): a code line containing a Hebrew literal is RTL base and is REORDERED into
+    // VISUAL order by the LIVE render path (`render_line` calling `render_rtl_or_limited_code_row`). The
+    // on-screen label text equals the bidi VISUAL-order string (the reversed Hebrew run), NOT the logical
+    // string — proving the helper output reached the screen, not just the unit test.
+    let line = "שלום עולם"; // pure Hebrew line (non-joining RTL — the honest case, no limitation note)
+    let bidi = code_line_bidi(line);
+    assert_eq!(bidi.base, Direction::Rtl, "the Hebrew code line resolves RTL base");
+    assert!(bidi.shaping_limitation.is_none(), "Hebrew raises no limitation (non-joining)");
+
+    let harness = code_panel_harness(line, "txt");
+
+    // The LIVE render path paints the VISUAL-order (reordered) text as the row label. Assert that exact
+    // visual string is on screen — and the raw LOGICAL string is NOT (it was reordered for display). This
+    // fails if the code editor ever stops calling the bidi pass (the unwired-scaffolding regression).
+    assert!(
+        !bidi.visual_text.is_empty() && bidi.visual_text != line,
+        "the Hebrew line must reorder to a different visual string: visual={:?} logical={:?}",
+        bidi.visual_text,
+        line
+    );
+    assert!(
+        harness.query_by_label(&bidi.visual_text).is_some(),
+        "AC1/AC3: the VISUAL-order Hebrew row {:?} must be on screen (the live code-editor render path \
+         called the bidi reorder) — not the logical string",
+        bidi.visual_text
+    );
+    assert!(
+        harness.query_by_label(line).is_none(),
+        "the LOGICAL (un-reordered) Hebrew {line:?} must NOT be the painted label — it was reordered"
+    );
+}
+
+#[test]
+fn code_editor_arabic_line_surfaces_limitation_marker_wired() {
+    // AC5 / PROOF3 / MC-1 (CODE editor): an Arabic code literal MUST surface the VISIBLE typed-limitation
+    // marker in the LIVE code-editor render path — Arabic in the code editor is NEVER silently broken. The
+    // marker is a `⚠` label whose hover carries the limitation note; assert it is on screen.
+    let line = "let s = \"العربية\";"; // Arabic literal inside an LTR line (base LTR, limitation present)
+    let bidi = code_line_bidi(line);
+    assert!(bidi.shaping_limitation.is_some(), "Arabic code line must raise the typed limitation");
+    assert_eq!(bidi.base, Direction::Ltr, "first strong is the Latin 'l' of `let` -> LTR base");
+
+    let harness = code_panel_harness(line, "txt");
+
+    // The live render path paints the `⚠` limitation marker for the Arabic content. (`query_by_label`
+    // matches the trimmed accessible text, so both the RTL " ⚠" and LTR "⚠" marker variants match "⚠".)
+    assert!(
+        harness.query_by_label("⚠").is_some(),
+        "AC5/PROOF3/MC-1: the Arabic code line must surface the visible ⚠ typed-limitation marker on \
+         screen (never silently broken) — the live code-editor render path called the shaping-limitation pass"
+    );
+
+    // And a pure-Hebrew code line must NOT raise the marker (the honest non-joining RTL case), so the
+    // marker is specific to Arabic/Indic, not every RTL row.
+    let hebrew_harness = code_panel_harness("שלום", "txt");
+    assert!(
+        hebrew_harness.query_by_label("⚠").is_none(),
+        "a pure-Hebrew code line is non-joining and must NOT surface the shaping-limitation marker"
+    );
+}
+
+#[test]
+fn code_editor_ltr_line_is_unchanged_identity_wired() {
+    // AC6 / MC-3 / RISK-2 (CODE editor): an ordinary LTR source line must be BYTE-FOR-BYTE unchanged — the
+    // bidi pass returns the identity, so `render_rtl_or_limited_code_row` returns false and the existing
+    // per-run colored LTR path renders. Prove the plain LTR text label is on screen and NO ⚠ marker is.
+    let line = "let x = 1; // ok";
+    let bidi = code_line_bidi(line);
+    assert!(bidi.is_identity(line), "an LTR code line must be bidi-identity");
+
+    // Plain text (extension "txt") so the whole line renders as exactly one label.
+    let harness = code_panel_harness(line, "txt");
+    assert!(
+        harness.query_by_label(line).is_some(),
+        "AC6: the LTR code line {line:?} must render unchanged (identity path) on screen"
+    );
+    assert!(
+        harness.query_by_label("⚠").is_none(),
+        "AC6: an LTR line must NOT surface any shaping-limitation marker"
+    );
 }

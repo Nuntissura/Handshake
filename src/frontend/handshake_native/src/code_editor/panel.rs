@@ -6718,6 +6718,14 @@ impl CodeEditorPanel {
         let frag_text = frag_text_owned.strip_suffix('\n').unwrap_or(&frag_text_owned);
         let frag_end = frag_start + frag_text.len();
 
+        let mono = egui::FontId::monospace(MONO_FONT_SIZE);
+        // MT-078: same RTL/limitation treatment as the non-wrap `render_line`, applied per VISIBLE wrap
+        // fragment (the bidi cost is bounded to the rows on screen). A pure-LTR fragment returns `false`
+        // and falls through to the EXACT existing per-run colored path (AC6 identity).
+        if self.render_rtl_or_limited_code_row(ui, frag_text, &mono, syntax) {
+            return;
+        }
+
         let mut runs: Vec<(std::ops::Range<usize>, HighlightScope)> = Vec::new();
         for span in visible_spans {
             let s = span.byte_range.start.max(frag_start);
@@ -6730,7 +6738,6 @@ impl CodeEditorPanel {
 
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
-            let mono = egui::FontId::monospace(MONO_FONT_SIZE);
             let default_color = syntax.punctuation;
             let frag_slice = |start: usize, end: usize| -> String {
                 let rel_start = start.saturating_sub(frag_start);
@@ -7385,10 +7392,97 @@ impl CodeEditorPanel {
         out
     }
 
+    /// WP-KERNEL-012 MT-078 (E13 RTL/bidi): paint ONE code-editor row whose base direction is RTL
+    /// (Hebrew/Arabic string literal or comment) OR which carries a Tier-3 shaping limitation, using the
+    /// SHARED `text_intl::bidi` pass (NOT a parallel one) so the code editor and rich editor agree on bidi.
+    /// Returns `true` when it handled the row (RTL base or a limitation present), `false` when the line is
+    /// the pure-LTR IDENTITY and the caller should keep the existing byte-for-byte LTR run path (AC6 / MC-3
+    /// / RISK-2 — no regression to ordinary source lines).
+    ///
+    /// What it does for an RTL row (mirrors `block_renderer.rs`'s RTL right-anchor pattern within the
+    /// `ui.label` code path): reorders the line into VISUAL order via UAX#9 and lays it out RIGHT-ALIGNED
+    /// within the code text column (`Layout::right_to_left`, anchored to the column's right edge — the
+    /// `ScrollArea` is `auto_shrink([false,false])`, so `available_width` is the full text column). The rope
+    /// stays logical-order; this is render-time only. Per-run syntax colors are NOT split across the bidi
+    /// boundary here (the honest order+alignment tier — the same single-format simplification the rich
+    /// editor's RTL path documents); the row is painted in the default foreground color.
+    ///
+    /// AC5 / PROOF3 / MC-1: when the line contains Arabic/Indic content egui cannot cursive-shape, it paints
+    /// a VISIBLE typed-limitation marker (a `⚠` glyph in the subtle/comment theme color, hover text carrying
+    /// the limitation note + future-MT pointer) on the row, so Arabic in the CODE editor is NEVER silently
+    /// broken. The marker also fires for an Arabic literal inside an otherwise-LTR line (base LTR, limitation
+    /// present) — which is why this returns `true` on a limitation even when the base is LTR.
+    fn render_rtl_or_limited_code_row(
+        &self,
+        ui: &mut egui::Ui,
+        line_text: &str,
+        mono: &egui::FontId,
+        syntax: &HsSyntaxTokens,
+    ) -> bool {
+        // The code-editor bidi entry point lives in `code_editor/virtual_lines.rs` (the MT-078 contract's
+        // named code-editor deliverable); it reuses the SHARED `text_intl::bidi` pass internally.
+        let bidi = super::virtual_lines::code_line_bidi(line_text);
+        // Pure-LTR identity (the overwhelmingly common source line): let the caller keep the existing
+        // per-run colored LTR path unchanged. Only an RTL base OR a shaping limitation takes this path.
+        if !bidi.base.is_rtl() && bidi.shaping_limitation.is_none() {
+            return false;
+        }
+
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 0.0;
+            let default_color = syntax.punctuation;
+
+            // AC5 / PROOF3 / MC-1 — the visible typed-limitation marker for Arabic/Indic (never silently
+            // broken). `⚠` is a literal glyph string (NOT a Color32 — CONTROL-4 holds); the color is the
+            // subtle/comment theme token. Hover surfaces the note + the future-MT pointer.
+            let limitation_note = bidi.shaping_limitation.as_ref().map(|lim| {
+                format!("{}\n{}", lim.note, lim.pointer)
+            });
+
+            if bidi.base.is_rtl() {
+                // RTL base (Hebrew/Arabic line): paint the VISUAL-order text RIGHT-ALIGNED. A
+                // right-to-left layout places widgets from the column's right edge leftward, so the
+                // reordered line anchors to the right edge (AC1/AC3 — right-aligned RTL code line).
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if let Some(note) = &limitation_note {
+                        ui.label(
+                            egui::RichText::new("⚠").font(mono.clone()).color(syntax.comment),
+                        )
+                        .on_hover_text(note);
+                    }
+                    let visual = if bidi.visual_text.is_empty() {
+                        " ".to_string()
+                    } else {
+                        bidi.visual_text.clone()
+                    };
+                    ui.label(egui::RichText::new(visual).font(mono.clone()).color(default_color));
+                });
+            } else {
+                // LTR base but the line CONTAINS Arabic/Indic (e.g. `let s = "العربية";`): keep the
+                // line left-to-right (its base is LTR) but still surface the visible limitation marker so
+                // the Arabic content is not silently presented as shaped. The text is the logical line
+                // (the LTR base reads left-to-right); only the limitation marker is added.
+                ui.label(egui::RichText::new(line_text).font(mono.clone()).color(default_color));
+                if let Some(note) = &limitation_note {
+                    // A small gap then the bare `⚠` marker (its accessible text is exactly "⚠" so swarm
+                    // queries / the integration test can find it; spacing is layout, not glyph text).
+                    ui.add_space(mono.size * 0.5);
+                    ui.label(egui::RichText::new("⚠").font(mono.clone()).color(syntax.comment))
+                        .on_hover_text(note);
+                }
+            }
+        });
+        true
+    }
+
     /// Render one line as a sequence of theme-colored runs, splitting the line text at the highlight
     /// span boundaries that overlap it. `visible_spans` is the per-frame window-clipped span slice (so
     /// this is O(spans-in-window), not O(all-spans)). A line with no overlapping spans renders as plain
     /// foreground text. Byte->char conversions go through the buffer (RISK-002).
+    ///
+    /// MT-078 (E13 RTL/bidi): before the LTR run path, an RTL or limitation-bearing line is delegated to
+    /// [`render_rtl_or_limited_code_row`] (reorder + right-align + the visible Arabic/Indic limitation
+    /// marker). A pure-LTR line falls through to the EXACT existing per-run colored path (AC6 identity).
     fn render_line(
         &self,
         ui: &mut egui::Ui,
@@ -7402,6 +7496,14 @@ impl CodeEditorPanel {
         // Strip the trailing newline so each visual line is one row (the layout adds the row break).
         let line_text = line_text_owned.strip_suffix('\n').unwrap_or(&line_text_owned);
         let line_end_byte = line_start_byte + line_text.len();
+
+        let mono = egui::FontId::monospace(13.0);
+        // MT-078: an RTL line (Hebrew/Arabic literal/comment) is reordered + right-aligned, and an
+        // Arabic/Indic line surfaces the visible typed-limitation marker — via the shared bidi pass.
+        // A pure-LTR line returns `false` and falls through to the EXACT existing per-run path (AC6).
+        if self.render_rtl_or_limited_code_row(ui, line_text, &mono, syntax) {
+            return;
+        }
 
         // Spans overlapping THIS line, clipped to the line's byte window (from the already
         // window-clipped frame slice).
@@ -7417,7 +7519,6 @@ impl CodeEditorPanel {
 
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
-            let mono = egui::FontId::monospace(13.0);
             let default_color = syntax.punctuation;
             let mut cursor = line_start_byte;
 
