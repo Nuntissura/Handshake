@@ -348,6 +348,337 @@ impl PaneFactory for RichEditorPaneMount {
     }
 }
 
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 MT-080 (E11 host-mount, part 2): the SECONDARY pane factories.
+//
+// MT-079 mounted the CORE code + rich editors. This MT mounts the rest of the widget-proven panes —
+// the canvas board (MT-026), the graph view (MT-021/060), and the side panes (outgoing-links MT-062,
+// relevant-memory MT-063, Stage MT-066, daily-journal MT-067, manual MT-073) — over their
+// `PlaceholderPaneFactory` entries so they render LIVE in the running shell.
+//
+// SAME shared-cell pattern as MT-079: each factory holds an `Arc<Mutex<_>>` to the widget state the
+// shell also owns, so the shell drives the SAME state the mounted pane shows (the AC-080 proofs need
+// the real widget behind the factory) and a `&self` `render` reads the live palette each frame. The
+// `PaneFactory` trait signature is UNCHANGED (RISK-080-5 / MC-080-3). No widget logic is
+// re-implemented — every factory CALLS the existing widget's `show`.
+//
+// HONESTY (MC-080-5 / Spec-Realism Gate): every factory below is CONSUMED by the live render loop
+// (registered in `app.rs` over a placeholder and rendered each frame). Where a backend route is absent
+// (FEMS/Stage/Calendar/Locus), the wrapped widget shows its own honest empty-state — no factory fakes a
+// live wiring, and none uses `todo!()`/`unimplemented!()` on a live path.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+use crate::theme::HsPalette;
+
+/// The live theme palette the shell pushes into the secondary pane factories each frame (the widgets
+/// read theme tokens, never hardcoded hex — CONTROL-4). One shared cell shared by every secondary
+/// factory; the shell overwrites it from the active theme each frame, exactly like the MT-079 session
+/// cell. Starts at the dark palette so a headless/test render (which may not push a palette) still has
+/// real tokens.
+pub type SharedPalette = Arc<Mutex<HsPalette>>;
+
+/// Read the current palette out of the shared cell (a clone, so the lock is released before render).
+fn palette_of(cell: &SharedPalette) -> HsPalette {
+    cell.lock().map(|p| p.clone()).unwrap_or_else(|p| p.into_inner().clone())
+}
+
+/// WP-KERNEL-012 MT-080 (GROUP A / MT-026): the live CANVAS-board pane factory. Registered over
+/// `PaneType::AtelierEditor` (the canvas/atelier surface the shell already routes a canvas-id open to).
+/// Wraps the existing [`crate::graph::canvas_board::LoomCanvasBoard`] widget and renders it each frame;
+/// any [`crate::graph::canvas_board::CanvasEvent`] the board dispatches this frame is pushed into a shared
+/// outbound queue the shell drains + maps to the real canvas PATCH/POST (AC-080-2). The board state is the
+/// SAME `Arc<Mutex<_>>` the shell holds, so the shell's getCanvasBoard refresh feeds back into the pane.
+pub struct CanvasBoardPaneMount {
+    board: Arc<Mutex<crate::graph::canvas_board::LoomCanvasBoard>>,
+    palette: SharedPalette,
+    /// The outbound queue of canvas events the shell drains each frame (the move/resize/section/edit-card
+    /// gestures the host turns into real PATCH/POST via the MT-026 `CanvasBoardClient`).
+    events: Arc<Mutex<Vec<crate::graph::canvas_board::CanvasEvent>>>,
+}
+
+impl CanvasBoardPaneMount {
+    pub fn new(
+        board: Arc<Mutex<crate::graph::canvas_board::LoomCanvasBoard>>,
+        palette: SharedPalette,
+        events: Arc<Mutex<Vec<crate::graph::canvas_board::CanvasEvent>>>,
+    ) -> Self {
+        Self { board, palette, events }
+    }
+}
+
+impl PaneFactory for CanvasBoardPaneMount {
+    fn pane_type(&self) -> PaneType {
+        PaneType::AtelierEditor
+    }
+
+    fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
+        let palette = palette_of(&self.palette);
+        // Render the REAL board (the toolbar + placements + AccessKit `canvas.*` subtree). The widget owns
+        // its own per-frame consumers; the mount only collects the dispatched events for the shell.
+        let mut event = None;
+        if let Ok(mut board) = self.board.lock() {
+            event = board.show(ui, &palette);
+            // Also drain any swarm-dispatched knowledge events the single `show` return cannot carry
+            // (the MT-042 anti-scaffolding drain) so a canvas dispatch reaches the shell too.
+            let drained = board.drain_knowledge_events();
+            if !drained.is_empty() {
+                if let Ok(mut q) = self.events.lock() {
+                    q.extend(drained);
+                }
+            }
+        }
+        if let Some(ev) = event {
+            if let Ok(mut q) = self.events.lock() {
+                q.push(ev);
+            }
+        }
+    }
+
+    fn accesskit_role(&self) -> accesskit::Role {
+        accesskit::Role::Group
+    }
+}
+
+/// WP-KERNEL-012 MT-080 (GROUP A / MT-021/060): the live GRAPH-view pane factory. Registered over
+/// `PaneType::KernelDcc` (a shell surface currently rendering a placeholder — the graph view docks here as
+/// the knowledge-graph surface). Wraps the existing [`crate::graph::graph_view::LoomGraphView`] and renders
+/// it each frame; any [`crate::graph::graph_view::GraphEvent`] (notably `DepthChanged`) is pushed into a
+/// shared outbound queue the shell drains to re-query the depth-parameterized graph-search (AC-080-3).
+pub struct GraphViewPaneMount {
+    view: Arc<Mutex<crate::graph::graph_view::LoomGraphView>>,
+    palette: SharedPalette,
+    events: Arc<Mutex<Vec<crate::graph::graph_view::GraphEvent>>>,
+}
+
+impl GraphViewPaneMount {
+    pub fn new(
+        view: Arc<Mutex<crate::graph::graph_view::LoomGraphView>>,
+        palette: SharedPalette,
+        events: Arc<Mutex<Vec<crate::graph::graph_view::GraphEvent>>>,
+    ) -> Self {
+        Self { view, palette, events }
+    }
+}
+
+impl PaneFactory for GraphViewPaneMount {
+    fn pane_type(&self) -> PaneType {
+        PaneType::KernelDcc
+    }
+
+    fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
+        let palette = palette_of(&self.palette);
+        let mut event = None;
+        if let Ok(mut view) = self.view.lock() {
+            event = view.show(ui, &palette);
+            let drained = view.drain_knowledge_events();
+            if !drained.is_empty() {
+                if let Ok(mut q) = self.events.lock() {
+                    q.extend(drained);
+                }
+            }
+        }
+        if let Some(ev) = event {
+            if let Ok(mut q) = self.events.lock() {
+                q.push(ev);
+            }
+        }
+    }
+}
+
+/// WP-KERNEL-012 MT-080 (GROUP A / MT-062): the live OUTGOING-LINKS side pane. Registered over
+/// `PaneType::LoomBlock` (the Loom-knowledge surface the pane registers under, `loom.outgoing_links`).
+/// Wraps the existing [`crate::rich_editor::wikilinks::outgoing_links_panel::OutgoingLinksPanel`]; an
+/// `on_open(NavTarget)` click is pushed into a shared outbound queue the shell routes to the MT-030 nav bus.
+pub struct OutgoingLinksPaneMount {
+    panel: Arc<Mutex<crate::rich_editor::wikilinks::outgoing_links_panel::OutgoingLinksPanel>>,
+    palette: SharedPalette,
+    nav: Arc<Mutex<Vec<crate::rich_editor::wikilinks::outgoing_links_panel::NavTarget>>>,
+}
+
+impl OutgoingLinksPaneMount {
+    pub fn new(
+        panel: Arc<Mutex<crate::rich_editor::wikilinks::outgoing_links_panel::OutgoingLinksPanel>>,
+        palette: SharedPalette,
+        nav: Arc<Mutex<Vec<crate::rich_editor::wikilinks::outgoing_links_panel::NavTarget>>>,
+    ) -> Self {
+        Self { panel, palette, nav }
+    }
+}
+
+impl PaneFactory for OutgoingLinksPaneMount {
+    fn pane_type(&self) -> PaneType {
+        PaneType::LoomBlock
+    }
+
+    fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
+        let palette = palette_of(&self.palette);
+        let nav = Arc::clone(&self.nav);
+        if let Ok(mut panel) = self.panel.lock() {
+            let mut on_open = |target: crate::rich_editor::wikilinks::outgoing_links_panel::NavTarget| {
+                if let Ok(mut q) = nav.lock() {
+                    q.push(target);
+                }
+            };
+            panel.show(ui, &palette, &mut on_open);
+        }
+    }
+}
+
+/// WP-KERNEL-012 MT-080 (GROUP A / MT-063): the live RELEVANT-MEMORY side pane. Registered over
+/// `PaneType::Placeholder("Relevant Memory")` (the distinct placeholder key the pane registers under).
+/// Wraps the existing [`crate::fems::relevant_memory_panel::RelevantMemoryPanel`]; a "Go to source" click
+/// routes through the shared nav queue. The FEMS read route is ABSENT in the current backend, so the panel
+/// renders its own `EndpointMissing` empty-state — the mount never fakes a pack.
+pub struct RelevantMemoryPaneMount {
+    panel: Arc<Mutex<crate::fems::relevant_memory_panel::RelevantMemoryPanel>>,
+    palette: SharedPalette,
+    nav: Arc<Mutex<Vec<crate::fems::relevant_memory_panel::MemoryNavTarget>>>,
+}
+
+impl RelevantMemoryPaneMount {
+    pub fn new(
+        panel: Arc<Mutex<crate::fems::relevant_memory_panel::RelevantMemoryPanel>>,
+        palette: SharedPalette,
+        nav: Arc<Mutex<Vec<crate::fems::relevant_memory_panel::MemoryNavTarget>>>,
+    ) -> Self {
+        Self { panel, palette, nav }
+    }
+}
+
+impl PaneFactory for RelevantMemoryPaneMount {
+    fn pane_type(&self) -> PaneType {
+        PaneType::Placeholder("Relevant Memory".to_owned())
+    }
+
+    fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
+        use crate::fems::relevant_memory_panel::FnNavigationBus;
+        let palette = palette_of(&self.palette);
+        let nav = Arc::clone(&self.nav);
+        if let Ok(mut panel) = self.panel.lock() {
+            let mut bus = FnNavigationBus(|target| {
+                if let Ok(mut q) = nav.lock() {
+                    q.push(target);
+                }
+            });
+            panel.show(ui, &palette, &mut bus);
+        }
+    }
+}
+
+/// WP-KERNEL-012 MT-080 (GROUP A / MT-066): the live STAGE pane. Registered over
+/// `PaneType::Placeholder("Stage")`. Wraps the existing [`crate::stage_pane::StagePane`] full round-trip
+/// surface; the embed-back action is signalled through a shared flag the shell drains. The Stage embed-back
+/// HTTP route is ABSENT, so the embed action surfaces the honest typed blocker — never a faked embed.
+pub struct StagePaneMount {
+    pane: Arc<Mutex<crate::stage_pane::StagePane>>,
+    palette: SharedPalette,
+    /// Set true on the frame the operator/agent pressed "Embed back into note" so the shell can surface
+    /// the typed blocker / route it once.
+    embed_requested: Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl StagePaneMount {
+    pub fn new(
+        pane: Arc<Mutex<crate::stage_pane::StagePane>>,
+        palette: SharedPalette,
+        embed_requested: Arc<std::sync::atomic::AtomicBool>,
+    ) -> Self {
+        Self { pane, palette, embed_requested }
+    }
+}
+
+impl PaneFactory for StagePaneMount {
+    fn pane_type(&self) -> PaneType {
+        PaneType::Placeholder("Stage".to_owned())
+    }
+
+    fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
+        let palette = palette_of(&self.palette);
+        if let Ok(mut pane) = self.pane.lock() {
+            let embed = pane.show_round_trip(ui, &palette);
+            if embed {
+                self.embed_requested.store(true, std::sync::atomic::Ordering::Relaxed);
+            }
+        }
+    }
+}
+
+/// WP-KERNEL-012 MT-080 (GROUP A / MT-067): the live DAILY-JOURNAL pane. Registered over
+/// `PaneType::LoomDailyJournal`. Wraps the existing [`crate::graph::daily_journal_panel::DailyJournalPanel`]
+/// (stateless `show`) over a shared [`crate::graph::daily_journal_panel::DailyJournalState`]; a date-nav
+/// signal is pushed into a shared outbound queue the shell maps to `open_or_create_daily_note` (AC-080-5).
+pub struct DailyJournalPaneMount {
+    state: Arc<Mutex<crate::graph::daily_journal_panel::DailyJournalState>>,
+    palette: SharedPalette,
+    events: Arc<Mutex<Vec<crate::graph::daily_journal_panel::DailyJournalEvent>>>,
+}
+
+impl DailyJournalPaneMount {
+    pub fn new(
+        state: Arc<Mutex<crate::graph::daily_journal_panel::DailyJournalState>>,
+        palette: SharedPalette,
+        events: Arc<Mutex<Vec<crate::graph::daily_journal_panel::DailyJournalEvent>>>,
+    ) -> Self {
+        Self { state, palette, events }
+    }
+}
+
+impl PaneFactory for DailyJournalPaneMount {
+    fn pane_type(&self) -> PaneType {
+        PaneType::LoomDailyJournal
+    }
+
+    fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
+        use crate::graph::daily_journal_panel::{DailyJournalEvent, DailyJournalPanel};
+        let palette = palette_of(&self.palette);
+        if let Ok(mut state) = self.state.lock() {
+            let event = DailyJournalPanel::show(ui, &mut state, &palette);
+            if !matches!(event, DailyJournalEvent::None) {
+                if let Ok(mut q) = self.events.lock() {
+                    q.push(event);
+                }
+            }
+        }
+    }
+}
+
+/// WP-KERNEL-012 MT-080 (GROUP A / MT-073): the live USER-MANUAL pane. Registered over
+/// `PaneType::UserManual`. Wraps the existing [`crate::manual_pane::ManualPane`] over a shared
+/// [`crate::manual_pane::ManualRegistry`] (immutable content) + [`crate::manual_pane::ManualPaneState`]
+/// (search/selection). Pure in-pane widget (no backend) — it always renders its real `manual-pane` subtree.
+pub struct ManualPaneMount {
+    registry: Arc<crate::manual_pane::ManualRegistry>,
+    state: Arc<Mutex<crate::manual_pane::ManualPaneState>>,
+    palette: SharedPalette,
+}
+
+impl ManualPaneMount {
+    pub fn new(
+        registry: Arc<crate::manual_pane::ManualRegistry>,
+        state: Arc<Mutex<crate::manual_pane::ManualPaneState>>,
+        palette: SharedPalette,
+    ) -> Self {
+        Self { registry, state, palette }
+    }
+}
+
+impl PaneFactory for ManualPaneMount {
+    fn pane_type(&self) -> PaneType {
+        PaneType::UserManual
+    }
+
+    fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
+        let palette = palette_of(&self.palette);
+        if let Ok(mut state) = self.state.lock() {
+            crate::manual_pane::ManualPane::new(&self.registry, &mut state, &palette).show(ui);
+        }
+    }
+
+    fn accesskit_role(&self) -> accesskit::Role {
+        accesskit::Role::Region
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

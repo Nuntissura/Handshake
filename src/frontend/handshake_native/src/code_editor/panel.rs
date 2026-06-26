@@ -1029,6 +1029,13 @@ pub struct CodeEditorPanel {
     /// double-insert invariant the rich editor uses. Behind a `Mutex` for the `Sync` panel (the `&self`
     /// input path mutates it; the `&self` render path reads it).
     preedit: Mutex<String>,
+    /// WP-KERNEL-012 MT-080 (AC-080-6 / MT-043 swarm-authoring): the LIVE `egui::Id` of the text-input node
+    /// recorded each frame by the render path (the node is emitted on `ui.unique_id()` inside the text
+    /// scope, NOT on `text_id()`, so the swarm-action consumer must read action requests at this exact id —
+    /// reading `text_id()` would never match the dispatched `AccessKitActionRequest::target`). `None` before
+    /// the first render. Behind a `Mutex` for the `Sync` panel (the `&self` render path writes it; the
+    /// `&self` `consume_swarm_text_actions` reads it).
+    live_text_node_id: Mutex<Option<egui::Id>>,
 }
 
 /// MT-034 off-thread find-notes result delivery cell: the resolved [`NoteRefsState`] written by a spawned
@@ -1423,6 +1430,7 @@ impl CodeEditorPanel {
             // width before the wrap layout runs.
             wrap_config: Mutex::new(WrapConfig::default()),
             wrap_row_index: Mutex::new(None),
+            live_text_node_id: Mutex::new(None),
             // MT-010 keymap: load any operator overrides from ~/.handshake/keymap.json (a missing file /
             // unresolvable home -> pure VS Code defaults), then merge them over the default table. The
             // override file path is resolved ONCE here (dirs::home_dir() — AC-007, no hardcoded path) so
@@ -6317,6 +6325,9 @@ impl CodeEditorPanel {
     ) {
         ui.scope_builder(egui::UiBuilder::new().id_salt(text_id), |ui| {
             let text_node_id = ui.unique_id();
+            // WP-KERNEL-012 MT-080: record the LIVE text-node egui id so `consume_swarm_text_actions` reads
+            // swarm SetValue/ReplaceSelectedText requests at the EXACT node the tree emitted (AC-080-6).
+            *self.live_text_node_id.lock().unwrap_or_else(|e| e.into_inner()) = Some(text_node_id);
             ui.style_mut().spacing.item_spacing.y = 0.0;
 
             // Capture the screen-space TOP-LEFT of the painted text rows BEFORE painting (the cursor
@@ -6453,6 +6464,13 @@ impl CodeEditorPanel {
                 node.set_author_id(author.clone());
                 node.set_label("Code editor text".to_owned());
                 node.set_value(value.clone());
+                // WP-KERNEL-012 MT-080 (AC-080-6 / MT-043 swarm-authoring): advertise the two text-edit
+                // actions a swarm agent uses to AUTHOR code by id. `SetValue` replaces the WHOLE buffer
+                // (set_text); `ReplaceSelectedText` inserts at the selection/carets (insert_text, which
+                // replaces the active selection). Declaring them here makes the node's editable contract
+                // discoverable out-of-process; `consume_swarm_text_actions` drains the matching requests.
+                node.add_action(accesskit::Action::SetValue);
+                node.add_action(accesskit::Action::ReplaceSelectedText);
             });
 
             // MT-003 AC-004: emit one `Role::Caret` AccessKit node per cursor (capped at
@@ -6636,6 +6654,9 @@ impl CodeEditorPanel {
     ) {
         ui.scope_builder(egui::UiBuilder::new().id_salt(text_id), |ui| {
             let text_node_id = ui.unique_id();
+            // WP-KERNEL-012 MT-080: record the LIVE text-node egui id so `consume_swarm_text_actions` reads
+            // swarm SetValue/ReplaceSelectedText requests at the EXACT node the tree emitted (AC-080-6).
+            *self.live_text_node_id.lock().unwrap_or_else(|e| e.into_inner()) = Some(text_node_id);
             ui.style_mut().spacing.item_spacing.y = 0.0;
             let origin = ui.cursor().min;
 
@@ -9305,6 +9326,63 @@ impl CodeEditorPanel {
         // dispatch reaches the editor before the next frame (RISK-041-04). A no-op when no registry is
         // installed (a bare panel render). Run last so it sees the post-input editor state.
         let _dispatched = self.sync_editor_actions(ui);
+
+        // WP-KERNEL-012 MT-080 (AC-080-6 / MT-043): drain any swarm `Action::SetValue` /
+        // `Action::ReplaceSelectedText` dispatched at the code-editor-text node THIS frame and apply it to
+        // the buffer, so a swarm agent can AUTHOR code by id within the frame (the same in-frame consume
+        // discipline `sync_editor_actions` uses for `Click`). A no-op when no such request was dispatched.
+        self.consume_swarm_text_actions(ui);
+    }
+
+    /// WP-KERNEL-012 MT-080 (AC-080-6 / MT-043 swarm-authoring): drain this frame's swarm text-edit
+    /// requests targeted at the `code_editor_text` node and apply each to the buffer. Two actions:
+    /// - [`accesskit::Action::SetValue`] with an [`accesskit::ActionData::Value`] payload replaces the
+    ///   WHOLE buffer ([`set_text`](Self::set_text)) — the swarm "author the whole file" path.
+    /// - [`accesskit::Action::ReplaceSelectedText`] with a `Value` payload inserts the text at the
+    ///   selection/carets ([`insert_text`](Self::insert_text), which replaces the active selection) — the
+    ///   swarm "edit the selection" path. The host's wikilink-by-id insertion (a `[[id]]` reference) rides
+    ///   this same path: the agent dispatches `ReplaceSelectedText` with the wikilink token as the value.
+    ///
+    /// Reuses egui's own `input.accesskit_action_requests(node_id, action)` consumer (the same hook the
+    /// MT-041 registry uses), so a swarm agent's `egui::Event::AccessKitActionRequest` drives the node
+    /// exactly like a real edit. The byte length the apply returns is recorded so a test can observe the
+    /// dispatch reached the buffer; an empty/absent `Value` is a benign no-op (never a panic).
+    pub fn consume_swarm_text_actions(&self, ui: &egui::Ui) {
+        // Read action requests at the LIVE text-node id the render path recorded this frame (the node is
+        // emitted on `ui.unique_id()` inside the text scope, NOT on `text_id()`). Before the first render
+        // there is no live id, so there is nothing to consume.
+        let Some(text_id) = *self.live_text_node_id.lock().unwrap_or_else(|e| e.into_inner()) else {
+            return;
+        };
+        // Collect the (action, value) pairs first so the input lock is released before mutating the buffer
+        // (set_text/insert_text take their own locks). SetValue is applied before ReplaceSelectedText so a
+        // whole-buffer set followed by a selection-insert in the same frame composes deterministically.
+        let mut set_value: Option<String> = None;
+        let mut replace_values: Vec<String> = Vec::new();
+        ui.input(|input| {
+            for request in input.accesskit_action_requests(text_id, accesskit::Action::SetValue) {
+                if let Some(accesskit::ActionData::Value(v)) = &request.data {
+                    set_value = Some(v.to_string());
+                }
+            }
+            for request in
+                input.accesskit_action_requests(text_id, accesskit::Action::ReplaceSelectedText)
+            {
+                if let Some(accesskit::ActionData::Value(v)) = &request.data {
+                    replace_values.push(v.to_string());
+                }
+            }
+        });
+        if let Some(value) = set_value {
+            self.set_text(&value);
+            ui.ctx().request_repaint();
+        }
+        for value in replace_values {
+            if !value.is_empty() {
+                self.insert_text(&value);
+                ui.ctx().request_repaint();
+            }
+        }
     }
 }
 

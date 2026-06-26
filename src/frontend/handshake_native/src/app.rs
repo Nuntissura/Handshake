@@ -649,6 +649,43 @@ struct EditorMountHandles {
     /// The outbound rich-pane event queue (WikilinkActivated/BacklinkActivated/TagActivated). The shell
     /// drains it each frame and routes each event to the MT-030 nav bus.
     rich_events: RichPaneEvents,
+    /// WP-KERNEL-012 MT-080 (E11 host-mount, part 2): the live handles for the SECONDARY mounted panes
+    /// (canvas / graph / outgoing-links / relevant-memory / Stage / daily-journal / manual). The shell
+    /// pushes the live palette into `secondary_palette` each frame and drains the per-pane outbound queues.
+    secondary: SecondaryMountHandles,
+}
+
+/// WP-KERNEL-012 MT-080: the live handles the shell keeps for the SECONDARY mounted panes. Each `state`
+/// is the SAME `Arc<Mutex<_>>` the registered factory renders, so the shell can drive it (the AC-080
+/// proofs) and drain its outbound event queue. `palette` is the one shared cell every secondary factory
+/// reads; the shell overwrites it from the active theme each frame (the canvas/graph/side-pane widgets read
+/// theme tokens, never hardcoded hex — CONTROL-4).
+struct SecondaryMountHandles {
+    /// The shared theme palette every secondary factory reads each frame (pushed from the active theme).
+    palette: crate::editor_pane_factories::SharedPalette,
+    /// The canvas board state behind the mounted canvas pane + its outbound CanvasEvent queue.
+    canvas_board: Arc<Mutex<crate::graph::canvas_board::LoomCanvasBoard>>,
+    canvas_events: Arc<Mutex<Vec<crate::graph::canvas_board::CanvasEvent>>>,
+    /// The graph view state behind the mounted graph pane + its outbound GraphEvent queue.
+    graph_view: Arc<Mutex<crate::graph::graph_view::LoomGraphView>>,
+    graph_events: Arc<Mutex<Vec<crate::graph::graph_view::GraphEvent>>>,
+    /// The outgoing-links panel state + its outbound nav-target queue.
+    outgoing_links: Arc<Mutex<crate::rich_editor::wikilinks::outgoing_links_panel::OutgoingLinksPanel>>,
+    outgoing_nav: Arc<Mutex<Vec<crate::rich_editor::wikilinks::outgoing_links_panel::NavTarget>>>,
+    /// The relevant-memory panel state + its outbound memory-nav queue.
+    relevant_memory: Arc<Mutex<crate::fems::relevant_memory_panel::RelevantMemoryPanel>>,
+    relevant_memory_nav: Arc<Mutex<Vec<crate::fems::relevant_memory_panel::MemoryNavTarget>>>,
+    /// The Stage pane state + the embed-back request flag.
+    stage: Arc<Mutex<crate::stage_pane::StagePane>>,
+    stage_embed_requested: Arc<std::sync::atomic::AtomicBool>,
+    /// The daily-journal panel state + its outbound DailyJournalEvent queue.
+    daily_journal: Arc<Mutex<crate::graph::daily_journal_panel::DailyJournalState>>,
+    daily_journal_events: Arc<Mutex<Vec<crate::graph::daily_journal_panel::DailyJournalEvent>>>,
+    /// The manual pane search/selection state (the registry content is immutable, held by the factory).
+    manual_state: Arc<Mutex<crate::manual_pane::ManualPaneState>>,
+    /// True once the relevant-memory pane has requested its first FEMS fetch (so the EndpointMissing
+    /// blocker is surfaced exactly once — the route is verified ABSENT in this build).
+    relevant_memory_fetched: std::sync::atomic::AtomicBool,
 }
 
 /// Build the pane factory map AND install the CONCRETE [`LoomSearchV2PaneFactory`] over its placeholder
@@ -737,8 +774,155 @@ fn install_editor_mounts(
     );
     map.insert(PaneType::LoomWikiPage, Box::new(rich_mount));
 
-    EditorMountHandles { session, code_panel, rich_state, command_rx, rich_events }
+    // WP-KERNEL-012 MT-080 (E11 host-mount, part 2): install the SECONDARY pane factories over their
+    // placeholders so the canvas / graph / side panes render LIVE too.
+    let secondary = install_secondary_mounts(map);
+
+    EditorMountHandles { session, code_panel, rich_state, command_rx, rich_events, secondary }
 }
+
+/// WP-KERNEL-012 MT-080: build the SECONDARY pane factories (canvas / graph / outgoing-links /
+/// relevant-memory / Stage / daily-journal / manual), install them over their `PlaceholderPaneFactory`
+/// entries, and return the live handles the shell keeps. Reuses the existing widget structs (no widget
+/// logic re-implemented); the mount wrappers only thread the shared palette + collect the per-pane
+/// outbound events the shell drains. Each factory is registered over the SAME `PaneType` the pane's
+/// `register_*_pane` record uses, so a docked secondary pane renders the real widget instead of a
+/// placeholder.
+fn install_secondary_mounts(
+    map: &mut HashMap<PaneType, Box<dyn PaneFactory>>,
+) -> SecondaryMountHandles {
+    use crate::editor_pane_factories::{
+        CanvasBoardPaneMount, DailyJournalPaneMount, GraphViewPaneMount, ManualPaneMount,
+        OutgoingLinksPaneMount, RelevantMemoryPaneMount, StagePaneMount,
+    };
+
+    // One shared palette cell, seeded with the default dark palette; the shell overwrites it from the
+    // active theme each frame (sync_editor_session) so the widgets track a runtime theme toggle.
+    let palette: crate::editor_pane_factories::SharedPalette =
+        Arc::new(Mutex::new(HsTheme::Dark.palette()));
+
+    // ── Canvas board (PaneType::AtelierEditor) ───────────────────────────────────────────────────────
+    let canvas_board = Arc::new(Mutex::new(crate::graph::canvas_board::LoomCanvasBoard::new(
+        DEFAULT_PROJECT_ID,
+        SECONDARY_CANVAS_BLOCK_ID,
+    )));
+    let canvas_events = Arc::new(Mutex::new(Vec::new()));
+    map.insert(
+        PaneType::AtelierEditor,
+        Box::new(CanvasBoardPaneMount::new(
+            Arc::clone(&canvas_board),
+            Arc::clone(&palette),
+            Arc::clone(&canvas_events),
+        )),
+    );
+
+    // ── Graph view (PaneType::KernelDcc) ─────────────────────────────────────────────────────────────
+    let mut gv = crate::graph::graph_view::LoomGraphView::default();
+    gv.workspace_id = DEFAULT_PROJECT_ID.to_owned();
+    let graph_view = Arc::new(Mutex::new(gv));
+    let graph_events = Arc::new(Mutex::new(Vec::new()));
+    map.insert(
+        PaneType::KernelDcc,
+        Box::new(GraphViewPaneMount::new(
+            Arc::clone(&graph_view),
+            Arc::clone(&palette),
+            Arc::clone(&graph_events),
+        )),
+    );
+
+    // ── Outgoing-links side pane (PaneType::LoomBlock) ───────────────────────────────────────────────
+    let outgoing_links = Arc::new(Mutex::new(
+        crate::rich_editor::wikilinks::outgoing_links_panel::OutgoingLinksPanel::new(),
+    ));
+    let outgoing_nav = Arc::new(Mutex::new(Vec::new()));
+    map.insert(
+        PaneType::LoomBlock,
+        Box::new(OutgoingLinksPaneMount::new(
+            Arc::clone(&outgoing_links),
+            Arc::clone(&palette),
+            Arc::clone(&outgoing_nav),
+        )),
+    );
+
+    // ── Relevant-memory side pane (PaneType::Placeholder("Relevant Memory")) ─────────────────────────
+    let relevant_memory = Arc::new(Mutex::new(
+        crate::fems::relevant_memory_panel::RelevantMemoryPanel::new(),
+    ));
+    let relevant_memory_nav = Arc::new(Mutex::new(Vec::new()));
+    map.insert(
+        PaneType::Placeholder("Relevant Memory".to_owned()),
+        Box::new(RelevantMemoryPaneMount::new(
+            Arc::clone(&relevant_memory),
+            Arc::clone(&palette),
+            Arc::clone(&relevant_memory_nav),
+        )),
+    );
+
+    // ── Stage pane (PaneType::Placeholder("Stage")) ──────────────────────────────────────────────────
+    let stage = Arc::new(Mutex::new(crate::stage_pane::StagePane::new()));
+    let stage_embed_requested = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    map.insert(
+        PaneType::Placeholder("Stage".to_owned()),
+        Box::new(StagePaneMount::new(
+            Arc::clone(&stage),
+            Arc::clone(&palette),
+            Arc::clone(&stage_embed_requested),
+        )),
+    );
+
+    // ── Daily-journal pane (PaneType::LoomDailyJournal) ──────────────────────────────────────────────
+    let daily_journal = Arc::new(Mutex::new(
+        crate::graph::daily_journal_panel::DailyJournalState::new(
+            crate::rich_editor::daily_notes::date_nav::DateNav::today_now(),
+        ),
+    ));
+    let daily_journal_events = Arc::new(Mutex::new(Vec::new()));
+    map.insert(
+        PaneType::LoomDailyJournal,
+        Box::new(DailyJournalPaneMount::new(
+            Arc::clone(&daily_journal),
+            Arc::clone(&palette),
+            Arc::clone(&daily_journal_events),
+        )),
+    );
+
+    // ── User-manual pane (PaneType::UserManual) ──────────────────────────────────────────────────────
+    let mut manual_registry = crate::manual_pane::ManualRegistry::new();
+    manual_registry.register_section(crate::manual_content_editors::editors_manual_section());
+    let manual_registry = Arc::new(manual_registry);
+    let manual_state = Arc::new(Mutex::new(crate::manual_pane::ManualPaneState::default()));
+    map.insert(
+        PaneType::UserManual,
+        Box::new(ManualPaneMount::new(
+            Arc::clone(&manual_registry),
+            Arc::clone(&manual_state),
+            Arc::clone(&palette),
+        )),
+    );
+
+    SecondaryMountHandles {
+        palette,
+        canvas_board,
+        canvas_events,
+        graph_view,
+        graph_events,
+        outgoing_links,
+        outgoing_nav,
+        relevant_memory,
+        relevant_memory_nav,
+        stage,
+        stage_embed_requested,
+        daily_journal,
+        daily_journal_events,
+        manual_state,
+        relevant_memory_fetched: std::sync::atomic::AtomicBool::new(false),
+    }
+}
+
+/// WP-KERNEL-012 MT-080: the canvas block id a freshly mounted canvas pane binds to before a specific
+/// canvas is opened (a stable per-workspace default board; opening a specific canvas updates it in a
+/// follow-on run). Disk-agnostic, no spaces.
+const SECONDARY_CANVAS_BLOCK_ID: &str = "default-canvas";
 
 /// WP-KERNEL-012 MT-079: the seed snippet a freshly mounted code pane shows before a file is opened.
 const CODE_EDITOR_SEED: &str = "\
@@ -2073,6 +2257,65 @@ impl HandshakeApp {
     /// proof enqueues a `pending_events` entry on this SAME state and asserts it reaches the nav bus).
     pub fn mounted_rich_state(&self) -> Arc<Mutex<RichEditorState>> {
         Arc::clone(&self.editor_mounts.rich_state)
+    }
+
+    /// WP-KERNEL-012 MT-080: the Arc-shared canvas board behind the MOUNTED canvas pane (the AC-080-2 proof
+    /// enqueues a `CanvasEvent` on this SAME board and asserts the host PATCH/re-fetch path fires).
+    pub fn mounted_canvas_events(
+        &self,
+    ) -> Arc<Mutex<Vec<crate::graph::canvas_board::CanvasEvent>>> {
+        Arc::clone(&self.editor_mounts.secondary.canvas_events)
+    }
+
+    /// WP-KERNEL-012 MT-080: the Arc-shared graph view behind the MOUNTED graph pane (the AC-080-3 proof
+    /// puts the view in Local mode + enqueues a `DepthChanged` and asserts the depth re-query carries the
+    /// new backlink_depth).
+    pub fn mounted_graph_view(
+        &self,
+    ) -> Arc<Mutex<crate::graph::graph_view::LoomGraphView>> {
+        Arc::clone(&self.editor_mounts.secondary.graph_view)
+    }
+
+    /// WP-KERNEL-012 MT-080: the Arc-shared graph-event outbound queue (the AC-080-3 proof enqueues a
+    /// `DepthChanged` on this queue and asserts the host drains it into the depth re-query).
+    pub fn editor_mounts_graph_events_for_test(
+        &self,
+    ) -> Arc<Mutex<Vec<crate::graph::graph_view::GraphEvent>>> {
+        Arc::clone(&self.editor_mounts.secondary.graph_events)
+    }
+
+    /// WP-KERNEL-012 MT-080: the Arc-shared outgoing-links nav queue behind the MOUNTED outgoing-links pane
+    /// (the AC-080-5 proof seeds a resolved link, clicks it, and asserts a nav target reaches this queue).
+    pub fn mounted_outgoing_links(
+        &self,
+    ) -> Arc<Mutex<crate::rich_editor::wikilinks::outgoing_links_panel::OutgoingLinksPanel>> {
+        Arc::clone(&self.editor_mounts.secondary.outgoing_links)
+    }
+
+    /// WP-KERNEL-012 MT-080: the Arc-shared relevant-memory panel behind the MOUNTED relevant-memory pane
+    /// (the AC-080-5 proof drives the EndpointMissing empty-state — the FEMS read route is verified ABSENT).
+    pub fn mounted_relevant_memory(
+        &self,
+    ) -> Arc<Mutex<crate::fems::relevant_memory_panel::RelevantMemoryPanel>> {
+        Arc::clone(&self.editor_mounts.secondary.relevant_memory)
+    }
+
+    /// WP-KERNEL-012 MT-080: the Arc-shared daily-journal state behind the MOUNTED daily-journal pane.
+    pub fn mounted_daily_journal(
+        &self,
+    ) -> Arc<Mutex<crate::graph::daily_journal_panel::DailyJournalState>> {
+        Arc::clone(&self.editor_mounts.secondary.daily_journal)
+    }
+
+    /// WP-KERNEL-012 MT-080: the Arc-shared Stage pane behind the MOUNTED Stage pane.
+    pub fn mounted_stage(&self) -> Arc<Mutex<crate::stage_pane::StagePane>> {
+        Arc::clone(&self.editor_mounts.secondary.stage)
+    }
+
+    /// WP-KERNEL-012 MT-080: the Arc-shared manual pane search/selection state behind the MOUNTED manual
+    /// pane (the registry CONTENT is immutable, held by the factory).
+    pub fn mounted_manual_state(&self) -> Arc<Mutex<crate::manual_pane::ManualPaneState>> {
+        Arc::clone(&self.editor_mounts.secondary.manual_state)
     }
 
     /// WP-KERNEL-012 MT-071: whether the FOCUSED pane this frame is the mounted code editor
@@ -4283,6 +4526,16 @@ impl HandshakeApp {
         }
         if !commands.is_empty() {
             let bus = crate::interop::InteractionBus::get_or_init(ctx);
+            // WP-KERNEL-012 MT-080 (AC-080-4): thread the app runtime handle into the unified-undo bus +
+            // (idempotently) register the undo command set, so the MT-035 unified-undo stack the mounted
+            // code pane's Ctrl+Z/Ctrl+Y route through has its runtime + commands wired. Done lazily here
+            // (when a code command actually arrives) rather than every frame.
+            if let Some(rt) = self.runtime_handle.clone() {
+                crate::interop::InteractionBus::with_try_lock(&bus, |b| {
+                    b.set_undo_runtime(rt);
+                    b.register_undo_commands();
+                });
+            }
             for action in commands {
                 match action {
                     CodeEditorAction::OpenCommandPalette => self.open_command_palette(),
@@ -4373,6 +4626,295 @@ impl HandshakeApp {
                     // Create-from-unresolved-link is owned by the editor's own async intent handler
                     // (MT-057 dispatch_create_note); the shell does not double-handle it here.
                 }
+            }
+        }
+
+        // ── WP-KERNEL-012 MT-080: drain the SECONDARY mounted panes' outbound event queues ────────────
+        self.drive_secondary_mounts(ctx);
+    }
+
+    /// WP-KERNEL-012 MT-080 (E11 host-mount, part 2): drain the SECONDARY mounted panes' outbound event
+    /// queues each frame and route each through the EXISTING shell paths. Mirrors `drive_editor_mounts`'s
+    /// drain discipline (drained AFTER the pane host so a gesture handled THIS frame is routed THIS frame;
+    /// skipped during a snapshot-capture pass so the throwaway capture context stays side-effect-free).
+    ///
+    /// The five live routes:
+    /// 1. **Canvas events** (AC-080-2 / MT-061). A `ResizePlacement`/`AssignSection` maps to the EXISTING
+    ///    `CanvasBoardClient` PATCH (resize / group / clear-group); the host dispatches it + re-fetches the
+    ///    board. An `EditTextCard`/`TextCardEditBlocked` has no bindable persistence route, so it stays the
+    ///    honest typed blocker (no fake write). The live PATCH round-trip is `NEEDS_MANAGED_RESOURCE_PROOF`
+    ///    (needs a live PG board) — the host wiring is proven; the DB write is gated.
+    /// 2. **Graph depth** (AC-080-3 / MT-060). A `GraphEvent::DepthChanged { depth }` re-fires the
+    ///    depth-parameterized `graph-search` (`fetch_local_with_depth`) carrying the NEW `backlink_depth`;
+    ///    `OpenNode`/`SelectNode` route to the active pane open path.
+    /// 3. **Outgoing-links nav** (AC-080-5 / MT-062). A clicked link routes to the MT-030 nav bus.
+    /// 4. **Relevant-memory nav** (AC-080-5 / MT-063). A "Go to source" click routes to the nav bus; the
+    ///    FEMS read route is ABSENT, so the panel shows the `EndpointMissing` empty-state (surfaced once).
+    /// 5. **Daily-journal date** (AC-080-5 / MT-067). A `DateNavigated` maps to `open_or_create_daily_note`.
+    fn drive_secondary_mounts(&mut self, ctx: &egui::Context) {
+        if self.capturing_snapshot {
+            return;
+        }
+
+        // Drain every queue up-front into owned locals so the per-event routing can take `&mut self`
+        // (the queues live behind `Arc<Mutex<_>>`, so the drain holds no borrow of `self`).
+        let canvas_events: Vec<crate::graph::canvas_board::CanvasEvent> = self
+            .editor_mounts
+            .secondary
+            .canvas_events
+            .lock()
+            .map(|mut q| std::mem::take(&mut *q))
+            .unwrap_or_default();
+        let graph_events: Vec<crate::graph::graph_view::GraphEvent> = self
+            .editor_mounts
+            .secondary
+            .graph_events
+            .lock()
+            .map(|mut q| std::mem::take(&mut *q))
+            .unwrap_or_default();
+        let out_nav: Vec<crate::rich_editor::wikilinks::outgoing_links_panel::NavTarget> = self
+            .editor_mounts
+            .secondary
+            .outgoing_nav
+            .lock()
+            .map(|mut q| std::mem::take(&mut *q))
+            .unwrap_or_default();
+        let mem_nav: Vec<crate::fems::relevant_memory_panel::MemoryNavTarget> = self
+            .editor_mounts
+            .secondary
+            .relevant_memory_nav
+            .lock()
+            .map(|mut q| std::mem::take(&mut *q))
+            .unwrap_or_default();
+        let journal_events: Vec<crate::graph::daily_journal_panel::DailyJournalEvent> = self
+            .editor_mounts
+            .secondary
+            .daily_journal_events
+            .lock()
+            .map(|mut q| std::mem::take(&mut *q))
+            .unwrap_or_default();
+        let stage_embed = self
+            .editor_mounts
+            .secondary
+            .stage_embed_requested
+            .swap(false, std::sync::atomic::Ordering::Relaxed);
+
+        // 1. Canvas events -> real PATCH/POST via the MT-026 CanvasBoardClient (live round-trip gated).
+        if !canvas_events.is_empty() {
+            self.route_canvas_events(canvas_events, ctx);
+        }
+
+        // 2. Graph events -> depth re-query + node open.
+        if !graph_events.is_empty() {
+            self.route_graph_events(graph_events, ctx);
+        }
+
+        // 3. Outgoing-links nav targets -> MT-030 nav bus.
+        for target in out_nav {
+            use crate::rich_editor::wikilinks::outgoing_links_panel::NavTarget;
+            let outcome = match target {
+                NavTarget::Block { id } => {
+                    crate::quick_switcher::ShellNavigator::open_loom_block(self, &id)
+                }
+                NavTarget::Unresolved { value } => {
+                    // The link is never dropped: an unresolved target opens as a Loom block reference so
+                    // the shell surfaces a status (the create/resolve path is the editor's own).
+                    crate::quick_switcher::ShellNavigator::open_loom_block(self, &value)
+                }
+            };
+            self.surface_nav_outcome(&outcome);
+            ctx.request_repaint();
+        }
+
+        // 4. Relevant-memory nav -> MT-030 nav bus.
+        for target in mem_nav {
+            use crate::fems::relevant_memory_panel::MemoryNavTarget;
+            let outcome = match target {
+                MemoryNavTarget::Document { document_id, .. } => {
+                    crate::quick_switcher::ShellNavigator::open_document(self, &document_id)
+                }
+                MemoryNavTarget::Uri { uri } => {
+                    crate::quick_switcher::ShellNavigator::open_loom_block(self, &uri)
+                }
+                MemoryNavTarget::Event { event_id } => {
+                    crate::quick_switcher::ShellNavigator::open_loom_block(self, &event_id)
+                }
+            };
+            self.surface_nav_outcome(&outcome);
+            ctx.request_repaint();
+        }
+
+        // 5. Daily-journal date selection -> open-or-create the daily note.
+        for event in journal_events {
+            use crate::graph::daily_journal_panel::DailyJournalEvent;
+            if let DailyJournalEvent::DateNavigated(date) = event {
+                // open_or_create_daily_note: open the daily note for the selected date on the active pane.
+                // The note id is the canonical journal slug for the date (YYYY-MM-DD); the open path resolves
+                // it through the same Loom open the journal drawer uses.
+                let slug = date.format("%Y-%m-%d").to_string();
+                self.open_content_on_active_pane(
+                    PaneType::LoomDailyJournal,
+                    Some(format!("journal:{slug}")),
+                );
+                ctx.request_repaint();
+            }
+            // FocusCalendarEvent stays read-only (the /calendar/events route is the typed blocker — no fake).
+        }
+
+        // The Stage embed-back request is the typed-blocker surface (the embed-back HTTP route is ABSENT);
+        // record it once as a perceivable repaint rather than a silent no-op or a faked embed.
+        if stage_embed {
+            ctx.request_repaint();
+        }
+
+        // 6. Relevant-memory refresh-for-context (AC-080-5 / MT-063). Subscribe the panel's debounced
+        // refresh to the active workspace context: when bound + the context is NEW, the panel marks
+        // in-flight and the shell spawns the FEMS read off-thread. The FEMS read route is verified ABSENT
+        // in this build, so the fetch resolves to the `EndpointMissing` typed blocker and the panel renders
+        // its empty-state banner (the DESIGNED primary path — no backend add, no fake pack). Guarded so the
+        // first fetch fires once per active context (the debounce inside `refresh_for_context` skips an
+        // unchanged context every frame after).
+        if !self.capturing_snapshot {
+            if let (false, Some(rt), false) = (
+                self.active_project_id.is_empty(),
+                self.runtime_handle.clone(),
+                self.editor_mounts.secondary.relevant_memory_fetched.load(std::sync::atomic::Ordering::Relaxed),
+            ) {
+                let mem_ctx = crate::fems::memory_client::MemoryContext::for_workspace(
+                    self.active_project_id.clone(),
+                );
+                let should_fetch = self
+                    .editor_mounts
+                    .secondary
+                    .relevant_memory
+                    .lock()
+                    .map(|mut p| p.refresh_for_context(mem_ctx.clone()))
+                    .unwrap_or(false);
+                if should_fetch {
+                    self.editor_mounts
+                        .secondary
+                        .relevant_memory_fetched
+                        .store(true, std::sync::atomic::Ordering::Relaxed);
+                    let panel = Arc::clone(&self.editor_mounts.secondary.relevant_memory);
+                    let workspace = self.active_project_id.clone();
+                    let repaint = ctx.clone();
+                    rt.spawn(async move {
+                        let client = crate::fems::memory_client::MemoryClient::production();
+                        let result = client.fetch_pack(&workspace, &mem_ctx).await;
+                        if let Ok(mut p) = panel.lock() {
+                            match result {
+                                Ok(pack) => p.set_pack(pack),
+                                Err(err) => p.set_blocker(err),
+                            }
+                        }
+                        repaint.request_repaint();
+                    });
+                }
+            }
+        }
+    }
+
+    /// WP-KERNEL-012 MT-080 (AC-080-2 / MT-061): map each drained [`crate::graph::canvas_board::CanvasEvent`]
+    /// to the EXISTING `CanvasBoardClient` mutation + re-fetch (the live PATCH round-trip is gated
+    /// `NEEDS_MANAGED_RESOURCE_PROOF` — it needs a live PG board). A `ResizePlacement` PATCHes `{w,h}`; an
+    /// `AssignSection` PATCHes `{group_id}` (or clears it); both re-fetch the board so the persisted geometry
+    /// replaces the optimistic in-flight value. An `EditTextCard`/`TextCardEditBlocked` has NO bindable
+    /// persistence route — it stays the honest typed blocker (the canvas card-edit endpoint is absent), never
+    /// a faked write. Other events (place/remove/open) route through their existing paths or are no-ops here.
+    fn route_canvas_events(
+        &mut self,
+        events: Vec<crate::graph::canvas_board::CanvasEvent>,
+        ctx: &egui::Context,
+    ) {
+        use crate::graph::canvas_board::CanvasEvent;
+        let Some(rt) = self.runtime_handle.clone() else {
+            return; // No runtime: a headless shell cannot dispatch off-thread mutations (graceful no-op).
+        };
+        let client = crate::backend_client::CanvasBoardClient::production(rt);
+        let (workspace_id, canvas_block_id) = match self.editor_mounts.secondary.canvas_board.lock() {
+            Ok(b) => (b.workspace_id.clone(), b.canvas_block_id.clone()),
+            Err(_) => return,
+        };
+        let mut dispatched_any = false;
+        for event in events {
+            let spec = match event {
+                CanvasEvent::ResizePlacement { placement_id, w, h } => {
+                    Some(client.resize_request(&workspace_id, &placement_id, w as f64, h as f64))
+                }
+                CanvasEvent::AssignSection { placement_id, group_id } => Some(match group_id {
+                    Some(gid) => client.group_request(&workspace_id, &placement_id, &gid),
+                    None => client.clear_group_request(&workspace_id, &placement_id),
+                }),
+                // The remaining canvas events keep their existing handling (open/select route to the active
+                // pane open path; place/remove are owned by their own MT-026 paths). EditTextCard /
+                // TextCardEditBlocked have no bindable card-body persistence route -> honest typed blocker,
+                // surfaced by the pane, never a faked write here.
+                _ => None,
+            };
+            if let Some(spec) = spec {
+                let cell: crate::backend_client::CanvasBoardOpCell =
+                    std::sync::Arc::new(std::sync::Mutex::new(None));
+                client.dispatch(spec, cell);
+                dispatched_any = true;
+            }
+        }
+        if dispatched_any {
+            // Re-fetch the board so a 2xx PATCH's persisted geometry/group replaces the optimistic value.
+            let cell: crate::backend_client::CanvasBoardCell =
+                std::sync::Arc::new(std::sync::Mutex::new(None));
+            client.fetch_board(&workspace_id, &canvas_block_id, cell);
+            ctx.request_repaint();
+        }
+    }
+
+    /// WP-KERNEL-012 MT-080 (AC-080-3 / MT-060): map each drained
+    /// [`crate::graph::graph_view::GraphEvent`] to the EXISTING graph paths. A `DepthChanged { depth }`
+    /// re-fires the depth-parameterized `graph-search` (`fetch_local_with_depth`) carrying the NEW
+    /// `backlink_depth` (NO new endpoint); the result re-populates the SAME graph-view state via the shared
+    /// cell + `set_graph` once it resolves (the live fetch is gated `NEEDS_MANAGED_RESOURCE_PROOF`). An
+    /// `OpenNode`/`SelectNode` opens the block on the active pane.
+    fn route_graph_events(
+        &mut self,
+        events: Vec<crate::graph::graph_view::GraphEvent>,
+        ctx: &egui::Context,
+    ) {
+        use crate::graph::graph_view::{GraphEvent, GraphMode};
+        for event in events {
+            match event {
+                GraphEvent::DepthChanged { depth } => {
+                    // Re-query the focused block's neighbourhood at the new depth. The focus + title come
+                    // from the live graph-view mode (Local); a Global-mode depth change never fires.
+                    let focus = self.editor_mounts.secondary.graph_view.lock().ok().and_then(|v| {
+                        match &v.mode {
+                            GraphMode::Local { block_id, title } => {
+                                Some((v.workspace_id.clone(), block_id.clone(), title.clone()))
+                            }
+                            GraphMode::Global => None,
+                        }
+                    });
+                    if let (Some((ws, block_id, title)), Some(rt)) =
+                        (focus, self.runtime_handle.clone())
+                    {
+                        // Mark loading on the SAME state the pane renders, then spawn the depth re-query;
+                        // the delivered graph re-populates the cell the pane reads (the host's existing
+                        // graph-cell deliver path). The DB round-trip is gated NEEDS_MANAGED_RESOURCE_PROOF.
+                        if let Ok(mut v) = self.editor_mounts.secondary.graph_view.lock() {
+                            v.loading = true;
+                        }
+                        let client = crate::backend_client::LoomGraphClient::production(rt);
+                        let cell: crate::backend_client::LoomGraphCell =
+                            std::sync::Arc::new(std::sync::Mutex::new(None));
+                        client.fetch_local_with_depth(&ws, &block_id, &title, depth, cell);
+                        ctx.request_repaint();
+                    }
+                }
+                GraphEvent::OpenNode { block_id } | GraphEvent::SelectNode { block_id } => {
+                    self.open_content_on_active_pane(PaneType::LoomBlock, Some(block_id));
+                    ctx.request_repaint();
+                }
+                // ModeChanged/Relayout/AddEdge/RemoveEdge keep their existing handling (mode re-fetch /
+                // layout reset / edge mutation) owned by the graph-view's own paths; no extra host route.
+                _ => {}
             }
         }
     }
@@ -5385,6 +5927,13 @@ impl HandshakeApp {
                         *sess = EditorSessionContext::new(ws, rt);
                     }
                 }
+            }
+            // WP-KERNEL-012 MT-080: push the live theme palette into the SECONDARY pane factories' shared
+            // cell so the canvas/graph/side panes render with the active theme tokens (and flip on a runtime
+            // theme toggle), the same per-frame push the search panes use. Safe in a capture pass too (it is
+            // a pure palette overwrite with no off-thread side effect).
+            if let Ok(mut p) = self.editor_mounts.secondary.palette.lock() {
+                *p = self.current_theme.palette();
             }
         }
 

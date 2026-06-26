@@ -1371,12 +1371,29 @@ impl LoomGraphClient {
     /// Pure request builder for the LOCAL neighbourhood fetch: `GET /loom/graph-search?q={title}&
     /// backlink_depth=2&limit=200`. `q` is the focused block's TITLE (the backend rejects an empty `q`).
     pub fn local_request(&self, workspace_id: &str, title: &str) -> GetRequestSpec {
+        self.local_request_with_depth(workspace_id, title, DEFAULT_BACKLINK_DEPTH)
+    }
+
+    /// WP-KERNEL-012 MT-080 (E11 host-mount, AC-080-3 / MT-060 deep wiring): the DEPTH-parameterized
+    /// variant of [`local_request`](Self::local_request). The graph view's MT-060 link-depth slider fires
+    /// `GraphEvent::DepthChanged { depth }`; the host re-fires the EXISTING `graph-search` endpoint with the
+    /// new `backlink_depth` (NO new endpoint — only the verified query parameter changes). `depth` is
+    /// clamped to `[MIN..=MAX]_BACKLINK_DEPTH` so a slider/agent value can never send an out-of-range or
+    /// abusive depth to the backend. `local_request` delegates here with the default depth, so the two stay
+    /// one builder (no second URL surface to drift).
+    pub fn local_request_with_depth(
+        &self,
+        workspace_id: &str,
+        title: &str,
+        depth: u32,
+    ) -> GetRequestSpec {
+        let depth = depth.clamp(MIN_BACKLINK_DEPTH, MAX_BACKLINK_DEPTH);
         GetRequestSpec {
             method: HttpMethod::Get,
             url: self.graph_search_url(workspace_id),
             query: vec![
                 ("q".to_owned(), title.to_owned()),
-                ("backlink_depth".to_owned(), "2".to_owned()),
+                ("backlink_depth".to_owned(), depth.to_string()),
                 ("limit".to_owned(), "200".to_owned()),
             ],
         }
@@ -1402,7 +1419,28 @@ impl LoomGraphClient {
         focus_title: &str,
         cell: LoomGraphCell,
     ) {
-        let spec = self.local_request(workspace_id, focus_title);
+        self.fetch_local_with_depth(
+            workspace_id,
+            focus_block_id,
+            focus_title,
+            DEFAULT_BACKLINK_DEPTH,
+            cell,
+        );
+    }
+
+    /// WP-KERNEL-012 MT-080 (AC-080-3 / MT-060): fetch the LOCAL neighbourhood at a specific
+    /// `backlink_depth`, the re-query the host fires on `GraphEvent::DepthChanged`. Same off-thread spawn +
+    /// parse path as [`fetch_local`](Self::fetch_local); only the query `backlink_depth` differs (the
+    /// EXISTING endpoint, NO new route). `fetch_local` delegates here with the default depth.
+    pub fn fetch_local_with_depth(
+        &self,
+        workspace_id: &str,
+        focus_block_id: &str,
+        focus_title: &str,
+        depth: u32,
+        cell: LoomGraphCell,
+    ) {
+        let spec = self.local_request_with_depth(workspace_id, focus_title, depth);
         let client = self.client.clone();
         let focus = focus_block_id.to_owned();
         self.runtime.spawn(async move {
@@ -1411,6 +1449,18 @@ impl LoomGraphClient {
         });
     }
 }
+
+/// WP-KERNEL-012 MT-080 (MT-060 link-depth): the default `backlink_depth` the local neighbourhood fetch
+/// uses (the value `local_request` carried before the depth parameter was threaded — unchanged behavior
+/// for the non-depth path).
+pub const DEFAULT_BACKLINK_DEPTH: u32 = 2;
+/// The minimum `backlink_depth` the depth-parameterized graph re-query will send. A depth of 1 is the
+/// focused block plus its direct neighbours (the shallowest useful local view).
+pub const MIN_BACKLINK_DEPTH: u32 = 1;
+/// The maximum `backlink_depth` the depth-parameterized graph re-query will send. Clamps a slider/agent
+/// value so an out-of-range depth can never reach the backend as an abusive traversal (RISK-080-3 — the
+/// re-query stays inside the verified endpoint's safe envelope).
+pub const MAX_BACKLINK_DEPTH: u32 = 5;
 
 /// Write a graph fetch result into a [`LoomGraphCell`].
 fn deliver_graph(cell: &LoomGraphCell, result: Result<LoomGraphData, String>) {
@@ -1712,6 +1762,40 @@ impl CanvasBoardClient {
             method: HttpMethod::Patch,
             url: self.placement_url(workspace_id, placement_id),
             body: Some(serde_json::json!({ "group_id": group_id })),
+        }
+    }
+
+    /// WP-KERNEL-012 MT-080 (AC-080-2 / MT-061): pure request builder for
+    /// `PATCH .../canvas-placements/:placement_id` (updateCanvasPlacement) with the new card `{w, h}`. The
+    /// canvas `CanvasEvent::ResizePlacement { placement_id, w, h }` fires ONCE on resize drag-stop
+    /// (debounced in the widget); the host maps it to this builder, sends it via [`dispatch`](Self::dispatch),
+    /// then re-fetches the board so the persisted geometry replaces the optimistic in-flight size. Same
+    /// placement URL + PATCH verb as [`group_request`](Self::group_request); only the body fields differ
+    /// (`w`/`h` are the verified placement geometry fields — see [`placement_from_json`]).
+    pub fn resize_request(
+        &self,
+        workspace_id: &str,
+        placement_id: &str,
+        w: f64,
+        h: f64,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Patch,
+            url: self.placement_url(workspace_id, placement_id),
+            body: Some(serde_json::json!({ "w": w, "h": h })),
+        }
+    }
+
+    /// WP-KERNEL-012 MT-080 (AC-080-2 / MT-061): pure request builder for
+    /// `PATCH .../canvas-placements/:placement_id` clearing the `group_id` (a card dropped OUTSIDE all
+    /// section frames). The canvas `CanvasEvent::AssignSection { placement_id, group_id: None }` fires on a
+    /// move drag-stop outside any section; the host maps the `None` arm here (a JSON `null` group_id), the
+    /// `Some` arm to [`group_request`](Self::group_request).
+    pub fn clear_group_request(&self, workspace_id: &str, placement_id: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Patch,
+            url: self.placement_url(workspace_id, placement_id),
+            body: Some(serde_json::json!({ "group_id": serde_json::Value::Null })),
         }
     }
 
@@ -5559,6 +5643,62 @@ mod tests {
                 ("limit".to_owned(), "200".to_owned()),
             ]
         );
+    }
+
+    /// WP-KERNEL-012 MT-080 (AC-080-3 / MT-060): the depth-parameterized builder carries the NEW
+    /// `backlink_depth` (the re-query the host fires on `GraphEvent::DepthChanged`) on the SAME verified
+    /// endpoint, and clamps an out-of-range depth into `[MIN..=MAX]_BACKLINK_DEPTH` (RISK-080-3).
+    #[test]
+    fn loom_graph_local_request_with_depth_carries_and_clamps_backlink_depth() {
+        let rt = rt();
+        let c = LoomGraphClient::new(BASE, rt.handle().clone());
+
+        // A valid in-range depth is carried verbatim on the SAME graph-search URL (NO new endpoint).
+        let spec = c.local_request_with_depth("ws-7", "My Note", 4);
+        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws-7/loom/graph-search");
+        assert_eq!(
+            spec.query,
+            vec![
+                ("q".to_owned(), "My Note".to_owned()),
+                ("backlink_depth".to_owned(), "4".to_owned()),
+                ("limit".to_owned(), "200".to_owned()),
+            ],
+            "the new depth replaces the default backlink_depth on the verified endpoint"
+        );
+
+        // An abusive over-range depth clamps DOWN to MAX (never reaches the backend as an abusive
+        // traversal); a zero/under-range depth clamps UP to MIN.
+        let too_deep = c.local_request_with_depth("ws-7", "T", 99);
+        assert_eq!(too_deep.query[1], ("backlink_depth".to_owned(), MAX_BACKLINK_DEPTH.to_string()));
+        let too_shallow = c.local_request_with_depth("ws-7", "T", 0);
+        assert_eq!(too_shallow.query[1], ("backlink_depth".to_owned(), MIN_BACKLINK_DEPTH.to_string()));
+
+        // The non-depth `local_request` still equals the default-depth path (one builder, no drift).
+        assert_eq!(c.local_request("ws-7", "X").query, c.local_request_with_depth("ws-7", "X", DEFAULT_BACKLINK_DEPTH).query);
+    }
+
+    /// WP-KERNEL-012 MT-080 (AC-080-2 / MT-061): the canvas resize + clear-group request builders PATCH the
+    /// SAME verified placement URL the `group_request` uses; only the body differs (`{w,h}` for a resize,
+    /// `{group_id: null}` for a clear).
+    #[test]
+    fn canvas_board_resize_and_clear_group_requests() {
+        let rt = rt();
+        let c = CanvasBoardClient::new(BASE, rt.handle().clone());
+
+        let resize = c.resize_request("ws-7", "p-9", 320.0, 180.0);
+        assert_eq!(resize.method, HttpMethod::Patch);
+        assert_eq!(resize.url, "http://test.local:1234/workspaces/ws-7/loom/canvas-placements/p-9");
+        assert_eq!(resize.body, Some(serde_json::json!({ "w": 320.0, "h": 180.0 })));
+
+        let clear = c.clear_group_request("ws-7", "p-9");
+        assert_eq!(clear.method, HttpMethod::Patch);
+        assert_eq!(clear.url, "http://test.local:1234/workspaces/ws-7/loom/canvas-placements/p-9");
+        assert_eq!(clear.body, Some(serde_json::json!({ "group_id": serde_json::Value::Null })));
+
+        // The assign (Some group) arm reuses the existing verified group_request (same URL + verb).
+        let assign = c.group_request("ws-7", "p-9", "section-2");
+        assert_eq!(assign.url, resize.url, "assign-section reuses the same placement PATCH URL");
+        assert_eq!(assign.body, Some(serde_json::json!({ "group_id": "section-2" })));
     }
 
     /// End-to-end: the REAL `fetch_global` spawn path hits a live capture server and parses the verified
