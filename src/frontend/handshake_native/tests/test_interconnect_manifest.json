@@ -1,0 +1,279 @@
+[
+  {
+    "backend_apis_called": [
+      "POST /workspaces/{id}/assets",
+      "PUT /workspaces/{id}/knowledge/documents/{doc_id}",
+      "GET /workspaces/{id}/knowledge/documents/{doc_id}",
+      "GET /workspaces/{id}/assets/{asset_id}"
+    ],
+    "description": "Drag CKC image into note: a CKC media asset is embedded as an hsLink node (refKind=HS_images/media) in a saved note; reload returns the node with the asset id.",
+    "edge": "ckc_media_to_note_embed",
+    "proof_fn": "interconnect_ic01_ckc_image_into_note",
+    "scenario_id": "IC-01",
+    "status": "REQUIRES_PG",
+    "surfaces_involved": [
+      "ckc",
+      "rich_editor",
+      "backend"
+    ]
+  },
+  {
+    "backend_apis_called": [
+      "POST /workspaces/{id}/assets",
+      "PUT /workspaces/{id}/knowledge/documents/{doc_id}",
+      "GET /workspaces/{id}/knowledge/documents/{doc_id}"
+    ],
+    "description": "Drag CKC video into note: same as IC-01 with content_type=video/mp4; saved doc carries an hsLink node refKind=video.",
+    "edge": "ckc_media_to_note_embed",
+    "proof_fn": "interconnect_ic02_ckc_video_into_note",
+    "scenario_id": "IC-02",
+    "status": "REQUIRES_PG",
+    "surfaces_involved": [
+      "ckc",
+      "rich_editor",
+      "backend"
+    ]
+  },
+  {
+    "backend_apis_called": [
+      "POST /workspaces/{id}/loom/blocks",
+      "POST /workspaces/{id}/loom/canvas-boards/{board_id}/placements",
+      "GET /workspaces/{id}/loom/canvas-boards/{board_id}"
+    ],
+    "blocker": "ckc_moodboard_content_type_absent_in_LoomBlockContentType_enum: backend has no ckc_moodboard variant; scenario uses note fallback and is PARTIAL until the backend adds the CKC content types (typed blocker, no backend edit in this MT)",
+    "description": "Drag CKC moodboard card onto canvas: a ckc_moodboard Loom block is placed on a canvas board; GET board returns the placement. CTRL-8: ckc_moodboard is NOT in the backend LoomBlockContentType enum (verified 2026-06-26: only note/file/annotated_file/tag_hub/journal/canvas/view_def) -> typed blocker + note fallback, scenario PARTIAL.",
+    "edge": "ckc_media_to_note_embed",
+    "proof_fn": "interconnect_ic03_ckc_moodboard_on_canvas",
+    "scenario_id": "IC-03",
+    "status": "REQUIRES_PG",
+    "surfaces_involved": [
+      "ckc",
+      "canvas",
+      "backend"
+    ]
+  },
+  {
+    "backend_apis_called": [
+      "POST /workspaces/{id}/loom/blocks",
+      "PUT /workspaces/{id}/knowledge/documents/{doc_id}",
+      "GET /workspaces/{id}/loom/blocks/{character_block_id}/backlinks"
+    ],
+    "blocker": "ckc_character_content_type_absent_in_LoomBlockContentType_enum: backend has no ckc_character variant; scenario uses note fallback and is PARTIAL (typed blocker, no backend edit in this MT)",
+    "description": "CKC character referenced in note: a [[loom_block:character_block_id]] wikilink in a saved note registers a backlink; GET backlinks contains the note's block id. CTRL-8: ckc_character is NOT in the backend LoomBlockContentType enum -> typed blocker + note fallback, PARTIAL.",
+    "edge": "ckc_media_to_note_embed",
+    "proof_fn": "interconnect_ic04_ckc_character_wikilink_backlink",
+    "scenario_id": "IC-04",
+    "status": "REQUIRES_PG",
+    "surfaces_involved": [
+      "ckc",
+      "rich_editor",
+      "loom",
+      "backend"
+    ]
+  },
+  {
+    "backend_apis_called": [],
+    "description": "Route note selection to Stage pane: a text-range selection is routed via the SAME shared InteractionBus route-to-stage command into one StagePane; the Stage AccessKit surface label/value matches the selected text. SUBSTRATE proof (no PG). Contract names author_id 'stage.selection.preview'; the REAL registered id is 'stage-routed-content' (MT-033/066) -> assert the real id, typed note on the discrepancy (not a stale-label assert).",
+    "edge": "ckc_media_to_note_embed",
+    "proof_fn": "interconnect_ic05_route_selection_to_stage",
+    "scenario_id": "IC-05",
+    "status": "PASS",
+    "surfaces_involved": [
+      "rich_editor",
+      "stage",
+      "interaction_bus"
+    ]
+  },
+  {
+    "backend_apis_called": [
+      "GET /workspaces/{id}/code-nav/symbols/{symbol_entity_id}"
+    ],
+    "description": "Open code block from note: clicking a [[code:symbol]] hsLink chip dispatches open-code-symbol on the SAME shared bus, staging the symbol entity id for the code pane to jump to. SUBSTRATE proof (no PG): the note->code dispatch + bus staging is proven; the code-pane jump-to-line lands when the code pane mounts (E11/MT-069 ShellNavigator seam).",
+    "edge": "note_code_crossref",
+    "proof_fn": "interconnect_ic06_open_code_block_from_note",
+    "scenario_id": "IC-06",
+    "status": "PASS",
+    "surfaces_involved": [
+      "rich_editor",
+      "code",
+      "interaction_bus"
+    ]
+  },
+  {
+    "backend_apis_called": [],
+    "description": "Reference code symbol from note: 'Copy as note reference' on a code symbol writes a [[code:...]] string to a mockable clipboard; pasting/inserting it into a note yields an hsLink node kind=code that round-trips content_json. SUBSTRATE proof (no PG): clipboard write + content_json round-trip.",
+    "edge": "note_code_crossref",
+    "proof_fn": "interconnect_ic07_reference_code_symbol_from_note",
+    "scenario_id": "IC-07",
+    "status": "PASS",
+    "surfaces_involved": [
+      "code",
+      "rich_editor",
+      "interaction_bus"
+    ]
+  },
+  {
+    "backend_apis_called": [],
+    "description": "Shared find/replace across code and note: ONE shared InteractionBus dispatches a FindQuery command; BOTH a code surface and a rich-text note surface registered on the SAME bus return hits for a query present in both. The bus dispatch count increments (proves the SAME instance routed, not two independent backends). SUBSTRATE proof (no PG).",
+    "edge": "note_code_crossref",
+    "proof_fn": "interconnect_ic08_shared_find_replace",
+    "scenario_id": "IC-08",
+    "status": "PASS",
+    "surfaces_involved": [
+      "code",
+      "rich_editor",
+      "interaction_bus"
+    ]
+  },
+  {
+    "backend_apis_called": [],
+    "description": "Code diagnostics surface note reference: a code diagnostic carrying a related-note reference dispatches open-document on the SAME shared bus; the rich-editor pane's real AccessKit surface ('rich-editor-surface') is the focus target. SUBSTRATE proof (no PG). Contract names 'rich_editor.pane.{doc_id}'; the REAL registered id is 'rich-editor-surface' -> assert the real id, typed note.",
+    "edge": "note_code_crossref",
+    "proof_fn": "interconnect_ic09_diagnostic_note_reference",
+    "scenario_id": "IC-09",
+    "status": "PASS",
+    "surfaces_involved": [
+      "code",
+      "rich_editor",
+      "interaction_bus"
+    ]
+  },
+  {
+    "backend_apis_called": [
+      "POST /workspaces/{id}/loom/blocks",
+      "PUT /workspaces/{id}/knowledge/documents/{doc_id}",
+      "GET /workspaces/{id}/loom/blocks/{loom_B}/backlinks"
+    ],
+    "description": "Backlink appears across surfaces: saving note A (with a wikilink to code-block B) registers a Loom backlink edge B<-A in PG. CTRL-2: the save-calls-backlink contract is verified at the call-site level (the native save dispatches the backlink upsert); the full PG round-trip is requires_pg.",
+    "edge": "loom_backlink_search",
+    "proof_fn": "interconnect_ic10_backlink_cross_surface",
+    "scenario_id": "IC-10",
+    "status": "REQUIRES_PG",
+    "surfaces_involved": [
+      "rich_editor",
+      "loom",
+      "backend"
+    ]
+  },
+  {
+    "backend_apis_called": [
+      "POST /workspaces/{id}/loom/blocks",
+      "POST /workspaces/{id}/loom/search-v2"
+    ],
+    "description": "Loom Search v2 surfaces results from both editors: a note + a code-file block both containing XSEARCH_PROBE both appear in POST /loom/search-v2 hits; facets contain both content types. CTRL-6: poll the search endpoint up to 5x200ms (1s budget) before asserting (async indexing).",
+    "edge": "loom_backlink_search",
+    "proof_fn": "interconnect_ic11_search_v2_across_surfaces",
+    "scenario_id": "IC-11",
+    "status": "REQUIRES_PG",
+    "surfaces_involved": [
+      "rich_editor",
+      "code",
+      "loom",
+      "backend"
+    ]
+  },
+  {
+    "backend_apis_called": [
+      "GET /workspaces/{id}/loom/graph"
+    ],
+    "description": "Graph view shows cross-surface edges: GET /loom/graph depth=2 from loom_A returns both loom_A and loom_B as nodes with a connecting edge; the native force-directed layout places both at distinct positions without panic.",
+    "edge": "loom_backlink_search",
+    "proof_fn": "interconnect_ic12_graph_cross_surface_edges",
+    "scenario_id": "IC-12",
+    "status": "REQUIRES_PG",
+    "surfaces_involved": [
+      "loom",
+      "graph",
+      "backend"
+    ]
+  },
+  {
+    "backend_apis_called": [
+      "POST /workspaces/{id}/loom/ai-jobs",
+      "GET /workspaces/{id}/loom/ai-suggestions",
+      "POST /workspaces/{id}/loom/ai-suggestions/{suggestion_id}/accept"
+    ],
+    "description": "AI Loom job proposes cross-surface link: a link_suggest AI job proposes a code-file target; accepting it writes a real backlink edge. Requires a real AI model endpoint. SKIP_AI_TESTS gate: status=SKIPPED (CTRL-5, explicit console), NEVER silently skipped, NEVER faked PASS.",
+    "edge": "loom_backlink_search",
+    "proof_fn": "interconnect_ic13_ai_link_suggestion",
+    "scenario_id": "IC-13",
+    "status": "SKIPPED",
+    "surfaces_involved": [
+      "rich_editor",
+      "loom",
+      "ai",
+      "backend"
+    ]
+  },
+  {
+    "backend_apis_called": [
+      "GET /workspaces/{id}/loom/quick-switcher"
+    ],
+    "description": "Quick-switcher surfaces items from both editors: GET /loom/quick-switcher?q=XSEARCH_PROBE returns entries from both the note (knowledge_rich_document) and the code block (code_file); each result has block_id, title, content_type, updated_at.",
+    "edge": "loom_backlink_search",
+    "proof_fn": "interconnect_ic14_quick_switcher_both_editors",
+    "scenario_id": "IC-14",
+    "status": "REQUIRES_PG",
+    "surfaces_involved": [
+      "rich_editor",
+      "code",
+      "loom",
+      "backend"
+    ]
+  },
+  {
+    "backend_apis_called": [
+      "GET /workspaces/{id}/knowledge/documents/{doc_id}"
+    ],
+    "description": "Undo crosses rich editor edit: a rich-text edit (insert EDIT_A) is pushed onto the ONE shared undo stack; one undo reverts it so the content no longer contains EDIT_A. SUBSTRATE proof (no PG): the SAME Arc<Mutex<InteractionBus>> undo scope reverts the rich edit. The backend version-revert half is requires_pg.",
+    "edge": "shared_undo_ledger",
+    "proof_fn": "interconnect_ic15_undo_rich_editor",
+    "scenario_id": "IC-15",
+    "status": "PASS",
+    "surfaces_involved": [
+      "rich_editor",
+      "undo_stack"
+    ]
+  },
+  {
+    "backend_apis_called": [],
+    "description": "Undo crosses code editor edit: a code-buffer edit (insert CODE_EDIT) recorded on the ONE shared undo stack is reverted by one undo so the buffer no longer contains CODE_EDIT. SUBSTRATE proof (no PG) via the real CodeEditorPanel + push_code_edit_undo adapter. The PG version-revert half is requires_pg.",
+    "edge": "shared_undo_ledger",
+    "proof_fn": "interconnect_ic16_undo_code_editor",
+    "scenario_id": "IC-16",
+    "status": "PASS",
+    "surfaces_involved": [
+      "code",
+      "undo_stack"
+    ]
+  },
+  {
+    "backend_apis_called": [
+      "PUT /workspaces/{id}/knowledge/documents/{doc_id}",
+      "GET /workspaces/{id}/events"
+    ],
+    "description": "Event-ledger records cross-surface actions: a sequence of note saves + a wikilink insert produces >=2 KNOWLEDGE_RICH_DOCUMENT_SAVED events in the ledger in order. CTRL-7: the GET /events (Flight Recorder list_events) endpoint EXISTS (verified 2026-06-26 in src/backend/handshake_core/src/api/flight_recorder.rs route /events + /flight_recorder) -> requires_pg, NOT BLOCKED.",
+    "edge": "shared_undo_ledger",
+    "proof_fn": "interconnect_ic17_event_ledger_records",
+    "scenario_id": "IC-17",
+    "status": "REQUIRES_PG",
+    "surfaces_involved": [
+      "rich_editor",
+      "event_ledger",
+      "backend"
+    ]
+  },
+  {
+    "backend_apis_called": [],
+    "description": "Shared undo stack policy scoped per-pane vs global: two panes (rich note A, code file B) are edited in sequence, then ONE undo reverts only the MOST RECENTLY edited surface (B), leaving A unchanged. CTRL-4: a single Arc<Mutex<UndoStack>> shared by both editors; the test inspects BOTH surfaces after one undo. SUBSTRATE proof (no PG), the load-bearing per-pane-scope policy proof.",
+    "edge": "shared_undo_ledger",
+    "proof_fn": "interconnect_ic18_undo_scope_policy",
+    "scenario_id": "IC-18",
+    "status": "PASS",
+    "surfaces_involved": [
+      "rich_editor",
+      "code",
+      "undo_stack"
+    ]
+  }
+]
