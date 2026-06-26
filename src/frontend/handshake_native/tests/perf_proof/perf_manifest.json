@@ -202,7 +202,7 @@
     "budget_mb": null,
     "budget_ms": 1000,
     "category": "knowledge",
-    "description": "Graph render layout, 1000 nodes: run the native force-directed layout (LoomGraphView::set_graph + step_layout to convergence) for a 1000-node graph; measure one full layout-to-stable pass. Frontend-only native impl (no PG) -> runs + PASSES NOW.",
+    "description": "Graph render layout: run the native force-directed layout (LoomGraphView::set_graph + step_layout to convergence) and measure one full layout-to-stable pass. Frontend-only native impl (no PG) -> runs + PASSES NOW. TYPED LIMITATION: the contract names a 1000-node graph, but LoomGraphView HARD-CAPS the laid-out set at NODE_CAP=200 (graph_view.rs:63; naive O(n^2) repulsion). The test synthesizes the full 1000-node/2000-edge target, reads the ACTUAL laid-out count back (==NODE_CAP=200), asserts the cap + that total_available==1000 (truncation notice), and measures+records the REAL 200-node laid-out count. The 1000-node native budget is architecturally unreachable through this surface and is NOT proven here; raising the cap (e.g. Barnes-Hut) is a separate force-layout-scaling work item.",
     "env_override": "PERF_BUDGET_LK02_MS",
     "gated": false,
     "measured_profile": "release",

@@ -17,6 +17,25 @@
 //! the layout is a pure deterministic force simulation, so it RUNS + PASSES NOW with a real measured
 //! timing and writes-back PASS.
 //!
+//! ## TYPED LIMITATION — the native view caps the laid-out set at `NODE_CAP` (200), NOT 1000
+//!
+//! The contract scenario names a "1000-node graph", but `LoomGraphView::set_graph` HARD-CAPS the
+//! laid-out set at `NODE_CAP` (= 200, `graph_view.rs:63`) — a naive O(n^2) repulsion is only fast up to
+//! a couple hundred nodes, so beyond the cap the view truncates and shows a "showing N of M" notice
+//! (graph_view.rs:361-374). The architecture CANNOT lay out 1000 nodes through this surface. To keep
+//! the proof HONEST (not a 1/5-scale measurement silently labelled full-scale), LK-02 (1) synthesizes
+//! the full 1000-node / 2000-edge target the contract names (`total_available`), (2) reads the ACTUAL
+//! laid-out count back from `view.nodes.len()` after `set_graph`, (3) ASSERTS that count == `NODE_CAP`
+//! (the typed limit) and `total_available` == 1000 (the truncation notice surface), so a future cap
+//! change is caught instead of silently changing what is measured, and (4) measures the layout over the
+//! REAL laid-out set and prints/records that REAL count + the `NODE_CAP` constraint — never claiming
+//! 1000 nodes were laid out.
+//!
+//! The 1000-node force-layout budget at the native surface is therefore NOT proven here (it is
+//! architecturally unreachable); the manifest records the `NODE_CAP=200` constraint as the typed
+//! limitation. Raising the native cap (e.g. a quadtree/Barnes-Hut layout) to honestly lay out 1000 nodes
+//! is a separate force-layout-scaling work item, not an MT-045 proof claim.
+//!
 //! ## No mock smuggling (RISK-2 / CTRL-2)
 //!
 //! LK-02 drives the REAL `LoomGraphView` force layout (no UI needed — `step_layout` seeds positions on a
@@ -30,9 +49,15 @@ mod pg_proof_support;
 use perf_proof_support::{record, skip_all, time_ms, Budget};
 use pg_proof_support::LiveBackend;
 
-use handshake_native::graph::graph_view::{GraphEdge, GraphNode, LoomGraphView};
+use handshake_native::graph::graph_view::{GraphEdge, GraphNode, LoomGraphView, NODE_CAP};
 
-// ── LK-02 (runs NOW): native force-directed layout for a 1000-node graph <= 1000 ms ───────────────
+// ── LK-02 (runs NOW): native force-directed layout, capped at NODE_CAP (200) of a 1000-node graph ──
+//
+// HONESTY NOTE (typed limitation, see the module header): the contract names a "1000-node graph", but
+// the native `LoomGraphView` caps the laid-out set at `NODE_CAP` (200). This proof synthesizes the full
+// 1000-node target, reads the ACTUAL laid-out count back, asserts the cap, and measures+labels the REAL
+// laid-out count — it never claims 1000 nodes were laid out. The 1000-node native budget is NOT proven
+// here (architecturally unreachable through this surface); the manifest records the NODE_CAP constraint.
 
 #[test]
 fn perf_lk02_graph_layout() {
@@ -42,34 +67,50 @@ fn perf_lk02_graph_layout() {
     perf_proof_support::assert_no_local_artifact_dir();
     let budget = Budget::resolve("LK-02", "PERF_BUDGET_LK02_MS", 1_000);
 
-    // FIXTURE (NOT timed): synthesize a 1000-node graph with ~2000 edges (a deterministic sparse graph —
-    // each node links to the next two, wrapping). set_graph seeds the layout but does not run the force
-    // sim to convergence; the convergence run is the measured op.
-    let node_count = 1000usize;
-    let nodes: Vec<GraphNode> = (0..node_count)
+    // FIXTURE (NOT timed): synthesize the FULL 1000-node / ~2000-edge target the contract names (a
+    // deterministic sparse graph — each node links to the next two, wrapping). `set_graph` then HARD-CAPS
+    // the laid-out set at NODE_CAP and records the true total in `total_available` for the truncation
+    // notice; the convergence run below measures only the laid-out (capped) set.
+    let synth_node_count = 1000usize;
+    let nodes: Vec<GraphNode> = (0..synth_node_count)
         .map(|i| GraphNode::new(format!("block-{i:04}"), format!("Block {i}"), "note"))
         .collect();
-    let mut edges: Vec<GraphEdge> = Vec::with_capacity(node_count * 2);
-    for i in 0..node_count {
+    let mut edges: Vec<GraphEdge> = Vec::with_capacity(synth_node_count * 2);
+    for i in 0..synth_node_count {
         edges.push(GraphEdge::new(
             format!("block-{i:04}"),
-            format!("block-{:04}", (i + 1) % node_count),
+            format!("block-{:04}", (i + 1) % synth_node_count),
             "mention",
         ));
         edges.push(GraphEdge::new(
             format!("block-{i:04}"),
-            format!("block-{:04}", (i + 2) % node_count),
+            format!("block-{:04}", (i + 2) % synth_node_count),
             "mention",
         ));
     }
-    assert_eq!(edges.len(), node_count * 2, "LK-02: ~2000 edges synthesized");
+    assert_eq!(edges.len(), synth_node_count * 2, "LK-02: ~2000 edges synthesized for the 1000-node target");
 
     let mut view = LoomGraphView::global("mt045-lk02");
-    view.set_graph(nodes, edges); // seeds positions (setup)
-    assert!(!view.layout_stable(), "LK-02: a fresh 1000-node layout is not yet stable");
+    view.set_graph(nodes, edges); // seeds positions (setup) AND truncates to NODE_CAP
+
+    // HONEST node count under measurement: read the ACTUAL laid-out set back from the view (NOT the 1000
+    // synthesized). Assert the cap so this proof can never silently change what it measures, and assert
+    // the truncation notice recorded the true total — i.e. the architecture caps at NODE_CAP, by design.
+    let laid_out = view.nodes.len();
+    assert_eq!(
+        laid_out, NODE_CAP,
+        "LK-02: the native LoomGraphView caps the laid-out set at NODE_CAP={NODE_CAP}; measuring {laid_out} \
+         nodes (NOT the 1000 synthesized — the 1000-node native budget is architecturally unreachable here)"
+    );
+    assert_eq!(
+        view.total_available, synth_node_count,
+        "LK-02: set_graph must record the true total (1000) in total_available for the truncation notice"
+    );
+    assert!(!view.layout_stable(), "LK-02: a fresh {laid_out}-node layout is not yet stable");
 
     // MEASURED: drive the REAL force layout to its stop condition (converged OR the iteration budget),
-    // i.e. ONE full layout-to-stable pass. step_layout runs ITERS_PER_FRAME force iters per call.
+    // i.e. ONE full layout-to-stable pass over the laid-out (capped) set. step_layout runs ITERS_PER_FRAME
+    // force iters per call.
     let (_, elapsed_ms) = time_ms(|| {
         let mut frames = 0usize;
         while !view.layout_stable() {
@@ -81,21 +122,24 @@ fn perf_lk02_graph_layout() {
         }
     });
 
-    // Positions must be finite after the run (the force clamp guards 1/d^2 blow-up at 1000 nodes).
+    // Positions must be finite after the run (the force clamp guards 1/d^2 blow-up).
     let finite = view.nodes.iter().all(|n| n.x.is_finite() && n.y.is_finite());
-    assert!(finite, "LK-02: all 1000 node positions must be finite after layout");
+    assert!(finite, "LK-02: all {laid_out} laid-out node positions must be finite after layout");
     assert!(view.layout_stable(), "LK-02: the layout must report stable after the run");
     assert!(
         budget.passes(elapsed_ms),
-        "LK-02: 1000-node force-layout {elapsed_ms} ms must be <= {} ms (override {})",
+        "LK-02: {laid_out}-node force-layout {elapsed_ms} ms must be <= {} ms (override {})",
         budget.ceiling,
         budget.env_var
     );
 
     println!(
-        "LK-02 measured={elapsed_ms}ms (<= {}ms) PASS — native force-directed layout for 1000 nodes / \
-         2000 edges to convergence ({} iters)",
+        "LK-02 measured={elapsed_ms}ms (<= {}ms) PASS — native force-directed layout for {laid_out} nodes \
+         (NODE_CAP={NODE_CAP}; capped from {} synthesized) to convergence ({} iters). LIMITATION: the \
+         native LoomGraphView caps at NODE_CAP={NODE_CAP}, so the contract's 1000-node native budget is \
+         architecturally unreachable and NOT proven here.",
         budget.ceiling,
+        view.total_available,
         view.iters_done
     );
     record("LK-02", elapsed_ms as f64, "PASS");
@@ -158,7 +202,9 @@ fn perf_lk03_tag_hub() {
     } else {
         let tag = be.post_json(
             &format!("/workspaces/{}/loom/blocks", be.workspace_id),
-            &serde_json::json!({ "content_type": "tag", "title": "mt045-lk03-taghub" }),
+            // LoomBlockContentType::TagHub serializes (snake_case) as "tag_hub" — NOT "tag" (which is not
+            // a content-type variant; "tag" is an EDGE type). Verified at storage/loom.rs:45,64,80.
+            &serde_json::json!({ "content_type": "tag_hub", "title": "mt045-lk03-taghub" }),
         );
         let tag_id = tag.get("block_id").and_then(|v| v.as_str()).expect("LK-03: tag block_id").to_owned();
         let mut ids = vec![tag_id.clone()];
@@ -169,10 +215,18 @@ fn perf_lk03_tag_hub() {
             );
             if let Some(bid) = blk.get("block_id").and_then(|v| v.as_str()) {
                 ids.push(bid.to_owned());
-                // tag edge: hub -> block
+                // tag edge: hub -> block. CreateLoomEdgeRequest (api/loom.rs:1673-1687) requires
+                // source_block_id + target_block_id (NOT source/target) AND a mandatory created_by
+                // (no serde default). LoomEdgeCreatedBy serializes (snake_case) as "user" | "ai"
+                // (storage/loom.rs:391-394) — "user" for human-authored. edge_type "tag" -> LoomEdgeType::Tag.
                 let _ = be.post_json(
                     &format!("/workspaces/{}/loom/edges", be.workspace_id),
-                    &serde_json::json!({ "source": tag_id, "target": bid, "edge_type": "tag" }),
+                    &serde_json::json!({
+                        "source_block_id": tag_id,
+                        "target_block_id": bid,
+                        "edge_type": "tag",
+                        "created_by": "user"
+                    }),
                 );
             }
         }

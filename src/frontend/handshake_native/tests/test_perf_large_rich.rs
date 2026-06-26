@@ -295,7 +295,14 @@ fn perf_lr04_save_large_doc() {
     let doc_id = created_doc_id(&created);
     let _guard = DocGuard { be: &be, doc_id: doc_id.clone() };
     let loaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
-    let base_version = loaded.get("document").and_then(|d| d.get("version")).and_then(|v| v.as_i64()).unwrap_or(1);
+    // KnowledgeRichDocument serializes its version field as `doc_version` (i64), wrapped under
+    // `document` on both create+load and save responses (storage/knowledge.rs:1816;
+    // api/knowledge_documents.rs:730,1077). Reading top-level/`version` would silently default to 1.
+    let base_version = loaded
+        .get("document")
+        .and_then(|d| d.get("doc_version"))
+        .and_then(|v| v.as_i64())
+        .unwrap_or(1);
 
     // MEASURED: save a mutated version through the real save route; assert the version advances (the
     // EventLedger receipt path) — proven by the version increment the save response returns.
@@ -306,7 +313,11 @@ fn perf_lr04_save_large_doc() {
             &serde_json::json!({ "expected_version": base_version, "content_json": mutated }),
         )
     });
-    let new_version = resp.get("version").and_then(|v| v.as_i64()).unwrap_or(base_version);
+    let new_version = resp
+        .get("document")
+        .and_then(|d| d.get("doc_version"))
+        .and_then(|v| v.as_i64())
+        .unwrap_or(base_version);
     assert!(new_version > base_version, "LR-04: save must advance the version ({base_version} -> {new_version})");
     assert!(budget.passes(elapsed_ms), "LR-04: save round-trip {elapsed_ms} ms must be <= {} ms", budget.ceiling);
 
