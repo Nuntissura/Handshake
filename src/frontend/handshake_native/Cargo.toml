@@ -313,6 +313,14 @@ egui_kittest = { version = "0.33", features = ["wgpu"] }
 # (dumpbin is absent — toolkit_spike_verdict.json), parses the PE import table the same way, and
 # adds NO new dependency family. See test_single_binary.rs header for the deviation rationale.
 object = "0.36"
+# WP-KERNEL-012 MT-045 (E8 — Large-Document Performance Proof): the LC-05 (10k-line code buffer) and
+# LR-06 (1k-block rich doc) memory-budget scenarios measure the process RSS delta before vs after a load
+# + highlight pass. `sysinfo` is the cross-platform RSS reader (Linux /proc, Windows GetProcessMemoryInfo,
+# macOS task_info) so the SAME memory proof runs on every host without a per-OS windows-sys feature add to
+# the PRODUCT dependency block (keeping the runtime crate's feature set unchanged). It is a TEST-ONLY
+# dependency (perf suite under tests/). The RSS reading is taken as the MEDIAN of 3 measurements (RISK-5 /
+# CTRL-5) because RSS is noisy (allocator page pre-reservation varies run to run).
+sysinfo = "0.33"
 
 # WP-KERNEL-012 MT-074 (E10 other-pillar interop proof suite): the contract mandates registering the
 # suite as an explicit [[test]] with harness = true (the default libtest harness — the suite uses #[test]
@@ -349,4 +357,28 @@ harness = true
 [[test]]
 name = "test_parity_search"
 path = "tests/test_parity_search.rs"
+harness = true
+
+# WP-KERNEL-012 MT-045 (E8 — Large-Document & Large-Codebase Performance Proof): the three perf-proof
+# suites are registered as explicit [[test]] targets (the contract requirement, step 7). Each would also
+# be auto-discovered under tests/, but the explicit [[test]] pins the canonical test-binary names the
+# proof_targets grep against (`cargo test -p handshake-native -- perf_proof` / `perf_lc01_initial_render`
+# / `perf_lr05_transclusion_chain` / `perf_lk03_tag_hub`). The LC-01..05/07/08 code-editor scenarios + the
+# LR-05 cycle-detection resolver + LK-02 force-layout run + PASS NOW (frontend-only, REAL native impls, no
+# PG, real measured timings on this host). The LC-06 codebase index + the LR-01..07 / LK-01,03,04,05
+# backend scenarios BIND handshake_core (knowledge/loom/search-v2/folders/transclusion) and are
+# #[ignore]'d requires_pg (manifest status REQUIRES_PG) until a live managed PostgreSQL run upgrades them.
+[[test]]
+name = "test_perf_large_code"
+path = "tests/test_perf_large_code.rs"
+harness = true
+
+[[test]]
+name = "test_perf_large_rich"
+path = "tests/test_perf_large_rich.rs"
+harness = true
+
+[[test]]
+name = "test_perf_large_knowledge"
+path = "tests/test_perf_large_knowledge.rs"
 harness = true

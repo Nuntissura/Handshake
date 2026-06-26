@@ -164,4 +164,17 @@ impl LiveBackend {
         assert!(status.is_success(), "GET {path} -> {status}");
         bytes
     }
+
+    /// Best-effort DELETE for idempotent cleanup (MT-045 DropGuards). Returns the HTTP status as u16 and
+    /// NEVER panics on a non-success or transport error — a cleanup failure must not mask the proof's own
+    /// verdict. Used where a real DELETE route exists (e.g. `DELETE /workspaces/{id}/loom/blocks/{id}`).
+    pub fn delete(&self, path: &str) -> u16 {
+        let url = format!("{}{path}", self.base);
+        self.rt.block_on(async {
+            match self.client.delete(&url).send().await {
+                Ok(resp) => resp.status().as_u16(),
+                Err(_) => 0,
+            }
+        })
+    }
 }
