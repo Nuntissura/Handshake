@@ -161,6 +161,53 @@ impl VirtualLineLayout {
     }
 }
 
+// ── WP-KERNEL-012 MT-078 (E13): per-code-line RTL/bidi awareness ──────────────────────────────────────
+//
+// The code editor paints one galley per VISIBLE line. A code line that contains Hebrew/Arabic (e.g. an
+// RTL string literal or comment) needs the same bidi treatment as a rich paragraph: detect the line's base
+// direction and reorder it into visual order before laying it out LTR. This pure helper reuses the SHARED
+// `text_intl::bidi` pass (NOT a parallel one) so the code editor and rich editor agree on bidi, and it is
+// applied PER VISIBLE LINE (the code editor already virtualizes to a small window, so the bidi cost is
+// bounded to the rows on screen). The rope stays logical-order; this is render-time only.
+
+/// How one visible code line should be laid out after the MT-078 bidi pass: the visual-order text to paint,
+/// the resolved base direction (RTL ⇒ the renderer right-aligns the line within the text column), and any
+/// typed shaping limitation (Arabic/Indic) the gutter/line can surface. Identity for a pure-LTR code line
+/// (the overwhelmingly common case): `visual_text == input`, `base == Ltr`, `shaping_limitation == None`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodeLineBidi {
+    /// The line content in VISUAL order, ready to lay out LTR.
+    pub visual_text: String,
+    /// The line's base direction (RTL ⇒ right-align the line within the code text column).
+    pub base: crate::text_intl::Direction,
+    /// `Some` when the line carries Arabic/Indic content egui cannot shape (Tier-3 typed limitation).
+    pub shaping_limitation: Option<crate::text_intl::ShapingLimitation>,
+}
+
+impl CodeLineBidi {
+    /// True when this is the IDENTITY (pure-LTR code line): visual == logical, LTR base, no limitation.
+    /// A pure-LTR line MUST be identity so the existing code render (the vast majority of source lines) is
+    /// byte-for-byte unchanged (AC6 / MC-3 / RISK-2).
+    pub fn is_identity(&self, original: &str) -> bool {
+        self.base == crate::text_intl::Direction::Ltr
+            && self.visual_text == original
+            && self.shaping_limitation.is_none()
+    }
+}
+
+/// Compute the MT-078 bidi treatment for a single code line `text` (reusing the shared `text_intl::bidi`).
+/// Pure + GPU-free so the code-editor render path can call it per visible line and so it is unit-testable
+/// headlessly. Identity for pure-LTR code (no reordering, left-aligned) — AC6.
+pub fn code_line_bidi(text: &str) -> CodeLineBidi {
+    let reordered = crate::text_intl::reorder_line(text);
+    let shaping_limitation = crate::text_intl::shaping_limitation(text);
+    CodeLineBidi {
+        visual_text: reordered.visual_text,
+        base: reordered.base,
+        shaping_limitation,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -298,5 +345,39 @@ mod tests {
     fn non_finite_scroll_offset_clamps_to_top() {
         let layout = VirtualLineLayout::new(100, LH, VP, f32::NAN);
         assert_eq!(layout.visible_range().start, 0, "NaN offset treated as top");
+    }
+
+    // ── MT-078 AC3/AC5/AC6: per-code-line bidi ────────────────────────────────────────────────────────
+
+    #[test]
+    fn ltr_code_line_bidi_is_identity() {
+        // AC6 / MC-3: an ordinary LTR source line is identity (no reorder, LTR base, no limitation) so the
+        // existing code render is byte-for-byte unchanged.
+        for line in ["let x = 1;", "fn main() {}", "    // a comment", "", "中文 comment"] {
+            let b = code_line_bidi(line);
+            assert!(b.is_identity(line), "LTR code line must be bidi-identity: {line:?} -> {b:?}");
+            assert_eq!(b.visual_text, line);
+        }
+    }
+
+    #[test]
+    fn rtl_code_line_detected_and_reordered() {
+        // AC3: a code line containing a Hebrew literal is RTL base (first strong is Hebrew) and reorders.
+        let line = "שלום";
+        let b = code_line_bidi(line);
+        assert_eq!(b.base, crate::text_intl::Direction::Rtl, "Hebrew code line base is RTL");
+        assert!(!b.is_identity(line), "an RTL line is not identity");
+        assert!(b.shaping_limitation.is_none(), "Hebrew is non-joining — no limitation");
+    }
+
+    #[test]
+    fn arabic_code_line_raises_limitation() {
+        // AC5: an Arabic code literal raises the typed shaping limitation (never silently broken).
+        let line = "let s = \"العربية\";";
+        let b = code_line_bidi(line);
+        assert!(b.shaping_limitation.is_some(), "Arabic code line must raise the typed limitation");
+        // Base is LTR here (first strong char is the Latin 'l' of `let`), but the limitation still fires
+        // because the line CONTAINS Arabic content egui cannot shape.
+        assert_eq!(b.base, crate::text_intl::Direction::Ltr, "first strong is Latin -> LTR base");
     }
 }

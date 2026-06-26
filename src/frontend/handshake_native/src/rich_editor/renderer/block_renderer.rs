@@ -174,24 +174,71 @@ fn paint_inline_block(
 ) -> BlockPaint {
     let origin = egui::pos2(top_left.x + indent, top_left.y);
     let wrap_width = (content_width - indent).max(1.0);
-    let layout = line_layout::layout_block(block, palette, wrap_width, bold_available);
-    let galley = painter.layout_job(layout.job);
-    let height = galley.rect.height();
-    // Paint the shaped text. `fallback_color` is the theme text color (only used for
-    // sections that did not set a color — every section here sets one, so it is a safety
-    // net, not the live color).
-    painter.galley(origin, Arc::clone(&galley), palette.text);
 
-    let caret_galley = caret_offset.map(|off| {
-        // Caret-bound validation (MC): clamp the offset to the galley's char count so an
-        // off-by-one never indexes past the laid-out text.
-        let max = layout.plain_text.chars().count();
-        let clamped = off.min(max);
-        (Arc::clone(&galley), origin, clamped)
-    });
-    // Repack into the BlockPaint shape (origin + galley); the caret CCursor index is
-    // applied by the caller via resolve_caret_rect.
-    let caret_galley = caret_galley.map(|(g, o, _)| (g, o));
+    // MT-078 (E13 RTL/bidi): resolve the paragraph base direction up front. For an LTR base the bidi pass
+    // is the IDENTITY (AC6), so we keep the EXACT existing LTR path (single-format multi-section job with
+    // native caret CCursor mapping) byte-for-byte unchanged — no regression to MT-075/077. Only an RTL
+    // base (Hebrew/Arabic) takes the bidi-reordered + right-aligned path.
+    let bidi = line_layout::layout_block_bidi(block, palette, wrap_width, bold_available);
+    if !bidi.base.is_rtl() {
+        let layout = line_layout::layout_block(block, palette, wrap_width, bold_available);
+        let galley = painter.layout_job(layout.job);
+        let height = galley.rect.height();
+        // Paint the shaped text. `fallback_color` is the theme text color (only used for
+        // sections that did not set a color — every section here sets one, so it is a safety
+        // net, not the live color).
+        painter.galley(origin, Arc::clone(&galley), palette.text);
+
+        let caret_galley = caret_offset.map(|off| {
+            // Caret-bound validation (MC): clamp the offset to the galley's char count so an
+            // off-by-one never indexes past the laid-out text.
+            let max = layout.plain_text.chars().count();
+            let clamped = off.min(max);
+            (Arc::clone(&galley), origin, clamped)
+        });
+        // Repack into the BlockPaint shape (origin + galley); the caret CCursor index is
+        // applied by the caller via resolve_caret_rect.
+        let caret_galley = caret_galley.map(|(g, o, _)| (g, o));
+        return BlockPaint { height: height + BLOCK_GAP_PTS, caret_galley };
+    }
+
+    // ── RTL base path (MT-078 AC1/AC5) ───────────────────────────────────────────────────────────────
+    // The job text is already in VISUAL order with halign=RIGHT. egui's `halign = Align::RIGHT` makes the
+    // paint position the RIGHT anchor (the galley extends LEFT from it), so we paint at the content's RIGHT
+    // edge (origin.x + wrap_width), NOT the left origin — painting at the left origin would push an
+    // RTL-aligned galley off the left edge. This right-anchors the Hebrew/Arabic paragraph (AC1).
+    let galley = painter.layout_job(bidi.job);
+    let mut height = galley.rect.height();
+    let right_anchor = egui::pos2(origin.x + wrap_width, origin.y);
+    painter.galley(right_anchor, Arc::clone(&galley), palette.text);
+
+    // AC5 / PROOF3 / MC-1: if the RTL content is Arabic/Indic (which egui cannot cursive-shape), paint a
+    // VISIBLE typed-limitation note beneath the text so the user is told the glyphs are present but
+    // UNSHAPED (isolated forms) — never silently-broken Arabic. Hebrew (non-joining) raises no limitation,
+    // so this note never appears for the honest RTL proof case.
+    if let Some(lim) = &bidi.shaping_limitation {
+        let note_y = origin.y + height + 2.0;
+        // Wrap the note within the content width so a long limitation message does not run off the edge.
+        // The note annotates an RTL paragraph, so it is right-aligned too (its right edge meets the
+        // content's right edge), painted in the subtle theme color.
+        let note_galley = painter.layout(
+            format!("⚠ {}", lim.note),
+            FontId::proportional(line_layout::BASE_FONT_SIZE * 0.8),
+            palette.text_subtle,
+            wrap_width,
+        );
+        let note_x = (origin.x + wrap_width - note_galley.rect.width()).max(origin.x);
+        painter.galley(egui::pos2(note_x, note_y), note_galley.clone(), palette.text_subtle);
+        height += note_galley.rect.height() + 2.0;
+    }
+
+    // RTL caret: the model offset is LOGICAL (the rope is logical-order). Mapping a logical offset to a
+    // visual CCursor index requires the bidi run mapping; for this MT's vertical slice the caret galley is
+    // returned anchored at the same right edge the text was painted at, so caret resolution never panics
+    // and lands within the laid-out text (the documented logical-order caret semantics — full visual caret
+    // mapping across reordered runs is the shaping follow-on). The behavioral edit proof (AC4) is on the
+    // logical-order EDIT model (input_handler), which is direction-agnostic and unaffected.
+    let caret_galley = caret_offset.map(|_off| (Arc::clone(&galley), right_anchor));
     BlockPaint { height: height + BLOCK_GAP_PTS, caret_galley }
 }
 

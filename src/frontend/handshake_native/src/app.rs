@@ -920,6 +920,37 @@ const NOTO_SANS_SYMBOLS2: &[u8] = include_bytes!("../assets/fonts/NotoSansSymbol
 #[cfg(feature = "bundled-fonts")]
 const NOTO_SANS_MATH: &[u8] = include_bytes!("../assets/fonts/NotoSansMath-Regular.ttf");
 
+// ── WP-KERNEL-012 MT-078 (E13): RTL + complex-script GLYPH coverage (Hebrew / Arabic / Devanagari) ──
+//
+// ROOT CAUSE this MT extends (KERNEL_BUILDER gate 2026-06-26): MT-075 bundled CJK + symbol + math faces
+// but NO Hebrew / Arabic / Devanagari, so the Tier-1 RTL/bidi deliverable (a right-aligned Hebrew or
+// Arabic paragraph) would render as tofu — the bidi REORDER would be invisible because there are no
+// glyphs to reorder. MT-078 APPENDS three more Noto faces AFTER the MT-075 fallback chain (Inter stays
+// index-0; the CJK faces keep their order), so:
+//   - Noto Sans Hebrew supplies Hebrew (שלום עולם) — the HONEST RTL proof case (Hebrew is NON-JOINING, so
+//     it needs NO cursive shaping; egui renders its glyphs correctly once they are in the chain, and the
+//     bidi reorder + right-align makes a Hebrew paragraph correct end-to-end). This is the AC1/AC4 face.
+//   - Noto Sans Arabic supplies Arabic (العربية) glyphs. IMPORTANT (the Tier-3 honesty boundary): this
+//     face carries GSUB/GPOS cursive-joining tables, but egui/epaint does NOT execute them, so Arabic
+//     renders in ISOLATED letter forms (disconnected), NOT cursive-joined. That is the documented
+//     typed-limitation (AC5 / PROOF3 / RISK-1): the glyphs are PRESENT (not tofu) but unshaped, and the
+//     editor surfaces a VISIBLE "Arabic cursive shaping limited" note — never silently-broken Arabic.
+//   - Noto Sans Devanagari supplies Indic (नमस्ते) glyphs; same Tier-3 caveat (Indic reordering/conjuncts
+//     need a shaping engine egui lacks), so it is glyph-coverage only with the same typed limitation.
+//
+// APPEND-ONLY (MC-3 / RISK-2 / AC6): these faces go at the END of FALLBACK_FACE_ORDER, after the CJK
+// faces, so Latin still resolves to Inter (index-0) and CJK still resolves to SC/KR first — no regression
+// to MT-075/077. SIL OFL 1.1 (see assets/fonts/NotoSans-OFL.txt); bundled via include_bytes! (DETERMINISTIC
+// + DISK-AGNOSTIC, no OS-font dependency, no std::fs panic path — same decision as MT-075). The three faces
+// are hinted-TTF subsets (~0.03 MB Hebrew, ~0.23 MB Arabic, ~0.24 MB Devanagari ≈ 0.5 MB total) — far
+// smaller than the CJK faces, so the binary-size delta is negligible.
+#[cfg(feature = "bundled-fonts")]
+const NOTO_SANS_HEBREW: &[u8] = include_bytes!("../assets/fonts/NotoSansHebrew-Regular.ttf");
+#[cfg(feature = "bundled-fonts")]
+const NOTO_SANS_ARABIC: &[u8] = include_bytes!("../assets/fonts/NotoSansArabic-Regular.ttf");
+#[cfg(feature = "bundled-fonts")]
+const NOTO_SANS_DEVANAGARI: &[u8] = include_bytes!("../assets/fonts/NotoSansDevanagari-Regular.ttf");
+
 /// egui `font_data` key for the primary proportional face (Inter). Always index-0 / first in both the
 /// Proportional and Monospace fallback vecs so the Latin look is unchanged (MC-1 / AC1).
 pub const FONT_KEY_INTER: &str = "Inter";
@@ -931,6 +962,13 @@ pub const FONT_KEY_NOTO_KR: &str = "NotoSansKR";
 pub const FONT_KEY_NOTO_SYMBOLS2: &str = "NotoSansSymbols2";
 /// egui `font_data` key for the broad math-symbol backstop face.
 pub const FONT_KEY_NOTO_MATH: &str = "NotoSansMath";
+/// egui `font_data` key for the Hebrew face (MT-078 RTL — the non-joining honest RTL proof case).
+pub const FONT_KEY_NOTO_HEBREW: &str = "NotoSansHebrew";
+/// egui `font_data` key for the Arabic face (MT-078 — glyphs present, but egui does NOT cursive-shape
+/// them; see the typed limitation in `text_intl::bidi`).
+pub const FONT_KEY_NOTO_ARABIC: &str = "NotoSansArabic";
+/// egui `font_data` key for the Devanagari/Indic face (MT-078 — same unshaped Tier-3 caveat as Arabic).
+pub const FONT_KEY_NOTO_DEVANAGARI: &str = "NotoSansDevanagari";
 
 /// The Unicode-coverage fallback faces appended (in this exact order) AFTER the primary Inter face to
 /// BOTH the Proportional and Monospace families. Inter is NOT in this list — it is inserted at index 0
@@ -938,8 +976,22 @@ pub const FONT_KEY_NOTO_MATH: &str = "NotoSansMath";
 /// asserts each family vec equals `[Inter, ..FALLBACK_FACE_ORDER, <egui defaults: Proportional/Monospace,
 /// Emoji>]`. Emoji is NOT listed here because egui's `FontDefinitions::default()` already appends its
 /// `NotoEmoji` face to every family and we retain those defaults.
-pub const FALLBACK_FACE_ORDER: [&str; 4] =
-    [FONT_KEY_NOTO_SC, FONT_KEY_NOTO_KR, FONT_KEY_NOTO_SYMBOLS2, FONT_KEY_NOTO_MATH];
+///
+/// MT-078 APPENDS the three RTL/complex-script faces (Hebrew, Arabic, Devanagari) at the END of this
+/// list, after the CJK + symbol + math faces, so Latin (Inter index-0) and CJK (SC/KR first) ordering
+/// is byte-for-byte unchanged (MC-3 / RISK-2 / AC6) and a Hebrew/Arabic/Indic codepoint resolves to its
+/// real glyph instead of tofu (AC1). The MT-078 RTL faces only ADD glyph coverage — the bidi REORDER +
+/// right-align happens in `text_intl::bidi`, and Arabic/Indic cursive SHAPING is the typed limitation
+/// (egui does not run GSUB/GPOS), never silently-broken text.
+pub const FALLBACK_FACE_ORDER: [&str; 7] = [
+    FONT_KEY_NOTO_SC,
+    FONT_KEY_NOTO_KR,
+    FONT_KEY_NOTO_SYMBOLS2,
+    FONT_KEY_NOTO_MATH,
+    FONT_KEY_NOTO_HEBREW,
+    FONT_KEY_NOTO_ARABIC,
+    FONT_KEY_NOTO_DEVANAGARI,
+];
 
 impl HandshakeApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
@@ -4891,7 +4943,9 @@ impl HandshakeApp {
             ctx.set_fonts(Self::build_font_definitions());
             tracing::info!(
                 "bundled fonts loaded: Inter (Regular+Bold) + Noto CJK/symbol fallback chain \
-                 (SC, KR, Symbols2, Math); emoji via egui default NotoEmoji"
+                 (SC, KR, Symbols2, Math) + RTL/complex-script faces (Hebrew, Arabic, Devanagari — \
+                 glyph coverage only; Arabic/Indic cursive shaping is a typed limitation, see \
+                 text_intl::bidi); emoji via egui default NotoEmoji"
             );
         }
         #[cfg(not(feature = "bundled-fonts"))]
@@ -4944,6 +4998,20 @@ impl HandshakeApp {
         fonts
             .font_data
             .insert(FONT_KEY_NOTO_MATH.to_owned(), Arc::new(FontData::from_static(NOTO_SANS_MATH)));
+        // MT-078: the three RTL/complex-script faces. Registered here; the family loop below adds them to
+        // the fallback chain (after the CJK faces) because they are part of FALLBACK_FACE_ORDER.
+        fonts.font_data.insert(
+            FONT_KEY_NOTO_HEBREW.to_owned(),
+            Arc::new(FontData::from_static(NOTO_SANS_HEBREW)),
+        );
+        fonts.font_data.insert(
+            FONT_KEY_NOTO_ARABIC.to_owned(),
+            Arc::new(FontData::from_static(NOTO_SANS_ARABIC)),
+        );
+        fonts.font_data.insert(
+            FONT_KEY_NOTO_DEVANAGARI.to_owned(),
+            Arc::new(FontData::from_static(NOTO_SANS_DEVANAGARI)),
+        );
 
         // 2) Build the ordered fallback chain in BOTH the Proportional and Monospace families:
         //    [Inter] ++ FALLBACK_FACE_ORDER ++ <egui's existing default faces (incl. NotoEmoji)>.

@@ -4,8 +4,8 @@
 //! code editors share, so the grapheme / line-break / word+char-count logic lives in exactly ONE place
 //! and is never duplicated per editor (the MT-077 KEY STEER #2: "shared text_intl/ module reused by
 //! BOTH editors, NOT duplicated"). It is a pure-logic module: no egui, no GPU, no backend, no
-//! `Color32`. The rope stays in LOGICAL order (no reordering here — bidi is MT-078), so the backend
-//! round-trip is unaffected.
+//! `Color32`. The rope stays in LOGICAL order; the bidi pass ([`bidi`], MT-078) reorders ONLY at
+//! render/caret time and never mutates the model, so the backend round-trip is unaffected.
 //!
 //! ## The three corrections this module makes
 //!
@@ -40,10 +40,15 @@
 //!   this is the same crate egui's own ecosystem uses for UAX#14. Reject hand-rolled char-class tables
 //!   (incomplete/incorrect for the long tail — the MT impl note).
 
+pub mod bidi;
 pub mod counts;
 pub mod grapheme;
 pub mod linebreak;
 
+pub use bidi::{
+    base_direction, reorder_line, shaping_limitation, ComplexScript, Direction, ReorderedLine,
+    ShapingLimitation, VisualRun, RTL_CARET_ARROW_SEMANTICS, SHAPING_FOLLOW_ON_POINTER,
+};
 pub use counts::{char_count, word_count};
 pub use grapheme::{
     next_grapheme_boundary, prev_grapheme_boundary, GraphemeCursor, GRAPHEME_LOCAL_WINDOW_BYTES,

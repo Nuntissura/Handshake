@@ -248,6 +248,23 @@ rfd = "0.14"
 #   kinsoku — verified gaps in epaint-0.33.3). Cargo.lock pins both resolved versions (commit it).
 unicode-segmentation = "1.13"
 unicode-linebreak = "0.1"
+# WP-KERNEL-012 MT-078 (E13 — i18n RTL/bidi): `unicode-bidi` is the canonical pure-Rust implementation of
+# UAX#9 (the Unicode Bidirectional Algorithm: resolve embedding levels for mixed LTR/RTL runs, detect the
+# paragraph base direction from the first strong character, and reorder a logical-order line into visual
+# order). It is the canonical Servo-ecosystem UAX#9 crate, audited, pure-Rust, no native build, no
+# transitive HTTP/server stack. HONESTY NOTE (verified): `cargo add` reported "Adding unicode-bidi v0.3.18"
+# — it was NOT already in THIS standalone crate's locked graph (the workspace's idna/url are in a DIFFERENT
+# crate's tree), so it IS one new dependency family. It resolves to a SINGLE Cargo.lock entry (v0.3.18 — no
+# duplicate family, verified). A hand-rolled bidi pass is rejected (UAX#9 is subtle — neutral resolution,
+# isolates, mirrored brackets — getting it wrong corrupts text), which is why this audited crate is the right
+# choice. It makes the `BidiInfo` / `Level::reorder_visual` API directly callable from `text_intl::bidi`. egui/epaint does NOT
+# perform bidi or complex-script shaping natively (verified — epaint-0.33.3 lays out runs LTR), so the
+# reorder + base-direction pass lives here and feeds the renderers; the rope stays LOGICAL order so the
+# DocJson backend round-trip + the MT-011 model invariants are unaffected (RISK-3). Complex-script SHAPING
+# (Arabic cursive joining, Indic conjuncts) is NOT covered by unicode-bidi (it needs HarfBuzz/rustybuzz) and
+# is the typed-limitation Tier-3 (AC5 / PROOF3) — never silently-broken Arabic. MIT OR Apache-2.0. Cargo.lock
+# pins the resolved version (commit it).
+unicode-bidi = "0.3"
 
 # MT-027 production screenshot: the live OS-window grab uses Win32 GDI `PrintWindow` (focus-safe — never
 # SetForegroundWindow/BringWindowToTop). `windows-sys` is already in the locked graph transitively; here

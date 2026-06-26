@@ -374,6 +374,77 @@ pub fn layout_paragraph_galley(
     ctx.fonts_mut(|f| f.layout_job(job))
 }
 
+// ── WP-KERNEL-012 MT-078 (E13): RTL + bidi-aware paragraph layout ─────────────────────────────────────
+//
+// egui's `LayoutJob` lays text out LTR and does NOT perform the Unicode Bidirectional Algorithm. The
+// shared `text_intl::bidi` module (UAX#9) supplies the two pieces egui lacks:
+//   1. base-direction detection (first-strong char) so an RTL paragraph is RIGHT-ALIGNED, and
+//   2. logical→visual REORDERING so a mixed/RTL line displays in the correct visual order.
+//
+// HONEST SCOPE (the MT-078 Tier design): we reorder the line into VISUAL order and lay THAT out LTR with
+// `halign = RIGHT` for an RTL base. This makes Hebrew (non-joining) correct end-to-end. Arabic/Indic
+// glyphs are placed at the right visual position but remain UNSHAPED (egui does not run GSUB/GPOS) — that
+// is the typed limitation `text_intl::bidi::shaping_limitation` surfaces; the renderer paints a visible
+// note for it (block_renderer). The rope stays LOGICAL order; bidi is applied ONLY here at render time.
+
+/// The result of laying out a single block's plain text with the MT-078 bidi pass applied: the styled job
+/// (already reordered to visual order + right-aligned for RTL) plus the resolved base direction and any
+/// typed shaping limitation the caller should surface visibly.
+pub struct BidiBlockLayout {
+    /// The styled job to paint. Its text is in VISUAL order and `halign` is RIGHT for an RTL base.
+    pub job: LayoutJob,
+    /// The plain text in LOGICAL order (for caret mapping — the model is always logical-order).
+    pub logical_text: String,
+    /// The resolved paragraph base direction (RTL ⇒ right-aligned).
+    pub base: crate::text_intl::Direction,
+    /// `Some` when the block contains Arabic/Indic content egui cannot shape (Tier-3 typed limitation),
+    /// so the renderer paints the visible "shaping limited" note. `None` for LTR/CJK/Hebrew.
+    pub shaping_limitation: Option<crate::text_intl::ShapingLimitation>,
+}
+
+/// Build a bidi-aware [`BidiBlockLayout`] for a paragraph/heading block's text (MT-078 AC1/AC2/AC3/AC5).
+///
+/// Concatenates the block's inline text (logical order), then:
+///   1. resolves the base direction via [`crate::text_intl::base_direction`] (RTL ⇒ `halign = RIGHT`),
+///   2. reorders the line into VISUAL order via [`crate::text_intl::reorder_line`] (no-op/identity for
+///      pure-LTR text — AC6, so the existing LTR/CJK render is unchanged),
+///   3. lays the VISUAL-order text out LTR (correct because the text is already visually reordered), and
+///   4. records any Arabic/Indic typed shaping limitation for the renderer to surface visibly (AC5).
+///
+/// The single-format path (one [`TextFormat`] for the whole paragraph) is used because the bidi visual
+/// string is a reordered character stream — per-run mark styling across a bidi boundary is a follow-on;
+/// this MT's scope is correct RTL/bidi ORDER + alignment + the honest limitation, not mark interplay with
+/// reordering. The caller still gets `logical_text` for caret mapping (the model stays logical-order).
+pub fn layout_block_bidi(
+    block: &BlockNode,
+    palette: &HsPalette,
+    wrap_width: f32,
+    bold_available: bool,
+) -> BidiBlockLayout {
+    // Reuse the existing plain-text concatenation by building the standard layout first (it gives us the
+    // logical plain text in the exact order the model holds it).
+    let logical = layout_block(block, palette, wrap_width, bold_available).plain_text;
+    let style = block_style(block);
+
+    let reordered = crate::text_intl::reorder_line(&logical);
+    let shaping_limitation = crate::text_intl::shaping_limitation(&logical);
+
+    let mut job = LayoutJob::default();
+    job.wrap.max_width = wrap_width;
+    // RTL base ⇒ right-align the paragraph (AC1). LTR base keeps the default left alignment (unchanged).
+    job.halign = if reordered.base.is_rtl() { egui::Align::RIGHT } else { egui::Align::LEFT };
+    let fmt = text_format_for_run(&[], style, palette, bold_available);
+    // Lay out the VISUAL-order text (already reordered). For a pure-LTR line this equals the logical text
+    // (identity — AC6), so the LTR render is byte-for-byte unchanged.
+    job.append(&reordered.visual_text, 0.0, fmt);
+    if job.sections.is_empty() {
+        let fmt2 = text_format_for_run(&[], style, palette, bold_available);
+        job.append("", 0.0, fmt2);
+    }
+
+    BidiBlockLayout { job, logical_text: logical, base: reordered.base, shaping_limitation }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -574,5 +645,45 @@ mod tests {
         assert!(!is_hangul_break_supplement_needed("这是中文"), "Han is handled by egui natively");
         assert!(!is_hangul_break_supplement_needed("hello world"), "Latin needs no supplement");
         assert!(is_hangul_break_supplement_needed("오늘"), "Hangul needs the supplemental break table");
+    }
+
+    // ── MT-078 AC1/AC3/AC5/AC6: bidi-aware block layout ───────────────────────────────────────────────
+
+    #[test]
+    fn ltr_block_bidi_layout_is_left_aligned_and_unchanged() {
+        // AC6 / MC-3: an LTR paragraph through layout_block_bidi keeps LEFT alignment and the visual text
+        // equals the logical text (bidi is identity for LTR — no regression to MT-075/077).
+        let para = BlockNode::paragraph("hello world");
+        let bl = layout_block_bidi(&para, &dark(), 400.0, true);
+        assert_eq!(bl.base, crate::text_intl::Direction::Ltr);
+        assert_eq!(bl.job.halign, egui::Align::LEFT, "LTR paragraph stays left-aligned");
+        assert_eq!(bl.logical_text, "hello world");
+        // The single section's text is the unchanged (identity) visual order.
+        assert_eq!(bl.job.sections.len(), 1);
+        assert!(bl.shaping_limitation.is_none(), "Latin raises no shaping limitation");
+    }
+
+    #[test]
+    fn hebrew_block_bidi_layout_is_right_aligned() {
+        // AC1: a Hebrew paragraph resolves to RTL base and is RIGHT-aligned. Hebrew is non-joining, so no
+        // shaping limitation is raised (the honest RTL case).
+        let para = BlockNode::paragraph("שלום עולם");
+        let bl = layout_block_bidi(&para, &dark(), 400.0, true);
+        assert_eq!(bl.base, crate::text_intl::Direction::Rtl, "Hebrew base is RTL");
+        assert_eq!(bl.job.halign, egui::Align::RIGHT, "AC1: RTL paragraph is right-aligned");
+        assert_eq!(bl.logical_text, "שלום עולם", "logical text is preserved (model stays logical-order)");
+        assert!(bl.shaping_limitation.is_none(), "Hebrew is non-joining — no shaping limitation");
+    }
+
+    #[test]
+    fn arabic_block_bidi_layout_carries_typed_limitation() {
+        // AC5: an Arabic paragraph is RTL + right-aligned AND carries the typed shaping limitation so the
+        // renderer can paint the visible note (never silently-broken Arabic).
+        let para = BlockNode::paragraph("العربية");
+        let bl = layout_block_bidi(&para, &dark(), 400.0, true);
+        assert_eq!(bl.base, crate::text_intl::Direction::Rtl);
+        assert_eq!(bl.job.halign, egui::Align::RIGHT);
+        let lim = bl.shaping_limitation.expect("AC5: Arabic must carry a typed shaping limitation");
+        assert_eq!(lim.script, crate::text_intl::ComplexScript::Arabic);
     }
 }
