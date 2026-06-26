@@ -968,8 +968,21 @@ impl RichEditorWidget {
                     // lib.rs:1646 — "a text widget that allows focus/selection but not input"), and we
                     // drop the editable-looking `set_value("{n} blocks")` so a screen reader / swarm
                     // agent does not see a populated, editable text field for a read-only note.
+                    // WP-KERNEL-012 MT-076 (AC7): while an IME composition is in progress, expose the
+                    // in-progress preedit text in the editable root node's value so a screen reader / swarm
+                    // agent can OBSERVE the composition state (reuses the EXISTING editor AccessKit node —
+                    // no new tree). When idle the value is the unchanged block count. Reading mode never
+                    // composes (input is skipped), so this only affects the editable path.
                     let root_node_id = ui.unique_id();
-                    let value = format!("{} blocks", state.doc.children.len());
+                    let value = if state.preedit.is_active() {
+                        format!(
+                            "{} blocks (composing: {})",
+                            state.doc.children.len(),
+                            state.preedit.text
+                        )
+                    } else {
+                        format!("{} blocks", state.doc.children.len())
+                    };
                     ui.ctx().accesskit_node_builder(root_node_id, move |node| {
                         node.set_author_id(RICH_EDITOR_ROOT_AUTHOR_ID.to_owned());
                         node.set_label("Rich text editor".to_owned());
@@ -3117,6 +3130,49 @@ impl RichEditorWidget {
             // MT-034: the `/code-ref` code-symbol search dialog (a floating Window, not caret-anchored).
             if state.code_symbol_search.is_some() {
                 Self::drive_code_symbol_search(ui, state, palette);
+            }
+        }
+
+        // WP-KERNEL-012 MT-076 (E13 IME inline preedit): if an IME composition is in progress, paint the
+        // in-progress preedit text as an UNDERLINED inline run at the caret pixel (RISK-1 / MC-1: the
+        // preedit is OVERLAY-ONLY — `state.preedit` is never written into the rope, so the MT-012
+        // double-insert invariant holds; only Commit inserts), and report the IME caret rect to the OS via
+        // `ctx.output_mut(|o| o.ime = ...)` so the OS candidate window anchors at the caret, NOT the window
+        // origin (RISK-2 / MC-2, AC4). Resolved from the SAME caret galley the popups use. Skipped in
+        // reading mode (no composition on a read-only document). The composition caret reuses the SAME
+        // focus-guarded blink as the document caret (RISK-4 / MC-4 — no extra repaint scheduled here).
+        if !read_only && state.preedit.is_active() {
+            // The caret pixel (top-left of the caret glyph) — same galley resolution as the popups, but
+            // anchored at the caret's TOP (min.y) so the preedit run sits on the text baseline row.
+            let caret_pixel = caret_galley_out.as_ref().map(|(galley, origin)| {
+                let cursor = egui::epaint::text::cursor::CCursor::new(caret.char_offset());
+                let local = galley.pos_from_cursor(cursor);
+                egui::pos2(origin.x + local.min.x, origin.y + local.min.y)
+            });
+            if let Some(caret_pixel) = caret_pixel {
+                // The caret block's body font size so the preedit matches the line it composes into.
+                let block_font_size = caret_block
+                    .and_then(|idx| state.doc.children.get(idx).and_then(Child::as_block))
+                    .map(|b| super::line_layout::block_style(b).size)
+                    .unwrap_or(super::line_layout::BASE_FONT_SIZE);
+                if let Some(pp) = super::block_renderer::paint_preedit(
+                    ui.painter(),
+                    caret_pixel,
+                    &state.preedit.text,
+                    palette,
+                    block_font_size,
+                    bold_available,
+                ) {
+                    // AC4: report the IME caret rect so the OS candidate list anchors at the caret. The
+                    // `rect` is the widget's editing area (the preedit run box); `cursor_rect` is the thin
+                    // composition caret at the end of the run.
+                    ui.ctx().output_mut(|o| {
+                        o.ime = Some(egui::output::IMEOutput {
+                            rect: pp.overall_rect,
+                            cursor_rect: pp.caret_rect,
+                        });
+                    });
+                }
             }
         }
 

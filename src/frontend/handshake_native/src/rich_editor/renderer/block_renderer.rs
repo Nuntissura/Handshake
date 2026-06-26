@@ -410,6 +410,72 @@ pub fn paint_caret(
     painter.rect_filled(caret_rect, 0.0, palette.text);
 }
 
+/// WP-KERNEL-012 MT-076 (E13 IME inline preedit): the screen rect the IN-PROGRESS IME
+/// composition (preedit) overlay occupied, returned by [`paint_preedit`] so the caller can
+/// report it to the OS as the IME candidate-window anchor ([`egui::output::IMEOutput`]).
+/// `caret_rect` is the thin caret rect at the END of the preedit run (where the composition
+/// caret sits), `overall_rect` is the full painted preedit box.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PreeditPaint {
+    /// The full box the underlined preedit run painted into (screen space).
+    pub overall_rect: Rect,
+    /// The thin caret rect at the END of the preedit run (the composition caret position).
+    pub caret_rect: Rect,
+}
+
+/// WP-KERNEL-012 MT-076: paint the IN-PROGRESS IME composition (`preedit_text`) as an
+/// UNDERLINED inline run starting at the caret pixel `caret_screen`, WITHOUT mutating the
+/// document model (the preedit lives only in `PreeditState` — this is the load-bearing
+/// double-insert invariant from MT-012). The text is laid out with the editor's canonical
+/// per-run [`super::line_layout::text_format_for_run`] carrying an [`Underline`](crate::rich_editor::document_model::node::Mark::Underline)
+/// mark (so the underline color is a THEME token, never a hex literal — CONTROL-4), painted
+/// over a subtle theme background (`palette.accent_soft`) so the composing run is visually
+/// distinct from committed text. Returns the painted [`PreeditPaint`] rect so the caller can
+/// report the OS IME candidate-window anchor; `None` when there is nothing to paint.
+///
+/// `block_font_size` is the caret block's body font size (so the preedit matches the line it
+/// composes into); `bold_available` MUST be the live `line_layout::bold_family_available`
+/// result so layout never requests an unbound family (the same panic guard the editor uses).
+pub fn paint_preedit(
+    painter: &egui::Painter,
+    caret_screen: egui::Pos2,
+    preedit_text: &str,
+    palette: &HsPalette,
+    block_font_size: f32,
+    bold_available: bool,
+) -> Option<PreeditPaint> {
+    use crate::rich_editor::document_model::node::Mark;
+    use egui::text::LayoutJob;
+    if preedit_text.is_empty() {
+        return None;
+    }
+    // Build a single-run underlined galley for the preedit text using the canonical per-run
+    // styling (so the underline stroke + text color are theme tokens). The Underline mark
+    // makes `text_format_for_run` emit a 1px underline stroke in the run color.
+    let style = line_layout::BlockTextStyle { size: block_font_size, force_monospace: false };
+    let fmt = line_layout::text_format_for_run(&[Mark::Underline], style, palette, bold_available);
+    let mut job = LayoutJob::default();
+    job.append(preedit_text, 0.0, fmt);
+    let galley = painter.layout_job(job);
+    let run_w = galley.rect.width();
+    let run_h = galley.rect.height().max(block_font_size);
+
+    // Subtle background behind the composing run so it reads as in-progress (a theme token,
+    // never a hex literal). Drawn first, then the underlined text on top.
+    let overall_rect = Rect::from_min_size(caret_screen, Vec2::new(run_w.max(1.0), run_h));
+    painter.rect_filled(overall_rect, 1.0, palette.accent_soft);
+    painter.galley(caret_screen, Arc::clone(&galley), palette.text);
+
+    // The composition caret sits at the END of the preedit run (egui 0.33 Preedit carries no
+    // cursor range — the field-correct caret position, matching ime_handler's documented note).
+    let caret_x = caret_screen.x + run_w;
+    let caret_rect = Rect::from_min_size(
+        egui::pos2(caret_x, caret_screen.y),
+        Vec2::new(CARET_WIDTH_PTS, run_h),
+    );
+    Some(PreeditPaint { overall_rect, caret_rect })
+}
+
 /// A small helper for tests / callers: a fully-transparent color sentinel is never used;
 /// the theme always supplies real colors. Kept private to avoid leaking a literal.
 #[allow(dead_code)]

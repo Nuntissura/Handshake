@@ -7,8 +7,26 @@
 //! surfaces winit IME through the egui-winit bridge as
 //! [`egui::ImeEvent`] (`Enabled | Preedit(String) | Commit(String) | Disabled`) inside
 //! `egui::Event::Ime`, read from `ui.input()`. The shell enables IME via the
-//! eframe/egui-winit setup (`set_ime_allowed`) — documented as a shell contract; this
-//! module consumes `egui::Event::Ime`, never winit.
+//! eframe/egui-winit setup (`set_ime_allowed`); this module consumes `egui::Event::Ime`,
+//! never winit.
+//!
+//! ## Shell IME enable (WP-KERNEL-012 MT-076, AC6) — WHERE the contract is honored
+//!
+//! `set_ime_allowed(true)` is wired in `HandshakeApp::ui` (app.rs) as
+//! `ctx.send_viewport_cmd(egui::ViewportCommand::IMEAllowed(true))`, sent ONCE on the first
+//! real frame (guarded by `ime_allowed_sent`). `ViewportCommand::IMEAllowed` is the egui-side
+//! equivalent of winit's `Window::set_ime_allowed`; eframe's egui-winit integration translates
+//! it into the winit call, so the OS then forwards composition events. The window handle is
+//! reachable there because MT-079 host-mounted the editors in the same app (no typed blocker).
+//!
+//! ## Inline preedit overlay (MT-076) — painted, NOT inserted
+//!
+//! [`PreeditState`] holds the in-progress composition. The rich-editor renderer
+//! ([`super::block_renderer::paint_preedit`], driven from
+//! [`super::rich_editor_widget::RichEditorWidget`]) paints that text as an UNDERLINED inline
+//! run at the caret pixel and reports the IME caret rect via `ctx.output_mut(|o| o.ime = …)`
+//! so the OS candidate window anchors at the caret. The preedit is NEVER written into the rope
+//! (the load-bearing double-insert invariant below); only `Commit` inserts.
 //!
 //! ## egui-0.33 shape note (verified deviation from the contract text)
 //!

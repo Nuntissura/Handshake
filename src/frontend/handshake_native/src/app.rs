@@ -510,6 +510,14 @@ pub struct HandshakeApp {
     /// when this is set, so publishing the live snapshot never consumes an async result or schedules a
     /// spurious save (the real frame owns those side effects).
     capturing_snapshot: bool,
+    /// WP-KERNEL-012 MT-076 (E13 IME): one-shot guard so the shell sends
+    /// `ViewportCommand::IMEAllowed(true)` to winit EXACTLY ONCE (the first real frame), not every frame.
+    /// Enabling IME is what makes winit forward `Event::Ime` composition events to egui (and thus to the
+    /// editors' `ime_handler` / code-editor IME arm); without it the OS sends no composition events and
+    /// CJK/Japanese/Korean input is silently dead (RISK-3 / MC-3 / AC6). `false` until the first `ui()`
+    /// frame sends the command. Skipped during a snapshot-capture pass (the throwaway capture context
+    /// must stay side-effect-free).
+    ime_allowed_sent: bool,
     /// WP-KERNEL-012 MT-033 (E5 — CKC drag-in): the live CKC / Atelier side panel mounted on the RIGHT
     /// edge of the shell (the `egui::SidePanel::right` mirror of the left activity rail). This is the
     /// drag SOURCE the rich-editor / canvas drop zones consume — it is rendered every frame so its
@@ -1098,6 +1106,7 @@ impl HandshakeApp {
             mcp_snapshot: Arc::new(Mutex::new(empty_snapshot())),
             mcp_token: crate::mcp::SessionToken::generate(),
             capturing_snapshot: false,
+            ime_allowed_sent: false,
             // MT-033: the production Atelier/CKC side panel loads from the real `/atelier` backend off the
             // UI thread (the same runtime handle every other off-thread client uses). Mounted on the right
             // edge so its drag-source rows are reachable in the running product.
@@ -1296,6 +1305,7 @@ impl HandshakeApp {
             mcp_snapshot: Arc::new(Mutex::new(empty_snapshot())),
             mcp_token: crate::mcp::SessionToken::generate(),
             capturing_snapshot: false,
+            ime_allowed_sent: false,
             // MT-033: headless/test shell — no runtime to bridge the atelier client onto, so the panel has
             // no client (it renders no rows + never touches the network; a test injects rows via the
             // `atelier_side_panel_mut` accessor + `with_rows`-style state if it wants seeded rows). The
@@ -5252,6 +5262,20 @@ impl HandshakeApp {
         }
         // Apply theme tokens at the top of the frame so all panels below render themed.
         self.apply_theme_if_changed(ctx);
+
+        // WP-KERNEL-012 MT-076 (E13 IME / AC6 / RISK-3 / MC-3): enable IME on the OS window ONCE on the
+        // first real frame. `ViewportCommand::IMEAllowed(true)` is the egui-side equivalent of winit's
+        // `Window::set_ime_allowed(true)` — it tells winit to FORWARD OS composition events as
+        // `egui::Event::Ime` (Enabled/Preedit/Commit/Disabled), which the rich + code editors' IME handlers
+        // consume. Without it the OS sends no composition events and CJK/Japanese/Korean input is silently
+        // dead. Sent once (guarded by `ime_allowed_sent`) rather than every frame. The window handle IS
+        // reachable here: MT-079 host-mounted the editors in this same app, so the eframe viewport exists.
+        // Skipped during a snapshot-capture pass (the throwaway AccessKit context has no real viewport and
+        // must stay side-effect-free); the real frame sends it.
+        if !self.ime_allowed_sent && !self.capturing_snapshot {
+            ctx.send_viewport_cmd(egui::ViewportCommand::IMEAllowed(true));
+            self.ime_allowed_sent = true;
+        }
 
         // MT-028: push the live workspace id + palette into the LoomSearchV2 pane's shared cell BEFORE
         // the pane host renders, so the in-product Loom Search pane searches the active workspace and

@@ -1022,6 +1022,13 @@ pub struct CodeEditorPanel {
     /// on the first settled frame, driving the REAL dwell->search->panel pipeline deterministically
     /// WITHOUT an 800ms wall-clock wait. Behind a `Mutex` for the `Sync` panel.
     note_refs_dwell_threshold: Mutex<std::time::Duration>,
+    /// WP-KERNEL-012 MT-076 (E13 IME inline preedit): the IN-PROGRESS IME composition (preedit) text for
+    /// the code editor, shown UNDERLINED at the primary caret. Empty when no composition is active. This
+    /// is OVERLAY-ONLY — it is NEVER written into the buffer (RISK-1 / MC-1: only `Event::Ime::Commit`
+    /// inserts, via the proven char-correct `insert_text` path); painting it preserves the same
+    /// double-insert invariant the rich editor uses. Behind a `Mutex` for the `Sync` panel (the `&self`
+    /// input path mutates it; the `&self` render path reads it).
+    preedit: Mutex<String>,
 }
 
 /// MT-034 off-thread find-notes result delivery cell: the resolved [`NoteRefsState`] written by a spawned
@@ -1440,6 +1447,8 @@ impl CodeEditorPanel {
             note_refs_dwell_threshold: Mutex::new(std::time::Duration::from_millis(
                 crate::interop::NOTE_REFS_DWELL_MS,
             )),
+            // MT-076 IME: no composition in progress on a fresh panel (overlay-only; never in the buffer).
+            preedit: Mutex::new(String::new()),
         }
     }
 
@@ -1618,6 +1627,60 @@ impl CodeEditorPanel {
             self.refresh(); // bump version + recompute highlights (RISK-002 invalidation).
         }
         applied
+    }
+
+    /// WP-KERNEL-012 MT-076 (E13 IME): handle one [`egui::ImeEvent`] for the code editor, mirroring the
+    /// rich editor's `ime_handler`:
+    /// - `Enabled` / `Preedit(s)` -> set the OVERLAY preedit text (NO buffer mutation — RISK-1 / MC-1).
+    /// - `Commit(s)` -> CLEAR the preedit overlay, then INSERT `s` at every cursor via the proven
+    ///   char-correct [`insert_text`](Self::insert_text) path (the ONE place code text is produced), so a
+    ///   composed CJK string lands char-correct and the caret advances past it. An EMPTY commit (cancel)
+    ///   just clears the overlay with no insert (AC3).
+    /// - `Disabled` -> clear the overlay (composition cancelled), no buffer change.
+    ///
+    /// Returns `true` when the buffer was mutated (a non-empty Commit), so the caller marks the edit.
+    /// The preedit is overlay-only: it is painted underlined at the primary caret by
+    /// [`paint_cursor_overlay`](Self::paint_cursor_overlay) and is never in the buffer, so the
+    /// double-insert bug that MT-012 fixed cannot recur here.
+    pub fn handle_ime_event(&self, event: &egui::ImeEvent) -> bool {
+        match event {
+            egui::ImeEvent::Enabled => {
+                self.set_preedit(String::new());
+                false
+            }
+            egui::ImeEvent::Preedit(s) => {
+                self.set_preedit(s.clone());
+                false
+            }
+            egui::ImeEvent::Commit(s) => {
+                // Clear the overlay BEFORE inserting so the preedit text and the commit can never both
+                // land (the preedit is overlay-only, so this is just dropping the overlay). An empty
+                // commit is the cancel path: clear, no insert.
+                self.set_preedit(String::new());
+                if s.is_empty() {
+                    return false;
+                }
+                let applied = self.insert_text(s);
+                applied > 0
+            }
+            egui::ImeEvent::Disabled => {
+                self.set_preedit(String::new());
+                false
+            }
+        }
+    }
+
+    /// MT-076: the current IME composition (preedit) text, or empty when no composition is active. Read
+    /// by the render overlay and by tests asserting the cancel/commit clears it.
+    pub fn preedit(&self) -> String {
+        self.preedit.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// MT-076: replace the IME preedit overlay text (internal; the input path + `handle_ime_event` drive
+    /// it). Setting it triggers no buffer mutation and no highlight refresh — the preedit is a paint-only
+    /// overlay, so it does not bump `buffer_version`.
+    fn set_preedit(&self, text: String) {
+        *self.preedit.lock().unwrap_or_else(|e| e.into_inner()) = text;
     }
 
     /// Replace the WHOLE buffer with `text` and re-highlight (MT-035 undo-snapshot restore). The unified
@@ -6373,12 +6436,23 @@ impl CodeEditorPanel {
             // Emit the TextInput node onto this nested scope's Ui id (AC-005). Because this scope is a
             // child of the scroll-area scope (itself a child of the container), the node is a
             // descendant of the container node.
+            //
+            // WP-KERNEL-012 MT-076 (AC7): while an IME composition is in progress, expose the in-progress
+            // preedit text in the TextInput node's value so a screen reader / swarm agent can OBSERVE the
+            // composition state (reuses the existing editable text node — no new tree). When idle the value
+            // is the unchanged line count.
             let author = text_author.to_owned();
+            let preedit = self.preedit.lock().unwrap_or_else(|e| e.into_inner()).clone();
+            let value = if preedit.is_empty() {
+                format!("{total_lines} lines")
+            } else {
+                format!("{total_lines} lines (composing: {preedit})")
+            };
             ui.ctx().accesskit_node_builder(text_node_id, move |node| {
                 node.set_role(accesskit::Role::TextInput);
                 node.set_author_id(author.clone());
                 node.set_label("Code editor text".to_owned());
-                node.set_value(format!("{total_lines} lines"));
+                node.set_value(value.clone());
             });
 
             // MT-003 AC-004: emit one `Role::Caret` AccessKit node per cursor (capped at
@@ -7605,6 +7679,52 @@ impl CodeEditorPanel {
                     egui::pos2(x + 2.0, y + geometry.line_height),
                 );
                 painter.rect_filled(caret, 0.0, caret_color);
+            }
+        }
+
+        // WP-KERNEL-012 MT-076 (E13 IME inline preedit / AC2 + AC4): if an IME composition is in progress,
+        // paint the preedit text UNDERLINED at the PRIMARY caret (overlay-only — never in the buffer,
+        // RISK-1 / MC-1) and report the IME caret rect to the OS so the candidate window anchors at the
+        // caret, not the window origin (RISK-2 / MC-2). The preedit is laid out in the SAME monospace
+        // FontId the rows use, underlined, over a subtle theme-tinted background (no hex literal — the
+        // selection tint reuse / theme tokens). A no-op when the composition is empty or the caret is
+        // scrolled off the painted window.
+        let preedit = self.preedit.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        if !preedit.is_empty() {
+            let primary = cursors.primary();
+            let (head_line, head_col) = byte_to_line_col(primary.head, &buffer);
+            if head_line >= geometry.first_line && head_line < end_line {
+                let x = x_for(head_col);
+                let y = y_for(head_line);
+                // Lay out the preedit in the editor's monospace font so it matches the code glyphs.
+                let font = egui::FontId::monospace(MONO_FONT_SIZE);
+                let galley = painter.layout_no_wrap(preedit.clone(), font, caret_color);
+                let run_w = galley.rect.width().max(glyph_width);
+                let run_h = geometry.line_height;
+                let origin = egui::pos2(x, y);
+                let overall_rect =
+                    egui::Rect::from_min_size(origin, egui::vec2(run_w, run_h));
+                // Subtle in-progress background (the same low-alpha cornflower selection tint the overlay
+                // already uses as a UI affordance, not a syntax color) so the composing run is distinct.
+                painter.rect_filled(overall_rect, 1.0, selection_color);
+                painter.galley(origin, std::sync::Arc::clone(&galley), caret_color);
+                // Underline the composing run (a 1px line in the caret color at the row baseline).
+                let underline_y = y + run_h - 1.0;
+                painter.line_segment(
+                    [egui::pos2(x, underline_y), egui::pos2(x + run_w, underline_y)],
+                    egui::Stroke::new(1.0, caret_color),
+                );
+                // The composition caret sits at the END of the preedit run (egui 0.33 Preedit carries no
+                // cursor range — the field-correct position).
+                let caret_x = x + run_w;
+                let cursor_rect = egui::Rect::from_min_size(
+                    egui::pos2(caret_x, y),
+                    egui::vec2(2.0, run_h),
+                );
+                // AC4: report the IME caret rect so the OS candidate list anchors at the caret.
+                ui.ctx().output_mut(|o| {
+                    o.ime = Some(egui::output::IMEOutput { rect: overall_rect, cursor_rect });
+                });
             }
         }
     }
@@ -9016,6 +9136,26 @@ impl CodeEditorPanel {
                         // `trigger_signature_help` re-evaluates on the next pump and re-opens if the
                         // cursor is still inside an outer call, so a nested `)` does not wrongly close.
                         self.signature_help_request.store(true, Ordering::Relaxed);
+                    }
+                }
+                // WP-KERNEL-012 MT-076 (E13 IME / AC5): IME composition. `Enabled`/`Preedit` set the
+                // OVERLAY preedit text (NO buffer mutation — RISK-1 / MC-1); only `Commit` INSERTS the
+                // composed text at all cursors via the proven char-correct `insert_text` path, so CJK
+                // composes + commits into a code buffer exactly like the rich editor. An empty commit /
+                // `Disabled` clears the overlay with no insert (cancel path). Skipped while a rename input
+                // owns typed input (the same focus-precedence rule as `Event::Text`). egui's IME events are
+                // distinct from `Event::Text`, so committed CJK does not double-insert.
+                egui::Event::Ime(ime) => {
+                    if !matches!(
+                        *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()),
+                        RenameState::Idle
+                    ) {
+                        continue;
+                    }
+                    if self.handle_ime_event(ime) {
+                        // A non-empty commit mutated the buffer — mark the edit (debounce clock) so the
+                        // MT-008 completion + MT-035 dirty/draft tracking treat it like typed text.
+                        self.mark_edit_now();
                     }
                 }
                 _ => {}
