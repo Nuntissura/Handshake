@@ -291,6 +291,7 @@ fn graph_depth_changed_requeries_with_new_backlink_depth() {
         v.workspace_id = DEFAULT_PROJECT_ID.to_owned();
     }
     let events = app.editor_mounts_graph_events_for_test();
+    let graph_view2 = app.mounted_graph_view();
     let mut harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.run_steps(2);
@@ -299,6 +300,66 @@ fn graph_depth_changed_requeries_with_new_backlink_depth() {
     assert!(
         events.lock().unwrap().is_empty(),
         "AC-080-3: the graph DepthChanged was DRAINED by the host (mapped to the depth re-query)"
+    );
+    // Perf/hygiene (must-fix, the MT-015 backlinks-spinner regression class): the host has NO per-frame
+    // graph-cell deliver path to clear `loading`, so it must NOT animate the mounted pane on a gated depth
+    // re-query. Assert `loading` is false after the DepthChanged is consumed — if the host set
+    // `loading = true` with no deliver path, the widget would request a repaint every frame forever (a
+    // perpetual idle-repaint trap that a `harness.run()` would hit at max_steps). This is the assertion the
+    // drain-only check above cannot catch by construction.
+    assert!(
+        !graph_view2.lock().unwrap().loading,
+        "must-fix(perf): the mounted graph pane is idle-neutral after a gated DepthChanged — the host does \
+         NOT set loading=true with no deliver path (no perpetual idle-repaint trap)"
+    );
+}
+
+// ── PT-080-B / AC-080-2 (must-fix backend-shape): the clear-section path sends the body the REAL backend
+// accepts (`{clear_group:true}`), and an AssignSection{None} drains through the live host. ───────────────
+
+#[test]
+fn canvas_clear_group_sends_backend_accepted_clear_body() {
+    use handshake_native::backend_client::CanvasBoardClient;
+    use handshake_native::graph::CanvasEvent;
+
+    // Builder shape (asserted against the REAL backend contract, not the serializer's own historical
+    // output): the backend's `update_canvas_placement` clears the group ONLY on `clear_group: true`. A
+    // `{"group_id": null}` body is a verified no-op (deserializes to `group_id: None`, leaves the group
+    // unchanged), so the host MUST send `{"clear_group": true}` or a card dragged out of a section silently
+    // re-snaps on the next board refresh.
+    let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+    let client = CanvasBoardClient::production(rt.handle().clone());
+    let clear = client.clear_group_request(DEFAULT_PROJECT_ID, "p-clear");
+    assert_eq!(
+        clear.body,
+        Some(serde_json::json!({ "clear_group": true })),
+        "must-fix(backend-shape): the clear-section PATCH sends {{clear_group:true}} (the only body the real \
+         update_canvas_placement handler treats as a clear); {{group_id:null}} is a verified backend no-op"
+    );
+    assert_ne!(
+        clear.body,
+        Some(serde_json::json!({ "group_id": serde_json::Value::Null })),
+        "regression guard: the clear body is NOT the no-op {{group_id:null}} shape"
+    );
+
+    // Live host path: an AssignSection{group_id:None} (a card dropped outside all section frames) drains
+    // through the mounted board's outbound queue into route_canvas_events, which maps the None arm to the
+    // clear builder above (the live PATCH round-trip is gated NEEDS_MANAGED_RESOURCE_PROOF).
+    let (app, _rt) = secondary_shell();
+    let canvas_events = app.mounted_canvas_events();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+    canvas_events.lock().unwrap().push(CanvasEvent::AssignSection {
+        placement_id: "p-clear".into(),
+        group_id: None,
+    });
+    assert_eq!(canvas_events.lock().unwrap().len(), 1, "the clear event is enqueued before the frame");
+    harness.run_steps(2);
+    assert!(
+        canvas_events.lock().unwrap().is_empty(),
+        "AC-080-2: the canvas AssignSection{{None}} (clear) was DRAINED by the host (mapped to the \
+         clear_group PATCH path)"
     );
 }
 

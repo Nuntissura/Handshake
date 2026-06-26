@@ -4530,6 +4530,15 @@ impl HandshakeApp {
             // (idempotently) register the undo command set, so the MT-035 unified-undo stack the mounted
             // code pane's Ctrl+Z/Ctrl+Y route through has its runtime + commands wired. Done lazily here
             // (when a code command actually arrives) rather than every frame.
+            //
+            // Honest scope note (RISK-080-2 / MC-080-5): this wires the UNDO half of AC-080-4 (set_undo_
+            // runtime + register_undo_commands + Ctrl+Z/Ctrl+Y -> bus.undo/redo, proven below). The FR-emit
+            // half — `crate::event_emitter::*::emit_code_edit` (debounced 2s) and
+            // `crate::interop::render_undo_count_indicator` — is NOT wired into this live loop this run:
+            // `emit_code_edit` has no live call site (its helper is unit-proven only; see its DEFERRED-live-
+            // wiring docstring) and the undo-count indicator is rendered only by the test bin. Both are
+            // explicit deferred typed carries (NOT faked, NOT a live-loop fire) so the residual E11 FR-emit
+            // work stays precisely scoped — the host does NOT claim emit_code_edit fires here.
             if let Some(rt) = self.runtime_handle.clone() {
                 crate::interop::InteractionBus::with_try_lock(&bus, |b| {
                     b.set_undo_runtime(rt);
@@ -4870,9 +4879,18 @@ impl HandshakeApp {
     /// WP-KERNEL-012 MT-080 (AC-080-3 / MT-060): map each drained
     /// [`crate::graph::graph_view::GraphEvent`] to the EXISTING graph paths. A `DepthChanged { depth }`
     /// re-fires the depth-parameterized `graph-search` (`fetch_local_with_depth`) carrying the NEW
-    /// `backlink_depth` (NO new endpoint); the result re-populates the SAME graph-view state via the shared
-    /// cell + `set_graph` once it resolves (the live fetch is gated `NEEDS_MANAGED_RESOURCE_PROOF`). An
-    /// `OpenNode`/`SelectNode` opens the block on the active pane.
+    /// `backlink_depth` (NO new endpoint). An `OpenNode`/`SelectNode` opens the block on the active pane.
+    ///
+    /// Deliver-path honesty (RISK-080-2 / Spec-Realism Gate): this MT does NOT yet have a per-frame
+    /// graph-cell drain that calls [`crate::graph::graph_view::LoomGraphView::set_graph`] on the mounted
+    /// pane, so the dispatched re-query's result is NOT delivered back into the rendered graph-view state
+    /// this run — the live fetch + the re-populate are both gated `NEEDS_MANAGED_RESOURCE_PROOF` and the
+    /// deliver loop is an explicit typed carry for a follow-on run. BECAUSE there is no deliver path to
+    /// clear it, the host deliberately does NOT set `graph_view.loading = true` here: the widget's loading
+    /// overlay requests a repaint every frame while `loading` is true (graph_view.rs render path) on the
+    /// contract that "the host clears loading when the fetch resolves" — a contract this run cannot honor,
+    /// so animating it would be a perpetual idle-repaint trap. The pane stays idle-neutral until the
+    /// deliver path lands; the re-query is still dispatched (the event is consumed, not dropped).
     fn route_graph_events(
         &mut self,
         events: Vec<crate::graph::graph_view::GraphEvent>,
@@ -4895,12 +4913,15 @@ impl HandshakeApp {
                     if let (Some((ws, block_id, title)), Some(rt)) =
                         (focus, self.runtime_handle.clone())
                     {
-                        // Mark loading on the SAME state the pane renders, then spawn the depth re-query;
-                        // the delivered graph re-populates the cell the pane reads (the host's existing
-                        // graph-cell deliver path). The DB round-trip is gated NEEDS_MANAGED_RESOURCE_PROOF.
-                        if let Ok(mut v) = self.editor_mounts.secondary.graph_view.lock() {
-                            v.loading = true;
-                        }
+                        // Dispatch the depth re-query (the event is CONSUMED, not dropped) BUT do NOT set
+                        // `graph_view.loading = true`: there is no per-frame deliver path that calls
+                        // `set_graph` to clear it this run (see the fn docstring), and the widget's loading
+                        // overlay requests a repaint every frame while `loading` is true on the contract
+                        // that the host clears it on resolve. Setting it here with no deliver path would be
+                        // a perpetual idle-repaint trap (the MT-015 backlinks-spinner regression class), so
+                        // the pane stays idle-neutral. The live fetch + the re-populate are gated
+                        // NEEDS_MANAGED_RESOURCE_PROOF; the cell is the gated sink (drained once the deliver
+                        // path lands as a follow-on typed carry).
                         let client = crate::backend_client::LoomGraphClient::production(rt);
                         let cell: crate::backend_client::LoomGraphCell =
                             std::sync::Arc::new(std::sync::Mutex::new(None));

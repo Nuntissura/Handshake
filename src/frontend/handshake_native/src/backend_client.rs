@@ -1789,13 +1789,23 @@ impl CanvasBoardClient {
     /// WP-KERNEL-012 MT-080 (AC-080-2 / MT-061): pure request builder for
     /// `PATCH .../canvas-placements/:placement_id` clearing the `group_id` (a card dropped OUTSIDE all
     /// section frames). The canvas `CanvasEvent::AssignSection { placement_id, group_id: None }` fires on a
-    /// move drag-stop outside any section; the host maps the `None` arm here (a JSON `null` group_id), the
-    /// `Some` arm to [`group_request`](Self::group_request).
+    /// move drag-stop outside any section; the host maps the `None` arm here, the `Some` arm to
+    /// [`group_request`](Self::group_request).
+    ///
+    /// Backend-shape note (verified against `update_canvas_placement` /
+    /// `UpdatePlacementRequest` in `src/backend/handshake_core/src/api/loom.rs`): the handler clears the
+    /// group ONLY when the separate boolean `clear_group: true` is present
+    /// (`let group_id = if payload.clear_group { Some(None) } else { payload.group_id.map(Some) };`). A
+    /// `{"group_id": null}` body deserializes to `group_id: None` (serde default) and the storage layer's
+    /// `CASE WHEN $8 ...` (with `$8 = update.group_id.is_some() = false`) leaves the group UNCHANGED — i.e.
+    /// `{"group_id": null}` is a silent no-op and the card re-snaps into its old section on the next board
+    /// refresh. Sending `{"clear_group": true}` is the only body that actually clears the assignment. This
+    /// matches the shape the widget already documents at `graph/canvas_board.rs` (`{clear_group:true}`).
     pub fn clear_group_request(&self, workspace_id: &str, placement_id: &str) -> RequestSpec {
         RequestSpec {
             method: HttpMethod::Patch,
             url: self.placement_url(workspace_id, placement_id),
-            body: Some(serde_json::json!({ "group_id": serde_json::Value::Null })),
+            body: Some(serde_json::json!({ "clear_group": true })),
         }
     }
 
@@ -5679,7 +5689,11 @@ mod tests {
 
     /// WP-KERNEL-012 MT-080 (AC-080-2 / MT-061): the canvas resize + clear-group request builders PATCH the
     /// SAME verified placement URL the `group_request` uses; only the body differs (`{w,h}` for a resize,
-    /// `{group_id: null}` for a clear).
+    /// `{clear_group: true}` for a clear). The clear body is asserted against the REAL backend's accepted
+    /// contract (`UpdatePlacementRequest.clear_group` in `src/backend/handshake_core/src/api/loom.rs`),
+    /// NOT the serializer's own historical output: `{"group_id": null}` is a verified backend no-op (it
+    /// deserializes to `group_id: None` and leaves the group unchanged), so only `{"clear_group": true}`
+    /// actually clears the section assignment end-to-end.
     #[test]
     fn canvas_board_resize_and_clear_group_requests() {
         let rt = rt();
@@ -5693,7 +5707,8 @@ mod tests {
         let clear = c.clear_group_request("ws-7", "p-9");
         assert_eq!(clear.method, HttpMethod::Patch);
         assert_eq!(clear.url, "http://test.local:1234/workspaces/ws-7/loom/canvas-placements/p-9");
-        assert_eq!(clear.body, Some(serde_json::json!({ "group_id": serde_json::Value::Null })));
+        // The backend clears the group ONLY on `clear_group: true`; `{"group_id": null}` is a no-op.
+        assert_eq!(clear.body, Some(serde_json::json!({ "clear_group": true })));
 
         // The assign (Some group) arm reuses the existing verified group_request (same URL + verb).
         let assign = c.group_request("ws-7", "p-9", "section-2");
