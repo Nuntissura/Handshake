@@ -68,6 +68,14 @@ pub mod left_rail;
 // duplicate, so no `backlink_panel` module is declared here.
 pub mod loom_address;
 pub mod loom_search_v2;
+// WP-KERNEL-012 MT-073 (E12 — built-in User Manual): `manual_pane` is the native User Manual PANE
+// (the ManualSection/ManualTopic/AgentToolRow data model + a search box + a topic navigation list + the
+// section registration API + AccessKit ids — created here because the contract's MT-072 manual-pane
+// assumption was wrong, VERIFIED ABSENT); `manual_content_editors` is the editors' manual CONTENT (the
+// eight GLOBAL-BUILD-MANUAL topics + the four interop edges + the author_id->MCP-tool agent-steering
+// reference). The LIVE DOCK of the pane into the running app is an E11 host-mount carry (MT-080).
+pub mod manual_content_editors;
+pub mod manual_pane;
 pub mod mcp;
 pub mod module_switcher;
 /// WP-KERNEL-012 MT-070 (E11): the thin NavigationTarget layer over the existing MT-030 ShellNavigator.
