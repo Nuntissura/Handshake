@@ -870,6 +870,69 @@ const INTER_BOLD: &[u8] = include_bytes!("../assets/fonts/Inter-Bold.ttf");
 #[cfg(feature = "bundled-fonts")]
 pub const INTER_BOLD_FAMILY: &str = "Inter-Bold";
 
+// ── WP-KERNEL-012 MT-075: Unicode font fallback chain (CJK + symbols + emoji) ─────────────────────
+//
+// ROOT CAUSE this MT fixes: before MT-075, `install_fonts` registered ONLY Inter (Latin + Cyrillic +
+// Greek). egui's `FontDefinitions::default()` ships no CJK and only partial symbol coverage, so any
+// Han / Kana / Hangul codepoint rendered as the tofu/notdef box. egui resolves a glyph by walking the
+// family's `Vec<String>` fallback list IN ORDER and using the FIRST font that has the glyph, so the
+// fix is to APPEND broad-coverage faces AFTER Inter (Inter stays index-0 / first, so the Latin look is
+// byte-for-byte unchanged — MC-1 / RISK-2 / AC1).
+//
+// CJK-SOURCE DECISION (bundle, not OS-load — AC7 / PROOF4): the MT contract preferred (a/b) bundling a
+// deterministic, portable Noto Sans CJK weight IF fetchable, over (c) OS-loading the Windows fonts.
+// The fonts WERE fetchable (Google Noto, SIL OFL 1.1), so they are bundled under assets/fonts/ via
+// `include_bytes!`. Bundling is chosen over OS-load because it is DETERMINISTIC and DISK-AGNOSTIC
+// (GLOBAL-PORTABILITY): the binary renders identical glyphs on any machine with no dependency on the
+// host having a CJK font installed, and there is no `std::fs` font read that could fail/panic.
+//
+// FONT SET + WHY (verified per-glyph with fontTools against the AC2/AC4/AC5 codepoints):
+//   - Noto Sans SC (Simplified Chinese): supplies Han ideographs (中文, 日本語 kanji) + Hiragana/Katakana
+//     + CJK box-drawing (│ ─ ┌, which Inter LACKS) with region-correct Simplified Han glyph shapes.
+//   - Noto Sans KR (Korean): supplies Hangul (한국어), which neither Inter nor the SC subset cover.
+//     Ordered AFTER SC so Han/Kana resolve to the region-correct SC face first; KR only catches Hangul.
+//   - Noto Sans Symbols 2: a broad-Unicode symbol backstop for symbol/dingbat codepoints beyond Inter's
+//     set (e.g. ✗ U+2717, geometric/technical symbols) — AC5.
+//   - Noto Sans Math: broad math-symbol backstop (Inter + SC already cover ∑ ∫ ∞ →; Math is the
+//     extended-coverage fallback so uncommon math operators never tofu) — AC5.
+//   - Emoji (😀): supplied by egui's DEFAULT `NotoEmoji` face, which `FontDefinitions::default()`
+//     already appends to every family — we RETAIN it (do not clear the defaults) so emoji still render.
+//
+// SIZE DELTA (RISK-1 / MC-4 / PROOF4): the four bundled Noto faces add ~14 MB to the binary
+// (SC 8.3 MB, KR 4.6 MB, Symbols2 0.66 MB, Math 0.97 MB). This is the documented cost of deterministic
+// CJK coverage; egui builds glyph atlases lazily (on first use), so startup is unaffected and only the
+// first frame that paints a given script pays a one-time atlas-build cost. A regional subset (SC+KR
+// rather than the ~16 MB+ pan-CJK OTC) is used per the contract's "do not stack the whole OTC" note.
+#[cfg(feature = "bundled-fonts")]
+const NOTO_SANS_SC: &[u8] = include_bytes!("../assets/fonts/NotoSansSC-Regular.otf");
+#[cfg(feature = "bundled-fonts")]
+const NOTO_SANS_KR: &[u8] = include_bytes!("../assets/fonts/NotoSansKR-Regular.otf");
+#[cfg(feature = "bundled-fonts")]
+const NOTO_SANS_SYMBOLS2: &[u8] = include_bytes!("../assets/fonts/NotoSansSymbols2-Regular.ttf");
+#[cfg(feature = "bundled-fonts")]
+const NOTO_SANS_MATH: &[u8] = include_bytes!("../assets/fonts/NotoSansMath-Regular.ttf");
+
+/// egui `font_data` key for the primary proportional face (Inter). Always index-0 / first in both the
+/// Proportional and Monospace fallback vecs so the Latin look is unchanged (MC-1 / AC1).
+pub const FONT_KEY_INTER: &str = "Inter";
+/// egui `font_data` key for the Simplified-Chinese CJK face (Han + Kana + box-drawing).
+pub const FONT_KEY_NOTO_SC: &str = "NotoSansSC";
+/// egui `font_data` key for the Korean CJK face (Hangul; Han fallback after SC).
+pub const FONT_KEY_NOTO_KR: &str = "NotoSansKR";
+/// egui `font_data` key for the broad-Unicode symbol backstop face.
+pub const FONT_KEY_NOTO_SYMBOLS2: &str = "NotoSansSymbols2";
+/// egui `font_data` key for the broad math-symbol backstop face.
+pub const FONT_KEY_NOTO_MATH: &str = "NotoSansMath";
+
+/// The Unicode-coverage fallback faces appended (in this exact order) AFTER the primary Inter face to
+/// BOTH the Proportional and Monospace families. Inter is NOT in this list — it is inserted at index 0
+/// separately so it always wins for Latin/Cyrillic/Greek (RISK-2). The MT-075 family-order unit test
+/// asserts each family vec equals `[Inter, ..FALLBACK_FACE_ORDER, <egui defaults: Proportional/Monospace,
+/// Emoji>]`. Emoji is NOT listed here because egui's `FontDefinitions::default()` already appends its
+/// `NotoEmoji` face to every family and we retain those defaults.
+pub const FALLBACK_FACE_ORDER: [&str; 4] =
+    [FONT_KEY_NOTO_SC, FONT_KEY_NOTO_KR, FONT_KEY_NOTO_SYMBOLS2, FONT_KEY_NOTO_MATH];
+
 impl HandshakeApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         Self::install_fonts(&cc.egui_ctx);
@@ -4815,38 +4878,96 @@ impl HandshakeApp {
     pub fn install_fonts(ctx: &egui::Context) {
         #[cfg(feature = "bundled-fonts")]
         {
-            let mut fonts = egui::FontDefinitions::default();
-            // Regular face: front of the Proportional family so all default UI text renders Inter.
-            fonts.font_data.insert(
-                "Inter".to_owned(),
-                std::sync::Arc::new(egui::FontData::from_static(INTER_REGULAR)),
+            ctx.set_fonts(Self::build_font_definitions());
+            tracing::info!(
+                "bundled fonts loaded: Inter (Regular+Bold) + Noto CJK/symbol fallback chain \
+                 (SC, KR, Symbols2, Math); emoji via egui default NotoEmoji"
             );
-            fonts
-                .families
-                .entry(egui::FontFamily::Proportional)
-                .or_default()
-                .insert(0, "Inter".to_owned());
-
-            // Bold face: registered under a named family so callers can request bold explicitly via
-            // FontFamily::Name("Inter-Bold") without disturbing the default proportional rendering.
-            fonts.font_data.insert(
-                INTER_BOLD_FAMILY.to_owned(),
-                std::sync::Arc::new(egui::FontData::from_static(INTER_BOLD)),
-            );
-            fonts
-                .families
-                .entry(egui::FontFamily::Name(INTER_BOLD_FAMILY.into()))
-                .or_default()
-                .insert(0, INTER_BOLD_FAMILY.to_owned());
-
-            ctx.set_fonts(fonts);
-            tracing::info!("bundled Inter fonts loaded (Regular + Bold)");
         }
         #[cfg(not(feature = "bundled-fonts"))]
         {
             let _ = ctx; // default fonts; nothing to do until MT-004 bundles the asset.
             tracing::debug!("bundled-fonts feature off; using eframe default fonts");
         }
+    }
+
+    /// Build the bundled-font `FontDefinitions` with the MT-075 ordered Unicode fallback chain.
+    ///
+    /// Pure (no `egui::Context`, no GPU) so the MT-075 family-order unit test can assert the fallback
+    /// ordering deterministically and headlessly. `install_fonts` simply hands the result to
+    /// `ctx.set_fonts`. Only compiled under `bundled-fonts` (the default); the no-bundle build keeps
+    /// eframe's default fonts and never calls this.
+    ///
+    /// Fallback contract (RISK-2 / AC1): Inter is inserted at index 0 of BOTH the Proportional and the
+    /// Monospace family vecs, so it always wins for Latin/Cyrillic/Greek and the Latin look is
+    /// unchanged. The four broad-coverage Noto faces (`FALLBACK_FACE_ORDER`: SC, KR, Symbols2, Math)
+    /// are appended AFTER Inter, BEFORE egui's own defaults — so a Han/Kana/Hangul/box-drawing/symbol
+    /// codepoint resolves to the first Noto face that has it, and emoji still fall through to egui's
+    /// default `NotoEmoji`. The Monospace family gets the SAME fallbacks (AC3: CJK comments / box
+    /// drawing in the code editor render). egui renders the single notdef box for a codepoint present
+    /// in NO registered font, with no panic and no layout break (AC6) — that is egui's built-in
+    /// behavior, preserved here because we never clear the default fonts.
+    #[cfg(feature = "bundled-fonts")]
+    pub fn build_font_definitions() -> egui::FontDefinitions {
+        use egui::{FontData, FontFamily};
+        use std::sync::Arc;
+
+        let mut fonts = egui::FontDefinitions::default();
+
+        // 1) Register the primary Inter regular face and the broad-coverage Noto fallback faces in
+        //    `font_data`. (Registering a face here does NOT by itself put it in a family — the family
+        //    vecs below decide order. `from_static` borrows the `&'static [u8]` include_bytes! data,
+        //    so there is no copy.)
+        fonts
+            .font_data
+            .insert(FONT_KEY_INTER.to_owned(), Arc::new(FontData::from_static(INTER_REGULAR)));
+        fonts
+            .font_data
+            .insert(FONT_KEY_NOTO_SC.to_owned(), Arc::new(FontData::from_static(NOTO_SANS_SC)));
+        fonts
+            .font_data
+            .insert(FONT_KEY_NOTO_KR.to_owned(), Arc::new(FontData::from_static(NOTO_SANS_KR)));
+        fonts.font_data.insert(
+            FONT_KEY_NOTO_SYMBOLS2.to_owned(),
+            Arc::new(FontData::from_static(NOTO_SANS_SYMBOLS2)),
+        );
+        fonts
+            .font_data
+            .insert(FONT_KEY_NOTO_MATH.to_owned(), Arc::new(FontData::from_static(NOTO_SANS_MATH)));
+
+        // 2) Build the ordered fallback chain in BOTH the Proportional and Monospace families:
+        //    [Inter] ++ FALLBACK_FACE_ORDER ++ <egui's existing default faces (incl. NotoEmoji)>.
+        //    Inter goes to index 0 (front); the Noto faces are inserted right after it (index 1..),
+        //    pushing egui's defaults toward the back. This keeps Inter first (MC-1) while ensuring the
+        //    Noto faces are consulted BEFORE egui's default proportional/monospace face (which has no
+        //    CJK) but the emoji default is still reachable for emoji.
+        for family in [FontFamily::Proportional, FontFamily::Monospace] {
+            let vec = fonts.families.entry(family).or_default();
+            // Inter first.
+            vec.insert(0, FONT_KEY_INTER.to_owned());
+            // Broad-coverage faces immediately after Inter, preserving FALLBACK_FACE_ORDER.
+            for (offset, face) in FALLBACK_FACE_ORDER.iter().enumerate() {
+                vec.insert(1 + offset, (*face).to_owned());
+            }
+        }
+
+        // 3) Bold face: a NAMED family so callers can opt into bold via FontFamily::Name("Inter-Bold")
+        //    without disturbing the default proportional rendering (unchanged from MT-004). The CJK
+        //    fallbacks are appended here too so bold CJK text does not tofu.
+        fonts.font_data.insert(
+            INTER_BOLD_FAMILY.to_owned(),
+            Arc::new(FontData::from_static(INTER_BOLD)),
+        );
+        let bold_vec = fonts
+            .families
+            .entry(FontFamily::Name(INTER_BOLD_FAMILY.into()))
+            .or_default();
+        bold_vec.insert(0, INTER_BOLD_FAMILY.to_owned());
+        for (offset, face) in FALLBACK_FACE_ORDER.iter().enumerate() {
+            bold_vec.insert(1 + offset, (*face).to_owned());
+        }
+
+        fonts
     }
 
     /// Apply the active theme's palette to egui, but only when the theme changed since the
