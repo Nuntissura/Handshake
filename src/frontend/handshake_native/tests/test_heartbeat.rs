@@ -42,7 +42,7 @@ use std::time::{Duration, Instant};
 use egui_kittest::Harness;
 
 use handshake_diag_ring::{DiagRingReader, DiagRingWriter, DEFAULT_CAPACITY};
-use handshake_native::app::{HandshakeApp, HEARTBEAT_IDLE_REPAINT_INTERVAL};
+use handshake_native::app::{HandshakeApp, HealthDisplayState, HEARTBEAT_IDLE_REPAINT_INTERVAL};
 use handshake_native::diagnostics::DiagnosticsRecorder;
 
 // ── artifact hygiene (CX-212E): no repo-local artifact dir may exist ───────────────────────────────
@@ -285,6 +285,17 @@ fn heartbeat_timestamp_is_monotonic() {
 /// tiny `step_dt` (so `predicted_dt` is ~4ms) and the observed delay is asserted to be `cadence` within
 /// that tolerance — proving the production cadence, not the harness's default 4 fps (which equals the
 /// cadence and would saturate the observed delay to zero).
+///
+/// DETERMINISM (no network race): the production `update` schedules OTHER, SHORTER non-zero repaints
+/// that are NOT the heartbeat — a 100ms wake while `health_status == Loading` (app.rs ~6710) and a
+/// `LAYOUT_SAVE_DEBOUNCE` (600ms) wake while the layout is dirty. The production ctor
+/// `HandshakeApp::new` starts in `Loading` and spawns a background `/health` poll, so on the first idle
+/// frame the 100ms health wake almost always fires and would contaminate the cadence measurement (and
+/// make the proof depend on a `/health` HTTP race). This test therefore builds the app via the
+/// no-network `HandshakeApp::with_health(Error)` headless ctor: a non-`Loading` health state (so the
+/// 100ms health wake never fires) with a `NullLayoutTransport` over the seeded-clean default layout (so
+/// the 600ms layout-save wake never fires). The 250ms heartbeat cadence is then the ONLY non-zero
+/// scheduled repaint, captured deterministically with NO live backend and NO timing race.
 #[test]
 fn idle_repaint_cadence_is_bounded() {
     use std::sync::{Arc, Mutex};
@@ -308,9 +319,20 @@ fn idle_repaint_cadence_is_bounded() {
     let predicted_dt = 1.0f32 / 240.0;
     let mut harness: Harness<HandshakeApp> = Harness::builder()
         .with_step_dt(predicted_dt)
-        .build_eframe(|cc| HandshakeApp::new(cc));
+        .build_eframe(|cc| {
+            // Build the headless, no-network shell in a NON-Loading health state (see DETERMINISM note
+            // above): the production `update`'s competing 100ms health-Loading wake never fires and the
+            // `NullLayoutTransport` keeps the seeded layout clean so the 600ms layout-save wake never
+            // fires either — leaving the 250ms heartbeat cadence as the ONLY non-zero scheduled repaint.
+            // Install fonts on the harness ctx the same way the production ctor does so the idle frame
+            // renders identically.
+            HandshakeApp::install_fonts(&cc.egui_ctx);
+            HandshakeApp::with_health(HealthDisplayState::Error("idle-cadence-proof".to_owned()))
+        });
 
-    // Capture the SHORTEST non-zero repaint delay egui is asked to schedule during one idle frame.
+    // Capture the shortest non-zero repaint delay egui is asked to schedule during one idle frame. With
+    // the non-Loading / clean-layout construction above, the heartbeat cadence is the ONLY non-zero
+    // scheduled delay — no shorter competing `request_repaint_after` can contaminate this measurement.
     let min_delay: Arc<Mutex<Option<Duration>>> = Arc::new(Mutex::new(None));
     {
         let sink = Arc::clone(&min_delay);
