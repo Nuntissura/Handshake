@@ -36,6 +36,26 @@ handshake-diag-ring = { path = "../handshake_native/diag_ring" }
 # liveness is NEVER requested over this socket (a frozen Handshake could not answer — §6.13.4 / RISK-009-3).
 # Verified against crates.io 2026-06-27: latest 2.4.2 (pin "2").
 interprocess = "2"
+# WP-KERNEL-012 MT-092 (Palmistry CRASH DETECTION + OUT-OF-PROCESS MINIDUMP, §6.13.6) — the Embark
+# rust-minidump OUT-OF-PROCESS crash pipeline. Palmistry is the SERVER (the dump WRITER); Handshake is
+# the CLIENT. Versions verified against crates.io 2026-06-27:
+# - `minidumper` 0.10.1: the client<->server IPC pair. Palmistry runs `minidumper::Server`; on a client
+#   `request_dump`, the server reads the CLIENT process's memory CROSS-PROCESS (on Windows via
+#   MiniDumpWriteDump with the client's EXCEPTION_POINTERS) and writes the dump OUT-OF-PROCESS — the
+#   crashing process never dumps itself (§6.13.6: "the crashing process cannot reliably dump itself; the
+#   external writer captures the dump from outside"). Pin "0.10".
+# - `minidump-writer` 0.12.0: the actual out-of-process dump writer that `minidumper::Server::run` drives.
+#   Declared directly so the family is explicit in the manifest (minidumper consumes the same one). Pin "0.12".
+# CRATE-VERSION CORRECTION (the MT contract said "pin crash-context 0.7"): VERIFIED from the registry
+# Cargo.toml files that minidumper 0.10.1, minidump-writer 0.12.0, AND crash-handler 0.7.0 ALL depend on
+# `crash-context = "0.6"`. Declaring a direct `crash-context = "0.7"` here would (a) DUPLICATE the
+# crash-context family (0.6.3 + 0.7.0 — which fails AC-012-6 `cargo tree -d`) and (b) type-mismatch the
+# API (the 0.6 `CrashContext` is the type the stack's fns take). So NO direct crash-context dep is
+# declared — the single transitive crash-context 0.6.3 the Embark stack pins is the one consistent
+# family. The CLIENT side (handshake-native) uses `crash_handler::CrashContext`, re-exported from that
+# SAME 0.6 crate. Single crash-context family preserved (AC-012-6 / RISK-012-5).
+minidumper = "0.10"
+minidump-writer = "0.12"
 # Control-message + survivor-record JSON (newline-delimited framing over the local socket).
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -58,6 +78,17 @@ windows-sys = { version = "0.61", features = [
 ] }
 
 [dev-dependencies]
+# WP-KERNEL-012 MT-092: the `minidump` reader (0.26.1, verified 2026-06-27) VALIDATES, in the crash
+# tests, that the dump Palmistry wrote OUT-OF-PROCESS is a well-formed minidump that parses back with at
+# least the crashing thread + loaded modules (AC-012-1) — NOT a stub file. Test-only (the watcher writes
+# dumps; it never reads them). It pulls its own crash-context transitively but resolves to the SAME 0.6
+# family the runtime stack uses (no duplicate — proven by `cargo tree -d`, AC-012-6).
+minidump = "0.26"
+# WP-KERNEL-012 MT-092: `crash-handler` (0.7.0) is the CLIENT-side crash installer; here it is a TEST-ONLY
+# dep so the AC-012-1 out-of-process-minidump proof can drive a REAL crash via `simulate_exception` (the
+# crash-handler test seam — a real captured context WITHOUT killing the test process) against Palmistry's
+# server role. Same 0.7 line + same crash-context 0.6 family as the handshake-native client (no duplicate).
+crash-handler = "0.7"
 # The lifecycle proofs spawn a real DUMMY parent process and hard-kill it; serde_json reads the
 # survivor/state JSON Palmistry writes. (No new family — serde_json is already a runtime dep.)
 serde_json = "1"

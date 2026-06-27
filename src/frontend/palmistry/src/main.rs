@@ -27,6 +27,7 @@
 
 mod cli;
 mod control;
+mod crash_capture;
 mod freeze_detect;
 mod hung_window_probe;
 mod lifecycle;
@@ -39,6 +40,10 @@ use std::time::Duration;
 
 use cli::PalmistryConfig;
 use control::{ControlOutcome, ControlServer};
+use crash_capture::{
+    minidump_path_for, persist_crash_record, CrashRecord, CrashServerHandler,
+    CRASH_SERVER_STALE_TIMEOUT,
+};
 use freeze_detect::{FreezeDetector, FreezeState};
 use hung_window_probe::HungWindowProbe;
 use lifecycle::{
@@ -128,6 +133,12 @@ pub struct RunOptions {
     pub hung_window_probe_factory: HungWindowProbeFactory,
     /// Lifecycle timing. Default = production timings.
     pub lifecycle: LifecycleConfig,
+    /// MT-092: builds the Embark `minidumper::Server` for the derived crash-socket name. Default = the
+    /// real `minidumper::Server::with_name(SocketName::path(..))`. The seam exists so an in-crate caller /
+    /// future `[lib]` extraction can inject a pre-bound or fake server; the integration tests drive the
+    /// real default through the compiled binary. An `Err` is NON-FATAL (the post-mortem floor still
+    /// records a crash).
+    pub crash_server_factory: CrashServerFactory,
     /// Optional callback invoked once the watcher is fully started (control socket bound, parent watch
     /// armed) and about to enter its run loop. Used by tests to assert "started + staying alive".
     pub on_ready: Option<Box<dyn FnOnce() + Send>>,
@@ -140,9 +151,25 @@ impl Default for RunOptions {
             ring_reader_factory: Box::new(default_ring_reader),
             hung_window_probe_factory: Box::new(default_hung_window_probe),
             lifecycle: LifecycleConfig::default(),
+            crash_server_factory: Box::new(default_crash_server),
             on_ready: None,
         }
     }
+}
+
+/// Factory that builds the MT-092 Embark `minidumper::Server` for a crash-socket name. Boxed so a caller
+/// can inject a pre-bound / fake server without forking the run path. Aliased to keep the [`RunOptions`]
+/// field type legible (clippy type-complexity).
+pub type CrashServerFactory =
+    Box<dyn Fn(&str) -> Result<minidumper::Server, minidumper::Error>>;
+
+/// The real crash-server factory: bind a `minidumper::Server` on the derived crash socket (a Windows
+/// named pipe / a Unix domain socket path). This is the SERVER side of the §6.13.6 out-of-process dump
+/// pipeline — it accepts the crashing client's `request_dump` and writes the minidump from OUTSIDE the
+/// dying process. An `Err` (name taken / invalid) is propagated and the caller degrades to the
+/// post-mortem floor (non-fatal).
+fn default_crash_server(crash_socket: &str) -> Result<minidumper::Server, minidumper::Error> {
+    minidumper::Server::with_name(minidumper::SocketName::path(crash_socket))
 }
 
 /// Factory that opens the MT-090 ring reader for a given ring path. Boxed so a caller can inject a
@@ -435,6 +462,57 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
         "freeze-detection poll thread armed (§6.13.5 double-signal gate)"
     );
 
+    // MT-092: spawn the CRASH minidumper SERVER thread (§6.13.6). On its OWN dedicated thread it runs the
+    // Embark `minidumper::Server`, listening on a DEDICATED minidumper socket (derived from the control
+    // socket name so the launcher can pass exactly one base name). When the CLIENT (Handshake) signals a
+    // crash with a `CrashContext`, the server writes a MINIDUMP OUT-OF-PROCESS (reading the crashing
+    // client's memory cross-process via minidump-writer) to a LOCAL `.dmp` sibling of the ring. The
+    // server loop exits after the first dump (one crash per session) or when `run` is cleared. The
+    // `captured` latch tells the post-lifecycle code whether a rich minidump was written, so it does not
+    // ALSO write a post-mortem record for the same crash. The handler holds the LOCAL dump path; there is
+    // NO upload anywhere (§6.13.8 local-only). A crash-socket BIND failure is logged but NOT fatal: the
+    // process-handle-wait post-mortem path (the FLOOR) still records a crash, so the watcher degrades to
+    // best-effort capture rather than refusing to watch.
+    let minidump_path = minidump_path_for(Path::new(&config.ring_path), &config.session_id);
+    let crash_handler = CrashServerHandler::new(minidump_path.clone());
+    let crash_captured = crash_handler.captured_flag();
+    let crash_thread_id = crash_handler.faulting_thread_id_handle();
+    let crash_write_error = crash_handler.write_error_handle();
+    let crash_socket = crash_socket_path(&config.control_socket);
+    let crash_run = Arc::clone(&run);
+    let crash_handle = match (options.crash_server_factory)(&crash_socket) {
+        Ok(mut server) => {
+            tracing::info!(
+                socket = %crash_socket,
+                minidump_path = %minidump_path.display(),
+                "crash minidumper server bound (§6.13.6 out-of-process dump writer armed)"
+            );
+            Some(std::thread::spawn(move || {
+                // `minidumper::Server::run` blocks accepting + serving the client until a dump is
+                // written (handler returns LoopAction::Exit) or `crash_run` is cleared. A stale-timeout
+                // reaps a silent (crashed/exited) client connection so the loop never blocks forever.
+                if let Err(err) = server.run(
+                    Box::new(crash_handler),
+                    &crash_run,
+                    Some(CRASH_SERVER_STALE_TIMEOUT),
+                ) {
+                    tracing::warn!(%err, "crash minidumper server loop ended with an error");
+                }
+            }))
+        }
+        Err(err) => {
+            // NON-FATAL: the FLOOR (post-mortem) path still records a crash. Record + continue.
+            tracing::warn!(
+                %err,
+                socket = %crash_socket,
+                "could not bind the crash minidumper socket; the CrashContext-driven minidump path is \
+                 unavailable this session — the process-handle-wait post-mortem record (the floor) still \
+                 covers a crash (§6.13.6 best-effort)"
+            );
+            None
+        }
+    };
+
     // Fully started: control socket bound, parent watch armed, ring reader open. Take an initial
     // PASSIVE liveness reading through the zero-cooperation reader so the watcher records, at readiness,
     // that it can observe Handshake's published heartbeat from shared memory (the data source the
@@ -482,16 +560,109 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
         );
     }
 
+    // MT-092: CRASH RECORD decision (§6.13.6 + §6.13 clean-shutdown rule). Two outcomes produce a crash
+    // record; a CLEAN shutdown produces NEITHER (RISK-012-2):
+    //
+    //   (a) RICH: a `CrashContext` arrived and the minidumper server wrote an out-of-process minidump
+    //       (`crash_captured` latched). Write a typed crash record NAMING the local dump file.
+    //   (b) FLOOR: the parent died ABNORMALLY (the MT-089 `abnormal_parent_exit` signal) with NO
+    //       CrashContext (a hard kill delivers none). Write a best-effort post-mortem crash record (exit
+    //       code + last heartbeat/events) — no minidump (impossible post-mortem without the client).
+    //
+    // A clean Shutdown (`state.parent_exit_abnormal()` is false) writes NO crash record + NO minidump —
+    // the §6.13 clean-shutdown rule (AC-012-2). The two paths are mutually exclusive here: if a rich
+    // minidump was captured we do NOT also write a floor record for the same crash.
+    let last_heartbeat = ring_reader.read_heartbeat();
+    let last_events = ring_reader.read_last_events(ring_reader.capacity().min(64));
+    if crash_captured.load(Ordering::SeqCst) {
+        // (a) RICH: a CrashContext-driven out-of-process minidump was written. Record it.
+        let faulting_thread_id = crash_thread_id.load(Ordering::SeqCst);
+        let crash = CrashRecord::with_minidump(
+            &config.session_id,
+            config.parent_pid,
+            faulting_thread_id,
+            minidump_path.clone(),
+            last_heartbeat,
+            &last_events,
+        );
+        match persist_crash_record(Path::new(&config.ring_path), &crash) {
+            Ok(path) => tracing::warn!(
+                diag_event_code = handshake_diag_ring::DiagEventCode::CrashDetected.as_u16(),
+                minidump_path = %minidump_path.display(),
+                record_path = %path.display(),
+                faulting_thread_id,
+                "CRASH CAPTURED — out-of-process minidump written (§6.13.6) + typed crash record persisted"
+            ),
+            Err(err) => tracing::warn!(%err, "failed to persist the crash record"),
+        }
+    } else if state.parent_exit_abnormal() {
+        // (b) FLOOR: abnormal parent death, no CrashContext — best-effort post-mortem record. Surface a
+        // crash-socket write error if one occurred so a missed RICH dump is visible.
+        if let Ok(slot) = crash_write_error.lock() {
+            if let Some(err) = slot.as_ref() {
+                tracing::warn!(error = %err, "the crash minidumper server reported a dump-write error");
+            }
+        }
+        let crash = CrashRecord::post_mortem(
+            &config.session_id,
+            config.parent_pid,
+            state.parent_exit_code(),
+            last_heartbeat,
+            &last_events,
+        );
+        match persist_crash_record(Path::new(&config.ring_path), &crash) {
+            Ok(path) => tracing::warn!(
+                diag_event_code = handshake_diag_ring::DiagEventCode::CrashDetected.as_u16(),
+                exit_code = ?state.parent_exit_code(),
+                record_path = %path.display(),
+                "CRASH RECORDED (post-mortem, no CrashContext — hard kill / abrupt exit); a full minidump \
+                 needs the CrashContext path (§6.13.6 floor)"
+            ),
+            Err(err) => tracing::warn!(%err, "failed to persist the post-mortem crash record"),
+        }
+    } else {
+        // CLEAN shutdown: NO crash record, NO minidump (§6.13 clean-shutdown rule, AC-012-2). The crash
+        // server never wrote a dump (no CrashContext arrived) and the exit was not abnormal, so there is
+        // nothing to write and nothing to clean up.
+        tracing::debug!("clean shutdown — no crash record or minidump written (§6.13)");
+    }
+
     // Tear down: `run` is already false (set by run_lifecycle). The parent-watch thread observes it and
     // returns; the freeze-poll thread observes it on its next sleep boundary; the control thread is woken
     // by `run` going false on its next accept boundary. We join the watch + freeze threads (bounded) and
     // detach the control thread (its blocking accept may outlive us harmlessly — the process is exiting).
     let _ = watch_handle.join();
     let _ = freeze_handle.join();
+    // The crash server thread observes `run` cleared (or already exited after writing a dump). Detach it
+    // (its blocking accept may briefly outlive us harmlessly — the process is exiting).
+    drop(crash_handle);
     drop(control_handle); // detached; the process exit closes the socket.
     drop(ring_reader); // unmap the diag ring; the watcher no longer needs Handshake's published state.
 
     Ok(())
+}
+
+/// Derive the DEDICATED minidumper crash-socket path from the control-socket base name. The Embark
+/// `minidumper` IPC uses its OWN socket, distinct from the interprocess control socket, so the two
+/// channels never collide. On EVERY platform (including Windows 10+), minidumper binds an AF_UNIX
+/// (`PF_UNIX` / `SOCK_STREAM`) socket whose address is a real FILESYSTEM PATH in `sun_path` — NOT a
+/// `\\.\pipe\` named pipe (verified from the minidumper 0.10 source: `ipc/windows.rs` uses `sockaddr_un`
+/// with a 108-byte `sun_path`). So the crash socket is a short `.sock` file under the OS temp dir on all
+/// platforms. The path must fit `sun_path` (108 bytes), so the base token is truncated to keep it short.
+/// The CLIENT derives the SAME path with the SAME rule so they rendezvous.
+pub fn crash_socket_path(control_socket: &str) -> String {
+    crash_socket_path_for_token(&crash_capture::safe_session_token(control_socket))
+}
+
+/// Build the minidumper crash-socket filesystem path for an already-sanitized token. Truncates the token
+/// so the full path stays within the AF_UNIX `sun_path` 108-byte limit (the temp-dir prefix + suffix
+/// leave well under 108 bytes for a ~40-char token).
+fn crash_socket_path_for_token(token: &str) -> String {
+    let short: String = token.chars().take(40).collect();
+    std::env::temp_dir()
+        .join(format!("hsk-crash-{short}.sock"))
+        .to_string_lossy()
+        .into_owned()
 }
 
 /// Why the control accept loop terminated. Returned to the loop's `on_exit` callback so the caller owns

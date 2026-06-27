@@ -6,6 +6,22 @@ use handshake_native::diagnostics;
 use handshake_native::installer;
 use handshake_native::quiet_mode::focus_guard;
 
+// WP-KERNEL-012 MT-092 (CLIENT side of §6.13.6 crash detection). handshake-native is the CLIENT in the
+// Embark out-of-process crash pipeline; Palmistry (the separate watcher process) is the SERVER/writer.
+// The env var name the MT-094 launcher uses to tell the CLIENT which crash socket Palmistry is listening
+// on. When present, the crash-handler callback connects a `minidumper::Client` to it and, on an unhandled
+// OS exception, hands the `crash_context::CrashContext` to Palmistry so the EXTERNAL writer dumps this
+// process from outside (the crashing process must NOT dump itself — §6.13.6). When ABSENT (no watcher
+// this run), the crash-handler is still installed but its callback no-ops the dump request — the MT-083
+// in-process panic hook + a future watcher attach still cover the death modes.
+const ENV_CRASH_SOCKET: &str = "HANDSHAKE_CRASH_SOCK";
+
+/// The minidumper user-message kind the CLIENT uses to report the faulting thread id to Palmistry ahead
+/// of the dump request (mirrors `palmistry::crash_capture::MSG_KIND_FAULTING_THREAD_ID`). minidumper does
+/// not surface the CrashContext thread id to the server handler, so the client sends it as a typed 8-byte
+/// LE u64 user message (never text) so Palmistry's typed crash record can name the thread.
+const MSG_KIND_FAULTING_THREAD_ID: u32 = 1;
+
 /// MT-031 single-installer self-check. `--self-check` proves, on the installed machine, that the
 /// single-installer bundle is self-contained (HBR-STOP): it verifies every required bundled asset
 /// relative to the running exe, prints a machine-readable JSON verdict, and exits 0 (all present) or 1
@@ -42,11 +58,286 @@ fn handle_cli_flags() -> Option<i32> {
                 );
                 return Some(0);
             }
+            // WP-KERNEL-012 MT-092 (AC-012-4 proof seam): a HEADLESS, in-process end-to-end check that
+            // the crash-handler install + its callback genuinely signal a minidumper client and a dump is
+            // written OUT-OF-PROCESS — WITHOUT crashing this process (uses crash-handler's
+            // `simulate_exception` test seam). It stands up a minidumper SERVER on its OWN thread in this
+            // same process on a temp socket, installs the crash-handler pointed at that socket, fires a
+            // simulated exception, and asserts a real minidump file was written + the callback ran. Prints
+            // a machine-readable JSON verdict and exits 0 (ok) / 1 (failed). No GUI, no event loop, no
+            // postgres — safe in a headless sandbox. This is the SAME "drive the compiled binary" proof
+            // shape MT-089 uses (the binary's items are not importable by tests/).
+            "--crash-client-selftest" => {
+                let (json, code) = run_crash_client_selftest();
+                println!("{json}");
+                return Some(code);
+            }
             // Unknown args are ignored (eframe/winit may pass platform args); fall through to GUI.
             _ => {}
         }
     }
     None
+}
+
+/// Build the [`crash_handler::CrashEvent`] that, on an unhandled OS exception, signals Palmistry (the
+/// minidumper SERVER) to write a minidump of THIS process OUT-OF-PROCESS. The callback does the MINIMUM
+/// in the crashing process (§6.13.6): report the faulting thread id, then `request_dump` — the EXTERNAL
+/// writer does the heavy dump. If `client` is `None` (no watcher this run) the callback is a no-op dump
+/// request that still returns cleanly so the exception propagates to the default handler (the panic/abort
+/// path is unaffected; the MT-083 panic hook covers the Rust-panic death mode separately).
+///
+/// SAFETY: `make_crash_event` is `unsafe` because `on_crash` runs in a compromised post-exception
+/// context. The callback is written to do as little as possible (a single `request_dump` IPC send) per
+/// the crash-handler safety guidance — no allocation-heavy work, no locks that could be held by a dead
+/// thread.
+#[allow(unsafe_code)]
+fn make_crash_event(
+    client: Option<std::sync::Arc<minidumper::Client>>,
+) -> Box<dyn crash_handler::CrashEvent> {
+    unsafe {
+        crash_handler::make_crash_event(
+            move |cc: &crash_handler::CrashContext| -> crash_handler::CrashEventResult {
+                let handled = match &client {
+                    Some(client) => {
+                        // Report the faulting thread id first (typed 8-byte LE u64, never text) so
+                        // Palmistry's crash record can name it, then request the out-of-process dump.
+                        // On Windows the CrashContext carries `thread_id`; ship it best-effort.
+                        #[cfg(windows)]
+                        let tid: u64 = cc.thread_id as u64;
+                        #[cfg(not(windows))]
+                        let tid: u64 = 0;
+                        let _ = client.send_message(MSG_KIND_FAULTING_THREAD_ID, tid.to_le_bytes());
+                        // `request_dump` BLOCKS until Palmistry has written the minidump from OUTSIDE this
+                        // process (§6.13.6). Returns Ok on a successful out-of-process dump.
+                        client.request_dump(cc).is_ok()
+                    }
+                    // No watcher socket this run: do not attempt a dump (nothing is listening). Return
+                    // not-handled so the default abort/unwind still runs — the death is not swallowed.
+                    None => false,
+                };
+                crash_handler::CrashEventResult::Handled(handled)
+            },
+        )
+    }
+}
+
+/// Install the MT-092 CLIENT crash handler EARLY in `main()` (§6.13.6). If the MT-094 launcher set
+/// [`ENV_CRASH_SOCKET`], connect a `minidumper::Client` to Palmistry's crash socket so an unhandled OS
+/// exception is dumped OUT-OF-PROCESS; otherwise install the handler with no client (a no-op dump request
+/// that still lets the default handler run). Returns the attached [`crash_handler::CrashHandler`] (kept
+/// alive for the process lifetime) so the OS exception handler stays installed, or `None` if attaching
+/// the OS handler failed (logged; non-fatal — the MT-083 panic hook still covers Rust panics).
+///
+/// This COMPLEMENTS the MT-083 in-process panic hook installed just above: the panic hook catches Rust
+/// `panic!`s (an orderly unwind/abort with a backtrace), while THIS catches a hard unhandled OS exception
+/// / Windows SEH (an access violation, illegal instruction, stack overflow — a death the Rust panic
+/// machinery never sees). Together they cover both death modes (AC-012-7); neither is silently uncovered.
+fn install_crash_client() -> Option<crash_handler::CrashHandler> {
+    let client = match std::env::var(ENV_CRASH_SOCKET) {
+        Ok(socket) if !socket.trim().is_empty() => {
+            match minidumper::Client::with_name(minidumper::SocketName::path(&socket)) {
+                Ok(c) => {
+                    tracing::info!(
+                        crash_socket = %socket,
+                        "MT-092 crash client connected to Palmistry (out-of-process minidump armed)"
+                    );
+                    Some(std::sync::Arc::new(c))
+                }
+                Err(err) => {
+                    // The watcher may not have bound its crash socket yet, or is absent. Non-fatal: the
+                    // handler still installs (no-op dump) and the MT-083 panic hook covers Rust panics.
+                    tracing::warn!(
+                        %err,
+                        crash_socket = %socket,
+                        "MT-092 crash client could not connect to Palmistry; installing the OS exception \
+                         handler WITHOUT an out-of-process dump path this run"
+                    );
+                    None
+                }
+            }
+        }
+        _ => {
+            tracing::debug!(
+                "no {ENV_CRASH_SOCKET} set; installing the OS exception handler without a watcher dump \
+                 path (MT-094 supplies the socket when a watcher is launched)"
+            );
+            None
+        }
+    };
+
+    match crash_handler::CrashHandler::attach(make_crash_event(client)) {
+        Ok(handler) => {
+            tracing::info!(
+                "MT-092 OS exception handler installed (Windows SEH / unix signals) — complements the \
+                 MT-083 Rust-panic hook; both death modes covered (§6.13.6 + §5.8.2)"
+            );
+            Some(handler)
+        }
+        Err(err) => {
+            tracing::warn!(%err, "failed to attach the OS exception handler (MT-092); Rust panics are \
+                 still covered by the MT-083 panic hook");
+            None
+        }
+    }
+}
+
+/// MT-092 AC-012-4 in-process end-to-end self-check (the `--crash-client-selftest` flag). Proves, against
+/// the REAL Embark stack and WITHOUT crashing this process, that: (1) a `minidumper::Server` writes a
+/// minidump OUT-OF-PROCESS when (2) a crash-handler-installed client's callback fires (via
+/// `simulate_exception`, the crash-handler test seam) and calls `request_dump`. Returns a
+/// machine-readable JSON verdict + an exit code (0 ok / 1 failed). All artifacts go to the OS temp dir
+/// (never repo-local). Returns cleanly on every path (no panic) so the flag is safe in a headless CI.
+fn run_crash_client_selftest() -> (String, i32) {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::{Arc, Mutex};
+
+    // A unique temp socket + dump path for this run (no collision across parallel runs).
+    let tag = format!(
+        "hsk-crash-selftest-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0)
+    );
+    // minidumper binds an AF_UNIX socket on EVERY platform (incl. Windows 10+) whose address is a real
+    // FILESYSTEM path in `sun_path` (NOT a `\\.\pipe\` named pipe). Keep the path short (the `sun_path`
+    // is 108 bytes) under the OS temp dir.
+    let socket = std::env::temp_dir()
+        .join(format!("hsk-cself-{}.sock", std::process::id()))
+        .to_string_lossy()
+        .into_owned();
+    let _ = std::fs::remove_file(&socket); // a stale socket file from a prior run would block bind
+    let dump_path = std::env::temp_dir().join(format!("{tag}.dmp"));
+
+    // The server handler writes the dump to `dump_path` and latches `captured` on success.
+    struct SelfTestHandler {
+        dump_path: std::path::PathBuf,
+        captured: Arc<AtomicBool>,
+        error: Arc<Mutex<Option<String>>>,
+    }
+    impl minidumper::ServerHandler for SelfTestHandler {
+        fn create_minidump_file(
+            &self,
+        ) -> Result<(std::fs::File, std::path::PathBuf), std::io::Error> {
+            let f = std::fs::File::create(&self.dump_path)?;
+            Ok((f, self.dump_path.clone()))
+        }
+        fn on_minidump_created(
+            &self,
+            result: Result<minidumper::MinidumpBinary, minidumper::Error>,
+        ) -> minidumper::LoopAction {
+            match result {
+                Ok(mut b) => {
+                    use std::io::Write as _;
+                    let _ = b.file.flush();
+                    self.captured.store(true, Ordering::SeqCst);
+                }
+                Err(e) => {
+                    if let Ok(mut slot) = self.error.lock() {
+                        *slot = Some(format!("{e}"));
+                    }
+                }
+            }
+            minidumper::LoopAction::Exit
+        }
+        fn on_message(&self, _kind: u32, _buffer: Vec<u8>) {}
+    }
+
+    let captured = Arc::new(AtomicBool::new(false));
+    let server_error = Arc::new(Mutex::new(None));
+    let shutdown = Arc::new(AtomicBool::new(false));
+
+    // Bind the server BEFORE the client connects.
+    let mut server = match minidumper::Server::with_name(minidumper::SocketName::path(&socket)) {
+        Ok(s) => s,
+        Err(e) => {
+            return (
+                format!(r#"{{"ok":false,"stage":"server_bind","error":"{e}"}}"#),
+                1,
+            )
+        }
+    };
+    let handler = SelfTestHandler {
+        dump_path: dump_path.clone(),
+        captured: Arc::clone(&captured),
+        error: Arc::clone(&server_error),
+    };
+    let server_shutdown = Arc::clone(&shutdown);
+    let server_loop = std::thread::spawn(move || {
+        let _ = server.run(
+            Box::new(handler),
+            &server_shutdown,
+            Some(std::time::Duration::from_secs(5)),
+        );
+    });
+
+    // Connect the client + install the crash handler pointed at it (the REAL production install path).
+    let client = match minidumper::Client::with_name(minidumper::SocketName::path(&socket)) {
+        Ok(c) => Arc::new(c),
+        Err(e) => {
+            shutdown.store(true, Ordering::SeqCst);
+            let _ = server_loop.join();
+            return (
+                format!(r#"{{"ok":false,"stage":"client_connect","error":"{e}"}}"#),
+                1,
+            );
+        }
+    };
+    let callback_ran = Arc::new(AtomicBool::new(false));
+    let cb_flag = Arc::clone(&callback_ran);
+    let client_for_cb = Arc::clone(&client);
+    #[allow(unsafe_code)]
+    let handler_attach = crash_handler::CrashHandler::attach(unsafe {
+        crash_handler::make_crash_event(move |cc: &crash_handler::CrashContext| {
+            cb_flag.store(true, Ordering::SeqCst);
+            #[cfg(windows)]
+            let tid: u64 = cc.thread_id as u64;
+            #[cfg(not(windows))]
+            let tid: u64 = 0;
+            let _ = client_for_cb.send_message(MSG_KIND_FAULTING_THREAD_ID, tid.to_le_bytes());
+            crash_handler::CrashEventResult::Handled(client_for_cb.request_dump(cc).is_ok())
+        })
+    });
+    let handler_attach = match handler_attach {
+        Ok(h) => h,
+        Err(e) => {
+            shutdown.store(true, Ordering::SeqCst);
+            let _ = server_loop.join();
+            return (
+                format!(r#"{{"ok":false,"stage":"attach","error":"{e}"}}"#),
+                1,
+            );
+        }
+    };
+
+    // FIRE a SIMULATED exception (the crash-handler test seam) — this runs the callback WITHOUT crashing
+    // the process. The callback signals the server, which writes the dump out-of-process.
+    let sim = handler_attach.simulate_exception(None);
+    let sim_handled = matches!(sim, crash_handler::CrashEventResult::Handled(true));
+
+    // The server loop exits after writing the dump; join it (bounded by its stale-timeout).
+    let _ = server_loop.join();
+    drop(handler_attach); // detach the OS handler.
+
+    let dump_exists = dump_path.exists();
+    let dump_len = std::fs::metadata(&dump_path).map(|m| m.len()).unwrap_or(0);
+    let cb = callback_ran.load(Ordering::SeqCst);
+    let cap = captured.load(Ordering::SeqCst);
+    let srv_err = server_error.lock().ok().and_then(|s| s.clone());
+
+    // Clean up the temp dump (the proof already read its existence + size).
+    let _ = std::fs::remove_file(&dump_path);
+
+    let ok = cb && sim_handled && cap && dump_exists && dump_len > 0;
+    let json = format!(
+        r#"{{"ok":{ok},"callback_ran":{cb},"sim_handled":{sim_handled},"minidump_captured":{cap},"dump_existed":{dump_exists},"dump_len":{dump_len},"server_error":{}}}"#,
+        match srv_err {
+            Some(e) => format!(r#""{}""#, e.replace('"', "'")),
+            None => "null".to_string(),
+        }
+    );
+    (json, if ok { 0 } else { 1 })
 }
 
 fn main() -> eframe::Result<()> {
@@ -68,6 +359,16 @@ fn main() -> eframe::Result<()> {
     let crash_dir = diagnostics::default_crash_dir()
         .unwrap_or_else(|| std::env::temp_dir().join("handshake").join("crash"));
     diagnostics::install_panic_hook(crash_dir, &process_session_id);
+
+    // WP-KERNEL-012 MT-092 (CLIENT side, §6.13.6): install the OS exception handler (Windows SEH / unix
+    // signals) so an UNHANDLED hard OS exception (access violation, illegal instruction, stack overflow)
+    // is dumped OUT-OF-PROCESS by Palmistry — the crashing process cannot reliably dump itself. This
+    // COMPLEMENTS the MT-083 Rust-panic hook installed just above: panics unwind/abort with a backtrace;
+    // OS exceptions never reach the panic machinery, so both death modes are covered (AC-012-7). The
+    // returned handler is held alive for the whole process lifetime (`_crash_handler`); dropping it would
+    // detach the OS handler. When no watcher socket is set (HANDSHAKE_CRASH_SOCK, supplied by MT-094),
+    // the handler still installs but does not request a dump (nothing is listening) — non-fatal.
+    let _crash_handler = install_crash_client();
 
     tracing_subscriber::fmt()
         .with_env_filter(

@@ -293,6 +293,22 @@ handshake-diag-ring = { path = "diag_ring" }
 # wgpu is NOT added: the GPU identity (src/diagnostics/gpu_info.rs) reaches the adapter through eframe's
 # own `eframe::wgpu` re-export of the SAME wgpu eframe already links — no new device, no new dep.
 sysinfo = "0.33"
+# WP-KERNEL-012 MT-092 (D — Palmistry crash detection, the CLIENT side of §6.13.6). handshake-native is
+# the CLIENT in the Embark out-of-process crash pipeline (Palmistry is the SERVER/writer). Versions
+# verified against crates.io 2026-06-27:
+# - `crash-handler` 0.7.0: installs the in-process OS exception handler (Windows SEH) EARLY in main(). On
+#   an unhandled hard OS exception its on-crash callback builds the typed `crash_context::CrashContext`
+#   (exception pointers + faulting thread/process id) and signals Palmistry — it does the MINIMUM in the
+#   crashing process (the EXTERNAL writer does the heavy dump). This complements the MT-083 in-process
+#   panic hook (Rust panic vs unhandled OS exception/SEH — the two distinct death modes, AC-012-7).
+# - `minidumper` 0.10.1: the CLIENT half. `minidumper::Client::request_dump(&crash_context)` hands the
+#   context to Palmistry (the server), which writes the dump OUT-OF-PROCESS. Pin "0.10".
+# NO direct `crash-context` dep: `crash-handler` RE-EXPORTS `crash_context::CrashContext` (the 0.6 type
+# the whole Embark stack — crash-handler/minidumper/minidump-writer — agrees on; verified from the
+# registry Cargo.toml). A direct `crash-context = "0.7"` would duplicate the family + type-mismatch the
+# callback signature. Use `crash_handler::CrashContext`. Single crash-context family (AC-012-6 / RISK-012-5).
+crash-handler = "0.7"
+minidumper = "0.10"
 
 # MT-027 production screenshot: the live OS-window grab uses Win32 GDI `PrintWindow` (focus-safe — never
 # SetForegroundWindow/BringWindowToTop). `windows-sys` is already in the locked graph transitively; here
