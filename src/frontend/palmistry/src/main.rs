@@ -28,6 +28,7 @@
 mod cli;
 mod control;
 mod lifecycle;
+mod ring_reader;
 
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -40,6 +41,7 @@ use lifecycle::{
     build_survivor_record, run_lifecycle, spawn_parent_watch, LifecycleConfig, LifecycleState,
     ParentWatch,
 };
+use ring_reader::PalmistryRingReader;
 
 /// Startup-error exit code (refused partial start / could not bind control socket).
 const EXIT_CONFIG_ERROR: i32 = 2;
@@ -110,6 +112,11 @@ pub struct RunOptions {
     /// Builds the parent watch for a pid. Default = the real Windows watch (or a never-exits stub off
     /// Windows so the crate still builds + the lifecycle is exercisable cross-platform).
     pub parent_watch_factory: Box<dyn Fn(u32) -> Box<dyn ParentWatch>>,
+    /// Opens the MT-090 ring reader for a ring path. Default = the bounded open-retry against the real
+    /// backing file ([`PalmistryRingReader::open_with_default_retry`]). The seam exists so an in-crate
+    /// caller / future `[lib]` extraction can inject a faster-retry or pre-opened reader without forking
+    /// the run path; the integration tests drive the real default through the compiled binary.
+    pub ring_reader_factory: RingReaderFactory,
     /// Lifecycle timing. Default = production timings.
     pub lifecycle: LifecycleConfig,
     /// Optional callback invoked once the watcher is fully started (control socket bound, parent watch
@@ -121,10 +128,23 @@ impl Default for RunOptions {
     fn default() -> Self {
         Self {
             parent_watch_factory: Box::new(default_parent_watch),
+            ring_reader_factory: Box::new(default_ring_reader),
             lifecycle: LifecycleConfig::default(),
             on_ready: None,
         }
     }
+}
+
+/// Factory that opens the MT-090 ring reader for a given ring path. Boxed so a caller can inject a
+/// fake / faster-retry reader without forking the run path. Aliased to keep the [`RunOptions`] field
+/// type legible (clippy type-complexity).
+pub type RingReaderFactory = Box<dyn Fn(&str) -> std::io::Result<PalmistryRingReader>>;
+
+/// The real ring-reader factory: bounded open-retry against the backing file at `ring_path`. Retries
+/// with a bounded backoff until the ring appears + validates or the bounded deadline elapses, so a
+/// startup race with Handshake is tolerated without crashing or busy-spinning (MT-090 / AC-010-3).
+fn default_ring_reader(ring_path: &str) -> std::io::Result<PalmistryRingReader> {
+    PalmistryRingReader::open_with_default_retry(Path::new(ring_path))
 }
 
 /// The real parent-watch factory: the Windows `OpenProcess`/`WaitForSingleObject` watch on Windows. If
@@ -174,10 +194,34 @@ impl ParentWatch for NeverExitsParentWatch {
 /// lifecycle, and persists the survivor record next to the ring. Returns `Err` only for a STARTUP
 /// failure (bad ring path / control bind) — a normal lifecycle end returns `Ok(())`.
 pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Result<()> {
-    // Validate the ring path is at least openable as a ring BEFORE committing to run, so a misconfigured
-    // ring is a clear startup error rather than a silently broken watcher (the passive ring READ loop is
-    // MT-090; here we only confirm the path resolves to a valid ring header).
-    validate_ring_path(&config.ring_path)?;
+    // MT-090: OPEN the MT-081 ring on the read side, with BOUNDED open-retry (AC-010-3 / RISK-010-3).
+    // Palmistry is launched WITH Handshake (MT-094) and may WIN the startup race, so the ring file may
+    // not exist (or not yet carry a valid header) at this instant. `open_with_retry` retries with a
+    // bounded backoff until the ring appears + validates or a bounded deadline elapses — it does NOT
+    // crash on a missing ring and does NOT busy-spin. A still-absent / invalid ring after the deadline
+    // is a clear startup error (a misconfigured ring path), not a silently broken watcher.
+    //
+    // The resulting reader is the ZERO-COOPERATION passive observer (§6.13.4): it reads Handshake's
+    // heartbeat + last-N events from plain shared memory with no call into, lock against, or wait on the
+    // (possibly frozen) writer. It is held live for the watcher's life so the freeze-probe (MT-091) and
+    // the survivor store (MT-093) read through it. Wrapped in `Arc` so a future freeze-probe thread can
+    // share it without re-opening the map.
+    let ring_reader = Arc::new(
+        (options.ring_reader_factory)(&config.ring_path).map_err(|err| {
+            std::io::Error::new(
+                err.kind(),
+                format!(
+                    "ring path '{}' is not a valid diagnostic ring (open-retry exhausted): {err}",
+                    config.ring_path
+                ),
+            )
+        })?,
+    );
+    tracing::info!(
+        ring_path = %config.ring_path,
+        capacity = ring_reader.capacity(),
+        "diag ring opened (Tier 3 zero-cooperation reader ready)"
+    );
 
     // Bind the control socket. A watcher with no control channel can never be cleanly shut down, so a
     // bind failure is fatal (startup error).
@@ -233,14 +277,32 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
         );
     });
 
-    // Fully started: control socket bound, parent watch armed. Signal readiness (tests assert
-    // started-and-staying-alive here) and enter the run loop.
+    // Fully started: control socket bound, parent watch armed, ring reader open. Take an initial
+    // PASSIVE liveness reading through the zero-cooperation reader so the watcher records, at readiness,
+    // that it can observe Handshake's published heartbeat from shared memory (the data source the
+    // MT-091 freeze probe + the MT-093 survivor store consume). This is a pure seqlock read — no call
+    // into / lock against / wait on the writer (§6.13.4). `None` here is not fatal: Handshake may not
+    // have published its first heartbeat yet (MT-091 owns the stall/no-heartbeat policy).
+    match ring_reader.read_heartbeat() {
+        Some(hb) => tracing::info!(
+            heartbeat_counter = hb.counter,
+            heartbeat_ts_nanos = hb.timestamp_nanos,
+            "initial passive liveness reading taken from the diag ring"
+        ),
+        None => tracing::info!("no heartbeat published yet (Handshake may still be starting)"),
+    }
+
+    // Signal readiness (tests assert started-and-staying-alive here) and enter the run loop. The reader
+    // is shared into the callback so an in-crate caller / future freeze-probe thread (MT-091) can read
+    // liveness without re-opening the map.
     if let Some(cb) = options.on_ready {
         cb();
     }
 
     // Drive the lifecycle to its terminal reason. This BLOCKS until Shutdown or a recorded abnormal
-    // parent death + finalize.
+    // parent death + finalize. The `ring_reader` is held live across this whole window so the freeze
+    // probe (MT-091) and survivor store (MT-093) can read Handshake's last-published state even while
+    // the writer is frozen.
     let reason = run_lifecycle(&state, &run, options.lifecycle);
     tracing::info!(?reason, "lifecycle ended");
 
@@ -259,6 +321,7 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
     // — the process is exiting).
     let _ = watch_handle.join();
     drop(control_handle); // detached; the process exit closes the socket.
+    drop(ring_reader); // unmap the diag ring; the watcher no longer needs Handshake's published state.
 
     Ok(())
 }
@@ -336,20 +399,6 @@ fn run_control_loop<S, E>(
         }
     };
     on_exit(reason);
-}
-
-/// Confirm `ring_path` resolves to a valid MT-081 ring (header validates). Reusing the ring crate's own
-/// `DiagRingReader::open` is the honest validation — it checks magic/version/record_size/capacity and
-/// refuses a foreign/garbage map. We immediately drop the reader; the passive read loop is MT-090.
-fn validate_ring_path(ring_path: &str) -> std::io::Result<()> {
-    let path = Path::new(ring_path);
-    match handshake_diag_ring::DiagRingReader::open(path) {
-        Ok(_reader) => Ok(()),
-        Err(err) => Err(std::io::Error::new(
-            err.kind(),
-            format!("ring path '{ring_path}' is not a valid diagnostic ring: {err}"),
-        )),
-    }
 }
 
 /// Write the survivor record as a JSON sibling of the ring file: `<ring_dir>/palmistry-survivor-<session>.json`.
