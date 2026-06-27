@@ -35,6 +35,7 @@
 //!
 //! [`OnceLock`]: std::sync::OnceLock
 
+pub mod panic_hook;
 pub mod recorder;
 
 // Public re-exports so any module can `use crate::diagnostics::{record, record_with, ...}` without
@@ -42,4 +43,11 @@ pub mod recorder;
 pub use recorder::{
     dropped_count, has_ring_writer, install, record, record_with, snapshot_last_n, DiagSession,
     DiagnosticsRecorder, BUFFER_CAP,
+};
+
+// MT-083 durable-local-crash-record panic hook (Tier 2 §5.8.2). `install_panic_hook` is called in
+// `main()` before `eframe::run_native`; the process-start session id helpers let the MT-081 ring reuse
+// the SAME id the crash file is named with so Palmistry (Tier 3) correlates the crash file to the ring.
+pub use panic_hook::{
+    default_crash_dir, install_panic_hook, process_session_id, set_process_session_id,
 };

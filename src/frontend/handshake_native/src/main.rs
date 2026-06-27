@@ -2,6 +2,7 @@
 // Opens a real native wgpu window (no webview/Tauri/Electron) and runs the egui shell.
 
 use handshake_native::app::HandshakeApp;
+use handshake_native::diagnostics;
 use handshake_native::installer;
 use handshake_native::quiet_mode::focus_guard;
 
@@ -54,6 +55,19 @@ fn main() -> eframe::Result<()> {
     if let Some(code) = handle_cli_flags() {
         std::process::exit(code);
     }
+
+    // WP-KERNEL-012 MT-083 (D2 — internal_diagnostics, Tier 2): install the durable-local-crash-record
+    // panic hook EARLY — before tracing init and `eframe::run_native` — so a panic during STARTUP is
+    // also captured. Generate the process-start session id HERE; the panic hook names the crash file
+    // with it AND publishes it process-globally via `diagnostics::set_process_session_id` so a later
+    // host-mount MT (which owns app.rs, outside MT-083's allowed_paths) can have the MT-081 ring REUSE
+    // the SAME id (`diagnostics::process_session_id()`) and a watcher correlates the crash file to the
+    // ring. The crash dir resolves via `dirs` to a PORTABLE per-user path (NOT a hardcoded absolute path
+    // — GLOBAL-PORTABILITY); if no local-data dir exists (rare), fall back to a still-portable temp dir.
+    let process_session_id = uuid::Uuid::new_v4().to_string();
+    let crash_dir = diagnostics::default_crash_dir()
+        .unwrap_or_else(|| std::env::temp_dir().join("handshake").join("crash"));
+    diagnostics::install_panic_hook(crash_dir, &process_session_id);
 
     tracing_subscriber::fmt()
         .with_env_filter(
