@@ -1,0 +1,38 @@
+# WP-KERNEL-012 MT-081 — handshake-diag-ring.
+#
+# The SHARED-MEMORY RING that is the substrate of the three-tier diagnostic decoupling
+# (Master Spec v02.196 §5.8.6 internal_diagnostics + §6.13.4 Palmistry). This is a SHARED crate
+# that BOTH binaries link: handshake-native (Tier 2 writer, MT-082/MT-084) AND palmistry
+# (Tier 3 external watcher reader, MT-089/MT-090/MT-091). It is therefore a SIBLING crate of
+# handshake_native, NOT a private module inside it, so both can declare it via a relative
+# `path = ` dependency:
+#   handshake-native (one level up): handshake-diag-ring = { path = "diag_ring" }
+#   palmistry        (sibling tree): handshake-diag-ring = { path = "../handshake_native/diag_ring" }
+#
+# Standalone [workspace] table: the repo has NO root cargo workspace (see the handshake-native
+# Cargo.toml header), so each crate stands alone as its own workspace root. This crate mirrors that
+# convention so `cargo test -p handshake-diag-ring` run from this dir resolves cleanly without being
+# pulled into handshake-native's or palmistry's workspace.
+#
+# Pure substrate: NO tokio, NO egui, NO reqwest. memmap2 = the OS shared-memory map; bytemuck =
+# zero-copy POD cast of the header + records into the mapped bytes (its Pod derive is a COMPILE-TIME
+# enforcement of the typed-allowlist invariant — it refuses any non-POD field, i.e. any String/Vec/
+# pointer); serde = DiagEvent (de)serialization for tests + later survivor-store JSON (MT-092).
+[workspace]
+
+[package]
+name = "handshake-diag-ring"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Shared-memory seqlock SPSC ring + typed-allowlist DiagEvent schema for Handshake's three-tier diagnostic substrate (internal_diagnostics + Palmistry)."
+
+[dependencies]
+# Crate versions verified against crates.io 2026-06-27: memmap2 max_stable 0.9.11, bytemuck 1.25.0
+# (derive feature present), serde 1.x. Loose pins per the MT contract (track the 0.9 / 1 lines).
+memmap2 = "0.9"
+bytemuck = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = "1"

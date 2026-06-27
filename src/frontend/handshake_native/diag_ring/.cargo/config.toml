@@ -1,0 +1,13 @@
+# WP-KERNEL-012 MT-081 — redirect the build target-dir to the EXTERNAL artifact root (CX-212E) so
+# this nested crate NEVER creates a repo-local `target/` folder inside the worktree.
+#
+# Path depth: this crate dir is
+#   <Handshake Worktrees>/wtc-native-editors-v1/src/frontend/handshake_native/diag_ring
+# and Handshake_Artifacts lives at
+#   <Handshake Worktrees>/Handshake_Artifacts
+# so we climb FIVE levels: diag_ring -> handshake_native -> frontend -> src -> wtc-native-editors-v1
+# -> <Handshake Worktrees>. (The handshake_native crate one level up uses FOUR `../`; this nested
+# crate uses FIVE. Verified by resolving the absolute path before committing — it lands exactly on
+# <Handshake Worktrees>/Handshake_Artifacts/handshake-diag-ring-target.)
+[build]
+target-dir = "../../../../../Handshake_Artifacts/handshake-diag-ring-target"
