@@ -126,13 +126,17 @@ fn record_writes_ring_and_buffer() {
 
 #[test]
 fn record_is_nonblocking_panic_free_under_stress() {
-    let path = temp_ring_path("stress");
-    let _ = std::fs::remove_file(&path);
-    let writer = DiagRingWriter::create(&path, DEFAULT_CAPACITY).expect("create ring writer");
-    // Arc so many threads share the ONE recorder (single in-process buffer + single ring writer; the
-    // ring writer is single-producer by design, but here we are proving the recorder's buffer side is
-    // panic-free + bounded under contention — the canonical "diagnostics from many call sites" case).
-    let recorder = Arc::new(DiagnosticsRecorder::with_writer(writer));
+    // This test proves the RECORDER'S in-process buffer side is panic-free + bounded + correctly
+    // accounted under heavy multi-thread contention (the canonical "diagnostics from many call sites"
+    // case). It therefore uses an `in_process_only()` (writer-less) recorder DELIBERATELY:
+    //
+    // The MT-081 `DiagRingWriter` is documented SINGLE-PRODUCER (Relaxed write_index + a non-atomic
+    // `copy_nonoverlapping` of the payload). Sharing one writer across 8 concurrent `record()` callers
+    // would be a genuine data race / UB on the ring, even though the buffer-side assertions below would
+    // still pass. Production never does this (the UI thread is the sole writer), so exercising the
+    // multi-producer ring path here would test UB we never ship. The ring WRITE path is proven
+    // separately and correctly by `record_writes_ring_and_buffer` (AC-002-1) with a single producer.
+    let recorder = Arc::new(DiagnosticsRecorder::in_process_only());
 
     let threads = 8usize;
     let per_thread = 5_000u64;
@@ -173,7 +177,7 @@ fn record_is_nonblocking_panic_free_under_stress() {
     assert!(dropped > 0, "with total >> cap, some events must have been shed");
 
     drop(recorder);
-    let _ = std::fs::remove_file(&path);
+    // No ring backing file is created here (writer-less recorder), so there is nothing to remove.
     assert_no_local_artifact_dir();
 }
 
