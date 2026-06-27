@@ -92,6 +92,21 @@ pub const LAYOUT_SAVE_DEBOUNCE: std::time::Duration = std::time::Duration::from_
 /// 500ms per the MT implementation note. A dialog close FLUSHES any pending save immediately (MC2).
 pub const SETTINGS_SAVE_DEBOUNCE: std::time::Duration = std::time::Duration::from_millis(500);
 
+/// WP-KERNEL-012 MT-084 (D2 internal_diagnostics, Tier 2 — UI-thread heartbeat, §5.8.2).
+///
+/// The idle repaint cadence the frame loop guarantees so the per-frame heartbeat keeps advancing even
+/// when the UI is otherwise idle (egui repaints on demand by default, so without this an idle-but-
+/// healthy app would stop bumping the counter and Palmistry would misread it as frozen — RISK-004-1).
+///
+/// 250ms (4 Hz) is deliberately chosen to sit BETWEEN Palmistry's freeze poll interval (~200–500ms,
+/// MT-091) and the freeze threshold (~5s): the heartbeat ticks fast enough that a healthy idle app is
+/// always fresh on a poll, yet slow enough that the wake is cheap (4 Hz steals no focus and barely
+/// touches idle CPU — it does NOT violate HBR-QUIET; `request_repaint_after` only schedules a wake, it
+/// never raises a window or grabs input). The freeze threshold is ~20x this interval, so a genuine
+/// freeze (the counter stops advancing) is unambiguous against this idle cadence.
+pub const HEARTBEAT_IDLE_REPAINT_INTERVAL: std::time::Duration =
+    std::time::Duration::from_millis(250);
+
 /// A generous default all-monitors extent for the restore-time pop-out clamp before egui reports the
 /// real monitor size. Large enough that a legitimate position is never clamped on the first frame.
 const DEFAULT_MONITOR_EXTENT: egui::Rect =
@@ -128,6 +143,19 @@ pub struct HandshakeApp {
     /// installed in [`HandshakeApp::new`]); `None` in the headless/test shell and when ring creation
     /// failed (graceful degradation — diagnostics are in-process-only that session, the app still runs).
     diag_session: Option<crate::diagnostics::DiagSession>,
+    /// WP-KERNEL-012 MT-084 (D2 — internal_diagnostics, Tier 2 UI-thread heartbeat, §5.8.2). The
+    /// monotonic frame-loop counter bumped at the TOP of every [`eframe::App::update`] call on the UI
+    /// thread and published into the MT-081 ring heartbeat slot. A stalled UI thread stops advancing
+    /// it, which is the exact liveness signal Palmistry (Tier 3) polls for freeze detection (MT-091).
+    /// Starts at 0; the first frame publishes 1.
+    frame_counter: u64,
+    /// WP-KERNEL-012 MT-084: the process-start monotonic clock for the heartbeat timestamp. A
+    /// `std::time::Instant` is MONOTONIC (immune to wall-clock changes), so the elapsed-nanos value
+    /// published with each heartbeat strictly increases and never goes backward — which is required
+    /// because the freeze-threshold staleness math (MT-091) compares this monotonic value (RISK-004-2).
+    /// A wall `SystemTime` would be WRONG here (a clock jump would corrupt the staleness math); it is
+    /// fine only for a human-readable panel, never for the threshold.
+    heartbeat_clock: std::time::Instant,
     /// Active base theme. Toggled by the top-bar button; not persisted in MT-003.
     current_theme: HsTheme,
     /// Last theme actually pushed to egui via `apply_to_ctx` (CONTROL-1: only re-apply on
@@ -1240,6 +1268,11 @@ impl HandshakeApp {
             rt,
             health_handle,
             diag_session,
+            // MT-084: the UI-thread heartbeat counter starts at 0 (first frame publishes 1) and the
+            // monotonic clock starts now (process start), so the heartbeat timestamp is elapsed-since-
+            // construction nanos — strictly increasing, never affected by a wall-clock change.
+            frame_counter: 0,
+            heartbeat_clock: std::time::Instant::now(),
             // Desktop default mirrors the React app's dark default.
             current_theme: HsTheme::Dark,
             last_applied_theme: None,
@@ -1450,6 +1483,36 @@ impl HandshakeApp {
         self.diag_session.as_ref()
     }
 
+    /// WP-KERNEL-012 MT-084: bump the UI-thread heartbeat ONE step and publish it into the MT-081 ring
+    /// heartbeat slot. Called at the TOP of every [`eframe::App::update`] frame on the UI thread.
+    ///
+    /// Increments [`frame_counter`](Self::frame_counter) and reads the MONOTONIC process-start clock
+    /// (`Instant::elapsed`, in nanos), then forwards both to the wait-free, allocation-free
+    /// [`crate::diagnostics::heartbeat`] (a single seqlock store of two integers into the ring header).
+    /// No record-buffer lock, no `format!`, no heap allocation on this path (AC-004-3). A silent no-op
+    /// on the ring side when no writer is installed, so the headless/test shell runs normally (AC-004-5).
+    ///
+    /// The timestamp is monotonic nanos elapsed since construction, so it strictly increases and never
+    /// goes backward on a wall-clock change (AC-004-2) — which the freeze-threshold math (MT-091) needs.
+    #[inline]
+    fn bump_heartbeat(&mut self) {
+        // Saturating so a (practically impossible) u64 overflow can never panic the frame path.
+        self.frame_counter = self.frame_counter.saturating_add(1);
+        // Monotonic source: Instant elapsed in nanos (immune to wall-clock changes). Clamp the u128
+        // nanos into u64 (saturating) — u64 nanos is ~584 years of runtime, so this never saturates in
+        // practice and never allocates/panics.
+        let elapsed_nanos = u64::try_from(self.heartbeat_clock.elapsed().as_nanos())
+            .unwrap_or(u64::MAX);
+        crate::diagnostics::heartbeat(self.frame_counter, elapsed_nanos);
+    }
+
+    /// WP-KERNEL-012 MT-084: the current UI-thread heartbeat frame counter (0 before the first frame;
+    /// advances by 1 each [`eframe::App::update`]). Exposed so a test can correlate the in-app counter
+    /// with the value a separate ring reader observes (AC-004-1).
+    pub fn frame_counter(&self) -> u64 {
+        self.frame_counter
+    }
+
     /// Bind the MCP transport (MT-027) on the app's tokio runtime and store the handle. Logged + non-fatal
     /// on failure so the shell always opens. Only the production shell (with a multi-thread runtime) binds;
     /// the headless/test shell drives the server's `dispatch_request` directly instead.
@@ -1520,6 +1583,11 @@ impl HandshakeApp {
             // process-global recorder buffers in-process only; a test that wants ring read-back installs
             // its own writer directly). MT-082 AC-002-3.
             diag_session: None,
+            // MT-084: the heartbeat still bumps every frame in the headless shell; with no ring writer
+            // installed the publish is a silent no-op (AC-004-5), but the in-app frame_counter advances
+            // exactly as in production, and the monotonic clock starts at construction.
+            frame_counter: 0,
+            heartbeat_clock: std::time::Instant::now(),
             current_theme: HsTheme::Dark,
             last_applied_theme: None,
             pane_registry: Arc::new(Mutex::new(seeded_registry())),
@@ -6879,6 +6947,26 @@ impl eframe::App for HandshakeApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // WP-KERNEL-012 MT-084 (D2 internal_diagnostics, Tier 2 — UI-thread heartbeat, §5.8.2).
+        //
+        // Bump the heartbeat FIRST, at the very TOP of `update`, BEFORE `self.ui(ctx)`. This ordering
+        // is deliberate and load-bearing: the counter advances for THIS frame even if `self.ui(ctx)`
+        // below later panics or hangs. So a freeze INSIDE `ui()` surfaces as a STALE heartbeat (the
+        // counter stopped advancing) — which is exactly the signal Palmistry (Tier 3) detects from
+        // outside the hung process (RISK-004-4: the bump must be on the UI thread, on the frame path).
+        //
+        // The write is wait-free + allocation-free: a single seqlock store of two integers into the
+        // MT-081 ring header (no record-buffer lock, no `format!`, no heap alloc — RISK-004-3). It is a
+        // silent no-op when no ring writer is installed (headless/test shell — AC-004-5).
+        self.bump_heartbeat();
+
+        // Idle liveness (RISK-004-1 / AC-004-4): egui only repaints on demand, so without this an
+        // idle-but-healthy app would stop bumping the counter and look frozen to Palmistry. Schedule a
+        // wake at the bounded ~250ms cadence (between Palmistry's poll and the freeze threshold) so the
+        // frame loop — and therefore the heartbeat — keeps ticking at >= ~4 Hz with no input. This is a
+        // schedule-only call: it steals no focus and grabs no input (HBR-QUIET preserved).
+        ctx.request_repaint_after(HEARTBEAT_IDLE_REPAINT_INTERVAL);
+
         self.ui(ctx);
         // MT-027: publish the just-rendered UI tree into the shared MCP snapshot slot so the server's
         // `list_widgets` returns the live tree and `click_widget`/`set_value` resolve against it. This

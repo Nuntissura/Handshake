@@ -132,6 +132,27 @@ impl DiagnosticsRecorder {
         }
     }
 
+    /// Publish the heartbeat slot (MT-084). Called from the UI thread every egui frame.
+    ///
+    /// CRITICAL — this is the single most important producer in the diagnostic substrate (the
+    /// liveness signal Palmistry polls): it MUST be wait-free and allocation-free on the frame path.
+    /// It therefore does EXACTLY one thing — forward the two integers to the MT-081 ring's dedicated
+    /// `write_heartbeat` (a single seqlock store of two `u64`s into the mapped header) — and TOUCHES
+    /// NEITHER the in-process buffer NOR its `Mutex` (so the per-frame heartbeat never contends with
+    /// `record()` on the record buffer; RISK-004-3 / AC-004-3). It is a silent no-op when no writer is
+    /// installed (headless/test path; RISK-004-* graceful degradation / AC-004-5).
+    ///
+    /// `counter` is the monotonic frame counter; `timestamp_nanos` is a MONOTONIC nanosecond clock
+    /// (process-start `Instant` elapsed — never a wall clock, so it cannot go backward on a clock
+    /// change; the staleness math in Palmistry compares this value; RISK-004-2 / AC-004-2).
+    #[inline]
+    pub fn heartbeat(&self, counter: u64, timestamp_nanos: u64) {
+        // No buffer lock, no allocation, no format!: just the wait-free ring header seqlock store.
+        if let Some(writer) = &self.writer {
+            writer.write_heartbeat(counter, timestamp_nanos);
+        }
+    }
+
     /// A snapshot of up to the last `n` events, oldest-first (the order the panel renders). Cheap
     /// clone of `Copy` POD events under a brief lock.
     pub fn snapshot_last_n(&self, n: usize) -> Vec<DiagEvent> {
@@ -213,6 +234,21 @@ pub fn record_with(
         timestamp_nanos,
     );
     record(event);
+}
+
+/// THE per-frame liveness producer (§5.8.2 UI-thread heartbeat). Publish the heartbeat slot of the
+/// MT-081 ring from the UI thread, called every egui frame by [`crate::app::HandshakeApp::update`]
+/// (MT-084). Forwards to [`DiagRingWriter::write_heartbeat`] — a single wait-free, allocation-free
+/// seqlock store of two integers into the mapped ring header — so a stalled UI thread stops advancing
+/// the counter and the staleness is observable out-of-process by Palmistry (Tier 3) with ZERO
+/// cooperation. A silent no-op when no ring writer is installed (headless/test path; AC-004-5).
+///
+/// `counter` is the monotonic frame counter; `timestamp_nanos` MUST be a MONOTONIC source (a
+/// process-start [`std::time::Instant`] elapsed in nanos) so it never goes backward on a wall-clock
+/// change — the staleness threshold (MT-091) compares this value (AC-004-2).
+#[inline]
+pub fn heartbeat(counter: u64, timestamp_nanos: u64) {
+    global().heartbeat(counter, timestamp_nanos);
 }
 
 /// A snapshot of up to the last `n` recorded events (oldest-first) — what the Diagnostics Panel

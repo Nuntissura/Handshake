@@ -41,8 +41,8 @@ pub mod recorder;
 // Public re-exports so any module can `use crate::diagnostics::{record, record_with, ...}` without
 // reaching into the `recorder` submodule path.
 pub use recorder::{
-    dropped_count, has_ring_writer, install, record, record_with, snapshot_last_n, DiagSession,
-    DiagnosticsRecorder, BUFFER_CAP,
+    dropped_count, has_ring_writer, heartbeat, install, record, record_with, snapshot_last_n,
+    DiagSession, DiagnosticsRecorder, BUFFER_CAP,
 };
 
 // MT-083 durable-local-crash-record panic hook (Tier 2 §5.8.2). `install_panic_hook` is called in
