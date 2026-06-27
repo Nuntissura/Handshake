@@ -319,6 +319,17 @@ pub struct HandshakeApp {
     /// `None` while a probe is in flight (re-armed when it resolves). Skipped entirely in the headless
     /// shell (no runtime to spawn on).
     health_next_poll_at: Option<std::time::Instant>,
+    /// WP-KERNEL-012 MT-088: a clone of the live [`egui::Context`], captured lazily on the first frame
+    /// (top of [`ui`](Self::ui)). An `egui::Context` is `Arc`-backed (`Clone + Send + Sync`) and
+    /// `request_repaint` is thread-safe, so an off-thread backend worker (layout load / debounced save /
+    /// `/health` re-probe) clones this and calls `ctx.request_repaint()` exactly ONCE when it finishes —
+    /// an EVENT-DRIVEN wake that drains + applies the delivered result on the very next frame. This
+    /// replaces the previous per-frame `request_repaint_after(100ms)` poll-for-delivery cadence, which
+    /// requested a repaint EVERY frame while a load/save/probe was in flight and so kept the UI from ever
+    /// reporting idle within `Harness::run`'s bounded step budget (the pane-test `max_steps` regression).
+    /// `None` until the first frame runs (no worker can be in flight before then). Captured from the live
+    /// context (not a constructor arg) so both the production and headless/test shells wake correctly.
+    frame_ctx: Option<egui::Context>,
     /// The layout blob as of the last frame, used to DETECT a layout-affecting change without
     /// instrumenting every divider/tab/pop-out call site: if this frame's captured `layout_state`
     /// differs, the layout changed and a debounced save is scheduled. `None` until the first frame
@@ -1409,6 +1420,9 @@ impl HandshakeApp {
             // MT-088: the ctor already fired ONE `/health` poll above; arm the next re-probe so a
             // down/up transition is continuously observed (the seed for the typed transition events).
             health_next_poll_at: Some(std::time::Instant::now() + HEALTH_REPROBE_INTERVAL),
+            // MT-088: captured lazily on the first frame (top of `ui`); used by off-thread backend
+            // workers to wake the UI exactly once on completion (event-driven, not a per-frame poll).
+            frame_ctx: None,
             monitor_extent: DEFAULT_MONITOR_EXTENT,
             last_seen_layout: None,
             project_tabs: default_project_tabs(),
@@ -1817,6 +1831,9 @@ impl HandshakeApp {
             // Headless/test shell: no runtime to spawn a `/health` re-probe on, so none is armed (the
             // preset `health_status` is the fixed reachability for the session).
             health_next_poll_at: None,
+            // MT-088: captured lazily on the first frame (top of `ui`), exactly as the production shell —
+            // so an off-thread layout-load/save worker wakes the kittest UI on completion (event-driven).
+            frame_ctx: None,
             monitor_extent: DEFAULT_MONITOR_EXTENT,
             last_seen_layout: None,
             project_tabs: default_project_tabs(),
@@ -5828,12 +5845,18 @@ impl HandshakeApp {
         }
         let manager = self.layout_manager.clone();
         let in_flight = self.save_in_flight.clone();
+        // MT-088: wake the UI once when the save worker finishes so a status surface reading the
+        // (now-cleared) in-flight flag / manager status updates promptly — without a per-frame poll.
+        let wake_ctx = self.frame_ctx.clone();
         std::thread::spawn(move || {
             {
                 let mut mgr = manager.lock().expect("layout manager mutex poisoned");
                 mgr.save_now(&snapshot);
             }
             in_flight.store(false, std::sync::atomic::Ordering::SeqCst);
+            if let Some(ctx) = wake_ctx {
+                ctx.request_repaint();
+            }
         });
     }
 
@@ -5905,6 +5928,9 @@ impl HandshakeApp {
         let manager = self.layout_manager.clone();
         let cell = self.layout_load_cell.clone();
         let in_flight = self.layout_load_in_flight.clone();
+        // MT-088: the event-driven wake. The worker calls `request_repaint()` ONCE when it has delivered
+        // its result, so `poll_layout_load` drains it on the very next frame — no per-frame poll cadence.
+        let wake_ctx = self.frame_ctx.clone();
         // A plain OS thread (not a runtime worker): the transport's `block_on` is valid off-runtime, so
         // the network GET runs HERE, never on the egui UI thread. The worker holds the manager lock during
         // the GET (the manager owns the transport + the LKG/status bookkeeping), but that is SAFE because
@@ -5933,6 +5959,12 @@ impl HandshakeApp {
             };
             *slot = Some((project, reachable, result));
             in_flight.store(false, std::sync::atomic::Ordering::SeqCst);
+            // EVENT-DRIVEN WAKE (MT-088): the result is delivered; wake the UI exactly once so the next
+            // frame drains + applies it (and clears the degraded state on recovery) without any per-frame
+            // poll cadence. Thread-safe; a no-op if no context was captured yet (no first frame ran).
+            if let Some(ctx) = wake_ctx {
+                ctx.request_repaint();
+            }
         });
     }
 
@@ -6152,6 +6184,9 @@ impl HandshakeApp {
             let snapshot = self.capture_layout_snapshot();
             let manager = self.layout_manager.clone();
             let in_flight = self.save_in_flight.clone();
+            // MT-088: wake the UI once when the debounced flush finishes (event-driven), so a status
+            // surface reading the cleared in-flight flag / manager status updates without a per-frame poll.
+            let wake_ctx = self.frame_ctx.clone();
             // A plain OS thread (not a runtime worker): the transport's `block_on` is valid off-runtime,
             // so the network PUT runs here without blocking the egui UI thread. The manager handles
             // retry/LKG/status; the UI thread reads status next frame.
@@ -6161,6 +6196,9 @@ impl HandshakeApp {
                     mgr.flush_if_due(now, &snapshot);
                 }
                 in_flight.store(false, std::sync::atomic::Ordering::SeqCst);
+                if let Some(ctx) = wake_ctx {
+                    ctx.request_repaint();
+                }
             });
         }
     }
@@ -6530,9 +6568,17 @@ impl HandshakeApp {
                 if segment_id == "health" {
                     if let Some(handle) = self.runtime_handle.clone() {
                         self.health_status = HealthDisplayState::Loading;
-                        self.health_handle = Some(
-                            handle.spawn(async { backend_client::fetch_health(HEALTH_URL).await }),
-                        );
+                        // MT-088: wake the UI once when the manual re-fetch resolves (event-driven), so
+                        // the Loading indicator clears promptly without relying only on the per-frame
+                        // Loading repaint cadence.
+                        let wake_ctx = self.frame_ctx.clone();
+                        self.health_handle = Some(handle.spawn(async move {
+                            let info = backend_client::fetch_health(HEALTH_URL).await;
+                            if let Some(ctx) = wake_ctx {
+                                ctx.request_repaint();
+                            }
+                            info
+                        }));
                         return true;
                     }
                 }
@@ -6583,8 +6629,17 @@ impl HandshakeApp {
             if due {
                 if let Some(handle) = self.runtime_handle.clone() {
                     self.health_next_poll_at = None;
-                    self.health_handle =
-                        Some(handle.spawn(async { backend_client::fetch_health(HEALTH_URL).await }));
+                    // MT-088: wake the UI once when the re-probe resolves (event-driven) so `poll_health`
+                    // folds the result next frame and `BackendRecovered` fires promptly on a real recovery
+                    // — instead of the frame loop polling `health_handle.is_some()` every frame.
+                    let wake_ctx = self.frame_ctx.clone();
+                    self.health_handle = Some(handle.spawn(async move {
+                        let info = backend_client::fetch_health(HEALTH_URL).await;
+                        if let Some(ctx) = wake_ctx {
+                            ctx.request_repaint();
+                        }
+                        info
+                    }));
                 }
             }
         }
@@ -6592,6 +6647,14 @@ impl HandshakeApp {
 
     /// Render the shell. Split from eframe::App::update so egui_kittest can drive it without a Frame.
     pub fn ui(&mut self, ctx: &egui::Context) {
+        // WP-KERNEL-012 MT-088: capture a clone of the live context on the first frame so off-thread
+        // backend workers (layout load / debounced save / `/health` re-probe) can `request_repaint()` the
+        // UI exactly once on completion (event-driven wake) instead of the frame loop polling for delivery
+        // every frame. `Context` is `Arc`-backed (cheap clone); the capture is idempotent. Done BEFORE
+        // `poll_health` so a `/health` re-probe spawned this frame already has the wake context available.
+        if self.frame_ctx.is_none() {
+            self.frame_ctx = Some(ctx.clone());
+        }
         self.poll_health();
         self.poll_workspaces();
         // Apply a pending theme flip (MT-018, red-team R4/MC4) at the very TOP of the frame, BEFORE any
@@ -7256,22 +7319,27 @@ impl HandshakeApp {
             ctx.request_repaint_after(std::time::Duration::from_millis(100));
         }
 
-        // WP-KERNEL-012 MT-088: while a backend interaction is OUTSTANDING (a layout load in flight, or a
-        // `/health` re-probe in flight / due), keep frames coming so the off-thread result is drained +
-        // applied promptly even on an otherwise-idle app — so the degraded state appears (and clears on
-        // recovery) without input. These are schedule-only wakes (HBR-QUIET: no focus steal, no input
-        // grab). The MT-084 heartbeat already guarantees a ~250ms idle tick, so this only tightens the
-        // cadence around an in-flight backend interaction; it never busy-loops.
-        if self.layout_load_in_flight.load(std::sync::atomic::Ordering::SeqCst)
-            || self.save_in_flight.load(std::sync::atomic::Ordering::SeqCst)
-            || self.health_handle.is_some()
-        {
-            ctx.request_repaint_after(std::time::Duration::from_millis(100));
-        } else if let Some(at) = self.health_next_poll_at {
-            // A re-probe is scheduled but not yet in flight: wake when it comes due.
-            let now = std::time::Instant::now();
-            let delay = at.saturating_duration_since(now);
-            ctx.request_repaint_after(delay.max(std::time::Duration::from_millis(50)));
+        // WP-KERNEL-012 MT-088: an OUTSTANDING backend interaction (a layout load / debounced save in
+        // flight, or a `/health` re-probe in flight) is now drained EVENT-DRIVEN: the worker calls
+        // `ctx.request_repaint()` exactly ONCE when it delivers its result (see `spawn_layout_load`,
+        // `spawn_layout_save_now`, the debounced-save spawn, and the `/health` re-probe spawn), so the
+        // next frame applies it. This deliberately REPLACES the previous per-frame
+        // `request_repaint_after(100ms)` poll-for-delivery cadence, which requested a repaint EVERY frame
+        // while a load/save/probe was in flight — that kept the UI from ever reporting idle within
+        // `Harness::run`'s bounded step budget and regressed every `Harness::run`-based pane test
+        // (`max_steps`). The MT-084 heartbeat still guarantees a ~250ms idle tick, so even if a worker's
+        // wake were ever lost the result is still drained within ~250ms; no busy-loop, no repaint storm.
+        //
+        // A `/health` re-probe that is merely SCHEDULED (none in flight yet — no worker exists to wake the
+        // UI) still needs a one-shot scheduled wake when it comes due, so recovery is observed on an
+        // otherwise-idle app (AC-008-6). This is a single bounded `request_repaint_after`, not a per-frame
+        // poll: it schedules ONE wake at the due time (HBR-QUIET: no focus steal, no input grab).
+        if self.health_handle.is_none() {
+            if let Some(at) = self.health_next_poll_at {
+                let now = std::time::Instant::now();
+                let delay = at.saturating_duration_since(now);
+                ctx.request_repaint_after(delay.max(std::time::Duration::from_millis(50)));
+            }
         }
     }
 
