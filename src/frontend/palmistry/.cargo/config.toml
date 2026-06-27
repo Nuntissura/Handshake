@@ -1,0 +1,13 @@
+# WP-KERNEL-012 MT-089 — redirect the build target-dir to the EXTERNAL artifact root (CX-212E) so this
+# crate NEVER creates a repo-local `target/` folder inside the worktree.
+#
+# Path depth: this crate dir is
+#   <Handshake Worktrees>/wtc-native-editors-v1/src/frontend/palmistry
+# and Handshake_Artifacts lives at
+#   <Handshake Worktrees>/Handshake_Artifacts
+# so we climb FOUR levels: palmistry -> frontend -> src -> wtc-native-editors-v1 -> <Handshake Worktrees>.
+# (Same depth as the handshake_native crate one level up, which also uses FOUR `../`; the diag_ring crate
+# is one level deeper and uses FIVE. Verified by resolving the absolute path before committing — it lands
+# exactly on <Handshake Worktrees>/Handshake_Artifacts/palmistry-target.) NO repo-local target/.
+[build]
+target-dir = "../../../../Handshake_Artifacts/palmistry-target"

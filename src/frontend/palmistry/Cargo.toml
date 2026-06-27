@@ -1,0 +1,59 @@
+# WP-KERNEL-012 MT-089 — `palmistry`: the Tier 3 EXTERNAL out-of-process watcher binary.
+#
+# Master Spec v02.196 §6.13.2 ("a separate palmistry executable, distinct from the Handshake process")
+# + §6.13.3 ("Lifecycle inversion (HARD)"). Palmistry follows the Google-Crashpad architecture: a
+# SIBLING process, NOT a thread, NOT an in-process subsystem. It is launched WITH Handshake, closes
+# ONLY on an explicit Shutdown command, and SURVIVES the parent's death so it can record + persist the
+# evidence precisely when Handshake freezes or crashes (a watcher that dies with its parent cannot
+# record the parent's death — §6.13.3 calls that a spec defect).
+#
+# Standalone [workspace] table: the repo has NO root cargo workspace (see the handshake-native +
+# diag_ring Cargo.toml headers — each crate stands alone as its own workspace root). This crate mirrors
+# that convention so `cargo build -p palmistry` / `cargo test -p palmistry` run from this dir resolve
+# cleanly without being pulled into another crate's workspace.
+[workspace]
+
+[package]
+name = "palmistry"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Handshake Tier 3 external out-of-process watcher (Google-Crashpad model): launched-with, closes-only-on-Shutdown, survives-parent-death. Reads the MT-081 diag ring; controlled over a local socket."
+
+[[bin]]
+name = "palmistry"
+path = "src/main.rs"
+
+[dependencies]
+# The MT-081 shared-memory ring crate (the substrate BOTH Handshake (writer) and Palmistry (reader)
+# link). Relative path dep: this crate is a SIBLING tree of handshake_native, and diag_ring is nested
+# under handshake_native, so the path climbs out of palmistry then back down into handshake_native.
+# (MT-089 reads liveness PASSIVELY from this ring in MT-090; here we only link it so the protocol +
+# record layout compile identically into both processes, and so cli.rs can VALIDATE the ring path opens.)
+handshake-diag-ring = { path = "../handshake_native/diag_ring" }
+# interprocess 2.x: the field-standard cross-platform local-socket IPC (Unix domain socket / Windows
+# named pipe behind one API). The CONTROL channel only (Shutdown/Ping/CrashContext/HandshakeHello) —
+# liveness is NEVER requested over this socket (a frozen Handshake could not answer — §6.13.4 / RISK-009-3).
+# Verified against crates.io 2026-06-27: latest 2.4.2 (pin "2").
+interprocess = "2"
+# Control-message + survivor-record JSON (newline-delimited framing over the local socket).
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Palmistry's own logging (separate from Handshake's tracing).
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Windows parent-handle wait: OpenProcess(SYNCHRONIZE|PROCESS_QUERY_LIMITED_INFORMATION) +
+# WaitForSingleObject + GetExitCodeProcess for the lifecycle inversion. Match the handshake-native
+# windows-sys 0.61 pin + the Win32_Foundation + Win32_System_Threading feature family so the dependency
+# graph stays consistent. (minidumper/minidump-writer/crash-context are added in MT-092, NOT here.)
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_System_Threading",
+] }
+
+[dev-dependencies]
+# The lifecycle proofs spawn a real DUMMY parent process and hard-kill it; serde_json reads the
+# survivor/state JSON Palmistry writes. (No new family — serde_json is already a runtime dep.)
+serde_json = "1"
