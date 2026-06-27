@@ -27,16 +27,20 @@
 
 mod cli;
 mod control;
+mod freeze_detect;
+mod hung_window_probe;
 mod lifecycle;
 mod ring_reader;
 
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use cli::PalmistryConfig;
 use control::{ControlOutcome, ControlServer};
+use freeze_detect::{FreezeDetector, FreezeState};
+use hung_window_probe::HungWindowProbe;
 use lifecycle::{
     build_survivor_record, run_lifecycle, spawn_parent_watch, LifecycleConfig, LifecycleState,
     ParentWatch,
@@ -117,6 +121,11 @@ pub struct RunOptions {
     /// caller / future `[lib]` extraction can inject a faster-retry or pre-opened reader without forking
     /// the run path; the integration tests drive the real default through the compiled binary.
     pub ring_reader_factory: RingReaderFactory,
+    /// Builds the MT-091 hung-window probe for the watched pid. Default = the real Win32
+    /// `SendMessageTimeoutW(WM_NULL)` probe on Windows (a never-finds-a-window stub off Windows). The
+    /// seam exists so an in-crate caller / future `[lib]` extraction can inject a fake probe; the
+    /// freeze-detector unit + integration tests exercise the double-signal gate through fakes directly.
+    pub hung_window_probe_factory: HungWindowProbeFactory,
     /// Lifecycle timing. Default = production timings.
     pub lifecycle: LifecycleConfig,
     /// Optional callback invoked once the watcher is fully started (control socket bound, parent watch
@@ -129,6 +138,7 @@ impl Default for RunOptions {
         Self {
             parent_watch_factory: Box::new(default_parent_watch),
             ring_reader_factory: Box::new(default_ring_reader),
+            hung_window_probe_factory: Box::new(default_hung_window_probe),
             lifecycle: LifecycleConfig::default(),
             on_ready: None,
         }
@@ -145,6 +155,29 @@ pub type RingReaderFactory = Box<dyn Fn(&str) -> std::io::Result<PalmistryRingRe
 /// startup race with Handshake is tolerated without crashing or busy-spinning (MT-090 / AC-010-3).
 fn default_ring_reader(ring_path: &str) -> std::io::Result<PalmistryRingReader> {
     PalmistryRingReader::open_with_default_retry(Path::new(ring_path))
+}
+
+/// Factory that builds the MT-091 hung-window probe for a watched pid. Boxed so a caller can inject a
+/// fake probe without forking the run path. Aliased to keep the [`RunOptions`] field type legible
+/// (clippy type-complexity).
+pub type HungWindowProbeFactory = Box<dyn Fn(u32) -> Box<dyn HungWindowProbe>>;
+
+/// The real hung-window-probe factory: the Win32 `SendMessageTimeoutW(WM_NULL)` probe on Windows; off
+/// Windows a probe that never finds a window (so the freeze detector can only ever SUSPECT, never confirm
+/// a hard freeze, on a non-Windows build — the real corroboration is Windows-only, matching the proof
+/// host).
+fn default_hung_window_probe(pid: u32) -> Box<dyn HungWindowProbe> {
+    #[cfg(windows)]
+    {
+        Box::new(hung_window_probe::Win32HungWindowProbe::new(pid))
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = pid;
+        Box::new(hung_window_probe::FakeHungWindowProbe::new(
+            hung_window_probe::ProbeResult::WindowNotFound,
+        ))
+    }
 }
 
 /// The real parent-watch factory: the Windows `OpenProcess`/`WaitForSingleObject` watch on Windows. If
@@ -187,6 +220,109 @@ impl ParentWatch for NeverExitsParentWatch {
         std::thread::sleep(timeout);
         None
     }
+}
+
+/// The latest freeze verdict the MT-091 poll thread published, shared into the watcher so the survivor
+/// store (MT-093) and any observer can read the current state + whether a freeze was EVER confirmed
+/// during the session. `freeze_ever_confirmed` latches true on the first confirmed freeze (a freeze that
+/// later recovers is still evidence MT-093 must forward), while `latest` reflects the live current state
+/// (which CAN return to Healthy on recovery — AC-011-4).
+#[derive(Debug)]
+pub struct FreezeStatus {
+    /// The most recent [`FreezeState`] the poll thread observed.
+    latest: Mutex<FreezeState>,
+    /// Latches true the first time a freeze is CONFIRMED in this session (never cleared, so MT-093 can
+    /// see a freeze happened even after recovery).
+    freeze_ever_confirmed: AtomicBool,
+}
+
+impl Default for FreezeStatus {
+    fn default() -> Self {
+        Self {
+            latest: Mutex::new(FreezeState::Healthy),
+            freeze_ever_confirmed: AtomicBool::new(false),
+        }
+    }
+}
+
+impl FreezeStatus {
+    /// The live current freeze state.
+    pub fn latest(&self) -> FreezeState {
+        *self.latest.lock().expect("freeze status mutex")
+    }
+
+    /// Whether a freeze was ever CONFIRMED in this session (latched; survives a later recovery).
+    pub fn freeze_ever_confirmed(&self) -> bool {
+        self.freeze_ever_confirmed.load(Ordering::SeqCst)
+    }
+
+    /// Record the latest observed state, latching `freeze_ever_confirmed` on a confirmed freeze.
+    fn record(&self, state: FreezeState) {
+        if state.is_frozen() {
+            self.freeze_ever_confirmed.store(true, Ordering::SeqCst);
+        }
+        *self.latest.lock().expect("freeze status mutex") = state;
+    }
+}
+
+/// Spawn the MT-091 FREEZE-POLL thread (§6.13.5). On a dedicated thread (NOT the control loop —
+/// RISK-011-4: the bounded hung-window probe must never block the control path), it polls the
+/// [`FreezeDetector`] every [`freeze_detect::POLL_INTERVAL`] with the heartbeat read PASSIVELY through
+/// the zero-cooperation MT-090 reader and the hung-window probe. On a Healthy->Frozen transition it
+/// records the freeze (a `FreezeSuspected`-style marker in Palmistry's own log + the shared
+/// [`FreezeStatus`]); the durable survivor record is MT-093. It stops when `run` is cleared by the
+/// lifecycle. Returns the join handle.
+fn spawn_freeze_poll(
+    reader: Arc<PalmistryRingReader>,
+    probe: Box<dyn HungWindowProbe>,
+    status: Arc<FreezeStatus>,
+    run: Arc<AtomicBool>,
+    poll_interval: Duration,
+) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || {
+        let mut detector = FreezeDetector::new();
+        let mut last_was_frozen = false;
+        while run.load(Ordering::SeqCst) {
+            // PASSIVE liveness read (§6.13.4): a pure seqlock read of shared memory — no call into / lock
+            // against / wait on the (possibly frozen) writer. A frozen writer's last heartbeat stays
+            // readable, which is exactly the staleness the detector keys on.
+            let heartbeat = reader.read_heartbeat();
+            let state = detector.poll(std::time::Instant::now(), heartbeat, probe.as_ref());
+            let now_frozen = state.is_frozen();
+
+            // Record a `FreezeSuspected`-style marker on the Healthy->Frozen EDGE (not every tick) so the
+            // log/state is not spammed while a freeze persists. MT-093 turns this into the durable
+            // survivor record + the Tier-1 FR forward at recovery.
+            match (last_was_frozen, &state) {
+                (false, FreezeState::Frozen(report)) => {
+                    tracing::warn!(
+                        diag_event_code = handshake_diag_ring::DiagEventCode::FreezeSuspected.as_u16(),
+                        stale_ms = report.stale_ms,
+                        last_heartbeat_counter = report.last_heartbeat_counter,
+                        last_heartbeat_ts_nanos = report.last_heartbeat_ts_nanos,
+                        "FREEZE CONFIRMED (heartbeat stale + hung-window probe not responding) — \
+                         the §6.13.5 double-signal gate fired; survivor capture is MT-093"
+                    );
+                }
+                (true, FreezeState::Healthy) => {
+                    tracing::info!("freeze RECOVERED — heartbeat resumed advancing (§6.13.5 recovery)");
+                }
+                (false, FreezeState::Suspected { stale_ms }) => {
+                    // Suspected-only: log at debug so a borderline long frame does not flood warnings.
+                    tracing::debug!(
+                        stale_ms,
+                        "heartbeat stale but window still responding — SUSPECTED only, not a confirmed \
+                         freeze (double-signal gate held)"
+                    );
+                }
+                _ => {}
+            }
+
+            status.record(state);
+            last_was_frozen = now_frozen;
+            std::thread::sleep(poll_interval);
+        }
+    })
 }
 
 /// Run the watcher to lifecycle completion. The library-shaped entrypoint (tested directly): it binds
@@ -277,6 +413,28 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
         );
     });
 
+    // Spawn the MT-091 FREEZE-POLL thread (§6.13.5). On its OWN thread (NOT the control loop —
+    // RISK-011-4: the bounded hung-window probe must never block control), it polls the FreezeDetector
+    // every POLL_INTERVAL with the heartbeat read PASSIVELY through the zero-cooperation reader and the
+    // hung-window probe, and publishes the typed verdict into the shared FreezeStatus. The reader is
+    // shared (Arc) so the poll thread reads the SAME map without re-opening it. It stops when `run` is
+    // cleared by the lifecycle.
+    let freeze_status = Arc::new(FreezeStatus::default());
+    let probe = (options.hung_window_probe_factory)(config.parent_pid);
+    let freeze_handle = spawn_freeze_poll(
+        Arc::clone(&ring_reader),
+        probe,
+        Arc::clone(&freeze_status),
+        Arc::clone(&run),
+        freeze_detect::POLL_INTERVAL,
+    );
+    tracing::info!(
+        poll_interval_ms = freeze_detect::POLL_INTERVAL.as_millis() as u64,
+        freeze_threshold_ms = freeze_detect::FREEZE_THRESHOLD.as_millis() as u64,
+        idle_heartbeat_cadence_ms = freeze_detect::MT084_IDLE_HEARTBEAT_CADENCE.as_millis() as u64,
+        "freeze-detection poll thread armed (§6.13.5 double-signal gate)"
+    );
+
     // Fully started: control socket bound, parent watch armed, ring reader open. Take an initial
     // PASSIVE liveness reading through the zero-cooperation reader so the watcher records, at readiness,
     // that it can observe Handshake's published heartbeat from shared memory (the data source the
@@ -315,11 +473,21 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
         tracing::warn!(%err, "failed to persist survivor record");
     }
 
+    // Surface the freeze evidence the poll thread accumulated (MT-093 will persist it durably; here it is
+    // logged so a session that observed a freeze is visible even before MT-093 lands).
+    if freeze_status.freeze_ever_confirmed() {
+        tracing::warn!(
+            latest = ?freeze_status.latest(),
+            "a freeze was CONFIRMED during this session (§6.13.5); MT-093 owns the durable survivor capture"
+        );
+    }
+
     // Tear down: `run` is already false (set by run_lifecycle). The parent-watch thread observes it and
-    // returns; the control thread is woken by `run` going false on its next accept boundary. We join the
-    // watch thread (bounded) and detach the control thread (its blocking accept may outlive us harmlessly
-    // — the process is exiting).
+    // returns; the freeze-poll thread observes it on its next sleep boundary; the control thread is woken
+    // by `run` going false on its next accept boundary. We join the watch + freeze threads (bounded) and
+    // detach the control thread (its blocking accept may outlive us harmlessly — the process is exiting).
     let _ = watch_handle.join();
+    let _ = freeze_handle.join();
     drop(control_handle); // detached; the process exit closes the socket.
     drop(ring_reader); // unmap the diag ring; the watcher no longer needs Handshake's published state.
 

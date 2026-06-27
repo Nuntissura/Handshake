@@ -44,13 +44,17 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Windows parent-handle wait: OpenProcess(SYNCHRONIZE|PROCESS_QUERY_LIMITED_INFORMATION) +
-# WaitForSingleObject + GetExitCodeProcess for the lifecycle inversion. Match the handshake-native
-# windows-sys 0.61 pin + the Win32_Foundation + Win32_System_Threading feature family so the dependency
-# graph stays consistent. (minidumper/minidump-writer/crash-context are added in MT-092, NOT here.)
+# WaitForSingleObject + GetExitCodeProcess for the lifecycle inversion (MT-089). MT-091 adds the
+# hung-window probe: SendMessageTimeoutW(WM_NULL, SMTO_ABORTIFHUNG|SMTO_BLOCK) + EnumWindows +
+# GetWindowThreadProcessId + IsWindowVisible, all under Win32_UI_WindowsAndMessaging (the standard
+# Task-Manager 'Not responding' check). Match the handshake-native windows-sys 0.61 pin + feature family
+# (Win32_UI_WindowsAndMessaging is already enabled in handshake-native) so the dependency graph stays
+# consistent. (minidumper/minidump-writer/crash-context are added in MT-092, NOT here.)
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
     "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
 ] }
 
 [dev-dependencies]
