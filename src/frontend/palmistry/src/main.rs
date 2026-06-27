@@ -32,6 +32,7 @@ mod lifecycle;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 
 use cli::PalmistryConfig;
 use control::{ControlOutcome, ControlServer};
@@ -42,6 +43,19 @@ use lifecycle::{
 
 /// Startup-error exit code (refused partial start / could not bind control socket).
 const EXIT_CONFIG_ERROR: i32 = 2;
+
+/// Bounded backoff slept after a control-socket accept/read error before retrying. A persistent accept
+/// fault (corrupted/closed listener, repeating OS accept error) MUST NOT busy-spin the control thread —
+/// that would pin a CPU core and flood the log at unbounded rate while Handshake is up, the opposite of
+/// a quiet background watcher (HBR-QUIET). The sleep both throttles the retry and re-checks the run flag
+/// so a clean shutdown still breaks promptly.
+const CONTROL_ERROR_BACKOFF: Duration = Duration::from_millis(50);
+
+/// Consecutive-accept-error ceiling. After this many back-to-back errors the control thread stops
+/// retrying (the listener is presumed unrecoverable) rather than spinning forever; the parent-watch loop
+/// and the lifecycle continue, so the watcher still records a parent death and can be reaped. A single
+/// successful `serve_connection` resets the counter.
+const CONTROL_ERROR_CEILING: u32 = 64;
 
 fn main() {
     // Palmistry's own logging, separate from Handshake's. RUST_LOG / PALMISTRY_LOG controllable; quiet
@@ -86,9 +100,12 @@ fn main() {
 }
 
 /// Options controlling how `run_watcher` opens its OS resources. The defaults are the real production
-/// behavior; the integration tests override `parent_watch_factory` to inject the real Windows watch
-/// against a test-spawned dummy parent (they use the default), and override `ready_signal` so the test
-/// can observe when the watcher is fully started + staying alive.
+/// behavior used by `main()` (`RunOptions::default()`), and are the path the integration tests exercise
+/// end-to-end by driving the compiled binary (`CARGO_BIN_EXE_palmistry`) — the binary's `pub` items are
+/// not importable by `tests/`, so the tests do not construct `RunOptions` directly. The seams here
+/// (`parent_watch_factory` to swap the parent watch, `on_ready` to observe "started + staying alive")
+/// exist so an in-crate caller or future `[lib]` extraction can inject a fake watch or readiness probe
+/// without forking the run path.
 pub struct RunOptions {
     /// Builds the parent watch for a pid. Default = the real Windows watch (or a never-exits stub off
     /// Windows so the crate still builds + the lifecycle is exercisable cross-platform).
@@ -185,33 +202,35 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
     let control_state = Arc::clone(&state);
     let control_run = Arc::clone(&run);
     let control_handle = std::thread::spawn(move || {
-        while control_run.load(Ordering::SeqCst) {
+        let mut serve_once = || {
             let mut on_msg = |msg: &control::ControlMessage| {
                 tracing::debug!(?msg, "control message");
                 if matches!(msg, control::ControlMessage::Shutdown) {
                     control_state.request_shutdown();
                 }
             };
-            match server.serve_connection(&mut on_msg) {
-                Ok(ControlOutcome::Shutdown) => {
-                    control_state.request_shutdown();
-                    break;
+            server.serve_connection(&mut on_msg)
+        };
+        run_control_loop(
+            &mut serve_once,
+            &control_run,
+            CONTROL_ERROR_BACKOFF,
+            CONTROL_ERROR_CEILING,
+            |reason| match reason {
+                ControlLoopExit::Shutdown => control_state.request_shutdown(),
+                ControlLoopExit::RunCleared => {}
+                ControlLoopExit::ErrorCeiling { consecutive_errors } => {
+                    // The control socket is presumed unrecoverable. Do NOT spin forever; record the fault
+                    // and stop accepting. The parent-watch loop + lifecycle keep running so a parent death
+                    // is still recorded and the watcher can be reaped (it is no longer remotely shut down).
+                    tracing::error!(
+                        consecutive_errors,
+                        "control socket accept failed repeatedly; abandoning the control accept loop \
+                         (watcher keeps watching the parent; remote Shutdown is no longer available)"
+                    );
                 }
-                Ok(ControlOutcome::Continue) => {
-                    // Peer disconnected without a Shutdown; loop to accept the next connection unless the
-                    // lifecycle has since ended.
-                    continue;
-                }
-                Err(err) => {
-                    // An accept/read error must NOT crash the watcher; log + retry while still running.
-                    tracing::warn!(%err, "control connection error; continuing to watch");
-                    if !control_run.load(Ordering::SeqCst) {
-                        break;
-                    }
-                    continue;
-                }
-            }
-        }
+            },
+        );
     });
 
     // Fully started: control socket bound, parent watch armed. Signal readiness (tests assert
@@ -242,6 +261,81 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
     drop(control_handle); // detached; the process exit closes the socket.
 
     Ok(())
+}
+
+/// Why the control accept loop terminated. Returned to the loop's `on_exit` callback so the caller owns
+/// the side effects (request a shutdown, record a fault) instead of the loop hard-coding them — which is
+/// what makes the loop unit-testable without a real socket.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ControlLoopExit {
+    /// A `Shutdown` control message resolved the connection: begin a clean exit.
+    Shutdown,
+    /// The shared `run` flag was cleared (the lifecycle ended for another reason); stop accepting.
+    RunCleared,
+    /// `CONTROL_ERROR_CEILING` consecutive accept/read errors occurred: the listener is presumed
+    /// unrecoverable, so the loop STOPS rather than busy-spinning forever.
+    ErrorCeiling {
+        /// The consecutive-error count that tripped the ceiling.
+        consecutive_errors: u32,
+    },
+}
+
+/// The control accept loop, factored out of `run_watcher` so the error/backoff behavior is unit-testable
+/// without a real socket (see the `#[cfg(test)]` `control_loop_*` tests). It repeatedly calls
+/// `serve_once` (which accepts one connection and serves it) while `run` is set:
+///
+/// - `Ok(Shutdown)` => exit via [`ControlLoopExit::Shutdown`].
+/// - `Ok(Continue)` => the peer disconnected without a Shutdown; loop and accept again. Resets the
+///   consecutive-error counter.
+/// - `Err(_)` => an accept/read error must NOT crash the watcher AND must NOT busy-spin (the bug this
+///   guards): sleep `backoff` (which also bounds the retry rate and the log rate), re-check `run`, and
+///   retry. After `error_ceiling` consecutive errors the loop gives up via
+///   [`ControlLoopExit::ErrorCeiling`] instead of spinning forever.
+///
+/// The `run` flag is re-checked after every error sleep so a clean shutdown still breaks promptly.
+fn run_control_loop<S, E>(
+    serve_once: &mut S,
+    run: &AtomicBool,
+    backoff: Duration,
+    error_ceiling: u32,
+    on_exit: E,
+) where
+    S: FnMut() -> std::io::Result<ControlOutcome>,
+    E: FnOnce(ControlLoopExit),
+{
+    let mut consecutive_errors: u32 = 0;
+    let reason = loop {
+        if !run.load(Ordering::SeqCst) {
+            break ControlLoopExit::RunCleared;
+        }
+        match serve_once() {
+            Ok(ControlOutcome::Shutdown) => break ControlLoopExit::Shutdown,
+            Ok(ControlOutcome::Continue) => {
+                // Peer disconnected without a Shutdown; a successful accept clears the error streak.
+                consecutive_errors = 0;
+                continue;
+            }
+            Err(err) => {
+                consecutive_errors += 1;
+                // BOUNDED backoff: never busy-spin on a persistent accept fault (CPU/log hog while
+                // Handshake is up — HBR-QUIET). Re-check `run` after sleeping so a clean shutdown breaks.
+                tracing::warn!(
+                    %err,
+                    consecutive_errors,
+                    "control connection error; backing off before retry"
+                );
+                if consecutive_errors >= error_ceiling {
+                    break ControlLoopExit::ErrorCeiling { consecutive_errors };
+                }
+                std::thread::sleep(backoff);
+                if !run.load(Ordering::SeqCst) {
+                    break ControlLoopExit::RunCleared;
+                }
+                continue;
+            }
+        }
+    };
+    on_exit(reason);
 }
 
 /// Confirm `ring_path` resolves to a valid MT-081 ring (header validates). Reusing the ring crate's own
@@ -282,4 +376,129 @@ fn persist_survivor_record(
     std::fs::write(&out, json)?;
     tracing::info!(path = %out.display(), "survivor record persisted");
     Ok(())
+}
+
+#[cfg(test)]
+mod control_loop_tests {
+    //! Regression coverage for the control-thread accept-error path (the perf-lens must-fix): a
+    //! persistent accept error must NOT busy-spin the control thread (no sleep => 100% CPU + unbounded
+    //! log flood while Handshake is up). These tests drive `run_control_loop` directly with a fake
+    //! `serve_once` so the error/backoff/ceiling behavior is provable without a real socket.
+
+    use super::*;
+    use std::time::Instant;
+
+    /// A persistent accept error must (a) NOT spin unboundedly — it sleeps the bounded backoff between
+    /// retries, and (b) eventually give up at the consecutive-error ceiling instead of looping forever.
+    /// Without the fix this loop never sleeps and never breaks, so this test would hang / spin.
+    #[test]
+    fn persistent_accept_error_backs_off_and_hits_ceiling_instead_of_spinning() {
+        let run = AtomicBool::new(true);
+        let calls = std::cell::Cell::new(0u32);
+        let mut serve_once = || -> std::io::Result<ControlOutcome> {
+            calls.set(calls.get() + 1);
+            Err(std::io::Error::other("persistent accept fault"))
+        };
+
+        let ceiling: u32 = 8;
+        let backoff = Duration::from_millis(5);
+        let exit = std::cell::Cell::new(None);
+        let start = Instant::now();
+        run_control_loop(&mut serve_once, &run, backoff, ceiling, |reason| {
+            exit.set(Some(reason));
+        });
+        let elapsed = start.elapsed();
+
+        // It STOPPED (did not spin forever) and reported the ceiling.
+        assert_eq!(
+            exit.get(),
+            Some(ControlLoopExit::ErrorCeiling {
+                consecutive_errors: ceiling
+            }),
+            "a persistent accept error must escalate to the ceiling, not spin forever"
+        );
+        // It called serve_once exactly `ceiling` times (one per consecutive error), proving a bounded
+        // retry count rather than an unbounded busy-spin.
+        assert_eq!(calls.get(), ceiling, "exactly one retry per consecutive error up to the ceiling");
+        // It actually SLEPT between retries: with (ceiling - 1) backoff sleeps of `backoff` each, the
+        // wall-clock must be at least roughly that. This is the anti-busy-spin guard: a no-sleep loop
+        // would finish in microseconds. (The last error trips the ceiling BEFORE sleeping.)
+        let min_expected = backoff * (ceiling - 1);
+        assert!(
+            elapsed >= min_expected,
+            "the error path must back off (sleep) between retries — elapsed {elapsed:?} < expected \
+             >= {min_expected:?}; a busy-spin would return near-instantly"
+        );
+    }
+
+    /// A clean shutdown (the `run` flag cleared by the lifecycle) must break the loop PROMPTLY even while
+    /// accept errors are occurring — the backoff sleep re-checks `run`, so teardown is not blocked.
+    #[test]
+    fn run_cleared_during_error_backoff_breaks_promptly() {
+        let run = Arc::new(AtomicBool::new(true));
+        let run_in_loop = Arc::clone(&run);
+        // Clear `run` on the 3rd call so the loop observes it after the backoff sleep and breaks.
+        let calls = std::cell::Cell::new(0u32);
+        let mut serve_once = || -> std::io::Result<ControlOutcome> {
+            let n = calls.get() + 1;
+            calls.set(n);
+            if n >= 3 {
+                run_in_loop.store(false, Ordering::SeqCst);
+            }
+            Err(std::io::Error::other("transient accept fault"))
+        };
+
+        let exit = std::cell::Cell::new(None);
+        // A high ceiling so the RunCleared path is what ends the loop, not the ceiling.
+        run_control_loop(
+            &mut serve_once,
+            &run,
+            Duration::from_millis(1),
+            10_000,
+            |reason| exit.set(Some(reason)),
+        );
+
+        assert_eq!(
+            exit.get(),
+            Some(ControlLoopExit::RunCleared),
+            "a cleared run flag must break the error-backoff loop promptly (clean shutdown)"
+        );
+        assert!(calls.get() <= 4, "the loop must stop within a retry of the run flag clearing");
+    }
+
+    /// A `Shutdown` outcome exits the loop with `Shutdown`, and a `Continue` (peer disconnect) resets the
+    /// consecutive-error streak so an intermittent error does not creep toward the ceiling.
+    #[test]
+    fn shutdown_exits_and_success_resets_error_streak() {
+        let run = AtomicBool::new(true);
+        // Sequence: Err, Err, Continue (resets streak), Err, Shutdown.
+        let step = std::cell::Cell::new(0u32);
+        let mut serve_once = || -> std::io::Result<ControlOutcome> {
+            let s = step.get();
+            step.set(s + 1);
+            match s {
+                0 | 1 | 3 => Err(std::io::Error::other("blip")),
+                2 => Ok(ControlOutcome::Continue),
+                _ => Ok(ControlOutcome::Shutdown),
+            }
+        };
+
+        let exit = std::cell::Cell::new(None);
+        // Ceiling of 3: if the Continue did NOT reset the streak, the 2 pre-Continue errors + the 1
+        // post-Continue error would trip the ceiling before the Shutdown. The reset is what lets Shutdown
+        // win — proving the streak resets on success.
+        run_control_loop(
+            &mut serve_once,
+            &run,
+            Duration::from_millis(1),
+            3,
+            |reason| exit.set(Some(reason)),
+        );
+
+        assert_eq!(
+            exit.get(),
+            Some(ControlLoopExit::Shutdown),
+            "a successful Continue must reset the error streak so a later Shutdown still wins"
+        );
+    }
 }
