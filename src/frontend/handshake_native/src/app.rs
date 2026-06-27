@@ -1584,6 +1584,49 @@ impl HandshakeApp {
         self.resource_sampler.sample_count()
     }
 
+    /// WP-KERNEL-012 MT-087 (D3 — §5.8.4 in-app Diagnostics Panel): build the read-only
+    /// [`crate::diagnostics::DiagnosticsView`] the Settings -> Diagnostics section projects this frame.
+    ///
+    /// This is the PROJECTION boundary (§5.8.4 / RISK-007-2): it reads the live producers — the
+    /// heartbeat counter + monotonic clock (MT-084), the frame-time stats (MT-085), the GPU identity +
+    /// sample count (MT-086) — and the LAST `ResourceSample` straight from the process-global recorder
+    /// ([`crate::diagnostics::snapshot_last_n`]), so the panel never caches its own copy and can never
+    /// drift from the producers. Rebuilt every frame; cheap (a few field reads + one bounded ring scan
+    /// for the last resource sample). The last-N EVENTS are NOT placed here — the panel reads them
+    /// directly from the recorder each frame.
+    pub fn diagnostics_view(&self) -> crate::diagnostics::DiagnosticsView {
+        crate::diagnostics::DiagnosticsView {
+            heartbeat_counter: self.frame_counter,
+            // The same monotonic elapsed-since-start nanos the last heartbeat published (read live, not
+            // cached): a human "uptime" line for the panel. Monotonic, never goes backward.
+            heartbeat_elapsed_nanos: u64::try_from(self.heartbeat_clock.elapsed().as_nanos())
+                .unwrap_or(u64::MAX),
+            frame_stats: self.frame_timer.stats(),
+            last_resource_sample: Self::last_resource_sample_from_ring(),
+            resource_sample_count: self.resource_sampler.sample_count(),
+            gpu_info: self.gpu_info.clone(),
+            dropped_count: crate::diagnostics::dropped_count(),
+            ring_writer_installed: crate::diagnostics::has_ring_writer(),
+        }
+    }
+
+    /// WP-KERNEL-012 MT-087: read the MOST-RECENT `ResourceSample` (CPU%/RSS) from the process-global
+    /// recorder ring (MT-082/086), or `None` if no resource sample has been emitted yet. This keeps the
+    /// panel a pure projection of the producer: the resource line reads the same typed event the
+    /// sampler emitted into the ring (the panel reads it back), never a separately-cached copy. Decodes
+    /// the typed `DiagEvent` (cpu_milli -> counter_a, rss_kb -> counter_b) back into a
+    /// [`crate::diagnostics::ResourceSample`].
+    fn last_resource_sample_from_ring() -> Option<crate::diagnostics::ResourceSample> {
+        crate::diagnostics::snapshot_last_n(crate::diagnostics::BUFFER_CAP)
+            .iter()
+            .rev()
+            .find(|e| e.event_code == handshake_diag_ring::DiagEventCode::ResourceSample.as_u16())
+            .map(|e| crate::diagnostics::ResourceSample {
+                cpu_milli: e.counter_a,
+                rss_kb: e.counter_b,
+            })
+    }
+
     /// WP-KERNEL-012 MT-085 TEST SEAM: inject `micros` of extra synthetic WORK INSIDE `self.ui(ctx)` on
     /// every subsequent frame so a kittest can drive a REAL slow frame from the live frame path
     /// (AC-005-2) and prove the SlowFrame flag fires from production code — NOT by feeding the
@@ -3929,10 +3972,17 @@ impl HandshakeApp {
         }
 
         // 5. Render the dialog + apply the outcome.
+        // MT-087: build the live internal_diagnostics projection + the active palette the Settings ->
+        // Diagnostics section renders from. Built into locals first (owned values) so the borrows do not
+        // conflict with the `&self.workspace_settings` borrow the SettingsView also takes.
+        let diagnostics_view = self.diagnostics_view();
+        let palette = self.current_theme.palette();
         let view = crate::settings_dialog::SettingsView {
             open_count: self.settings_open_count,
             settings: &self.workspace_settings,
             persist_error: self.settings_persist_error.as_deref(),
+            diagnostics: &diagnostics_view,
+            palette: &palette,
         };
         let outcome = crate::settings_dialog::show(ctx, view);
         if self.apply_settings_outcome(outcome) {

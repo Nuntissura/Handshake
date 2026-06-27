@@ -103,6 +103,11 @@ pub mod settings_dialog;
 // read-only view + returns outcomes the shell applies + persists via the existing PostgreSQL-backed
 // /workspaces/:id/settings surface (no new persistence, no SQLite).
 pub mod settings_editor_section;
+// WP-KERNEL-012 MT-087 (D3 — §5.8.4 in-app Diagnostics Panel): the Diagnostics Settings section hosting
+// the diagnostics::panel widget INSIDE the WP-011 settings_dialog (Settings -> Diagnostics). Render-only
+// projection of live internal_diagnostics state; no settings to mutate or persist (operator steer
+// 2026-06-27: diagnostics lives in the Options/Settings window, not the worksurface).
+pub mod settings_diagnostics_section;
 pub mod split_layout;
 // WP-KERNEL-012 MT-033 (E5 — route-to-Stage): the LOCAL Stage pane (Pillar 17) that DISPLAYS content
 // routed to it (a document, a selection, or a CKC item) via the route-to-stage command on the MT-031

@@ -42,6 +42,12 @@
 // `self.ui(ctx)`, measuring its WORK time so the MT-084 idle keep-alive is NOT mis-flagged as slow).
 pub mod frame_timing;
 pub mod gpu_info;
+// WP-KERNEL-012 MT-087 (D3 — internal_diagnostics, Tier 2 §5.8.4 in-app Diagnostics Panel +
+// §10.12.5 three-tier model): the egui widget that PROJECTS the live internal_diagnostics state
+// (heartbeat MT-084 + frame-time MT-085 + resource/GPU MT-086 + last-N events MT-082 + an honest
+// Tier-3 Palmistry empty-state until MT-093). Hosted as a Settings section (settings_diagnostics_section.rs),
+// NOT a worksurface pane (operator steer 2026-06-27). Pure projection — holds no own authority (§5.8.4).
+pub mod panel;
 pub mod panic_hook;
 pub mod recorder;
 pub mod resource_counters;
@@ -55,6 +61,15 @@ pub use frame_timing::{
 // panel + the app can `use crate::diagnostics::{ResourceSampler, ResourceSample, GpuInfo, ...}`.
 pub use gpu_info::GpuInfo;
 pub use resource_counters::{ResourceSample, ResourceSampler, SAMPLE_INTERVAL};
+
+// WP-KERNEL-012 MT-087 (D3 — §5.8.4 in-app Diagnostics Panel) re-exports so the Settings section + the
+// app can `use crate::diagnostics::{DiagnosticsPanel, DiagnosticsView, ...}` without reaching into the
+// `panel` submodule path.
+pub use panel::{
+    DiagnosticsPanel, DiagnosticsView, DIAGNOSTICS_EVENTS_AUTHOR_ID, DIAGNOSTICS_FRAME_AUTHOR_ID,
+    DIAGNOSTICS_HEARTBEAT_AUTHOR_ID, DIAGNOSTICS_PALMISTRY_AUTHOR_ID, DIAGNOSTICS_PANEL_AUTHOR_ID,
+    DIAGNOSTICS_RESOURCE_AUTHOR_ID, PANEL_EVENT_WINDOW,
+};
 
 // Public re-exports so any module can `use crate::diagnostics::{record, record_with, ...}` without
 // reaching into the `recorder` submodule path.

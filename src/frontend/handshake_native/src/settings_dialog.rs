@@ -157,6 +157,15 @@ pub struct SettingsView<'a> {
     pub settings: &'a WorkspaceSettingsState,
     /// The last transient persistence error, if any, surfaced on the status row.
     pub persist_error: Option<&'a str>,
+    /// WP-KERNEL-012 MT-087: the live `internal_diagnostics` projection the shell rebuilt this frame
+    /// (heartbeat / frame-stats / resource / GPU / dropped / ring-status). Rendered by the Settings ->
+    /// Diagnostics section (§5.8.4). The panel reads the last-N events directly from the process-global
+    /// recorder; this carries the app-owned producer state the recorder global does not hold. The
+    /// section is render-only (a pure projection — no setting to mutate), so this is the ONLY new input.
+    pub diagnostics: &'a crate::diagnostics::DiagnosticsView,
+    /// WP-KERNEL-012 MT-087: the active resolved palette (theme tokens) the Diagnostics panel paints
+    /// with, so the panel reads a theme token for every colour and never a literal (CONTROL-4).
+    pub palette: &'a crate::theme::HsPalette,
 }
 
 /// MT-072: the read-only auto-save interval string surfaced (NOT owned) inside the Editor section so the
@@ -832,6 +841,40 @@ fn render_sections(
             ui,
             syntax_header.header_response.id,
             &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}syntax"),
+        );
+    }
+
+    // ── [MT-087 / Diagnostics] In-app Diagnostics panel (§5.8.4 + §10.12.5 three-tier) ─────────────
+    //
+    // Operator steer 2026-06-27: the in-app Diagnostics Panel lives HERE in the Options/Settings window
+    // (Settings -> Diagnostics), NOT as a worksurface feature pane (the worksurface is stripped to
+    // notes-only in MT-097). It is a READ-ONLY observability surface: it projects the live
+    // internal_diagnostics state (heartbeat MT-084 / frame-time MT-085 / resource+GPU MT-086 / last-N
+    // events MT-082 / an honest Tier-3 Palmistry empty-state until MT-093) and mutates NO setting, so
+    // unlike the Editor/Syntax sections it returns no outcome the shell applies. Appended LAST (after the
+    // editor sections) and collapsed by default so the EXISTING sections' positions stay byte-stable (a
+    // single-pointer-click test on a lower control is unaffected) — the same length discipline the
+    // MT-072 sections use. A search query auto-expands it.
+    let show_diagnostics = setting_matches_query(
+        query,
+        crate::settings_diagnostics_section::DIAGNOSTICS_SEARCH_KEYWORDS,
+    );
+    if show_diagnostics {
+        let force_open = (!query.is_empty()).then_some(true);
+        let diagnostics_header = egui::CollapsingHeader::new("Diagnostics")
+            .default_open(false)
+            .open(force_open)
+            .show(ui, |ui| {
+                let diag_view = crate::settings_diagnostics_section::DiagnosticsSettingsView {
+                    diagnostics: view.diagnostics,
+                    palette: view.palette,
+                };
+                crate::settings_diagnostics_section::render(ui, &diag_view);
+            });
+        set_author_id(
+            ui,
+            diagnostics_header.header_response.id,
+            &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}diagnostics"),
         );
     }
 
