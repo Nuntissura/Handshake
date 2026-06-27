@@ -11,7 +11,15 @@
 # Per the orchestrator's minimal-approach instruction, the release-native profile lives in THIS
 # crate's own [workspace] table (this crate is its own workspace root), which is exactly the profile
 # location cargo reads for `cargo build --profile release-native -p handshake-native` run from here.
+#
+# WP-KERNEL-012 MT-082: `diag_ring/` (the MT-081 `handshake-diag-ring` crate) is a SIBLING standalone
+# workspace nested under this crate dir, consumed here via a `path = "diag_ring"` dependency. Because it
+# lives inside this crate's directory tree AND declares its own `[workspace]`, cargo would otherwise try
+# to absorb it as a member and error "multiple workspace roots in the same workspace". `exclude` keeps it
+# standalone (so `cargo test -p handshake-diag-ring` from its own dir still resolves cleanly, as MT-081
+# designed) while this crate consumes it purely as a path dependency.
 [workspace]
+exclude = ["diag_ring"]
 
 # release-native: for INSTALLER builds only. Dev builds use --profile dev. CI smoke tests use
 # --profile release. (CONTROL-2: lto='fat' + codegen-units=1 is slow; gate fat-LTO behind the
@@ -265,6 +273,13 @@ unicode-linebreak = "0.1"
 # is the typed-limitation Tier-3 (AC5 / PROOF3) — never silently-broken Arabic. MIT OR Apache-2.0. Cargo.lock
 # pins the resolved version (commit it).
 unicode-bidi = "0.3"
+# WP-KERNEL-012 MT-082 (D2 — internal_diagnostics, Tier 2): the MT-081 shared-memory ring substrate
+# (`handshake-diag-ring`), a SIBLING standalone crate at `diag_ring/`. internal_diagnostics writes the
+# typed-allowlist DiagEvent into this ring so the external Palmistry watcher (Tier 3, MT-089+) reads it
+# with zero cooperation. Relative path dep (the repo has no root cargo workspace; the ring crate is its
+# own `[workspace]` exactly like this crate). NO new transitive HTTP/server/egui stack — the ring crate
+# is pure substrate (memmap2 + bytemuck + serde only). Cargo.lock pins the resolved path dep.
+handshake-diag-ring = { path = "diag_ring" }
 
 # MT-027 production screenshot: the live OS-window grab uses Win32 GDI `PrintWindow` (focus-safe — never
 # SetForegroundWindow/BringWindowToTop). `windows-sys` is already in the locked graph transitively; here
@@ -302,7 +317,13 @@ windows-sys = { version = "0.61", features = [
 # a single feature-unified `image` entry in the locked graph (no png-only vs png+jpeg+webp+gif duplicate).
 
 [dev-dependencies]
-egui_kittest = { version = "0.33", features = ["wgpu"] }
+# WP-KERNEL-012 MT-082 ADDS the `eframe` feature so the AC-002-4 live-consumer test can drive the REAL
+# production `HandshakeApp::new(cc)` via `Harness::builder().build_eframe(..)` (it needs a real
+# `eframe::CreationContext`). The `eframe` feature only activates `dep:eframe` + `eframe/accesskit` —
+# both ALREADY satisfied by this crate's direct `eframe = "0.33"` dependency (features accesskit + wgpu
+# already enabled) — so it adds NO new dependency family; it just exposes the eframe-backed kittest
+# harness builder. `wgpu` stays for the existing screenshot/AccessKit tests.
+egui_kittest = { version = "0.33", features = ["wgpu", "eframe"] }
 # image: the MT-027 screenshot proof + the MT-014 embed-decode tests encode/decode PNG and decode JPEG/
 # WebP/GIF asset bytes. The cross-platform `image` runtime dep in [dependencies] (MT-014, features
 # png+jpeg+webp+gif) is already compiled for the crate, so a separate png-only dev-dependency is NO longer

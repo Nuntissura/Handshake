@@ -24,6 +24,12 @@ pub mod command_registry;
 pub mod context_menu;
 pub mod context_menu_surfaces;
 pub mod debug_console;
+// WP-KERNEL-012 MT-082 (D2 — internal_diagnostics, Tier 2): the process-global diagnostics facade and
+// its OPEN `record()` API (Master Spec v02.196 §5.8.2 + §5.8.4). Any feature calls `diagnostics::record`
+// and the typed DiagEvent lands in (a) a bounded in-process ring the Diagnostics Panel (MT-087) reads
+// AND (b) the MT-081 shared-memory ring Palmistry (Tier 3) maps with zero cooperation. Installed +
+// proven LIVE in `HandshakeApp::new` (one startup-marker call site — the anti-dead-code gate).
+pub mod diagnostics;
 pub mod drawer;
 // WP-KERNEL-012 MT-079 (E11 host-mount): the session-threaded editor pane factories that mount the REAL
 // native code + rich-text editors into the running HandshakeApp shell (replacing the PlaceholderPaneFactory

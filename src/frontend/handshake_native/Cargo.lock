@@ -1497,6 +1497,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "handshake-diag-ring"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "memmap2",
+ "serde",
+]
+
+[[package]]
 name = "handshake-native"
 version = "0.1.0"
 dependencies = [
@@ -1507,6 +1516,7 @@ dependencies = [
  "egui",
  "egui_kittest",
  "egui_tiles",
+ "handshake-diag-ring",
  "hmac",
  "image",
  "lsp-types",

@@ -122,6 +122,12 @@ pub struct HandshakeApp {
     health_status: HealthDisplayState,
     rt: tokio::runtime::Runtime,
     health_handle: Option<tokio::task::JoinHandle<Result<HealthInfo, AppError>>>,
+    /// WP-KERNEL-012 MT-082 (D2 — internal_diagnostics, Tier 2): the per-session diagnostic identity
+    /// (session id + the MT-081 ring backing-file path) MT-094 passes to `palmistry.exe` so the external
+    /// watcher maps the SAME ring. `Some` in the production shell (the ring was created + the writer
+    /// installed in [`HandshakeApp::new`]); `None` in the headless/test shell and when ring creation
+    /// failed (graceful degradation — diagnostics are in-process-only that session, the app still runs).
+    diag_session: Option<crate::diagnostics::DiagSession>,
     /// Active base theme. Toggled by the top-bar button; not persisted in MT-003.
     current_theme: HsTheme,
     /// Last theme actually pushed to egui via `apply_to_ctx` (CONTROL-1: only re-apply on
@@ -1222,10 +1228,18 @@ impl HandshakeApp {
         // wired to the verified search/save/bookmark routes.
         let (factories, loom_search_v2_shared, find_in_files_shared, editor_mounts) =
             build_factories_with_loom_search_v2(rt_handle.clone(), HsTheme::Dark.palette());
+        // WP-KERNEL-012 MT-082 (D2 — internal_diagnostics, Tier 2): create the MT-081 shared-memory ring
+        // for this session and install its writer onto the process-global diagnostics recorder, so any
+        // feature can `diagnostics::record(..)` and Palmistry (Tier 3) can map the ring. Ring creation is
+        // GRACEFULLY DEGRADING (RISK-002-5 / AC-002-3): if the temp dir is unwritable or the writer cannot
+        // install, we log a warning and continue WITHOUT a writer — diagnostics stay in-process-only and
+        // the shell still opens. `diag_session` is `Some` only when the ring was actually created.
+        let diag_session = Self::install_diagnostics_ring();
         let mut app = Self {
             health_status: HealthDisplayState::Loading,
             rt,
             health_handle,
+            diag_session,
             // Desktop default mirrors the React app's dark default.
             current_theme: HsTheme::Dark,
             last_applied_theme: None,
@@ -1352,7 +1366,88 @@ impl HandshakeApp {
             stage_panel_open: false,
         };
         app.spawn_mcp_server();
+        // WP-KERNEL-012 MT-082 (D2 — internal_diagnostics): the REQUIRED LIVE call site (AC-002-4 / the
+        // Spec-Realism anti-dead-code gate). A NORMAL launch records exactly one PaneMounted startup
+        // marker through the OPEN `record()` API, so a real DiagEvent lands in the ring + in-process
+        // buffer with ZERO test scaffolding — proving `record()` is genuinely CONSUMED by the shipped
+        // binary, not dead scaffolding. This is NOT gated behind any test/feature flag; it runs in the
+        // production shell. (The fuller per-frame heartbeat/frame-time/resource instrumentation is
+        // MT-084/005/006/007/008.)
+        Self::record_startup_marker();
         app
+    }
+
+    /// WP-KERNEL-012 MT-082: create the MT-081 shared-memory ring for this session and install its
+    /// writer onto the process-global diagnostics recorder. Returns the [`DiagSession`](crate::
+    /// diagnostics::DiagSession) (session id + ring backing-file path) MT-094 hands to Palmistry, or
+    /// `None` if ring creation/install failed (graceful degradation — the app then records
+    /// in-process-only and never crashes on a missing/unwritable ring; RISK-002-5 / AC-002-3).
+    fn install_diagnostics_ring() -> Option<crate::diagnostics::DiagSession> {
+        let session_id = uuid::Uuid::new_v4().to_string();
+        let ring_path = handshake_diag_ring::default_backing_path(&session_id);
+        match handshake_diag_ring::DiagRingWriter::create(
+            &ring_path,
+            handshake_diag_ring::DEFAULT_CAPACITY,
+        ) {
+            Ok(writer) => {
+                if crate::diagnostics::install(writer) {
+                    tracing::info!(
+                        session_id = %session_id,
+                        ring_path = %ring_path.display(),
+                        "internal_diagnostics ring installed (Tier 2 -> Palmistry visible)"
+                    );
+                    Some(crate::diagnostics::DiagSession {
+                        session_id,
+                        ring_path,
+                    })
+                } else {
+                    // The global recorder was already initialized (e.g. an early `record()` before this
+                    // install). The ring writer cannot be retrofitted; degrade to in-process-only.
+                    tracing::warn!(
+                        "internal_diagnostics ring writer could not be installed (recorder already \
+                         initialized); diagnostics are in-process-only this session"
+                    );
+                    None
+                }
+            }
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    ring_path = %ring_path.display(),
+                    "internal_diagnostics ring creation failed; diagnostics are in-process-only this \
+                     session (graceful degradation)"
+                );
+                None
+            }
+        }
+    }
+
+    /// WP-KERNEL-012 MT-082: record the single live startup marker (a [`DiagEventCode::PaneMounted`]
+    /// `Start` event) through the OPEN `record()` API. Called once at the end of [`HandshakeApp::new`];
+    /// this is the live consumer that proves the diagnostics pipe is wired in the shipped binary.
+    fn record_startup_marker() {
+        let now_nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos() as u64)
+            .unwrap_or(0);
+        crate::diagnostics::record_with(
+            handshake_diag_ring::DiagEventCode::PaneMounted,
+            handshake_diag_ring::DiagPhase::Start,
+            handshake_diag_ring::DiagSeverity::Info,
+            /* thread_id    */ 0,
+            /* sequence_id  */ 0,
+            /* counter_a    */ 0,
+            /* counter_b    */ 0,
+            /* metric_micros*/ 0,
+            now_nanos,
+        );
+    }
+
+    /// WP-KERNEL-012 MT-082: the per-session diagnostic identity (session id + MT-081 ring backing-file
+    /// path) for this shell, or `None` if no ring was created (headless/test shell or ring-creation
+    /// failure). MT-094 reads this to launch `palmistry.exe` against the SAME ring.
+    pub fn diag_session(&self) -> Option<&crate::diagnostics::DiagSession> {
+        self.diag_session.as_ref()
     }
 
     /// Bind the MCP transport (MT-027) on the app's tokio runtime and store the handle. Logged + non-fatal
@@ -1421,6 +1516,10 @@ impl HandshakeApp {
             health_status: state,
             rt,
             health_handle: None,
+            // Headless/test shell: NO diagnostics ring writer is created (graceful degradation — the
+            // process-global recorder buffers in-process only; a test that wants ring read-back installs
+            // its own writer directly). MT-082 AC-002-3.
+            diag_session: None,
             current_theme: HsTheme::Dark,
             last_applied_theme: None,
             pane_registry: Arc::new(Mutex::new(seeded_registry())),
