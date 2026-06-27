@@ -168,6 +168,19 @@ pub struct HandshakeApp {
     /// [`HandshakeApp::set_extra_frame_work_for_test`]. The measurement wraps `self.ui(ctx)`, so the
     /// injected sleep lands INSIDE the measured work window exactly like real heavy UI work would.
     extra_frame_work_micros: u64,
+    /// WP-KERNEL-012 MT-086 (D2 — internal_diagnostics, Tier 2 resource counters, §5.8.2/§5.8.4). The
+    /// per-process CPU%/RSS sampler, ticked once per [`eframe::App::update`] frame behind a bounded ~1s
+    /// cadence gate (NOT every frame). It refreshes ONLY this process's pid and emits a typed
+    /// `ResourceSample` event each interval so the Diagnostics Panel (MT-087) shows the resource line and
+    /// Palmistry (Tier 3) sees CPU/RSS on the ring. The same sampler runs in the headless shell (the
+    /// emit is an in-process buffer record only when no ring writer is installed).
+    resource_sampler: crate::diagnostics::ResourceSampler,
+    /// WP-KERNEL-012 MT-086: the STATIC GPU/driver identity captured ONCE in [`HandshakeApp::new`] from
+    /// `cc.wgpu_render_state` (the EXISTING eframe wgpu adapter — no second device). `Some` in the wgpu
+    /// production/kittest shell; `None` in the headless `with_health` shell (no `CreationContext`). The
+    /// integer codes (vendor/device/device_type/backend) are ring-safe; the human driver strings live
+    /// here ONLY for the panel's hardware line (never pushed into the typed ring — AC-006-3).
+    gpu_info: Option<crate::diagnostics::GpuInfo>,
     /// Active base theme. Toggled by the top-bar button; not persisted in MT-003.
     current_theme: HsTheme,
     /// Last theme actually pushed to egui via `apply_to_ctx` (CONTROL-1: only re-apply on
@@ -1275,6 +1288,22 @@ impl HandshakeApp {
         // install, we log a warning and continue WITHOUT a writer — diagnostics stay in-process-only and
         // the shell still opens. `diag_session` is `Some` only when the ring was actually created.
         let diag_session = Self::install_diagnostics_ring();
+        // WP-KERNEL-012 MT-086 (D2 — internal_diagnostics, Tier 2): capture the STATIC GPU/driver
+        // identity ONCE from the already-initialized eframe wgpu render state (`cc.wgpu_render_state`).
+        // This reads the EXISTING adapter eframe created (no second wgpu device — RISK-006-5) and is
+        // `None` only when there is no wgpu render state (a non-wgpu/headless harness). The integer codes
+        // are ring-safe; the human strings stay in the in-process GpuInfo for the panel (AC-006-3).
+        let gpu_info = crate::diagnostics::GpuInfo::capture(cc);
+        if let Some(gpu) = &gpu_info {
+            tracing::info!(
+                vendor_id = gpu.vendor_id,
+                device_id = gpu.device_id,
+                device_type_code = gpu.device_type_code,
+                backend_code = gpu.backend_code,
+                adapter = %gpu.name,
+                "internal_diagnostics GPU identity captured (Tier 2 §5.8.2 resource counters)"
+            );
+        }
         let mut app = Self {
             health_status: HealthDisplayState::Loading,
             rt,
@@ -1289,6 +1318,10 @@ impl HandshakeApp {
             // WORK time of `self.ui(ctx)` once per frame; no synthetic test work in production.
             frame_timer: crate::diagnostics::FrameTimer::new(),
             extra_frame_work_micros: 0,
+            // MT-086: the per-process CPU%/RSS sampler (current pid only) ticked at a bounded ~1s cadence
+            // in `update`, and the GPU identity captured once above from cc.wgpu_render_state.
+            resource_sampler: crate::diagnostics::ResourceSampler::new(),
+            gpu_info,
             // Desktop default mirrors the React app's dark default.
             current_theme: HsTheme::Dark,
             last_applied_theme: None,
@@ -1536,6 +1569,21 @@ impl HandshakeApp {
         self.frame_timer.stats()
     }
 
+    /// WP-KERNEL-012 MT-086: the STATIC GPU/driver identity captured once at startup from
+    /// `cc.wgpu_render_state` (the Diagnostics Panel's hardware line, §5.8.4). `Some` when the shell was
+    /// built on the wgpu renderer (production + the wgpu kittest harness); `None` in the headless
+    /// `with_health` shell. Exposed so the panel and the AC-006-3 kittest read the captured identity.
+    pub fn gpu_info(&self) -> Option<&crate::diagnostics::GpuInfo> {
+        self.gpu_info.as_ref()
+    }
+
+    /// WP-KERNEL-012 MT-086: how many CPU/RSS resource samples have been taken + emitted so far. Advances
+    /// at the bounded ~1s cadence (NOT per frame). Exposed so the AC-006-4 kittest can assert the sampler
+    /// is bounded (sample count grows far slower than the frame count over many stepped frames).
+    pub fn resource_sample_count(&self) -> u64 {
+        self.resource_sampler.sample_count()
+    }
+
     /// WP-KERNEL-012 MT-085 TEST SEAM: inject `micros` of extra synthetic WORK INSIDE `self.ui(ctx)` on
     /// every subsequent frame so a kittest can drive a REAL slow frame from the live frame path
     /// (AC-005-2) and prove the SlowFrame flag fires from production code — NOT by feeding the
@@ -1626,6 +1674,11 @@ impl HandshakeApp {
             // buffer record only — the live-frame kittest reads it back via `diagnostics::snapshot_last_n`).
             frame_timer: crate::diagnostics::FrameTimer::new(),
             extra_frame_work_micros: 0,
+            // MT-086: the headless shell runs the SAME CPU/RSS sampler (current pid only) on the same
+            // bounded cadence; with no ring writer installed the ResourceSample emit is an in-process
+            // buffer record only. No `CreationContext` here, so no GPU identity is captured (gpu_info None).
+            resource_sampler: crate::diagnostics::ResourceSampler::new(),
+            gpu_info: None,
             current_theme: HsTheme::Dark,
             last_applied_theme: None,
             pane_registry: Arc::new(Mutex::new(seeded_registry())),
@@ -7029,6 +7082,17 @@ impl eframe::App for HandshakeApp {
         // happens on a debounced slow frame. The emit goes through the OPEN MT-082 recorder, so it lands
         // in the in-process buffer (panel) AND the MT-081 ring (Palmistry) when a writer is installed.
         self.frame_timer.record_frame_live(frame_work);
+
+        // WP-KERNEL-012 MT-086 (D2 internal_diagnostics, Tier 2 — resource counters, §5.8.2/§5.8.4).
+        //
+        // Sample per-process CPU%/RSS at a BOUNDED ~1s cadence (NOT every frame — RISK-006-2): on a
+        // non-sampling frame this is a single `Instant` comparison and nothing else; at the bounded
+        // cadence it refreshes ONLY this process's pid (RISK-006-3 — never the whole system table) and
+        // emits one typed `ResourceSample` event through the OPEN MT-082 recorder (in-process buffer +
+        // the MT-081 ring when a writer is installed). The single-process refresh at a ~1s cadence is
+        // cheap enough to run inline on the frame without stuttering (no extra thread — AC-006-4). CPU%
+        // needs the interval between two refreshes to be meaningful, which the cadence provides.
+        self.resource_sampler.maybe_sample_live();
 
         // MT-027: publish the just-rendered UI tree into the shared MCP snapshot slot so the server's
         // `list_widgets` returns the live tree and `click_widget`/`set_value` resolve against it. This

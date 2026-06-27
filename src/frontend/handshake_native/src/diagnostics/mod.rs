@@ -41,13 +41,20 @@
 // Palmistry watches). Wired into the live frame loop in `crate::app::HandshakeApp::update` (after
 // `self.ui(ctx)`, measuring its WORK time so the MT-084 idle keep-alive is NOT mis-flagged as slow).
 pub mod frame_timing;
+pub mod gpu_info;
 pub mod panic_hook;
 pub mod recorder;
+pub mod resource_counters;
 
 // MT-085 re-exports so the panel + the app can `use crate::diagnostics::{FrameTimer, FrameStats, ...}`.
 pub use frame_timing::{
     FrameStats, FrameTimer, FRAME_RING_CAPACITY, SLOW_FRAME_EMIT_DEBOUNCE, SLOW_FRAME_THRESHOLD,
 };
+
+// WP-KERNEL-012 MT-086 (D2 — internal_diagnostics, Tier 2 §5.8.2 resource counters) re-exports so the
+// panel + the app can `use crate::diagnostics::{ResourceSampler, ResourceSample, GpuInfo, ...}`.
+pub use gpu_info::GpuInfo;
+pub use resource_counters::{ResourceSample, ResourceSampler, SAMPLE_INTERVAL};
 
 // Public re-exports so any module can `use crate::diagnostics::{record, record_with, ...}` without
 // reaching into the `recorder` submodule path.

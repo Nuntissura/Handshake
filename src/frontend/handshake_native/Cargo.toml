@@ -280,6 +280,19 @@ unicode-bidi = "0.3"
 # own `[workspace]` exactly like this crate). NO new transitive HTTP/server/egui stack — the ring crate
 # is pure substrate (memmap2 + bytemuck + serde only). Cargo.lock pins the resolved path dep.
 handshake-diag-ring = { path = "diag_ring" }
+# WP-KERNEL-012 MT-086 (D2 — internal_diagnostics, Tier 2 §5.8.2 resource counters): `sysinfo` is
+# PROMOTED here from a [dev-dependencies]-only entry to a real runtime dependency so the live
+# `ResourceSampler` (src/diagnostics/resource_counters.rs) reads per-process CPU%/RSS at runtime. It is
+# the canonical cross-platform Rust system-metrics crate (Windows GetProcessMemoryInfo, Linux /proc,
+# macOS task_info) with NO per-OS windows-sys feature add. VERSION (AC-006-5 — no duplicate family): it
+# is pinned to the SAME line (0.33) the MT-045 perf-suite dev-dep already locks (Cargo.lock pins
+# sysinfo 0.33.1), so the runtime dep + the dev-dep resolve to a SINGLE sysinfo core — `cargo tree -d
+# -p handshake-native` shows no duplicate. (crates.io latest is 0.39.5 as of 2026-06-27; the same-line
+# 0.33 pin is the no-dup choice the MT recommends and is taken here.) The sampler refreshes ONLY the
+# current pid (never the system process table). Pure-Rust per-OS metrics; Cargo.lock pins the version.
+# wgpu is NOT added: the GPU identity (src/diagnostics/gpu_info.rs) reaches the adapter through eframe's
+# own `eframe::wgpu` re-export of the SAME wgpu eframe already links — no new device, no new dep.
+sysinfo = "0.33"
 
 # MT-027 production screenshot: the live OS-window grab uses Win32 GDI `PrintWindow` (focus-safe — never
 # SetForegroundWindow/BringWindowToTop). `windows-sys` is already in the locked graph transitively; here
@@ -338,9 +351,12 @@ object = "0.36"
 # LR-06 (1k-block rich doc) memory-budget scenarios measure the process RSS delta before vs after a load
 # + highlight pass. `sysinfo` is the cross-platform RSS reader (Linux /proc, Windows GetProcessMemoryInfo,
 # macOS task_info) so the SAME memory proof runs on every host without a per-OS windows-sys feature add to
-# the PRODUCT dependency block (keeping the runtime crate's feature set unchanged). It is a TEST-ONLY
-# dependency (perf suite under tests/). The RSS reading is taken as the MEDIAN of 3 measurements (RISK-5 /
+# the PRODUCT dependency block. The RSS reading is taken as the MEDIAN of 3 measurements (RISK-5 /
 # CTRL-5) because RSS is noisy (allocator page pre-reservation varies run to run).
+# WP-KERNEL-012 MT-086: sysinfo is now ALSO a runtime [dependencies] entry (the live ResourceSampler),
+# pinned to the SAME 0.33 line here so dev + runtime resolve to a SINGLE sysinfo core (cargo unifies the
+# version across [dependencies] and [dev-dependencies]) — no duplicate family (AC-006-5). This dev-dep
+# declaration is kept so the perf suite's intent stays documented; both point at the one locked 0.33.1.
 sysinfo = "0.33"
 
 # WP-KERNEL-012 MT-074 (E10 other-pillar interop proof suite): the contract mandates registering the
