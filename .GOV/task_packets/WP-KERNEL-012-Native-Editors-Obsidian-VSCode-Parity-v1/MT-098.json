@@ -1,0 +1,139 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-098",
+  "title": "U2-MT-098-ChatboxPaneBesideWorksurface",
+  "group": "U1 Usable-Product Expansion (notes+chat worksurface, §product-vision 2026-06-27)",
+  "created_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-098.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-097"
+    ],
+    "blocks": [
+      "MT-104"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "OPERATOR PRODUCT-VISION STEER (2026-06-27): the worksurface is notes editors (MT-097) WITH A CHATBOX BESIDE IT — the Cursor / VS-Code / Antigravity editor+chat layout. This MT adds the CHAT panel as a first-class pane docked beside the editors so the fresh default worksurface shows EDITOR(S) + CHAT side by side.\n\nVERIFIED STATE (live-app inspection 2026-06-27): there is NO existing native chat pane (no runtime_chat / ChatPane surface in src/frontend/handshake_native). A chat surface EXISTS only in the legacy React app via Tauri IPC (app/src/components/swarm/OperatorChat.tsx + app/src-tauri kernel_swarm_chat_generate / session_chat_append / session_chat_read), NOT as a backend HTTP route. There is NO /chat or /conversation HTTP endpoint on handshake_core (verified absent in src/backend/handshake_core/src/api/mod.rs). So the SEND/RECEIVE ROUND-TRIP backend route over the native HTTP client is GENUINELY ABSENT.\n\nWhat to build (a REAL chat pane scaffold wired to the real route IF one exists, else a HONEST typed blocker — NOT a mock that fakes responses):\n- CREATE src/frontend/handshake_native/src/runtime_chat/ (mod.rs + panel.rs): a `ChatPanel` egui widget — a scrollback transcript (a Vec<ChatTurn{role, text}>) + a multiline input box + a Send button. Theme tokens only (no Color32 outside theme/palette.rs — CONTROL-4). AccessKit: register the pane container as Role::Region with author_id = \"runtime-chat-panel\", the input as `runtime-chat-input` (TextInput), and the send button as `runtime-chat-send` (Button) so a no-context model + swarm agents can drive it (HBR-VIS/SWARM).\n- CREATE `ChatPaneFactory` (impl crate::pane_registry::PaneFactory) following the editor_pane_factories.rs MT-079 host-mount pattern (a thin factory whose &self render drives a shared Arc<Mutex<ChatPanel>> the shell also holds). Add a `PaneType::RuntimeChat` variant to pane_registry.rs PaneType (arms in BOTH `label()` => \"Chat\" and `default_label()` => \"Chat\"; the compiler enforces exhaustiveness — do not miss one). Register the real ChatPaneFactory in app.rs over the PaneType::RuntimeChat placeholder (alongside install_editor_mounts).\n- WIRE THE SEND PATH to the REAL backend route: inspect backend_client.rs for an existing reusable client; the BACKEND HTTP CHAT ROUTE IS VERIFIED ABSENT, so the Send action records a TYPED BLOCKER (a typed `ChatSendError::EndpointMissing` returned from a `RuntimeChatClient` whose `production()` ctor documents the absent route), and the panel renders an HONEST empty-state / disabled-send banner ('Chat backend route absent — wired when handshake_core exposes POST /chat or the IPC bridge is reachable'). DO NOT fabricate an assistant reply. If, on inspection, a reachable HTTP send/receive route is found (e.g. a /jobs-backed or new chat route), wire the Send -> real POST and round-trip a message instead; prefer the real wire when a route exists.\n- EDIT app.rs `default_panes()` (post-MT-097): ADD `(\"pane-c\", PaneType::RuntimeChat)` so the fresh default worksurface is CodeSymbol + LoomWikiPage + RuntimeChat (editor(s) + chat side by side). default_tab_bar_states() auto-tracks. Verify the SplitLayoutWidget renders the three panes side by side (the chat docked beside the editors).\n- CREATE src/frontend/handshake_native/tests/test_runtime_chat_pane.rs.\n\nReuse notes: the PaneFactory trait + the shared-cell `&self render` threading + the factory-map registration are the EXISTING MT-079 editor-mount pattern (editor_pane_factories.rs is the worked reference). The accessibility registry + theme layer are reused (accessibility/registry.rs, theme/palette.rs). backend_client.rs is the reuse-via-API surface for any real route. src/backend untouched.\n\nRisk if missed: a chat pane that fakes assistant replies (a mock) would violate the no-mock Spec-Realism Gate; an absent route must be an HONEST typed blocker + disabled-send empty-state, not a fabricated round-trip.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/runtime_chat/mod.rs",
+      "src/frontend/handshake_native/src/runtime_chat/panel.rs",
+      "src/frontend/handshake_native/src/pane_registry.rs",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/lib.rs",
+      "src/frontend/handshake_native/tests/test_runtime_chat_pane.rs"
+    ],
+    "forbidden_paths": [
+      "src/backend/** (reuse via API only — no new backend chat route in this MT)",
+      "src/backend/handshake_core/src/flight_recorder/** (FR kept as-is)",
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-098-1 (REAL CHAT PANE, prove first): a `ChatPaneFactory` is registered in app.rs over PaneType::RuntimeChat (PlaceholderPaneFactory NO LONGER used for it) — proven by a kittest that drives the live HandshakeApp, mounts/opens the chat pane, and asserts the REAL chat AccessKit subtree renders (author_id='runtime-chat-panel' Region with the runtime-chat-input TextInput + runtime-chat-send Button), NOT a placeholder node. A wgpu screenshot of the mounted chat pane beside the editor(s) is saved to the EXTERNAL artifact root.",
+      "AC-098-2 (EDITOR + CHAT SIDE BY SIDE): the FRESH default worksurface shows the code editor + rich editor + chat pane (default_panes seeds CodeSymbol + LoomWikiPage + RuntimeChat) — proven by a kittest asserting all three pane subtrees present in the live default tree and the chat pane renders beside the editors (no starved/blank rect).",
+      "AC-098-3 (REAL SEND PATH OR HONEST TYPED BLOCKER): the Send action routes through a real `RuntimeChatClient` (backend_client.rs). EITHER (a) a reachable HTTP send/receive route exists and a message ROUND-TRIPS through the real path (the user's typed message appears as a turn AND a real backend response turn is appended) — proven by a kittest typing into runtime-chat-input + clicking runtime-chat-send + observing the round-trip; OR (b) the backend route is verified ABSENT and the Send returns a typed `EndpointMissing`/`ChatSendError` and the panel shows an HONEST disabled-send empty-state banner — proven by a test asserting the typed-blocker path (NO fabricated assistant reply). Exactly one of (a)/(b), chosen by what the live backend actually exposes (verified ABSENT today => path (b) expected).",
+      "AC-098-4: AccessKit nodes present (runtime-chat-panel + runtime-chat-input + runtime-chat-send) so a swarm agent can drive the chat via the MCP set_value/click_widget tools; no perpetual spinner; NO Color32 literal outside theme/palette.rs (CONTROL-4 green); the panel uses theme tokens only.",
+      "AC-098-5: adding PaneType::RuntimeChat compiles (arms added in BOTH label() and default_label() in pane_registry.rs — exhaustiveness); `cargo build -p handshake-native` (lib + bins) clean; clippy `--all-targets -D warnings` clean; full suite `-j 2` green; external CARGO_TARGET_DIR; `git ls-files src/**/*.png` empty."
+    ],
+    "proof_targets": [
+      "PT-098-A: kittest drives the live HandshakeApp, mounts the chat pane, asserts the REAL chat AccessKit subtree (runtime-chat-panel + input + send, not placeholder) + saves a wgpu screenshot of editor+chat side by side to the external root.",
+      "PT-098-B: kittest asserts the fresh default worksurface has all three pane subtrees (code + rich + chat) and the chat pane renders a real body beside the editors.",
+      "PT-098-C: kittest proves EITHER a real send round-trip (real backend response turn appended) OR the typed EndpointMissing blocker + honest disabled-send empty-state (no fabricated reply). One or the other, by the live backend.",
+      "PT-098-D: AccessKit ids present (panel/input/send); CONTROL-4 no-Color32 green; cargo build --lib --bins clean + clippy -D warnings clean + full suite -j 2 green; git ls-files src/**/*.png empty."
+    ],
+    "implementation_notes": [
+      "Use the EXTERNAL CARGO_TARGET_DIR (Handshake_Artifacts/handshake-native-target); NEVER a repo-local target/. Run the full suite with -j 2.",
+      "Follow editor_pane_factories.rs (MT-079) as the worked host-mount reference: register ChatPaneFactory in the factory map keyed on the new PaneType::RuntimeChat; the &self render drives a shared Arc<Mutex<ChatPanel>> the shell also holds (so a kittest can drive the SAME chat state the pane shows — the AC-098 proofs need the real panel behind the factory).",
+      "HONESTY (no-mock Spec-Realism Gate): the backend chat HTTP route is VERIFIED ABSENT (only Tauri IPC kernel_swarm_chat_generate exists; no /chat on handshake_core). So the Send MUST be a typed blocker + honest disabled-send empty-state, NOT a fabricated assistant reply. Do NOT add a fake response generator. If on inspection a reachable HTTP route is genuinely found, wire the real send/receive instead (prefer the real wire).",
+      "The typed blocker is the MT-079/080 EndpointMissing pattern: a `RuntimeChatClient::production()` whose send returns `Err(ChatSendError::EndpointMissing)`; the panel shows the route-absent banner. The user's typed message MAY still appear as a local pending turn, but NO assistant turn is synthesized.",
+      "Adding PaneType::RuntimeChat requires arms in BOTH the label() and default_label() match statements in pane_registry.rs (the compiler enforces exhaustiveness — do not miss one).",
+      "depends_on MT-097 (the notes-only default must land first; this MT extends default_panes to add the chat pane as pane-c). blocks MT-104 (the manual documents the notes+chat worksurface).",
+      "Screenshots ONLY to the external Handshake_Artifacts/handshake-test/wp-kernel-012-mt-098/ root; git ls-files src/**/*.png must stay empty.",
+      "Read the KERNEL_BUILDER coder protocol under .GOV/ first; visually inspect the editor+chat screenshot (GLOBAL-INSPECT) before declaring the side-by-side layout correct."
+    ],
+    "ports_from_react": [
+      "app/src/components/swarm/OperatorChat.tsx + app/src/lib/sessionChat.ts (the React operator-chat transcript/input is REFERENCE for layout only; this is a native pane, and the native backend chat HTTP route is absent)."
+    ],
+    "binds_backend_api": [
+      "ATTEMPTED: a real chat send/receive route. VERIFIED ABSENT in handshake_core HTTP (only Tauri IPC kernel_swarm_chat_generate exists). So the send is a typed EndpointMissing blocker + honest disabled-send empty-state until a HTTP chat route (or a reachable IPC bridge) exists. No new backend route built here. PostgreSQL/EventLedger only; no SQLite."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-VIS",
+    "HBR-SWARM",
+    "HBR-MAN"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "status": "NOT_APPLICABLE",
+      "reason": "The chat pane is a UI surface with a typed-blocker send path; it does not read or write the Flight Recorder. FR stays as-is/forbidden."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "NOT_APPLICABLE",
+      "reason": "This MT does not emit internal_diagnostics events; it is a chat pane scaffold + a typed EndpointMissing blocker. (A later MT could record a BackendUnreachable diag event on a failed send, but that is not required here.)"
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "NOT_APPLICABLE",
+      "reason": "No freeze/crash/debris record path is touched by adding a chat pane."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "USABLE_PRODUCT_WORKSURFACE_V1",
+    "risks": [
+      "RISK-098-1: the pane fabricates assistant replies (a mock) because the real backend route is absent — violates the no-mock Spec-Realism Gate. Mitigate: AC-098-3 requires EITHER a real round-trip OR a typed EndpointMissing blocker with NO synthesized assistant turn.",
+      "RISK-098-2: the pane is built as a widget but never host-mounted, so it never renders in the live app (MT-079 RISK-2 'mounted but not consumed'). Mitigate: AC-098-1 live-app mount proof + screenshot.",
+      "RISK-098-3: missing a match arm when adding PaneType::RuntimeChat breaks the build. Mitigate: add arms in both label() and default_label() (compiler-enforced exhaustiveness); AC-098-5.",
+      "RISK-098-4: a Color32 literal breaks CONTROL-4. Mitigate: theme tokens only; AC-098-4.",
+      "RISK-098-5: the three-pane default starves/blanks a pane in the split. Mitigate: AC-098-2 proves all three render a real body beside each other.",
+      "RISK-098-6: a tracked PNG leaks. Mitigate: external-only screenshots; git ls-files src/**/*.png empty (AC-098-5)."
+    ],
+    "minimum_controls": [
+      "MC-098-1: live-app chat-pane mount + screenshot of editor+chat side by side (AC-098-1/2).",
+      "MC-098-2: real send round-trip OR honest typed EndpointMissing blocker (no fabricated reply) (AC-098-3).",
+      "MC-098-3: AccessKit ids for swarm steering + CONTROL-4 theme (AC-098-4).",
+      "MC-098-4: exhaustiveness + external target + no tracked PNG + full suite -j 2 green (AC-098-5)."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-KERNEL-012 product-vision steer (operator, 2026-06-27); live-app inspection (no native chat pane exists; backend HTTP chat route verified ABSENT, only Tauri IPC kernel_swarm_chat_generate + session_chat_* in app/src-tauri).",
+    "field_stack": "Cursor / VS Code (Copilot Chat) / Antigravity editor+chat docked-pane layout: a chat panel as a first-class dockable pane beside the editor work surface. Reuses the WP-011/MT-079 PaneFactory host-mount pattern + the accessibility registry + theme layer + backend_client.rs reuse-via-API surface. No new subsystem.",
+    "crate_versions_verified_2026_06_27": {
+      "egui_eframe_kittest": "0.33 (already pinned)"
+    },
+    "motivating_incident": "Operator product vision: Handshake should work like Obsidian + VS Code / Cursor / Antigravity — a work surface (notes) with a chatbox beside it. The native frontend has no chat pane today.",
+    "validation_plan": "live-app chat-pane mount + screenshot (editor+chat side by side) + real send round-trip OR typed EndpointMissing blocker (no fabricated reply) + AccessKit ids + CONTROL-4; clippy -D warnings; full suite -j 2."
+  }
+}

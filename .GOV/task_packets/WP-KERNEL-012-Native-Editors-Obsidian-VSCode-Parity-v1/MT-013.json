@@ -25,10 +25,15 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-011", "MT-012"],
-    "blocks": ["MT-016"],
+    "depends_on": [
+      "MT-011",
+      "MT-012"
+    ],
+    "blocks": [
+      "MT-016"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -72,7 +77,11 @@
       "The toolbar does not own the DocModel; it receives a reference to the RichEditorState (doc, undo, selection) and calls formatting commands on it. No global mutable state.",
       "AccessKit: toolbar buttons must get Actions::Click (egui's AccessKit integration calls this when a screen reader activates the button). Use the egui AccessKit node builder API, integrating with the existing accessibility/ surface (accessibility/mod.rs, accessibility/registry.rs, accessibility/live.rs, accessibility/snapshot.rs) created in WP-KERNEL-011.",
       "Cross-WP reuse (WP-KERNEL-011): the shared selection/clipboard/command bus capability is provided by the existing command_registry.rs + event_bus.rs modules under src/frontend/handshake_native/src/; toolbar and keymap command activation should route through these rather than a new bus. Toolbar/menu surface patterns can additionally reuse top_menu_bar.rs and context_menu.rs / context_menu_surfaces.rs where applicable.",
-      "Do not implement a custom icon set in this MT; text glyphs are sufficient for the acceptance criteria. Icon asset integration is deferred to a later polish MT."
+      "Do not implement a custom icon set in this MT; text glyphs are sufficient for the acceptance criteria. Icon asset integration is deferred to a later polish MT.",
+      "SCOPE EXPANSION - CROSS-BLOCK STRUCTURAL EDITING (KERNEL_BUILDER gate 2026-06-22, operator-sanctioned 'expand scope if features are missing'): MT-012 deferred cross-block editing to 'MT-013 structural editing' but this contract only lists formatting/toolbar. A rich-text editor is unusable without it, so ADD the two core structural commands here (MT-013 owns the command layer + input_handler.rs): (a) Enter / InsertParagraphBreak -> MT-011 SplitNode at the caret (splits the current block into two; caret + Selection move to the start of the new block); (b) Backspace at caret offset 0 -> MT-011 MergeNodes (merge current block into the previous sibling; caret lands at the join point) - this closes MT-012's 'Backspace at offset 0 is a no-op' deferral. Both mutate the MODEL only (the MT-012 renderer re-renders the new tree; no block_renderer/caret.rs edit needed - set the post-op Selection in the command). Add a test: Enter splits a paragraph into two, Backspace-at-0 merges back, undo restores. Richer list-aware Enter (new list item / lift-out of empty item) may extend in a later E2 MT.",
+      "SCREENSHOT EXTERNAL PATH (CX-212E, KERNEL_BUILDER gate - same regression as MT-012): PT-2's mt013_toolbar.png MUST be written to the EXTERNAL root ../../../../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-013/ via the external_artifact_dir() pattern (see tests/test_code_editor_panel.rs / test_keymap.rs), NOT the repo-local tests/screenshots/ the contract literally names. Add assert_no_local_artifact_dir() (guards test_output/ AND tests/screenshots/) to the toolbar screenshot test. A tracked PNG under src/ is a hygiene FAILURE (the pipeline now also fails the MT on `git ls-files src/**/*.png`).",
+      "BACKEND NODE-SHAPE ANCHOR (MT-011 hsLink lesson, KERNEL_BUILDER gate): list/table/task_item commands MUST produce the node/attr shapes the REAL backend content_json uses - read the app/src parity reference (editor_commands.ts + the Tiptap node defs, e.g. taskItem 'checked' attr, table/tableRow/tableCell + 'colspan'/'rowspan'/header attrs) so toggle_task_list/insert_table round-trip via MT-011 DocJson without UnknownNodeType. Do NOT guess attr names; anchor to the captured backend shape (the same way MT-011's hsLink/refKind fix did).",
+      "COMMAND DISPATCH REALITY (KERNEL_BUILDER gate): toolbar/keymap commands MUST work STANDALONE by calling the command fns directly on the local RichEditorState (doc/undo/selection) - the WP-011 command_registry/event_bus host Sender is NOT wired into the editor until E11/MT-069 (carried forward from MT-010), so routing through the bus is ADDITIVE/optional, never the only path. Active-state check iterates the FULL Selection range across all overlapping TextLeaf nodes (MC-001), set_heading guards context (MC-002), insert_table rejects nesting (MC-003). ACCESSKIT VARIANT: Role::Button - field-correct nearest accesskit 0.21.1 variant if it differs; ACs assert author_id."
     ],
     "ports_from_react": [
       "app/src/lib/editor/editor_commands.ts (EDITOR_COMMANDS array: full catalog of command ids, labels, categories, keyboard hints; this MT must achieve command-for-command parity for categories format/block/list/table/tableEdit/history)",
@@ -83,7 +92,11 @@
       "No direct backend API calls. Formatting commands mutate the in-memory DocModel. Persistence is handled by MT-020."
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -105,5 +118,29 @@
       "Keyboard shortcut conflicts: document the 3 known platform-specific conflicts (Ctrl+U on Windows opens browser underline in web context; N/A for native) in a code comment; wrap key dispatch in egui's consume_key to prevent bubbling.",
       "Overflow popup must use egui::popup_below_widget with a stable id (Id::new('toolbar-overflow')) to prevent close-on-next-frame; kittest verifies popup stays open for at least 2 frames."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-012 carry-forward + MT-011 hsLink lesson + MT-010 host-Sender carry",
+    "corrections": [
+      "expand scope: add Enter-split + Backspace-at-0-merge cross-block structural editing (missing core feature)",
+      "screenshot to external artifact root not repo-local",
+      "backend node-shape anchor for list/table/task_item attrs",
+      "commands work standalone on RichEditorState; bus routing additive (host Sender is E11)",
+      "accesskit variant; full-range active-state; context/nesting guards"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_abbcd673 (impl + adversarial-review PASS, no harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "9cb1e403 feat MT-013 formatting commands + toolbar + keymap + structural editing",
+      "78a5d854 feat clippy-clean the formatting test"
+    ],
+    "review_verdict": "PASS (reviewer re-ran proofs + inspected; no must_fix)",
+    "scope_expansion_delivered": "CROSS-BLOCK STRUCTURAL EDITING added per KERNEL_BUILDER gate: Enter -> InsertParagraphBreak (MT-011 SplitNode) + Backspace-at-0 -> merge-with-previous (MT-011 MergeNodes), wired in input_handler.rs, closing MT-012's deferral. Confirmed in commit + self-attack.",
+    "proofs": "AC-1..12 GREEN; 32 formatting lib + 7 integration tests; full suite 1024 pass; clippy --all-targets clean; toolbar (history|format|block|list|table groups + overflow + active-state B/paragraph highlight) visually verified above the rendered doc; AccessKit toolbar-btn-* Role::Button; Ctrl+B via real input_handler.",
+    "artifact_hygiene_clean": "mt013_toolbar.png written to the EXTERNAL Handshake_Artifacts/handshake-test/wp-kernel-012-mt-013/ root (NOT repo-local - the pipeline hardening + contract patch worked); git ls-files src/**/*.png EMPTY; assert_no_local_artifact_dir() guards test_output/ + tests/screenshots/; no leakage.",
+    "surfaced_mt011_gap": "BACKEND-COMPAT GAP (honest, same class as MT-011 hsLink): the real backend content_json uses a distinct 'tableHeader' NODE type for header cells, but MT-011 NodeKind has only TableCell. MT-013 represents headers as TableCell attrs.isHeader:true (round-trips as all-tableCell), but a React-authored doc with literal tableHeader nodes deserializes as UnknownNodeType in MT-011 doc_json. FIX carried to MT-016 (backend round-trip owner): add a TableHeader NodeKind variant + doc_json json_to_block/block_to_json mapping in MT-011 node.rs/doc_json.rs.",
+    "path_note": "Module root is src/rich_editor/ (created by MT-011/012), NOT src/rich_text/ as the E2 contracts literally say; agent correctly anchored to the real tree (CODER_RUBRIC dim 3). Applies to all remaining E2 MTs."
   }
 }

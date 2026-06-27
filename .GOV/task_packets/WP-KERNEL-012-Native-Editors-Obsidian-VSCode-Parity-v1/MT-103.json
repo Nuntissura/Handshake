@@ -1,0 +1,138 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-103",
+  "title": "U7-MT-103-ForegroundSafeFrontEndNavigation",
+  "group": "U1 Usable-Product Expansion (notes+chat worksurface, §product-vision 2026-06-27)",
+  "created_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-103.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-097",
+      "MT-102"
+    ],
+    "blocks": [
+      "MT-104"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "OPERATOR: drive + test the GUI (open panes, click widgets, type) WITHOUT stealing the operator's mouse/keyboard or foreground (HBR-QUIET / focus_guard). A model must be able to navigate Handshake's front end programmatically with NO OS foreground/input-injection so it can work in parallel while the operator keeps using their machine.\n\nVERIFIED STATE (live-app inspection 2026-06-27): the foreground-safe primitives EXIST — this is a REAL WIRE + EXPAND, not a typed blocker:\n- MCP navigation tools (src/frontend/handshake_native/src/mcp/tools.rs): click_widget{target:author_id} (enqueues an accesskit::ActionRequest onto an ActionChannel, drained into egui events — NO OS input injection), set_value{target, value} (focuses the field + feeds egui::Event::Text — egui 0.33 has no SetValue action so it is keyboard-focus + text payload, NO OS SendInput). list_widgets gives the addressable author_id inventory. The dispatch is dispatch_request(...) in tools.rs; resolution is resolve_target in mcp/action.rs.\n- The focus guard (src/frontend/handshake_native/src/quiet_mode/focus_guard.rs): ForegroundExceptionToken (the ONLY gate for a foreground exception, zero call sites in the shell = focus-safe by construction), BANNED_FOCUS_APIS (SetForegroundWindow/BringWindowToTop/SetActiveWindow/SwitchToThisWindow/AllowSetForegroundWindow/keybd_event/mouse_event/SendInput), assert_quiet_mode_installed().\n- The BINDING audit test: tests/test_focus_audit_quiet.rs (test_focus_audit_quiet) — a SOURCE-AUDIT that strips comments/strings from every src/**/*.rs and FAILS the build on any executable call to a banned Win32 foreground/input-injection API; also asserts popouts use with_active(false) (no focus theft on creation). This is the focus-audit test the proof must keep green.\n- The kittest action-drain loop (tests/test_mcp_tools.rs): channel.drain_into_events() -> harness.event() -> harness.run() drives the live app via the MCP actions with NO OS foreground.\n\nWhat to build (expand the MCP click_widget/set_value path into a model-drivable NAVIGATION sequence + prove the focus-audit stays clean):\n- ADD a foreground-safe NAVIGATION DRIVER (src/frontend/handshake_native/src/mcp/navigation.rs or extend the mcp surface via its public API — but mcp/** is MT-027-owned, so if a new file is needed put the driver in a NEW module that COMPOSES the mcp tools' public API): a `NavigationSequence` that a model can run — open a pane, click a widget by author_id, type into a field by author_id, focus a pane — entirely through the click_widget/set_value/list_widgets path (the ActionChannel + egui events), NEVER a Win32 foreground/SendInput call. It resolves targets by the stable author_id (from list_widgets), so a no-context model addresses controls deterministically.\n- PROVE a model-driven navigation sequence runs against the live HandshakeApp (the notes+chat worksurface from MT-097/098): e.g. open the rich/notes pane -> click a toolbar control by author_id -> set_value into the editor -> focus the chat input -> set_value into chat — all via the MCP path, and the live tree reflects the changes (the interconnect_support author_node_value reads the post-action state).\n- PROVE the FOCUS-AUDIT IS CLEAN: the navigation driver adds NO banned Win32 foreground/SendInput API; test_focus_audit_quiet.rs stays green (the source audit fails the build on any banned API). The model-driven sequence runs with the focus audit clean (no Win32 foreground/SendInput), which is the AC.\n- WIRE an internal_diagnostics event (optional but in-scope): the navigation driver MAY record a typed internal_diagnostics 'navigation_action' event via the MT-082 recorder so model-driven navigation is observable in the diagnostics panel — see hbr_int_009_tier_obligations.\n- CREATE src/frontend/handshake_native/tests/test_foreground_safe_navigation.rs.\n\nReuse notes: click_widget/set_value/list_widgets (mcp/tools.rs public API), resolve_target (mcp/action.rs), the ActionChannel drain loop (test_mcp_tools.rs pattern), the focus guard + BANNED_FOCUS_APIS (quiet_mode/focus_guard.rs), the focus audit (test_focus_audit_quiet.rs), the kittest harness (interconnect_support/mod.rs). src/backend untouched.\n\nRisk if missed: a model cannot navigate the front end without stealing the operator's foreground/input — the parallel-agent workflow is unsafe (HBR-QUIET / GLOBAL-BUILD-PARALLEL unmet).",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/mcp_navigation.rs",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/lib.rs",
+      "src/frontend/handshake_native/tests/test_foreground_safe_navigation.rs"
+    ],
+    "forbidden_paths": [
+      "src/frontend/handshake_native/src/mcp/** (MT-027-owned; reuse the click_widget/set_value/list_widgets PUBLIC API only)",
+      "src/frontend/handshake_native/src/quiet_mode/** (reuse the focus guard via API; do not weaken BANNED_FOCUS_APIS)",
+      "src/backend/** (reuse via API only)",
+      "src/backend/handshake_core/src/flight_recorder/** (FR kept as-is)",
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-103-1 (MODEL-DRIVEN NAVIGATION, prove first): a foreground-safe NavigationSequence drives the live HandshakeApp (the notes+chat worksurface) entirely through the MCP click_widget/set_value/list_widgets path — open a pane, click a widget by author_id, type into a field by author_id, focus a pane — and the live AccessKit tree reflects each action (the post-action widget value/focus is read back via the interconnect_support author_node_value helper). Proven by a kittest running the sequence + asserting the live-tree state changed as commanded (NOT a no-op).",
+      "AC-103-2 (FOCUS-AUDIT CLEAN — the headline proof): the navigation driver adds NO banned Win32 foreground/input-injection API (no SetForegroundWindow/SendInput/keybd_event/mouse_event/etc.) — proven by tests/test_focus_audit_quiet.rs staying GREEN (the source audit fails the build on any banned API). The model-driven navigation sequence runs with the focus audit CLEAN. This is the no-foreground-steal / no-input-injection acceptance.",
+      "AC-103-3 (TARGETS BY STABLE author_id): the driver resolves every target by the stable author_id from list_widgets (resolve_target), so a no-context model addresses controls deterministically — proven by a test resolving a known editor/chat author_id and driving it (an unknown id returns a typed not-found, not a panic).",
+      "AC-103-4 (NO OS INPUT, egui-events only): click is an enqueued accesskit::ActionRequest drained into egui events; set_value is keyboard-focus + egui::Event::Text — NEVER an OS SendInput/mouse_event — proven by AC-103-2 (the source audit) + a test asserting the driver's actions flow through the ActionChannel/egui-event path.",
+      "AC-103-5: `cargo build -p handshake-native` (lib + bins) clean; clippy `--all-targets -D warnings` clean; full suite `-j 2` green (incl. test_focus_audit_quiet.rs); external CARGO_TARGET_DIR; no Color32 literal outside theme/palette.rs (CONTROL-4); `git ls-files src/**/*.png` empty."
+    ],
+    "proof_targets": [
+      "PT-103-A: kittest runs a model-driven NavigationSequence (open pane / click by author_id / type by author_id / focus) against the live app + reads back the live-tree state to assert each action took effect.",
+      "PT-103-B: tests/test_focus_audit_quiet.rs green with the new driver present (no banned Win32 foreground/SendInput API added) — the no-foreground-steal proof.",
+      "PT-103-C: test resolves a target by stable author_id (resolve_target) + an unknown id returns a typed not-found (no panic); the actions flow through the ActionChannel/egui-event path (no OS input).",
+      "PT-103-D: cargo build --lib --bins clean + clippy -D warnings clean + full suite -j 2 green + CONTROL-4 green + git ls-files src/**/*.png empty."
+    ],
+    "implementation_notes": [
+      "Use the EXTERNAL CARGO_TARGET_DIR (Handshake_Artifacts/handshake-native-target); NEVER a repo-local target/. Run the full suite with -j 2.",
+      "REUSE the MCP public API (mcp/tools.rs click_widget/set_value/list_widgets + resolve_target in mcp/action.rs) — mcp/** is MT-027-owned, so put the navigation driver in a NEW module (mcp_navigation.rs) that COMPOSES that public API; do NOT edit mcp/**.",
+      "DO NOT add or unban any Win32 foreground/input-injection API. The focus guard (quiet_mode/focus_guard.rs) + the source audit (test_focus_audit_quiet.rs) are the binding gate — keep them green. click_widget enqueues an accesskit::ActionRequest (drained into egui events); set_value is keyboard-focus + egui::Event::Text. NEVER SendInput/mouse_event/SetForegroundWindow.",
+      "The action-drain loop is the test_mcp_tools.rs pattern: channel.drain_into_events() -> harness.event() -> harness.run(). Read back the post-action state with interconnect_support author_node_value.",
+      "depends_on MT-097 (the notes+chat worksurface is what the sequence drives) + MT-102 (the visual debugger's list_widgets dump gives the author_id inventory the navigation targets). blocks MT-104 (the manual documents foreground-safe navigation).",
+      "Read the KERNEL_BUILDER coder protocol under .GOV/ first; HBR-QUIET is THE point of this MT — the focus audit staying green is the headline acceptance, not a side check."
+    ],
+    "ports_from_react": [
+      "NONE (native foreground-safe navigation driver over the existing MCP/AccessKit/focus-guard surfaces)."
+    ],
+    "binds_backend_api": [
+      "NONE. The navigation driver operates entirely in-process over the MCP ActionChannel + egui events + the AccessKit tree. src/backend untouched. No SQLite."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-VIS",
+    "HBR-SWARM",
+    "HBR-MAN",
+    "HBR-QUIET"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "status": "NOT_APPLICABLE",
+      "reason": "The navigation driver operates over the MCP/egui-event path; it does not read or write the Flight Recorder. FR stays as-is/forbidden."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "WIRED",
+      "reason": "The navigation driver MAY record a typed internal_diagnostics 'navigation_action' event via the MT-082 process-global recorder so model-driven navigation is observable in the Settings->Diagnostics panel (MT-087). If the implementer wires that event, this is WIRED; if they keep the driver record-free, downgrade to NOT_APPLICABLE in implementation_result with the honest reason. Default intent: WIRE a single typed navigation-action diag event so parallel-agent navigation is observable."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "NOT_APPLICABLE",
+      "reason": "The navigation driver does not produce or read freeze/crash/debris records."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "USABLE_PRODUCT_WORKSURFACE_V1",
+    "risks": [
+      "RISK-103-1: the driver reaches for an OS input-injection API (SendInput/SetForegroundWindow) to 'reliably' drive the GUI — violates HBR-QUIET. Mitigate: AC-103-2 keeps test_focus_audit_quiet.rs green (the source audit fails the build on any banned API); the driver uses only the ActionChannel/egui-event path.",
+      "RISK-103-2: the navigation sequence is a no-op (the action enqueues but the live tree does not change), faking a pass. Mitigate: AC-103-1 reads back the live-tree state to prove each action took effect.",
+      "RISK-103-3: the driver edits mcp/** or weakens the focus guard / BANNED_FOCUS_APIS. Mitigate: forbidden_paths keeps mcp/** + quiet_mode/** reuse-only; the audit list is not weakened.",
+      "RISK-103-4: targets are resolved by an unstable handle (frame id) not the stable author_id, so a model can't address controls deterministically. Mitigate: AC-103-3 resolves by stable author_id (resolve_target).",
+      "RISK-103-5: a repo-local target/ or tracked PNG leaks. Mitigate: external target dir; git ls-files src/**/*.png empty (AC-103-5)."
+    ],
+    "minimum_controls": [
+      "MC-103-1: AC-103-1 proves a model-driven navigation sequence changes the live tree (not a no-op).",
+      "MC-103-2: AC-103-2 keeps the focus audit green (no banned Win32 foreground/SendInput API) — the no-foreground-steal proof.",
+      "MC-103-3: AC-103-3/4 resolve by stable author_id + flow through the ActionChannel/egui-event path (no OS input).",
+      "MC-103-4: external target + no tracked PNG + CONTROL-4 + full suite -j 2 green (AC-103-5)."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-KERNEL-012 product-vision steer + GLOBAL-BUILD-PARALLEL + HBR-QUIET; live-app inspection (MCP click_widget/set_value/list_widgets, resolve_target, the ActionChannel drain loop, the focus guard + BANNED_FOCUS_APIS, and the binding source-audit test_focus_audit_quiet.rs all verified PRESENT).",
+    "field_stack": "AccessKit-driven, OS-input-free GUI automation: drive an egui app by enqueuing accesskit ActionRequests into egui events (never Win32 SendInput/SetForegroundWindow), the same pattern egui_kittest + the MCP tool surface already use. Reuses the MCP click_widget/set_value/list_widgets public API + the focus guard + the source-audit test. No new subsystem; the focus-safety is enforced by the existing compile-time source audit.",
+    "crate_versions_verified_2026_06_27": {
+      "egui_eframe_kittest": "0.33 (already pinned)",
+      "accesskit": "via egui re-export (already a transitive dep)"
+    },
+    "motivating_incident": "A model must navigate Handshake's front end in parallel with the operator without stealing the mouse/keyboard or foreground (HBR-QUIET) — the parallel-agent workflow requirement.",
+    "validation_plan": "model-driven navigation sequence (open/click/type/focus by author_id) changing the live tree + the focus audit (test_focus_audit_quiet.rs) staying green (no Win32 foreground/SendInput) + targets by stable author_id; clippy -D warnings; full suite -j 2."
+  }
+}

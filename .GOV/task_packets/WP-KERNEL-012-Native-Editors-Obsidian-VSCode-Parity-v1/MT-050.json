@@ -25,10 +25,15 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-008", "MT-010"],
-    "blocks": ["MT-044"],
+    "depends_on": [
+      "MT-008",
+      "MT-010"
+    ],
+    "blocks": [
+      "MT-044"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -36,7 +41,11 @@
     "allowed_paths": [
       "src/frontend/handshake_native/src/code_editor/formatting.rs",
       "src/frontend/handshake_native/src/code_editor/lsp_client.rs",
-      "src/frontend/handshake_native/src/code_editor/keymap.rs"
+      "src/frontend/handshake_native/src/code_editor/keymap.rs",
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/src/code_editor/mod.rs",
+      "src/frontend/handshake_native/src/top_menu_bar.rs",
+      "src/frontend/handshake_native/tests/test_formatting.rs"
     ],
     "forbidden_paths": [
       "app/src/** (legacy React, reference only)",
@@ -66,7 +75,10 @@
       "Disabled menu/context-menu items use egui add_enabled(false, ...) with hover tooltip 'No formatter available for this language' and must set the AccessKit node disabled so swarm agents observe the gating.",
       "Empty/collapsed selection in format_selection sends the current line's range (line start .. line end), matching VS Code behavior; do NOT silently fall back to whole-document formatting.",
       "Re-clamp cursor/selection to the new buffer length after applying edits so the caret does not point past end-of-buffer.",
-      "If MT-008's LspClient lacks a generic request round-trip to build format_document/format_range on, record a typed blocker — do NOT rewrite the stdio transport."
+      "If MT-008's LspClient lacks a generic request round-trip to build format_document/format_range on, record a typed blocker — do NOT rewrite the stdio transport.",
+      "PATH + DISPATCH SCOPE (KERNEL_BUILDER gate 2026-06-24): the contract's allowed_paths omit the DISPATCH site + test. The format actions are DEAD without panel.rs wiring (the keymap FormatDocument/FormatSelection dispatch -> formatting::format_document/selection with the CodeEditorPanel's TextBuffer + lsp). allowed_paths corrected: formatting.rs (new) + lsp_client.rs (additive format_document/format_range + capability flags, no 2nd transport) + keymap.rs (FormatDocument+Alt+Shift+F, FormatSelection) + panel.rs (the CodeEditorPanel dispatch arms - the real type is CodeEditorPanel NOT 'CodeEditor'; formatting.rs operates on it/TextBuffer) + mod.rs (pub mod) + tests/test_formatting.rs. EDIT-menu Format Document: top_menu_bar.rs is in allowed_paths for MINIMAL ADDITIVE wiring of the EDIT-menu 'Format Document' entry (reflecting formatter_available enabled/disabled); the editor-body context-menu entries route through the same path. If a needed menu file is genuinely not editable, expose menu_descriptors() from formatting.rs + typed blocker (no scope-bleed beyond allowed_paths, RISK-007).",
+      "DATA-INTEGRITY: SINGLE-UNDO + DESCENDING-OFFSET + UTF-16 (KERNEL_BUILDER gate): apply the LSP TextEdit array in DESCENDING start-offset order (reuse MT-048's rename::apply_text_edits_to_buffer / the same descending applier - RISK-001/MC-004, AC-005: ascending corrupts offsets) wrapped in ONE undo GROUP so a single Ctrl+Z reverts the WHOLE format (RISK-002/MC-001, AC-001 - use the existing code-editor undo group/batch API; if MT-010's UndoStack lacks a group API, use the same single-transaction approach MT-048 used). LSP POSITIONS ARE UTF-16 CODE UNITS (RISK-003/MC-005, AC-007 - the load-bearing i18n correctness gate): convert buffer byte offsets <-> LSP line/character via the TextBuffer's char/utf16 helpers, NEVER assume bytes==columns; TEST a non-ASCII line where byte offset != UTF-16 column + assert the edit lands at the correct character. After apply, CLAMP cursor/selection to the new buffer length (RISK-006 - no out-of-range slice panic). format_selection: empty/collapsed selection -> the current LINE's range (line-start..line-end), NOT whole-doc (RISK per VS Code behavior); text OUTSIDE the selected range byte-for-byte unchanged (AC-002).",
+      "GATING + HYGIENE (KERNEL_BUILDER gate): formatter_available = LSP attached for the buffer's language_id AND the server advertised documentFormattingProvider (format_document) / documentRangeFormattingProvider (format_selection) in initialize capabilities (RISK-004/MC-003). NO-FORMATTER: EDIT-menu + context-menu items render DISABLED (egui add_enabled(false,...)) with hover 'No formatter available for this language' + the AccessKit node set DISABLED (swarm observes the gating); Alt+Shift+F with no formatter is a NO-OP, no panic, no frame block (AC-003). FormatOutcome enum (Applied{edit_count}|NoChange|NoFormatter|LspError(String)) - NO unwrap()/panic on any path; LspError surfaced as a NON-BLOCKING toast (AC-006/MC-006). FormattingOptions{tab_size,insert_spaces} read from the editor's indent config (MT-001/010, default 4/true - do NOT hardcode). Off-thread LSP request (don't block the frame, RISK-005, MT-008 pattern). FULLY provable WITHOUT live PG (mock LSP returning TextEdits; in-memory buffer; the single-undo + descending + UTF-16 + no-formatter all standalone). Screenshot (if any) EXTERNAL not test_output/. Full suite green (use cargo test -j 2 - ~90 bins OOM at default -j); clippy clean; no SQLite (MC-007 - nothing persisted)."
     ],
     "ports_from_react": [
       "app/src/lib/monaco/* — Format Document / Format Selection action wiring: action IDs (editor.action.formatDocument, editor.action.formatSelection), EDIT-menu and editor-body context-menu placement, and the disabled-when-no-formatter UX. Port the wiring/UX only; do NOT port Monaco runtime code (replaced by explicit LSP textDocument/formatting + rangeFormatting)."
@@ -77,7 +89,10 @@
       "Bind the EXISTING MT-008 stdio LSP plumbing (the handshake-native code_editor LSP client module) only; no backend rewrite. Gaps are recorded as typed blockers."
     ]
   },
-  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -103,5 +118,28 @@
       "MC-006: The LSP-error path returns FormatOutcome::LspError(String) and surfaces a non-blocking toast — assert no unwrap()/panic in any formatting code path.",
       "MC-007: Any persisted state (none expected) must route through EventLedger/PostgreSQL; assert no SQLite dependency is introduced by this MT."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + real code_editor/panel.rs + MT-008 transport + MT-048 descending applier + MT-010 undo + MT-004 selection + UTF-16/i18n + ~90-bin OOM",
+    "corrections": [
+      "allowed_paths += panel.rs (dispatch; real type CodeEditorPanel not 'CodeEditor') + mod.rs + test + top_menu_bar.rs (minimal EDIT-menu wiring); additive LSP (no 2nd transport)",
+      "DATA-INTEGRITY: descending-offset apply (reuse MT-048) in ONE undo group (single Ctrl+Z); UTF-16 column conversion not raw bytes (test non-ASCII); cursor clamp; empty-sel->current-line",
+      "formatter_available capability gating (disabled menu + no-op keymap + accesskit disabled, no panic); FormatOutcome typed, no unwrap, non-blocking toast; off-thread",
+      "provable without live PG (mock LSP + in-memory); external screenshot; full suite via -j 2 (OOM); no SQLite"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_f4ace272 (impl + 3-lens panel + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "3d94155a feat MT-050 Format Document + Format Selection (LSP)",
+      "21309331 fix harden per adversarial review"
+    ],
+    "review_panel": "correctness=CHANGES_REQUIRED(1), backend-shape=PASS(0), perf-focus-hygiene=PASS(0) -> 1 must-fix hardened.",
+    "proofs": "AC-001..007 + PT-001..004 PASS; 9 unit + 13 integration + regression (keymap 12, rename 6, code_actions 7, top_menu_bar 7) green via -j 2; clippy clean; document reflow (formatted fn main(){ let x=1; }) visually verified - VS Code format parity; screenshot EXTERNAL.",
+    "data_integrity_held": "DESCENDING-offset apply (ascending regression proven NOT-equal, AC-005) + SINGLE undo via the REAL InteractionBus (local_undo_count==1, single undo reverts the whole format, AC-001); UTF-16 column conversion VERIFIED on a 4-byte emoji + 3-byte CJK kanji (col->byte lands correct, never mid-codepoint; sums ch.len_utf16(), AC-007 - the i18n-relevant correctness gate); cursor clamp; empty-selection->current-line (surrounding text byte-for-byte unchanged, AC-002).",
+    "steers_held": "panel.rs dispatch (real type CodeEditorPanel) + top_menu_bar.rs EDIT-menu entry; additive format_document/format_range on the MT-008 transport (no 2nd transport); formatter_available capability gating (no-LSP disabled menu + no-op keymap + AccessKit node disabled + toast, no panic); FormatOutcome typed (Applied/NoChange/NoFormatter/LspError) NO unwrap, non-blocking toast; off-thread arm-then-pump; Alt+Shift+F bind (keymap 60 variants).",
+    "honest_notes": "(1) apply_text_edits signature deviation (no undo param) - MT-010's undo is a snapshot ring with no begin/end_group; contract's notes sanctioned the MT-048 single-transaction approach; single-undo proven against the REAL bus. (2) EDIT-menu 'Format Document' is a PRESENT-BUT-DISABLED placeholder until E11/MT-069 mounts the editor (consistent - lighting up the editor menu entries IS MT-069's job); the LIVE Alt+Shift+F path is fully proven.",
+    "waiver_granted": "code_editor/formatting.rs (new) + lsp_client.rs (additive) + keymap.rs + panel.rs + mod.rs + top_menu_bar.rs (EDIT-menu entry) + test in allowed_paths."
   }
 }

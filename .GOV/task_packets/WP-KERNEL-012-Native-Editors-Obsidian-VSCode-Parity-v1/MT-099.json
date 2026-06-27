@@ -1,0 +1,136 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-099",
+  "title": "U3-MT-099-EndToEndNotesUsability",
+  "group": "U1 Usable-Product Expansion (notes+chat worksurface, §product-vision 2026-06-27)",
+  "created_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-099.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-097"
+    ],
+    "blocks": [
+      "MT-104"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "OPERATOR: 'i cannot use notes in handshake'. This MT is the END-TO-END NOTES USABILITY fix: prove (and fix whatever blocks) the operator flow in the RUNNING app — OPEN a document/file -> EDIT it in the live editor -> SAVE -> REOPEN shows the edit. The notes editors are mounted live (MT-079) and are the default worksurface (MT-097), but the OPEN -> live-editor -> SAVE -> PERSIST -> REOPEN chain must actually work for the operator, not just render.\n\nVERIFIED BACKEND STATE (live-app inspection 2026-06-27): the notes/documents persistence chain HAS REAL HTTP ROUTES on handshake_core — so this is a REAL WIRE, not a typed blocker:\n- GET /knowledge/documents/:document_id (load_document), PUT /knowledge/documents/:document_id/save (save_document, persists to knowledge_rich_documents + emits a KNOWLEDGE_RICH_DOCUMENT_SAVED EventLedger receipt), POST /knowledge/documents (create_document), plus the draft routes (GET/PUT /knowledge/documents/:id/draft). Routes registered in src/backend/handshake_core/src/api/knowledge_documents.rs. Loom blocks: GET/PATCH /workspaces/:workspace_id/loom/blocks/:block_id.\n- Identity headers required on these routes (x-hsk-actor-id / x-hsk-actor-kind / x-hsk-kernel-task-run-id / x-hsk-session-run-id) — the native client must send them (reuse the existing backend_client header-injection if present).\n\nWhat to do (wire-into-live + a real end-to-end proof):\n- INSPECT src/frontend/handshake_native/src/backend_client.rs for the existing RichDocClient (MT-020/079 referenced a `RichDocClient::production`) — it is the reuse-via-API surface for load/save. INSPECT the rich editor save path (rich_editor/save/** + the RichEditorState::set_embed_context / the MT-020 save the editor already calls). The open path: app.rs open_content_on_active_pane(PaneType::LoomWikiPage|LoomBlock, Some(document_id)) + the ShellNavigator open_document -> rich pane (MT-030/079).\n- WIRE THE FULL CHAIN end-to-end so it works in the running app: (1) OPEN a document by id -> the rich/notes pane loads its content from GET /knowledge/documents/:id (or the Loom block route); (2) EDIT the content in the live editor; (3) SAVE -> PUT /knowledge/documents/:id/save persists + the EventLedger receipt fires; (4) REOPEN (re-load by the same id) -> the editor shows the saved edit. Fix WHATEVER blocks this chain (a missing open-by-id wire, a save not reaching the route, a reload not re-fetching, the identity headers not set, the draft vs authoritative-save confusion).\n- This is reuse-via-API ONLY: src/backend untouched. The routes EXIST; the work is the NATIVE open->edit->save->reload wiring + the proof.\n- CREATE src/frontend/handshake_native/tests/test_notes_end_to_end.rs.\n\nReuse notes: the document load/save HTTP routes EXIST (knowledge_documents.rs); the native RichDocClient (backend_client.rs) is the reuse surface; the rich editor + its MT-020 save + MT-079 mount are built. This MT closes the operator-flow gap: it makes OPEN->EDIT->SAVE->REOPEN actually round-trip in the running app and PROVES it.\n\nProof discipline (NOT a fake pass): the end-to-end proof must exercise the REAL save route. Because a live save round-trip needs a running PostgreSQL/handshake_core (a managed resource), the proof is EITHER (a) a live end-to-end test against a managed handshake_core (open->edit->save->reload shows the edit, the KNOWLEDGE_RICH_DOCUMENT_SAVED receipt observed) when the managed resource is available, OR (b) a kittest that drives the native open->edit->save->reload chain against the REAL RichDocClient pointed at a test handshake_core / a verified-shape stub of the documented route (asserting the native side issues the correct GET/PUT with identity headers and re-renders the reloaded content), with the live-PG half marked NEEDS_MANAGED_RESOURCE_PROOF — NOT a fabricated 'save succeeded' with no route call. If a specific sub-step is genuinely blocked by an absent route, record an HONEST typed blocker for that sub-step only.\n\nRisk if missed: the headline operator complaint ('i cannot use notes') stays unfixed — the editor renders but a real open->edit->save->reopen does not round-trip.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/editor_pane_factories.rs",
+      "src/frontend/handshake_native/src/rich_editor/save/mod.rs",
+      "src/frontend/handshake_native/src/navigation_bus.rs",
+      "src/frontend/handshake_native/tests/test_notes_end_to_end.rs"
+    ],
+    "forbidden_paths": [
+      "src/backend/** (reuse via API only — the document routes already exist; do not edit them)",
+      "src/backend/handshake_core/src/flight_recorder/** (FR kept as-is)",
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-099-1 (OPEN, prove first): opening a document by id in the running app loads its content into the live rich/notes pane via the REAL GET route (GET /knowledge/documents/:id or the Loom block route) with the required identity headers — proven by a kittest driving the live HandshakeApp open path (ShellNavigator open_document / open_content_on_active_pane) against the real RichDocClient and asserting the loaded content renders in the editor (not an empty/placeholder pane).",
+      "AC-099-2 (EDIT -> SAVE): editing the open document and invoking Save issues the REAL PUT /knowledge/documents/:id/save with the edited content + identity headers — proven by a kittest asserting the native side issues the correct save request (method + path + body shape + headers) against the real RichDocClient. When a managed handshake_core is available, the save persists and the KNOWLEDGE_RICH_DOCUMENT_SAVED EventLedger receipt is observed (live half); when not, that live half is marked NEEDS_MANAGED_RESOURCE_PROOF (the native request-issuance is still proven against the verified route shape — NOT faked).",
+      "AC-099-3 (REOPEN SHOWS THE EDIT): reloading the same document id after save shows the saved edit in the editor — proven by the end-to-end test (live: against managed handshake_core the reload returns the persisted edit; offline: the reload path re-issues the GET and re-renders the returned content, with the persisted-content half NEEDS_MANAGED_RESOURCE_PROOF). The round-trip is REAL (the native side genuinely re-fetches), never a cached fake.",
+      "AC-099-4 (BLOCKERS FIXED OR HONESTLY TYPED): whatever blocked the open->edit->save->reopen chain in the running app is FIXED (the wire is complete) OR, if a specific sub-step is genuinely blocked by an absent route, that sub-step is an HONEST typed blocker (NOT a fabricated pass) recorded in implementation_result. No fake 'save succeeded' without a route call.",
+      "AC-099-5: `cargo build -p handshake-native` (lib + bins) clean; clippy `--all-targets -D warnings` clean; full suite `-j 2` green; external CARGO_TARGET_DIR; no Color32 literal outside theme/palette.rs (CONTROL-4); `git ls-files src/**/*.png` empty."
+    ],
+    "proof_targets": [
+      "PT-099-A: kittest opens a document by id in the live app, asserts the loaded content renders in the rich pane (real GET, identity headers).",
+      "PT-099-B: kittest asserts Save issues the real PUT /knowledge/documents/:id/save (correct method/path/body/headers) against the real RichDocClient; live persistence + KNOWLEDGE_RICH_DOCUMENT_SAVED receipt when a managed handshake_core is available (else NEEDS_MANAGED_RESOURCE_PROOF for the live half).",
+      "PT-099-C: end-to-end open->edit->save->reload test shows the saved edit on reopen (live against managed handshake_core, or the native re-fetch+re-render proven offline with the persisted half NEEDS_MANAGED_RESOURCE_PROOF).",
+      "PT-099-D: cargo build --lib --bins clean + clippy -D warnings clean + full suite -j 2 green + CONTROL-4 green + git ls-files src/**/*.png empty."
+    ],
+    "implementation_notes": [
+      "PRE-EXISTING BUG TO FIX HERE (surfaced by MT-083 full-suite, proven on baseline): tests/test_menu_wireup.rs::file_save_dispatches_editor_save_path FAILS at line 199 - FILE>Save does NOT reach the MT-020 SaveManager save entry (the rich-editor save-dispatch state machine / MT-079 host-mount seam). This IS the operator-facing notes-save breakage. MT-099 (open->edit->save) MUST fix the FILE>Save -> SaveManager dispatch so the menu/keyboard Save actually persists, and turn that failing test GREEN as part of the open->edit->save->reopen proof.",
+      "Use the EXTERNAL CARGO_TARGET_DIR (Handshake_Artifacts/handshake-native-target); NEVER a repo-local target/. Run the full suite with -j 2.",
+      "REAL WIRE, not a typed blocker: the document load/save HTTP routes EXIST (knowledge_documents.rs: GET /knowledge/documents/:id, PUT /knowledge/documents/:id/save, POST /knowledge/documents; draft routes; Loom block GET/PATCH). Reuse the native RichDocClient (backend_client.rs) — do NOT re-implement the client. Send the required identity headers (x-hsk-actor-id / x-hsk-actor-kind / x-hsk-kernel-task-run-id / x-hsk-session-run-id); reuse the existing header-injection if backend_client already has it.",
+      "Distinguish DRAFT (PUT /knowledge/documents/:id/draft) from AUTHORITATIVE SAVE (PUT /knowledge/documents/:id/save). The operator 'save' is the authoritative save (the EventLedger receipt fires there). Do not let a draft-only write masquerade as the save the AC requires.",
+      "The live save round-trip needs a running PostgreSQL/handshake_core (a managed resource). Prove the NATIVE request-issuance against the verified route shape offline (correct GET/PUT/headers/body) and mark the live-persistence half NEEDS_MANAGED_RESOURCE_PROOF when no managed handshake_core is reachable — this is the established WP-012 live-PG gating, NOT a fake pass.",
+      "GLOBAL-INSPECT: if running against a managed handshake_core, actually OPEN the reloaded document and confirm the edit is present (do not infer from a 200). Record the receipt id.",
+      "depends_on MT-097 (the notes editors must be the default worksurface). blocks MT-104 (the manual documents the working open/edit/save flow).",
+      "Read the KERNEL_BUILDER coder protocol under .GOV/ first; the Spec-Realism Gate forbids a fabricated save success — every save must issue the real PUT."
+    ],
+    "ports_from_react": [
+      "NONE (native open->edit->save->reload wiring over the existing document routes)."
+    ],
+    "binds_backend_api": [
+      "REUSE (routes EXIST): GET /knowledge/documents/:id (load), PUT /knowledge/documents/:id/save (authoritative save + KNOWLEDGE_RICH_DOCUMENT_SAVED receipt), POST /knowledge/documents (create), GET/PUT /knowledge/documents/:id/draft (draft); Loom blocks GET/PATCH /workspaces/:ws/loom/blocks/:id. Identity headers required. No new backend route. PostgreSQL/EventLedger only; no SQLite. Live persistence half NEEDS_MANAGED_RESOURCE_PROOF when no managed handshake_core is reachable."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-VIS",
+    "HBR-MAN"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "status": "NOT_APPLICABLE",
+      "reason": "The notes open/edit/save chain reaches handshake_core via the existing document HTTP routes; it does not read or write the native Flight Recorder. The EventLedger KNOWLEDGE_RICH_DOCUMENT_SAVED receipt is a backend ledger event, not the FR tier this obligation tracks."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "NOT_APPLICABLE",
+      "reason": "This MT wires the existing document routes end-to-end; it does not emit internal_diagnostics events. (A failed save could later record a BackendUnreachable diag event, but that is not required here.)"
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "NOT_APPLICABLE",
+      "reason": "No freeze/crash/debris record path is touched by the notes open/edit/save wiring."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "USABLE_PRODUCT_WORKSURFACE_V1",
+    "risks": [
+      "RISK-099-1: a fabricated 'save succeeded' with no real PUT (a fake pass) — the worst failure for this MT. Mitigate: AC-099-2 asserts the real PUT request is issued against the real RichDocClient; the live-persistence half is gated NEEDS_MANAGED_RESOURCE_PROOF, not faked.",
+      "RISK-099-2: a draft write masquerades as the authoritative save (no EventLedger receipt). Mitigate: AC-099-2 targets PUT /knowledge/documents/:id/save (the authoritative route + receipt), distinct from the draft route.",
+      "RISK-099-3: the reload returns cached in-memory content instead of re-fetching, so the round-trip is not real. Mitigate: AC-099-3 proves the native side genuinely re-issues the GET.",
+      "RISK-099-4: the identity headers are not sent, so the route rejects (or silently least-privileges) the request. Mitigate: AC-099-1/2 assert the required headers are present.",
+      "RISK-099-5: a repo-local target/ or tracked PNG leaks. Mitigate: external target dir; git ls-files src/**/*.png empty (AC-099-5)."
+    ],
+    "minimum_controls": [
+      "MC-099-1: AC-099-1/2/3 prove the REAL open->save->reload chain (real GET/PUT, identity headers), with the live-persistence half NEEDS_MANAGED_RESOURCE_PROOF — never faked.",
+      "MC-099-2: AC-099-2 targets the authoritative save route + receipt (not draft).",
+      "MC-099-3: AC-099-4 keeps any genuinely-blocked sub-step an honest typed blocker.",
+      "MC-099-4: external target + no tracked PNG + CONTROL-4 + full suite -j 2 green (AC-099-5)."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-KERNEL-012 product-vision steer (operator, 2026-06-27, 'i cannot use notes in handshake'); live-app inspection (document load/save HTTP routes verified PRESENT in knowledge_documents.rs; identity-header requirement verified).",
+    "field_stack": "Obsidian / VS Code document lifecycle: open-by-id -> live edit -> authoritative save (with an audit receipt) -> reload-shows-edit. Reuses the existing handshake_core document HTTP routes + the native RichDocClient (backend_client.rs) + the MT-020 rich-editor save + the MT-030/079 open path. No new backend route; reuse-via-API only.",
+    "crate_versions_verified_2026_06_27": {
+      "egui_eframe_kittest": "0.33 (already pinned)"
+    },
+    "motivating_incident": "Operator cannot use notes: the editor renders (MT-079) but the open->edit->save->reopen flow must actually round-trip in the running app for notes to be usable.",
+    "validation_plan": "live (or verified-route-shape) open->edit->save->reload round-trip showing the saved edit on reopen, authoritative-save route + KNOWLEDGE_RICH_DOCUMENT_SAVED receipt, identity headers; live-PG half NEEDS_MANAGED_RESOURCE_PROOF when no managed handshake_core; clippy -D warnings; full suite -j 2."
+  }
+}

@@ -93,6 +93,26 @@ Use this brief after `just kernel-builder-startup`. It is operational memory for
 - VERIFY: roadmap items are used only for build order, while implementation intent and proof come from topical Master Spec modules, the reset brief, and product-code evidence
 - SOURCE: KERNEL_BUILDER_PROTOCOL, RGF-315
 
+### RAM-KERNEL_BUILDER-BUILD_RULES_AUTHORITY-001
+
+- ACTION: BUILD_RULES_REGISTRY_AUTHORITY
+- TRIGGER: before planning, packet authoring, or implementing any product-code WP/MT for Kernel V1
+- FAILURE_PATTERN: authoring or building a product WP without consulting the `HBR-*` registry, so applicable build-time gates (interconnectivity, swarm safety, visual proof, quiet operation, manual currency, stop discipline, three-tier diagnostics) are missed in the packet and the acceptance matrix
+- DO: consult `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json` and treat every applicable `HBR-*` rule as a mandatory gate when authoring scope, MT plans, and acceptance rows; for any WP touching observable runtime behavior, plan HBR-INT-009 THREE-TIER diagnostics (Tier 1 Flight Recorder business-event ledger kept as-is; Tier 2 internal_diagnostics native INTERNAL self-diagnostics; Tier 3 Palmistry EXTERNAL out-of-process watcher) and record each tier WIRED / NOT_APPLICABLE-with-reason / DEFERRED-with-reason
+- DO_NOT: treat HBR rules as optional, restate them as new authority, or auto-create a `HANDSHAKE_BUILD_RULES.md` projection (JSON is authority, markdown ON_DEMAND_ONLY)
+- VERIFY: the packet/MT plan names each applicable HBR row and, for observable-runtime-behavior work, names the three-tier diagnostic outcome (DEFERRED-with-reason while WP-KERNEL-015/014 diagnostics are unshipped)
+- SOURCE: `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json` (HBR-INT-009 + all HBR-*), CX-503B1, CX-006-VIS, CX-981
+
+### RAM-KERNEL_BUILDER-VISUAL_DEBUG-001
+
+- ACTION: WHOLE_WP_VISUAL_PASS
+- TRIGGER: when a Kernel V1 WP touches the native egui shell or any operator-observable UI surface
+- FAILURE_PATTERN: certifying a UI-touching WP from unit tests / process exit codes alone, or reaching for the LEGACY Tauri/WebView2/CDP path (`app/src-tauri/src/visual_debug.rs`, `Page.captureScreenshot`) which does not inspect the current native app
+- DO: drive a whole-WP visual pass through the NATIVE path in `../wtc-native-editors-v1/src/frontend/handshake_native/` — the MCP tool surface `src/mcp/tools.rs` (`list_widgets` / `click_widget` / `set_value` / `screenshot`), the `egui_kittest` (`0.33`, `wgpu`) `Harness` render harness, and `src/mcp/screenshot.rs` capture; inspect the rendered result, not just green tests
+- DO_NOT: use the Tauri CDP path; assume pixel screenshots work on a headless host — `Harness::render()` readback can crash `0xc0000005` on headless-GPU, so run pixel screenshots on a real-GPU host and fall back to `list_widgets`/AccessKit-tree assertions on headless hosts
+- VERIFY: a whole-WP visual capture or AccessKit snapshot exists for each touched UI surface and is recorded as HBR-VIS evidence
+- SOURCE: HANDSHAKE_BUILD_RULES.json HBR-VIS-001..005, native `src/mcp/tools.rs` + `src/mcp/screenshot.rs`, CX-006-VIS
+
 ### RAM-KERNEL_BUILDER-MACHINE_ARTIFACTS-001
 
 - ACTION: MACHINE_CONTRACT_FIRST

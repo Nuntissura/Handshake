@@ -1,0 +1,139 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-086",
+  "title": "D6-MT-086-Cpu-Rss-Gpu-ResourceCounters",
+  "group": "D2 internal_diagnostics (Tier 2 in-process)",
+  "created_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-086.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-084"
+    ],
+    "blocks": [
+      "MT-087"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Sample CPU%, resident memory (RSS), and GPU/driver identity as periodic typed `internal_diagnostics` RESOURCE COUNTERS (Master Spec v02.196 §5.8.2 'resource counters'). The §6.13.1 'pinned under heavy CPU' stall mode means CPU% is a first-class signal Palmistry/the panel care about. CPU + RSS are sampled periodically off the hot frame path; GPU adapter info is read ONCE at startup from the already-initialized wgpu render state (it is static identity, not a per-frame counter).\n\nExact files to create/edit:\n- EDIT `src/frontend/handshake_native/Cargo.toml` — promote `sysinfo` from a [dev-dependencies] entry to a real [dependencies] entry. NOTE (version drift, VERIFY): handshake-native currently has `sysinfo = \"0.33\"` under [dev-dependencies] (used by the MT-045 perf suite). The current crates.io sysinfo is 0.39.5 (verified 2026-06-27). To avoid a DUPLICATE sysinfo family in the locked graph, pin the new runtime dep to the SAME line already locked (0.33) UNLESS the coder upgrades both the dev-dep and the runtime dep together to 0.39 in one step and re-runs `cargo tree -d` to confirm a single sysinfo core. Pick one and record it; do NOT leave two sysinfo majors in the graph. sysinfo gives cross-platform CPU% (per-process) + RSS (Windows GetProcessMemoryInfo, Linux /proc, macOS task_info) with no per-OS windows-sys feature add.\n- CREATE `src/frontend/handshake_native/src/diagnostics/resource_counters.rs` — a `ResourceSampler` that holds a `sysinfo::System` (refreshed for THIS process only — refresh_process(Pid::from_u32(std::process::id())) so we never read other processes' data, which would be both wasteful and a privacy concern) and a `sample() -> ResourceSample { cpu_milli: u64, rss_kb: u64 }` (cpu as integer milli-percent, rss in KB — typed integers). `record_sample()` calls `diagnostics::record_with(DiagEventCode::ResourceSample, ...)`.\n- CREATE `src/frontend/handshake_native/src/diagnostics/gpu_info.rs` — capture the wgpu adapter info ONCE. eframe with the wgpu renderer exposes the render state via `eframe::CreationContext::wgpu_render_state` (a `RenderState` with the `wgpu::Adapter`). In `HandshakeApp::new(cc)`, read `cc.wgpu_render_state` -> adapter `.get_info()` -> `AdapterInfo { name, vendor, device, device_type, driver, driver_info, backend }`. Map this to a TYPED record: vendor id (u32), device id (u32), device_type (enum -> u8), backend (enum -> u8). The driver NAME/INFO strings are vendor/driver identity (e.g. 'NVIDIA', 'D3D12') — field-standard hardware identity, NOT project data; they are allowed but keep them to a bounded set / store them once for the panel's hardware line, and DO NOT put strings into the typed ring DiagEvent (the ring is integers; emit the vendor/device/backend as integer codes via ResourceSample-adjacent fields, keep the human strings only in an in-process GpuInfo the panel reads). Document this split.\n- EDIT `src/frontend/handshake_native/src/app.rs` — (a) in `HandshakeApp::new`, capture GpuInfo once from cc.wgpu_render_state and store it; (b) drive periodic CPU/RSS sampling: sample at a bounded cadence (~1-2s, NOT every frame — CPU% needs an interval between refreshes to be meaningful and sysinfo refresh is not free) using a `last_sample_instant` gate inside `fn update`, OR a lightweight background timer; emit a ResourceSample event each interval. Sampling inside `fn update` behind a ~1s gate is the simplest correct approach (no extra thread) — but the sysinfo refresh must be cheap enough not to stutter the frame; if it is not, move the refresh to a `spawn_blocking` on the existing tokio runtime and only read the cached result on the frame. Choose + document.\n- CREATE `src/frontend/handshake_native/tests/test_resource_counters.rs`.\n\nReuse note: sysinfo is ALREADY a (dev-)dependency — reuse the same crate, just the right scope + version. wgpu is ALREADY the eframe renderer (eframe = { features = [\"wgpu\", ...] }) and `cc.wgpu_render_state` is the supported eframe seam to reach the adapter — no new wgpu dep, no second device. The tokio runtime + `fn update` are already there. src/backend untouched.\n\nRisk if missed: no CPU/RSS counters means the §6.13.1 heavy-CPU stall mode is invisible in-process and the panel's resource line (§5.8.4) is empty; a wrong sampling cadence either stutters the frame (too frequent sysinfo refresh) or gives meaningless CPU% (no interval between refreshes).",
+    "allowed_paths": [
+      "src/frontend/handshake_native/Cargo.toml",
+      "src/frontend/handshake_native/src/diagnostics/resource_counters.rs",
+      "src/frontend/handshake_native/src/diagnostics/gpu_info.rs",
+      "src/frontend/handshake_native/src/diagnostics/mod.rs",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/tests/test_resource_counters.rs"
+    ],
+    "forbidden_paths": [
+      "src/frontend/handshake_native/diag_ring/** (MT-081-owned; reuse via API)",
+      "src/backend/** (reuse via API only)",
+      "src/backend/handshake_core/src/flight_recorder/** (FR kept as-is)",
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-006-1: a test constructs a ResourceSampler, samples CPU% + RSS for THIS process (sysinfo refresh_process on the current pid only), and asserts the sample returns plausible typed integers (rss_kb > 0; cpu_milli is a non-negative integer) — and that the sampler refreshes ONLY the current process (not the whole system process table).",
+      "AC-006-2: a ResourceSample DiagEvent reaches the ring/buffer (typed integers only — cpu_milli, rss_kb — no content) via `record_sample`.",
+      "AC-006-3: GPU adapter info is captured once from `cc.wgpu_render_state` — a kittest (or the wgpu-screenshot-gated harness) constructs the real HandshakeApp and asserts a non-empty GpuInfo (vendor/device/backend codes set) is stored; the human driver strings are kept in the in-process GpuInfo only, NOT pushed into the typed ring DiagEvent.",
+      "AC-006-4: sampling cadence is bounded (~1-2s, not per-frame) and does not stutter the frame — a kittest steps many frames and asserts ResourceSample is emitted at the bounded interval (not every frame) and the frame loop stays responsive (no SlowFrame storm from the sampler).",
+      "AC-006-5: NO duplicate sysinfo family in the locked graph — `cargo tree -d -p handshake-native` shows a single sysinfo core (the chosen pin is recorded; the dev-dep + runtime dep agree).",
+      "AC-006-6: `cargo build -p handshake-native` (lib + bins) clean; clippy `--all-targets -D warnings` clean; full suite `-j 2` green; external target dir; no repo-local target/, no tracked artifact."
+    ],
+    "proof_targets": [
+      "PT-006-A: `cargo test -p handshake-native resource_counters` GREEN — current-process CPU/RSS sample + ResourceSample ring event.",
+      "PT-006-B: GpuInfo captured from cc.wgpu_render_state (kittest / wgpu-gated) — vendor/device/backend codes non-empty.",
+      "PT-006-C: bounded-cadence + no-frame-stutter assertion GREEN.",
+      "PT-006-D: `cargo tree -d` single sysinfo core; `cargo build --lib --bins` clean + clippy clean + full suite -j 2 green."
+    ],
+    "implementation_notes": [
+      "sysinfo: refresh ONLY the current process (sysinfo::System::new + refresh_process(Pid::from_u32(process::id())) or the ProcessesToUpdate::Some([pid]) form on 0.33+), never the whole system — cheaper and avoids reading other processes. CPU% needs an interval between two refreshes to be meaningful; the ~1-2s cadence provides it.",
+      "VERSION: handshake-native has sysinfo 0.33 as a dev-dep already. Either pin the new runtime dep to 0.33 (match the locked line, simplest, no dup) OR upgrade dev+runtime together to 0.39.5 and re-run cargo tree -d. Do NOT introduce a 0.33+0.39 duplicate. Record the decision in research_provenance.",
+      "GPU: eframe's wgpu RenderState is reachable via cc.wgpu_render_state in HandshakeApp::new; adapter.get_info() gives AdapterInfo. Map vendor/device/device_type/backend to integer codes for the typed ring; keep the human name/driver strings ONLY in an in-process GpuInfo for the panel's hardware line (hardware identity, not project data, but keep strings out of the integer ring).",
+      "Cadence: a ~1s last_sample_instant gate inside fn update is the simplest no-extra-thread approach; if sysinfo refresh is too heavy for the frame, move refresh to spawn_blocking on the existing tokio runtime and read the cached result on the frame (document which).",
+      "All ring fields are integers (cpu_milli, rss_kb, vendor_id, device_id, backend_code) — typed allowlist preserved.",
+      "Reuse the existing eframe wgpu renderer + tokio runtime + fn update; no new device, no new runtime, no new dependency family beyond promoting sysinfo's scope.",
+      "Read the KERNEL_BUILDER coder protocol under .GOV/ first; the counters must be REAL (sysinfo of the live process, real wgpu adapter), not stubbed constants."
+    ],
+    "ports_from_react": [
+      "NONE (native resource sampling; no React analogue)"
+    ],
+    "binds_backend_api": [
+      "NONE. Resource counters are sampled in-process (sysinfo) + read from the local wgpu adapter. FR not involved."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-VIS"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "status": "NOT_APPLICABLE",
+      "reason": "Resource counters are Tier 2 in-process diagnostics; not Tier 1 business events, not forwarded to FR."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "WIRED",
+      "reason": "This MT IS the Tier 2 resource-counter component (§5.8.2): live CPU/RSS sampling + GPU identity + typed ResourceSample events for the panel, wired into the live app. Built + consumed here."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "NOT_APPLICABLE",
+      "reason": "Resource samples flow through the ring records; Palmistry's freeze/crash detection (MT-091/012) keys on the heartbeat + process handle, not the resource samples. (Palmistry MAY read the last-N records including ResourceSample for its survivor store via MT-093, but no Palmistry wiring is required of THIS MT.)"
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DIAGNOSTIC_SUBSTRATE_V1",
+    "risks": [
+      "RISK-006-1: a duplicate sysinfo family (0.33 dev-dep + 0.39 runtime dep) in the locked graph. Mitigate: pin one line for both; cargo tree -d single core (AC-006-5).",
+      "RISK-006-2: sampling every frame stutters the UI (sysinfo refresh is not free) or gives meaningless CPU% (no interval). Mitigate: bounded ~1-2s cadence; optional spawn_blocking refresh (AC-006-4).",
+      "RISK-006-3: reading the whole system process table leaks other-process data + wastes CPU. Mitigate: refresh only the current pid (AC-006-1).",
+      "RISK-006-4: GPU driver strings pushed into the typed ring break the integer-only allowlist. Mitigate: integer codes in the ring; human strings only in the in-process GpuInfo (AC-006-3).",
+      "RISK-006-5: a second wgpu device/adapter created instead of reusing eframe's. Mitigate: read cc.wgpu_render_state's existing adapter only."
+    ],
+    "minimum_controls": [
+      "MC-006-1: single sysinfo core (AC-006-5).",
+      "MC-006-2: bounded cadence, no frame stutter (AC-006-4).",
+      "MC-006-3: current-process-only refresh (AC-006-1).",
+      "MC-006-4: integer-only ring fields; strings confined to in-process GpuInfo (AC-006-3)."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-KERNEL-012 field research (June 2026) + crates.io verification 2026-06-27",
+    "field_stack": "sysinfo for cross-platform per-process CPU%/RSS (the canonical Rust system-metrics crate, already a handshake-native dev-dep); eframe wgpu RenderState adapter.get_info() for static GPU/driver identity (no second device).",
+    "crate_versions_verified_2026_06_27": {
+      "sysinfo_latest_crates_io": "0.39.5",
+      "sysinfo_currently_locked_in_handshake_native": "0.33 (dev-dep, MT-045 perf suite)",
+      "pin_decision": "pin the new runtime dep to the SAME line already locked (0.33) to avoid a duplicate family, OR upgrade dev+runtime to 0.39.5 together and re-verify cargo tree -d; coder records which.",
+      "wgpu_eframe": "0.33 (already pinned; adapter via cc.wgpu_render_state)"
+    },
+    "motivating_incident": "§6.13.1 names 'pinned under heavy CPU' as a stall mode; the 2026-06-26 freeze showed CPU->0 (the opposite extreme). CPU%/RSS counters make both extremes visible in-process and feed the panel's resource line.",
+    "validation_plan": "current-process sample + ResourceSample ring event + GPU capture + bounded cadence + single sysinfo core; clippy -D warnings; full suite -j 2."
+  }
+}

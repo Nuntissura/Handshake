@@ -1,0 +1,144 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-094",
+  "title": "P6-MT-094-HandshakeLaunchesPalmistry-IpcHandshake",
+  "group": "P1 Palmistry (Tier 3 external watcher)",
+  "created_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-094.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-082",
+      "MT-089"
+    ],
+    "blocks": [
+      "MT-096"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Make HANDSHAKE LAUNCH palmistry.exe at startup and complete the startup IPC HANDSHAKE (Master Spec v02.196 §6.13.3 'launched WITH Handshake at startup' + §6.13.2). At Handshake startup, the native app spawns the sibling `palmistry` process, passes it the Handshake PID + session-id + ring backing-file path + control-socket name (the MT-089 inputs), and completes a startup handshake (Palmistry acks it is watching). This MUST honor HBR-QUIET (§6.13 cross-ref HBR-QUIET-003): the spawned Palmistry process must NOT steal foreground / pop a window / hijack input — it is a headless background watcher.\n\nLIFECYCLE-INVERSION LAUNCH CONSTRAINT (the HARD §6.13.3 contract on the launcher, from MT-089): the spawn MUST NOT add Palmistry to a Win32 Job Object with KILL_ON_JOB_CLOSE (and must not put it in a process group that dies with the parent). A normal `std::process::Command::spawn` on Windows does NOT add the child to the parent's job by default, BUT eframe/winit or a wrapping launcher might; the spawn must explicitly ensure Palmistry is a free-standing process that survives parent death (MT-089 AC-009-4 is the behavioral proof; this MT must spawn it in a way that preserves that). Document the spawn flags used (e.g. on Windows, DETACHED_PROCESS / CREATE_NO_WINDOW for quiet headless, and NOT adding it to a kill-on-close job).\n\nExact files to create/edit:\n- CREATE `src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs` — `pub fn launch_palmistry(session: &DiagSession, ring_path: &Path, control_socket: &str) -> io::Result<PalmistryHandle>`. It resolves the palmistry.exe path RELATIVE to the running Handshake exe (`std::env::current_exe()` -> sibling `palmistry.exe`) — portable, no hardcoded path (the installer ships both binaries side by side; install_payload in handshake-native Cargo.toml already lists a two-binary layout — add palmistry.exe to that payload). Spawns it via `std::process::Command` with: the PID/session/ring/socket passed as env vars or args (matching MT-089's cli.rs intake), CREATE_NO_WINDOW + a detached/quiet flag (HBR-QUIET — no console window, no focus steal), stdout/stderr piped or to a log file (not inherited to steal the console). Returns a handle holding the child + the control-socket client for sending Shutdown later.\n- EDIT `src/frontend/handshake_native/src/main.rs` (or `app.rs` HandshakeApp::new) — call `launch_palmistry(...)` AFTER the ring writer is created (MT-082 install) + the session id is minted, EARLY in startup so the watcher is up before the app can freeze. Store the PalmistryHandle on HandshakeApp so a clean app shutdown sends the Shutdown control message (the §6.13.3 'closes only on explicit command' path — on a normal Handshake exit, send Shutdown so Palmistry exits cleanly + records NO crash). Graceful degradation: if palmistry.exe is missing or the spawn fails, log a tracing::warn + a typed BackendUnreachable-style diagnostic and CONTINUE (Handshake must run even without the watcher — the watcher is supplementary; never block startup on it).\n- The IPC HANDSHAKE: after spawn, Handshake connects to Palmistry's control socket (MT-089 control.rs) and exchanges a `HandshakeHello{ pid, session_id, ring_path }` / ack so both sides confirm the channel + the ring binding before the app proceeds. Bounded: if Palmistry does not ack within a short deadline, log + continue degraded (do not hang startup waiting on the watcher).\n- On clean Handshake shutdown (eframe on_exit / Drop): send the Shutdown control message so Palmistry exits cleanly (the clean-shutdown-is-not-a-crash path from MT-089/012).\n- CREATE `src/frontend/handshake_native/tests/test_palmistry_launch.rs`.\n\nTHE LAUNCH PROOF (the deliverable, §6.13.3): a test launches the real HandshakeApp startup path (or directly calls launch_palmistry against the built palmistry.exe) and asserts: (1) palmistry.exe is SPAWNED (a child process exists), (2) the startup HANDSHAKE completes (Palmistry acks over the control socket), (3) HBR-QUIET — the spawn used CREATE_NO_WINDOW / detached + no focus steal (verified via the spawn flags + the existing focus-audit approach — no SetForegroundWindow), (4) on a clean shutdown, Handshake sends Shutdown and Palmistry exits cleanly (no crash record), (5) graceful degradation — with palmistry.exe absent, Handshake still starts (the spawn failure is logged + degraded, startup not blocked).\n\nReuse note: the palmistry.exe path resolves via std::env::current_exe() (portable; the same approach installer self-check uses for bundled assets). HBR-QUIET / focus-safety is the EXISTING handshake-native discipline (quiet_mode/focus_guard.rs + the test_focus_audit_quiet.rs source scan + the CREATE_NO_WINDOW pattern already used for the MT-088 LSP subprocess spawn in this crate — reuse that exact spawn discipline). DiagSession (session id + ring path) is from MT-082. The control socket + HandshakeHello are MT-089. src/backend untouched.\n\nRisk if missed: Palmistry is never launched (the whole Tier 3 watcher is dormant — built but never started); OR a non-quiet spawn pops a console/steals focus (HBR-QUIET violation during model testing); OR the spawn adds Palmistry to a kill-on-close job, breaking the survives-parent-death inversion; OR a blocking handshake hangs Handshake startup waiting on the watcher (reintroducing a startup stall).",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
+      "src/frontend/handshake_native/src/diagnostics/mod.rs",
+      "src/frontend/handshake_native/src/main.rs",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/Cargo.toml",
+      "src/frontend/handshake_native/tests/test_palmistry_launch.rs"
+    ],
+    "forbidden_paths": [
+      "src/frontend/palmistry/** (the watcher is MT-089..013; this MT only LAUNCHES it + handshakes)",
+      "src/frontend/handshake_native/diag_ring/** (MT-081-owned; reuse via API)",
+      "src/backend/** (reuse via API only)",
+      "src/backend/handshake_core/src/flight_recorder/** (FR kept as-is)",
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-014-1 (LAUNCH + HANDSHAKE, prove first): launching the Handshake startup path SPAWNS palmistry.exe (a child process exists) and completes the startup IPC handshake (Palmistry acks the HandshakeHello over the control socket with the matching pid/session/ring) — proven by a test driving the real launch against the built palmistry.exe and asserting the child + the ack.",
+      "AC-014-2 (HBR-QUIET): the spawn is headless + quiet — CREATE_NO_WINDOW / detached, stdout/stderr not inherited to a console, NO SetForegroundWindow / focus steal — verified via the spawn flags + the existing focus-audit/quiet-mode source discipline (no foreground call), consistent with the crate's existing subprocess-spawn pattern (the MT-088 LSP CREATE_NO_WINDOW spawn).",
+      "AC-014-3 (NOT kill-on-job-close): the spawn does NOT add Palmistry to a kill-on-job-close Win32 Job Object / parent-dies process group — documented spawn flags + the MT-089 survives-parent-death behavior preserved (the launcher-side half of the §6.13.3 inversion contract).",
+      "AC-014-4 (CLEAN SHUTDOWN): on a clean Handshake exit, Handshake sends the Shutdown control message and Palmistry exits cleanly with NO crash record — proven by a test that runs the startup + clean-shutdown path and asserts Palmistry got Shutdown + exited + wrote no crash artifact.",
+      "AC-014-5 (GRACEFUL DEGRADATION): with palmistry.exe absent (or the spawn forced to fail), Handshake STILL starts (the failure is logged + recorded as a typed diagnostic; startup is NOT blocked and does NOT hang on the watcher handshake) — proven by a test removing/mis-pointing the exe and asserting the app starts.",
+      "AC-014-6: palmistry.exe is added to the install two-binary payload (install_payload in handshake-native Cargo.toml metadata) so the installer ships it side-by-side; the exe path resolves via current_exe() (portable, no hardcoded path).",
+      "AC-014-7: `cargo build -p handshake-native` (lib + bins) clean; clippy `--all-targets -D warnings` clean; full suite `-j 2` green; external target dir; no repo-local target/, no tracked artifact."
+    ],
+    "proof_targets": [
+      "PT-014-A: launch test GREEN — palmistry.exe spawned + startup handshake acked.",
+      "PT-014-B: HBR-QUIET spawn-flags + focus-audit assertions GREEN (no window, no focus steal).",
+      "PT-014-C: clean-shutdown sends Shutdown + Palmistry exits with no crash; graceful-degradation (exe absent) startup-still-runs assertions GREEN.",
+      "PT-014-D: install_payload includes palmistry.exe; current_exe()-relative resolution; `cargo build --lib --bins` clean + clippy clean + full suite -j 2 green."
+    ],
+    "implementation_notes": [
+      "Resolve palmistry.exe via std::env::current_exe() -> its sibling directory (the installer ships both side-by-side; the self-check pattern already resolves bundled assets relative to the exe). Portable, no hardcoded path.",
+      "Spawn with CREATE_NO_WINDOW + a detached/quiet disposition (HBR-QUIET) — reuse the EXACT subprocess-spawn discipline the crate already uses for the MT-088 LSP server (CREATE_NO_WINDOW, focus-safe). Do NOT inherit the console; pipe or log stdout/stderr.",
+      "Do NOT add Palmistry to a kill-on-job-close Job Object (§6.13.3). A plain Command::spawn does not by default, but VERIFY nothing in the launch wrapper does; the MT-089 survives-parent-death test is the behavioral proof this launcher must preserve.",
+      "The startup handshake must be BOUNDED — if Palmistry does not ack within a short deadline, log + continue degraded. NEVER hang Handshake startup waiting on the watcher (that would reintroduce a startup stall, the opposite of the WP's purpose).",
+      "Store the PalmistryHandle on HandshakeApp; on clean exit (eframe on_exit/Drop) send Shutdown so Palmistry closes cleanly + records NO crash (the §6.13 clean-shutdown rule).",
+      "GRACEFUL DEGRADATION: the watcher is SUPPLEMENTARY (§5.8.6) — if it cannot be launched, Handshake runs anyway. Log + a typed diagnostic; never block startup.",
+      "Add palmistry.exe to the install_payload metadata (handshake-native Cargo.toml [workspace.metadata.handshake-native] install_payload already lists handshake-native.exe + handshake_core.exe — add palmistry.exe).",
+      "Read the KERNEL_BUILDER coder protocol under .GOV/ first; the launch must spawn the REAL built palmistry.exe + complete a REAL handshake (Spec-Realism), not a mocked spawn."
+    ],
+    "ports_from_react": [
+      "NONE (native sibling-process launch)"
+    ],
+    "binds_backend_api": [
+      "NONE. Handshake spawns the sibling palmistry.exe + handshakes over the local control socket. No backend involvement."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-QUIET",
+    "HBR-SWARM"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "status": "NOT_APPLICABLE",
+      "reason": "Launch + handshake do not touch the Tier 1 FR; FR forwarding is MT-093."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "WIRED",
+      "reason": "The launch passes the MT-082 DiagSession (session id + ring path) so Palmistry binds to the Tier 2 internal_diagnostics ring; a failed launch is recorded as a typed internal_diagnostics event (graceful degradation). The Tier 2 -> Tier 3 binding is established here."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "WIRED",
+      "reason": "This MT IS the §6.13.3 'launched WITH Handshake' half: Handshake spawns palmistry.exe quietly (HBR-QUIET), completes the startup handshake, preserves the not-kill-on-job-close inversion, and sends Shutdown on clean exit. Built + proven here."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PALMISTRY_WATCHER_V1",
+    "risks": [
+      "RISK-014-1: Palmistry is never launched (built but dormant) — the whole Tier 3 is dead. Mitigate: the launch is wired into startup + AC-014-1 proves a real spawn + handshake.",
+      "RISK-014-2: a non-quiet spawn pops a console / steals focus (HBR-QUIET violation during model testing). Mitigate: CREATE_NO_WINDOW + detached + no foreground call (AC-014-2), reusing the crate's existing focus-safe spawn discipline.",
+      "RISK-014-3: the spawn adds Palmistry to a kill-on-close job, breaking survives-parent-death. Mitigate: documented spawn flags + MT-089 behavioral proof preserved (AC-014-3).",
+      "RISK-014-4: a blocking handshake hangs Handshake startup waiting on the watcher (reintroduces a startup stall). Mitigate: bounded handshake + continue degraded (AC-014-5).",
+      "RISK-014-5: a missing palmistry.exe crashes/blocks startup instead of degrading. Mitigate: graceful degradation, startup still runs (AC-014-5).",
+      "RISK-014-6: a hardcoded exe path breaks portability / the installer. Mitigate: current_exe()-relative resolution + install_payload entry (AC-014-6)."
+    ],
+    "minimum_controls": [
+      "MC-014-1: real spawn + real startup handshake (AC-014-1).",
+      "MC-014-2: HBR-QUIET headless spawn, no focus steal (AC-014-2).",
+      "MC-014-3: not-kill-on-job-close + clean-shutdown Shutdown (AC-014-3/4).",
+      "MC-014-4: bounded handshake + graceful degradation, startup never blocked (AC-014-5)."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-KERNEL-012 field research (June 2026); reuses the crate's MT-088 CREATE_NO_WINDOW subprocess-spawn discipline",
+    "field_stack": "current_exe()-relative sibling-binary resolution (portable, installer-friendly); CREATE_NO_WINDOW/detached quiet spawn (the crate's existing focus-safe subprocess pattern); a bounded startup IPC handshake over the interprocess local socket; Shutdown-on-clean-exit so the watcher closes cleanly (Crashpad's handler-launched-by-client model).",
+    "crate_versions_verified_2026_06_27": {
+      "std::process::Command": "std",
+      "windows-sys": "0.61 (CREATE_NO_WINDOW / DETACHED_PROCESS creation flags; already the crate's Windows family)",
+      "interprocess": "2.4.2 (control-socket handshake, via MT-089)"
+    },
+    "motivating_incident": "The 2026-06-26 freeze is only observable by an external watcher if that watcher is actually RUNNING when the freeze happens — so Handshake must launch Palmistry at startup, quietly, before the app can stall, without blocking startup on it.",
+    "validation_plan": "real spawn + handshake + HBR-QUIET flags + not-kill-on-job-close + clean-shutdown + graceful-degradation + install_payload; clippy -D warnings; full suite -j 2."
+  }
+}

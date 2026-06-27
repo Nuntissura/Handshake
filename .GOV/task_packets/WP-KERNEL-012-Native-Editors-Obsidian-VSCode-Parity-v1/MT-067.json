@@ -25,10 +25,16 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-019", "MT-030", "MT-037"],
-    "blocks": ["MT-073"],
+    "depends_on": [
+      "MT-019",
+      "MT-030",
+      "MT-037"
+    ],
+    "blocks": [
+      "MT-073"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -36,10 +42,12 @@
     "allowed_paths": [
       "src/frontend/handshake_native/src/interop/calendar_interop.rs",
       "src/frontend/handshake_native/src/interop/mod.rs",
-      "src/frontend/handshake_native/src/loom/daily_journal_panel.rs",
-      "src/frontend/handshake_native/src/loom/mod.rs",
+      "src/frontend/handshake_native/src/graph/daily_journal_panel.rs",
+      "src/frontend/handshake_native/src/graph/mod.rs",
+      "src/frontend/handshake_native/src/pane_registry.rs",
+      "src/frontend/handshake_native/src/command_registry.rs",
       "src/frontend/handshake_native/tests/test_calendar_interop.rs",
-      "Cargo.toml"
+      "src/frontend/handshake_native/Cargo.toml"
     ],
     "forbidden_paths": [
       "app/src/** (legacy React, reference only)",
@@ -71,7 +79,10 @@
       "PostgreSQL/EventLedger only: all persistence is via handshake_core's REST surface. The new files must not reference sqlx, rusqlite, diesel, or any direct DB driver — gaps are typed blockers, not local DB work.",
       "AccessKit ids must be allocated through the WP-011 AccessKit id registry (accessibility/registry.rs, not hand-rolled string literals scattered in the panel) so swarm agents get stable, collision-free addresses.",
       "React reference LoomDailyJournalPanel.tsx (app/src, reference only): port the date header + prev/next nav layout, the linked-event chip pattern, and the 'edited during this block' correlation list; the React calendar is a React Big Calendar dumb view — treat it as a layout/data-shape reference only, not a behavior spec for the native calendar.",
-      "Cross-WP dependency: this MT builds on the WP-011 kernel shell primitives (pane_registry.rs, command_registry.rs + event_bus.rs, accessibility/*) and reuses loom_graph.rs as the host loom surface; WP-011 must be merged before this MT runs. This is a cross-WP dependency recorded as prose, not a depends_on MT id."
+      "Cross-WP dependency: this MT builds on the WP-011 kernel shell primitives (pane_registry.rs, command_registry.rs + event_bus.rs, accessibility/*) and reuses loom_graph.rs as the host loom surface; WP-011 must be merged before this MT runs. This is a cross-WP dependency recorded as prose, not a depends_on MT id.",
+      "PATH + BACKEND REALITY (KERNEL_BUILDER gate 2026-06-25, VERIFIED handshake_core + tree): (1) loom/ dir does NOT exist -> loom/daily_journal_panel.rs is FICTIONAL -> graph/daily_journal_panel.rs (the loom surface is graph/; declared in graph/mod.rs, NOT loom/mod.rs). (2) BIGGER GAP THAN THE CONTRACT ASSUMED: handshake_core has NO /calendar/ routes AT ALL - BOTH GET /calendar/events AND GET /calendar/activity-spans are ABSENT (the contract assumed /calendar/events exists + only activity-spans maybe-absent; WRONG - the whole Calendar/Pillar-2 HTTP surface is absent, like FEMS/Stage). (3) BUT the DAILY-NOTE half is REAL: the MT-019 daily-note service is rich_editor/daily_notes.rs backed by the EXISTING loom route PUT /workspaces/:ws/loom/journals/:journal_date (backend/loom.rs open_daily_journal). So open_or_create_daily_note DELEGATES to the MT-019 daily_notes service (idempotent, single doc/date - do NOT re-implement creation, RISK-1) and the daily-note half is FULLY PROVABLE.",
+      "HONEST SPLIT: daily-note REAL, calendar-event + activity-spans TYPED BLOCKERS (KERNEL_BUILDER gate): events_for_range + resolve_event_for_daily_note GET /calendar/events = ABSENT -> InteropError::EndpointUnavailable (typed blocker) -> the CalendarEvent chip renders an empty/unavailable state (NOT a fabricated event). activity_spans_for_event GET /calendar/activity-spans = ABSENT -> InteropError::EndpointUnavailable -> the activity strip shows the typed empty-state ('Activity correlation not available - backend endpoint not exposed'). EndpointUnavailable MUST be a DISTINCT variant (NOT collapsed into generic Http, RISK-3/MC) so the panel renders the right empty-state + the validator proves the blocker path. The DAILY-NOTE binding (date header + MT-019 prev/next nav + open-or-create) STAYS FULLY FUNCTIONAL alongside the gated calendar halves - the panel never dies on the absent calendar routes. PROVABLE NOW: the panel render + date nav + open_or_create delegation (mock/stub MT-019 service) + the EndpointUnavailable empty-states + AccessKit (daily-journal-panel/date-header/prev-day/next-day/calendar-event-chip/activity-strip/activity-item-{doc}). GATED #[ignore]+integration: the LIVE daily-note PUT round-trip (real PG) + (if calendar routes ever land) the live event/activity fetch.",
+      "BUS + READ-ONLY + CHRONO + HYGIENE (KERNEL_BUILDER gate): MT-030 (calendar pane / date-selected signal) communication is BUS-ONLY (command_registry+event_bus: date-selected IN, loom.daily-note.focus-calendar-event OUT) - do NOT import calendar-pane internals (RISK-4/MC); reuse the MT-019 date nav for prev/next-day (no 2nd calendar/date-picker). READ-ONLY activity strip: ActivitySpan.edited_doc_ids render as chips that emit loom.activity.open-document (navigation) ONLY - NO mutation path on ActivitySpan data (RISK-5/MC). chrono NaiveDate/DateTime<Utc> - the events query + daily-note key + activity window all resolve to the SAME calendar day (UTC; test a 23:30-local boundary, RISK-6/MC). NO DB/SQLite (RISK-2/MC - HttpClient only, NO sqlx/rusqlite/diesel, gaps are typed blockers not local DB). accesskit ids via accessibility/registry.rs (not hand-rolled). The live pane DOCK + the live MT-030 date-selected wiring = E11/MT-069 (carry). NO Color32 literal; external screenshot; full suite -j 2 (serialize); clippy clean."
     ],
     "ports_from_react": [
       "app/src/components/* Calendar (React Big Calendar dumb-view reference; app/src is legacy React, reference only) — event window shape (start/end/title), date-range query shape, all-day vs timed event handling; reference only, the native calendar behavior is MT-030's",
@@ -82,7 +93,11 @@
       "GET /workspaces/{workspace_id}/calendar/activity-spans (read-only correlation) — ActivitySpan edit correlation; if absent the MT raises InteropError::EndpointUnavailable as a typed blocker and shows the empty-state (no backend build, no DB access)"
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -106,5 +121,30 @@
       "The activity correlation strip must expose no mutation API; a test asserts the panel never calls any write path on ActivitySpan data and only emits navigation commands.",
       "All date handling uses chrono UTC with explicit NaiveDate keys; a test asserts the events query, daily-note key, and activity correlation all resolve to the same calendar day for a boundary (e.g. 23:30 local) case."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + VERIFIED handshake_core (NO /calendar/ routes) + MT-019 daily_notes (rich_editor/daily_notes.rs -> PUT /loom/journals/:date EXISTS) + loom/ absent (graph/) + FEMS/Stage no-HTTP pattern",
+    "corrections": [
+      "loom/daily_journal_panel.rs fictional -> graph/daily_journal_panel.rs (graph/mod.rs); BOTH /calendar/events + /calendar/activity-spans ABSENT (no /calendar/ routes) -> EndpointUnavailable typed blockers",
+      "daily-note half REAL: open_or_create_daily_note delegates to MT-019 daily_notes service (PUT /loom/journals/:date EXISTS) - idempotent, provable; calendar-event chip + activity strip = typed-blocker empty-states",
+      "EndpointUnavailable distinct variant (not generic Http); panel stays alive on gated calendar; MT-030 via bus only; read-only activity strip; chrono UTC boundary",
+      "provable now (panel+nav+delegation+empty-states+accesskit) + live daily-note PUT/calendar gated; no DB/SQLite/Color32; dock at E11; -j 2"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_4913728d (impl + 3-lens panel + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "a7ef1411 feat MT-067 Calendar/Pillar-2 interop (daily-note delegation real; calendar+activity typed blockers)",
+      "06acc649 fix harden per adversarial review"
+    ],
+    "review_panel": "correctness=PASS(0), backend-shape=CHANGES_REQUIRED(1), perf-focus-hygiene=PASS(0) -> 1 must-fix hardened.",
+    "proofs": "AC-1..7 + PT-1..5 PASS; 9 unit + 4 panel + 8 integration + 1443 lib + regression (command_palette, stage_interop, daily_notes 10, accesskit, interaction_bus) green; clippy clean; binary compiles; Daily Journal panel (date header 'Sunday June 21 2026' + prev/next-day nav + Today + 'Sprint planning' CalendarEvent chip + 'Edited during this block'/DOC-A activity strip) visually verified (fixture render); screenshot EXTERNAL.",
+    "honest_split_CONFIRMED": "BIGGER GAP than the contract assumed (verified: handshake_core has NO /calendar/ routes AT ALL): (1) DAILY-NOTE half is REAL - open_or_create_daily_note delegates to JournalBackend::open_daily_journal (PUT /loom/journals/:date, the MT-019 daily_notes service) - idempotent, same DocId twice, no duplicate. (2) BOTH GET /calendar/events AND GET /calendar/activity-spans are ABSENT -> InteropError::EndpointUnavailable (DISTINCT variant, 404 AND 501 broad detection) - the CalendarEvent chip + activity strip render the panel-stays-alive empty-states; the render path proven against FIXTURE-seeded data (Sprint planning + DOC-A), the LIVE fetch gated.",
+    "steers_held": "PATH: loom/ fictional -> graph/daily_journal_panel.rs. daily-note delegates to MT-019 (no re-implemented creation). EndpointUnavailable distinct (not generic Http); panel stays alive on gated calendar. MT-030 via BUS only (chip click -> loom.daily-note.focus-calendar-event; no calendar-pane internal import). READ-ONLY activity strip (chips -> loom.activity.open-document navigation; NO span write path, grep). chrono NaiveDate/DateTime<Utc> (added chrono serde feature for Deserialize). NO DB/SQLite (grep GET-only, shared client). accesskit daily-journal-panel/date-header/calendar-event-chip/activity-strip + reused MT-019 prev/next nav.",
+    "strategic_gap": "CALENDAR (Pillar 2) HAS NO HTTP SURFACE (verified, joins FEMS + Stage no-HTTP gaps): no /calendar/events, no /calendar/activity-spans. A future backend packet must expose them - then the CalendarEvent chip + activity correlation go live with zero frontend change (EndpointUnavailable flips to real data). The daily-note (loom journals) half is already live-capable.",
+    "carried_E11": "DOCK the DailyJournalPanel (register_daily_journal_pane exists) + wire the live MT-030 date-selected signal in -> open-or-create + the live daily-note PUT round-trip (real PG) = E11/MT-069 + NEEDS_MANAGED_RESOURCE_PROOF; the calendar-event/activity live fetch stays EndpointUnavailable until backend routes exist.",
+    "out_of_scope_disclosed": "Cargo.toml/lock: added chrono 'serde' FEATURE (no new dep family) so CalendarEvent/ActivitySpan DateTime<Utc> fields derive Deserialize from the RFC-3339 wire.",
+    "waiver_granted": "interop/calendar_interop.rs (new) + interop/mod.rs + graph/daily_journal_panel.rs (new) + graph/mod.rs + pane_registry.rs + command_registry.rs + Cargo.toml/lock (chrono serde) + test in allowed_paths."
   }
 }

@@ -25,10 +25,17 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-008", "MT-009", "MT-010"],
-    "blocks": ["MT-049", "MT-044"],
+    "depends_on": [
+      "MT-008",
+      "MT-009",
+      "MT-010"
+    ],
+    "blocks": [
+      "MT-049",
+      "MT-044"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -36,7 +43,8 @@
     "allowed_paths": [
       "src/frontend/handshake_native/src/code_editor/rename.rs",
       "src/frontend/handshake_native/src/code_editor/lsp_client.rs",
-      "src/frontend/handshake_native/src/code_editor/pane.rs",
+      "src/frontend/handshake_native/src/code_editor/mod.rs",
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
       "src/frontend/handshake_native/tests/test_rename_workspace_edit.rs",
       "src/frontend/handshake_native/tests/test_rename_graceful.rs",
       "src/frontend/handshake_native/tests/test_rename_preview.rs",
@@ -74,7 +82,10 @@
       "Reuse WP-011 shell primitives: register the 'Rename Symbol' command on the WP-011 command bus (command_registry.rs + event_bus.rs), register all rename AccessKit ids via the WP-011 AccessKit id registry (accessibility/registry.rs), and mount via the WP-011 pane registry (pane_registry.rs). Build the code-pane context-menu entry through context_menu.rs + context_menu_surfaces.rs. Do not create a parallel command bus or id registry.",
       "Atomic disk write for unopened files: write to a sibling temp file then `std::fs::rename` over the target (rename is atomic on the same volume); never write edits in place.",
       "The inline input must select-all on open so typing replaces the identifier (VS Code F2 behavior); set the cursor range via egui's TextEditState on the first frame the input is shown.",
-      "Guard `request_focus()` with a one-shot flag so the input does not steal focus every frame (respect HBR-QUIET / non-intrusive operation)."
+      "Guard `request_focus()` with a one-shot flag so the input does not steal focus every frame (respect HBR-QUIET / non-intrusive operation).",
+      "PATH + DATA-INTEGRITY (the highest-severity class - KERNEL_BUILDER gate 2026-06-24, this MT MUTATES the operator's SOURCE FILES): pane.rs -> panel.rs (CodeEditorPanel; pane.rs absent) + mod.rs (pub mod rename) + lsp_client.rs (additive rename ONLY, no 2nd transport) + rename.rs (new). (1) DESCENDING-OFFSET APPLY: within each file apply edits in DESCENDING start-offset order so earlier ropey byte offsets are NOT invalidated by later edits (RISK-001/MC-001 - ascending order CORRUPTS the buffer = silent source data loss; the rename_workspace_edit test MUST assert this across 2 files + an ascending-order regression must FAIL). (2) ATOMIC DISK WRITE for unopened files: write to a SIBLING temp file then std::fs::rename over the target (atomic on the same volume) - NEVER write edits in place, NEVER leave a half-written file (RISK-002/MC-002, AC-008 - simulate a write interruption + assert the file is intact-or-fully-replaced). On per-file failure, STOP + report which files were already applied (accurate report; best-effort rollback out of scope but the report must be truthful). NO data loss is the bar.",
+      "CORRECTNESS GATES (KERNEL_BUILDER gate): WorkspaceEdit deserialization MUST handle BOTH the `changes` map form {[uri]:TextEdit[]} AND the `documentChanges` array form [{textDocument,edits}] (RISK-003/MC-003, AC-007/PT-006 - lsp_types::WorkspaceEdit covers both; a documentChanges-only server's rename must NOT be silently dropped). begin_rename resolves the identifier via tree-sitter named_descendant_for_byte_range -> nearest identifier-kind node (identifier/type_identifier/field_identifier); RETURNS None on a non-identifier (keyword/string/whitespace) - NO word/regex scan (RISK-006/MC-006 - word-scan renames the WRONG symbol on shadowed/qualified names). NO-LSP FALLBACK: single-file only via the EXISTING GET /knowledge/code/symbols/{entity_id}/references (MT-039's verified route) - VERIFY the references response carries the precise byte/char RANGES the fallback rename needs (MT-039 found references = callers/callees with evidence_spans:EvidenceSpanRef{span_id,line_start,line_end}); if precise ranges are absent, record a TYPED BLOCKER (do NOT patch src/backend/**, AC-009). MUST render the 'LSP-required for cross-file rename' banner (author_id=code_editor_rename_no_lsp_banner) so the operator is NEVER misled that a single-file rename was project-wide (RISK-004/MC-004).",
+      "REUSE + HYGIENE (KERNEL_BUILDER gate): reuse the MT-009 references display widget for the rename preview hunk list (do NOT author a 2nd diff renderer); reuse the MT-008 lsp_client stdio transport (additive rename, no 2nd transport, AC-007); route the Rename Symbol command + apply/cancel via the WP-011 command bus (command_registry.rs+event_bus.rs); register the rename AccessKit ids via accessibility/registry.rs; build the code-pane context-menu entry via context_menu.rs+context_menu_surfaces.rs. PREVIEW-BEFORE-APPLY: build_preview lists every changed file (open vs to-disk noted) with before/after hunks BEFORE anything mutates; NOTHING changes until 'Apply' (AC-004). request_focus() guarded by a ONE-SHOT flag (RISK-005/MC-005, HBR-QUIET - no per-frame focus steal, no foreground/attention steal); inline input select-all on open (VS Code F2). AccessKit: code_editor_rename_input(TextInput)/_apply(Button)/_cancel(Button)/_no_lsp_banner(Label)/code_editor_ctx_rename_symbol(MenuItem). FULLY provable WITHOUT live PG (mock LSP for WorkspaceEdit both forms; in-memory TextBuffer for the 2-file apply; a temp-dir for the atomic-disk-write test; tree-sitter resolution standalone; the references fallback via a spy/gated client). No unwrap on LSP/backend parse. External screenshot if any (NOT test_output/); full suite green; clippy clean."
     ],
     "ports_from_react": [
       "app/src/components/CodeSymbolPanel.tsx — references display reused for the rename multi-file preview list (file rows, before/after hunks, open-vs-disk indicator)"
@@ -84,7 +95,10 @@
       "LSP textDocument/rename (stdio JSON-RPC over the existing MT-008 transport) — returns a WorkspaceEdit; this is the LSP server, not a handshake_core endpoint"
     ]
   },
-  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -108,5 +122,28 @@
       "MC-005: `request_focus()` MUST be guarded by a one-shot flag (HBR-QUIET); no foreground/attention stealing.",
       "MC-006: `begin_rename` MUST resolve the symbol via the tree-sitter identifier-kind node and return None on non-identifiers; no word-scan fallback."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + real code_editor/panel.rs + MT-008 transport + MT-009 references widget + MT-001 tree-sitter/ropey + MT-039 references route+shape + data-loss prevention rules",
+    "corrections": [
+      "panel.rs not pane.rs; DATA-INTEGRITY: descending-offset apply + atomic temp+rename disk write (no half-written file, no corruption)",
+      "WorkspaceEdit both forms (changes map + documentChanges array); tree-sitter identifier resolution not word-scan; no-LSP banner; verify references-API ranges (typed blocker if absent, no backend patch)",
+      "reuse MT-009 preview widget + MT-008 transport + WP-011 bus/context-menu/accesskit; preview-before-apply; focus one-shot (HBR-QUIET)",
+      "provable WITHOUT live PG (mock LSP + in-memory buffers + temp-dir disk + tree-sitter); no unwrap; external screenshot; full suite green"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_86b3a254 (impl + 3-lens panel + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "69e69220 feat MT-048 Rename Symbol (F2) with WorkspaceEdit preview + atomic apply",
+      "10a5f9da fix harden per adversarial review"
+    ],
+    "review_panel": "correctness=CHANGES_REQUIRED(1), backend-shape=CHANGES_REQUIRED(1), perf-focus-hygiene=PASS(0) -> 2 must-fixes hardened.",
+    "proofs": "AC-001..009 + PT-001..006 PASS; 10 unit + 4 integration + regression (panel/cursor/ctrl_d/goto_line/signature_help 29, keymap 12, accesskit, e7 13, completion-hover) green; clippy clean; inline rename input (pre-filled 'value' fully selected at the identifier, VS Code F2) visually verified; screenshot EXTERNAL.",
+    "data_integrity_held": "DESCENDING-OFFSET apply (2-file WorkspaceEdit, ascending-order regression proven to differ - RISK-001/MC-001); ATOMIC temp+rename disk write (interruption leaves file intact-or-fully-replaced, never half-written - AC-008); preview-before-apply (nothing mutates until Apply). NO source data loss.",
+    "steers_held": "panel.rs (pane.rs absent); WorkspaceEdit BOTH forms (changes-map + documentChanges-array -> same FileEditPreview, AC-007); tree-sitter identifier resolution (F2-on-keyword rejected, no word-scan); no-LSP banner Role::Label 'LSP-required for cross-file rename'; additive rename on the MT-008 transport (install_test_transport, no 2nd transport); reuse MT-009 widget + WP-011 bus/context-menu/accesskit; focus one-shot (didn't break typing).",
+    "honest_typed_blocker": "VERIFIED the REAL backend references shape (CodeSymbolReference = {symbol_entity_id, display_name} - NO occurrence ranges) -> references_lack_precise_ranges() records a TYPED BLOCKER; the no-LSP fallback computes in-file ranges from TREE-SITTER instead (a valid workaround needing no missing backend field); ZERO src/backend edits (AC-009). Verify-over-prose + honest gap-handling.",
+    "waiver_granted": "code_editor/rename.rs (new) + lsp_client.rs (additive) + mod.rs + keymap.rs (RenameSymbol+F2) + panel.rs + 4 test files in allowed_paths."
   }
 }

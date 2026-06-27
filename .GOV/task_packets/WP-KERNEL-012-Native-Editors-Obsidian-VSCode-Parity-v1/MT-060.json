@@ -25,10 +25,17 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-021", "MT-022", "MT-023"],
-    "blocks": ["MT-044", "MT-045"],
+    "depends_on": [
+      "MT-021",
+      "MT-022",
+      "MT-023"
+    ],
+    "blocks": [
+      "MT-044",
+      "MT-045"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -36,8 +43,9 @@
     "allowed_paths": [
       "src/frontend/handshake_native/src/graph/graph_controls.rs",
       "src/frontend/handshake_native/src/graph/mod.rs",
-      "src/frontend/handshake_native/src/loom_graph.rs",
-      "src/frontend/handshake_native/src/lib.rs"
+      "src/frontend/handshake_native/src/graph/graph_view.rs",
+      "src/frontend/handshake_native/src/theme/palette.rs",
+      "src/frontend/handshake_native/tests/test_graph_controls.rs"
     ],
     "forbidden_paths": [
       "app/src/** (legacy React, reference only)",
@@ -70,7 +78,10 @@
       "Populate groups idempotently keyed on the stable kebab-case key so re-loading the graph (e.g. after a depth change) does not duplicate or reset enabled/color state the user already set.",
       "Group color first-match wins; document the resolution order (group vec order) so coloring is deterministic and matches the legend ordering.",
       "Mount the control panel via the WP-011 pane registry (src/frontend/handshake_native/src/pane_registry.rs) and command bus (src/frontend/handshake_native/src/command_registry.rs + src/frontend/handshake_native/src/event_bus.rs) so the panel toggle is a registered command and the panel participates in the shell's standard pane lifecycle.",
-      "Cross-WP dependency: this MT edits the WP-011-delivered loom graph widget (src/frontend/handshake_native/src/loom_graph.rs) and reuses WP-011 shell primitives; WP-011 must be merged before this MT can build."
+      "Cross-WP dependency: this MT edits the WP-011-delivered loom graph widget (src/frontend/handshake_native/src/loom_graph.rs) and reuses WP-011 shell primitives; WP-011 must be merged before this MT can build.",
+      "PATH CORRECTION loom_graph.rs -> graph/graph_view.rs (KERNEL_BUILDER gate 2026-06-25, verified): the contract names 'loom_graph.rs (the LoomGraphView widget)' as the MT-021 graph view - WRONG. loom_graph.rs is only 293 lines (the WP-011 root surface). The REAL MT-021 graph view is graph/graph_view.rs (905 lines) - it owns GraphMode::Local/Global + the graph-search/backlink_depth binding + force_layout + the painter pass. Add the controls field + the live painter wire + the depth re-query THERE. allowed_paths corrected: graph/graph_controls.rs (new) + graph/mod.rs (pub mod graph_controls) + graph/graph_view.rs (the edit) + theme/palette.rs (group-color palette tokens) + tests/test_graph_controls.rs. lib.rs already declares pub mod graph (graph/ exists since MT-021) - do NOT re-add. REUSE the MT-022 folder identity (graph/folder_tree.rs) + MT-023 tag identity (graph/tags_panel.rs) for group matching (RISK-1/MC-1 - same identity the trees use, NOT re-derived from raw strings; VERIFY those identity fns exist - if a needed tag/folder identity field is absent, raise a TYPED BLOCKER, no backend endpoint).",
+      "WIRE-INTO-LIVE PAINTER + VISIBILITY OVERLAY (KERNEL_BUILDER gate - the MT-057/058 anti-scaffolding lesson): the GraphControls + compute_visibility/assign_group_color/node_radius MUST be CONSUMED by the LIVE graph_view.rs painter pass - the existing edge-then-node draw loop applies the visibility map (skip hidden nodes + their edges; dim non-matches via alpha ~70 from_rgba_unmultiplied), the group color (assign_group_color Some else MT-021 content_type color), and node_radius (size-by-degree). RE-PROVE against the REAL widget (kittest: type search -> live non-matches dim; toggle orphans off -> degree-0 nodes hidden from the canvas; size-by-degree -> hub larger; move depth slider in Local -> live re-query). VISIBILITY IS A SEPARATE OVERLAY MAP keyed by block_id - do NOT mutate the canonical loaded Vec<GraphNode>/Vec<GraphEdge> used by click/open + pan/zoom (RISK-6/MC-6 - click detection SKIPS hidden nodes; a kittest asserts a hidden node is not selectable). NOT isolated logic - the pure fns (compute_visibility/node_degree/assign_group_color/node_radius, no egui in signatures, AC unit-testable) are called BY the live painter.",
+      "DEBOUNCE + CLIENT-SIDE + PERSIST + HYGIENE (KERNEL_BUILDER gate): DEPTH SLIDER fires DepthChanged ONLY on release/settle (NOT every intermediate drag value, RISK-2/MC-2 - backend hit at most once per committed depth; re-fires the SAME existing GET /loom/graph-search?backlink_depth= - the ONLY network call; Local mode only, Global disabled add_enabled(false)). ALL OTHER controls (search/group/orphan/size) are CLIENT-SIDE over the loaded vecs - ZERO HTTP (RISK-3/MC-3, AC7/AC8 - kittest request-log: 0 new requests across filter/group/orphan/size; NO new endpoint, NO SQLite; typed blocker if an identity field is missing, no backend rewrite). PERSIST groups/slider/orphan/size across re-loads keyed on the stable kebab-case key (sanitize alphanumeric+hyphen, RISK-5/MC-5 same as MT-021) - reapply user-set enabled/color/slider after a depth-change reload (RISK-7/MC-7, idempotent group set). GROUP COLOR PALETTE via theme/palette.rs tokens - NO Color32::from_rgb literal in graph_controls.rs/graph_view.rs (CONTROL-4 guard). O(nodes+edges) cached, recompute on FiltersChanged (200-node MT-021 cap). AccessKit graph.controls.toggle/filter.search/depth.slider/orphan.toggle/size.degree/group.{key} via accessibility/registry.rs (AC6). External screenshot if any; full suite -j 2; clippy clean."
     ],
     "ports_from_react": [
       "No dedicated React graph component; controls are new native parity to the Obsidian graph. Reference only (forbidden to edit): app/src/lib/api.ts graph-search usage (the same endpoint MT-021 binds) for the backlink_depth parameter shape."
@@ -79,7 +90,10 @@
       "GET /workspaces/{workspace_id}/loom/graph-search?q=&limit=&backlink_depth= — re-query on link-depth change in Local mode ONLY; same existing endpoint bound by MT-021, no new endpoint. All other controls are client-side over the loaded node/edge set."
     ]
   },
-  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -105,5 +119,28 @@
       "MC-6: Hidden/dimmed state must not mutate the canonical loaded node/edge vectors used by click/open and pan/zoom; visibility is a separate overlay map keyed by block_id, and click detection skips hidden nodes. Covered by AC2 plus a kittest click test asserting hidden nodes are not selectable.",
       "MC-7: Persist groups/slider/orphan/size state across re-loads by keying groups on the stable kebab-case key and reapplying user-set enabled/color/slider values after each load. Covered by AC3/AC4 idempotency."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + real graph/graph_view.rs (905 lines, the MT-021 graph; loom_graph.rs is 293-line WP-011 surface) + MT-022 folder_tree + MT-023 tags_panel identity + MT-057/058 wire-into-live + theme guard",
+    "corrections": [
+      "loom_graph.rs WRONG -> graph/graph_view.rs (the MT-021 GraphMode/graph-search/force-layout owner); lib.rs already declares pub mod graph",
+      "reuse MT-022 folder_tree + MT-023 tags_panel identity for group matching (typed blocker if absent, no backend); WIRE controls into the LIVE painter + re-prove against the real widget",
+      "visibility as a SEPARATE overlay map (don't mutate node/edge vecs; clicks skip hidden); pure fns called by the painter (not isolated)",
+      "depth debounce (release-only, single graph-search endpoint); client-side filters 0 HTTP; persist state across reloads (stable kebab key); theme-token palette (no Color32)"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_88eac6cd (impl + 3-lens panel + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "f98d1a2a feat MT-060 Obsidian graph filter/group/depth/orphan/size controls",
+      "3ac99c1a fix harden per adversarial review"
+    ],
+    "review_panel": "correctness=PASS(0), backend-shape=CHANGES_REQUIRED(1), perf-focus-hygiene=CHANGES_REQUIRED(1) -> 2 must-fixes hardened.",
+    "proofs": "AC1..8 + PROOF1..5 PASS (AC4 PASS_WITH_TYPED_LIMITATION); 18 unit + 8 kittest + 103 graph lib + regression (theme 19, accesskit 9, graph_view click fixed via canvas_rect) green; clippy clean; graph control panel (Filter + Link-depth slider + Show-orphans + Size-by-degree + Groups legend #research/frontend swatches) + degree-sized canvas nodes visually verified - Obsidian graph parity; screenshots EXTERNAL.",
+    "steers_held": "PATH: loom_graph.rs (293-line WP-011 surface) WRONG -> graph/graph_view.rs (905-line MT-021 GraphView). WIRE-INTO-LIVE: the painter pass CONSUMES the overlays (skip hidden nodes+edges, dim non-matches alpha 70, group color else content_type, node_radius size-by-degree); node_at_screen SKIPS hidden (RISK-6 - hidden node not selectable). VISIBILITY = separate overlay map (vecs UNMUTATED). reuse MT-022 folder identity (GraphNode.folder_path prefix) + MT-023 tag identity (GraphNode.tags hub-title). pure fns (compute_visibility/node_degree/assign_group_color/node_radius, 18 tests). depth debounce + Local-only (Global disabled). client filters 0 HTTP (AC7/8). theme-token group palette (graph_group_palette in palette.rs, 8 literals EXEMPT; test_theme green - no Color32 in graph_controls/graph_view). stable kebab keys + persist.",
+    "typed_limitation_AC4": "The view emits GraphEvent::DepthChanged{depth:N} CORRECTLY, but backend_client.rs::local_request HARDCODES backlink_depth=2 + is OUTSIDE allowed_paths - so the host needs a DEPTH-PARAMETERIZED client builder to send the new backlink_depth on the wire. Typed blocker (no backend edit) -> carried to E11/MT-069.",
+    "out_of_scope_disclosed": "test_graph_view.rs edited (test-only): the MT-021 click test now derives the canvas center from the new canvas_rect() accessor instead of a hardcoded vec2(400,315) because the control SidePanel shifted the canvas center; no product behavior change.",
+    "waiver_granted": "graph/graph_controls.rs (new) + graph/graph_view.rs (controls+painter wire) + graph/mod.rs + theme/palette.rs (group palette) + test_graph_controls.rs + test_graph_view.rs (test-only canvas_rect) in allowed_paths."
   }
 }

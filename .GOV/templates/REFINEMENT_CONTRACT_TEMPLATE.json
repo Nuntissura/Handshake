@@ -69,6 +69,22 @@
         "evidence_path": null
       }
     },
+    "hbr_int_009_three_tier_diagnostic": {
+      "applicable": null,
+      "verdict": "PENDING",
+      "tier_flight_recorder": {
+        "status": "UNKNOWN",
+        "notes": null
+      },
+      "tier_internal_diagnostics": {
+        "status": "UNKNOWN",
+        "notes": null
+      },
+      "tier_palmistry": {
+        "status": "UNKNOWN",
+        "notes": null
+      }
+    },
     "microtask_plan": [],
     "microtask_plan_item_defaults": {
       "hbr_obligations": []

@@ -1,0 +1,139 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-083",
+  "title": "D3-MT-083-PanicHook-DurableLocalCrashRecord",
+  "group": "D2 internal_diagnostics (Tier 2 in-process)",
+  "created_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-083.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
+    "depends_on": [
+      "MT-082"
+    ],
+    "blocks": [
+      "MT-096"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Install a `std::panic::set_hook` PANIC HOOK in the native app that, on any Rust panic, writes a DURABLE LOCAL crash record (thread name/id, panic location file:line:col, a captured backtrace, a monotonic + wall timestamp) to local disk AND signals the MT-081 ring with a typed `DiagEventCode::PanicCaught` event, BEFORE delegating to the default panic behavior. This is the internal_diagnostics (Tier 2) panic-record component named in Master Spec v02.196 §5.8.2 ('durable crash record'). It is the IN-PROCESS crash capture; the out-of-process minidump is Palmistry's job (MT-092) — this MT is the in-process half that records what the process itself can still record on the way down.\n\nTYPED-ALLOWLIST CONSTRAINT (HARD, §5.8.3): the crash record is mechanical only — thread id, panic source LOCATION (the file:line:col of the panic site is allowed; it is code position, not project data), backtrace frames (symbol names / addresses — code structure, not user data), counters, timestamps. The panic MESSAGE string is the ONE risk surface (a panic payload can contain interpolated values). Policy: DO NOT write the raw panic payload string into the ring DiagEvent (the ring is strictly typed integers — there is no string field, so this is structural). For the durable on-disk record, write the panic location + backtrace, and either OMIT the free-form payload message or write it only into a SEPARATE local-only crash file that is clearly marked local-only and never forwarded to the ring or FR without the typed-allowlist filter (MT-093 forwards only the typed fields). Default to OMITTING the payload message from anything that leaves the local crash file. Document this decision.\n\nExact files to create/edit:\n- CREATE `src/frontend/handshake_native/src/diagnostics/panic_hook.rs` — `pub fn install_panic_hook(crash_dir: PathBuf)`. Declare `pub mod panic_hook;` in `src/frontend/handshake_native/src/diagnostics/mod.rs`.\n- EDIT `src/frontend/handshake_native/src/main.rs` — call `diagnostics::panic_hook::install_panic_hook(...)` EARLY in `main()`, BEFORE `eframe::run_native` and ideally before/around tracing init, so a panic during startup is also caught. Resolve the crash_dir to a portable per-user app data dir (reuse the existing `dirs` crate already in handshake-native: e.g. `dirs::data_local_dir()/handshake/crash/`), NOT a hardcoded absolute path (GLOBAL-PORTABILITY).\n- CREATE `src/frontend/handshake_native/tests/test_panic_hook.rs`.\n\nHook behavior (panic_hook.rs):\n- Capture the previous hook (`std::panic::take_hook`) and CHAIN to it after recording, so the default abort/unwind + any eframe/tracing hook still runs (do not swallow the panic). `panic = \"abort\"` is set in the release-native profile, so the hook runs once then the process aborts — the durable record must be FLUSHED to disk inside the hook before returning.\n- Inside the hook: read `PanicHookInfo::location()` (file/line/col), `std::thread::current()` (name + id), capture a backtrace via `std::backtrace::Backtrace::force_capture()` (std backtrace — no extra crate needed; force_capture ignores RUST_BACKTRACE so a crash is always symbolized when possible), and the timestamps.\n- Write a durable crash record file: `crash_dir/crash-<session_id>-<timestamp>.json` containing the typed fields + (local-only) backtrace text. Use an ATOMIC write (write to a temp file then rename, or write+flush+sync_all) so a crash mid-write does not leave a truncated record. Keep it panic-safe: the hook itself must NOT panic (a panic in the panic hook aborts immediately with no record) — use no-unwrap, ignore IO errors gracefully (best-effort flush; a failed write must not re-panic).\n- Signal the ring: call `diagnostics::record_with(DiagEventCode::PanicCaught, DiagPhase::End, DiagSeverity::Error, thread_id, ...)` so Palmistry sees a PanicCaught marker in the ring even if the process then aborts. This is a ring write of TYPED INTEGERS only (no message).\n- The crash_dir + session_id come from the DiagSession MT-082 stored on the app; for the panic hook (installed in main before HandshakeApp::new), pass the session_id in or use a process-start id generated in main and shared with HandshakeApp.\n\nReuse note: `dirs` is already a handshake-native dependency (MT-090 keymap used it for ~/.handshake). `std::backtrace::Backtrace` is std (Rust 1.65+), no new crate. The ring write reuses the MT-082 `diagnostics::record_with`. src/backend untouched.\n\nRisk if missed: an in-process panic leaves no first-party record; the only crash evidence would be Palmistry's out-of-process minidump (MT-092), losing the cheap, always-available in-process backtrace + the ring PanicCaught marker that helps Palmistry distinguish a panic-exit from a clean shutdown.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/diagnostics/panic_hook.rs",
+      "src/frontend/handshake_native/src/diagnostics/mod.rs",
+      "src/frontend/handshake_native/src/main.rs",
+      "src/frontend/handshake_native/tests/test_panic_hook.rs"
+    ],
+    "forbidden_paths": [
+      "src/frontend/handshake_native/diag_ring/** (MT-081-owned; reuse via API)",
+      "src/backend/** (reuse via API only)",
+      "src/backend/handshake_core/src/flight_recorder/** (FR kept as-is)",
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-003-1: a test installs the hook with a temp crash_dir, triggers a panic on a worker thread inside `std::panic::catch_unwind` (so the test process survives), and asserts a durable crash record file was written containing the panic location (file/line) and thread info and a backtrace — and NOT containing any project/sensitive payload (the message is omitted or confined to the local-only file per the policy).",
+      "AC-003-2: the hook signals the ring: after the caught panic, a DiagRingReader (or `diagnostics::snapshot_last_n`) shows a `PanicCaught` DiagEvent (typed integers only — no string field exists on DiagEvent, so this is structurally content-free).",
+      "AC-003-3: the crash-record write is atomic + crash-safe — the test asserts the written file parses as complete JSON (no truncation) and that an IO failure path (e.g. an unwritable dir) does NOT re-panic (best-effort: the hook returns cleanly and chains to the previous hook).",
+      "AC-003-4: the hook CHAINS to the previous hook (does not swallow the panic) — proven by the test capturing that the prior hook still ran (e.g. a sentinel prior hook is invoked after the record is written).",
+      "AC-003-5: the crash_dir resolves via `dirs` to a portable per-user path, not a hardcoded absolute path — source scan confirms no hardcoded drive-letter/user-profile path (GLOBAL-PORTABILITY).",
+      "AC-003-6: `cargo build -p handshake-native` (lib + bins) clean; clippy `--all-targets -D warnings` clean; full suite `-j 2` green; external target dir; no repo-local target/, no tracked artifact."
+    ],
+    "proof_targets": [
+      "PT-003-A: `cargo test -p handshake-native panic_hook` GREEN — caught panic writes a durable record with location+thread+backtrace, no sensitive payload.",
+      "PT-003-B: ring shows PanicCaught after the caught panic (snapshot or reader).",
+      "PT-003-C: atomic-write + no-re-panic-on-IO-error + chain-to-previous-hook assertions GREEN.",
+      "PT-003-D: source scan: no hardcoded absolute crash path; `cargo build --lib --bins` clean + clippy clean + full suite -j 2 green."
+    ],
+    "implementation_notes": [
+      "The hook must be panic-free internally: a panic inside a panic hook calls abort immediately with no record. Use only no-unwrap IO, ignore errors, and do the minimum work. Capture the backtrace and write the file, then signal the ring, then chain.",
+      "panic = \"abort\" in release-native means the hook runs ONCE then aborts — flush+sync the durable record inside the hook before returning. In dev/test (`panic = unwind`) catch_unwind lets the test process survive so the assertions run.",
+      "std::backtrace::Backtrace::force_capture() symbolizes regardless of RUST_BACKTRACE (always-on crash backtrace). No `backtrace` crate needed.",
+      "Atomic write: write to `<file>.tmp`, flush + sync_all, then rename to the final name — a crash mid-write leaves only the tmp, never a half-written final record.",
+      "The payload MESSAGE is the only free-text risk: by policy keep it OUT of the ring (the ring is typed integers anyway) and OUT of anything forwarded; if written at all, only into the clearly local-only crash file, which MT-093 reads through the typed-allowlist filter, never raw. Default: omit it. Document the decision in the module doc.",
+      "Install in main() BEFORE eframe::run_native so a startup-time panic is also captured; share the process-start session id with HandshakeApp so the crash file and the ring use the same session id.",
+      "Read the KERNEL_BUILDER coder protocol under .GOV/ first; do not add a panic hook that records nothing useful (the backtrace + location + ring marker are the deliverable, proven by a real caught panic, not a stub)."
+    ],
+    "ports_from_react": [
+      "NONE (native panic capture; the React app had no equivalent)"
+    ],
+    "binds_backend_api": [
+      "NONE. In-process crash record + local ring signal only. FR forwarding of the typed crash fields is MT-093."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-QUIET"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "status": "NOT_APPLICABLE",
+      "reason": "The in-process panic record is written locally + signalled to the ring; forwarding the typed crash fields into the Tier 1 FR is MT-093, not here."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "WIRED",
+      "reason": "This MT IS the Tier 2 durable-crash-record component (§5.8.2): the panic hook writes the local record and emits a typed PanicCaught DiagEvent, wired live in main(). Built + consumed here."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "WIRED",
+      "reason": "The PanicCaught ring marker lets Palmistry (Tier 3) distinguish a panic-exit from a clean Shutdown when it observes the process die (MT-092). The ring signal is the live link; it is proven by the reader seeing PanicCaught."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DIAGNOSTIC_SUBSTRATE_V1",
+    "risks": [
+      "RISK-003-1: the panic payload message (interpolated project/user values) leaks into the ring/FR, breaking the typed-allowlist invariant. Mitigate: ring is typed integers only (no string field); the message is omitted or confined local-only; AC-003-1 asserts no sensitive payload escapes.",
+      "RISK-003-2: the hook panics or blocks, turning a recoverable panic into a hard abort with no record. Mitigate: panic-free no-unwrap IO, best-effort flush, AC-003-3.",
+      "RISK-003-3: the hook swallows the panic, hiding real crashes. Mitigate: chain to the previous hook (AC-003-4); do not return early before the default behavior.",
+      "RISK-003-4: a partial/truncated crash record on crash-mid-write. Mitigate: atomic temp+rename / flush+sync_all (AC-003-3).",
+      "RISK-003-5: a hardcoded absolute crash path breaks portability. Mitigate: dirs-resolved per-user path (AC-003-5)."
+    ],
+    "minimum_controls": [
+      "MC-003-1: a real caught panic on a worker thread produces a complete, content-free durable record + a ring PanicCaught (AC-003-1/2).",
+      "MC-003-2: hook is panic-free + chains to the previous hook (AC-003-3/4).",
+      "MC-003-3: portable crash dir via dirs (AC-003-5).",
+      "MC-003-4: external target dir; clippy -D warnings; full suite -j 2 green."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-KERNEL-012 field research (June 2026)",
+    "field_stack": "std::panic::set_hook + std::backtrace::Backtrace::force_capture (std, no crate) for the in-process record; atomic temp+rename durable write; the ring PanicCaught marker (MT-081/002) so the out-of-process watcher distinguishes panic-exit from clean shutdown. This in-process record is the cheap always-available complement to Palmistry's out-of-process minidump (the crashing process cannot reliably dump itself, but it CAN write a backtrace on the way down).",
+    "crate_versions_verified_2026_06_27": {
+      "dirs": "5.x (already a handshake-native dep)",
+      "std::backtrace": "std (no crate)"
+    },
+    "motivating_incident": "The 2026-06-26 freeze was a stall, not a panic, but a crash path equally needs first-party capture; the panic hook + the Palmistry minidump (MT-092) together cover both death modes the live session exposed gaps in.",
+    "validation_plan": "caught-panic record + ring marker + atomic-write + chain + portability scan; clippy -D warnings; full suite -j 2."
+  },
+  "implementation_result": {
+    "summary": "panic::set_hook -> durable atomic local crash record (location/thread/backtrace, PanicCaught DiagEvent to the MT-081 ring), panic message confined to a LOCAL-ONLY sidecar (out of ring/record), chains prior hook, no re-panic on IO error, portable crash dir (dirs::data_local_dir). AC-003-1..6 + PT-003-A..D PASS.",
+    "carry_forward": "session-id reuse seam built (diagnostics::set/process_session_id) but the ring-reuse line lives in app.rs (outside MT-083 allowed_paths) - a later app.rs-touching MT (MT-084/087) should prefer diagnostics::process_session_id() so crash file + ring share one correlation id."
+  }
+}

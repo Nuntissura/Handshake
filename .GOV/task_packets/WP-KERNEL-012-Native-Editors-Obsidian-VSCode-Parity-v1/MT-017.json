@@ -25,9 +25,12 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-011", "MT-012"],
+    "depends_on": [
+      "MT-011",
+      "MT-012"
+    ],
     "blocks": [],
     "validator_verdict": "PENDING"
   },
@@ -67,7 +70,11 @@
       "The properties panel save path (title edit -> PUT /knowledge/documents/{id}/save) must send the FULL current content_json alongside the new title, because the save endpoint is not a PATCH; it replaces the whole document. Hold the last-known content_json in PropertiesState and include it in the save body. Alternatively, use a dedicated metadata PATCH endpoint if one exists in the backend; inspect the backend routes first.",
       "Tags: inspect the backend API carefully. LoomBlock has derived.tags but RichDocument (knowledge/documents) may not have a tags field in the current schema (check api.ts lines 3050-3100). If absent, implement tags as a comment in the properties panel indicating the backend gap and stub the tag editor with a local-only state that is not persisted until the backend adds the field. Document this gap explicitly in a code comment.",
       "Date parsing must handle both 'Z' and '+00:00' timezone suffixes. chrono::DateTime::parse_from_rfc3339 handles both.",
-      "The collapsing header must remember its open/closed state in egui persistent storage (egui::Id keyed per document_id) so it does not reset on every re-render."
+      "The collapsing header must remember its open/closed state in egui persistent storage (egui::Id keyed per document_id) so it does not reset on every re-render.",
+      "NO PERPETUAL SPINNER (KERNEL_BUILDER gate 2026-06-22 - learned from the MT-015 backlinks-spinner regression that turned 12 full-widget tests RED): MT-017 mounts the properties panel in the SHARED rich_editor_widget.rs and loads metadata + backlinks-count async. ANY egui::Spinner / animated/loading indicator MUST only render while a fetch is GENUINELY in-flight (runtime present + dispatched); in the headless/idle/no-runtime state render a NEUTRAL non-animating placeholder - NEVER an auto-repainting Spinner in Idle, or it requests a repaint every frame forever (idle-CPU + harness.run() max_steps) and re-breaks test_embeds/test_formatting_toolbar/test_rich_editor_widget. The backlinks-count fetch follows MT-015's fixed pattern: only Loading with a runtime. KERNEL_BUILDER will run the FULL cargo test (every bin) at this MT's gate because it touches the shared widget.",
+      "BACKEND SHAPE + PROOF (MT-008/011/014/015 pattern, KERNEL_BUILDER gate): VERIFY the REAL RichDocument shape in app/src/lib/api.ts BEFORE binding fields - bind ONLY fields that EXIST. The contract flags that RichDocument may have NO tags/project_ref/folder_ref field; for any absent field, render a VISIBLE 'not persisted (backend gap)' banner + local-only state (MC-002) - do NOT fake persistence (the hsLink/tableHeader field-existence lesson). The title-save round-trip + metadata load + backlinks-count bind the REAL backend; gate those ACs behind the integration feature + NEEDS_MANAGED_RESOURCE_PROOF if unseeded; the panel render + field state + date-format + tag add/remove + pending_save logic are unit-testable STANDALONE.",
+      "TITLE-SAVE LIVE CONTENT (MC-001): save_metadata MUST pull the CURRENT content_json from the live RichEditorState.doc (DocJson::to_content_json from MT-011, the bare doc node), NOT a cached copy in PropertiesState - the /save endpoint replaces the whole document, so a stale content_json would clobber the operator's recent edits. Test asserts the saved JSON includes the latest typed character.",
+      "CRATES + PATHS + CLIPBOARD (KERNEL_BUILDER gate): module root is rich_editor/ NOT rich_text/ (real tree). chrono is likely ALREADY in the workspace dep graph (handshake_core uses it) - do NOT duplicate; wrap local-offset in a fallback to UTC (no panic, MC-003). Clipboard: reuse any existing WP-011 clipboard surface if present; else arboard behind a MOCKABLE trait so headless tests never touch the OS clipboard (AC-6 uses a mock). Screenshots mt017_*.png to the EXTERNAL Handshake_Artifacts/handshake-test/wp-kernel-012-mt-017/ root + assert_no_local_artifact_dir(). ACCESSKIT VARIANT: Role::Group (Tag may not be a real accesskit 0.21.1 Role - use the closest, e.g. Group/ListItem); ACs assert author_id. Backlinks-count race (MC-004): separate Arc<Mutex<Option<usize>>>, never overwrites doc metadata."
     ],
     "ports_from_react": [
       "app/src/components/RichDocumentView.tsx (document metadata section: title display, doc_version, authority_label, created_at/updated_at, backlinks count panel)",
@@ -79,7 +86,11 @@
       "GET /knowledge/documents/{document_id}/backlinks -> backlinks count (listRichDocumentBacklinks)"
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -99,5 +110,28 @@
       "Wrap chrono::Local::now() call in a Result/unwrap_or fallback to UTC if local offset fails; log the fallback with tracing::warn; do not panic.",
       "Backlinks count is fetched via a separate async task that writes to an Arc<Mutex<Option<usize>>>; it never overwrites the doc metadata struct fields, only the backlinks_count field."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-015 spinner-regression lesson + MT-011 field-existence lesson + MT-008 backend pattern",
+    "corrections": [
+      "NO perpetual spinner in shared widget (idle->neutral, only Loading with a runtime) - prevent the spinner regression recurrence",
+      "verify RichDocument shape; bind only existing fields; visible gap banner for absent (no fake persistence)",
+      "title-save uses LIVE content_json not a cached copy",
+      "rich_editor/ path; chrono no-dup + UTC fallback; clipboard mockable; screenshots external; accesskit variant"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_ec68f172 (impl + adversarial-review PASS, no harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "7521a520 feat MT-017 document properties panel"
+    ],
+    "review_verdict": "PASS",
+    "proofs": "AC-1..10 GREEN; 22 lib + 6 integration; full suite 759 lib + all 70 bin-result lines 0 failed (KERNEL_BUILDER independently re-ran the FULL suite per the shared-widget gate discipline - NO spinner regression, the proactive no-spinner guard held); clippy clean; properties grid (editable title, tags-gap banner, #5 version badge, green 'promoted' badge, human dates, ↑2 backlinks, doc-id click-copy) visually verified collapsed + expanded; screenshots EXTERNAL (git ls-files src/**/*.png empty).",
+    "backend_shape_corrected": "BACKEND CONTRACT CORRECTION (verified vs src/backend/handshake_core/src/api/knowledge_documents.rs): the contract said title saves via PUT /save with full content_json. The REAL backend: /save is content-only (SaveDocumentBody{expected_version, content_json}), title persists via a DEDICATED POST /rename (RenameBody{title}), project_ref/folder_ref via POST /move. MT-017 binds /rename for title + /move for project/folder (correct paths); this also DISSOLVES the contract's MC-001 stale-content-clobber risk (/rename sends no content body). Zero backend edits.",
+    "field_existence_verified": "Tags: VERIFIED RichDocument (api.ts) has NO tags field -> rendered a visible 'Tags not persisted (backend gap: coming soon)' banner + local-only state (no fake persistence) - the hsLink/tableHeader field-existence lesson applied.",
+    "deps": "chrono 0.4.45 added (ISO parse + local format, UTC fallback, no panic MC-003); NO arboard (clipboard reuses egui ctx.copy_text behind a mockable ClipboardSink - headless tests use the mock, no OS clipboard).",
+    "blocked": "PT-4 real-backend title-save (rename) round-trip = NEEDS_MANAGED_RESOURCE_PROOF: binds the real POST /rename, gated #[ignore]+integration + HANDSHAKE_TEST_RICH_DOC_ID; rename binding + metadata refresh proven against a mock; not run offline.",
+    "path_note": "module root rich_editor/ not rich_text/ (real tree)."
   }
 }

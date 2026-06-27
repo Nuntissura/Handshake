@@ -12,7 +12,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "base_wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-06-21T00:00:00Z",
+  "updated_at_utc": "2026-06-27T00:00:00Z",
   "title": "Native Editors: Obsidian + VS Code parity + interconnection (Rust)",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
@@ -75,7 +75,7 @@
     }
   },
   "scope": {
-    "summary": "Rebuild, as native Rust Handshake tools hosted in the WP-KERNEL-011 shell, the two editor surfaces that currently exist as React (KERNEL-009 'Notes'): (1) the VS-Code-class CODE editor and (2) the Obsidian/Notion-class RICH-TEXT + knowledge editor. Achieve FULL feature parity with what KERNEL-009 already delivered in React, then make them deeply interconnect with each other and with CKC (Pillar 18/19 + KERNEL-005) and Loom (Pillar 7). REUSE the existing Rust backend (handshake_core: knowledge documents, loom, code-nav, CRDT, search) - do NOT rebuild backend storage/APIs. The legacy React editors (app/src) stay as the parity reference until native parity is proven, then are retired. No new future surfaces (Photoshop/Affinity/spreadsheet/engines) are built here; the editors must expose clean extension seams so those plug in later. EXPANSION 2026-06-21: the editors are the Notes pillar (native, not stitched-on apps) and MUST melt together with FEMS (Pillar 12 typed memory), Stage (Pillar 17), Calendar (Pillar 2), and Locus (Pillar 6) in addition to CKC + Loom (E9/E10); continue the WP-KERNEL-011 GUI by wiring the disabled editor-orbit shell placeholders to the real editors (E11); and complete a structured Settings menu + built-in manual for the editors (E12). All pillar-interop is backend-reuse-only (typed blockers for gaps).",
+    "summary": "Rebuild, as native Rust Handshake tools hosted in the WP-KERNEL-011 shell, the two editor surfaces that currently exist as React (KERNEL-009 'Notes'): (1) the VS-Code-class CODE editor and (2) the Obsidian/Notion-class RICH-TEXT + knowledge editor. Achieve FULL feature parity with what KERNEL-009 already delivered in React, then make them deeply interconnect with each other and with CKC (Pillar 18/19 + KERNEL-005) and Loom (Pillar 7). REUSE the existing Rust backend (handshake_core: knowledge documents, loom, code-nav, CRDT, search) - do NOT rebuild backend storage/APIs. The legacy React editors (app/src) stay as the parity reference until native parity is proven, then are retired. No new future surfaces (Photoshop/Affinity/spreadsheet/engines) are built here; the editors must expose clean extension seams so those plug in later. EXPANSION 2026-06-21: the editors are the Notes pillar (native, not stitched-on apps) and MUST melt together with FEMS (Pillar 12 typed memory), Stage (Pillar 17), Calendar (Pillar 2), and Locus (Pillar 6) in addition to CKC + Loom (E9/E10); continue the WP-KERNEL-011 GUI by wiring the disabled editor-orbit shell placeholders to the real editors (E11); and complete a structured Settings menu + built-in manual for the editors (E12). All pillar-interop is backend-reuse-only (typed blockers for gaps).\n\n[SCOPE ADJUSTMENT 2026-06-27] This WP is ALSO expanded to build Handshake+'+s three-tier diagnostic substrate decoupled from the Flight Recorder (v02.196 §5.8 internal_diagnostics + §6.13 Palmistry), as MT-081..MT-096 on the same ultracode pipeline. internal_diagnostics = in-app self-diagnostics; Palmistry = external out-of-process watcher that survives freezes/crashes; FR kept as-is (no schema re-open). Records NO project/sensitive data (typed allowlist).\n\n[SCOPE EXPANSION #2 2026-06-27] This WP is FURTHER expanded (MT-097..MT-104) to make Handshake usable as the product: a notes work-surface with a chatbox beside it (Obsidian + VS Code/Cursor/Antigravity model), with the non-notes feature windows stripped from the default layout for now (rewired per-feature later); plus terminal + local/cloud model launch inside a repo folder with the correct wrapper; plus a working visual debugger + FOREGROUND-SAFE front-end navigation (no operator mouse/keyboard steal) so models can test in-app; plus the internal manual. Built AFTER the diagnostic MTs 081-096.",
     "allowed_paths": [
       "src/frontend/**",
       "Cargo.toml",
@@ -89,12 +89,19 @@
       "src/backend/** (reuse via existing API/IPC only; backend changes are out of scope and must be raised as a typed blocker)"
     ],
     "spec_anchors": [
-      "CX-003-VIS", "CX-004-VIS", "CX-005-VIS",
+      "CX-003-VIS",
+      "CX-004-VIS",
+      "CX-005-VIS",
       "Product Reference Pillar 3 (Monaco/code), Pillar 4 (Word/rich-text), Pillar 7 (Loom), Pillar 18/19 (Studio/Atelier/CKC)",
       "Product Reference Pillar 12 (FEMS memory), Pillar 17 (Stage), Pillar 2 (Calendar), Pillar 6 (Locus)",
       "Master Spec 11.5.13 FR-EVT-MEM-001..005; Appendix 12.6 IMX force-multiplier edges",
       "WP-KERNEL-009 delivered feature set (parity source: MT-244..264 and the Loom/Notes MT family)",
-      "WP-KERNEL-011 shell substrate (pane/command/undo/context-menu/status-bar/settings/manual/AccessKit)"
+      "WP-KERNEL-011 shell substrate (pane/command/undo/context-menu/status-bar/settings/manual/AccessKit)",
+      "v02.196 §5.8 internal_diagnostics",
+      "v02.196 §6.13 Palmistry",
+      "v02.196 §10.12.5 Diagnostics Panel",
+      "HBR-INT-009",
+      "CX-981"
     ],
     "acceptance_criteria": [
       "CODE editor reaches parity with the existing React Monaco surface: syntax highlighting (tree-sitter), large-file performance, multi-cursor/column-select, find/replace, code folding, minimap/outline, go-to-line, and LSP (completion/hover/go-to-def/references/diagnostics). Proven against the same scenarios the React version passed.",
@@ -130,46 +137,496 @@
     ]
   },
   "mt_plan": {
-    "note": "Cluster plan. Each MT-*.json is authored per template and must be executable by a small no-context local model. Toolkit primitives reference the WP-KERNEL-011 MT-001 decision (egui+egui_tiles recommended). Parity is measured against the KERNEL-009 delivered feature set. 46 base MTs (E1-E8) authored 2026-06-19; 28 expansion MTs (MT-047..MT-074: E1/E2/E3 parity fill-ins + E9 FEMS + E10 Stage/Calendar/Locus + E11 GUI continuation + E12 settings/manual) authored 2026-06-21. All 74 preserved (CX-653A).",
+    "note": "Cluster plan. Each MT-*.json is authored per template and must be executable by a small no-context local model. Toolkit primitives reference the WP-KERNEL-011 MT-001 decision (egui+egui_tiles recommended). Parity is measured against the KERNEL-009 delivered feature set. 46 base MTs (E1-E8) authored 2026-06-19; 28 expansion MTs (MT-047..MT-074: E1/E2/E3 parity fill-ins + E9 FEMS + E10 Stage/Calendar/Locus + E11 GUI continuation + E12 settings/manual) authored 2026-06-21. +4 i18n MTs (MT-075..MT-078: E13 Internationalization/Unicode/input - CJK font coverage, IME inline preedit, UAX#14/#29 segmentation, RTL/bidi) authored by KERNEL_BUILDER 2026-06-22 as an operator-ordered scope expansion after a code inspection found Latin-only font registration (no CJK). All 78 preserved (CX-653A).",
     "clusters": [
-      {"id": "E1", "name": "Code editor (VS Code parity)", "mt_ids": ["MT-001","MT-002","MT-003","MT-004","MT-005","MT-006","MT-007","MT-008","MT-009","MT-010","MT-047","MT-048","MT-049","MT-050","MT-051","MT-052","MT-053","MT-054"], "summary": "Text buffer (ropey) + tree-sitter highlighting; large-file virtualization; multi-cursor/column-select; find/replace + replace-in-file; code folding; minimap/outline + go-to-line; gutter (diagnostics/breakpoints); LSP client (completion/hover/def/refs/diagnostics); diff/merge editor; Monaco-parity keymap. EXPANSION: signature help, rename symbol (WorkspaceEdit), code actions/quick-fix lightbulb, format document/selection, line-edit transforms, diagnostic nav + jump history, in-file symbol jump + sticky scroll, bracket/indent/word-wrap chrome."},
-      {"id": "E2", "name": "Rich-text editor (Obsidian/Notion parity)", "mt_ids": ["MT-011","MT-012","MT-013","MT-014","MT-015","MT-016","MT-017","MT-018","MT-019","MT-020","MT-055","MT-056","MT-057","MT-058","MT-059"], "summary": "Block document model (ProseMirror-style on ropey) + cosmic-text WYSIWYG; headings/lists/tables/quotes/code-blocks; embeds (image/slideshow/album/video NodeViews); wikilinks + transclusion; slash commands; properties panel; find/replace; daily-notes/journal; save-to-format (HTML/md/txt/JSON); draft/crash recovery. EXPANSION: reading/preview mode, heading outline/TOC, wikilink alias resolve + create-from-unresolved-link, inline #tags, wiki-page markdown rendering."},
-      {"id": "E3", "name": "Knowledge surface / Obsidian graph (Loom)", "mt_ids": ["MT-021","MT-022","MT-023","MT-024","MT-025","MT-026","MT-027","MT-060","MT-061","MT-062"], "summary": "Local + global graph view; folder tree + color labels; tags + tag hubs; pins/favorites/backlinks/unlinked; breadcrumbs; wiki-page projection + editable overlay; canvas board placing real Loom blocks; block-collection views (table/Kanban/calendar). EXPANSION: graph filter/group/depth/color controls, canvas card resize/sections/inline-edit, outgoing-links pane."},
-      {"id": "E4", "name": "Search surfaces", "mt_ids": ["MT-028","MT-029","MT-030"], "summary": "Loom Search v2 native surface (full-text+fuzzy+semantic, graph-blended, faceted, results-as-saved-view); find-in-files (+replace-in-files preview); quick-switcher integration (open docs/blocks/symbols/MTs/WPs/manual/wiki)."},
-      {"id": "E5", "name": "Interconnection / melt-together", "mt_ids": ["MT-031","MT-032","MT-033","MT-034","MT-035","MT-036"], "summary": "Shared selection + clipboard + command bus across editors; everything-is-a-Loom-block addressing + live backlinks; CKC embeds/drag-in (media/characters/moodboards) + route-to-Stage; code<->note cross-references; one unified undo scope policy; one event-ledger (Flight Recorder) across surfaces; designed extension seams for image/spreadsheet/engines."},
-      {"id": "E6", "name": "Backend reuse wiring", "mt_ids": ["MT-037","MT-038","MT-039","MT-040"], "summary": "Bind native editors to EXISTING handshake_core APIs: knowledge documents CRUD/history/projection; loom blocks/graph/tags/views; code-nav (symbols/refs/file-lens); CRDT push/pull/conflict. No backend rewrite; gaps raised as typed blockers."},
-      {"id": "E7", "name": "Model-vision/steering parity", "mt_ids": ["MT-041","MT-042","MT-043"], "summary": "Expose every editor + knowledge + search action through the WP-011 AccessKit surface with stable author_ids; a swarm agent can create/edit a note and code and drive graph/canvas by id; in-process snapshot + action proof."},
-      {"id": "E8", "name": "Parity + interconnection proof", "mt_ids": ["MT-044","MT-045","MT-046"], "summary": "Parity proof suite mapping each KERNEL-009 delivered feature to a passing native runtime proof (the parity gate); large-document performance proof; interconnection scenario proofs (CKC->note embed, note<->code, Loom backlink/search across surfaces)."},
-      {"id": "E9", "name": "FEMS interop (typed memory pillar)", "mt_ids": ["MT-063","MT-064","MT-065"], "summary": "Editors interoperate with FEMS (Pillar 12 typed memory: episodic/semantic/procedural + retrieval capsule). Editors CONSUME the MemoryPack/retrieval capsule inline (provenance-first, <=500 tokens/<=24 items) and GENERATE review-gated memory-write proposals from editing context (FR-EVT-MEM-001), NEVER direct commits. Reuses existing handshake_core FEMS APIs (typed blocker if absent); proven end-to-end against real PG (MT-065)."},
-      {"id": "E10", "name": "Other-pillar interop (Stage / Calendar / Locus)", "mt_ids": ["MT-066","MT-067","MT-068","MT-074"], "summary": "Editors melt together with named product pillars beyond CKC/Loom: Stage (Pillar 17, route-to-stage + embed-back capture artifacts with manifest provenance), Calendar (Pillar 2, daily-note<->CalendarEvent binding + ActivitySpan correlation), and Locus (Pillar 6, locus:// WP/MT cross-references). Reuses existing backend read/route APIs (typed blockers for gaps) and the E5 addressing/navigation substrate; proven end-to-end (MT-074)."},
-      {"id": "E11", "name": "WP-011 GUI worksurface continuation", "mt_ids": ["MT-069","MT-070","MT-071"], "summary": "Connect the WP-011 shell surfaces delivered as honestly-disabled editor placeholders to the now-real WP-012 editors, reusing the established shell state-mutation paths: wire menu items + enable disabled command-palette editor entries; wire editor/canvas context menus + complete the NavigationTarget bus; add VS Code-class status-bar editor segments (language mode, EOL, indent, encoding, whitespace). No new shell infrastructure is forked."},
-      {"id": "E12", "name": "Structured settings + menu completion + manual", "mt_ids": ["MT-072","MT-073"], "summary": "Complete the operator/agent-facing chrome the GUI doc defines for the editors on top of the WP-011 settings dialog + manual pane: editor-specific Settings sections (editor font/tab/wrap/whitespace, syntax palette editor, editor keybindings) persisted through the existing PostgreSQL-backed settings surface; and the built-in User Manual editor content plus the agent-vision/steering AccessKit+MCP tool reference (HBR-MAN). Reuses WP-011 persistence and manual infrastructure."}
+      {
+        "id": "E1",
+        "name": "Code editor (VS Code parity)",
+        "mt_ids": [
+          "MT-001",
+          "MT-002",
+          "MT-003",
+          "MT-004",
+          "MT-005",
+          "MT-006",
+          "MT-007",
+          "MT-008",
+          "MT-009",
+          "MT-010",
+          "MT-047",
+          "MT-048",
+          "MT-049",
+          "MT-050",
+          "MT-051",
+          "MT-052",
+          "MT-053",
+          "MT-054"
+        ],
+        "summary": "Text buffer (ropey) + tree-sitter highlighting; large-file virtualization; multi-cursor/column-select; find/replace + replace-in-file; code folding; minimap/outline + go-to-line; gutter (diagnostics/breakpoints); LSP client (completion/hover/def/refs/diagnostics); diff/merge editor; Monaco-parity keymap. EXPANSION: signature help, rename symbol (WorkspaceEdit), code actions/quick-fix lightbulb, format document/selection, line-edit transforms, diagnostic nav + jump history, in-file symbol jump + sticky scroll, bracket/indent/word-wrap chrome."
+      },
+      {
+        "id": "E2",
+        "name": "Rich-text editor (Obsidian/Notion parity)",
+        "mt_ids": [
+          "MT-011",
+          "MT-012",
+          "MT-013",
+          "MT-014",
+          "MT-015",
+          "MT-016",
+          "MT-017",
+          "MT-018",
+          "MT-019",
+          "MT-020",
+          "MT-055",
+          "MT-056",
+          "MT-057",
+          "MT-058",
+          "MT-059"
+        ],
+        "summary": "Block document model (ProseMirror-style on ropey) + cosmic-text WYSIWYG; headings/lists/tables/quotes/code-blocks; embeds (image/slideshow/album/video NodeViews); wikilinks + transclusion; slash commands; properties panel; find/replace; daily-notes/journal; save-to-format (HTML/md/txt/JSON); draft/crash recovery. EXPANSION: reading/preview mode, heading outline/TOC, wikilink alias resolve + create-from-unresolved-link, inline #tags, wiki-page markdown rendering."
+      },
+      {
+        "id": "E3",
+        "name": "Knowledge surface / Obsidian graph (Loom)",
+        "mt_ids": [
+          "MT-021",
+          "MT-022",
+          "MT-023",
+          "MT-024",
+          "MT-025",
+          "MT-026",
+          "MT-027",
+          "MT-060",
+          "MT-061",
+          "MT-062"
+        ],
+        "summary": "Local + global graph view; folder tree + color labels; tags + tag hubs; pins/favorites/backlinks/unlinked; breadcrumbs; wiki-page projection + editable overlay; canvas board placing real Loom blocks; block-collection views (table/Kanban/calendar). EXPANSION: graph filter/group/depth/color controls, canvas card resize/sections/inline-edit, outgoing-links pane."
+      },
+      {
+        "id": "E4",
+        "name": "Search surfaces",
+        "mt_ids": [
+          "MT-028",
+          "MT-029",
+          "MT-030"
+        ],
+        "summary": "Loom Search v2 native surface (full-text+fuzzy+semantic, graph-blended, faceted, results-as-saved-view); find-in-files (+replace-in-files preview); quick-switcher integration (open docs/blocks/symbols/MTs/WPs/manual/wiki)."
+      },
+      {
+        "id": "E5",
+        "name": "Interconnection / melt-together",
+        "mt_ids": [
+          "MT-031",
+          "MT-032",
+          "MT-033",
+          "MT-034",
+          "MT-035",
+          "MT-036"
+        ],
+        "summary": "Shared selection + clipboard + command bus across editors; everything-is-a-Loom-block addressing + live backlinks; CKC embeds/drag-in (media/characters/moodboards) + route-to-Stage; code<->note cross-references; one unified undo scope policy; one event-ledger (Flight Recorder) across surfaces; designed extension seams for image/spreadsheet/engines."
+      },
+      {
+        "id": "E6",
+        "name": "Backend reuse wiring",
+        "mt_ids": [
+          "MT-037",
+          "MT-038",
+          "MT-039",
+          "MT-040"
+        ],
+        "summary": "Bind native editors to EXISTING handshake_core APIs: knowledge documents CRUD/history/projection; loom blocks/graph/tags/views; code-nav (symbols/refs/file-lens); CRDT push/pull/conflict. No backend rewrite; gaps raised as typed blockers."
+      },
+      {
+        "id": "E7",
+        "name": "Model-vision/steering parity",
+        "mt_ids": [
+          "MT-041",
+          "MT-042",
+          "MT-043"
+        ],
+        "summary": "Expose every editor + knowledge + search action through the WP-011 AccessKit surface with stable author_ids; a swarm agent can create/edit a note and code and drive graph/canvas by id; in-process snapshot + action proof."
+      },
+      {
+        "id": "E8",
+        "name": "Parity + interconnection proof",
+        "mt_ids": [
+          "MT-044",
+          "MT-045",
+          "MT-046"
+        ],
+        "summary": "Parity proof suite mapping each KERNEL-009 delivered feature to a passing native runtime proof (the parity gate); large-document performance proof; interconnection scenario proofs (CKC->note embed, note<->code, Loom backlink/search across surfaces)."
+      },
+      {
+        "id": "E9",
+        "name": "FEMS interop (typed memory pillar)",
+        "mt_ids": [
+          "MT-063",
+          "MT-064",
+          "MT-065"
+        ],
+        "summary": "Editors interoperate with FEMS (Pillar 12 typed memory: episodic/semantic/procedural + retrieval capsule). Editors CONSUME the MemoryPack/retrieval capsule inline (provenance-first, <=500 tokens/<=24 items) and GENERATE review-gated memory-write proposals from editing context (FR-EVT-MEM-001), NEVER direct commits. Reuses existing handshake_core FEMS APIs (typed blocker if absent); proven end-to-end against real PG (MT-065)."
+      },
+      {
+        "id": "E10",
+        "name": "Other-pillar interop (Stage / Calendar / Locus)",
+        "mt_ids": [
+          "MT-066",
+          "MT-067",
+          "MT-068",
+          "MT-074"
+        ],
+        "summary": "Editors melt together with named product pillars beyond CKC/Loom: Stage (Pillar 17, route-to-stage + embed-back capture artifacts with manifest provenance), Calendar (Pillar 2, daily-note<->CalendarEvent binding + ActivitySpan correlation), and Locus (Pillar 6, locus:// WP/MT cross-references). Reuses existing backend read/route APIs (typed blockers for gaps) and the E5 addressing/navigation substrate; proven end-to-end (MT-074)."
+      },
+      {
+        "id": "E11",
+        "name": "WP-011 GUI worksurface continuation",
+        "mt_ids": [
+          "MT-069",
+          "MT-070",
+          "MT-071"
+        ],
+        "summary": "Connect the WP-011 shell surfaces delivered as honestly-disabled editor placeholders to the now-real WP-012 editors, reusing the established shell state-mutation paths: wire menu items + enable disabled command-palette editor entries; wire editor/canvas context menus + complete the NavigationTarget bus; add VS Code-class status-bar editor segments (language mode, EOL, indent, encoding, whitespace). No new shell infrastructure is forked."
+      },
+      {
+        "id": "E12",
+        "name": "Structured settings + menu completion + manual",
+        "mt_ids": [
+          "MT-072",
+          "MT-073"
+        ],
+        "summary": "Complete the operator/agent-facing chrome the GUI doc defines for the editors on top of the WP-011 settings dialog + manual pane: editor-specific Settings sections (editor font/tab/wrap/whitespace, syntax palette editor, editor keybindings) persisted through the existing PostgreSQL-backed settings surface; and the built-in User Manual editor content plus the agent-vision/steering AccessKit+MCP tool reference (HBR-MAN). Reuses WP-011 persistence and manual infrastructure."
+      },
+      {
+        "id": "E13",
+        "name": "Internationalization / Unicode / input (CJK, Cyrillic, symbols, RTL)",
+        "mt_ids": [
+          "MT-075",
+          "MT-076",
+          "MT-077",
+          "MT-078"
+        ],
+        "summary": "Operator-ordered scope expansion 2026-06-22 (full language/symbol/character coverage). Code inspection found install_fonts registers ONLY Inter (Latin+Cyrillic+Greek) + no CJK, so Chinese/Japanese/Korean render as tofu and there is no CJK input/segmentation/RTL. MT-075 builds an ordered egui font fallback chain (CJK + symbols + emoji glyph coverage); MT-076 makes IME composition first-class with inline underlined preedit in both editors (closes the MT-012 AC-6 partial) + set_ime_allowed; MT-077 adds Unicode-correct text segmentation (UAX#14 CJK line-break, UAX#29 grapheme caret + word/char counts); MT-078 adds RTL (Hebrew/Arabic) bidi reordering (unicode-bidi) + a HONEST tiered scope for complex-script shaping (typed limitation, never silently-broken Arabic). Pure frontend (no backend); rope stays logical-order so backend round-trip is unaffected."
+      }
     ],
-    "declared_ids": ["MT-001","MT-002","MT-003","MT-004","MT-005","MT-006","MT-007","MT-008","MT-009","MT-010","MT-011","MT-012","MT-013","MT-014","MT-015","MT-016","MT-017","MT-018","MT-019","MT-020","MT-021","MT-022","MT-023","MT-024","MT-025","MT-026","MT-027","MT-028","MT-029","MT-030","MT-031","MT-032","MT-033","MT-034","MT-035","MT-036","MT-037","MT-038","MT-039","MT-040","MT-041","MT-042","MT-043","MT-044","MT-045","MT-046","MT-047","MT-048","MT-049","MT-050","MT-051","MT-052","MT-053","MT-054","MT-055","MT-056","MT-057","MT-058","MT-059","MT-060","MT-061","MT-062","MT-063","MT-064","MT-065","MT-066","MT-067","MT-068","MT-069","MT-070","MT-071","MT-072","MT-073","MT-074"],
-    "active_id": null,
-    "next_id": "MT-001"
+    "declared_ids": [
+      "MT-001",
+      "MT-002",
+      "MT-003",
+      "MT-004",
+      "MT-005",
+      "MT-006",
+      "MT-007",
+      "MT-008",
+      "MT-009",
+      "MT-010",
+      "MT-011",
+      "MT-012",
+      "MT-013",
+      "MT-014",
+      "MT-015",
+      "MT-016",
+      "MT-017",
+      "MT-018",
+      "MT-019",
+      "MT-020",
+      "MT-021",
+      "MT-022",
+      "MT-023",
+      "MT-024",
+      "MT-025",
+      "MT-026",
+      "MT-027",
+      "MT-028",
+      "MT-029",
+      "MT-030",
+      "MT-031",
+      "MT-032",
+      "MT-033",
+      "MT-034",
+      "MT-035",
+      "MT-036",
+      "MT-037",
+      "MT-038",
+      "MT-039",
+      "MT-040",
+      "MT-041",
+      "MT-042",
+      "MT-043",
+      "MT-044",
+      "MT-045",
+      "MT-046",
+      "MT-047",
+      "MT-048",
+      "MT-049",
+      "MT-050",
+      "MT-051",
+      "MT-052",
+      "MT-053",
+      "MT-054",
+      "MT-055",
+      "MT-056",
+      "MT-057",
+      "MT-058",
+      "MT-059",
+      "MT-060",
+      "MT-061",
+      "MT-062",
+      "MT-063",
+      "MT-064",
+      "MT-065",
+      "MT-066",
+      "MT-067",
+      "MT-068",
+      "MT-069",
+      "MT-070",
+      "MT-071",
+      "MT-072",
+      "MT-073",
+      "MT-074",
+      "MT-075",
+      "MT-076",
+      "MT-077",
+      "MT-078",
+      "MT-081",
+      "MT-082",
+      "MT-083",
+      "MT-084",
+      "MT-085",
+      "MT-086",
+      "MT-087",
+      "MT-088",
+      "MT-089",
+      "MT-090",
+      "MT-091",
+      "MT-092",
+      "MT-093",
+      "MT-094",
+      "MT-095",
+      "MT-096",
+      "MT-97",
+      "MT-98",
+      "MT-99",
+      "MT-100",
+      "MT-101",
+      "MT-102",
+      "MT-103",
+      "MT-104"
+    ],
+    "active_id": "MT-084",
+    "next_id": "MT-084",
+    "mt_status": {
+      "MT-001": "READY_FOR_VALIDATION",
+      "MT-002": "READY_FOR_VALIDATION",
+      "MT-003": "READY_FOR_VALIDATION",
+      "MT-004": "READY_FOR_VALIDATION",
+      "MT-005": "READY_FOR_VALIDATION",
+      "MT-006": "READY_FOR_VALIDATION",
+      "MT-007": "READY_FOR_VALIDATION",
+      "MT-008": "READY_FOR_VALIDATION",
+      "MT-009": "READY_FOR_VALIDATION",
+      "MT-010": "READY_FOR_VALIDATION",
+      "MT-011": "READY_FOR_VALIDATION",
+      "MT-012": "READY_FOR_VALIDATION",
+      "MT-013": "READY_FOR_VALIDATION",
+      "MT-014": "READY_FOR_VALIDATION",
+      "MT-015": "READY_FOR_VALIDATION",
+      "MT-016": "READY_FOR_VALIDATION",
+      "MT-017": "READY_FOR_VALIDATION",
+      "MT-018": "READY_FOR_VALIDATION",
+      "MT-019": "READY_FOR_VALIDATION",
+      "MT-020": "READY_FOR_VALIDATION",
+      "MT-021": "READY_FOR_VALIDATION",
+      "MT-022": "READY_FOR_VALIDATION",
+      "MT-023": "READY_FOR_VALIDATION",
+      "MT-024": "READY_FOR_VALIDATION",
+      "MT-025": "READY_FOR_VALIDATION",
+      "MT-026": "READY_FOR_VALIDATION",
+      "MT-027": "READY_FOR_VALIDATION",
+      "MT-028": "READY_FOR_VALIDATION",
+      "MT-029": "READY_FOR_VALIDATION",
+      "MT-030": "READY_FOR_VALIDATION",
+      "MT-031": "READY_FOR_VALIDATION",
+      "MT-032": "READY_FOR_VALIDATION",
+      "MT-033": "READY_FOR_VALIDATION",
+      "MT-034": "READY_FOR_VALIDATION",
+      "MT-035": "READY_FOR_VALIDATION",
+      "MT-036": "READY_FOR_VALIDATION",
+      "MT-037": "READY_FOR_VALIDATION",
+      "MT-038": "READY_FOR_VALIDATION",
+      "MT-039": "READY_FOR_VALIDATION",
+      "MT-040": "READY_FOR_VALIDATION",
+      "MT-041": "READY_FOR_VALIDATION",
+      "MT-042": "READY_FOR_VALIDATION",
+      "MT-043": "READY_FOR_VALIDATION",
+      "MT-047": "READY_FOR_VALIDATION",
+      "MT-048": "READY_FOR_VALIDATION",
+      "MT-049": "READY_FOR_VALIDATION",
+      "MT-050": "READY_FOR_VALIDATION",
+      "MT-051": "READY_FOR_VALIDATION",
+      "MT-052": "READY_FOR_VALIDATION",
+      "MT-053": "READY_FOR_VALIDATION",
+      "MT-054": "READY_FOR_VALIDATION",
+      "MT-055": "READY_FOR_VALIDATION",
+      "MT-056": "READY_FOR_VALIDATION",
+      "MT-057": "READY_FOR_VALIDATION",
+      "MT-058": "READY_FOR_VALIDATION",
+      "MT-059": "READY_FOR_VALIDATION",
+      "MT-060": "READY_FOR_VALIDATION",
+      "MT-061": "READY_FOR_VALIDATION",
+      "MT-062": "READY_FOR_VALIDATION",
+      "MT-063": "READY_FOR_VALIDATION",
+      "MT-064": "READY_FOR_VALIDATION",
+      "MT-065": "READY_FOR_VALIDATION",
+      "MT-066": "READY_FOR_VALIDATION",
+      "MT-067": "READY_FOR_VALIDATION",
+      "MT-068": "READY_FOR_VALIDATION",
+      "MT-079": "READY_FOR_VALIDATION",
+      "MT-069": "READY_FOR_VALIDATION",
+      "MT-070": "READY_FOR_VALIDATION",
+      "MT-071": "READY_FOR_VALIDATION",
+      "MT-072": "READY_FOR_VALIDATION",
+      "MT-073": "READY_FOR_VALIDATION",
+      "MT-074": "READY_FOR_VALIDATION",
+      "MT-075": "READY_FOR_VALIDATION",
+      "MT-076": "READY_FOR_VALIDATION",
+      "MT-077": "READY_FOR_VALIDATION",
+      "MT-078": "READY_FOR_VALIDATION",
+      "MT-080": "READY_FOR_VALIDATION",
+      "MT-044": "READY_FOR_VALIDATION",
+      "MT-045": "READY_FOR_VALIDATION",
+      "MT-046": "READY_FOR_VALIDATION",
+      "MT-081": "READY_FOR_VALIDATION",
+      "MT-082": "READY_FOR_VALIDATION",
+      "MT-083": "READY_FOR_VALIDATION",
+      "MT-084": "PENDING",
+      "MT-085": "PENDING",
+      "MT-086": "PENDING",
+      "MT-087": "PENDING",
+      "MT-088": "PENDING",
+      "MT-089": "PENDING",
+      "MT-090": "PENDING",
+      "MT-091": "PENDING",
+      "MT-092": "PENDING",
+      "MT-093": "PENDING",
+      "MT-094": "PENDING",
+      "MT-095": "PENDING",
+      "MT-096": "PENDING",
+      "MT-97": "PENDING",
+      "MT-98": "PENDING",
+      "MT-99": "PENDING",
+      "MT-100": "PENDING",
+      "MT-101": "PENDING",
+      "MT-102": "PENDING",
+      "MT-103": "PENDING",
+      "MT-104": "PENDING"
+    },
+    "kernel_builder_sequence_note": "KERNEL_BUILDER re-sequence 2026-06-24: the E8 proof capstones MT-044 (parity suite, depends_on 001-043+047-062), MT-045 (perf proof), MT-046 (interconnection proof) are DEFERRED to the END of the WP - they prove the whole editor set + most of their proofs need a live managed PostgreSQL (NEEDS_MANAGED_RESOURCE_PROOF). Build the remaining FEATURE MTs first in numeric order: E1-deepening 047-054, E2-deepening 055-059, E3-deepening 060-062, E9 063-065, E10 066-068+074, E11 host-mount 069-071 (the convergence point that mounts the editors live + clears the carry-forwards), E12 072-073, E13 i18n 075-078. THEN run the 044-046 capstones last for a truthful comprehensive parity manifest.",
+    "wp_status": "DIAGNOSTIC_EXPANSION_READY_FOR_DEV",
+    "diagnostic_expansion_note": "WP SCOPE ADJUSTMENT (operator 2026-06-27): MT-081..MT-096 added to THIS WP build the three-tier diagnostic tools decoupled from the Flight Recorder (Master Spec v02.196 §5.8 internal_diagnostics + §6.13 Palmistry): internal_diagnostics (in-app native-egui self-diagnostics: shm ring, panic hook, heartbeat, frame-time, CPU/RSS/GPU, open diagnostic-event API, in-app panel, backend-down freeze fix) + Palmistry (external out-of-process watcher: ring reader, freeze/crash detection, minidump, survivor store, FR-forward). FR kept as-is. Same ultracode per-MT pipeline as the editor MTs. MT-081=ring substrate; 082-088=internal_diagnostics; 089-094=Palmistry; 095=HBR-INT-009 gate; 096=end-to-end freeze+crash proof. The retrofit of already-built features = WP-KERNEL-016 stub (future).",
+    "usability_expansion_note": "WP SCOPE EXPANSION #2 (operator 2026-06-27): MT-097..MT-104 = make Handshake actually USABLE as the product - a work surface with a chatbox beside it (like Obsidian + VS Code/Cursor/Antigravity; Handshake goes deeper later with more tools/workflows). Operator currently CANNOT use notes in the running GUI. MT-097 notes-ONLY default worksurface (strip/hide all non-notes feature panes for now - add+rewire per-feature later); MT-098 chatbox panel beside the worksurface (the editor+chat core layout); MT-099 end-to-end notes usability (open->edit->save a document in the running app, proven live); MT-100 terminal-session launch inside a repo folder with the correct wrapper; MT-101 local/cloud MODEL launch inside a repo folder with the correct wrapper; MT-102 visual debugger inspects operator worksurfaces/window-structure/tooling; MT-103 foreground-SAFE front-end navigation (drive+test the GUI WITHOUT stealing operator mouse/keyboard) - patch+expand so models can test inside Handshake; MT-104 internal manual updated for notes/editors + terminal/model launch + visual debugger. ORDER: built AFTER the diagnostic MTs 081-096. The VS Code/Obsidian clone is a main selling ticket - inaccessible = broken. DIAGNOSTICS PLACEMENT (operator 2026-06-27): the in-app diagnostics panel (MT-087) lives in the OPTIONS/SETTINGS window (Settings->Diagnostics), NOT as a worksurface feature pane - so MT-097 notes-only worksurface excludes it and MT-104 manual documents it under Settings."
   },
   "microtasks": {
     "contract_glob": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-*.json",
     "authoring_status": "AUTHORED",
     "authored_at_utc": "2026-06-21T00:00:00Z",
-    "authored_count": 74,
-    "authored_via": "46 base via workflow wf_3d7b88d0-301 (2026-06-19); +28 expansion MT-047..MT-074 via workflow wf_01ae2073-72e (2026-06-21). Both reviewed by KERNEL_BUILDER."
+    "authored_count": 78,
+    "authored_via": "46 base via workflow wf_3d7b88d0-301 (2026-06-19); +28 expansion MT-047..MT-074 via workflow wf_01ae2073-72e (2026-06-21); +4 i18n MT-075..MT-078 (E13) authored directly by KERNEL_BUILDER 2026-06-22 (operator-ordered scope expansion, based on the existing MT template). All reviewed by KERNEL_BUILDER."
   },
   "packet_acceptance_matrix": {
     "schema": "PACKET_ACCEPTANCE_MATRIX_V1",
     "note": "CX-503B1 / CX-131: machine-checkable acceptance contract. PASS closure is illegal while any required row is PENDING/STEER/BLOCKED. HBR rows gate every governed inter-role handoff (HBR-INT/SWARM/VIS/QUIET/MAN/STOP).",
     "hbr": [
-      {"id": "HBR-INT-012-01", "hbr": "HBR-INT", "owner": "KERNEL_BUILDER", "required": true, "evidence_kind": "runtime_proof", "status": "PENDING", "note": "Editors + CKC + Loom melt-together (shared selection/clipboard/command bus, everything-is-a-block, unified undo, one event ledger) emit structured Flight Recorder events; proven by E5 + MT-044/046."},
-      {"id": "HBR-INT-012-02", "hbr": "HBR-INT", "owner": "KERNEL_BUILDER", "required": true, "evidence_kind": "runtime_proof", "status": "PENDING", "note": "All new editor + FEMS + Stage/Calendar/Locus interactions emit structured FR / FR-EVT-MEM events to the existing ledger; proven by MT-065 and MT-074 against real PG."},
-      {"id": "HBR-SWARM-012-01", "hbr": "HBR-SWARM", "owner": "KERNEL_BUILDER", "required": true, "evidence_kind": "accesskit_agent_proof", "status": "PENDING", "note": "Every editor/knowledge/search action AccessKit-addressable by stable author_id; out-of-process agent drives editors (E7 MT-041..043); concurrency-safe under N agents + operator."},
-      {"id": "HBR-SWARM-012-02", "hbr": "HBR-SWARM", "owner": "KERNEL_BUILDER", "required": true, "evidence_kind": "accesskit_agent_proof", "status": "PENDING", "note": "Every new editor/knowledge/FEMS/interop control is AccessKit-addressable by stable author_id; MT-065 and MT-074 require an out-of-process agent to drive each surface."},
-      {"id": "HBR-VIS-012-01", "hbr": "HBR-VIS", "owner": "KERNEL_BUILDER", "required": true, "evidence_kind": "kittest_screenshot", "status": "PENDING", "note": "Editor + knowledge + canvas surfaces render and expose the AccessKit tree; egui_kittest screenshots in the base MTs + MT-044."},
-      {"id": "HBR-VIS-012-02", "hbr": "HBR-VIS", "owner": "KERNEL_BUILDER", "required": true, "evidence_kind": "kittest_screenshot", "status": "PENDING", "note": "New UI controls (reading mode, outline, graph controls, outgoing-links, relevant-memory panel, status-bar segments, lightbulb/rename/signature popups) render and expose the AccessKit tree; screenshots in the gap MTs."},
-      {"id": "HBR-QUIET-012-01", "hbr": "HBR-QUIET", "owner": "KERNEL_BUILDER", "required": true, "evidence_kind": "focus_audit", "status": "PENDING", "note": "Editor + agent-driven actions never steal OS focus or hijack keyboard; reuse WP-011 HBR-QUIET focus-audit guard."},
-      {"id": "HBR-QUIET-012-02", "hbr": "HBR-QUIET", "owner": "KERNEL_BUILDER", "required": true, "evidence_kind": "focus_audit", "status": "PENDING", "note": "Reading mode, canvas edits, and agent-driven FEMS/interop actions never steal OS focus; focus-audit on MT-055/061 and the proof suites."},
-      {"id": "HBR-MAN-012-01", "hbr": "HBR-MAN", "owner": "KERNEL_BUILDER", "required": true, "evidence_kind": "manual_content_audit", "status": "PENDING", "note": "MT-073 authors the built-in User Manual editor content + agent AccessKit/MCP tool reference so a no-context model and swarm agent can operate the editors; id-audit against the live AccessKit registry."},
-      {"id": "HBR-STOP-012-01", "hbr": "HBR-STOP", "owner": "KERNEL_BUILDER", "required": true, "evidence_kind": "runtime_proof", "status": "PENDING", "note": "Agent-driven FEMS/interop and editor actions stop cleanly on TaskStop with no orphaned proposals or dangling pane references; verified in MT-065/074."}
+      {
+        "id": "HBR-INT-012-01",
+        "hbr": "HBR-INT",
+        "owner": "KERNEL_BUILDER",
+        "required": true,
+        "evidence_kind": "runtime_proof",
+        "status": "PENDING",
+        "note": "Editors + CKC + Loom melt-together (shared selection/clipboard/command bus, everything-is-a-block, unified undo, one event ledger) emit structured Flight Recorder events; proven by E5 + MT-044/046."
+      },
+      {
+        "id": "HBR-INT-012-02",
+        "hbr": "HBR-INT",
+        "owner": "KERNEL_BUILDER",
+        "required": true,
+        "evidence_kind": "runtime_proof",
+        "status": "PENDING",
+        "note": "All new editor + FEMS + Stage/Calendar/Locus interactions emit structured FR / FR-EVT-MEM events to the existing ledger; proven by MT-065 and MT-074 against real PG."
+      },
+      {
+        "id": "HBR-SWARM-012-01",
+        "hbr": "HBR-SWARM",
+        "owner": "KERNEL_BUILDER",
+        "required": true,
+        "evidence_kind": "accesskit_agent_proof",
+        "status": "PENDING",
+        "note": "Every editor/knowledge/search action AccessKit-addressable by stable author_id; out-of-process agent drives editors (E7 MT-041..043); concurrency-safe under N agents + operator."
+      },
+      {
+        "id": "HBR-SWARM-012-02",
+        "hbr": "HBR-SWARM",
+        "owner": "KERNEL_BUILDER",
+        "required": true,
+        "evidence_kind": "accesskit_agent_proof",
+        "status": "PENDING",
+        "note": "Every new editor/knowledge/FEMS/interop control is AccessKit-addressable by stable author_id; MT-065 and MT-074 require an out-of-process agent to drive each surface."
+      },
+      {
+        "id": "HBR-VIS-012-01",
+        "hbr": "HBR-VIS",
+        "owner": "KERNEL_BUILDER",
+        "required": true,
+        "evidence_kind": "kittest_screenshot",
+        "status": "PENDING",
+        "note": "Editor + knowledge + canvas surfaces render and expose the AccessKit tree; egui_kittest screenshots in the base MTs + MT-044."
+      },
+      {
+        "id": "HBR-VIS-012-02",
+        "hbr": "HBR-VIS",
+        "owner": "KERNEL_BUILDER",
+        "required": true,
+        "evidence_kind": "kittest_screenshot",
+        "status": "PENDING",
+        "note": "New UI controls (reading mode, outline, graph controls, outgoing-links, relevant-memory panel, status-bar segments, lightbulb/rename/signature popups) render and expose the AccessKit tree; screenshots in the gap MTs."
+      },
+      {
+        "id": "HBR-QUIET-012-01",
+        "hbr": "HBR-QUIET",
+        "owner": "KERNEL_BUILDER",
+        "required": true,
+        "evidence_kind": "focus_audit",
+        "status": "PENDING",
+        "note": "Editor + agent-driven actions never steal OS focus or hijack keyboard; reuse WP-011 HBR-QUIET focus-audit guard."
+      },
+      {
+        "id": "HBR-QUIET-012-02",
+        "hbr": "HBR-QUIET",
+        "owner": "KERNEL_BUILDER",
+        "required": true,
+        "evidence_kind": "focus_audit",
+        "status": "PENDING",
+        "note": "Reading mode, canvas edits, and agent-driven FEMS/interop actions never steal OS focus; focus-audit on MT-055/061 and the proof suites."
+      },
+      {
+        "id": "HBR-MAN-012-01",
+        "hbr": "HBR-MAN",
+        "owner": "KERNEL_BUILDER",
+        "required": true,
+        "evidence_kind": "manual_content_audit",
+        "status": "PENDING",
+        "note": "MT-073 authors the built-in User Manual editor content + agent AccessKit/MCP tool reference so a no-context model and swarm agent can operate the editors; id-audit against the live AccessKit registry."
+      },
+      {
+        "id": "HBR-STOP-012-01",
+        "hbr": "HBR-STOP",
+        "owner": "KERNEL_BUILDER",
+        "required": true,
+        "evidence_kind": "runtime_proof",
+        "status": "PENDING",
+        "note": "Agent-driven FEMS/interop and editor actions stop cleanly on TaskStop with no orphaned proposals or dangling pane references; verified in MT-065/074."
+      }
     ]
   },
   "reconciliation_debt": {
@@ -177,11 +634,26 @@
     "note": "Master Spec product-surface text lags the native rebuild in three places to reconcile in a LATER spec pass (NOT this WP): (a) Product Reference Tech Stack + Pillars 3/4 still name React/Tiptap/Monaco/Tauri vs the native Rust egui+egui_tiles+AccessKit+wgpu (no-webview) frontend; (b) Master Spec 10-product-surfaces (~412/441/444) mandates DOCX import/export via AST + dual RichView+Monaco StructuredTextView that WP-012 scopes OUT (parked to WP-KERNEL-014; operator decision needed - do not silently drop); (c) FR-EVT-002 (editor) producer mapping vs MT-036 'system' event_type + nested native_editor payload - confirm/reconcile the native-editor FR producer mapping."
   },
   "future_wp_stubs": [
-    {"wp_id": "WP-KERNEL-013-Native-Editors-Notion-Database-And-Templates-v1", "stub_file": ".GOV/task_packets/stubs/WP-KERNEL-013-Native-Editors-Notion-Database-And-Templates-v1.contract.json", "reason": "Deferred Notion-class scope beyond React parity: user-editable template engine, typed page properties (select/multi-select/date/number/checkbox/status), richer database views (relations/rollups)."},
-    {"wp_id": "WP-KERNEL-014-Native-Editors-DOCX-And-Dual-View-v1", "stub_file": ".GOV/task_packets/stubs/WP-KERNEL-014-Native-Editors-DOCX-And-Dual-View-v1.contract.json", "reason": "Spec-mandated DOCX import/export via AST + dual RichView+Monaco StructuredTextView, scoped OUT of WP-012 React-parity export (HTML/MD/TXT/JSON); requires operator decision per reconciliation debt (b)."}
+    {
+      "wp_id": "WP-KERNEL-013-Native-Editors-Notion-Database-And-Templates-v1",
+      "stub_file": ".GOV/task_packets/stubs/WP-KERNEL-013-Native-Editors-Notion-Database-And-Templates-v1.contract.json",
+      "reason": "Deferred Notion-class scope beyond React parity: user-editable template engine, typed page properties (select/multi-select/date/number/checkbox/status), richer database views (relations/rollups)."
+    },
+    {
+      "wp_id": "WP-KERNEL-014-Native-Editors-DOCX-And-Dual-View-v1",
+      "stub_file": ".GOV/task_packets/stubs/WP-KERNEL-014-Native-Editors-DOCX-And-Dual-View-v1.contract.json",
+      "reason": "Spec-mandated DOCX import/export via AST + dual RichView+Monaco StructuredTextView, scoped OUT of WP-012 React-parity export (HTML/MD/TXT/JSON); requires operator decision per reconciliation debt (b)."
+    }
   ],
   "hbr": {
-    "tags_declared": ["HBR-INT", "HBR-SWARM", "HBR-VIS", "HBR-QUIET", "HBR-MAN", "HBR-STOP"],
+    "tags_declared": [
+      "HBR-INT",
+      "HBR-SWARM",
+      "HBR-VIS",
+      "HBR-QUIET",
+      "HBR-MAN",
+      "HBR-STOP"
+    ],
     "not_applicable_overrides": []
   },
   "red_team": {

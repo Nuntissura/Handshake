@@ -25,9 +25,15 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-066", "MT-067", "MT-068", "MT-041", "MT-042"],
+    "depends_on": [
+      "MT-066",
+      "MT-067",
+      "MT-068",
+      "MT-041",
+      "MT-042"
+    ],
     "blocks": [],
     "validator_verdict": "PENDING"
   },
@@ -76,7 +82,10 @@
       "Verify the exact emitted FR event kind strings against the upstream MT implementations (STAGE_ROUTE / STAGE_EMBED_BACK / CALENDAR_EVENT_BOUND / ACTIVITY_SPAN_CORRELATED / LOCUS_REF_RESOLVED / LOCUS_REVERSE_LOOKUP are the expected names; if an upstream MT emits a different kind, assert the real kind and note the discrepancy — do not weaken to a substring-only check).",
       "Scenario function naming pattern: other_pillar_op{NN}_{snake_case_description}; the manifest proof_fn field must match exactly (mirror MT-046).",
       "Register the suite under [[test]] name='test_other_pillar_interop_proofs' harness=true in src/frontend/handshake_native/Cargo.toml.",
-      "Every scenario cleans up PG rows in a DropGuard so reruns are idempotent. No app code under src/frontend/handshake_native/src/** and no backend edits under src/backend/** — proof only; gaps are typed blockers."
+      "Every scenario cleans up PG rows in a DropGuard so reruns are idempotent. No app code under src/frontend/handshake_native/src/** and no backend edits under src/backend/** — proof only; gaps are typed blockers.",
+      "REALITY: STAGE/CALENDAR/LOCUS ROUTES ABSENT + NO MANAGED PG -> ALL-BLOCKED MANIFEST + GATE, DO NOT FAKE (KERNEL_BUILDER gate 2026-06-26, from MT-066/067/068 backend verification): the 3 edges this suite proves need backend HTTP routes that the earlier MTs VERIFIED ABSENT in handshake_core - STAGE has NO /stage/ routes (MT-066: route-to-stage is a BUS command, embed-back GET /stage/artifacts absent), CALENDAR has NO /calendar/ routes (MT-067: events + activity-spans absent), LOCUS has NO /locus/ HTTP routes (MT-068: kernel/governance data model only). AND there is NO managed PostgreSQL in this environment (every live-PG proof = NEEDS_MANAGED_RESOURCE_PROOF). THEREFORE OP-01/OP-02/OP-03 CANNOT run green - and per the contract's OWN typed-blocker mandate (CTRL-4/8 + 'record as TYPED BLOCKER status=BLOCKED rather than mocked/stubbed/skipped') the suite MUST: (1) WRITE the 4 scenarios + the manifest, structurally correct, reusing the MT-044/045/046 PG fixture PATTERN; (2) GATE the live scenarios #[ignore] + #[cfg(feature=\"integration\")] (NEEDS_MANAGED_RESOURCE_PROOF); (3) mark the manifest entries OP-01/OP-02/OP-03 status='BLOCKED' with typed blockers: blocker='missing_api:POST /stage/route + GET /stage/artifacts (Pillar 17, MT-066)', 'missing_api:/calendar/events + /calendar/activity-spans (Pillar 2, MT-067)', 'missing_api:/locus/resolve + /locus/reverse (Pillar 6, MT-068)' + 'no_managed_postgres'. NEVER mock/SQLite/in-memory (CTRL-1, RISK-1) NEVER edit src/backend (CTRL-8, RISK-8). The suite is the regression guard - goes green UNCHANGED when the backend packets expose the routes + a managed PG is available.",
+      "OP-04 SWARM-AccessKit REACHABILITY IS PROVABLE NOW (KERNEL_BUILDER gate): OP-04 (the out-of-process agent path) is the ONE scenario with a provable-NOW half - the AccessKit author_ids exist (stage-pane/stage-capture-embed-back MT-066, daily-journal-* MT-067, locus-ref-chip-* MT-068, editor.* MT-041, graph MT-042). Prove NON-ignored: build the editor widget tree with egui_kittest, look up each interop trigger PURELY by author_id (NO coordinates/label-scraping, CTRL-5), assert each id is present + STABLE across two re-queries + the AccessKit Activate/SetValue dispatch reaches the node, calling handshake_native::accessibility::flush_pending_updates() before asserting (layout-level proof, mirror MT-046 CTRL-3). The LIVE backend DRIVE of each edge (the half that needs the absent routes + PG) stays GATED. So OP-04's swarm-reachability/id-stability = PROVABLE NOW; OP-04's live edge-drive + FR-event = BLOCKED/gated. SEQUENCING NOTE: MT-074 reuses the MT-044/045/046 real-PG fixture, but 044-046 are DEFERRED-to-end proof capstones (same all-BLOCKED shape) - so reference the shared fixture builder (or a minimal shared helper) but keep everything gated; do NOT author a 2nd fixture (CTRL-1) and do NOT point at SQLite.",
+      "WHAT IS PROVABLE NOW vs GATED + HYGIENE (KERNEL_BUILDER gate): PROVABLE NOW (non-ignored): cargo build --tests compiles the suite 0-warning; the manifest has exactly 4 entries (OP-01..04) with all required fields; OP-04 swarm AccessKit id-reachability + stability (the ids from MT-066/067/068/041/042 exist + are addressable headless); the FR-route name resolved (verify GET /api/flight_recorder vs /workspaces/{id}/events in api/mod.rs - if absent, that too is a blocker). GATED #[ignore]+integration (NEEDS_MANAGED_RESOURCE_PROOF + the absent routes): OP-01 Stage route+embed-back+SHA-256 provenance, OP-02 Calendar bind+activity-span, OP-03 Locus resolve+reverse, OP-04 live edge-drive + FR-event. PROOF-ONLY: ONLY test_other_pillar_interop_proofs.rs + other_pillar_interop_manifest.json + Cargo.toml [[test]] change - NO src/frontend/src or src/backend edit, NO SQLite (CTRL-8). DropGuard cleanup so reruns idempotent (CTRL-9). The all-BLOCKED manifest is the precise backend-packet backlog for the next WP. full suite -j 2 (serialize); clippy clean."
     ],
     "ports_from_react": [
       "NONE (proof task)"
@@ -91,7 +100,11 @@
       "GET /api/flight_recorder — assert the expected interop FR events were emitted (STAGE_ROUTE, STAGE_EMBED_BACK, CALENDAR_EVENT_BOUND, ACTIVITY_SPAN_CORRELATED, LOCUS_REF_RESOLVED, LOCUS_REVERSE_LOOKUP) for all four scenarios; verify whether the route is /api/flight_recorder or /workspaces/{id}/events before authoring."
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -121,5 +134,26 @@
       "CTRL-8 (RISK-8): The diff must touch ONLY src/frontend/handshake_native/tests/** and src/frontend/handshake_native/Cargo.toml. Any change under src/frontend/handshake_native/src/** or src/backend/** fails the MT; needed product/backend behavior that is missing is a typed blocker, not an edit.",
       "CTRL-9 (RISK-9): Every scenario wraps its created PG rows in a DropGuard that deletes them on completion; a second full run must produce identical results with no unique-constraint collisions (idempotency proof_target)."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-066/067/068 backend verification (Stage/Calendar/Locus HTTP routes ALL absent) + no managed PG + MT-065 proof-capstone precedent + MT-044/045/046 PG fixture (deferred capstones) + MT-041/042 AccessKit ids",
+    "corrections": [
+      "Stage/Calendar/Locus routes verified ABSENT (MT-066/067/068) + no managed PG -> OP-01/02/03 BLOCKED (typed missing_api blockers in the manifest) + #[ignore]/integration gate; do NOT mock/SQLite/backend-edit (the contract's own CTRL-4/8 mandate)",
+      "OP-04 swarm AccessKit REACHABILITY provable NOW (ids exist from MT-066/067/068/041/042 - lookup-by-author_id + stability + dispatch headless); live edge-drive + FR-event gated",
+      "reuse the MT-044/045/046 PG fixture pattern (those are deferred-to-end capstones, same all-BLOCKED shape - reference the shared fixture, no 2nd fixture, no SQLite); verify FR route name (api/mod.rs)",
+      "proof-only (only the test + manifest + Cargo.toml); the all-BLOCKED manifest = the precise backend-packet backlog; DropGuard idempotent; -j 2"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_1a253e5e (impl + 3-lens panel; ALL PASS - no harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "b914d631 feat MT-074 E10 other-pillar interop proof suite (Stage/Calendar/Locus); OP-04 swarm AccessKit proven, OP-01..03 live halves typed-blocked + gated"
+    ],
+    "review_panel": "correctness=PASS(0), backend-shape=PASS(0), perf-focus-hygiene=PASS(0) -> ALL PASS, zero must-fixes (9th clean all-PASS MT, on a proof MT).",
+    "proofs": "AC-1..11 PASS (AC-3/4/5 PARTIAL_PROVABLE_NOW_REST_BLOCKED, AC-1/PT1 PASS_WITH_FILTER_DEVIATION); 10 passed (default) / 4 passed + 3 ignored (integration); clippy clean; proof-only.",
+    "honest_outcome": "OP-01/02/03 manifest entries = BLOCKED typed missing_api blockers (Stage /stage/ MT-066, Calendar /calendar/ MT-067, Locus /locus/ MT-068 - ALL routes verified absent + no_managed_postgres). Provable-NOW halves PROVEN: OP-01 embed-back MT-014 hsLink sha256==recomputed SHA-256 of routed bytes (CTRL-3); OP-02 idempotent daily-note binding via MT-019 + ActivitySpan correlation [DOC-A,DOC-B]; OP-03 locus:// resolve + reverse via the REAL MT-034 find_notes_with. OP-04 SWARM AccessKit PASS (3 edges stage-capture-embed-back/daily-journal-calendar-event-chip/locus-ref-chip reached by author_id only, STABLE across 2 re-queries, AccessKit Click). The 3 *_live proofs #[ignore]+integration (NEEDS_MANAGED_RESOURCE_PROOF).",
+    "deviations_honest": "(1) the contract PT1 filter other_pillar_interop matched 0 fns -> corrected to other_pillar_op (the real fn prefix); (2) flush_pending_updates() named by the contract DOESN-T EXIST -> used Harness::run() per the MT-065/066/067/068 precedent (layout-level proof, documented). no mock/SQLite (grep exit 1); proof-only diff; DropGuard idempotent.",
+    "waiver_granted": "test_other_pillar_interop_proofs.rs (new) + other_pillar_interop_manifest.json (new) + Cargo.toml [[test]] in allowed_paths."
   }
 }

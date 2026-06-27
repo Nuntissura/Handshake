@@ -1,0 +1,142 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-088",
+  "title": "D8-MT-088-BackendDown-GracefulDegradation-FreezeFix",
+  "group": "D2 internal_diagnostics (Tier 2 — backend-down HARD requirement)",
+  "created_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-088.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-082",
+      "MT-084"
+    ],
+    "blocks": [
+      "MT-096"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: FIX THE LATENT BACKEND-DOWN FREEZE — the concrete bug from the 2026-06-26 live session — and enforce the HARD spec requirement that the native app DEGRADES, NOT FREEZES when a backend route is unreachable (Master Spec v02.196 §5.8.5 'Backend-down graceful degradation (HARD)': 'a UI path that can freeze the frame loop on an unreachable backend is a spec defect'). When the backend on 127.0.0.1:37501 is down, a mounted-pane load / backend call that runs `Handle::block_on` (or locks waiting on a backend result) ON THE UI THREAD stalls the egui frame loop — the app stops responding (Responding=false, CPU->0) instead of showing a 'disconnected' state. This MT makes those UI-thread backend interactions NON-BLOCKING (off-thread spawn + poll-if-finished), records a typed `BackendUnreachable` internal_diagnostics event, and RE-PROVES the 2026-06-26 repro: launch with the backend down, the app stays responsive and the heartbeat keeps advancing.\n\nROOT-CAUSE LOCATION (verified in this codebase — the coder MUST audit + confirm the exact live frame-path offenders, do not assume): `src/frontend/handshake_native/src/app.rs` contains BOTH the CORRECT pattern and the buggy one:\n- CORRECT reference (reuse this exact shape): the health poll at app.rs ~line 1189-1190 spawns `rt.spawn(async { backend_client::fetch_health(...) })` returning a `JoinHandle` stored in `health_handle`, and polls it each frame, folding the result in when it resolves (the doc at ~line 221 says 'stalls the render loop; polled each frame and folded ... when it resolves'). This is the off-thread + poll-if-finished pattern the whole fix must follow.\n- OFFENDERS (audit + fix the ones reachable on the UI/frame path): `self.runtime.block_on(...)` at app.rs ~lines 979 and 1011 (and any other `block_on` / blocking backend call reachable from `fn update` / `ui()` / a `PaneFactory::render` / a mount path). A `block_on` on the UI thread that awaits a backend round-trip will hang the frame loop for the full connect-timeout (or forever if there is no timeout) when the backend is down. Convert each UI-thread-reachable backend call to the spawn+poll pattern, OR ensure it carries a short connect/request timeout AND cannot be on the frame path. (Backend calls that run on a worker thread / spawn_blocking, e.g. the transport doc at backend_client.rs ~line 82 'short-lived tokio worker (NOT the egui UI thread)', are already safe — leave them; focus on UI-thread-reachable ones.)\n- Also add a short `connect_timeout` + request `timeout` to the reqwest clients used for these calls (reqwest is already a dep) so even a backend that accepts the TCP connection but never responds cannot hang a worker indefinitely.\n\nExact edits:\n- EDIT `src/frontend/handshake_native/src/app.rs` — (1) audit every backend interaction reachable from `fn update` / `ui()` / pane mount / `PaneFactory::render`; (2) convert each UI-thread `block_on`/blocking-lock-on-backend-result to the existing spawn-handle + poll-each-frame pattern (model it on `health_handle`); (3) when a backend call is in-flight or has failed, render a 'disconnected'/degraded state for that surface (not a spinner-forever, not a hang); (4) on a detected backend-unreachable condition, call `diagnostics::record_with(DiagEventCode::BackendUnreachable, ...)` once per transition (debounced — not every frame), and `DiagEventCode::BackendRecovered` on recovery. The status bar already shows live /health — reuse its disconnected display for the global indicator.\n- EDIT `src/frontend/handshake_native/src/backend_client.rs` — add a short `connect_timeout` (e.g. 1-2s) + request `timeout` to the reqwest `ClientBuilder` used by the affected clients so a dead/half-open backend cannot hang a worker forever (this is reuse-config of the EXISTING client, not a backend change; src/backend is untouched).\n- CREATE `src/frontend/handshake_native/tests/test_backend_down_responsive.rs` — the 2026-06-26 repro.\n\nTHE RE-PROVE (the deliverable proof, AC-008-1): a test launches the real HandshakeApp with NO backend listening on 127.0.0.1:37501 (or a bogus base_url that refuses connections), drives the frame loop (egui_kittest `step()` repeatedly), and asserts: (a) the app stays RESPONSIVE — frames keep completing within a tight per-frame time bound (no frame blocks for the connect-timeout), (b) the MT-084 heartbeat counter keeps ADVANCING across frames (proving the UI thread is not stalled, the exact CPU->0 symptom is gone), (c) a `BackendUnreachable` DiagEvent was recorded, (d) the affected surface shows a disconnected/degraded state, not a hang or a perpetual spinner. This directly contradicts the 2026-06-26 symptom (Responding=false, CPU->0, frozen).\n\nReuse note: the spawn-handle + poll-each-frame pattern ALREADY EXISTS (health_handle, app.rs ~1190) — this MT generalizes it to the offending call sites; it does NOT invent a new async pattern. The heartbeat (MT-084) is the responsiveness oracle. The MT-082 recorder provides BackendUnreachable. src/backend is reuse-via-API only (forbidden to edit) — the fix is entirely client-side / frame-path.\n\nRisk if missed: the exact 2026-06-26 freeze recurs (app hangs when the backend is down); §5.8.5 HARD requirement unmet (a spec defect by definition); Palmistry would then have to catch a freeze that should never have happened. This is the single highest-value bug-fix in the WP.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/diagnostics/mod.rs",
+      "src/frontend/handshake_native/src/diagnostics/recorder.rs",
+      "src/frontend/handshake_native/tests/test_backend_down_responsive.rs"
+    ],
+    "forbidden_paths": [
+      "src/frontend/handshake_native/diag_ring/** (MT-081-owned; reuse via API)",
+      "src/backend/** (reuse via API only — the fix is entirely client-side/frame-path)",
+      "src/backend/handshake_core/src/flight_recorder/** (FR kept as-is)",
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-008-1 (THE RE-PROVE, prove first): a kittest launches the real HandshakeApp with the backend DOWN (nothing listening on 127.0.0.1:37501 / a connection-refusing base_url), steps the frame loop many times, and asserts the app stays RESPONSIVE: every frame completes within a tight time bound (no frame stalls for the connect-timeout) AND the MT-084 heartbeat counter advances across frames (the UI thread is never stalled — the 2026-06-26 CPU->0 symptom is gone).",
+      "AC-008-2: every UI-thread-reachable backend interaction (from fn update / ui() / pane mount / PaneFactory::render) is NON-BLOCKING — a source audit + the responsiveness test confirm no `block_on` / blocking-lock-on-backend-result remains on the frame path; backend work runs off-thread (spawn + poll-if-finished, modeled on health_handle) or on a worker, never awaited on the UI thread.",
+      "AC-008-3: a `BackendUnreachable` DiagEvent is recorded once on the down-transition (debounced, not per-frame) and `BackendRecovered` on recovery — proven by the test asserting exactly the expected typed events in the ring/buffer.",
+      "AC-008-4: the affected surface shows a DEGRADED/disconnected state (not a perpetual spinner, not a hang) while the backend is down — proven by the kittest asserting the disconnected UI/AccessKit state is present.",
+      "AC-008-5: the reqwest clients used on these paths carry a short connect_timeout + request timeout so a dead/half-open backend cannot hang a worker indefinitely — verified in the client config (reuse-config of the existing client; src/backend untouched).",
+      "AC-008-6: recovery works — a follow-up test (or the same test, second phase) points the app at a live/responding backend and asserts the surface re-connects and BackendRecovered fires (no permanent stuck-disconnected state).",
+      "AC-008-7: `cargo build -p handshake-native` (lib + bins) clean; clippy `--all-targets -D warnings` clean; full suite `-j 2` green (the frame-path changes did not regress the existing panes); external target dir; no repo-local target/, no tracked artifact."
+    ],
+    "proof_targets": [
+      "PT-008-A: `cargo test -p handshake-native backend_down_responsive` GREEN — backend down, frames keep completing + heartbeat advances (the 2026-06-26 repro, now responsive).",
+      "PT-008-B: source audit + test confirm no UI-thread block_on/blocking-backend-await on the frame path (AC-008-2).",
+      "PT-008-C: BackendUnreachable (down) + BackendRecovered (up) typed events asserted; degraded UI state asserted.",
+      "PT-008-D: reqwest connect/request timeouts present; `cargo build --lib --bins` clean + clippy clean + full suite -j 2 green."
+    ],
+    "implementation_notes": [
+      "REUSE the existing health_handle pattern (app.rs ~1189-1190 + the ~line 221 doc): spawn the backend future on the tokio runtime returning a JoinHandle, store it, poll it each frame (is_finished / try-join), fold the result in when ready, show a degraded state until then. This is the canonical fix shape — generalize it, do not invent a new one.",
+      "AUDIT carefully: not every block_on is on the UI thread. backend_client.rs ~line 82 documents that the transport runs on a 'short-lived tokio worker (NOT the egui UI thread)'. Fix only the block_on / blocking calls REACHABLE from fn update / ui() / a pane mount / PaneFactory::render. The app.rs ~lines 979/1011 block_on calls are prime suspects — confirm their call path before/while fixing.",
+      "Add reqwest connect_timeout (~1-2s) + request timeout to the affected clients so even a TCP-accepting-but-silent backend cannot hang a worker forever (defense in depth; the off-thread move already prevents a UI stall, the timeout prevents a worker leak).",
+      "Debounce BackendUnreachable: emit once on the transition into the down state (and BackendRecovered on the transition out), not every frame — the ring is bounded.",
+      "The MT-084 heartbeat is the responsiveness ORACLE: if the heartbeat advances across frames while the backend is down, the UI thread is provably not stalled. Assert on it directly.",
+      "Do NOT touch src/backend — the fix is entirely client-side (off-thread + timeout + degraded UI). This is reuse-via-API-only.",
+      "Read the KERNEL_BUILDER coder protocol under .GOV/ first; this is the concrete §5.8.5 HARD requirement + the live-session bug — the re-prove (AC-008-1) is non-negotiable and must use the REAL app with the backend genuinely down, not a mocked failure."
+    ],
+    "ports_from_react": [
+      "NONE (native frame-path graceful-degradation fix)"
+    ],
+    "binds_backend_api": [
+      "NONE NEW, and NO backend edit. Reuses the existing backend_client + the existing /health poll pattern; adds client-side timeouts only. src/backend untouched (reuse-via-API only)."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-VIS",
+    "HBR-SWARM",
+    "HBR-QUIET"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "status": "NOT_APPLICABLE",
+      "reason": "Backend-unreachable is recorded as a Tier 2 internal_diagnostics event; it is not a Tier 1 business event and is not forwarded to the FR by this MT."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "WIRED",
+      "reason": "This MT implements the §5.8.5 HARD backend-down-degrades-not-freezes requirement of internal_diagnostics: the typed BackendUnreachable/BackendRecovered events + the non-blocking frame path, proven by the responsiveness re-prove. Built + consumed here."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "WIRED",
+      "reason": "The heartbeat (MT-084) staying alive while the backend is down is exactly what proves no freeze occurred — the same heartbeat Palmistry (Tier 3) watches. This MT removes the freeze Palmistry would otherwise have to catch; the heartbeat-advances assertion (AC-008-1) is the live link to the watcher's liveness signal."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DIAGNOSTIC_SUBSTRATE_V1",
+    "risks": [
+      "RISK-008-1: the audit misses a UI-thread block_on/blocking backend call on a less-obvious path (a pane mount, a context-menu action), so the freeze still reproduces on that path. Mitigate: audit ALL of fn update/ui()/mount/render reachable backend calls; the responsiveness test drives a real backend-down launch (AC-008-1/2).",
+      "RISK-008-2: a 'fix' that mocks the backend-down failure instead of genuinely launching with the backend down — would not prove the real bug. Mitigate: AC-008-1 uses the REAL app with nothing listening on 37501 (Spec-Realism).",
+      "RISK-008-3: the degraded state is a perpetual spinner (still looks hung to the operator). Mitigate: AC-008-4 asserts a disconnected/degraded state, not a spinner.",
+      "RISK-008-4: BackendUnreachable floods the ring (emitted every frame while down). Mitigate: debounce to the transition edges (AC-008-3).",
+      "RISK-008-5: the off-thread move introduces a data race / poisoned lock on the shared result cell. Mitigate: reuse the proven health_handle JoinHandle+poll pattern (no shared mutable cell needed); recover poisoned locks; full suite -j 2 green.",
+      "RISK-008-6: accidentally editing src/backend to 'fix' it there. Mitigate: src/backend is forbidden_paths; the fix is client-side only."
+    ],
+    "minimum_controls": [
+      "MC-008-1: the real backend-down re-prove (AC-008-1) with heartbeat-advances + frame-time-bound assertions.",
+      "MC-008-2: full audit of UI-thread-reachable backend calls; no block_on on the frame path (AC-008-2).",
+      "MC-008-3: degraded (not spinner/hang) UI + debounced transition events (AC-008-3/4).",
+      "MC-008-4: client timeouts; src/backend untouched; full suite -j 2 green (no pane regression)."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-KERNEL-012 field research (June 2026) + the 2026-06-26 live-session freeze repro",
+    "field_stack": "The canonical egui/eframe async pattern: never block the UI thread on IO; spawn on the runtime + poll a JoinHandle each frame (the app's own health_handle is the in-repo reference). reqwest connect/request timeouts as defense in depth. Graceful degradation (degraded surface, not hang) is the §5.8.5 HARD spec requirement.",
+    "crate_versions_verified_2026_06_27": {
+      "reqwest": "0.12 (already pinned; add connect_timeout/timeout config)",
+      "tokio": "1 (already the runtime; spawn + JoinHandle)",
+      "egui_kittest": "0.33 (drives the real backend-down launch)"
+    },
+    "motivating_incident": "THE concrete bug: 2026-06-26 live session — launching Handshake with the backend (127.0.0.1:37501) down stalled the UI thread (Responding=false, CPU->0, frozen) because a UI-thread backend call blocked the frame loop. This MT is the direct fix + re-prove; it is the reason internal_diagnostics + Palmistry exist (the freeze that an external watcher should catch, and the §5.8.5 degrade-not-freeze rule that should prevent it).",
+    "validation_plan": "real backend-down launch responsiveness re-prove (frames + heartbeat) + UI-thread-block_on audit + typed transition events + degraded UI + recovery; clippy -D warnings; full suite -j 2."
+  }
+}

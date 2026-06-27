@@ -25,10 +25,14 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-063"],
-    "blocks": ["MT-074"],
+    "depends_on": [
+      "MT-063"
+    ],
+    "blocks": [
+      "MT-074"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -75,7 +79,10 @@
       "Reuse the MT-031 SharedSelection variants: TextRange { pane_id, start, end, text } gives document_id (via pane->document mapping), exact byte range, and selected text; BlockRef / NodeRef resolve their document_id and use a whole-block/whole-node range. SharedSelection is owned by the WP-011 command/event substrate (command_registry.rs + event_bus.rs).",
       "Reuse the MT-036 NativeEditorEventEmitter (wired through event_bus.rs) and its closed FR schema; the FR-EVT-MEM-001 name is carried in the payload action ('memory_write_proposed'), not as a new ledger event_type.",
       "Register the command (command_registry.rs), and the dialog/radios/confirm-button ids (accessibility/registry.rs) through the WP-011 registries so swarm agents can drive the proposal flow deterministically.",
-      "MemoryClass radio default: Episodic (the most common editor->memory case); the operator can switch to Semantic or Procedural in the dialog before confirming."
+      "MemoryClass radio default: Episodic (the most common editor->memory case); the operator can switch to Semantic or Procedural in the dialog before confirming.",
+      "VERIFY PROPOSAL ENDPOINT + NEVER-EDITOR-DIRECT-COMMIT (KERNEL_BUILDER gate 2026-06-25 - MT-063 already mapped the FEMS backend surface): VERIFY read-only against src/backend/handshake_core whether POST /workspaces/{id}/memory/proposals exists. MT-063 confirmed FEMS has NO HTTP capsule route (only /knowledge/memory/{claims,conflicts,facts,entities,visual-debug} read routes + an INTERNAL builder + .handshake/fems/packs/*.json) - so the proposal WRITE route is LIKELY ABSENT too; CHECK the /knowledge/memory/* routes for a proposal/write path FIRST. If absent: submit_proposal returns MemoryProposalError::MissingEndpoint (the TYPED BLOCKER) on 404/route-absent - surface it, log to the MT-036 error ring, NO commit, NO silent direct-write fallback. Do NOT add/rewrite src/backend/**, NO SQLite (RISK-009). THE LOAD-BEARING INVARIANT (RISK-001/002/MC-001/002, AC-002): the editor builds a review-gated PROPOSAL ONLY - grep-gate that memory_proposal.rs has ZERO direct memory-commit/write call site (only the proposal POST); review_gated ALWAYS true (HARD-set true for Procedural, NEVER settable false from the editor for any class). On MissingEndpoint the editor NEVER falls back to a direct memory write. build_proposal is PURE (full MemorySourceProvenance from the MT-031 SharedSelection TextRange/BlockRef/NodeRef, no I/O, unit-testable).",
+      "CONTENT-HASH REUSE + FR-via-MT-036 (DOUBLE-GATED) (KERNEL_BUILDER gate): content_hash MUST REUSE the MT-032 loom content-hash primitive (RISK-005/MC-005, AC-003 - VERIFY its location: loom_graph.rs root OR graph/ - same SHA-256 + LOWERCASE-hex; a proposal hash MUST equal the document block hash for identical content; importing a 2nd hashing scheme is a DEFECT; typed blocker if the helper isn't exported). FR-EVT-MEM-001 (memory_write_proposed) emits via the MT-036 NativeEditorEventEmitter (RISK-007/MC-007, AC-008 - NO new emitter; event_type stays 'system', the CLOSED FR schema per MT-036; FR-EVT-MEM-001 is a payload action marker NOT a new ledger event_type; payload = {action:'memory_write_proposed', proposal_id, class, document_id, selection_start/end, content_hash, review_gated, pane_id}). NOTE THE DOUBLE-GATE: MT-036 already found the Flight Recorder schema is CLOSED to native-editor events (a strategic backend gap) - so the FR emit SHAPE is provable now but LIVE FR INGESTION is gated (NEEDS the FR schema extension); combined with likely MissingEndpoint, AC-004 (live PG proposal + live FR event) = NEEDS_MANAGED_RESOURCE_PROOF. The build_proposal + dialog + typed blocker + FR payload SHAPE are PROVABLE NOW against fixtures.",
+      "OFF-THREAD + REUSE-SUBSTRATE + ACCESSKIT + WIDGET-PROVABLE (KERNEL_BUILDER gate): submit_proposal runs OFF the egui frame thread (tokio::spawn / the MT-036 async mechanism) with BOUNDED concurrency (the MT-036 semaphore - drop + error-ring on saturation, RISK-006/MC-006); never block/crash the frame (MT-036 error-ring on emit failure). REUSE the WP-011 substrate: register CommandDescriptor 'fems.propose_to_memory' (label 'Propose to Memory', keybind=None - palette-driven, do NOT steal a VS Code binding RISK-010) via the existing command_registry.rs API (NO duplicate registry/bus, RISK-008/MC-008, AC-006); read SharedSelection from the WP-011 command/event substrate. AccessKit fems-propose-dialog (Dialog) / fems-class-{episodic|semantic|procedural} (RadioButton, default Episodic) / fems-propose-confirm (Button) via accessibility/registry.rs - deduped (RISK-010/MC-010, AC-007). The command registration + build_proposal + dialog + typed blocker + FR payload shape are PROVABLE NOW; the LIVE invocation through the mounted shell (focus->SharedSelection->confirm->live POST+FR) is E11/MT-069. NO Color32 literal; external screenshot if any; full suite -j 2 (serialize, build-lock); clippy clean."
     ],
     "ports_from_react": [
       "app/src/components/* Front End Memory Panel (write-review/proposal reference) — the React memory panel's proposal/write-review UI: how a proposal is composed, the class selection, the provenance display, and the review-gated (never direct-commit) submission pattern; port the data model and the review-gate semantics, not the React rendering."
@@ -85,7 +92,10 @@
       "POST /api/flight_recorder/runtime_chat_event — FR-EVT-MEM-001 (memory_write_proposed) emitted via the MT-036 NativeEditorEventEmitter (no new emitter). Body is the closed RuntimeChatEventV0_1 schema per MT-036; the native_editor payload carries action='memory_write_proposed' with proposal_id, class, document_id, selection range, content_hash, review_gated, pane_id. REUSE ONLY."
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -117,5 +127,29 @@
       "MC-009: A diff gate confirms no src/backend/** changes, no new endpoints, and no SQLite dependency added; backend access is the two bound POST APIs only.",
       "MC-010: AccessKit ids ('fems-propose-dialog', 'fems-class-{episodic|semantic|procedural}', 'fems-propose-confirm') are registered through the WP-011 AccessKit id registry (accessibility/registry.rs) and de-duplicated; the command uses no VS Code-reserved keybinding (palette-driven, keybind=None)."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-063 FEMS backend map (no HTTP capsule route) + MT-032 loom content-hash + MT-036 NativeEditorEventEmitter (closed FR schema gap) + MT-031 SharedSelection + WP-011 command_registry",
+    "corrections": [
+      "verify /memory/proposals (check /knowledge/memory/* first; likely MissingEndpoint typed blocker - no backend add); NEVER editor-direct-commit (grep gate, review_gated always true, hard-true Procedural)",
+      "content_hash REUSE MT-032 loom primitive (verify location, no 2nd scheme, hash==block hash); FR via MT-036 emitter (closed-schema -> shape-provable, live-ingestion gated)",
+      "DOUBLE-GATE: likely MissingEndpoint + FR-closed-schema -> AC-004 live = NEEDS_MANAGED_RESOURCE_PROOF; build_proposal+dialog+payload shape provable now",
+      "submit off-thread bounded (MT-036 semaphore); reuse command_registry+SharedSelection (no dup); accesskit dedup + keybind=None; widget-provable + live invocation at E11; no backend/SQLite/Color32"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_5e562ca7 (impl + 3-lens panel + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "6bdaf32f feat MT-064 FEMS memory-write proposal from editor",
+      "b052f95f fix harden per adversarial review"
+    ],
+    "review_panel": "correctness=CHANGES_REQUIRED(2), backend-shape=CHANGES_REQUIRED(1), perf-focus-hygiene=CHANGES_REQUIRED(2) -> 5 must-fixes hardened.",
+    "proofs": "AC-001..010 PASS (AC-004/PT-003 NEEDS_MANAGED_RESOURCE_PROOF); 6 integration + 10 lib + regression (relevant_memory 10, event_emitter 10, command_palette 9, interaction_bus 5, accesskit 9) green; clippy clean; Propose-to-Memory dialog (review-gated banner 'the editor never commits memory directly', 3-class radio Episodic/Semantic/Procedural, content preview + hash + class, Propose/Cancel) visually verified; screenshot EXTERNAL.",
+    "double_gate_CONFIRMED": "As predicted: (1) the proposal WRITE route is ABSENT (verified knowledge_memory.rs = 5 GET reads, NO /memory/proposals route); (2) the FR ledger has NO HTTP ingestion for a native-editor memory_write_proposed event (only runtime_chat_event). So 404 -> MemoryProposalError::MissingEndpoint{probed_path} (typed blocker, no fallback) + AC-004 (live PG proposal + live FR ingestion) = NEEDS_MANAGED_RESOURCE_PROOF (proven against an in-process MOCK endpoint: POST review_gated body -> ProposalAck(PROP-77) + FR-EVT-MEM-001 emit shape captured).",
+    "steers_held": "NEVER-EDITOR-DIRECT-COMMIT (the load-bearing invariant): review_gated HARD-true (no review_gated:false anywhere, no direct memory-commit call site - grep gate; banner makes it operator-visible). content_hash REUSES the MT-032/MT-020 loom primitive (canonical_content_sha256 / ContentHash::of_content_json; proposal hash == loom block hash, 64-char lowercase hex, NO 2nd scheme). build_proposal PURE (full MemorySourceProvenance from MT-031 SharedSelection). submit OFF-thread; FR via the MT-036 NativeEditorEventEmitter (NO new emitter; event_type stays closed FR vocab; action='memory_write_proposed' payload marker + full provenance). reuse command_registry (fems.propose_to_memory, WRAP-not-fork, no dup). accesskit fems-propose-dialog/class-{x}/confirm deduped, keybind=None. no backend/SQLite.",
+    "out_of_scope_disclosed": "event_emitter.rs edited (disclosed GLOBAL-SCOPE-005): added NativeEditorAction::MemoryWriteProposed + as_str arm (the FR-EVT-MEM-001 needs the action variant in the MT-036 emitter); test count 7->8; minimal unblocker.",
+    "strategic_gaps": "TWO future backend packets: (1) FEMS PROPOSAL WRITE route POST /workspaces/{id}/memory/proposals absent (joins the MT-063 FEMS read-route gap); (2) FR native-editor memory_write_proposed INGESTION absent (the MT-036 closed-schema gap). Both -> the proposal->review->commit loop's editor entry is built + shape-proven; goes live when the backend exposes the routes.",
+    "waiver_granted": "fems/memory_proposal.rs (new) + fems/mod.rs + command_registry.rs + event_emitter.rs (MemoryWriteProposed action) + test in allowed_paths."
   }
 }

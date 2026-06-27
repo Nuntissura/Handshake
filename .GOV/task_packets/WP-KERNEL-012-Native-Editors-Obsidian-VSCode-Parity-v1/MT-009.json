@@ -25,9 +25,12 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-001", "MT-002"],
+    "depends_on": [
+      "MT-001",
+      "MT-002"
+    ],
     "blocks": [],
     "validator_verdict": "PENDING"
   },
@@ -68,7 +71,12 @@
       "For very large files, the diff computation may be slow — run it on a background thread via `tokio::task::spawn_blocking` and update `diff_blocks` asynchronously. Show a 'computing diff...' indicator while pending.",
       "CRDT conflict signal: listen for a workspace state update event (to be defined in CRDT integration). For now, accept `open_merge(base, local, remote)` as a direct API call from the orchestrator.",
       "Prose mode: for JSON content diffs (rich documents), the diff is block-level not line-level. Port `buildRichDocumentDiff` as an alternative entry point that takes `serde_json::Value` pairs and produces `DiffBlock`s at the JSON node level.",
-      "Cross-WP dependency: this MT reuses the WP-011 layout primitives `split_layout.rs` and `pane_registry.rs` and the AccessKit surface under `accessibility/*` (all under `src/frontend/handshake_native/src/`); they are delivered by WP-KERNEL-011 and must exist before the new tile can be registered."
+      "Cross-WP dependency: this MT reuses the WP-011 layout primitives `split_layout.rs` and `pane_registry.rs` and the AccessKit surface under `accessibility/*` (all under `src/frontend/handshake_native/src/`); they are delivered by WP-KERNEL-011 and must exist before the new tile can be registered.",
+      "MULTI-INSTANCE PANES (RISK-004, KERNEL_BUILDER gate): SideBySide mounts TWO CodeEditorPanel instances - this is the FIRST real two-panel mount (MT-003 RISK-004 only string-tested it). Use CodeEditorPanel::with_instance(\"left\") / with_instance(\"right\") so the egui ScrollArea Ids AND AccessKit author_ids (code_editor_panel#left/#right, code_editor_text#..., scroll#...) are disjoint - no shared fixed-id band. Add the runtime two-panel test MT-003 deferred (assert both panes' nodes addressable + independent scroll offsets).",
+      "POSITIONING (MT-002 AC-007): both diff panes use VirtualLineLayout with the MT-002-corrected sans-spacing line_height + actual painted row_range; diff-block background rects and the sync-scroll line_map map visual rows through y_for_line so highlights align with rendered lines in each pane.",
+      "DIFF COLORS (MT-007 theme-guard): use egui::Color32::from_rgba_unmultiplied(...) for the translucent diff backgrounds (the SANCTIONED form the CONTROL-4 guard does NOT flag, same as MT-003 selection / MT-004 match tints) - do NOT use Color32::from_rgb( in diff_engine.rs/diff_editor_panel.rs (the guard now correctly flags from_rgb( and the full suite would go RED). Theme-sourcing the diff tints via HsDiagnosticTokens is also acceptable.",
+      "PROSE/JSON DIFF SCOPE (KERNEL_BUILDER gate): the LINE-LEVEL TextBuffer diff + three-way merge is the MT-009 deliverable (code editor, E1). The JSON-block-level prose diff (buildRichDocumentDiff over serde_json::Value) targets the rich-text editor's native document format which DOES NOT EXIST yet (E2 builds it, MT-011+). Design diff_engine.rs so a prose/block entry point can be added later, but DEFER the full JSON-block prose diff to when E2's native rich-document format exists - do not block MT-009 on a nonexistent format. CRDT-conflict trigger is also deferred (open_merge is a direct API call for now, per the contract).",
+      "ACCESSKIT VARIANT: Role::Group/Button/ToggleButton - field-correct nearest accesskit 0.21.1 variant if a literal differs; ACs assert author_id."
     ],
     "ports_from_react": [
       "app/src/lib/editor/document_diff_merge.ts — complete file: RichDocumentDiff, RichDocumentMergePlan, buildRichDocumentDiff, buildRichDocumentMergePlan, applyRichDocumentMergeChoices — port all as Rust equivalents into src/frontend/handshake_native/src/code_editor/diff_engine.rs",
@@ -79,7 +87,10 @@
       "None for diff computation — purely in-process. CRDT conflict data arrives via workspace state events (separate integration). No HTTP calls in this MT."
     ]
   },
-  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -97,6 +108,31 @@
       "MC-001: Background diff computation is required for files > 10k lines — documented and implemented.",
       "MC-002: Ported test cases from document_diff_merge.test.ts are a required AC.",
       "MC-003: SideBySide egui Id suffix is required — verified by screenshot AC-003 (two distinct scroll positions)."
+    ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-002/003/004/007",
+    "corrections": [
+      "with_instance left/right for the two-panel mount (RISK-004 runtime test)",
+      "MT-002-corrected positioning for both panes",
+      "diff colors use from_rgba_unmultiplied not from_rgb( (theme guard)",
+      "prose/JSON diff deferred to E2 native rich-document format",
+      "accesskit variant fallback"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_8cce417f (impl + adversarial-review PASS, no harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "fd715b74 feat MT-009 diff + three-way merge editor panel"
+    ],
+    "review_verdict": "PASS (reviewer re-ran proofs + inspected; no must_fix)",
+    "proofs": "AC-001..007 + PT-001..006 GREEN; similar v2.7.0 Myers diff; 483 lib + ~60 integration bins green; clippy --all-targets -D warnings clean; CONTROL-4 theme guard GREEN; side-by-side diff (green added-line band, two synced panes) + inline diff (+/- prefixes) visually verified by KERNEL_BUILDER; no leakage.",
+    "self_caught_fix": "impl self-caught a visual-honesty defect: the initial 'green pixels' were the MINIMAP not the diff tint (panel bg occluded the pre-painted rects); fixed by hiding outline/minimap + painting diff tint on a foreground overlay AFTER panes render, then re-inspected. RISK-004 two-panel mount runtime-proven (with_instance left/right -> disjoint egui Ids + AccessKit author_ids #left/#right).",
+    "deferred": [
+      "prose/JSON-block diff (buildRichDocumentDiff over serde_json::Value) deferred to when E2's native rich-document format exists (MT-011+); line-level TextBuffer diff+merge delivered",
+      "CRDT-conflict auto-trigger deferred (open_merge is a direct API call); wires to a workspace-state event in a later CRDT MT",
+      "adversarial alternating add/remove diff-boundary cases vs VS Code exact boundaries - residual (similar's grouping); add edge tests in a follow-up"
     ]
   }
 }

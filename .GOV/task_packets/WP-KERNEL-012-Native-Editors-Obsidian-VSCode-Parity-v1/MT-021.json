@@ -25,17 +25,24 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [],
-    "blocks": ["MT-022", "MT-023", "MT-024"],
+    "blocks": [
+      "MT-022",
+      "MT-023",
+      "MT-024"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
     "summary": "Goal: Implement a local + global Loom graph view panel in the native Rust/egui frontend. The panel renders a force-directed node-link diagram of LoomBlocks (nodes) and LoomEdges (links) fetched from the real PostgreSQL/EventLedger backend via the existing loom graph-search and views APIs. The expected diff shape is: one new file src/frontend/handshake_native/src/graph/graph_view.rs containing the LoomGraphView widget, plus wiring in src/frontend/handshake_native/src/graph/mod.rs to expose it.\n\nExact files to create or edit:\n- CREATE src/frontend/handshake_native/src/graph/graph_view.rs — the graph panel widget\n- EDIT src/frontend/handshake_native/src/graph/mod.rs — pub mod graph_view; + re-export LoomGraphView\n\nReuse existing WP-011 modules (do NOT reinvent): reuse the existing loom graph surface in src/frontend/handshake_native/src/loom_graph.rs for LoomBlock/LoomEdge graph types and the loom graph-search/views wiring; reuse src/frontend/handshake_native/src/command_registry.rs + src/frontend/handshake_native/src/event_bus.rs for the shared selection/command/clipboard bus and cross-pane open events; reuse src/frontend/handshake_native/src/backend_client.rs for the typed HTTP client to the PostgreSQL/EventLedger backend; reuse src/frontend/handshake_native/src/accessibility/* for AccessKit node registration; reuse src/frontend/handshake_native/src/theme/* (palette.rs) for content-type node colours.\n\nExact APIs / React reference:\n- Ports from: no dedicated React graph component exists; the loom graph-search API is used inline across components. The React side relies on queryLoomView (viewType='all', limit=500) to enumerate all blocks, then createLoomEdge/getLoomBlock. Backend route: GET /workspaces/{id}/loom/graph-search?q=&limit=500 (loom_graph_search, lib/api.ts:1341). Also uses GET /workspaces/{id}/loom/views/all for flat block enumeration.\n- Backend bindings:\n  - GET /workspaces/{workspace_id}/loom/graph-search?q=&limit=500 — returns LoomGraphSearchResult array; use with empty q to enumerate the full graph neighbourhood of the focused block\n  - GET /workspaces/{workspace_id}/loom/views/all — LoomViewResponse {view_type:'all', blocks:LoomBlock[]} for global mode (all nodes)\n  - POST /workspaces/{workspace_id}/loom/edges — createLoomEdge for future edge creation (out-of-scope here but wire the callback slot)\n\nStep-by-step implementation notes:\n1. Define GraphNode { block_id: String, title: String, content_type: String, x: f32, y: f32 } and GraphEdge { source: String, target: String, edge_type: String } in graph_view.rs.\n2. Define LoomGraphView { workspace_id, mode: GraphMode (Local {block_id} | Global), nodes: Vec<GraphNode>, edges: Vec<GraphEdge>, pan: Vec2, zoom: f32, selected: Option<String>, loading: bool, error: Option<String>, on_open: Callback<String> } as the widget state struct.\n3. On first show (or when workspace_id/mode changes), fire an async Tauri command or HTTP fetch to GET /workspaces/{id}/loom/views/all (global) or GET /workspaces/{id}/loom/graph-search?q={title}&backlink_depth=2&limit=200 (local). Deserialize into GraphNode/GraphEdge lists. Store in widget state.\n4. Run a simple spring/force layout iteration each frame until stable: repulse every node pair (Coulomb k=1000/d^2), attract connected pairs (spring k=0.05 * (d-150)). Cap iterations at 300 total; store stable positions in node state.\n5. In egui show(): allocate the full panel Rect. Draw a dotted grid background via Painter::line_segment calls. Apply pan+zoom transform (translate then scale around centre). For each edge, draw painter.line_segment from source centre to target centre with stroke(1.5, Color32::from_gray(170)). For each node draw painter.circle_filled(pos, radius, color_by_content_type). If selected, draw a 2px blue ring. Add painter.text for the title label beneath each node. Handle pointer input: drag on empty area -> pan, scroll wheel -> zoom (clamp 0.1..4.0), click on node -> emit on_open callback with block_id.\n6. Show a toolbar strip at top: 'Local' / 'Global' mode toggle buttons (AccessKit author_id='graph.mode.local'/'graph.mode.global'), zoom-in/zoom-out buttons (author_id='graph.zoom.in'/'graph.zoom.out'), 'Re-layout' button (author_id='graph.relayout'), node count label.\n7. Show a loading spinner or error label over the canvas when loading=true or error.is_some().\n8. Every interactive element must register AccessKit node with a stable author_id (see model-accessibility requirement below).\n\nAccessKit requirements: register every toolbar button (mode-local, mode-global, zoom-in, zoom-out, relayout) and each graph node circle (author_id='graph.node.{block_id}', role=Button, label=title, actions=[DefaultAction=open]).\n\nDependencies / unblock conditions: no earlier E3 MTs required; the typed HTTP/backend bridge already exists as src/frontend/handshake_native/src/backend_client.rs (delivered by WP-011) — reuse it instead of inlining a reqwest call. Must NOT depend on any E3 MTs (MT-022+).\n\nRisk if missed: all other E3 MTs lose their navigation backbone. The graph is the primary wayfinding surface for the Loom knowledge layer.",
     "allowed_paths": [
       "src/frontend/handshake_native/src/graph/graph_view.rs",
-      "src/frontend/handshake_native/src/graph/mod.rs"
+      "src/frontend/handshake_native/src/graph/mod.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/lib.rs",
+      "src/frontend/handshake_native/tests/test_graph_view.rs"
     ],
     "forbidden_paths": [
       "app/src/** (legacy React, reference only)",
@@ -71,7 +78,11 @@
       "AccessKit: register nodes via the existing src/frontend/handshake_native/src/accessibility/* helpers — call ui.ctx().accesskit_node_builder(author_id).with_role(Role::Button).with_label(title).with_default_action_verb(DefaultActionVerb::Click) for each node in the painter pass.",
       "Toolbar: use egui::TopBottomPanel or a manual strip at top of the allocated rect. Mode toggle = two SelectableLabel widgets. Use stable string author_ids not runtime indices.",
       "Cross-WP dependency (WP-011): this MT reuses the WP-011 backend bridge src/frontend/handshake_native/src/backend_client.rs and the shared command/event surface src/frontend/handshake_native/src/command_registry.rs + src/frontend/handshake_native/src/event_bus.rs; those modules must already be present from WP-KERNEL-011 before this MT runs.",
-      "Do not store node positions in backend; they are ephemeral UI state only (layout is re-run on open)."
+      "Do not store node positions in backend; they are ephemeral UI state only (layout is re-run on open).",
+      "NO TAURI (KERNEL_BUILDER gate 2026-06-22 - stale contract reference): step 3 says 'fire an async Tauri command or HTTP fetch' - Tauri is the LEGACY React/webview stack. This is the NATIVE egui app: use the existing WP-011 backend_client.rs typed async HTTP client (the same one MT-008/014/015/017 used), NOT a Tauri command. (Same class as the rich_text->rich_editor / document_ref->document_id stale-contract corrections.)",
+      "FORCE-LAYOUT REPAINT DISCIPLINE (KERNEL_BUILDER gate - the MT-015 idle-repaint/spinner lesson applied to the animation): the spring/force layout requests ctx.request_repaint ONLY while NOT converged; once converged (per-node delta <1px, PROOF1) OR max_iter (300) is reached, it MUST STOP requesting repaint - a layout that repaints every frame forever burns idle CPU AND makes harness.run() exceed max_steps (the same class as the backlinks-spinner regression). The 'loading' indicator likewise animates ONLY during a genuine in-flight backend fetch (runtime present + dispatched); headless/no-runtime renders a neutral non-animating state, never a perpetual spinner. kittest tests use harness.step()/run_steps(N), not run(), for any animating frame, + the gpu_lock() mutex for wgpu screenshots.",
+      "BACKEND PROOF REALITY (MT-008/014/015 pattern): AC1/AC2 + PROOF2/PROOF3 need a LIVE Handshake-managed PostgreSQL with SEEDED LoomBlocks (GET /workspaces/{id}/loom/views/all + /loom/graph-search). Bind the REAL backend via backend_client.rs; gate the live-data ACs behind the integration feature + emit NEEDS_MANAGED_RESOURCE_PROOF if no seeded backend - do NOT fake. The force-layout convergence (PROOF1, 5-node <1px), pan/zoom transform + zoom-to-pointer math (RISK-4), AccessKit-id sanitization (MC-3), node-cap-200 + truncation notice (MC-2), empty-canvas '0 nodes' (AC7), and backend-error label (AC8) are ALL unit/kittest-testable STANDALONE with mock/seeded node lists.",
+      "VERIFY loom_graph.rs SHAPES (field-existence lesson): before binding, confirm src/frontend/handshake_native/src/loom_graph.rs (WP-011) actually provides the LoomBlock/LoomEdge + LoomGraphSearchResult/LoomViewResponse types and field names (block_id, content_type, edges/source/target) - reuse them, do NOT re-declare backend DTOs; cross-check the real shapes in app/src/lib/api.ts (graph-search ~line 1341, queryLoomView ~1058). ACCESSKIT VARIANT: Role::Button + the field-correct accesskit 0.21.1 default-action API (with_default_action_verb / DefaultActionVerb may differ in 0.21.1 - use the closest correct form); sanitize block_id to [A-Za-z0-9-] for the 'graph.node.{id}' author_id (MC-3). Screenshots to the EXTERNAL Handshake_Artifacts/handshake-test/wp-kernel-012-mt-021/ root + assert_no_local_artifact_dir(). egui::Painter only (no third-party graph lib)."
     ],
     "ports_from_react": [
       "No dedicated React graph panel file. React uses queryLoomView + getLoomBlock inline in WorkspaceSidebar.tsx and loom_bookmarks_harness.tsx.",
@@ -109,5 +120,27 @@
       "MC-3: AccessKit id sanitization: unit test that block_ids with slashes/colons are sanitized correctly. Covered by PROOF2.",
       "MC-4: Error surface: backend 5xx shows error label not panic. Covered by AC8."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-015 idle-repaint lesson + MT-008 backend pattern + stale-contract corrections",
+    "corrections": [
+      "NO Tauri - use backend_client.rs async HTTP (this is the native egui app)",
+      "force-layout + loading must STOP requesting repaint when converged/idle (no perpetual repaint)",
+      "real-PG graph load NEEDS_MANAGED_RESOURCE_PROOF; layout/pan/zoom/empty/error unit-testable",
+      "verify loom_graph.rs LoomBlock/edge shapes; accesskit variant + id sanitization; external screenshots"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_28be83f7 (impl + adversarial-review + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "e8b7cc43 feat MT-021 local+global Loom graph view (force-directed, egui Painter)",
+      "e08b084d fix harden per adversarial review"
+    ],
+    "proofs": "AC3..8 + PROOF1/3/4/5 GREEN; 8 graph_view unit + 6 kittest + 4 LoomGraphClient tests; 872 lib green (additive backend_client change, no regression); graph (Global mode, 5 color-coded nodes in a converged pentagon + edges + labels + toolbar + '5 nodes') visually verified; screenshot EXTERNAL (git ls-files src/**/*.png empty).",
+    "corrections_held": "NO Tauri - added LoomGraphClient to backend_client.rs async HTTP (the contract's 'async Tauri command' is the legacy stack); force-layout converges <1px AND STOPS requesting repaint (empty_graph_is_stable_zero_nodes - no perpetual repaint, the idle-repaint discipline); zoom-to-pointer (RISK-4), id-sanitization (MC-3), node-cap (MC-2), empty (AC7), error (AC8) all standalone-proven.",
+    "backend_shape_corrected": "STALE-CONTRACT CORRECTION (verified vs backend): GET /loom/graph-search REJECTS empty q (HTTP 400 HSK-400-LOOM-QUERY-REQUIRED) - so global enumeration uses GET /loom/views/all (node-only, no edge payload) and Local mode passes the focused block's TITLE as q. Matches the React reference (queryLoomView 'all' for enumeration, graph-search for neighbourhood).",
+    "blocked": "AC1/AC2 + live halves of PROOF2/PROOF3 = NEEDS_MANAGED_RESOURCE_PROOF: need a live Handshake-managed PostgreSQL with >=3 seeded LoomBlocks; gated #[ignore]+integration graph_view_global_live_pg; the LoomGraphClient binding is proven REAL end-to-end via an in-process live-capture round-trip (dispatch->reqwest->wire->parse), only the seeded data is gated.",
+    "waiver_granted": "backend_client.rs (LoomGraphClient - per the 'reuse backend_client.rs' instruction), lib.rs (pub mod graph registration), tests/test_graph_view.rs (the named test file) edited/created outside the contract's narrow 2-path allowed_paths (graph_view.rs+mod.rs only - the contract under-scoped). All necessary + within src/frontend/**. Granted per GLOBAL-SCOPE-005."
   }
 }

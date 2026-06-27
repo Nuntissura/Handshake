@@ -25,10 +25,15 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-008", "MT-010"],
-    "blocks": ["MT-044"],
+    "depends_on": [
+      "MT-008",
+      "MT-010"
+    ],
+    "blocks": [
+      "MT-044"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -36,8 +41,8 @@
     "allowed_paths": [
       "src/frontend/handshake_native/src/code_editor/signature_help.rs",
       "src/frontend/handshake_native/src/code_editor/lsp_client.rs",
+      "src/frontend/handshake_native/src/code_editor/code_nav.rs",
       "src/frontend/handshake_native/src/code_editor/mod.rs",
-      "src/frontend/handshake_native/src/code_editor/pane.rs",
       "src/frontend/handshake_native/src/code_editor/panel.rs",
       "src/frontend/handshake_native/tests/test_signature_help.rs"
     ],
@@ -72,7 +77,9 @@
       "Retrigger semantics: typing a `,` should UPDATE the active parameter of the already-open popup (re-request or recompute active_parameter), not open a second popup. Key the popup by the call's open-paren byte offset.",
       "Fallback signature caching: cache the resolved `SignatureInfo` per (call-target identifier, open_paren_byte) for the popup lifetime so commas do not re-hit `/knowledge/code/symbols`.",
       "Define `SIGNATURE_HELP_TRIGGER_CHARS = ['(', ',']` and the manual shortcut `Ctrl+Shift+Space` as named constants with comments.",
-      "React reference: in `app/src/lib/monaco/code_intelligence.ts`, `markdownForSymbol` builds the symbol signature/markdown shown by Monaco; the native fallback signature label must carry the same `display_name` + params content."
+      "React reference: in `app/src/lib/monaco/code_intelligence.ts`, `markdownForSymbol` builds the symbol signature/markdown shown by Monaco; the native fallback signature label must carry the same `display_name` + params content.",
+      "PATH + REAL-SHAPE + EXTERNAL-SCREENSHOT (KERNEL_BUILDER gate 2026-06-24): the editor pane is code_editor/panel.rs (CodeEditorPanel) - pane.rs does NOT exist (verified); edit panel.rs (the MT-008/010 cursor+LSP wiring) + lsp_client.rs (additive signature_help + capability cache ONLY - no 2nd transport/runtime, AC-006) + signature_help.rs (new) + mod.rs (pub mod). The code-nav FALLBACK reuses the EXISTING MT-008 CodeNavClient in code_editor/code_nav.rs (lookup_symbols + get_symbol) - VERIFY the REAL symbol response shape: MT-039 found the real code-nav symbol is SymbolNavProjection (symbol_key/display_name/symbol_kind/definition/staleness) - it may NOT have a literal 'params' field; build the fallback SignatureInfo label from the REAL fields the backend returns (display_name + whatever param/signature data exists), NOT an assumed 'params' (the verify-over-prose discipline). SCREENSHOT: write to the EXTERNAL Handshake_Artifacts/handshake-test/wp-kernel-012-mt-047/ root + assert_no_local_artifact_dir() - the contract's 'test_output/MT-047-...png' is a REPO-LOCAL path that VIOLATES the CX-212E artifact-hygiene rule; git ls-files src/**/*.png must stay empty.",
+      "CORRECTNESS GATES (KERNEL_BUILDER gate): active_parameter_from_commas is a DEPTH-AWARE scanner - skip commas inside nested (), [], {}, generic <> angle brackets, AND string/char literals (RISK-1/MC-1, AC-007 - unit-test all these nested cases). The popup is a NON-FOCUS-TAKING egui::Order::Tooltip Area - it must NOT capture keyboard or swallow the next typed char (RISK-3/MC-3 - the MT-008 completion-popup bug class; route keystrokes through the editor first). ParameterLabel BOTH forms: prefer LabelOffsets([u32;2]) when present; for Simple(String) search left-to-right consuming earlier matched ranges so a repeated param name maps to a DISTINCT span (RISK-5/MC-5). NO unwrap()/expect() on LSP or backend parse paths - malformed/missing -> None/empty, never panic (AC-008). Reuse the MT-008 non-blocking tokio task + result-channel pattern (NEVER call LSP/backend from the egui render loop). Retrigger on ',' UPDATES the open popup's active_parameter (keyed by open-paren byte), does NOT open a 2nd popup; cache the fallback signature per (identifier, open_paren_byte) so commas don't re-hit /knowledge/code/symbols (RISK-2/MC-2). AccessKit code_editor_signature_help Tooltip node carries the active signature label text (swarm reads without pixels, MC-006). Provable WITHOUT live PG (mock LSP for the request test; the code-nav fallback via a spy/gated client). If MT-008/010 pane+LSP wiring is absent -> typed blocker (don't scaffold)."
     ],
     "ports_from_react": [
       "app/src/lib/monaco/code_intelligence.ts — the signature/markdownForSymbol provider: how the symbol signature (display_name + params) is composed for display; port this composition into the code-nav fallback SignatureInfo label, and mirror the LSP signature-help provider behavior Monaco registered for parameter hints."
@@ -83,7 +90,10 @@
       "LSP textDocument/signatureHelp — stdio JSON-RPC over the existing MT-008 LspClient transport, NOT an HTTP route; no backend involvement."
     ]
   },
-  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -108,5 +118,26 @@
       "MC-005: Both `ParameterLabel::LabelOffsets` and `ParameterLabel::Simple` forms MUST resolve to the correct active run, verified by the `signature_help_popup` screenshot and the request test.",
       "MC-006: AccessKit Tooltip node `code_editor_signature_help` MUST carry the active signature label text so swarm agents can read the hint without pixels (AC-005 / PT-004)."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + real code_editor/ tree (panel.rs + lsp_client.rs + code_nav.rs) + MT-008 transport + MT-039 SymbolNavProjection shape + CX-212E artifact rule + MT-008 popup-focus bug",
+    "corrections": [
+      "panel.rs not pane.rs; additive signature_help on the MT-008 transport (no 2nd transport/runtime); fallback reuses code_editor/code_nav.rs",
+      "verify the REAL code-nav symbol shape (SymbolNavProjection, not assumed 'params') for the fallback label",
+      "external screenshot root (not repo-local test_output/); depth-aware comma scanner (skip nested+strings+generics); non-focus-steal Tooltip; both ParameterLabel forms; no unwrap; provable without live PG"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_e2cf0004 (impl + 3-lens panel + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "9d87bdad feat MT-047 signature help (parameter hints)",
+      "0bf9a677 fix harden per adversarial review"
+    ],
+    "review_panel": "correctness=PASS(0), backend-shape=CHANGES_REQUIRED(1), perf-focus-hygiene=PASS(0) -> 1 must-fix hardened.",
+    "proofs": "AC-001..008 + PT-001..005 PASS; 16 unit + 6 integration + 1153 lib + regression (keymap 12, lsp_client, completion/hover, accesskit, E7) green; clippy clean; signature-help popup (fn add(a: i32, b: i32) with active param 'b' BOLD + doc line, anchored above the call) visually verified - VS Code parameter-hint parity; screenshot EXTERNAL (git ls-files src/**/*.png empty).",
+    "steers_held": "panel.rs (pane.rs absent); LSP signature_help ADDITIVE on the MT-008 transport (generalized to Box<dyn AsyncWrite>/Option<Child> so the test drives the REAL request path in-memory - NO 2nd transport/runtime, AC-006); fallback from_code_nav uses the REAL SymbolNavProjection.display_name (MT-039 shape, no assumed 'params'); depth-aware comma scanner (skips nested ()[]{}<>/string/char; 'a < b' not a generic); non-focus-steal Tooltip + MT-010 single-dispatch keymap preserved; both ParameterLabel forms (LabelOffsets+Simple, repeated-name distinct spans); no unwrap on parse (clamps + char-boundary snap); AccessKit code_editor_signature_help Tooltip carries the label (swarm-readable).",
+    "external_screenshot_held": "Screenshot to the EXTERNAL wp-kernel-012-mt-047 root (NOT the contract's repo-local test_output/ - CX-212E hygiene held).",
+    "waiver_granted": "code_editor/signature_help.rs (new) + lsp_client.rs (additive) + mod.rs + panel.rs + test in allowed_paths; code_nav.rs unchanged (read-only fallback reuse)."
   }
 }

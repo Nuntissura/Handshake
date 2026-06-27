@@ -25,10 +25,16 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-001", "MT-002", "MT-005"],
-    "blocks": ["MT-008"],
+    "depends_on": [
+      "MT-001",
+      "MT-002",
+      "MT-005"
+    ],
+    "blocks": [
+      "MT-008"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -39,7 +45,11 @@
       "src/frontend/handshake_native/src/code_editor/mod.rs",
       "src/frontend/handshake_native/src/code_editor/panel.rs",
       "src/frontend/handshake_native/tests/test_gutter.rs",
-      "src/frontend/handshake_native/tests/test_breakpoint_set.rs"
+      "src/frontend/handshake_native/tests/test_breakpoint_set.rs",
+      "src/frontend/handshake_native/src/theme/syntax.rs",
+      "src/frontend/handshake_native/src/theme/palette.rs",
+      "src/frontend/handshake_native/src/theme/mod.rs",
+      "src/frontend/handshake_native/tests/test_theme.rs"
     ],
     "forbidden_paths": [
       "app/src/** (legacy React, reference only)",
@@ -68,7 +78,12 @@
       "Line number color: `visuals.weak_text_color()` — slightly dimmer than main text, matching VS Code convention.",
       "Diagnostic icon: a 6px diameter circle at `(gutter_rect.right() - 8, y_for_line(line) + line_height / 2)`. Color: Error=Color32::RED, Warning=Color32::YELLOW, Info=Color32::from_rgb(100,149,237).",
       "Fold triangle: render as a small right-pointing triangle (▶ U+25B6) or down-pointing (▼ U+25BC) using `painter.text()`. Unicode rendering in egui requires the font to include these glyphs — use the bundled Noto Sans or FiraMono and verify glyph support.",
-      "BreakpointEvent channel: initialize the channel in `CodeEditorPanel::new()` and store `sender: Option<mpsc::Sender<BreakpointEvent>>`. Expose a `subscribe_breakpoints() -> mpsc::Receiver<BreakpointEvent>` method for the debug adapter to call."
+      "BreakpointEvent channel: initialize the channel in `CodeEditorPanel::new()` and store `sender: Option<mpsc::Sender<BreakpointEvent>>`. Expose a `subscribe_breakpoints() -> mpsc::Receiver<BreakpointEvent>` method for the debug adapter to call.",
+      "DIAGNOSTICS MUST NOT BUMP buffer_version (KERNEL_BUILDER gate 2026-06-22): step 5 says self.buffer_version += 1 in push_diagnostics but also admits it is 'not needed'. DO NOT increment buffer_version on push_diagnostics - that counter triggers the MT-002 highlight-cache / tree re-parse, and bumping it on every diagnostics push would needlessly re-highlight. Store diagnostic_markers in independent state with NO version bump.",
+      "BREAKPOINT CHANNEL (HBR-INT reuse-not-fork): prefer the existing event_bus.rs for in-app BreakpointEvent fan-out (the contract says reuse it). If using std::sync::mpsc instead, use an UNBOUNDED mpsc::channel + sender.send(event).ok() - std mpsc::Sender has NO try_send (try_send is SyncSender on a bounded channel). RISK-003/MC-003 'try_send' is loose terminology; the real intent is non-blocking + discard on dropped receiver, which send().ok() satisfies.",
+      "POSITIONING + FOLD ALIGNMENT (MT-002 AC-007 + MT-005): the gutter renders only the painted visible rows and MUST align line numbers/markers/fold-triangles to the editor body using the SAME y_for_line + sans-spacing line_height + actual painted row_range (MT-002-corrected) and the MT-005 fold-aware visible<->buffer mapping, so gutter row N lines up exactly with code row N, including when folds are active.",
+      "FOLD-TRIANGLE GLYPH (RISK-002): the bundled UI font is Inter (may lack U+25B6/U+25BC). Verify glyph presence in the test and fall back to ASCII '>'/'v' or a painter-drawn triangle if absent - do not ship tofu boxes.",
+      "ACCESSKIT VARIANT: use the field-correct nearest accesskit 0.21.1 variant if Role::ToggleButton/StaticText/Group differ from the literal names; ACs assert the author_id, not the role string (as MT-003 Caret, MT-005 TreeItem)."
     ],
     "ports_from_react": [
       "app/src/components/operator/ProblemsView.tsx — ProblemsView renders backend diagnostic data; the gutter markers are the inline equivalent (same data, different surface)",
@@ -80,7 +95,11 @@
       "BreakpointEvent channel — internal IPC to debug adapter, not a backend HTTP call. Debug adapter integration is a future MT."
     ]
   },
-  "hbr_obligations": ["HBR-VIS", "HBR-SWARM", "HBR-INT"],
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM",
+    "HBR-INT"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -100,5 +119,33 @@
       "MC-003: BreakpointEvent send is `try_send` — no blocking on disconnected receiver.",
       "MC-004: `push_diagnostics` clear test: push markers, then push empty vec, verify gutter shows no diagnostic dots."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-002 AC-007 + MT-005",
+    "corrections": [
+      "push_diagnostics must NOT bump buffer_version (perf)",
+      "breakpoint channel: event_bus or unbounded mpsc + send().ok() (no std try_send)",
+      "gutter aligns to MT-002/MT-005 corrected row mapping",
+      "fold-triangle glyph fallback",
+      "accesskit variant fallback"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_008dc26e (impl + adversarial-review + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "6be1cfd6 feat MT-007 editor gutter (line numbers/diagnostics/fold-triangles/breakpoints)",
+      "1e0546b5 fix harden per adversarial review"
+    ],
+    "proofs": "AC-001..007 + PT-001..006 GREEN; gutter visually verified by KERNEL_BUILDER (line numbers + fold triangles + red diagnostic bar/dot, row-aligned); AC-007 confirms push_diagnostics does NOT bump buffer_version (my gate fix honored); accesskit variant CheckBox/Label per my note; FULL suite now GREEN (451 lib + all integration, 0 failed); clippy --all-targets -D warnings clean; no leakage.",
+    "bug_caught_and_fixed": "Review: 3 Color32::from_rgb literals in gutter.rs broke the WP-011 CONTROL-4 theme guard. Harden moved diagnostic/breakpoint colors into the theme layer (HsDiagnosticTokens in theme/syntax.rs+palette.rs, resolved per-frame). DEEPER FINDING: the guard test test_theme::no_hardcoded_color32 had a SUBSTRING bug (contains('Color32::from_rgb') also matched 'from_rgba_premultiplied/unmultiplied'), so it was FALSELY RED since MT-003 introduced from_rgba_* tints - keeping the full integration suite RED, undetected because per-MT proofs ran --lib + specific --test filters, not the full suite. Harden fixed the predicate to contains('Color32::from_rgb(').",
+    "waiver_granted": "theme/syntax.rs, theme/palette.rs, theme/mod.rs (the SANCTIONED Color32 home - fix option (a) directs moving colors there) + tests/test_theme.rs (the guard, to fix its substring false-positive) - outside MT-007 allowed_paths but within packet src/frontend/**, directly required to make the guard GREEN. Granted per GLOBAL-SCOPE-005; added to allowed_paths.",
+    "deferred": [
+      "unbounded breakpoint mpsc channel with no early subscriber -> MT-008/DAP must subscribe early or cap/drain",
+      "AccessKit per-frame gutter marker cap 64 -> HBR-SWARM dense-screen note",
+      "O(rows*markers) per-frame marker scan -> perf follow-up (fine at LSP rates)",
+      "coverage gaps: glyph-fallback CI test (MC-002), runtime gutter-widen e2e (MC-001), hover-tooltip interaction, breakpoint-click-on-fold-row disjoint-rect branch -> follow-up test MT"
+    ],
+    "process_fix": "Pipeline review prompt updated to require running the FULL cargo test suite (all bins) + clippy --all-targets, not just MT-specific filters, so cross-cutting architecture-guard regressions are caught going forward."
   }
 }

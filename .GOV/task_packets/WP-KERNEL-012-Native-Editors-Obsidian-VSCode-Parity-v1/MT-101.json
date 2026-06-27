@@ -1,0 +1,141 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-101",
+  "title": "U5-MT-101-ModelLaunchInRepoFolderWithWrapper",
+  "group": "U1 Usable-Product Expansion (notes+chat worksurface, §product-vision 2026-06-27)",
+  "created_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-101.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-097",
+      "MT-102",
+      "MT-103"
+    ],
+    "blocks": [
+      "MT-104"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "OPERATOR: launch a LOCAL or CLOUD MODEL session bound to a repo/workspace folder with the CORRECT wrapper — the session/runtime launch — from the worksurface. This is the agent-session launch (a coder/swarm session scoped to the project folder), the core of Handshake's self-hosting/parallel-agent vision.\n\nVERIFIED STATE (live-app inspection 2026-06-27): the model-session/runtime path EXISTS but is split:\n- A HTTP job route EXISTS: POST /jobs (create_new_job in src/backend/handshake_core/src/api/jobs.rs, CreateJobRequest{job_kind, protocol_id, doc_id, job_inputs}; job_kind 'model_run' etc.) + POST /jobs/:id/resume + GET /jobs + GET /jobs/:id. This is reachable over HTTP from the native frontend.\n- The direct SESSION SPAWN bound to a worktree/repo folder is Tauri IPC only: kernel_swarm_spawn_session / kernel_swarm_spawn_with_cloud_escalation / kernel_swarm_resume_session (app/src-tauri/src/commands/swarm_runtime.rs), taking a worktreeId. The local model runtime load is also IPC: kernel_model_runtime_load / list_loaded / unload (GGUF local models). The session scheduler is backend-internal (workflows.rs SessionRegistry / SessionSchedulerConfig / spawn_limits; mt_executor/** is internal, no public HTTP route).\n- So: a WORKSPACE-SCOPED MODEL-SESSION SPAWN with a wrapper, launched from the NATIVE frontend, is PARTIAL — the /jobs HTTP route can create a job (a real wire), but the direct repo-folder-bound session spawn with the wrapper is IPC-only (absent from native HTTP).\n\nWhat to do (wire the reachable route, typed-blocker the absent half — NOT a mock):\n- INSPECT api/jobs.rs (the /jobs route + CreateJobRequest), workflows.rs (SessionRegistry/scheduler), and model_runtime/** to confirm exactly what a HTTP-reachable launch can scope to a repo/workspace folder.\n- ADD a native 'Launch Model Session in Workspace Folder' affordance from the worksurface (command palette / top menu) + a ModelSessionLaunchClient (backend_client.rs) that (a) for the REACHABLE path, issues POST /jobs with a job_kind that scopes the run to the chosen repo/workspace folder + the chosen model (local or cloud) + the wrapper, and (b) for the IPC-only direct-session-spawn-with-wrapper half, records a typed `ModelLaunchError::EndpointMissing` naming the IPC-only spawn route. The launch UI lets the operator pick local vs cloud + the repo/workspace folder.\n- PROVE the reachable half for real: a model session/job launches scoped to the chosen repo/workspace folder via POST /jobs (the job carries the folder/workspace binding). The live job-execution half (a model actually running) needs a managed handshake_core => NEEDS_MANAGED_RESOURCE_PROOF; the native request-issuance (correct POST /jobs shape + folder binding + model + wrapper) is proven offline against the verified route shape. For the direct-spawn-with-wrapper half that is IPC-only, record an HONEST typed blocker. DO NOT fabricate a running model or fake a session id.\n- CREATE src/frontend/handshake_native/tests/test_model_session_launch.rs.\n\nReuse notes: POST /jobs EXISTS (api/jobs.rs); the session scheduler + model runtime are BUILT (workflows.rs, model_runtime/**); the reuse-via-API surface is backend_client.rs; the affordance is the WP-011 command surface. src/backend untouched (reuse-via-API only).\n\nRisk if missed: a mock model launch (fake session id, no real /jobs call) would violate the no-mock Spec-Realism Gate; the IPC-only direct-spawn half must be an HONEST typed blocker, and the reachable /jobs half must issue the real POST.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/command_registry.rs",
+      "src/frontend/handshake_native/src/top_menu_bar.rs",
+      "src/frontend/handshake_native/tests/test_model_session_launch.rs"
+    ],
+    "forbidden_paths": [
+      "src/backend/** (reuse via API only — the /jobs route + scheduler + model runtime exist; do not edit them)",
+      "src/backend/handshake_core/src/flight_recorder/** (FR kept as-is)",
+      "app/src/** (legacy React + Tauri IPC, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-101-1 (WORKSURFACE LAUNCH AFFORDANCE, prove first): a native 'Launch Model Session in Workspace Folder' action exists on the worksurface (command palette / top menu), lets the operator pick LOCAL or CLOUD + the repo/workspace folder, and is discoverable — proven by a kittest asserting the command is registered + addressable (stable id) and invoking it routes to the ModelSessionLaunchClient with the chosen local/cloud + folder.",
+      "AC-101-2 (REAL LAUNCH SCOPED TO THE REPO FOLDER, REACHABLE HALF): invoking the action for the reachable path issues a REAL POST /jobs that scopes the run to the chosen repo/workspace folder + the chosen model (local/cloud) + the wrapper — proven by a kittest asserting the native side issues the correct POST /jobs (method + path + body shape: job_kind + the folder/workspace binding + model + wrapper) against the real client. The live job-execution half (a model actually running) is NEEDS_MANAGED_RESOURCE_PROOF when no managed handshake_core is reachable (the request-issuance is still proven — NOT faked).",
+      "AC-101-3 (IPC-ONLY DIRECT-SPAWN HALF = HONEST TYPED BLOCKER): the direct repo-folder-bound session spawn WITH the wrapper that is reachable today only via Tauri IPC (kernel_swarm_spawn_session) is recorded as a typed `ModelLaunchError::EndpointMissing` naming the IPC-only spawn route — proven by a test asserting the typed-blocker path (NO fabricated session id / running model).",
+      "AC-101-4 (NO MOCK): no fake session id, no fabricated 'model running', no synthesized job result; the launch either issues the real POST /jobs (reachable half, live-exec NEEDS_MANAGED_RESOURCE_PROOF) or is a typed blocker (IPC-only half).",
+      "AC-101-5: `cargo build -p handshake-native` (lib + bins) clean; clippy `--all-targets -D warnings` clean; full suite `-j 2` green; external CARGO_TARGET_DIR; no Color32 literal outside theme/palette.rs (CONTROL-4); `git ls-files src/**/*.png` empty.",
+      "AC-101-6 (LIVE LOCAL MODEL LAUNCH VIA THE OPERATOR SURFACE): with handshake_core running, driving the operator surface (MT-102/103 visual debugger + foreground-safe nav) launches a LOCAL model session from the configurable local-models dir (default D:Local Models, or a downloaded small GGUF) scoped to a repo folder with the wrapper; proven by the real backend returning a job/session id + a loaded/running state + a screenshot of the running app. If genuinely unreachable from native, a typed blocker naming the EXACT missing route (NOT a silent defer).",
+      "AC-101-7 (LIVE CLOUD MODEL LAUNCH VIA THE OPERATOR SURFACE): with handshake_core running, driving the operator surface launches a CLOUD model session via POST /jobs scoped to a repo folder; proven live through the GUI with a real job id + a screenshot."
+    ],
+    "proof_targets": [
+      "PT-101-A: kittest asserts the 'Launch Model Session in Workspace Folder' command is registered + addressable + lets the operator pick local/cloud + folder + routes to the ModelSessionLaunchClient on invoke.",
+      "PT-101-B: kittest asserts the reachable path issues the real POST /jobs (correct method/path/body: job_kind + folder/workspace binding + model + wrapper); live job-execution half NEEDS_MANAGED_RESOURCE_PROOF when no managed handshake_core is reachable.",
+      "PT-101-C: test asserts the IPC-only direct-spawn-with-wrapper half is a typed EndpointMissing blocker naming kernel_swarm_spawn_session (no fabricated session/running model).",
+      "PT-101-D: cargo build --lib --bins clean + clippy -D warnings clean + full suite -j 2 green + CONTROL-4 green + git ls-files src/**/*.png empty.",
+      "PT-101-E: LIVE - operator-surface-driven launch of a LOCAL model (D:Local Models or downloaded GGUF) AND a CLOUD model with handshake_core up; real job/session ids + screenshots; foreground-safe (focus-audit clean). Any unreachable half = explicit typed blocker naming the missing route."
+    ],
+    "implementation_notes": [
+      "OPERATOR STEER 2026-06-27 - LIVE OPERATOR-SURFACE TEST IS REQUIRED (not just offline request-issuance): you MUST actually launch BOTH a LOCAL and a CLOUD model THROUGH the operator surface (the running Handshake GUI) and prove the model session really starts. SETUP: start the built handshake_core backend (handshake_core.exe listens on 127.0.0.1:37501; PostgreSQL on 5432) so /jobs is live. DRIVE THE LAUNCH VIA THE OPERATOR SURFACE using the MT-102 visual debugger + MT-103 FOREGROUND-SAFE navigation (MCP list_widgets/click_widget/set_value -> AccessKit events, NO OS mouse/keyboard/foreground steal) - open the Launch-Model affordance, pick the model + repo folder, invoke, and observe the real backend job/session start (real job id + loaded/running state) + capture a screenshot of the running app. LOCAL MODELS: the operator keeps local models at the path D:Local Models - reference it as a CONFIGURABLE test model directory (an env var / test config, e.g. HANDSHAKE_TEST_LOCAL_MODELS_DIR defaulting to that path; NOT a hardcoded product constant, per portability). If no suitable small local model is present there, you are ALLOWED to DOWNLOAD a small model to run the test (e.g. a ~0.5-1B GGUF such as Qwen2.5-0.5B-Instruct-GGUF). CLOUD: launch a cloud model via the reachable POST /jobs path.",
+      "REACHABILITY OF LOCAL LAUNCH (inspect, do not assume): determine whether POST /jobs (model_run) can launch a LOCAL model (a local model path / a D:Local Models GGUF). If YES -> local launch is REAL-WIRE and MUST be live-tested via the operator surface (AC-101-6). If the native operator surface genuinely CANNOT reach the local-model launch (the local GGUF load + repo-folder session-spawn-with-wrapper are Tauri-IPC-only with no native HTTP route), surface a CLEAR, ACTIONABLE typed blocker naming the EXACT missing native->backend local-launch route as a BACKEND FOLLOW-UP - do NOT silently treat local launch as merely deferred/NEEDS_MANAGED_RESOURCE_PROOF; the operator wants local launch working + tested, so the gap must be explicit so a backend WP can add the route.",
+      "Use the EXTERNAL CARGO_TARGET_DIR (Handshake_Artifacts/handshake-native-target); NEVER a repo-local target/. Run the full suite with -j 2.",
+      "PARTIAL by design: POST /jobs (api/jobs.rs create_new_job) is HTTP-reachable from the native frontend and is the REAL WIRE for a workspace-scoped run; the direct repo-folder-bound session spawn WITH the wrapper (kernel_swarm_spawn_session) is Tauri IPC only and is the HONEST typed blocker. Confirm via inspection exactly what /jobs can scope to a folder before wiring.",
+      "HONESTY (no-mock Spec-Realism Gate): do NOT fabricate a session id or a 'model running' state. The reachable half issues the real POST /jobs (live-exec NEEDS_MANAGED_RESOURCE_PROOF); the IPC-only half is a typed EndpointMissing blocker (the MT-079/080 pattern). If on inspection a richer reachable HTTP session-spawn route is genuinely found, wire it + prove the folder/wrapper binding instead (prefer the real wire).",
+      "Reuse the native backend_client.rs as the reuse-via-API surface; do NOT re-implement the HTTP client. Send any required identity headers (as the document routes need) if /jobs requires them.",
+      "Local vs cloud: the affordance lets the operator pick; the request carries the model selection + the wrapper. The repo/workspace folder is the active workspace folder (the binding the job/session is scoped to).",
+      "depends_on MT-097 (the worksurface must exist to launch from). blocks MT-104 (the manual documents launching a local/cloud model in a repo folder).",
+      "Read the KERNEL_BUILDER coder protocol under .GOV/ first; the Spec-Realism Gate forbids a mock model launch — AC-101-2/3/4 require a real POST /jobs or an honest typed blocker."
+    ],
+    "ports_from_react": [
+      "app/src-tauri/src/commands/swarm_runtime.rs (kernel_swarm_spawn_session) + app/src React swarm launch UI (REFERENCE for the launch request shape only; the direct spawn is IPC-only on native)."
+    ],
+    "binds_backend_api": [
+      "REACHABLE (REAL WIRE): POST /jobs (create_new_job, api/jobs.rs) + POST /jobs/:id/resume + GET /jobs/:id — scopes a run to a folder/workspace + model + wrapper; live job-execution half NEEDS_MANAGED_RESOURCE_PROOF when no managed handshake_core. ABSENT (TYPED BLOCKER): the direct repo-folder-bound session spawn WITH wrapper (kernel_swarm_spawn_session) is Tauri IPC only, not a native HTTP route. No new backend route built here. PostgreSQL/EventLedger only; no SQLite."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-VIS",
+    "HBR-SWARM",
+    "HBR-MAN"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "status": "NOT_APPLICABLE",
+      "reason": "This MT adds a native launch affordance + a reachable POST /jobs wire + a typed-blocker for the IPC-only half; it does not read or write the native Flight Recorder. (Backend job execution has its own audit, backend-owned, out of native scope.)"
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "NOT_APPLICABLE",
+      "reason": "This MT does not emit internal_diagnostics events; it is a launch affordance + a real /jobs wire + a typed EndpointMissing blocker for the IPC-only spawn half."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "NOT_APPLICABLE",
+      "reason": "No freeze/crash/debris record path is touched by adding a model-session-launch affordance."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "USABLE_PRODUCT_WORKSURFACE_V1",
+    "risks": [
+      "RISK-101-1: a mock model launch (fake session id, no real POST /jobs) — violates the no-mock Spec-Realism Gate. Mitigate: AC-101-2/4 require the real POST /jobs (live-exec NEEDS_MANAGED_RESOURCE_PROOF), AC-101-3 the typed blocker for the IPC-only half.",
+      "RISK-101-2: the launch request omits the repo/workspace folder binding, so the run is not actually scoped to the project. Mitigate: AC-101-2 asserts the POST /jobs body carries the folder/workspace binding + model + wrapper.",
+      "RISK-101-3: the reachable /jobs half and the IPC-only spawn half are conflated, hiding which is real vs blocked. Mitigate: AC-101-2 (real /jobs) and AC-101-3 (typed blocker) are separate proofs.",
+      "RISK-101-4: the affordance is not discoverable/addressable on the worksurface. Mitigate: AC-101-1 asserts the command is registered + addressable + offers local/cloud + folder.",
+      "RISK-101-5: a repo-local target/ or tracked PNG leaks. Mitigate: external target dir; git ls-files src/**/*.png empty (AC-101-5)."
+    ],
+    "minimum_controls": [
+      "MC-101-1: AC-101-1 proves a discoverable worksurface launch affordance (local/cloud + folder).",
+      "MC-101-2: AC-101-2 issues the real POST /jobs scoped to the folder (live-exec NEEDS_MANAGED_RESOURCE_PROOF); AC-101-3 the honest typed blocker for the IPC-only spawn half — never a mock.",
+      "MC-101-3: external target + no tracked PNG + CONTROL-4 + full suite -j 2 green (AC-101-5)."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-KERNEL-012 product-vision steer (operator, 2026-06-27); self-hosting roadmap (repo-folder-bound local/cloud agent sessions); live-app inspection (POST /jobs verified PRESENT in api/jobs.rs; direct session spawn kernel_swarm_spawn_session verified IPC-only; model runtime load IPC-only).",
+    "field_stack": "Cursor / Antigravity / agentic-IDE workspace-scoped model session launch (a local or cloud model/agent run bound to the project folder). Reuses the existing handshake_core POST /jobs HTTP route (the reachable workspace-scoped run) + the session scheduler/model runtime (reference) + backend_client.rs reuse-via-API + the WP-011 command-palette/top-menu affordance. No new backend route.",
+    "crate_versions_verified_2026_06_27": {
+      "egui_eframe_kittest": "0.33 (already pinned)"
+    },
+    "motivating_incident": "Self-hosting/parallel-agent vision: launch a local or cloud model session bound to a repo folder with the correct wrapper from the worksurface. The reachable wire is POST /jobs; the direct repo-folder-bound spawn-with-wrapper is IPC-only today.",
+    "validation_plan": "discoverable worksurface launch affordance (local/cloud + folder) + a real POST /jobs scoped to the folder (live-exec NEEDS_MANAGED_RESOURCE_PROOF) + an honest typed blocker for the IPC-only direct-spawn half (no mock); clippy -D warnings; full suite -j 2."
+  }
+}

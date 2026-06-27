@@ -25,10 +25,15 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-011", "MT-012"],
-    "blocks": ["MT-016"],
+    "depends_on": [
+      "MT-011",
+      "MT-012"
+    ],
+    "blocks": [
+      "MT-016"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -40,7 +45,12 @@
       "src/frontend/handshake_native/src/rich_text/renderer/rich_editor_widget.rs",
       "src/frontend/handshake_native/src/rich_text/mod.rs",
       "src/frontend/handshake_native/Cargo.toml",
-      "src/frontend/handshake_native/tests/test_*.rs"
+      "src/frontend/handshake_native/tests/test_*.rs",
+      "src/frontend/handshake_native/src/rich_editor/document_model/node.rs",
+      "src/frontend/handshake_native/src/rich_editor/document_model/doc_json.rs",
+      "src/frontend/handshake_native/src/rich_editor/document_model/position.rs",
+      "src/frontend/handshake_native/src/rich_editor/document_model/schema.rs",
+      "src/frontend/handshake_native/src/rich_editor/formatting/commands.rs"
     ],
     "forbidden_paths": [
       "app/src/** (legacy React, reference only)",
@@ -73,7 +83,11 @@
       "regex crate is already in most Rust projects; if not in src/frontend/handshake_native/Cargo.toml, add it. Use once_cell::sync::Lazy to compile the wikilink regex once.",
       "AccessKit author_ids for chips, autocomplete popup, transclusion container, and backlinks panel must be registered through the existing WP-011 accessibility/ module (accessibility/mod.rs, accessibility/registry.rs, accessibility/live.rs, accessibility/snapshot.rs); do not stand up a separate accessibility layer.",
       "Cross-WP dependency: the WikilinkActivated and BacklinkActivated events are drained and routed by the parent shell delivered in WP-011 (app.rs + event_bus.rs + command_registry.rs). This MT only enqueues events into RichEditorState.pending_events; routing is owned by WP-011 and is not implemented here.",
-      "The autocomplete search and any model-facing wikilink resolution affordances must surface through the existing MCP tool surface (mcp/mod.rs, mcp/tools.rs, mcp/action.rs) where parallel-model interaction is required; do not create a parallel command path outside command_registry.rs + event_bus.rs."
+      "The autocomplete search and any model-facing wikilink resolution affordances must surface through the existing MCP tool surface (mcp/mod.rs, mcp/tools.rs, mcp/action.rs) where parallel-model interaction is required; do not create a parallel command path outside command_registry.rs + event_bus.rs.",
+      "WIKILINK = hsLink NODE, NOT Mark::Wikilink (KERNEL_BUILDER gate 2026-06-22 - CRITICAL, MT-011 reconciliation): MT-011's harden REMOVED Mark::Wikilink and made wikilinks the Child::HsLink inline-atom NODE {ref_kind, ref_value, label, resolved}. This contract's 'Wikilink mark' / 'insert a Wikilink mark via AddMark' wording is the OLD shape MT-011 FIXED - OVERRIDE it. Render the inline chip from the EXISTING Child::HsLink atom (ref_kind in the wikilink family: wikilink/block/doc/wp/file/tag); autocomplete confirm REMOVES the '[[' text and INSERTS an HsLink atom via InsertNode (NOT AddMark); parse_wikilink('[[block:BLK-001|My Note]]') maps to HsLinkNode { ref_kind:'block', ref_value:'BLK-001', label:Some('My Note') }. Verify the prefix->ref_kind mapping against app/src/lib/editor/wikilink.ts (WP009_WIKILINK_KIND_BY_PREFIX) + hs_link_node.ts. The MT-014 media embeds already render from this same Child::HsLink by ref_kind - keep one unified hsLink dispatch.",
+      "TRANSCLUSION NODE SHAPE (KERNEL_BUILDER gate - same gap class as tableHeader/embed): MT-011 NodeKind has NO Transclusion variant. Before rendering, VERIFY against the real backend content_json + app/src components/LoomTransclusionView.tsx whether a block transclusion is (a) a SEPARATE node type, (b) an hsLink ref_kind variant (e.g. ref_kind='block' with a transclusion/embed display mode), or (c) a block node with a block_id attr. Render from the REAL captured shape. If a separate node is genuinely needed, ADD it to MT-011's model (node.rs NodeKind + doc_json json_to_block/block_to_json, now in allowed_paths) anchored to the captured backend shape - do NOT invent a {block_id} attrs shape that may not round-trip. Consider consolidating with the MT-016-carried tableHeader model addition.",
+      "BACKEND PROOF REALITY (MT-008/MT-014 pattern): transclusion fetch (GET /workspaces/{id}/loom/blocks/{id}/transclusion), backlinks (GET /knowledge/documents/{id}/backlinks), autocomplete search (loom/search or documents?q=) bind the REAL backend; gate the live-content ACs behind the integration feature + NEEDS_MANAGED_RESOURCE_PROOF if unseeded - do NOT fake. parse_wikilink + chip render + autocomplete STATE transitions + 150ms debounce (MC-002, assert 1 call for 5 keystrokes) + WikilinkKind::Unknown exhaustive (MC-005) + transclusion-404->Remove-embed chip (MC-003) + backlinks generation-counter cancel (MC-004) are ALL unit-testable STANDALONE with mocks - those must pass with no backend.",
+      "CHIP PAINTING + EVENTS (KERNEL_BUILDER gate): the inline wikilink chip overlays on MT-012's egui LayoutJob/Galley glyph positions (Galley row layout / pos_from_cursor), NOT cosmic-text (MT-012 did NOT use cosmic-text); the chip Y must be SCROLL-ADJUSTED (subtract scroll offset, MC-001). The autocomplete popup anchors at the caret pixel from the Galley. WikilinkActivated/BacklinkActivated are enqueued in RichEditorState.pending_events; the SHELL drains+routes them (E11/MT-069 host wiring - not this MT). Screenshots mt015_*.png to the EXTERNAL Handshake_Artifacts/handshake-test/wp-kernel-012-mt-015/ root + assert_no_local_artifact_dir(). regex via once_cell::Lazy (add regex dep only if absent). ACCESSKIT VARIANT: Role::Link - field-correct nearest accesskit 0.21.1; ACs assert author_id."
     ],
     "ports_from_react": [
       "app/src/lib/editor/wikilink.ts (WIKILINK_REGEX, classifyWikilink, ParsedWikilink, WP009_WIKILINK_KIND_BY_PREFIX)",
@@ -86,7 +100,11 @@
       "Search for autocomplete: GET /workspaces/{workspace_id}/loom/search (loom search API from LoomSearchV2Panel) or GET /knowledge/documents?q= (knowledge document list with query param)"
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -108,5 +126,30 @@
       "Backlinks fetch is triggered by document_id change via a watch mechanism; use a generation counter to cancel stale requests; only the latest request's result is applied.",
       "WikilinkKind enum must have an Unknown(String) variant; all match arms must be exhaustive; cargo test verifies parsing an unrecognized prefix does not panic."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-011 hsLink reconciliation + MT-014 embed dispatch + MT-012 Galley engine",
+    "corrections": [
+      "wikilink = Child::HsLink node inserted via InsertNode, NOT Mark::Wikilink/AddMark (contract uses the old pre-MT-011-harden shape)",
+      "transclusion node shape verified vs real backend before inventing; add to MT-011 model if needed (anchored)",
+      "real-backend transclusion/backlinks/search proof or NEEDS_MANAGED_RESOURCE_PROOF; parser+chip+autocomplete unit-testable",
+      "chip overlays Galley glyph positions (not cosmic-text), scroll-adjusted; events to pending_events (routing E11); screenshots external; accesskit variant"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_992f55ab (impl + adversarial-review + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "c9a3aba3 feat MT-015 wikilinks/transclusion/backlinks",
+      "9b270d5c fix harden per adversarial review",
+      "c976dfbd fix backlinks panel perpetual-spinner regression (post-gate)"
+    ],
+    "shape_reconciled": "Wikilinks bind to the EXISTING Child::HsLink atom NODE (NOT the contract's Mark::Wikilink/AddMark - that shape MT-011's harden deleted); autocomplete confirm inserts the hsLink atom. Transclusion VERIFIED to need a separate node -> added Child::Transclusion/TransclusionNode to MT-011 model (node.rs+doc_json, anchored). Parser anchored to the REAL WP009_WIKILINK_KIND_BY_PREFIX table: 'block' is NOT in the real table -> Unknown (contract examples != real table; agent reconciled).",
+    "proofs": "AC-1..10 GREEN; parser + inline chip + autocomplete([[ open/Escape/debounce) + transclusion(404->Remove embed) + backlinks panel; 696 lib (independently reconfirmed) + 50 wikilinks + 8 integration; clippy --all-targets clean (harden fixed unnecessary_get_then_check); wikilink chip ('My WP' green inline pill) + backlinks panel + transclusion preview visually verified; screenshots EXTERNAL (git ls-files src/**/*.png empty).",
+    "bugs_caught_and_fixed": "Review caught a 4th FALSE clippy-clean (clippy --all-targets failed on unnecessary_get_then_check in runtime.rs - full-suite rule surfaced it) + a wgpu test-parallelism issue (3 screenshot tests need --test-threads=1); harden fixed both.",
+    "blocked": "PT-4 real transclusion+backlinks = NEEDS_MANAGED_RESOURCE_PROOF: ReqwestWikilinkBackend binds the real /loom/blocks/{id}/transclusion + /knowledge/documents/{id}/backlinks endpoints, gated #[ignore]+integration; run with --features integration -- --ignored against a live seeded backend. NOT faked.",
+    "waiver_granted": "Child::Transclusion forces mechanical exhaustive-match arms across position.rs/schema.rs/commands.rs/line_layout.rs/block_renderer.rs/rich_editor_widget.rs (added node.rs/doc_json/position.rs/schema.rs/commands.rs to allowed_paths). All route the new variant to existing inline-atom behavior - mechanical, not behavior changes. Granted per GLOBAL-SCOPE-005.",
+    "carried_forward_MT_016": "TRANSFORM GAP: Step::InsertNode only inserts Child::Block, so confirm_wikilink inserts the hsLink atom by DIRECT child mutation -> the atom insert is NOT on the undo stack (Ctrl+Z won't undo a wikilink/embed insert). Generalize MT-011 transform.rs to support inline-atom (Child::HsLink/Text/Transclusion) insert/delete as proper undoable Steps; affects wikilink confirm + embed insert undo. Doc round-trips correctly (confirmed_doc_round_trips); only undo-integration is missing.",
+    "post_gate_regression_fix": "The backlinks panel showed an egui::Spinner for BOTH Idle and Loading, and refresh_backlinks entered Loading before the runtime check -> headless rendered a forever-repainting Spinner -> 12 full-widget tests (test_embeds/test_formatting_toolbar/test_rich_editor_widget) went RED + idle-CPU burn. Undetected at the MT-015 gate because that gate ran --lib + test_wikilinks only, NOT the full integration suite. Fixed (c976dfbd): only enter Loading with a runtime; render Idle as a neutral non-animating state. Full suite green. GATE LESSON: when an MT touches SHARED widget code (rich_editor_widget.rs/block_renderer.rs), the gate MUST run the FULL `cargo test` (every bin), not just --lib + the MT's own bin."
   }
 }

@@ -1,0 +1,151 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-081",
+  "title": "D1-MT-081-SharedMemoryRing-Seqlock-DiagEventSchema",
+  "group": "D1 Diagnostic substrate (shared-memory ring)",
+  "created_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-081.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
+    "depends_on": [],
+    "blocks": [
+      "MT-082",
+      "MT-084",
+      "MT-090",
+      "MT-091"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Build the SHARED-MEMORY RING that is the substrate of the whole three-tier diagnostic decoupling (Master Spec v02.196 §5.8.6 + §6.13.4). This is the ROOT MT of WP-KERNEL-012: internal_diagnostics (Tier 2, written by Handshake) and Palmistry (Tier 3, read by the external watcher) both depend on this one ring protocol, so it MUST be a SHARED crate both binaries link, not a private module inside handshake-native. The ring is a fixed-size, memmap2-mapped, single-producer/single-consumer (SPSC) lock-free ring with a seqlock-versioned header so a frozen/slow reader can NEVER back-pressure or tear the writer (the writer is the Handshake UI thread, which must never block on diagnostics). It also defines the TYPED-ALLOWLIST DiagEvent record schema used by every later MT.\n\nExact crate to create (NEW workspace member, separate from handshake-native and palmistry):\n- CREATE `src/frontend/handshake_native/diag_ring/Cargo.toml` — a small standalone library crate named `handshake-diag-ring` (`[package] name = \"handshake-diag-ring\"`, `edition = \"2021\"`, `publish = false`, its own `[workspace]` table so it stands alone exactly like handshake-native does — the repo has NO root cargo workspace per the handshake-native Cargo.toml header). Place it as a SIBLING of `src/frontend/handshake_native/` (i.e. `src/frontend/handshake_native/diag_ring/`) so both the Handshake crate and the palmistry crate (MT-089) can declare it via a relative `path = ` dependency. Dependencies: `memmap2 = \"0.9\"` (the OS shared-memory map; the latest 0.9 line is 0.9.11 as of 2026-06-27), `bytemuck = \"1\"` (zero-copy plain-old-data cast of the header + records into the mapped bytes — derive `Pod`/`Zeroable`), `serde = { version = \"1\", features = [\"derive\"] }` (DiagEvent (de)serialization for tests + later survivor-store JSON). NO tokio, NO egui, NO reqwest — this crate is pure substrate.\n- CREATE `src/frontend/handshake_native/diag_ring/.cargo/config.toml` — redirect `[build] target-dir` to the EXTERNAL artifact root so this crate NEVER creates a sibling `target/` folder. Use `target-dir = \"../../../../../Handshake_Artifacts/handshake-diag-ring-target\"` (count the `../` from the diag_ring crate dir to the `Handshake Worktrees/` parent that holds `Handshake_Artifacts/`; the handshake-native crate one level up uses four `../`, so this nested crate uses five — VERIFY the depth by resolving the path before committing). DO NOT create a repo-local `target/`.\n- CREATE `src/frontend/handshake_native/diag_ring/src/lib.rs` — declares `pub mod ring;` and `pub mod schema;` and re-exports the public types.\n- CREATE `src/frontend/handshake_native/diag_ring/src/ring.rs` — the seqlock SPSC ring.\n- CREATE `src/frontend/handshake_native/diag_ring/src/schema.rs` — the typed-allowlist DiagEvent record.\n- CREATE `src/frontend/handshake_native/diag_ring/tests/test_ring_roundtrip.rs` + `tests/test_seqlock_torn_read.rs` + `tests/test_schema_allowlist.rs`.\n\nRing design (ring.rs) — research basis: the Linux seqlock pattern (writer bumps a u32 sequence BEFORE and AFTER each write; an odd sequence means a write is in progress, and a changed sequence between the reader's two reads means it raced a write, so the reader RETRIES — this is exactly how the kernel publishes time without locks, and it is the standard lock-free single-writer publish primitive). Layout, all `#[repr(C)]` POD so the memory map is ABI-stable cross-process:\n- `RingHeader { magic: u64, version: u32, record_size: u32, capacity: u32, write_index: u32, heartbeat: HeartbeatSlot, _pad: [u8; N] }` — `magic` is a fixed constant (e.g. 0x48534B5F44494147 = \"HSK_DIAG\") the reader checks to refuse a foreign/garbage map; `version` lets MT-096/WP-016 evolve the layout; `capacity` is the fixed number of record slots (default 1024).\n- `HeartbeatSlot { seq: u32, counter: u64, timestamp_nanos: u64, _pad }` — the RESERVED heartbeat slot (a monotonic frame counter + a monotonic timestamp, written by MT-084 every egui frame; read by Palmistry MT-090/MT-091 with zero cooperation). It is its OWN seqlock-protected slot in the header (not a record) so a freeze probe reads ONLY the heartbeat without scanning records.\n- Each record slot: `RecordSlot { seq: u32, event: DiagEvent }` (DiagEvent is fixed-size POD from schema.rs). The whole region is `header + capacity * size_of::<RecordSlot>()`.\n- `DiagRingWriter` (Handshake side): `create(name: &str, capacity: u32) -> io::Result<Self>` maps a named shared region of the exact computed size and writes the header. `write(event: DiagEvent)` does: pick slot = `write_index % capacity`; bump that slot's `seq` to odd (`fetch_add(1)` semantics via `core::sync::atomic` on the mapped bytes, or a volatile store + `Ordering::Release`); write the record bytes; bump `seq` to even again; then advance `write_index` (Release). NON-BLOCKING + WAIT-FREE: the writer NEVER waits on the reader — overwriting an unread slot is allowed by design (a slow reader loses old records, it never stalls Handshake). `write_heartbeat(counter, timestamp_nanos)` does the same odd/even seq dance on the HeartbeatSlot.\n- `DiagRingReader` (Palmistry side): `open(name: &str) -> io::Result<Self>` maps the SAME named region read-only-ish, checks `magic` + `version`. `read_heartbeat() -> Option<Heartbeat>` does the seqlock read: read `seq` (retry if odd), read counter+timestamp, re-read `seq`; if it changed, retry (bounded retry count, e.g. 16, then return the last consistent value or None). `read_last_n(n) -> Vec<DiagEvent>` walks back from `write_index` reading each slot under the same seqlock retry, skipping any slot whose seq is odd or changed (torn) — returns only CONSISTENT records.\n- Cross-process named shared memory on Windows: memmap2's `MmapMut` maps a FILE, not a Win32 named section directly. Use a NAMED FILE in the OS temp dir as the backing (e.g. `%TEMP%/handshake-diag-<session-id>.ring`) and `memmap2::MmapMut::map_mut` over it — both processes map the SAME file path and share pages. This is the portable, field-standard memmap2 cross-process pattern (the alternative, raw Win32 `CreateFileMappingW` with a `Global\\` name, is NOT portable and not needed). The backing file path (NOT a Win32 object name) is what Handshake passes to Palmistry (MT-089/MT-094). DOCUMENT this choice in the module doc.\n\nDiagEvent typed-allowlist schema (schema.rs) — this is the HARD privacy invariant from §5.8.3 + §6.13.8: NO project content, NO sensitive data, NO free text, NO file contents, NO prompts, NO document bodies. EVERY field is a mechanical primitive. Define:\n- `DiagEvent { event_code: u16, phase_marker: u8, severity: u8, thread_id: u64, sequence_id: u64, counter_a: u64, counter_b: u64, metric_micros: u64, timestamp_nanos: u64 }` — all fixed-width integers, `#[repr(C)]`, `Pod + Zeroable`. NO `String`, NO `Vec`, NO `&str`, NO byte blob.\n- `event_code: u16` is a value from a CLOSED enum `DiagEventCode` (`#[repr(u16)]`): e.g. `Heartbeat`, `PanicCaught`, `SlowFrame`, `ResourceSample`, `BackendUnreachable`, `BackendRecovered`, `PaneMounted`, `FreezeSuspected`, `CrashDetected`, `PalmistryHandshake`, `Shutdown`, `Other`. Adding a code is a code change reviewed against the allowlist; a caller cannot smuggle arbitrary text because there IS no text field.\n- `phase_marker: u8` from a small `DiagPhase` enum (`Start`, `Tick`, `End`, `Recovered`, `Degraded`); `severity: u8` from `DiagSeverity` (`Info`, `Warn`, `Error`).\n- Provide `DiagEvent::heartbeat(...)`, `DiagEvent::resource_sample(cpu_milli, rss_kb, ...)`, etc. constructor helpers so call sites cannot hand-roll a malformed event.\n- Provide a compile-time + test guarantee that the struct contains NO pointer/heap field: a `const _: () = assert!(size_of::<DiagEvent>() == EXPECTED);` and a test that the type is `Pod` (bytemuck enforces no padding-UB / no non-POD field at the type level — bytemuck's derive FAILS to compile if you add a `String`).\n\nReuse / placement note: handshake-native is a STANDALONE `[workspace]` crate (no repo root workspace — see its Cargo.toml header). This new crate is ALSO standalone with its own `[workspace]`; handshake-native (MT-082) and palmistry (MT-089) depend on it via `handshake-diag-ring = { path = \"diag_ring\" }` / `path = \"../handshake_native/diag_ring\"` relative deps. NO backend involvement: this is pure local shared memory, src/backend is untouched.\n\nRisk if missed: every other MT in WP-KERNEL-012 is blocked. internal_diagnostics (MT-082) has nothing to write to; Palmistry (MT-090/011/012) has nothing to read; the heartbeat (MT-084) has no slot; the typed-allowlist invariant (MT-096) has no schema to enforce. A wrong seqlock here means torn reads of the heartbeat under freeze, which is the single most safety-critical read in the whole watcher.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/diag_ring/Cargo.toml",
+      "src/frontend/handshake_native/diag_ring/.cargo/config.toml",
+      "src/frontend/handshake_native/diag_ring/src/lib.rs",
+      "src/frontend/handshake_native/diag_ring/src/ring.rs",
+      "src/frontend/handshake_native/diag_ring/src/schema.rs",
+      "src/frontend/handshake_native/diag_ring/tests/test_ring_roundtrip.rs",
+      "src/frontend/handshake_native/diag_ring/tests/test_seqlock_torn_read.rs",
+      "src/frontend/handshake_native/diag_ring/tests/test_schema_allowlist.rs"
+    ],
+    "forbidden_paths": [
+      "src/backend/** (reuse via API only; this MT touches no backend)",
+      "src/backend/handshake_core/src/flight_recorder/** (FR kept as-is)",
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-001-1: `cargo test -p handshake-diag-ring` (run with the EXTERNAL target dir) passes a round-trip test: a DiagRingWriter writes N=2000 records (> capacity 1024, proving wrap-around) plus a heartbeat; a SEPARATELY-constructed DiagRingReader::open on the SAME backing file reads the heartbeat and the last 1024 records back, and the most-recent records match what was written.",
+      "AC-001-2: a torn-read-resistance test spawns a writer thread hammering write_heartbeat in a tight loop and a reader thread calling read_heartbeat thousands of times; EVERY value the reader returns is a self-consistent (counter, timestamp) pair that was actually written as a unit (never a counter from write K paired with a timestamp from write K+1). Proven by the writer encoding counter==timestamp_nanos invariant and the reader asserting the invariant holds on every successful read.",
+      "AC-001-3: the writer is NON-BLOCKING / wait-free: a test where the reader never reads (or sleeps) shows the writer completes a fixed large number of writes within a tight time bound (it never waits on the reader). A slow reader does not back-pressure the writer.",
+      "AC-001-4: the DiagEvent schema carries NO content field — a test asserts `std::mem::size_of::<DiagEvent>()` equals the fixed expected size, that DiagEvent is `bytemuck::Pod` (compiles only if every field is POD; no String/Vec/pointer), and a `grep`/source-scan in the test confirms schema.rs declares no `String`, `Vec`, `&str`, or `[u8]` blob field in DiagEvent.",
+      "AC-001-5: the reader REFUSES a foreign map: opening a backing file whose header `magic`/`version` do not match returns an `Err`, not garbage records.",
+      "AC-001-6: no `unwrap()`/`expect()` on the cross-process map or seqlock read paths in production code (map-open, write, read all return `io::Result`/`Option`); clippy `--all-targets -D warnings` clean.",
+      "AC-001-7: the crate builds with the EXTERNAL CARGO_TARGET_DIR and creates NO repo-local `target/` — `git status` shows no `diag_ring/target/` and `git ls-files` shows none."
+    ],
+    "proof_targets": [
+      "PT-001-A: `cargo test -p handshake-diag-ring ring_roundtrip` GREEN, output logged (writer/reader on the same backing file, wrap-around proven).",
+      "PT-001-B: `cargo test -p handshake-diag-ring seqlock_torn_read` GREEN under concurrent writer+reader threads (the safety-critical proof).",
+      "PT-001-C: `cargo test -p handshake-diag-ring schema_allowlist` GREEN (size + Pod + no-content-field assertions).",
+      "PT-001-D: `cargo clippy -p handshake-diag-ring --all-targets -- -D warnings` clean.",
+      "PT-001-E: `git status --porcelain` shows no `diag_ring/target/`; resolved `.cargo/config.toml` target-dir points into Handshake_Artifacts."
+    ],
+    "implementation_notes": [
+      "Use `core::sync::atomic::{AtomicU32, AtomicU64, Ordering}` over the mapped bytes for the seq + write_index + heartbeat fields (cast the mapped &[u8] region to the atomic via bytemuck/pointer with the correct alignment); Release on the writer's post-write seq bump, Acquire on the reader's seq reads — this is what gives the happens-before that prevents torn reads. Document the ordering choice.",
+      "The seqlock writer protocol is: store seq (odd) Release; store payload; store seq (even, == old+2) Release. The reader protocol is: load seq Acquire (retry while odd, bounded); load payload; load seq Acquire again; if unchanged accept, else retry (bounded). Bound the retries so a pathologically hot writer cannot livelock the reader — after the bound, return None/last-good.",
+      "memmap2 cross-process sharing is via a SHARED BACKING FILE both processes map (not an anonymous map). Create/truncate the file to the exact region size with set_len before map_mut. Put the backing file under the OS temp dir with the session id in the name so parallel Handshake instances do not collide.",
+      "Keep capacity + record_size in the header so the reader validates the writer's layout matches its own compiled expectation (refuse on mismatch — forward/backward-compat guard for WP-016).",
+      "DiagEvent MUST stay POD: prefer `bytemuck::Pod + Zeroable` derives; bytemuck refuses to derive Pod for a type with any non-POD field, which is a COMPILE-TIME enforcement of the no-free-text allowlist — lean on it.",
+      "This crate has NO knowledge of egui or tokio; MT-082 wraps it with the in-process buffer + the public record() API, MT-084 calls write_heartbeat, MT-090 wraps the reader for Palmistry.",
+      "Read the KERNEL_BUILDER coder protocol under .GOV/ first (Spec-Realism Gate: no mock substrate — the ring must be a real shared map proven by a real second reader process/thread, not an in-memory Vec stand-in)."
+    ],
+    "ports_from_react": [
+      "NONE (native substrate; no React analogue)"
+    ],
+    "binds_backend_api": [
+      "NONE. Pure local shared memory. src/backend untouched. The Flight Recorder (Tier 1) is not involved at this layer."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "status": "NOT_APPLICABLE",
+      "reason": "This MT builds the shared-memory substrate only; it does not forward to or use the Tier 1 business-event ledger. FR forwarding of recovered records is wired in MT-093."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "WIRED",
+      "reason": "Defines the ring + the typed-allowlist DiagEvent schema that IS the internal_diagnostics write substrate (Tier 2). MT-082 mounts the public record() API on top; this MT is the consumed foundation, proven by the round-trip + torn-read tests."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "WIRED",
+      "reason": "Defines the DiagRingReader read-side that Palmistry (Tier 3) maps with zero cooperation (MT-090/011). The reader half is built + proven here by a separate reader reading what a separate writer wrote, including a wrap-around + torn-read proof."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DIAGNOSTIC_SUBSTRATE_V1",
+    "risks": [
+      "RISK-001-1: a wrong seqlock (missing the second seq re-read, or Relaxed ordering) lets the reader observe a torn heartbeat under freeze — the single most safety-critical read in Palmistry. Mitigate with the explicit odd/even + double-read protocol and the concurrent torn-read test (AC-001-2).",
+      "RISK-001-2: the writer back-pressures Handshake (e.g. a blocking lock / waiting for the reader) — this would freeze the UI thread, the exact bug the whole WP exists to prevent. Mitigate: the writer is wait-free, overwrites unread slots by design, and AC-001-3 proves it never waits on the reader.",
+      "RISK-001-3: a free-text or heap field sneaks into DiagEvent, breaking the no-sensitive-data invariant and the cross-process POD map. Mitigate: bytemuck::Pod derive makes any non-POD field a compile error; AC-001-4 asserts size + no-content.",
+      "RISK-001-4: the crate creates a repo-local target/ (artifact hygiene) or the relative target-dir depth is wrong. Mitigate: AC-001-7 + PT-001-E resolve the path and check git status.",
+      "RISK-001-5: cross-process map mismatch (alignment, padding, endianness, or layout drift) yields garbage. Mitigate: #[repr(C)] + magic/version/capacity/record_size header validation (AC-001-5) + the same crate compiled into both processes guarantees identical layout."
+    ],
+    "minimum_controls": [
+      "MC-001-1: the torn-read test (AC-001-2) runs concurrent writer+reader threads and asserts the per-read counter==timestamp invariant on every successful read — this is the gate that proves the seqlock is correct.",
+      "MC-001-2: bytemuck::Pod derive on DiagEvent + the size assertion enforce the typed allowlist at compile time (MC for RISK-001-3).",
+      "MC-001-3: external CARGO_TARGET_DIR; no repo-local target/; resolved relative target-dir verified (MC for RISK-001-4).",
+      "MC-001-4: magic+version+capacity+record_size header validation; reader refuses a foreign/garbage map (MC for RISK-001-5)."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-KERNEL-012 field research (June 2026) + crates.io version verification 2026-06-27",
+    "field_stack": "Linux seqlock single-writer publish pattern (the kernel vDSO time-publish primitive) for torn-read-free heartbeat; memmap2 shared-backing-file cross-process map (portable; not raw Win32 named sections); bytemuck POD casts for ABI-stable cross-process records.",
+    "crate_versions_verified_2026_06_27": {
+      "memmap2": "0.9.11 (pin \"0.9\")",
+      "bytemuck": "1.x (pin \"1\")",
+      "serde": "1.x"
+    },
+    "motivating_incident": "The 2026-06-26 live-session freeze (Handshake UI thread stalled, CPU->0, Responding=false when the backend on 127.0.0.1:37501 was down) is the concrete event motivating the whole three-tier substrate and MT-088. The ring's wait-free writer + zero-cooperation reader are precisely what lets an external watcher observe that freeze from outside the hung process.",
+    "validation_plan": "round-trip + concurrent torn-read + wait-free-writer + Pod-allowlist tests, all under the external target dir; clippy -D warnings."
+  },
+  "implementation_result": {
+    "commit": "12d41d8d",
+    "branch": "feat/WP-KERNEL-012",
+    "summary": "handshake-diag-ring crate: memmap2 shared-backing-file seqlock SPSC ring + bytemuck-POD typed-allowlist DiagEvent. 11 tests GREEN (roundtrip+wrap, torn-read under 2M concurrent writes, wait-free writer, schema-allowlist, foreign-map refusal); clippy -D clean; external target dir, 0 tracked artifacts. AC-001-1..7 + PT-001-A..E all PASS.",
+    "self_attacks_noted": [
+      "seqlock ordering stress-proven on x86 TSO only (Release/Acquire correct-by-construction; cross-arch proof deferred)",
+      "thread- not process-level sharing in tests (memmap2 shared backing file shares pages identically cross-process; true cross-process proof at MT-089+ Palmistry binary)"
+    ]
+  }
+}

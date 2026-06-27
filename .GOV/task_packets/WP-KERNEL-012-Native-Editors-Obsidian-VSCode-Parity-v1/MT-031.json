@@ -25,10 +25,19 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-001", "MT-011", "MT-021"],
-    "blocks": ["MT-032", "MT-033", "MT-034", "MT-035"],
+    "depends_on": [
+      "MT-001",
+      "MT-011",
+      "MT-021"
+    ],
+    "blocks": [
+      "MT-032",
+      "MT-033",
+      "MT-034",
+      "MT-035"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -38,9 +47,11 @@
       "src/frontend/handshake_native/src/interop/mod.rs",
       "src/frontend/handshake_native/src/lib.rs",
       "src/frontend/handshake_native/src/code_editor/mod.rs",
-      "src/frontend/handshake_native/src/rich_text/mod.rs",
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/src/rich_editor/mod.rs",
+      "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs",
       "src/frontend/handshake_native/src/graph/mod.rs",
-      "src/frontend/handshake_native/src/canvas_board.rs",
+      "src/frontend/handshake_native/src/graph/canvas_board.rs",
       "src/frontend/handshake_native/tests/test_interaction_bus.rs",
       "src/frontend/handshake_native/Cargo.toml"
     ],
@@ -73,7 +84,11 @@
       "Reuse command_palette.rs for the modal surface; if it currently anchors via egui::Window::new(\"Command Palette\").anchor(egui::Align2::CENTER_TOP, [0.0, 48.0]).show(ctx, ...), drive its open state from bus.command_palette_open rather than introducing a new window.",
       "Pane focus: each pane's update() fn calls bus.set_focus_owner(self.pane_id) only when ui.memory(|m| m.has_focus(self.pane_egui_id)) is true, avoiding spurious resets; pane_id is sourced from pane_registry.rs.",
       "AccessKit author_id registration goes through the existing accessibility/registry.rs (and accessibility/live.rs for live announcements); do not bypass the accessibility subsystem.",
-      "React reference: CommandPalette.tsx defines CommandPaletteAction { id, label, description, keywords, disabled, stableId }; match this shape in CommandDescriptor; stableId maps to AccessKit author_id."
+      "React reference: CommandPalette.tsx defines CommandPaletteAction { id, label, description, keywords, disabled, stableId }; match this shape in CommandDescriptor; stableId maps to AccessKit author_id.",
+      "PATH + CANVAS CORRECTIONS (KERNEL_BUILDER gate 2026-06-23): the rich-text module root is rich_editor/ NOT rich_text/ (real tree, MT-011+). The code editor state lives on CodeEditorPanel in code_editor/panel.rs (not just mod.rs - the MT-008/010 finding). The Loom canvas is graph/canvas_board.rs (MT-026, namespaced under graph::) - DISTINCT from the root WP-011 canvas_board.rs generic surface; integrate the MT-026 Loom canvas selection. allowed_paths corrected accordingly (+ panel.rs + rich_editor_widget.rs where the real selection/clipboard state lives).",
+      "CLIPBOARD = egui-native / MOCKABLE SEAM, NOT a raw arboard dep (KERNEL_BUILDER gate - MT-017 precedent + RISK-2): MT-017 deliberately did NOT add arboard - it used egui's clipboard (ctx.copy_text / ctx.output_mut().copied_text, which the egui-winit bridge writes to the OS clipboard) behind a MOCKABLE ClipboardSink so headless tests never touch the OS clipboard (arboard HANGS/fails headless - RISK-2/MC-2). Follow that: route clipboard_write/read through egui's clipboard surface + a mockable trait; add arboard ONLY if egui's clipboard is insufficient for the rich (LoomBlockRef/AtelierRef) variants, and then BEHIND the mockable trait (tests use the in-memory mock, never the OS clipboard). The in-session rich-variant cache (for cross-pane Paste of a LoomBlockRef egui's text clipboard can't carry) lives in the bus, keyed in memory.",
+      "WRAP THE EXISTING SUBSTRATE - DO NOT FORK (KERNEL_BUILDER gate, the contract's core constraint, reviewer-checked): the InteractionBus WRAPS+coordinates the EXISTING WP-011 command_registry.rs (the canonical command descriptor/registration store) + event_bus.rs (cross-pane fan-out) + command_palette.rs (the modal) - it must NOT define a parallel command list, a parallel event system, or a second palette. Drive command_palette.rs's open state from the bus; collect descriptors FROM command_registry.rs. A duplicated command/event/palette is a FAILURE (the perf/backend-shape lenses will check for forked substrate). Reuse pane_registry.rs PaneId, loom_graph.rs node identity, accessibility/registry.rs for author_ids.",
+      "REFACTOR SAFETY + HYGIENE (KERNEL_BUILDER gate): this REFACTORS WORKING editor code (code_editor/panel.rs MT-001..010 clipboard/keybind, rich_editor MT-011..020, graph) to route through the bus - the FULL suite (every bin: the correctness lens runs the bare cargo test) MUST stay green; do NOT break the MT-001..030 tests; AC-7 (no ad-hoc per-pane clipboard remains) means REPLACE not duplicate, but only where it does not regress an existing proof. Arc<Mutex<InteractionBus>> RE-ENTRANCY (RISK-1/MC-1): use try_lock in update() paths, never block the egui frame thread, never re-enter the lock inside a handler (deadlock). Keybind: consume_shortcut BEFORE dispatch to suppress egui's default text-widget copy (RISK-3/MC-3). Stale pane_id: check it exists in pane_registry before use, return None if gone (RISK-4/MC-4). NO Color32::from_rgb literal (theme guard); screenshots (if any) EXTERNAL + assert_no_local_artifact_dir(). ACCESSKIT VARIANT: command-palette-trigger(Button)/search(TextField)/cmd-{id}(ListItem) - reuse the EXISTING command_palette AccessKit, field-correct accesskit 0.21.1."
     ],
     "ports_from_react": [
       "app/src/components/CommandPalette.tsx — CommandPaletteAction shape, fuzzy filter logic (matchesQuery), keyboard nav (ArrowUp/Down/Enter/Escape), overlay modal pattern; port the data shape and filter behavior into CommandDescriptor and the existing command_palette.rs surface"
@@ -82,7 +97,11 @@
       "None — this MT is pure frontend bus; clipboard write uses arboard (OS clipboard); no backend API calls required"
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-QUIET"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-QUIET"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -104,5 +123,27 @@
       "SharedSelection read must check pane_id exists in the live pane_registry.rs before use; return None if pane is gone.",
       "Ensure the egui::Id for the command palette modal is scoped to the window id so multi-window harness tests do not collide."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-017 ClipboardSink + MT-008/010 panel.rs + MT-026 graph canvas + WP-011 substrate reuse",
+    "corrections": [
+      "rich_editor/ not rich_text/; code state in panel.rs; canvas=graph/canvas_board.rs (MT-026)",
+      "clipboard via egui-native + mockable seam, not raw arboard (headless-safe, MT-017 precedent)",
+      "wrap-not-fork command_registry/event_bus/command_palette (no parallel substrate)",
+      "refactor of working code -> full suite must stay green; Mutex re-entrancy/try_lock; keybind suppression; stale pane_id guard; no Color32 literal; accesskit variant"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_50b4fb17 (impl + 3-lens panel + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "d7e28ada feat MT-031 SharedInteractionBus + 4 pane adapters",
+      "e7a60da2 fix harden per adversarial review"
+    ],
+    "review_panel": "correctness=CHANGES_REQUIRED(4), backend-shape=CHANGES_REQUIRED(4), perf-focus-hygiene=CHANGES_REQUIRED(2) -> 10 must-fixes across ALL 3 lenses, all hardened. The MOST must-fixes of any MT - fitting for a foundational refactor of shared editor code; the 3-lens panel caught far more than a single reviewer would.",
+    "proofs": "AC-1..6 PASS (AC-7 PASS_WITH_NOTE: live Ctrl+C/V pane-wiring is E11); 13 interop unit + 4 kittest integration; agent reported FULL suite green (0 failed every bin - refactor of MT-001..030 working code did not regress); KERNEL_BUILDER independent full-suite verify in progress (byrvquxtk); clippy clean; no tracked artifacts.",
+    "patches_held": "(1) clipboard via egui-native ClipboardSink seam (headless-safe, MT-017 precedent) NOT arboard - mock sink in tests, OS clipboard untouched; rich LoomBlockRef variant cached in-bus for cross-pane paste. (2) WRAP-NOT-FORK: the bus wraps the existing command_registry/event_bus/command_palette - no parallel substrate (the pre-existing test_command_palette.rs still green). (3) rich_editor/ not rich_text/, code state via panel.rs, canvas=graph/canvas_board.rs. (4) refactor-safety: full suite green. (5) Mutex try_lock re-entrancy; keybind consume_shortcut suppression; stale-pane guard; no Color32 literal.",
+    "carried_forward_MT_069": "AC-7 NOTE: live per-pane Ctrl+C/V wiring needs the code+rich-text panes MOUNTED in the shell (E11/MT-069). MT-031 proves the cross-pane Copy->Paste round-trip through the shared bus a mounted pane uses (kittest mounts the same bus+adapters); E11 wires the live panes' Ctrl+C/V to bus.clipboard_write/read.",
+    "deferred": "rich-text multi-block selection-text flattening (walk the block tree to a plain string) deferred to E5 MT-032+ (everything-is-a-block addressing); the rich adapter exposes caller-materialized PlainText + whole-block loom:// ref paths now."
   }
 }

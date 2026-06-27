@@ -25,17 +25,27 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-021"],
-    "blocks": ["MT-024", "MT-027"],
+    "depends_on": [
+      "MT-021"
+    ],
+    "blocks": [
+      "MT-024",
+      "MT-027"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
     "summary": "Goal: Implement a Tags panel and Tag Hubs panel in the native egui frontend. The Tags panel lists all tag blocks (content_type='tag_hub') across the workspace fetched from the real PostgreSQL backend, shows the number of blocks linked to each tag, and lets the user click a tag to open it as a filter (fires on_filter_tag callback). The Tag Hubs panel renders tag_hub-typed LoomBlocks as first-class content pages (like Obsidian's 'tag page'): showing the hub's title, description (from content_json), and the list of blocks tagged with it. Expected diff shape: one new file src/frontend/handshake_native/src/loom/tags_panel.rs containing LoomTagsPanel and LoomTagHubPanel widgets, edits to src/frontend/handshake_native/src/loom/mod.rs.\n\nExact files to create or edit:\n- CREATE src/frontend/handshake_native/src/loom/tags_panel.rs — LoomTagsPanel (tag list) + LoomTagHubPanel (tag hub page)\n- EDIT src/frontend/handshake_native/src/loom/mod.rs — pub mod tags_panel; + re-exports\n\nExact APIs / React reference:\n- React reference: WorkspaceSidebar.tsx (app/src/components/WorkspaceSidebar.tsx) calls queryLoomView with contentType filter (LoomViewQuery.contentType, api.ts line 1061). bookmarkKind() in WorkspaceSidebar.tsx line 44 identifies tag_hub blocks. The React component does not have a standalone Tags panel; this is a new surface.\n- LoomBlock.content_type == 'tag_hub' (api.ts line 933) is the tag hub block type.\n- Backend bindings:\n  - GET /workspaces/{workspace_id}/loom/views/all?content_type=tag_hub — list all tag hub blocks\n  - GET /workspaces/{workspace_id}/loom/views/all?tag_ids={tag_hub_block_id} — list blocks tagged with a specific tag hub\n  - GET /workspaces/{workspace_id}/loom/blocks/{block_id} — load tag hub block detail\n  - GET /workspaces/{workspace_id}/loom/views/sorted?tag_ids={tag_hub_block_id} — grouped members of a tag hub\n  - POST /workspaces/{workspace_id}/loom/edges (createLoomEdge edge_type='tag') — tag a block with a hub (future use; wire callback slot)\n\nStep-by-step implementation notes:\n1. Define TagEntry { block_id: String, title: String, member_count: u32 } in tags_panel.rs.\n2. Define LoomTagsPanel { workspace_id: String, tags: Vec<TagEntry>, on_open_tag: Callback<String>, on_filter_tag: Callback<String>, loading: bool, error: Option<String>, search_filter: String }.\n3. On init, call GET /workspaces/{id}/loom/views/all?content_type=tag_hub to enumerate all tag hubs. For each hub, member_count = members.len() (or show 0 if not yet loaded). Display a flat list sorted by title.\n4. Render a search box at top of panel (egui::TextEdit::singleline, author_id='tags.search', placeholder='Filter tags...'). Filter displayed tags client-side by title prefix match.\n5. Each tag row: colored tag chip (egui::Button with background color derived from title hash), member count badge, click fires on_open_tag(block_id) to navigate to the hub page.\n6. LoomTagHubPanel (separate widget, shown when a tag hub block_id is provided as the active page):\n   a. Load tag hub block via GET /workspaces/{id}/loom/blocks/{block_id}.\n   b. Load members via GET /workspaces/{id}/loom/views/all?tag_ids={block_id}, limit=100.\n   c. Render hub title as H1, description from content_json if present.\n   d. Render members as a scrollable list of block rows (title + content_type). Click on member -> on_open(member_block_id).\n   e. 'Add tag to block' button (author_id='tag-hub.add-tag.{block_id}'): opens a quick-switcher-style popup to search for a block and tag it (fires POST /workspaces/{id}/loom/edges with edge_type='tag', source=selected_block_id, target=hub_block_id).\n7. AccessKit:\n   - LoomTagsPanel: search box author_id='tags.search', each tag row 'tags.row.{block_id}' role=ListItem with DefaultAction=open, member count as accessible description.\n   - LoomTagHubPanel: hub title label 'tag-hub.title.{block_id}', member list items 'tag-hub.member.{block_id}', add-tag button 'tag-hub.add-tag.{block_id}'.\n\nReuse pointers (existing WP-011 modules under src/frontend/handshake_native/src/): reuse the existing Loom graph/knowledge surface in loom_graph.rs for the tag_hub block model and graph navigation; reuse command_registry.rs + event_bus.rs for the shared selection/command bus and for emitting on_open/on_filter navigation events; reuse accessibility/ (mod.rs, live.rs, registry.rs, snapshot.rs) for AccessKit author_id registration of tag rows and hub panel nodes; reuse mcp/ for exposing tag navigation as parallel-model actions where applicable. The new tags_panel surface is added inside a new loom/ subdir under src/frontend/handshake_native/src/.\n\nDependencies / unblock conditions: MT-021 must be complete for shared HTTP client infrastructure. MT-023 does not depend on MT-022. Cross-WP: this MT builds on the WP-011 native shell modules listed above (loom_graph.rs, command_registry.rs, event_bus.rs, accessibility/*, mcp/*).\n\nRisk if missed: Tag-based navigation and filtering are unavailable. MT-027 (BlockCollectionViews kanban lanes) depends on tag identity resolved here.",
     "allowed_paths": [
       "src/frontend/handshake_native/src/loom/tags_panel.rs",
-      "src/frontend/handshake_native/src/loom/mod.rs"
+      "src/frontend/handshake_native/src/loom/mod.rs",
+      "src/frontend/handshake_native/src/lib.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/tests/test_tags_panel.rs",
+      "src/frontend/handshake_native/src/graph/tags_panel.rs",
+      "src/frontend/handshake_native/src/graph/mod.rs"
     ],
     "forbidden_paths": [
       "app/src/** (legacy React, reference only)",
@@ -65,7 +75,11 @@
       "Scrollable member list: use egui::ScrollArea::vertical() wrapping the member list in LoomTagHubPanel.",
       "Add-tag popup: implement as an egui::Window or popup_below_widget. Contains a TextEdit for search and a list of results from GET /loom/views/all?q={search}&limit=20. On select, fire the edge creation.",
       "Do not store tag colors or member counts in backend; they are ephemeral UI state.",
-      "LoomTagHubPanel is a separate widget struct from LoomTagsPanel so it can be placed in any egui_tiles tile independently."
+      "LoomTagHubPanel is a separate widget struct from LoomTagsPanel so it can be placed in any egui_tiles tile independently.",
+      "VERIFY tag_hub SHAPE AGAINST THE REAL BACKEND (KERNEL_BUILDER gate 2026-06-22 - the MT-022 lesson, MANDATORY): MT-022 proved the contract's assumed content_type='folder' did NOT exist (LoomBlockContentType had no Folder variant; folders are a dedicated loom_folders subsystem). So do NOT assume content_type='tag_hub', the views/all?content_type= filter, LoomBlock.derived.tag_count, or the tag-edge API exist - VERIFY each read-only against src/backend/handshake_core (LoomBlockContentType variants, the loom view query params, the edge route + edge_type='tag') AND app/src/lib/api.ts. If tag_hub is a real content_type, bind it; if tags are a dedicated subsystem (like loom_folders) or modelled differently, bind the VERIFIED shape and record the contract-vs-reality correction. RISK-5's client-side fallback applies only if the filter genuinely is unsupported (verify first).",
+      "NO TAURI + backend_client (KERNEL_BUILDER gate): PROOF5 says 'Tauri command intercept' - Tauri is the LEGACY stack. Use the WP-011 backend_client.rs typed async HTTP client (extend the MT-021/022 LoomGraphClient/LoomFolderClient with the tag/edge calls; reuse, don't fork). Module placement: prefer the EXISTING graph/ dir where the E3 widgets MT-021 (graph_view.rs) + MT-022 (folder_tree.rs) live, rather than a parallel loom/ dir, for cohesion - whichever is chosen, register it in lib.rs (added to allowed_paths). backend_client.rs + tests/test_tags_panel.rs added to allowed_paths (contract under-scoped, as MT-021/022).",
+      "BACKEND PROOF REALITY (MT-008/021/022 pattern): AC1-AC7 need a LIVE Handshake-managed PostgreSQL with >=3 seeded tag_hub blocks + members + a taggable block. Bind the REAL endpoints; gate the live-data ACs behind the integration feature + NEEDS_MANAGED_RESOURCE_PROOF if unseeded - do NOT fake. The title-hash color (>=12-color palette, <20% collision PROOF1), client-side title-prefix filter, empty 'No tags' (AC8), and the tag-row/member-row render are unit/kittest-testable STANDALONE with mock block lists.",
+      "UI HYGIENE (KERNEL_BUILDER gate): NO PERPETUAL SPINNER - the loading state animates ONLY during a genuine in-flight fetch (runtime present); headless renders neutral, no perpetual repaint (MT-015 lesson); kittest uses step() not run() on animating frames. egui 0.33 POPUP: use the current egui::Popup API (popup_below_widget is DEPRECATED in 0.33 - MT-016 confirmed; use Popup::menu / Popup::from_response with a stable Id). Add-tag popup is a NON-focus-stealing egui::Window (HBR-QUIET - do NOT force OS focus steal; route keys through it without grabbing global focus). After the POST /loom/edges create RESOLVES (await the response), re-query members - do NOT use a fixed 100ms sleep (RISK-2/MC-2 fragile). Screenshots to the EXTERNAL Handshake_Artifacts/handshake-test/wp-kernel-012-mt-023/ root + assert_no_local_artifact_dir(). ACCESSKIT VARIANT: ListItem/TextInput - field-correct nearest accesskit 0.21.1; ACs assert author_ids."
     ],
     "ports_from_react": [
       "WorkspaceSidebar.tsx line 44 bookmarkKind() — identifies tag_hub content type",
@@ -104,5 +118,29 @@
       "MC-3: 12-color palette. Unit test collision rate < 20% for a 50-tag sample. Covered by PROOF1.",
       "MC-4: Fallback client-side filter for content_type. Covered by AC8 (no panic on empty)."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-022 folder backend-shape lesson + MT-021 no-Tauri + MT-016 Popup API + MT-015 idle-repaint",
+    "corrections": [
+      "VERIFY tag_hub content_type + derived.tag_count + edge API vs real backend (don't assume; MT-022 folder lesson)",
+      "no-Tauri (backend_client); graph/ dir cohesion + lib.rs/backend_client/test allowed_paths",
+      "real-PG tag data NEEDS_MANAGED_RESOURCE_PROOF; color/filter/empty standalone",
+      "no perpetual spinner; egui 0.33 Popup (not deprecated popup_below_widget); re-query on response not 100ms sleep; external screenshots; accesskit variant"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_85eda322 (impl + 3-LENS adversarial PANEL + harden) - FIRST run of the hardened multi-reviewer panel",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "54b7a9fc feat MT-023 Tags panel + Tag-Hub page (verified MT-182 tag backend)",
+      "035a7a0d fix harden per adversarial review",
+      "37eb0a39 fix move tag_chip_palette to theme/palette.rs (CONTROL-4 guard, post-gate)"
+    ],
+    "review_panel": "correctness=CHANGES_REQUIRED(2 must-fix), backend-shape=CHANGES_REQUIRED(1 must-fix), perf-focus-hygiene=PASS(0) -> aggregate CHANGES_REQUIRED, 3 must-fixes unioned + all hardened. The panel caught more than a single reviewer would (2 lenses flagged distinct issues).",
+    "proofs": "AC2/AC3/AC5/AC7/AC8 + PROOF1-5 PASS; AC1/AC4/AC6 live-PG = NEEDS_MANAGED_RESOURCE_PROOF (gated #[ignore]+integration, bind the real routes, never faked); 897 lib + 8 unit + 11 integration green; tags panel (Filter box + #rust/#rustaceans/#python/#design color chips + counts) + tag-hub page visually verified; screenshots EXTERNAL (git ls-files src/**/*.png empty).",
+    "backend_shape_corrected": "MT-022-class correction (the backend-shape LENS drove it): the contract assumed GET /loom/views/all?content_type=tag_hub + views/all?tag_ids + content_json description - VERIFIED read-only that NONE exist; the real authority is the dedicated MT-182 tag-hub API (/loom/tags, /loom/tags/{id} -> LoomTagHub{block,sub_tags,tagged_blocks,backlink_count}, /loom/tags/{id}/blocks, POST /loom/edges edge_type=tag). Bound the verified shape (RISK-5 client-side fallback moot). No backend edit.",
+    "corrections_held": "no-Tauri (LoomTagClient on backend_client.rs); module in graph/ dir (cohesion with MT-021/022) not the contract's loom/+lib.rs; egui 0.33 Popup (not deprecated popup_below_widget); re-query on POST response (not a 100ms sleep); djb2 12-color chips <20% collision; no perpetual spinner.",
+    "waiver_granted": "backend_client.rs (LoomTagClient) + tests/test_tags_panel.rs pre-added to allowed_paths by the KERNEL_BUILDER patch (contract under-scoped, as MT-021/022).",
+    "post_gate_regression_fix": "The MT-023 djb2 tag-chip palette used 12 inline Color32::from_rgb literals in graph/tags_panel.rs with a wrong comment claiming the architecture guard allows it. The CONTROL-4 guard (test_theme::no_hardcoded_color32) exempts ONLY palette.rs/syntax.rs, so it was RED since 035a7a0d - undetected at the MT-023 + MT-024 gates because they ran `cargo test --lib` (which SKIPS the integration test_theme bin). Surfaced by MT-025's correctness lens. Fixed (37eb0a39): moved the palette to the guard-exempt theme/palette.rs + tags_panel delegates. test_theme 19/0 + full suite (every bin) 0 failed. GATE LESSON: the correctness lens must run the BARE `cargo test` (every bin incl test_theme), not `cargo test --lib` - the pipeline correctness-lens prompt was updated to mandate this (same class as the MT-015 spinner regression)."
   }
 }

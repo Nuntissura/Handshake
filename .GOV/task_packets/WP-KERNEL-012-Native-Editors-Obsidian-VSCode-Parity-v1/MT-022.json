@@ -25,17 +25,23 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-021"],
-    "blocks": ["MT-024"],
+    "depends_on": [
+      "MT-021"
+    ],
+    "blocks": [
+      "MT-024"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
     "summary": "Goal: Implement a folder tree panel with color labels for loom folders (blocks with content_type='folder' or grouped by folder_ref field) in the native egui frontend. The panel renders a collapsible tree of folder nodes; each folder node has a color swatch (stored in LoomBlock metadata) and a label. Expanding a folder loads its child blocks from the backend. Clicking a folder or leaf navigates (fires on_open). The expected diff shape: one new file src/frontend/handshake_native/src/graph/folder_tree.rs, edits to src/frontend/handshake_native/src/graph/mod.rs.\n\nExact files to create or edit:\n- CREATE src/frontend/handshake_native/src/graph/folder_tree.rs — LoomFolderTree widget\n- EDIT src/frontend/handshake_native/src/graph/mod.rs — pub mod folder_tree; + re-export LoomFolderTree\n\nExact APIs / React reference:\n- React reference: WorkspaceSidebar.tsx (app/src/components/WorkspaceSidebar.tsx) renders flat document/canvas lists but not a recursive folder tree. The folder_ref field is defined on LoomBlock (api.ts line 3042: folder_ref: string | null). Folder-grouped views use queryLoomView with the 'sorted' view type which returns LoomViewGroup[] (api.ts line 1080).\n- Backend bindings:\n  - GET /workspaces/{workspace_id}/loom/views/sorted — returns {view_type:'sorted', groups: LoomViewGroup[]} where each group.edge_type identifies grouping; use to get folder-grouped block lists\n  - GET /workspaces/{workspace_id}/loom/views/all?content_type=folder — enumerate folder blocks\n  - PATCH /workspaces/{workspace_id}/loom/blocks/{block_id} — updateLoomBlock; used to write color label metadata into LoomBlock (stored in a metadata JSON field or via add_tags)\n  - GET /workspaces/{workspace_id}/loom/blocks/{block_id} — getLoomBlock; load individual folder block for color/metadata\n\nReuse pointers (real WP-011 modules under src/frontend/handshake_native/src/):\n- Loom knowledge surface: reuse src/frontend/handshake_native/src/loom_graph.rs for the loom block/view model and existing loom rendering surface; the folder tree is an additional panel on this surface.\n- HTTP/backend access: reuse src/frontend/handshake_native/src/backend_client.rs for all GET/PATCH calls (do not introduce a new HTTP client or invoke wrapper).\n- Shared command/event plumbing: reuse src/frontend/handshake_native/src/command_registry.rs + src/frontend/handshake_native/src/event_bus.rs for open/navigate dispatch and selection events.\n- Context menu: reuse src/frontend/handshake_native/src/context_menu.rs + src/frontend/handshake_native/src/context_menu_surfaces.rs for the right-click 'Change color' menu.\n- AccessKit identity: reuse src/frontend/handshake_native/src/accessibility/ (mod.rs, registry.rs, snapshot.rs, live.rs) for stable author_id registration of tree nodes and swatch buttons.\n\nStep-by-step implementation notes:\n1. Define FolderNode { block_id: String, title: String, color: Option<Color32>, children: Vec<FolderNode>, expanded: bool, loading: bool } in graph/folder_tree.rs.\n2. Define LoomFolderTree { workspace_id: String, root_nodes: Vec<FolderNode>, on_open: Callback<String>, on_color_change: Callback<(String, Color32)>, error: Option<String>, loading: bool }.\n3. On init, call GET /workspaces/{id}/loom/views/all filtered to content_type=folder (or use 'sorted' groups) via backend_client.rs to populate root_nodes. Each block's metadata JSON (LoomBlock.content_json or a dedicated metadata field) stores the color as a hex string; parse into Color32.\n4. Render the tree using egui::CollapsingHeader or manual indented rows. For each folder node:\n   a. Draw a small 12x12 filled rectangle (color swatch) using painter.rect_filled before the label.\n   b. Render a collapsible row: click on folder name -> toggle expanded; if expanding and children not loaded, fire GET /workspaces/{id}/loom/views/sorted with tag_ids=[block_id] (via backend_client.rs) to load children.\n   c. Indent children by 16px per depth level.\n5. Right-click context menu on a folder row (via context_menu.rs / context_menu_surfaces.rs): 'Change color' -> open a color picker popup (egui::color_picker::color_edit_button_srgba). On color pick, call PATCH /workspaces/{id}/loom/blocks/{block_id} (via backend_client.rs) to persist color in block metadata (encode as hex string in the block's content_json or a dedicated 'color_label' metadata key). Fire on_color_change callback through event_bus.rs.\n6. Leaf block rows (non-folder children): show block title + content_type icon character. Click -> fire on_open(block_id) through command_registry.rs.\n7. AccessKit (via accessibility/): each folder row gets author_id='folder-tree.node.{block_id}', role=TreeItem, actions=[Expand, Collapse, DefaultAction=open]. Color swatch button gets author_id='folder-tree.color.{block_id}', role=Button.\n8. Error banner at top of panel if load fails. Retry button author_id='folder-tree.retry'.\n\nDependencies / unblock conditions: MT-021 must be complete only for shared graph/mod.rs infrastructure. The folder tree does not directly depend on graph view logic; however the graph/mod.rs shared infrastructure established in MT-021, together with the WP-011 backend_client.rs HTTP client, is a prerequisite.\n\nRisk if missed: Users lose the Obsidian-parity folder navigation. Without this, the knowledge surface has no hierarchical navigation, reducing it to flat list + graph only.",
     "allowed_paths": [
       "src/frontend/handshake_native/src/graph/folder_tree.rs",
-      "src/frontend/handshake_native/src/graph/mod.rs"
+      "src/frontend/handshake_native/src/graph/mod.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/tests/test_folder_tree.rs"
     ],
     "forbidden_paths": [
       "app/src/** (legacy React, reference only)",
@@ -67,7 +73,12 @@
       "Depth limit: support up to 5 levels of nesting. Beyond that, show a '...(deep)' truncation row.",
       "Folder detection: a block is a folder if content_type == 'folder'. If backend does not use this content_type, fall back to blocks returned in the 'sorted' group with edge_type='parent'.",
       "Do not duplicate folder discovery logic — use the same backend_client.rs HTTP client (WP-011 module) and the loom view helpers, sharing the infrastructure established by MT-021.",
-      "Cross-WP dependency: this MT reuses the WP-011 (WP-KERNEL-011) native shell modules backend_client.rs, command_registry.rs, event_bus.rs, context_menu.rs, context_menu_surfaces.rs, accessibility/, and loom_graph.rs under src/frontend/handshake_native/src/. WP-011 must be merged/available for these reuse targets to exist; this is a build prerequisite tracked here as prose rather than as a depends_on id."
+      "Cross-WP dependency: this MT reuses the WP-011 (WP-KERNEL-011) native shell modules backend_client.rs, command_registry.rs, event_bus.rs, context_menu.rs, context_menu_surfaces.rs, accessibility/, and loom_graph.rs under src/frontend/handshake_native/src/. WP-011 must be merged/available for these reuse targets to exist; this is a build prerequisite tracked here as prose rather than as a depends_on id.",
+      "ALLOWED_PATHS FIX (KERNEL_BUILDER gate 2026-06-22 - contract under-scoped, same as MT-021): added backend_client.rs (extend the MT-021 LoomGraphClient with folder-view GET + color PATCH; reuse, don't fork) and tests/test_folder_tree.rs (the named test file). graph/mod.rs already registers the module from MT-021.",
+      "BACKEND PROOF REALITY (MT-008/021 pattern): AC1/AC2/AC4 + PROOF2-5 need a LIVE Handshake-managed PostgreSQL with >=2 seeded folder blocks + children. Bind the REAL endpoints via backend_client.rs; gate the live-data ACs behind the integration feature + emit NEEDS_MANAGED_RESOURCE_PROOF if unseeded - do NOT fake. The flat-block-list->FolderNode tree build (PROOF1), cycle guard (MC-1 visited set + depth 20), color hex parse, lazy-load caching, empty 'No folders' (AC7), and backend-error+Retry (AC8) are ALL unit/kittest-testable STANDALONE with mock block lists.",
+      "NO PERPETUAL SPINNER (KERNEL_BUILDER gate - MT-015 idle-repaint lesson): the AC2 lazy-child-load spinner animates ONLY while a genuine in-flight fetch is dispatched (runtime present); headless/no-runtime must NOT enter a stuck perpetual Loading (per-node loading flag set only when a fetch actually spawns). kittest tests use harness.step()/run_steps(N), not run(), + gpu_lock() for wgpu screenshots.",
+      "COLOR-PATCH SEMANTICS + SHAPE (KERNEL_BUILDER gate - field-existence + route-semantics lesson, RISK-2/MC-2): VERIFY against the real backend + app/src/lib/api.ts WHERE folder color metadata can live (does LoomBlock have a dedicated metadata/color field, or only content_json JSONB?) AND the PATCH /loom/blocks/{id} semantics (merge-patch vs full-replace). The color write MUST target ONLY the color key (JSON merge-patch), NEVER a whole-content_json replace - else an editor save (MT-020) or the color write clobbers the other. Do NOT assume content_json.metadata.color_label exists; anchor to the captured real LoomBlock shape. Folder detection (RISK-5): verify content_type=='folder' vs the 'sorted' group edge_type=='parent'; fall back as the contract notes.",
+      "ACCESSKIT + PATHS (KERNEL_BUILDER gate): use MANUAL indented rows with egui::Id::new(block_id) for stable AccessKit author_ids (RISK-4: egui::CollapsingHeader does NOT expose stable author_ids); Role::TreeItem (exists in accesskit 0.21.1, used by MT-005 folding) + Expand/Collapse actions; sanitize block_id for the 'folder-tree.node.{id}' author_id. Screenshots to the EXTERNAL Handshake_Artifacts/handshake-test/wp-kernel-012-mt-022/ root + assert_no_local_artifact_dir(). egui::Painter for the color swatch (rect_filled)."
     ],
     "ports_from_react": [
       "WorkspaceSidebar.tsx (app/src/components/WorkspaceSidebar.tsx) — document/canvas list sections show the flat navigation pattern; folder_ref field on LoomBlock (api.ts:3042)",
@@ -105,5 +116,27 @@
       "MC-3: Per-node loading flag prevents duplicate fetches. Covered by AC2 loading spinner requirement.",
       "MC-4: AccessKit manual row rendering: use egui::Id::new(block_id) for stable identity. Covered by AC6."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-021 graph infra + MT-008 backend pattern + MT-015 idle-repaint + field/route-semantics lesson",
+    "corrections": [
+      "allowed_paths += backend_client.rs + test_folder_tree.rs (under-scoped)",
+      "real-PG folder data NEEDS_MANAGED_RESOURCE_PROOF; tree-build/cycle/hex/empty/error standalone",
+      "lazy-load spinner only with a live fetch (no headless perpetual loading)",
+      "verify color-metadata location + PATCH merge-patch semantics (no content_json clobber); verify folder detection",
+      "manual rows + Id::new for stable AccessKit (not CollapsingHeader); TreeItem; external screenshots"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_a5698902 (impl + adversarial-review PASS, no harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "7393e429 feat MT-022 native Loom folder tree + color labels (E3)"
+    ],
+    "review_verdict": "PASS",
+    "proofs": "AC3/AC4/AC5/AC6/AC7/AC8 PROVEN; AC1/AC2 standalone-proven + live-PG gated; 13 lib + 10 kittest tests; folder tree (Projects red swatch + Archive gray swatch, TreeItem AccessKit, collapse disclosure) visually verified; manual rows + Id::new for stable author_ids (not CollapsingHeader); color picker is in-process egui popup (HBR-QUIET); screenshot EXTERNAL (git ls-files src/**/*.png empty); theme guard green.",
+    "backend_shape_corrected": "MAJOR CORRECTION (verified read-only vs src/backend/handshake_core): the contract assumed content_type='folder' LoomBlocks + color in content_json.metadata.color_label + children via views/sorted - ALL stale/wrong (LoomBlockContentType has NO Folder variant; LoomBlockUpdate exposes NO content_json/color field). The REAL folder authority is the dedicated loom_folders subsystem (MT-181, Master Spec 7.1.4.3) with first-class color + parent_folder_id + merge-patch recolor (LoomFolderUpdate.color: Option<Option<String>>). Bound LoomFolderClient to the VERIFIED loom_folders routes (color-only merge-patch, no content clobber). Folder nodes keyed by folder_id; leaf children are LoomBlocks by block_id. No backend edit. RISK-2/MC-2 (merge-patch) satisfied by the real route shape.",
+    "blocked": "AC1/AC2 live-PG (>=2 seeded folders + children) = NEEDS_MANAGED_RESOURCE_PROOF: folder_tree_list_live_pg + folder_tree_children_live_pg gated #[ignore]+integration; tree-build/cycle/hex/empty/error proven standalone.",
+    "waiver_granted": "backend_client.rs (LoomFolderClient) + tests/test_folder_tree.rs were pre-added to allowed_paths by the KERNEL_BUILDER patch (contract under-scoped, same as MT-021)."
   }
 }

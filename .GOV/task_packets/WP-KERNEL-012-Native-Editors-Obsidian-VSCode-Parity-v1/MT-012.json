@@ -25,10 +25,19 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-011"],
-    "blocks": ["MT-013", "MT-014", "MT-015", "MT-016", "MT-017", "MT-018"],
+    "depends_on": [
+      "MT-011"
+    ],
+    "blocks": [
+      "MT-013",
+      "MT-014",
+      "MT-015",
+      "MT-016",
+      "MT-017",
+      "MT-018"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -37,7 +46,8 @@
       "src/frontend/handshake_native/src/rich_text/renderer/**",
       "src/frontend/handshake_native/src/rich_text/mod.rs",
       "src/frontend/handshake_native/Cargo.toml",
-      "src/frontend/handshake_native/tests/test_*.rs"
+      "src/frontend/handshake_native/tests/test_*.rs",
+      "src/frontend/handshake_native/assets/fonts/**"
     ],
     "forbidden_paths": [
       "app/src/** (legacy React, reference only)",
@@ -71,7 +81,11 @@
       "The caret blink timer must use egui's time (ctx.input(|i| i.time)), not std::time::Instant, to avoid fighting egui's repaint scheduling.",
       "For the vertical-slice proof, implement paragraph + bold/italic + heading + caret first; add table/list/blockquote/code_block in subsequent passes within this MT.",
       "AccessKit NodeIds must use AccessKit's NodeId::new(u64) seeded from a deterministic hash of the block path, not a random ID, so swarm agents can reference them by stable value across repaints; register and resolve these through the existing src/frontend/handshake_native/src/accessibility/registry.rs API.",
-      "egui_kittest: use egui_kittest::Harness::new_ui(|ui| { widget.ui(ui); }) for all automated rendering tests; do not rely on manual visual inspection as the only proof."
+      "egui_kittest: use egui_kittest::Harness::new_ui(|ui| { widget.ui(ui); }) for all automated rendering tests; do not rely on manual visual inspection as the only proof.",
+      "RENDERING ENGINE RECONCILIATION (KERNEL_BUILDER gate 2026-06-22 + research wf_ffa74d6d - this is the research's #1 hardest gap): PREFER egui LayoutJob + epaint Galley as the rendering+caret engine over cosmic-text. A LayoutJob renders multi-run styled text (bold/italic/code/color/size per section) in ONE galley, and Galley::pos_from_cursor / cursor_from_pos give NATIVE caret pixel hit-testing - this de-risks the hardest gap (no hand-rolled glyph-advance caret, no manual pixel/point conversion). The widget renders each MT-011 block as a styled Galley + paints a custom caret resolved via the galley + feeds egui input events to MT-011 Transactions. This is NOT egui TextEdit (uniform-style, can't do mid-paragraph marks) and NOT a giant TextEdit; it is the research's Ferrite/LayoutJob pattern. Use cosmic-text ONLY if the mandatory vertical-slice spike proves egui LayoutJob insufficient for a REQUIRED feature (e.g. a complex script) - justify in that case. ITALIC NOTE: egui does NOT synthesize italic; WP-011 bundles Inter-Regular + Inter-Bold but likely NOT italic, so bundle Inter-Italic (+ BoldItalic) into the crate assets/fonts dir and register named font families for the italic/bold-italic LayoutJob sections (bold already works via Inter-Bold).",
+      "IME VIA egui::Event::Ime, NOT winit (KERNEL_BUILDER gate): do NOT add winit as a direct dep and do NOT handle raw winit::event::Ime - that fights eframe's event loop. egui already surfaces winit IME through the egui-winit bridge as egui::Event::Ime { Enable | Preedit(text,cursor) | Commit(text) | Disable }; read those from ui.input(). The shell enables IME via the eframe/egui-winit setup (set_ime_allowed) - document it as a shell contract but consume egui::Event::Ime, not winit. IME double-insert guard (RISK): clear the preedit region BEFORE applying Commit; one test simulates Preedit then Commit and asserts the rope holds only the committed text.",
+      "VERTICAL-SLICE-FIRST (research #1 risk + contract): ship paragraph + bold/italic marks + heading scale + custom caret + ASCII typing + the AC-1 'Hello world (bold world)' kittest SCREENSHOT FIRST and prove it, THEN extend to lists/tables/blockquote/code_block in the same MT. egui_commonmark READING-MODE is a SEPARATE later MT (MT-055), NOT here - MT-012 is the edit-mode WYSIWYG view only.",
+      "RISKS/CONTROLS: (a) caret blink ctx.request_repaint_after MUST be guarded by response.has_focus() so an unfocused editor does NOT burn idle CPU (test it). (b) empty TextLeaf / empty block: special-case so layout never panics on a 0-length rope. (c) AccessKit NodeId from a STABLE hash of the block path (deterministic, not random); test a 500-paragraph doc for ZERO id collisions; reuse the WP-011 accessibility/registry.rs API. (d) caret/selection positions MUST be validated against doc bounds at the INPUT layer (the MT-011 RopeText clamp decision carried forward: do not rely on the rope's silent clamp to mask an off-by-one caret bug - clamp/validate at the caret layer and assert). (e) accesskit variant: use the field-correct nearest accesskit 0.21.1 Role if TextInput/Paragraph differ; ACs assert author_id."
     ],
     "ports_from_react": [
       "app/src/components/RichTextEditor.tsx (overall editor widget composition: toolbar + content area + find panel)",
@@ -82,7 +96,12 @@
       "No direct backend API calls in this MT. The renderer reads from the MT-011 DocModel which is loaded/saved by MT-020."
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS", "HBR-QUIET"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS",
+    "HBR-QUIET"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -106,5 +125,35 @@
       "cosmic-text Buffer::set_text must receive at least a single space for empty TextLeaf nodes; block_renderer must special-case empty ropes.",
       "Table renderer must clip painter output to the cell's Rect using painter.with_clip_rect before painting cell content."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + research wf_ffa74d6d (E2 hardest gap)",
+    "corrections": [
+      "egui LayoutJob+Galley primary (native caret hit-testing) over cosmic-text; cosmic-text only if spike proves needed",
+      "bundle italic font (egui does not synthesize italic)",
+      "IME via egui::Event::Ime, drop the winit direct dep",
+      "vertical-slice-first; reading-mode egui_commonmark is MT-055",
+      "idle-blink focus-guard, empty-block, NodeId no-collision, caret-bound validation, accesskit variant"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_985999f1 (impl + adversarial-review + harden) + KERNEL_BUILDER artifact-hygiene hotfix",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "8ebb0c9a feat MT-012 WYSIWYG renderer on egui LayoutJob+Galley",
+      "b7678b51 fix harden (clippy const-assert)",
+      "e6f0fd7d fix artifact-hygiene: redirect screenshot external + remove committed PNG"
+    ],
+    "engine": "egui LayoutJob + epaint Galley (NOT cosmic-text - my reconciliation steer; no cosmic-text dep added), native caret via Galley::pos_from_cursor, IME via egui::Event::Ime (NOT winit - no direct winit dep), bold via Inter-Bold, italic-via-skew (egui has no italic synthesis), RichEditorPaneFactory mounts via pane_registry. Renders MT-011 blocks -> per-block styled galleys + custom caret + egui-event input -> MT-011 Transactions.",
+    "proofs": "AC-1..12 (AC-6 PARTIAL) GREEN; 44 renderer unit + 574 lib + 6 integration tests; clippy --all-targets -D warnings clean; WYSIWYG render visually verified (h1 'Heading One' scale + 'Hello world' bold inline mark, dark theme); AccessKit rich-editor-root TextInput + per-block re-block-{hash} Paragraph; NodeId collision-free over 500 paras; HBR-QUIET no-focus-steal + idle-blink focus-guard; no leakage.",
+    "bugs_caught_and_fixed": "Review caught the 3rd FALSE 'clippy clean' (clippy --all-targets failed on assertions_on_constants in mod.rs - my full-suite pipeline rule surfaced it); harden used const _: () = assert!(). SEPARATELY, KERNEL_BUILDER gate caught an ARTIFACT-HYGIENE REGRESSION the review/harden missed: the impl followed the contract's literal repo-local tests/screenshots/ path and COMMITTED a binary PNG into the repo (violating CX-212E external-only). Hotfix e6f0fd7d redirected screenshot_path() to the external Handshake_Artifacts root + added assert_no_local_artifact_dir() + git rm'd the PNG; re-proved external write (140 fg colors). Pipeline CARGO_RULE hardened so MT-013+ cannot repeat (external-only mandate + reviewer git-ls-files src/**/*.png check).",
+    "carried_forward_to_MT_013": "AC-6 IME preedit UNDERLINE paint (commit/double-insert/CJK proven; the in-progress preedit run is overlay-state but not yet painted underlined) + cross-block editing (Backspace at offset 0 -> merge with previous block; ArrowUp/Down vertical motion; Home/End visual-line; Ctrl+A whole-doc; caret inside list/table/blockquote/code-block content) - all vertical-slice-deferred to MT-013 structural editing.",
+    "deferred": [
+      "italic-via-skew (synthesized) vs a bundled Inter-Italic font - acceptable for parity; refine later if needed",
+      "kittest cannot focus a custom ui.interact surface, so the live keystroke->widget path is proven at input_handler/ime_handler UNIT level + via swarm_edit model->render integration, not full-widget-focus key simulation",
+      "wysiwyg_screenshot treats missing wgpu adapter as non-fatal (GPU ran here); a headless CI run would skip the pixel proof - gate screenshot CI on a GPU runner",
+      "pre-existing accesskit_consumer 0.30/0.31 consumer-layer dup (core single)"
+    ],
+    "screenshot": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-012/mt012_wysiwyg.png (EXTERNAL root, not tracked)"
   }
 }

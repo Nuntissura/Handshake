@@ -25,9 +25,12 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-001", "MT-007"],
+    "depends_on": [
+      "MT-001",
+      "MT-007"
+    ],
     "blocks": [],
     "validator_verdict": "PENDING"
   },
@@ -40,7 +43,9 @@
       "src/frontend/handshake_native/src/code_editor/editor_view.rs",
       "src/frontend/handshake_native/src/backend_client.rs",
       "src/frontend/handshake_native/tests/test_code_nav_client.rs",
-      "src/frontend/handshake_native/tests/test_lsp_client.rs"
+      "src/frontend/handshake_native/tests/test_lsp_client.rs",
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/tests/test_completion_hover_accesskit.rs"
     ],
     "forbidden_paths": [
       "app/src/** (legacy React, reference only)",
@@ -73,7 +78,11 @@
       "CodeNavClient result caching: cache `lookup_symbols` results for the same `prefix` string for 2 seconds to avoid hammering the backend on every keypress.",
       "lsp-types crate version: pin to `0.95.*` — this is the version compatible with the LSP 3.17 spec.",
       "Mock LSP server for tests: implement a minimal stdio-based mock in the test module that responds to `initialize` and `textDocument/publishDiagnostics` with canned data.",
-      "Reuse the WP-KERNEL-011 backend HTTP client (`src/frontend/handshake_native/src/backend_client.rs`) for all code-nav API calls; this is a cross-WP reuse pointer to WP-011 deliverables, not a same-WP dependency edge."
+      "Reuse the WP-KERNEL-011 backend HTTP client (`src/frontend/handshake_native/src/backend_client.rs`) for all code-nav API calls; this is a cross-WP reuse pointer to WP-011 deliverables, not a same-WP dependency edge.",
+      "LSP TRANSPORT (research wf_ffa74d6d): prefer async-lsp (CLIENT side; correct synchronous notification ordering) OR a lightweight raw JSON-RPC-over-stdio transport + lsp-types. Do NOT use tower-lsp (server-side, ~3yr stale, semantically-incorrect async notification ordering) despite the contract prose mentioning it. lsp-types for the type defs. PROCESS SUPERVISION (research MT-077 + HBR-QUIET / MC-001): caller-owned lifecycle with Drop -> shutdown+exit (bounded timeout), restart/health, FOCUS-SAFE spawn (never SetForegroundWindow/steal focus, no zombie processes - reuse quiet_mode/focus_guard). Skip malformed non-JSON server stdout lines without panicking (RISK-003).",
+      "BACKEND PROOF REALITY (KERNEL_BUILDER Spec-Realism Gate sub-rule 2 + CX-503S): AC-001/002/003/005/006/007 bind the REAL Handshake code-nav APIs and MUST be proven against a live Handshake-managed PostgreSQL + handshake_core with an indexed-code workspace - NOT mocks, NOT Docker. handshake_core has bundled-Postgres exe-relative auto-discovery (WP-011 MT-031). ATTEMPT to start the managed backend + seed a code-indexed workspace and run the backend ACs for real, OR use an explicit real PG URL via HANDSHAKE_TEST_DB_URL. If the managed backend genuinely cannot be started/seeded here, GATE the backend ACs behind the integration Cargo feature AND emit a typed BLOCKER (NEEDS_MANAGED_RESOURCE_PROOF naming the missing resource) - do NOT fake/mock the backend binding as proof of those ACs. AC-004 (graceful, no LSP) + AC-008 (mock-LSP publishDiagnostics) MUST pass standalone with no backend. Write the CodeNavClient + LspClient code REAL regardless; only the live-PG proof may be an honest deferred blocker.",
+      "POPUP POSITIONING + FOCUS (MT-002/003/005 + RISK-005/HBR-QUIET): anchor the completion popup + hover tooltip at the cursor pixel position from y_for_line + monospace glyph_width using the MT-002-corrected sans-spacing units, the MT-003 cursor byte->line/col mapping, and the MT-005 fold-aware visible mapping. Reuse the command_palette.rs keyboard-navigable floating-list pattern. Render popups as NON-modal Windows that do NOT steal editor keyboard focus (route keystrokes through the editor first) so no character is dropped on popup open.",
+      "ACCESSKIT VARIANT: Role::ListBox / Role::Option / Role::Tooltip - use the field-correct nearest accesskit 0.21.1 variant if a literal differs; the ACs assert the author_id, not the role string (as MT-003 Caret, MT-005 TreeItem, MT-007 CheckBox/Label)."
     ],
     "ports_from_react": [
       "app/src/lib/monaco/code_intelligence.ts — complete file is the porting reference: ensureHandshakeCodeIntelligenceProviders (all provider registrations), refreshHandshakeCodeIntelligenceMarkers (staleness markers), codeSymbolStalenessLabel (utility), completionKind (kind mapping), markdownForSymbol (hover content)",
@@ -88,7 +97,11 @@
       "POST /api/diagnostics — createDiagnostic for staleness warnings (app/src/lib/monaco/code_intelligence.ts:187)"
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -108,6 +121,36 @@
       "MC-002: Integration tests gated by `integration` Cargo feature to avoid breaking CI without backend.",
       "MC-003: Graceful degradation test (lsp_client_graceful) is required and must pass without backend.",
       "MC-004: Completion debounce constant `COMPLETION_DEBOUNCE_MS = 200` defined in code and commented."
+    ]
+  },
+  "research_provenance": {
+    "source": "wf_ffa74d6d + KERNEL_BUILDER Spec-Realism Gate + MT-002/003/005/007",
+    "corrections": [
+      "async-lsp or raw JSON-RPC + lsp-types, NOT tower-lsp",
+      "focus-safe LSP process supervision + Drop shutdown (HBR-QUIET)",
+      "real-PG backend proof or NEEDS_MANAGED_RESOURCE_PROOF blocker - never fake",
+      "popup positioning uses corrected units + non-focus-stealing windows",
+      "accesskit variant fallback"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_83853ffe (impl + adversarial-review + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "9d357aae feat MT-008 LSP client + code-nav fallback",
+      "ee749f62 fix harden per adversarial review"
+    ],
+    "transport": "lsp-types 0.95.1 + hand-rolled JSON-RPC-over-stdio (NOT tower-lsp, per research wf_ffa74d6d); focus-safe tokio process; CodeNavClient binds real handshake_core routes with x-hsk-* headers, reusing backend_client.rs.",
+    "bugs_caught_and_fixed": "Review caught: (1) FALSE 'clippy clean' - cargo clippy --all-targets failed on assertions_on_constants (the new full-suite pipeline rule surfaced it); harden used const _: () = assert!(). (2) UNWIRED SCAFFOLDING - trigger_completion/hover/diagnostics existed as public API with ZERO call sites in show()/process_cursor_input, so the primary deliverable did not function for a real operator (ACs passed only via direct test calls). Harden wired the live loop: set_runtime injection + per-frame pump_code_intelligence (drains diagnostics, hover-dwell, debounced completion) + completion-popup keymap in process_cursor_input + Ctrl+Space/trigger-chars, non-focus-stealing; added 3 live-path tests driving real key events.",
+    "proofs": "AC-004/005/006/007/008 + PT-004..007 GREEN standalone; full suite green (465 lib + all integration); clippy --all-targets -D warnings EXIT=0; staleness gutter visually verified; no leakage; no tree-sitter dup core.",
+    "blocked_acs": "AC-001/002/003 (+ PT-001/002/003) content are PARTIAL_BLOCKED = NEEDS_MANAGED_RESOURCE_PROOF: the managed handshake_core + bundled PostgreSQL WAS started + healthy and the CodeNavClient binding is proven REAL (routes, headers, envelope, real 404), but the populated-content assertions need a CODE-INDEXED workspace seeded into PG via the backend CodeIndexEngine (cross-crate, forbidden to the frontend per CX-109D). Gated behind the integration Cargo feature; run green-with-data once HANDSHAKE_TEST_DB_URL points at an indexed workspace. NOT faked.",
+    "carried_forward_to_MT_069_E11": "APP-LEVEL HOST MOUNTING: the code_editor pane is NOT yet registered in app.rs / threaded a runtime+workspace via PaneRenderContext (app.rs/pane_registry.rs out of MT-008 allowed_paths; CodeEditorPaneFactory not registered in app.rs). The panel exposes set_runtime()/set_workspace_id() as the injection point. The host MT (E11 / MT-069) must register CodeEditorPaneFactory in app.rs and call the injection setters so the editor + its code-intelligence actually run in the shipped app.",
+    "waiver_granted": "panel.rs (the real CodeEditorPanel editor state lives here, not mod.rs as the contract prose assumed) + test_completion_hover_accesskit.rs - outside MT-008 allowed_paths but within packet src/frontend/**, required for the live-loop wiring + GUI proof. Granted per GLOBAL-SCOPE-005.",
+    "deferred": [
+      "cargo fmt not run (crate has no rustfmt.toml; default fmt fails on hundreds of pre-existing lines in untouched files; reformatting = out-of-scope spillover per CODER_PROTOCOL) - house style matched, clippy-clean",
+      "AC-002/003 integration binding tests accept any non-2xx (404/400/500) as up-not-down; tighten to assert correct binding once seeded",
+      "get_file_lens %2F path encoding untested+unbound (latent)",
+      "LspClient Drop/shutdown no-zombie path real but untested by a spawn-drop test"
     ]
   }
 }

@@ -25,22 +25,33 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-031", "MT-032", "MT-013"],
-    "blocks": ["MT-044", "MT-046"],
+    "depends_on": [
+      "MT-031",
+      "MT-032",
+      "MT-013"
+    ],
+    "blocks": [
+      "MT-044",
+      "MT-046"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
     "summary": "Goal: let users drag CKC (Atelier/KERNEL-005) media items, characters, and moodboards into a native note or canvas pane as embedded loom:// references, and route any note selection or document to a Stage pane. Expected diff shape: (a) a new drag-source on the AtelierSidePanel widget that emits a DragPayload::AtelierRef; (b) a drop-target in the rich-text editor that converts a dropped AtelierRef into an embed node (similar to how React LoomTransclusionView.tsx inserts a loomTransclusion TipTap node); (c) a drop-target in the canvas pane that places a canvas node pinned to the atelier item; (d) a 'Route to Stage' command dispatched through the existing command_registry.rs + event_bus.rs that takes the current selection or document and opens/focuses the Stage pane with that content; (e) integration tests using a real PG backend to assert the embed survives a save/reload cycle.\n\nFiles to CREATE:\n  - src/frontend/handshake_native/src/interop/drag_payload.rs  — defines DragPayload enum: AtelierRef { item_id: String, item_kind: AtelierItemKind, label: String, loom_block_id: Option<String> }, LoomBlockRef { block_id: String, workspace_id: String }, PlainText(String). Also defines AtelierItemKind enum: Media | Character | Moodboard. (New interop/ subdir created INSIDE src/frontend/handshake_native/src/.)\n  - src/frontend/handshake_native/src/atelier_side_panel.rs  — an egui side-panel listing AtelierIntakeBatch items and AtelierCommandCorpus entries fetched from the existing backend via backend_client.rs (GET /atelier/intake/batches, GET /atelier/command-corpus). Each item row supports egui drag-source: on drag-start stores DragPayload::AtelierRef in ctx.data_mut. Rows display thumbnail path + label. Reuse the existing rail layout patterns from left_rail.rs / search_rail.rs. AccessKit: panel container author_id=\"atelier-side-panel\", role=List; each row author_id=\"atelier-item-{item_id}\", role=ListItem, actions=[Press, StartDrag].\n\nFiles to EDIT:\n  - src/frontend/handshake_native/src/lib.rs  — add `pub mod interop;` and `pub mod atelier_side_panel;` (module registration for the new interop/ subdir and the new flat atelier_side_panel module).\n  - src/frontend/handshake_native/src/rich_text/editor.rs  — (rich-text editor pane created by WP-012 / MT-013) add an egui drop-target zone over the editor area. When a drop is received from ctx.data(|d| d.get_temp::<DragPayload>(...)), match on AtelierRef: insert an embed node { node_type: 'atelierEmbed', item_id, item_kind, label, loom_block_id } into the document tree at the caret position. Serialize as a custom ProseMirror-style block in the rich doc JSON. On save, the block is stored as part of content_json and round-trips through saveRichDocument.\n  - src/frontend/handshake_native/src/canvas_board.rs  — add drop-target at canvas level. On AtelierRef drop at screen position: call PUT /canvas/{canvas_id}/graph (via backend_client.rs) with a new CanvasNodeInput { kind: 'atelier_ref', atelier_item_id, x, y, width, height, label }. Backend stores it; reload canvas graph. The placed node's header shows AtelierItemKind badge + label + loom:// chip if loom_block_id is Some.\n  - src/frontend/handshake_native/src/stage_pane.rs  — add or extend a StagePane widget (new flat module, registered in the existing pane_registry.rs and docked via split_layout.rs; header via pane_header.rs). The Stage pane accepts a StageContent enum: Document(RichDocLoad) | Selection(String, String) | AtelierItem(AtelierRef). Register a 'route-to-stage' command in command_registry.rs (MT-031): args = StageRouteArgs { content: StageContent }; the command opens the Stage pane tile (via split_layout.rs / egui_tiles) and sets its content.\n  - src/frontend/handshake_native/src/command_registry.rs  — register the 'route-to-stage' command descriptor; the route-to-stage handler emits the open/focus event over event_bus.rs and passes StageContent to stage_pane.rs.\n\nStep-by-step implementation notes:\n  1. egui drag-source: call ui.dnd_drag_source(egui::Id::new(item_id), payload, |ui| { ui.label(&row.label) }). The payload is DragPayload::AtelierRef. This is egui 0.28+ API; confirm version in src/frontend/handshake_native/Cargo.toml.\n  2. egui drop-target in rich-text pane: call let response = ui.dnd_drop_zone::<DragPayload, _>(egui::Frame::none(), |ui| { ... }); then check response.1 (the dropped payload) in each frame.\n  3. Embed node in rich doc JSON: define a custom block type \"atelier_embed\" in the document schema. Store as a JSONContent object node with attrs: { item_id, item_kind, label, loom_block_id }. The rich-text editor renders it as a small card widget inline (thumbnail if available, else text label with badge).\n  4. Canvas node creation for atelier drop: map screen position (egui Pos2) to canvas coordinates. Call updateCanvasGraph (api.ts ~1719: PUT /canvas/{id}/graph body { nodes: [{ kind, label, x, y, width, height, atelier_item_id }], edges: [] }) via the Rust backend_client.rs IPC client. Then reload via GET /canvas/{id}.\n  5. Route to Stage: the Stage pane is an egui_tiles tile in the docking layout managed by split_layout.rs. 'route-to-stage' command handler: find the Stage tile id in the tree, call tree.set_active_tile(stage_tile_id), then set stage_pane.content = StageContent::from(args). If Stage tile does not exist yet, insert it as a new floating pane (reuse popout_window.rs for the floating case).\n  6. Right-click context menu on rich-text selection: show 'Route to Stage' menu item via context_menu.rs / context_menu_surfaces.rs. This dispatches the 'route-to-stage' command through command_registry.rs with StageRouteArgs::Selection(selected_text, document_id).\n  7. Right-click context menu on canvas node: show 'Route to Stage' item (context_menu.rs) that routes the node's document or atelier item.\n  8. AtelierSidePanel data loading: call GET /atelier/intake/batches + GET /atelier/command-corpus via backend_client.rs on mount. Display in two sections: 'Media / Characters / Moodboards' (from intake items) and 'Command Corpus'. Refresh button fires a reload.\n  9. AccessKit (accessibility/*): atelier_side_panel rows have actions=[Press, StartDrag]; the Stage pane container has author_id=\"stage-pane\", role=Region. Use the existing accessibility/registry.rs + accessibility/snapshot.rs surfaces.\n  10. Tests: src/frontend/handshake_native/tests/test_ckc_embed.rs — (a) unit: DragPayload::AtelierRef serializes and deserializes correctly; (b) integration (real PG): create a canvas, PUT /canvas/{id}/graph with an atelier_ref node, reload, assert node appears with correct atelier_item_id; (c) integration: create a rich doc, insert an atelier_embed block, saveRichDocument, reload, assert the atelier_embed block survives round-trip; (d) kittest: simulate drag from atelier panel, drop on canvas, assert canvas node count increases by 1.\n\nDependencies / unblock conditions:\n  - MT-031 (command registration via command_registry.rs + event_bus.rs) merged.\n  - MT-032 (LoomBlockAddr, loom:// URI) merged — needed for loom_block_id in AtelierRef.\n  - MT-013 (rich-text embed NodeView infrastructure, rich_text/ module) merged — needed so the atelier_embed block has a renderer in the rich-text pane.\n  - Cross-WP: relies on WP-011 modules command_registry.rs, event_bus.rs, canvas_board.rs, pane_registry.rs, split_layout.rs, pane_header.rs, context_menu.rs, context_menu_surfaces.rs, accessibility/*, backend_client.rs, left_rail.rs, search_rail.rs (already merged in handshake-native).\n  - egui 0.28+ for dnd_drag_source / dnd_drop_zone API; confirm version in src/frontend/handshake_native/Cargo.toml.\n\nRisk if missed: CKC<->editor interconnection is one of the four named interconnection edges in the packet contract. Without this MT, dragging a character or moodboard into a note is impossible, breaking the 'melt-together' proof in MT-046.",
     "allowed_paths": [
       "src/frontend/handshake_native/src/interop/drag_payload.rs",
+      "src/frontend/handshake_native/src/interop/mod.rs",
       "src/frontend/handshake_native/src/lib.rs",
       "src/frontend/handshake_native/src/command_registry.rs",
       "src/frontend/handshake_native/src/atelier_side_panel.rs",
-      "src/frontend/handshake_native/src/rich_text/editor.rs",
-      "src/frontend/handshake_native/src/canvas_board.rs",
+      "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs",
+      "src/frontend/handshake_native/src/rich_editor/document_model/node.rs",
+      "src/frontend/handshake_native/src/graph/canvas_board.rs",
       "src/frontend/handshake_native/src/stage_pane.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/app.rs",
       "src/frontend/handshake_native/tests/test_ckc_embed.rs",
       "src/frontend/handshake_native/Cargo.toml"
     ],
@@ -71,7 +82,11 @@
       "Stage pane: split_layout.rs (egui_tiles) supports inserting a new tile dynamically. Keep a stage_tile_id: Option<egui_tiles::TileId> in app.rs state; if None, insert a new StagePane tile and record the id. Reuse popout_window.rs for the floating-pane fallback.",
       "Route to Stage for AtelierItem: pass the item_id; Stage pane calls GET /atelier/intake/batches (or a per-item endpoint if available) via backend_client.rs to load item metadata on demand.",
       "React reference: AtelierPanel.tsx uses getAtelierIntakeItems(batchId) and listAtelierCommandCorpus() to populate its sections — mirror this in AtelierSidePanel. AtelierCollaborationPanel.tsx shows the collaboration panel pattern.",
-      "Cross-WP dependency note: this MT reuses WP-011 modules already merged in handshake-native — command_registry.rs + event_bus.rs (command/selection bus, replacing the React InteractionBus), canvas_board.rs (canvas drop-target host), pane_registry.rs + split_layout.rs + pane_header.rs (Stage pane docking), context_menu.rs + context_menu_surfaces.rs (Route-to-Stage menu items), accessibility/* (AccessKit nodes), and backend_client.rs (all backend calls). Do not recreate these; depend on them by their real module names."
+      "Cross-WP dependency note: this MT reuses WP-011 modules already merged in handshake-native — command_registry.rs + event_bus.rs (command/selection bus, replacing the React InteractionBus), canvas_board.rs (canvas drop-target host), pane_registry.rs + split_layout.rs + pane_header.rs (Stage pane docking), context_menu.rs + context_menu_surfaces.rs (Route-to-Stage menu items), accessibility/* (AccessKit nodes), and backend_client.rs (all backend calls). Do not recreate these; depend on them by their real module names.",
+      "ATELIER EMBED = hsLink ATOM by refKind, NOT a new 'atelier_embed' node (KERNEL_BUILDER gate 2026-06-23 - the MT-014/015 embed lesson): the contract says insert a custom 'atelier_embed' block. But MT-014 established that media embeds are the EXISTING Child::HsLink atom discriminated by ref_kind (image/video/album/slideshow), and the backend content_json has NO arbitrary node types (MT-011/022/023 all found invented node/content_type assumptions wrong). A dropped CKC/Atelier item should be an hsLink atom with ref_kind in the CKC family (e.g. atelier/media/character/moodboard) + ref_value=item_id - so it ROUND-TRIPS the backend content_json (AC-2 save/reload). VERIFY the real CKC-embed shape against app/src + the backend; do NOT invent an 'atelier_embed' node the backend will reject/drop on save (that breaks AC-2). Reuse MT-014's hsLink embed dispatch in the renderer.",
+      "CANVAS-ADD ROUTE ALIGNMENT (KERNEL_BUILDER gate - MT-026 verified): the contract says PUT /canvas/{id}/graph with CanvasNodeInput{atelier_item_id}. But MT-026 VERIFIED the canvas API is POST /loom/canvas/{canvas_block_id}/placements (+ /cards), NOT /canvas/{id}/graph. ALIGN the atelier-drop canvas-add with MT-026's VERIFIED placement routes (reuse the MT-026 CanvasBoardClient). VERIFY whether a placement can carry an atelier_item_id/atelier_ref (RISK-3/MC-3 - inspect the real placement input); if the backend placement only takes a placed_block_id, the atelier item must FIRST be resolved to a loom block_id (the everything-is-a-block MT-032 layer) then placed - do NOT POST an unsupported atelier_item_id field. Backend gap -> typed blocker, not a fake field.",
+      "VERIFY ATELIER + STAGE BACKENDS EXIST (KERNEL_BUILDER gate - typed-blocker discipline, packet E5/E10 stance): VERIFY read-only that GET /atelier/intake/batches + /atelier/command-corpus (+ /items) exist in src/backend/handshake_core (CKC/Atelier = KERNEL-005). If the atelier backend is ABSENT, the AtelierSidePanel is a TYPED BLOCKER with a visible empty-state + no-silent-no-op (NEEDS_MANAGED_RESOURCE_PROOF), NOT faked items. ROUTE-TO-STAGE: MT-033 delivers the LOCAL Stage pane (displays routed content) + the route-to-stage COMMAND on the MT-031 bus; the DEEPER Stage backend interop (capture/embed-back with manifest provenance) is E10/MT-066 - if a Stage backend route is needed here and absent, typed blocker. Drag/drop via egui::DragAndDrop (egui 0.33 - confirm dnd_drag_source/dnd_drop_zone exist; the crate is on 0.33).",
+      "BACKEND PROOF + REUSE + PATHS (MT-008/026/031/032 pattern): atelier-load + canvas-drop + embed save/reload round-trip are REAL-PG -> bind real + gate behind integration + NEEDS_MANAGED_RESOURCE_PROOF. DragPayload serde round-trip + the embed-insert logic + route-to-stage command dispatch are unit/kittest-testable STANDALONE. Route-to-stage command via the MT-031 InteractionBus/command_registry (reuse, don't fork). DragPayload in interop/ (reuse MT-031's interop module). Paths: rich_editor/ not rich_text/ (atelier embed inserts into the MT-011 document_model via the hsLink atom + renders via rich_editor_widget); canvas = graph/canvas_board.rs (MT-026); stage_pane.rs new flat module registered in pane_registry+app.rs. NO PERPETUAL SPINNER (atelier-load spinner only in-flight, RISK-5/MC-5; MT-015 lesson). NO Color32 literal (theme guard). Screenshots EXTERNAL + assert_no_local_artifact_dir(). ACCESSKIT VARIANT: atelier-side-panel(List)/atelier-item-{id}(ListItem+StartDrag)/stage-pane(Region) - field-correct accesskit 0.21.1."
     ],
     "ports_from_react": [
       "app/src/components/AtelierPanel.tsx — getAtelierOverview, listAtelierIntakeBatches, getAtelierIntakeItems, listAtelierCommandCorpus, openAtelierIntakeBatch patterns",
@@ -87,7 +102,12 @@
       "POST/PUT /knowledge/documents/{doc_id}  =>  api.ts saveRichDocument  =>  persists atelier_embed block in content_json"
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS", "HBR-QUIET"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS",
+    "HBR-QUIET"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -109,5 +129,27 @@
       "Stage pane insertion: set stage_tile_id only after egui_tiles confirms the tile is in the tree (check tiles.contains(id)); if not yet in tree, re-insert next frame.",
       "Show a spinner in AtelierSidePanel during load; display error text on fetch failure; never show a blank panel without explanation."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-014 hsLink embeds + MT-026 canvas routes + MT-031 bus + MT-032 loom addr + typed-blocker discipline",
+    "corrections": [
+      "atelier embed = hsLink atom by refKind, not an invented atelier_embed node (round-trips backend content_json)",
+      "canvas-add aligns with MT-026 /loom/canvas/{id}/placements (not PUT /canvas/{id}/graph); resolve atelier->block_id if placement needs it",
+      "verify atelier + Stage backends exist - typed blocker + empty-state if absent (not fake); deeper Stage interop is E10",
+      "rich_editor/ + graph/canvas_board.rs + stage_pane paths; reuse MT-031 bus + interop; backend proof; no spinner; no Color32; external screenshots"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_10a02c96 (impl + 3-lens panel + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "5423de82 feat MT-033 CKC embeds/drag-in + route-to-Stage (E5)",
+      "1fed0376 fix harden per adversarial review"
+    ],
+    "review_panel": "correctness=CHANGES_REQUIRED(3), backend-shape=CHANGES_REQUIRED(1), perf-focus-hygiene=PASS(0) -> 4 must-fixes hardened.",
+    "proofs": "AC-1/2/4/6/7 PASS, AC-3/5 PARTIAL (live-PG gated NEEDS_MANAGED_RESOURCE_PROOF); 1038 lib + 8 ckc + regression (canvas 18, interaction_bus 5, command_palette 8, rich_editor_save 17, rich_editor_widget 6, embeds 6, accesskit 9) all green; clippy clean; atelier side panel (Atelier/CKC header + Sourcing Run A batch + 2 draggable [Media] rows + Command Corpus section) visually verified; screenshot EXTERNAL.",
+    "steers_all_held": "(1) CKC embed = hsLink ATOM by refKind (refKind=media, refValue=item-aaa) - AC-2 verified content_json contains hsLink NOT atelier_embed + round-trips byte-for-byte; NO invented node. (2) Canvas drop: unresolved AtelierRef -> NO fake atelier_item_id POST; resolved -> PlaceBlock with placed_block_id (MT-026's verified /loom/canvas placement body, the loom block id) - resolve-then-place, no unsupported field. (3) Atelier backend VERIFIED real (api/atelier.rs); AtelierClient builds the verified /atelier/intake/batches + /command-corpus + /items routes. (4) route-to-stage via the MT-031 bus (CMD_ROUTE_TO_STAGE); DragPayload in interop/.",
+    "stage_note": "MT-033 delivers the local Stage pane (displays routed content) + route-to-stage command; deeper Stage backend interop (capture/embed-back) remains E10/MT-066.",
+    "waiver_granted": "backend_client.rs (AtelierClient) + interop/interaction_bus.rs (CMD_ROUTE_TO_STAGE) + rich_editor_widget.rs + graph/canvas_board.rs + command_registry.rs + app.rs (dispatch) + lib.rs + tests in allowed_paths."
   }
 }

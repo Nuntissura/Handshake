@@ -25,10 +25,16 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-030", "MT-032", "MT-034"],
-    "blocks": ["MT-073"],
+    "depends_on": [
+      "MT-030",
+      "MT-032",
+      "MT-034"
+    ],
+    "blocks": [
+      "MT-073"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -36,7 +42,7 @@
     "allowed_paths": [
       "src/frontend/handshake_native/src/interop/locus_interop.rs",
       "src/frontend/handshake_native/src/interop/mod.rs",
-      "src/frontend/handshake_native/src/rich_text/cross_refs.rs",
+      "src/frontend/handshake_native/src/interop/cross_ref.rs",
       "src/frontend/handshake_native/tests/test_locus_interop.rs"
     ],
     "forbidden_paths": [
@@ -74,7 +80,10 @@
       "Route `open-locus-ref` through the InteractionBus (MT-031) + MT-030 navigation bus via the existing `FnMut(NavTarget)` / dispatch seam; do not instantiate a new navigation channel or HTTP client.",
       "Declare `locus_ref` as an explicit allowed rich-text node type so save+reload does not strip it; if backend node-type validation rejects it, raise a typed blocker rather than silently dropping the node.",
       "Register every Locus chip and reverse-lookup-row author_id through the WP-011 AccessKit id registry; de-duplicate ids derived from (kind,id) and (document_id) so swarm agents address rows deterministically.",
-      "If the `interop` module root does not yet exist in the WP shell, create `src/frontend/handshake_native/src/interop/mod.rs`; if the shell already roots interop modules elsewhere, place the file under that root and document the chosen path in a code comment instead of forking a parallel tree."
+      "If the `interop` module root does not yet exist in the WP shell, create `src/frontend/handshake_native/src/interop/mod.rs`; if the shell already roots interop modules elsewhere, place the file under that root and document the chosen path in a code comment instead of forking a parallel tree.",
+      "PATH + LOCUS HTTP SURFACE (KERNEL_BUILDER gate 2026-06-25, VERIFIED tree + handshake_core): (1) the contract's rich_text/cross_refs.rs is WRONG - the MT-034 cross-ref machinery (code_ref node + CrossRef chip + resolution + find_notes_referencing) is at interop/cross_ref.rs (SINGULAR, under interop/). Extend THAT (add the locus_ref node as a sibling of code_ref). (2) LOCUS HTTP ROUTES LIKELY ABSENT: handshake_core has a Locus DATA MODEL in the KERNEL/GOVERNANCE layer (kernel/locus_work_tracking_reset.rs LocusWorkPacketRecordV1, locus/mod.rs, locus/task_board.rs - Locus IS the WP/MT work-tracking, same concept as .GOV task packets) but NO HTTP routes (/workspaces/{id}/locus/work-packets/{id}, /locus/microtasks/{id}) exposed to the frontend. VERIFY read-only - if (as expected) the GET routes are absent from the frontend-reachable surface, resolve_locus_ref returns LocusInteropError::LocusReadApiUnavailable (the TYPED BLOCKER naming the endpoint) + the chip renders GREYED-unavailable (tooltip names the missing endpoint, no panic). Do NOT add/scaffold a backend route, NO Locus mutation, NO SQLite (RISK-006). This is the contract's designed typed-blocker path; the parser+chip+node+reverse-lookup-keying are PROVABLE NOW.",
+      "REUSE MT-032 + MT-034 + TWO FAILURE MODES (KERNEL_BUILDER gate): REUSE the MT-032 normalizer (the loom://everything-is-a-block normalize helper - find it, do NOT add a 2nd normalizer, RISK-001/MC-001) as the SINGLE shared key for resolution AND reverse lookup. REUSE the MT-034 CrossRef node/chip/resolution (interop/cross_ref.rs) - the locus_ref node is a SIBLING of code_ref (likely a Child::HsLink atom by ref_kind='locus'/wp/mt - the embed lesson; survives save+reload with attrs {kind,id,normalized}; declared allowed node type or TYPED BLOCKER if backend node-validation rejects, RISK-005/MC-005); DocumentRef mirrors the MT-034 NoteRef shape (RISK-002/MC-002 - no parallel cross-ref node/service). TWO FAILURE MODES DISTINCT (RISK-003/MC-003): live-endpoint 404 = record-not-found -> GREYED 'unresolved' chip (NOT a blocker); endpoint ABSENT from the reachable surface -> LocusReadApiUnavailable typed blocker. PERCENT-ENCODE WP/MT ids before embedding in URLs (RISK-010/MC-010 - ids have hyphens/uppercase like WP-KERNEL-012; a test exercises that). Reverse lookup find_documents_referencing REUSES the MT-034 find_notes_referencing_symbol mechanism keyed on the normalized locus:// ref, deduped (document_id, block_id) (AC-004).",
+      "NAV + OFF-RENDER + ACCESSKIT + WIDGET-PROVABLE (KERNEL_BUILDER gate): open-locus-ref routes through the EXISTING InteractionBus (MT-031) + MT-030 nav seam (FnMut(NavTarget)/dispatch_command) - NO new nav channel (RISK-007/MC-007); an unresolved/blocked chip click fires the dispatch or no-ops GRACEFULLY, no panic (RISK-009/MC-009). Resolution + reverse lookup run OFF the egui render path (async, set loading; show() renders cached struct only, RISK-004/MC-004). AccessKit locus-ref-chip-{kind}-{id} (Button) + locus-refby-{document_id} (ListItem) via accessibility/registry.rs - DEDUPED (RISK-008/MC-008). PROVABLE NOW (fixtures/kittest): parse_locus_ref (AC-001), the chip render + open-locus-ref dispatch (AC-003), the locus_ref node save+reload round-trip (AC-006), the LocusReadApiUnavailable typed blocker + greyed chip (AC-005), reverse-lookup keying/dedup (AC-004 with a seeded doc). GATED: the LIVE resolve_locus_ref against real /locus/ GET routes (LocusReadApiUnavailable until exposed) + live reverse-lookup (real PG). NO Color32 literal (theme); external screenshot if any; full suite -j 2 (serialize); clippy clean; AC-009 grep no sqlite + no src/backend edit + read-only (GET-only, no mutation)."
     ],
     "ports_from_react": [
       "app/src/components/* Locus / work-packet reference surfaces — the React surfaces that display or link to WP/MT records: port the reference shape (how a WP/MT id is displayed, the chip/label form, and the click-to-open navigation behavior) into the native Locus chip + `open-locus-ref` seam; do not port any mutation/transition behavior (this MT is read+reference only)."
@@ -86,7 +95,11 @@
       "No new endpoints, no backend rewrite, no Locus mutation. Backend access is READ ONLY; gaps are typed blockers. PostgreSQL/EventLedger only — no SQLite anywhere."
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -118,5 +131,28 @@
       "MC-009: A test asserts clicking an unresolved/blocked chip fires the dispatch (or no-ops gracefully) without panic when the resolution result is None/blocked.",
       "MC-010: Apply percent-encoding to all WP/MT ids before embedding them in URLs; a unit test exercises an id containing hyphens and uppercase segments (e.g. WP-KERNEL-012) and asserts the resolution call targets the correct, correctly-encoded path."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + VERIFIED interop/cross_ref.rs (MT-034, singular) + handshake_core locus/ kernel data model (no HTTP routes) + MT-032 normalizer + MT-030 nav + Pillar no-HTTP pattern (FEMS/Stage/Calendar)",
+    "corrections": [
+      "rich_text/cross_refs.rs WRONG -> interop/cross_ref.rs (MT-034, singular); Locus has a kernel/governance DATA MODEL but NO HTTP routes -> LocusReadApiUnavailable typed blocker (designed path, verify)",
+      "reuse MT-032 normalizer (single key) + MT-034 cross_ref node (locus_ref sibling of code_ref, hsLink atom by ref_kind, survives round-trip) - no duplicate parser/node/service",
+      "two failure modes distinct (live 404 = greyed unresolved; endpoint absent = LocusReadApiUnavailable); percent-encode WP/MT ids; reverse-lookup reuse MT-034 keyed on normalized ref, deduped",
+      "nav via MT-030 (no new channel); off-render-path; accesskit dedup; provable now (parse/chip/node/round-trip/typed-blocker/reverse-key) + live resolution gated; no backend/SQLite/mutation/Color32; -j 2"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_ac8b73d3 (impl + 3-lens panel + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "403a7e6b feat MT-068 editors<->Locus cross-reference interop (locus:// refs; resolution typed blocker; reverse lookup)",
+      "d4b4c349 fix harden per adversarial review"
+    ],
+    "review_panel": "correctness=CHANGES_REQUIRED(1), backend-shape=CHANGES_REQUIRED(1), perf-focus-hygiene=PASS(0) -> 2 must-fixes hardened.",
+    "proofs": "AC-001..010 + PT-001..007 PASS (PT-002 PARTIAL - live resolve gated); 11 lib + 13 integration (1 gated) + 52 + regression (cross_ref 10, bus 5, wikilinks 8, accesskit 25) green; clippy clean; locus:// cross-ref chips (WP-KERNEL-012 + MT-034 green chips inline + 'Design notes - tracks locus://mt/MT-034' footer) visually verified (fixture render); screenshot EXTERNAL.",
+    "locus_no_http_CONFIRMED": "VERIFIED handshake_core/src/api/ has NO locus.rs - GET /workspaces/{ws}/locus/work-packets/{id} + /locus/microtasks/{id} ABSENT. Locus (Pillar 6) has a KERNEL/GOVERNANCE data model (kernel/locus_work_tracking_reset.rs LocusWorkPacketRecordV1, locus/mod.rs, locus/task_board.rs - the same WP/MT concept as .GOV) but NO HTTP surface (like FEMS/Stage/Calendar). resolve_locus_ref returns LocusInteropError::LocusReadApiUnavailable naming the endpoint + the chip renders greyed-unavailable (theme error color, no panic). Designed typed-blocker path.",
+    "steers_held": "PATH: rich_text/cross_refs.rs WRONG -> interop/cross_ref.rs (MT-034 singular). locus_ref = hsLink ATOM (type=hsLink, refKind=locus, refValue=locus://wp/WP-KERNEL-012) via the SHARED wikilink table - round-trips, NOT an invented node. REUSE MT-032 normalize_target (single key for resolve + reverse) + MT-034 find_notes_with/FindNotesSearch/percent_encode_symbol - NO duplicate parser/normalizer/node. TWO failure modes distinct (live 404=NotFound greyed; route absent=LocusReadApiUnavailable). PERCENT-ENCODE ids (WP-KERNEL-012). reverse-lookup keyed on normalized locus://mt/mt-034 deduped (document_id,block_id). nav via CMD_OPEN_LOCUS_REF (interop.open-locus-ref) existing bus seam - no new channel. off-render-path. accesskit locus-ref-chip-{kind}-{id} (Link) + locus-refby-{doc} (ListItem) deduped. no backend/SQLite/mutation (GET-only grep).",
+    "strategic_gap": "LOCUS (Pillar 6) HAS NO HTTP SURFACE (verified, joins FEMS+Stage+Calendar gaps) - kernel/governance data model only. Future backend packet exposes /locus/work-packets + /locus/microtasks GET; then locus:// chips resolve live with zero frontend change (LocusReadApiUnavailable flips to real WP/MT titles).",
+    "waiver_granted": "interop/locus_interop.rs (new) + interop/cross_ref.rs + interop/interaction_bus.rs (CMD_OPEN_LOCUS_REF) + interop/mod.rs + rich_editor/wikilinks/parser.rs+inline_view.rs (locus: prefix in shared table) + renderer/rich_editor_widget.rs (chip wire) + test in allowed_paths."
   }
 }

@@ -1,0 +1,135 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-100",
+  "title": "U4-MT-100-TerminalLaunchInRepoFolderWithWrapper",
+  "group": "U1 Usable-Product Expansion (notes+chat worksurface, §product-vision 2026-06-27)",
+  "created_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-100.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-097",
+      "MT-102",
+      "MT-103"
+    ],
+    "blocks": [
+      "MT-104"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "OPERATOR: launch a TERMINAL session that opens INSIDE a repo/workspace folder with the CORRECT shell wrapper, from the worksurface — the VS-Code 'open an integrated terminal in this repo' affordance. This makes Handshake usable as a dev tool (run commands in the project folder).\n\nVERIFIED STATE (live-app inspection 2026-06-27): a REAL terminal backend EXISTS — src/backend/handshake_core/src/terminal/ (TerminalRuntime, TerminalRequest{cwd, command, args}, TerminalSession, TerminalSessionType{HumanDev/AiJob/PluginTool}) + terminal/pty.rs (PtySession, PtySpawnConfig) + terminal/runtime.rs + terminal/guards.rs (capability gating). It binds the repo/workspace folder via TerminalRequest.cwd and the shell wrapper via TerminalRequest.command + args. BUT it is reachable ONLY via Tauri IPC (app/src-tauri/src/commands/terminal.rs: kernel_terminal_create_session / write_stdin / resize / close / run_command / context / diagnostics) — there is NO HTTP /terminal route on handshake_core, and the NATIVE handshake_native frontend has NO terminal surface and NO native client for it. So the WORKSURFACE-LAUNCH-FROM-NATIVE path is GENUINELY ABSENT.\n\nWhat to do (wire/expose natively if a reachable route exists, else an HONEST typed blocker — NOT a mock terminal):\n- INSPECT terminal/mod.rs + terminal/runtime.rs + terminal/pty.rs to confirm the TerminalRuntime spawn API (cwd + command/args wrapper) and whether it is reachable from the native frontend process (it is an in-process Rust API in handshake_core, but handshake_native is a SEPARATE process that talks to handshake_core over HTTP — so confirm whether a HTTP terminal route exists; verified ABSENT today).\n- ADD a native 'Open Terminal in repo folder' affordance from the worksurface: a top-menu / command-palette action 'Terminal: Open in Workspace Folder' + a TerminalLaunchClient (backend_client.rs) that issues the spawn request to the REAL route IF one exists. The request MUST carry (a) the chosen repo/workspace folder as cwd and (b) the correct shell wrapper (the platform shell — pwsh/cmd on Windows, the configured wrapper) as command/args.\n- BECAUSE the HTTP terminal route is VERIFIED ABSENT, the launch action records a TYPED BLOCKER: a typed `TerminalLaunchError::EndpointMissing` from TerminalLaunchClient::production() whose ctor documents the absent HTTP route (the PTY runtime exists but is IPC-only), and the affordance shows an HONEST disabled/blocked state ('Native terminal launch needs a handshake_core HTTP /terminal/spawn route or the Tauri IPC bridge — PTY runtime exists in terminal/ but is not reachable from the native frontend'). DO NOT spawn a fake PTY or fabricate terminal output. If, on inspection, a reachable route is found (a HTTP /terminal route, or a same-process embedding of TerminalRuntime in the native binary), wire the launch -> real spawn and prove the cwd lands in the chosen repo folder with the wrapper instead.\n- CREATE src/frontend/handshake_native/tests/test_terminal_launch.rs.\n\nReuse notes: the terminal PTY runtime (cwd + wrapper) is BUILT (terminal/**); the reuse-via-API surface is backend_client.rs; the command-palette / top-menu affordance is the existing WP-011 command surface. src/backend untouched (reuse-via-API only; the PTY runtime is reference for the request shape).\n\nRisk if missed: a mock terminal (fake output, no real PTY) would violate the no-mock Spec-Realism Gate; an absent native route must be an HONEST typed blocker naming the existing PTY runtime + the missing reach, not a fabricated terminal.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/command_registry.rs",
+      "src/frontend/handshake_native/src/top_menu_bar.rs",
+      "src/frontend/handshake_native/tests/test_terminal_launch.rs"
+    ],
+    "forbidden_paths": [
+      "src/backend/** (reuse via API only — the terminal PTY runtime exists; do not edit it)",
+      "src/backend/handshake_core/src/terminal/** (reference for the request shape only; reuse via API)",
+      "src/backend/handshake_core/src/flight_recorder/** (FR kept as-is)",
+      "app/src/** (legacy React + Tauri IPC, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-100-1 (WORKSURFACE LAUNCH AFFORDANCE, prove first): a native 'Terminal: Open in Workspace Folder' action exists on the worksurface (command palette / top menu) and is discoverable — proven by a kittest asserting the command is registered + addressable (a stable author_id / command id) and invoking it routes to the TerminalLaunchClient.",
+      "AC-100-2 (REAL SPAWN IN THE REPO FOLDER WITH THE WRAPPER, OR HONEST TYPED BLOCKER): invoking the action issues a spawn request carrying the chosen repo/workspace folder as cwd + the correct shell wrapper (command/args) to the REAL route. EITHER (a) a reachable route exists and a launched terminal session lands its cwd in the chosen repo folder with the wrapper — proven by a test observing the spawned session's resolved cwd == the repo folder + the wrapper command (live, against the real runtime); OR (b) the native HTTP terminal route is verified ABSENT and the launch returns a typed `TerminalLaunchError::EndpointMissing` and the affordance shows an HONEST blocked state naming the existing PTY runtime + the missing native reach — proven by a test asserting the typed-blocker path (NO fabricated PTY/output). Exactly one of (a)/(b), by the live backend (verified ABSENT today => path (b) expected).",
+      "AC-100-3 (NO MOCK): no fake terminal output, no fabricated PTY, no synthesized cwd-resolution; the cwd + wrapper are either really resolved by the runtime (path a) or the launch is a typed blocker (path b).",
+      "AC-100-4: `cargo build -p handshake-native` (lib + bins) clean; clippy `--all-targets -D warnings` clean; full suite `-j 2` green; external CARGO_TARGET_DIR; no Color32 literal outside theme/palette.rs (CONTROL-4); `git ls-files src/**/*.png` empty.",
+      "AC-100-LIVE (LIVE TERMINAL LAUNCH VIA THE OPERATOR SURFACE): with handshake_core running, driving the operator surface opens a real terminal session whose cwd is the chosen repo/workspace folder with the correct wrapper; proven via the GUI (visual debugger / foreground-safe nav) + a screenshot; or an explicit typed blocker naming the missing native->backend terminal route (NOT a faked terminal)."
+    ],
+    "proof_targets": [
+      "PT-100-A: kittest asserts the 'Terminal: Open in Workspace Folder' command is registered + addressable + routes to the TerminalLaunchClient on invoke.",
+      "PT-100-B: test proves EITHER a real spawn lands cwd == the chosen repo folder + the wrapper command (live runtime), OR the typed EndpointMissing blocker + honest blocked state (no fabricated PTY). One or the other, by the live backend.",
+      "PT-100-C: cargo build --lib --bins clean + clippy -D warnings clean + full suite -j 2 green + CONTROL-4 green + git ls-files src/**/*.png empty."
+    ],
+    "implementation_notes": [
+      "OPERATOR STEER 2026-06-27 - LIVE OPERATOR-SURFACE TEST: actually launch a TERMINAL session THROUGH the operator surface (the running GUI) and prove the shell opens with its cwd INSIDE the chosen repo/workspace folder using the correct wrapper. Start handshake_core (127.0.0.1:37501) for the live test; drive the launch via the MT-102 visual debugger + MT-103 FOREGROUND-SAFE nav (no OS mouse/keyboard/foreground steal) + capture a screenshot. If the native operator surface cannot reach the PTY runtime today (terminal/ runtime is Tauri-IPC-only, no native HTTP /terminal route, no native terminal client), surface a CLEAR typed blocker naming the EXACT missing native->backend terminal route as a backend follow-up - do NOT fake an opened terminal.",
+      "Use the EXTERNAL CARGO_TARGET_DIR (Handshake_Artifacts/handshake-native-target); NEVER a repo-local target/. Run the full suite with -j 2.",
+      "The PTY runtime EXISTS (terminal/mod.rs TerminalRuntime + terminal/pty.rs PtySession; TerminalRequest carries cwd + command/args = the wrapper). It is reachable today ONLY via Tauri IPC (app/src-tauri kernel_terminal_create_session), NOT via a handshake_core HTTP route, and the native frontend is a SEPARATE process with no terminal client. So the native worksurface launch is a TYPED BLOCKER (EndpointMissing) naming the existing runtime + the missing HTTP/IPC reach — NOT a mock.",
+      "HONESTY (no-mock Spec-Realism Gate): do NOT spawn a fake PTY or fabricate terminal output / a fake resolved cwd. The typed blocker is the MT-079/080 EndpointMissing pattern. If on inspection a reachable route is genuinely found (a HTTP /terminal route, or the native binary can embed TerminalRuntime in-process), wire the real spawn + prove the cwd/wrapper instead (prefer the real wire).",
+      "The wrapper is the platform shell + the project's configured shell wrapper (pwsh/cmd on Windows, the configured wrapper). Carry it as TerminalRequest.command + args. The repo/workspace folder is the active workspace's folder (the cwd).",
+      "depends_on MT-097 (the worksurface must exist to launch from). blocks MT-104 (the manual documents launching a terminal in a repo folder).",
+      "Read the KERNEL_BUILDER coder protocol under .GOV/ first; the Spec-Realism Gate forbids a mock terminal — AC-100-2/3 require a real spawn or an honest typed blocker."
+    ],
+    "ports_from_react": [
+      "app/src/components/terminal/TerminalPanel.tsx + app/src/lib/ipc/terminal.ts (the React terminal panel + IPC are REFERENCE for the request shape only; the native backend HTTP terminal route is absent)."
+    ],
+    "binds_backend_api": [
+      "ATTEMPTED: a terminal spawn route carrying cwd (repo folder) + command/args (wrapper). The PTY runtime EXISTS (terminal/**) but is reachable only via Tauri IPC, NOT a handshake_core HTTP route, and the native frontend has no terminal client. So the launch is a typed EndpointMissing blocker until a HTTP /terminal route (or an in-process embedding) exists. No new backend route built here. PostgreSQL/EventLedger only; no SQLite."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-VIS",
+    "HBR-MAN"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "status": "NOT_APPLICABLE",
+      "reason": "This MT adds a native launch affordance + a typed-blocker client; it does not read or write the native Flight Recorder. (The backend terminal runtime has its own FR audit, but that is backend-owned and out of this MT's native scope.)"
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "NOT_APPLICABLE",
+      "reason": "This MT does not emit internal_diagnostics events; it is a launch affordance + a typed EndpointMissing blocker."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "NOT_APPLICABLE",
+      "reason": "No freeze/crash/debris record path is touched by adding a terminal-launch affordance."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "USABLE_PRODUCT_WORKSURFACE_V1",
+    "risks": [
+      "RISK-100-1: a mock terminal (fake output, fabricated cwd) because the native route is absent — violates the no-mock Spec-Realism Gate. Mitigate: AC-100-2/3 require a real spawn OR a typed EndpointMissing blocker, never a fabricated PTY.",
+      "RISK-100-2: the spawn request omits the cwd or wrapper, so a real launch would not land in the repo folder. Mitigate: AC-100-2 asserts the request carries cwd == the repo folder + the wrapper command.",
+      "RISK-100-3: the affordance is built but not addressable/discoverable on the worksurface. Mitigate: AC-100-1 asserts the command is registered + addressable.",
+      "RISK-100-4: a repo-local target/ or tracked PNG leaks. Mitigate: external target dir; git ls-files src/**/*.png empty (AC-100-4).",
+      "RISK-100-5: the typed blocker is vague (does not name the existing PTY runtime + the missing reach), so the follow-on can't scope the real wire. Mitigate: the EndpointMissing blocker names terminal/** + the absent HTTP/IPC reach."
+    ],
+    "minimum_controls": [
+      "MC-100-1: AC-100-1 proves a discoverable worksurface launch affordance.",
+      "MC-100-2: AC-100-2/3 require a real spawn (cwd==repo folder + wrapper) OR an honest typed EndpointMissing blocker naming the existing runtime — never a mock.",
+      "MC-100-3: external target + no tracked PNG + CONTROL-4 + full suite -j 2 green (AC-100-4)."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-KERNEL-012 product-vision steer (operator, 2026-06-27); live-app inspection (terminal PTY runtime verified PRESENT in src/backend/handshake_core/src/terminal/**; reachable only via Tauri IPC; no handshake_core HTTP /terminal route; native frontend has no terminal surface).",
+    "field_stack": "VS Code / Cursor integrated terminal: open a shell in the active repo/workspace folder with the configured shell wrapper. Reuses the existing handshake_core terminal PTY runtime (TerminalRequest cwd + command/args wrapper) as the request-shape reference + backend_client.rs reuse-via-API + the WP-011 command-palette/top-menu affordance. No new backend route.",
+    "crate_versions_verified_2026_06_27": {
+      "egui_eframe_kittest": "0.33 (already pinned)"
+    },
+    "motivating_incident": "Handshake must be usable as a dev tool: launch a terminal in the repo folder with the correct wrapper from the worksurface. The native frontend has no terminal surface and the PTY runtime is IPC-only today.",
+    "validation_plan": "discoverable worksurface launch affordance + a real spawn (cwd==repo folder + wrapper) OR an honest typed EndpointMissing blocker naming the existing PTY runtime + the missing native reach (no mock); clippy -D warnings; full suite -j 2."
+  }
+}

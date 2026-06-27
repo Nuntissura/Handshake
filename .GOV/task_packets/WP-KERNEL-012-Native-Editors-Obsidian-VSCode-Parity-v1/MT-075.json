@@ -1,0 +1,148 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-075",
+  "title": "E13-MT075-UnicodeFontFallbackChain",
+  "group": "E13 Internationalization / Unicode / input (CJK, Cyrillic, symbols, RTL)",
+  "created_at_utc": "2026-06-22T00:00:00Z",
+  "updated_at_utc": "2026-06-22T00:00:00Z",
+  "authoring_note": "Authored 2026-06-22 by KERNEL_BUILDER as an operator-ordered scope expansion (E13 i18n cluster) after a code inspection found the crate registers ONLY Inter-Regular + Inter-Bold (app.rs:654/656/3626) and bundles NO CJK font, so Chinese/Japanese/Korean text renders as tofu boxes. Operator order: 'expand scope and create the microtasks ... add the extra languages/symbols/characters etc.'",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-075.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
+    "depends_on": [],
+    "blocks": [
+      "MT-076",
+      "MT-077",
+      "MT-078"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: give the native editors full Unicode glyph coverage by replacing the Latin-only font set with an ORDERED FONT FALLBACK CHAIN in egui, so Chinese/Japanese/Korean (CJK), Cyrillic, Greek, math/currency/arrow symbols, box-drawing, and emoji all render real glyphs instead of tofu boxes. This is the FOUNDATIONAL i18n MT - MT-076 (IME input), MT-077 (segmentation/line-break), and MT-078 (RTL) all depend on the glyphs existing first. EXPECTED DIFF SHAPE: edit the existing font installer src/frontend/handshake_native/src/app.rs::install_fonts (app.rs:3626) to register additional faces and build the fallback chain; add the font assets under src/frontend/handshake_native/assets/fonts/; add a font-coverage test.\n\nROOT CAUSE (verified by KERNEL_BUILDER code inspection 2026-06-22): install_fonts currently does FontDefinitions::default() then inserts ONLY INTER_REGULAR (app.rs:654) + INTER_BOLD (app.rs:656). egui's default fonts contain NO CJK and only partial symbol coverage; Inter covers Latin + Cyrillic + Greek but no CJK. Any codepoint with no glyph in any registered font renders as the tofu/notdef box.\n\nEXACT APPROACH (egui-native font fallback, NO cosmic-text):\n1. egui FontDefinitions has `font_data: BTreeMap<String, FontData>` and `families: BTreeMap<FontFamily, Vec<String>>` where each family is an ORDERED fallback list - egui falls through to the next font when a glyph is missing in the current one. Build the chain by inserting each face into font_data and APPENDING its name to the Proportional and Monospace family vecs (Inter first, then CJK, then broad-Unicode, then emoji).\n2. Register, in fallback order after Inter: a CJK face (Noto Sans CJK - see size decision below), a broad-Unicode face for symbols/math/currency/arrows (Noto Sans + Noto Sans Symbols / Noto Sans Math as needed), and keep an emoji face (egui default ships NotoEmoji - retain it). The Monospace family (code editor) gets the same fallbacks appended after the existing monospace face so code with CJK comments / box-drawing / symbols renders.\n3. Verify Inter's bundled .ttf actually contains Cyrillic + Greek (the standard Inter build does); if the bundled face was Latin-subsetted, add Noto Sans (covers Latin-Extended + Cyrillic + Greek) as the fallback so those scripts never tofu.\n\nCJK FONT SIZE DECISION (the implementing coder MUST choose + document one, grounded in research): (a) bundle a single Noto Sans CJK weight via include_bytes! (full pan-CJK Regular is ~16MB; acceptable for a desktop binary but heavy), OR (b) bundle a per-region subset (e.g. Noto Sans SC Regular covers most Simplified Han + common Kana/Hangul punctuation, smaller), OR (c) load a CJK font from the OS font directory at startup via a font-discovery path (no binary bloat, but OS-dependent - must fail-soft to a documented 'install a CJK font' empty-state, never panic). Prefer (a) or (b) for determinism; if (c), gate behind graceful fallback. Whatever is chosen, the CJK font file(s) live under assets/fonts/ (when bundled) and the choice + size is documented in a code comment + the validator handoff.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/assets/fonts/**",
+      "src/frontend/handshake_native/Cargo.toml",
+      "src/frontend/handshake_native/tests/test_font_coverage.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (no backend involvement - fonts are pure frontend)"
+    ],
+    "acceptance_criteria": [
+      "AC1: install_fonts builds an ordered fallback chain - the Proportional AND Monospace egui families each list Inter (or the primary) FIRST, then the CJK face, then the broad-Unicode/symbol face, then the emoji face; a unit test asserts each family vec contains the expected font names in fallback order.",
+      "AC2: A kittest screenshot of a doc containing 'English 中文 日本語 한국어 Русский Ελληνικά ∑∫∞ →€✓ 😀' renders REAL glyphs for every run with NO tofu/notdef boxes - verified by pixel/visual inspection of the PNG (no repeated identical notdef-box glyph).",
+      "AC3: CJK renders in BOTH the rich-text editor (proportional) and the code editor (monospace) - a code block / file containing a CJK comment shows real CJK glyphs in the monospace family.",
+      "AC4: Cyrillic and Greek render (verified against the actual bundled Inter face; if Inter lacks them, the Noto Sans fallback supplies them) - no tofu for 'Привет' / 'Καλημέρα'.",
+      "AC5: Common symbol/math/currency/arrow codepoints (∑ ∫ ∞ → € £ ✓ ✗ — box-drawing │─┌) render real glyphs.",
+      "AC6: A codepoint with NO glyph in ANY registered font (e.g. a Plane-15 private-use char) degrades gracefully to the single notdef box without panic and without breaking layout of surrounding text (graceful-degradation test).",
+      "AC7: The CJK font size decision (bundle-full / bundle-subset / OS-load) is documented in a code comment + handoff; if OS-load is chosen, a missing-font path fails soft to a visible 'CJK font not found - install one' state, never a panic.",
+      "AC8: No regression - the full crate test suite (every bin) stays green; existing Latin-only screenshots (MT-012/013/etc.) are unaffected by the added fallbacks."
+    ],
+    "proof_targets": [
+      "PROOF1: cargo test -p handshake-native font_coverage -- --nocapture passes: family-fallback-order unit test + a glyph-presence assertion (for each target script, the chain resolves a representative codepoint to a non-notdef glyph via egui's font lookup).",
+      "PROOF2: egui_kittest screenshot tests/screenshots -> EXTERNAL Handshake_Artifacts/handshake-test/wp-kernel-012-mt-075/mt075_unicode_coverage.png rendering the multi-script string; pixel-asserted no-tofu (the notdef box glyph does not repeat across distinct scripts) + visually inspected.",
+      "PROOF3: cargo test -p handshake-native (FULL suite, every bin) = 0 failures (no regression from the font change - this touches the shared install_fonts used by every kittest).",
+      "PROOF4: cargo tree -d shows no new duplicate core crates from any added font crate; binary-size delta from bundled fonts is reported in the handoff."
+    ],
+    "implementation_notes": [
+      "RESEARCH BASIS (field-standard, coder must verify current versions): Noto (“No Tofu”) is Google's pan-Unicode font family and the de-facto standard for broad coverage - Noto Sans CJK (SC/TC/JP/KR or the unified OTC), Noto Sans (Latin/Cyrillic/Greek/Latin-Extended), Noto Sans Symbols / Noto Sans Math, Noto Color/Emoji. egui's own CJK story is exactly this: users register a Noto/Source-Han face and append it to the family fallback vec (egui FAQ + egui examples). Source Han Sans is the Adobe equivalent. Reject: shipping a single mega-font, or relying on egui defaults (no CJK). Reject cosmic-text here - egui's built-in font_data + families fallback is sufficient for COVERAGE (shaping for complex scripts is MT-078's concern).",
+      "egui API: ctx.set_fonts(FontDefinitions) - mutate fonts.font_data.insert(name, FontData::from_static(bytes)) then fonts.families.get_mut(&FontFamily::Proportional).unwrap().push(name) and the same for FontFamily::Monospace. Order matters: primary face first, broad fallbacks after. This is the SAME install_fonts already in app.rs - extend it, do not fork.",
+      "LICENSING: Noto + Source Han are SIL OFL 1.1 (bundling allowed with the license file). If bundling, add the OFL license text under assets/fonts/ and note attribution. (Operator owns final licensing per GLOBAL-PRODUCTION - this note is engineering hygiene, not a legal gate.)",
+      "DO NOT stack the whole pan-CJK OTC if a regional subset suffices for the target market; document the size/coverage trade-off. CJK fonts dwarf the binary - a full Noto Sans CJK Regular is ~16MB; reported in PROOF4.",
+      "ARTIFACT HYGIENE (CX-212E): the screenshot goes to the EXTERNAL Handshake_Artifacts/handshake-test/wp-kernel-012-mt-075/ root via the external_artifact_dir() pattern (see tests/test_code_editor_panel.rs / test_keymap.rs) + assert_no_local_artifact_dir(); NEVER repo-local tests/screenshots/. A tracked font asset under assets/fonts/ is INTENTIONAL product content (not a test artifact) and is allowed; a tracked PNG under src/ is a hygiene failure.",
+      "CARGO ARTIFACT-ROOT: run every cargo command from the crate dir with CARGO_TARGET_DIR=Handshake_Artifacts/handshake-native-target (the established hotfix); never create a repo-local target/.",
+      "This is a SHARED-INFRASTRUCTURE change (install_fonts is used by every kittest harness via HandshakeApp::install_fonts) - the reviewer + KERNEL_BUILDER gate MUST run the FULL cargo test (every bin), not just the font test.",
+      "CJK FONT SOURCE DECISION - VERIFIED ENV (KERNEL_BUILDER gate 2026-06-26): install_fonts is at app.rs:4815 (loads INTER_REGULAR app.rs:863 + INTER_BOLD:865 from assets/fonts/; assets/fonts/ has Inter-Regular/Bold + OFL.txt). VERIFIED Windows CJK fonts ARE PRESENT in C:/Windows/Fonts: msyh.ttc (Microsoft YaHei, Simplified Chinese, 18.8MB), msgothic.ttc (Japanese, 8.6MB), malgun.ttf (Korean, 12.8MB), mingliub.ttc (Traditional, 35MB) + NotoKufi/NaskhArabic (for MT-078 RTL) + Segoe UI Emoji/Symbol. SO the CJK-source decision: PREFER (a/b) BUNDLE Noto Sans CJK SC (or a regional subset) under assets/fonts/ via include_bytes! IF the coder can FETCH it (SIL OFL, deterministic + portable - try WebFetch/curl from Google Noto; if fetched, bundle + add OFL license). CONTINGENCY (this env, if no font download): (c) OS-LOAD the verified Windows CJK fonts at startup via a font-discovery path (read C:/Windows/Fonts/msyh.ttc etc. with std::fs, FontData::from_owned) - GRACEFUL FAIL-SOFT (never unwrap a font read; missing -> notdef + a documented 'install a CJK font' state, AC7/RISK-3). Either way REAL CJK GLYPHS must render in the proof screenshot (this Windows env HAS the fonts, so OS-load WILL render - AC2/AC3). Document the chosen approach + size delta in a code comment + handoff (PROOF4).",
+      "FALLBACK ORDER + NO-PANIC + FULL-SUITE (KERNEL_BUILDER gate, my own MT-075 contract): build the egui ORDERED fallback chain - INTER FIRST in BOTH FontFamily::Proportional AND Monospace family vecs (so the Latin look is UNCHANGED, RISK-2/MC-1, AC1), THEN the CJK face, THEN a broad-Unicode/symbol face (Noto Sans Symbols/Math if bundled, else OS-load Segoe UI Symbol for ∑∫∞→€✓ box-drawing │─┌, AC5), THEN the emoji face (retain egui's NotoEmoji or OS-load Segoe UI Emoji, AC2). Cyrillic/Greek (AC4): verify the bundled Inter covers them (standard Inter does); if not, the broad-Unicode fallback supplies 'Привет'/'Καλημέρα'. NO-PANIC graceful degradation (RISK-3/4/MC-2, AC6/AC7): a codepoint with NO glyph in ANY font -> the single notdef box, NO panic, surrounding layout intact; OS-load read failure -> fail-soft. FULL-SUITE NO-REGRESSION (RISK-5/MC-3, AC8/PROOF3) - install_fonts is SHARED infra (EVERY kittest harness calls it) so the WHOLE cargo test (-j 2, every bin) MUST stay green + the existing Latin screenshots unaffected (Inter stays first). External screenshot mt075_unicode_coverage.png to Handshake_Artifacts/handshake-test/wp-kernel-012-mt-075/ (the multi-script 'English 中文 日本語 한국어 Русский Ελληνικά ∑∫∞ →€✓ 😀' renders no-tofu - pixel-assert the notdef box does NOT repeat across distinct scripts + visually inspect). A tracked font asset under assets/fonts/ is INTENTIONAL product content (OK); a tracked PNG under src/ is a hygiene fail. clippy clean; external CARGO_TARGET_DIR."
+    ],
+    "ports_from_react": [
+      "No React port: the browser/OS supplied CJK + Unicode fonts automatically for the React surface. The native app must bundle/load them itself - this MT is the native-only responsibility that the webview hid."
+    ],
+    "binds_backend_api": [
+      "None - fonts are a pure-frontend rendering concern. No backend, no HTTP, no PostgreSQL."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-INT"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-1: Bundling a full pan-CJK font bloats the binary by ~16MB+ and slows startup font-atlas build. Mitigation: choose a regional subset or OS-load; report the size delta (PROOF4); lazy-build the atlas (egui builds glyphs on demand, so cold-render of a CJK page may stutter once - acceptable, documented).",
+      "RISK-2: Appending fonts to the family vec in the WRONG order makes a fallback font shadow Inter for Latin (e.g. CJK font's Latin glyphs override Inter), changing the Latin look. Mitigation: primary face FIRST in every family vec; AC2 multi-script screenshot catches a Latin regression visually.",
+      "RISK-3: OS-load path (option c) panics or hangs if the OS font dir is missing/permission-denied. Mitigation: fail-soft to the bundled or notdef path with a visible state; never unwrap a font read (AC7).",
+      "RISK-4: A glyph present in NO font silently breaks the line layout or panics the atlas. Mitigation: egui renders notdef; AC6 proves graceful degradation with no panic.",
+      "RISK-5: The font change regresses other kittest screenshots (different metrics shift layouts). Mitigation: AC8 + PROOF3 full-suite gate; primary metrics unchanged because Inter stays first."
+    ],
+    "minimum_controls": [
+      "MC-1: Primary face first in EVERY family fallback vec (Proportional + Monospace) - unit test asserts order (AC1).",
+      "MC-2: No-panic on missing font / missing glyph (AC6/AC7) - tests cover an absent OS font and an unmapped codepoint.",
+      "MC-3: Full-suite no-regression gate (AC8/PROOF3) - install_fonts is shared infrastructure.",
+      "MC-4: Binary-size + duplicate-crate report in the handoff (PROOF4); SIL OFL license bundled if fonts are bundled."
+    ]
+  },
+  "research_basis": {
+    "sources_to_check": [
+      "egui FontDefinitions + family fallback docs/FAQ + examples (current egui 0.33)",
+      "Google Noto fonts (Noto Sans CJK / Noto Sans / Noto Sans Symbols / Noto Sans Math / NotoEmoji)",
+      "Adobe Source Han Sans (alternative)",
+      "egui GitHub issues on CJK font setup",
+      "SIL OFL 1.1 license terms"
+    ],
+    "selected_approach": "egui-native ordered font-fallback chain (font_data + families vec), primary Inter first then Noto CJK + Noto symbols + emoji; bundle a CJK weight or regional subset (coder decides + documents), OS-load only with graceful fallback.",
+    "rejected": [
+      "cosmic-text for coverage (egui fallback is sufficient for glyph coverage; cosmic-text reserved for the hard shaping in MT-078)",
+      "single mega-font (bloat)",
+      "relying on egui defaults (no CJK)"
+    ],
+    "risks_mitigations": "size bloat -> subset/OS-load + report; wrong fallback order -> primary first + visual gate; missing font/glyph -> fail-soft + notdef, no panic.",
+    "validation_plan": "font-coverage unit test (family order + glyph presence) + multi-script kittest screenshot (no-tofu) + full-suite no-regression."
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate (my MT-075 contract) + VERIFIED Windows CJK fonts present (msyh/msgothic/malgun) + app.rs:4815 install_fonts (Inter-only) + egui FontDefinitions fallback + Noto/SIL-OFL",
+    "corrections": [
+      "CJK source: PREFER bundle Noto Sans CJK SC if fetchable (deterministic/portable); CONTINGENCY OS-load the VERIFIED Windows CJK fonts (msyh.ttc/msgothic.ttc/malgun.ttf) fail-soft - either way REAL glyphs render in the proof (env HAS the fonts)",
+      "Inter FIRST in Proportional+Monospace family vecs (Latin unchanged); CJK->broad-Unicode/symbol->emoji fallback order; Cyrillic/Greek via Inter or broad-Unicode",
+      "no-panic graceful degradation (notdef, no panic; OS-load fail-soft); FULL-SUITE no-regression (install_fonts shared infra - every kittest)",
+      "external screenshot no-tofu multi-script; font asset under assets/fonts OK; document choice+size delta (PROOF4); clippy clean"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_7388effe (impl + 3-lens panel; ALL PASS - no harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "89c86147 feat MT-075 Unicode font fallback chain (CJK + symbols + emoji)"
+    ],
+    "review_panel": "correctness=PASS(0), backend-shape=PASS(0), perf-focus-hygiene=PASS(0) -> ALL PASS, zero must-fixes (10th clean all-PASS MT).",
+    "proofs": "AC1..8 + PROOF1..4 PASS (PROOF3 PASS_WITH_NOTE); 6 font-coverage tests green; multi-script string (English 中文 日本語 한국어 Русский Ελληνικά ∑∫∞ →€✓ 😀) renders REAL glyphs NO TOFU - visually verified; clippy clean; +14MB binary, no new deps.",
+    "steers_held": "BUNDLED (option a/b, deterministic + disk-agnostic - the agent FETCHED Noto, even better than the OS-load contingency): build_font_definitions() Inter-FIRST fallback chain [Inter, NotoSansSC, NotoSansKR, NotoSansSymbols2, NotoSansMath] in Proportional + Monospace + Inter-Bold families (from_static, NO OS-load panic path). NotoSansSC-Regular.otf (8.3MB) + NotoSansKR (4.6MB) + Symbols2 (0.66MB) + Math (0.97MB) + OFL.txt under assets/fonts/ (intentional product content). CJK renders in BOTH editors (monospace too); Cyrillic/Greek via Inter; symbols/math/box-drawing; emoji via egui NotoEmoji. NO-PANIC graceful degradation (U+FFFFD -> notdef, layout intact). FULL-SUITE no-regression: 127/130 bins pass; the 5 failures (3 wgpu 0xc0000005 + 2 timing-flaky) ALL pass in ISOLATION (proven --test-threads=1) = pre-existing wgpu/concurrency hazards NOT font regressions; Inter index-0 so Latin metrics unchanged.",
+    "waiver_granted": "app.rs (install_fonts/build_font_definitions) + assets/fonts/Noto*.otf/.ttf + OFL + Cargo.toml + test_font_coverage.rs in allowed_paths."
+  }
+}

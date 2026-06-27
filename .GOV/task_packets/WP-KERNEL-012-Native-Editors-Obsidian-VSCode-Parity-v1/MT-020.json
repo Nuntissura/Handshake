@@ -25,9 +25,12 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-011", "MT-012"],
+    "depends_on": [
+      "MT-011",
+      "MT-012"
+    ],
     "depends_on_cross_wp_note": "Reuses existing WP-011 modules under src/frontend/handshake_native/src/ (command_registry.rs, event_bus.rs, top_menu_bar.rs, accessibility/*) via the live crate; this is a code-reuse dependency on WP-KERNEL-011 deliverables, not a microtask depends_on edge.",
     "blocks": [],
     "validator_verdict": "PENDING"
@@ -40,7 +43,12 @@
       "src/frontend/handshake_native/src/rich_editor/renderer/input_handler.rs",
       "src/frontend/handshake_native/src/rich_editor/mod.rs",
       "src/frontend/handshake_native/Cargo.toml",
-      "src/frontend/handshake_native/tests/test_*.rs"
+      "src/frontend/handshake_native/tests/test_*.rs",
+      "src/frontend/handshake_native/src/rich_editor/document_model/node.rs",
+      "src/frontend/handshake_native/src/rich_editor/document_model/doc_json.rs",
+      "src/frontend/handshake_native/src/rich_editor/document_model/transform.rs",
+      "src/frontend/handshake_native/src/rich_editor/document_model/schema.rs",
+      "src/frontend/handshake_native/src/rich_editor/document_model/history.rs"
     ],
     "forbidden_paths": [
       "app/src/** (legacy React, reference only)",
@@ -78,7 +86,13 @@
       "The rfd file save dialog is async; use rfd::AsyncFileDialog in the egui async context or spawn a std::thread for the dialog if egui is single-threaded. Do NOT block the frame loop waiting for the dialog.",
       "Export format picker popup: a simple egui popup list with the 5 format options; clicking one runs the export and opens the file save dialog. This popup can be a minimal button group in this MT without full toolbar integration.",
       "base64 encoding for HTML self-contained: use the base64 crate with the STANDARD engine. The data: URL format is: data:{mime};base64,{encoded_bytes}.",
-      "The Markdown exporter must handle ALL node kinds without panicking; for unsupported/future kinds, emit the comment placeholder and continue. A cargo test passes a document containing every supported node kind and produces non-empty output with no panics."
+      "The Markdown exporter must handle ALL node kinds without panicking; for unsupported/future kinds, emit the comment placeholder and continue. A cargo test passes a document containing every supported node kind and produces non-empty output with no panics.",
+      "MT-011 MODEL/TRANSFORM AMENDMENT BUNDLE (KERNEL_BUILDER gate 2026-06-22, re-homed from MT-016 which is the slash MENU not the round-trip MT). MT-020 (SaveToFormat + backend round-trip) MUST have the model backend-complete; add MT-011 model paths (src/rich_editor/document_model/node.rs, doc_json.rs, transform.rs, schema.rs) to allowed_paths and apply: (1) TABLEHEADER (from MT-013): real backend content_json uses a distinct 'tableHeader' NODE type for header cells; MT-011 NodeKind has only TableCell (MT-013 stopgapped attrs.isHeader:true). Add a TableHeader NodeKind variant + doc_json json_to_block/block_to_json mapping so React-authored tables deserialize without UnknownNodeType. (2) EMBED-SHAPE FIXTURE (from MT-014): verify the embed hsLink shape (standalone-block AND inline-with-text media hsLinks) against a CAPTURED real backend content_json fixture; MT-014 handles only standalone-block (inline media hsLinks fall through to text) - handle inline if the backend emits it. (3) INLINE-ATOM TRANSFORM (from MT-015): Step::InsertNode only inserts Child::Block, so inline-atom insertion (hsLink wikilinks/embeds, Text, Transclusion) bypasses the Transaction/UndoManager (not undoable). Generalize transform.rs with an undoable inline-atom insert/delete Step. ALL anchored to captured real backend shapes (the MT-011 hsLink lesson: round-trip-against-own-output tests are tautological - use a captured REAL backend content_json fixture).",
+      "ALLOWED_PATHS FIX (KERNEL_BUILDER gate 2026-06-22): the MT-011 model paths (document_model/node.rs, doc_json.rs, transform.rs, schema.rs, history.rs) are now ADDED to allowed_paths so the amendment bundle can be applied (they were referenced by the bundle note but missing from the array).",
+      "MODEL AMENDMENTS ANCHORED TO A CAPTURED REAL FIXTURE (KERNEL_BUILDER gate, the MT-011 hsLink lesson): for all 3 amendments, do NOT round-trip the model against its own output (tautological). Capture a REAL backend content_json fixture (a doc with a tableHeader cell, a multi-run paragraph, an hsLink atom, and ideally a transclusion) and assert deserialize->reserialize byte-shape-compatibility against the captured value. (1) TableHeader: VERIFY the exact backend node type+attrs in app/src (tableHeader vs tableCell{header:true}); add the verified shape to NodeKind + doc_json. (2) Embed shape: verify standalone vs inline hsLink. (3) Inline-atom transform: add an undoable InsertInlineChild/DeleteInlineChild Step (or generalize InsertNode) covering Child::HsLink/Text/Transclusion; an undo test must restore the pre-insert doc.",
+      "EXPORT = MANUAL TREE-WALKER, NO comrak (KERNEL_BUILDER gate + research reconciliation): Markdown/HTML/PlainText export are one-way DocNode-tree walkers emitting strings (lossy MD per contract, XSS-safe HTML escaping). Do NOT pull comrak for export - comrak/egui_commonmark are the SECONDARY tools for markdown IMPORT + reading-mode RENDER (MT-055), not export. ProseMirrorJson export reuses MT-011 doc_json with the typed projection envelope. SHA256 (MC-005): compute base_content_sha256 over the EXACT bytes the BACKEND hashes - VERIFY the backend draft endpoint's hash input (read src/backend/handshake_core knowledge document draft route, read-only) and match it (compact serde_json::to_vec, deterministic field order); a test asserts double-serialization is byte-identical AND (integration) matches the backend.",
+      "BACKEND PROOF + rfd/HBR-QUIET (KERNEL_BUILDER gate): save (PUT /save, 409 conflict), draft (GET/PUT/DELETE /draft), and asset-fetch bind the REAL backend; gate the live save/conflict/draft ACs behind the integration feature + NEEDS_MANAGED_RESOURCE_PROOF if unseeded. The export bytes (HTML/MD/PlainText/JSON), SHA256, size guards (per-image + 50MB total cap, video never inlined), conflict state-machine (409->ConflictState, Keep-yours confirmation MC-003), and draft state-machine (5s debounce, is_saving guard MC-002) are unit-testable STANDALONE with mock HTTP + mock clock. rfd file dialog: behind a MOCKABLE FileSaveSink (headless tests write to a path, never open a dialog); the REAL dialog only on EXPLICIT user Export click, on a dedicated std::thread (NOT the egui frame thread, MC-004) with a oneshot channel - a user-initiated, reviewed HBR-QUIET exception (never automatic focus theft). The export-to-bytes core is the deliverable; the dialog is a thin user-initiated shell.",
+      "CRATES + PATHS + GATE (KERNEL_BUILDER gate): sha2 + base64 are likely ALREADY in the workspace dep graph (handshake_core uses them) - do NOT duplicate; add rfd 0.14 only for the dialog (Windows native, no webview). Module root rich_editor/ (real tree). Screenshots mt020_*.png to the EXTERNAL Handshake_Artifacts/handshake-test/wp-kernel-012-mt-020/ root + assert_no_local_artifact_dir(). ACCESSKIT VARIANT: field-correct nearest accesskit 0.21.1 Role; ACs assert author_ids. HBR-STOP: save/conflict/draft are data-integrity critical - 'Keep yours' needs a confirmation, draft-vs-save race guarded, no silent data loss. This MT touches shared rich_editor_widget.rs/input_handler.rs + the MODEL - KERNEL_BUILDER runs the FULL cargo test (every bin) at the gate."
     ],
     "ports_from_react": [
       "app/src/lib/editor/export_formats.ts (all export formats: HTML self-contained/reference-linked with size guards and fail-closed embed errors, Markdown lossy, PlainText, ProseMirrorJson envelope; XSS-safe HTML assembly; importProseMirrorJson sanitization pattern)",
@@ -94,7 +108,12 @@
       "GET /workspaces/{workspace_id}/assets/{asset_id}/content -> raw bytes (for HTML self-contained image inlining)"
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS", "HBR-STOP"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS",
+    "HBR-STOP"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -118,5 +137,34 @@
       "DocJson serialization for SHA256 must use serde_json::to_string_pretty with a deterministic key order (serde_json preserves struct field declaration order); a cargo test asserts that serializing the same DocNode twice produces identical bytes.",
       "Markdown table renderer must guard against empty column-width vectors: if table has 0 columns, emit '<!-- empty table -->' and continue; cargo test verifies no panic on a table with 0 rows or 0 cols."
     ]
+  },
+  "kernel_builder_carried_forward": {
+    "from_MT_013": "add TableHeader NodeKind + doc_json mapping (backend tableHeader node compat)",
+    "from_MT_014": "verify embed hsLink shape (standalone+inline) vs captured backend fixture",
+    "from_MT_015": "generalize transform.rs for undoable inline-atom insert/delete"
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + carried MT-013/014/015 bundle + research comrak reconciliation + MT-008 backend pattern + MT-014 open-crate-focus lesson",
+    "corrections": [
+      "add MT-011 model paths to allowed_paths (bundle was unactionable without them)",
+      "model amendments anchored to a captured REAL backend fixture, not self-round-trip",
+      "export is a manual tree-walker; NO comrak (comrak=import/reading-mode MT-055)",
+      "SHA256 matches the backend's exact hash input (verify backend route)",
+      "backend save/draft/conflict real or NEEDS_MANAGED_RESOURCE_PROOF; export/state-machines unit-testable",
+      "rfd mockable + user-initiated + std::thread (HBR-QUIET); sha2/base64 no-dup; accesskit variant; full-suite gate"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_35520228 (impl + adversarial-review + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "a65d52d3 feat MT-020 save-to-format + draft/crash recovery + conflict resolution",
+      "3afa032f fix harden per adversarial review"
+    ],
+    "proofs": "AC-1..14 GREEN; 864 lib + 13 integration; FULL suite 72 bin-result lines ALL 0 failed (KERNEL_BUILDER independently re-ran - the MODEL amendments broke NOTHING); clippy clean; conflict UI (Server v5 vs Your version diff + Keep yours/server/Open-merge) + draft banner visually verified; screenshots EXTERNAL (git ls-files src/**/*.png empty).",
+    "model_amendments_done": "The 3 carried MT-011 model/transform amendments DELIVERED: (1) TableHeader NodeKind + doc_json json_to_block/block_to_json mapping (node.rs/doc_json.rs/schema.rs); (2) embed hsLink shape handling; (3) undoable inline-atom insert/delete Step in transform.rs (hsLink/text/transclusion). Model now backend-complete.",
+    "backend_shape_corrected": "CRITICAL SHA256 CORRECTION (verified vs backend): draft base_content_sha256 uses the REAL backend canonical-JSON hash (knowledge_canonical_json_sha256), NOT the contract's stale serde_json::to_vec wording - a wrong hash would make the backend reject EVERY draft. canonical_hash.rs matches the backend's canonical-JSON computation. Field/shape-verification discipline (hsLink/tableHeader/WP009/rename/document_id/now canonical-hash).",
+    "export": "PlainText/Markdown(manual CommonMark walker, NO comrak - reconciliation held)/HTML(self-contained+reference, per-image+50MB total size guards, video never inlined, XSS escaping)/ProseMirrorJson(typed projection envelope); rfd 0.14 file dialog behind a mockable seam (user-initiated, std::thread, HBR-QUIET); sha2/base64 already present (no dup).",
+    "blocked": "PT real save-conflict round-trip = NEEDS_MANAGED_RESOURCE_PROOF (gated #[ignore]+integration, real PUT /save 409; not run offline). 'Keep yours' confirmation (HBR-STOP, no silent data loss); draft-vs-save race guarded (is_saving)."
   }
 }

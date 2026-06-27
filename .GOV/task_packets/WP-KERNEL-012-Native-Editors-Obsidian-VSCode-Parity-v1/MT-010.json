@@ -25,9 +25,14 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-001", "MT-003", "MT-004", "MT-005"],
+    "depends_on": [
+      "MT-001",
+      "MT-003",
+      "MT-004",
+      "MT-005"
+    ],
     "blocks": [],
     "validator_verdict": "PENDING"
   },
@@ -37,7 +42,8 @@
       "src/frontend/handshake_native/src/code_editor/keymap.rs",
       "src/frontend/handshake_native/src/code_editor/keymap_settings.rs",
       "src/frontend/handshake_native/src/code_editor/mod.rs",
-      "src/frontend/handshake_native/tests/test_keymap.rs"
+      "src/frontend/handshake_native/tests/test_keymap.rs",
+      "src/frontend/handshake_native/src/code_editor/panel.rs"
     ],
     "forbidden_paths": [
       "app/src/** (legacy React, reference only)",
@@ -50,7 +56,7 @@
       "AC-003: `cargo test -p handshake-native keymap_chord_parse` passes — tests: 'Ctrl+Shift+P' parses to KeyChord with ctrl+shift and key=P; 'Alt+Up' parses to alt+Up; invalid string returns Err.",
       "AC-004: `cargo test -p handshake-native keymap_override` passes — test: load a KeymapSettings JSON that remaps Ctrl+F to GoToLine; Keymap::from_settings resolves Ctrl+F -> GoToLine instead of OpenFind.",
       "AC-005: egui_kittest AccessKit dump contains at least 5 button nodes with author_id pattern 'code_editor_cmd_*' (OpenFind, OpenReplace, GoToLine, GoToDefinition, Save).",
-      "AC-006: All previously ad-hoc key handlers in MT-003/004/005/006 have been removed from `mod.rs` and replaced with the unified dispatcher — `rg -n 'egui::Event::Key' src/frontend/handshake_native/src/code_editor/mod.rs` returns 0 matches (all handled via Keymap::resolve).",
+      "AC-006: The per-feature ad-hoc key handlers from MT-003/004/005/006/008 are CONSOLIDATED into a SINGLE keymap dispatcher (process_keymap -> Keymap::resolve -> dispatch). NOTE (KERNEL_BUILDER gate): those handlers live in panel.rs (CodeEditorPanel::process_cursor_input), NOT mod.rs - the contract's mod.rs assumption is wrong (editor input state is on CodeEditorPanel in panel.rs, as MT-008 found). Verify NO scattered per-feature egui::Event::Key match arms remain outside the single dispatcher in panel.rs; egui::Event::Key/Text may appear ONLY inside the unified process_keymap + the live-typing handler. Proof = targeted rg over panel.rs + a test asserting one dispatch path.",
       "AC-007: `keymap.json` override file is loaded from `~/.handshake/keymap.json` — path constructed via `dirs::home_dir()` not a hardcoded path string."
     ],
     "proof_targets": [
@@ -59,7 +65,7 @@
       "PT-003: `cargo test -p handshake-native keymap_chord_parse` — GREEN, logged.",
       "PT-004: `cargo test -p handshake-native keymap_override` — GREEN, logged.",
       "PT-005: egui_kittest test `keymap_accesskit_commands` — AccessKit JSON dump parsed for 'code_editor_cmd_' nodes, at least 5 present.",
-      "PT-006: `rg -n 'egui::Event::Key' src/frontend/handshake_native/src/code_editor/mod.rs` — 0 matches (unified dispatch verified)."
+      "PT-006: Verify consolidated dispatch in panel.rs (the real input-handler file): rg -n 'egui::Event::Key' src/frontend/handshake_native/src/code_editor/panel.rs shows key handling ONLY inside the unified process_keymap dispatcher + the live-typing (Event::Text/Backspace) handler, not scattered per-feature arms. Logged."
     ],
     "implementation_notes": [
       "macOS Mod key: `cfg!(target_os = \"macos\")` -> use `egui::Modifiers::MAC_CMD`; otherwise use `egui::Modifiers::CTRL`. Encode this as a const `fn mod_key() -> egui::Modifiers` to keep the binding table OS-agnostic.",
@@ -68,7 +74,12 @@
       "AccessKit hidden buttons: use `ui.skip_ahead_auto_ids(n)` or set stable `egui::Id::new(format!(\"code_editor_cmd_{}\", action.name()))` explicitly. Hidden = no visual area, but the AccessKit node is emitted. Verify this pattern works with the egui version in use.",
       "Command palette integration: `OpenCommandPalette` action should dispatch to the same command palette used by the rest of the shell — reuse the WP-011 command palette (command_palette.rs) backed by command_registry.rs; do not build a second palette. Wire via an `mpsc::Sender<ShellCommand>` passed to `CodeEditorPanel::new()`.",
       "Cross-WP dependency (prose, not a depends_on id): this MT consolidates and replaces the per-MT key handlers and integrates with WP-011 shell primitives. The reused shell modules — command_palette.rs + command_registry.rs (palette/commands), event_bus.rs (cross-pane dispatch), accessibility/* (AccessKit nodes), and mcp/* (swarm command surface) — all ship in WP-KERNEL-011 and must already be present in src/frontend/handshake_native/src/ before this MT lands.",
-      "ToggleComment implementation: for the primary cursor's line, detect if the line starts with the language's comment prefix (e.g. `//` for Rust/JS, `#` for Python); toggle the prefix. Support multi-cursor: apply to all cursor lines."
+      "ToggleComment implementation: for the primary cursor's line, detect if the line starts with the language's comment prefix (e.g. `//` for Rust/JS, `#` for Python); toggle the prefix. Support multi-cursor: apply to all cursor lines.",
+      "CARRIED FORWARD FROM MT-003 (KERNEL_BUILDER gate 2026-06-22): MT-010 MUST wire the multi-cursor commands (Alt+Click add-cursor, Ctrl+D select-next-occurrence, Ctrl+Alt+Up/Down add-cursor-above/below) through the existing command_registry.rs + event_bus.rs + command_palette.rs so they are discoverable and rebindable (MT-003 implemented them as a direct egui input handler only). The handlers already exist in code_editor/mod.rs process_cursor_input; MT-010 routes them through the command bus + keymap table.",
+      "CARRIED FORWARD FROM MT-003 (step 7 live typing): MT-010 MUST wire live keyboard text input at all cursors - egui::Event::Text -> CursorSet::insert_at_all, Key::Backspace/Delete -> delete_at_all (and buffer_version bump for highlight-cache invalidation per MT-002). The CursorSet model methods are implemented + AC-006-tested in MT-003; MT-010 connects the keyboard events to them. This is the core editor typing loop.",
+      "FILE LOCATION CORRECTION (KERNEL_BUILDER gate 2026-06-22): the ad-hoc key handlers from MT-003/004/005/006/008 live in panel.rs (CodeEditorPanel::process_cursor_input + pump_code_intelligence), NOT mod.rs. The unified keymap dispatcher, the carried-forward live-typing (Event::Text -> insert_at_all, Backspace/Delete -> delete_at_all + buffer_version bump), and the command-bus routing all wire into panel.rs. panel.rs is in allowed_paths. mod.rs gets only module decls + the open_* factory/dispatch glue.",
+      "KEYBINDING PERSISTENCE (KERNEL_BUILDER gate): the contract names ~/.handshake/keymap.json AND 'the shell settings file that already exists'. Prefer the EXISTING PostgreSQL-backed settings surface (/workspaces/:id/settings via SettingsClient, the same surface MT-072 uses for editor settings) to avoid a SECOND settings authority. A user-editable file is acceptable for VS Code-parity ONLY if portable (dirs::home_dir(), no hardcoded path, NO SQLite) and reconciled with MT-072 so there is one authority. Do NOT introduce SQLite or a hardcoded path. Coordinate the persistence home with MT-072.",
+      "ACCESSKIT COMMAND NODES (RISK-002): cache the code_editor_cmd_* hidden command nodes OUTSIDE the render loop; rebuild only when the keymap changes (not 50+ nodes every frame). ACCESSKIT VARIANT: use field-correct nearest accesskit 0.21.1 Role if Button/etc. differ; ACs assert author_id. The live-typing wiring + popup-key consolidation must remain non-focus-stealing (HBR-QUIET)."
     ],
     "ports_from_react": [
       "app/src/lib/editor/editor_keymap.ts — KeyBinding interface, EDITOR_KEY_BINDINGS table, resolveShortcut, chordFromEvent, CODE_BLOCK_GLOBAL_ACTIONS, shouldContainChordFromCodeBlock, bindingsForAction — all ported directly",
@@ -79,7 +90,11 @@
       "None — keymap is purely in-process. Settings file at ~/.handshake/keymap.json is a local file read/write only."
     ]
   },
-  "hbr_obligations": ["HBR-VIS", "HBR-SWARM", "HBR-MAN"],
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM",
+    "HBR-MAN"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -99,6 +114,40 @@
       "MC-002: `key_from_str` Err on unknown key — verified in AC-003 'invalid string returns Err' test.",
       "MC-003: `depends_on` ordering enforces MT-003/004/005 completion before MT-010 starts — do not relax this constraint.",
       "MC-004: AccessKit command node caching — document the caching strategy in a code comment."
+    ]
+  },
+  "kernel_builder_carried_forward": {
+    "from": "MT-003",
+    "items": [
+      "command-bus wiring for multi-cursor commands",
+      "live keyboard text input (Event::Text/Backspace -> insert_at_all/delete_at_all)"
+    ],
+    "note": "Full MT-010 contract integration of these happens when MT-010 is activated; recorded now for preservation (GLOBAL-PRESERVATION)."
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-003 carry-forward + MT-008 mod.rs-vs-panel.rs finding + MT-072",
+    "corrections": [
+      "handlers + live-typing + dispatcher live in panel.rs not mod.rs (added to allowed_paths)",
+      "AC-006/PT-006 target panel.rs + softened from literal 0-matches to single-dispatcher consolidation",
+      "keybinding persistence prefers the PG settings surface; portable file only if reconciled with MT-072, no SQLite",
+      "cache AccessKit command nodes; accesskit variant fallback"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_90da0b44 (impl + adversarial-review + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "8bb2c204 feat MT-010 Monaco-parity keymap + single key dispatcher",
+      "ff0a3b50 fix harden per adversarial review"
+    ],
+    "proofs": "AC-001..007 + PT-001..006 GREEN; 497 lib + test_keymap 12 + all regression bins green; clippy --all-targets -D warnings clean; theme guard green; single egui::Event::Key dispatch site in panel.rs (AC-006); 56 code_editor_cmd_* AccessKit nodes; live typing (Event::Text->insert_text) wired; portable ~/.handshake/keymap.json via dirs (no hardcoded path, no SQLite); Keybindings UI toggle visually verified; no leakage.",
+    "bugs_caught_and_fixed": "Review caught 3 real must-fixes, harden fixed all: (1) forward-Delete at EOF deleted BACKWARD (silent data corruption) -> delete_forward_at_all with EOF no-op + 5 tests; (2) GoToDefinition/ShowReferences/ShowHover dispatched to an EMPTY request_code_nav seam (anti-vibe Sub-rule 1) -> rewired to the REAL MT-008 trigger_hover/lookup_symbols/get_references (Sub-rule 2 satisfied), deleted the seam; (3) process_keymap/resolve_contextual had ZERO runtime coverage + AC-001 Escape was a tautology -> added 4 real-key-event egui_kittest tests through the live loop (Escape->CloseFind, goto-line Enter->submit-not-newline, two-chord FoldAll + deterministic timeout-clear).",
+    "carried_forward": "ShowReferences references-panel UI (backend round-trip wired + observable via last_references(), but no rendered panel) + live F12/Shift+F12 caret-jump+references-count proof (needs bound workspace+runtime) -> E11/host MT (MT-069) + WP_VALIDATOR with backend. Save/Undo/Redo/OpenCommandPalette route to send_to_command_bus (no-op without a host Sender) -> E11 host-mount wires the Sender (MT-069).",
+    "deferred": [
+      "default keymap omits some VS Code chords (Ctrl+D->DuplicateLine when no-selection, FindNext/Prev, Indent/Dedent, ShowHover chord) - dispatchable via command-node/MCP but no keyboard chord; expand default_vscode() in a follow-up (operator-scoped)",
+      "line-edit ops (delete_line/indent/dedent/duplicate/move_line) act on the primary cursor line only (toggle_comment iterates all); multi-cursor whole-line is a later refinement",
+      "keymap.json hot-reload polls mtime every 5s (1s granularity); pre-existing design",
+      "pre-existing accesskit_consumer 0.30.1/0.31.0 dup (egui_kittest vs accesskit_winit); core single 0.21.1; WP-level hygiene note"
     ]
   }
 }

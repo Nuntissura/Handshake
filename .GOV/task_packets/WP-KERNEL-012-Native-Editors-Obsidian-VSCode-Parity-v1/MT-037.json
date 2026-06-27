@@ -25,10 +25,12 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [],
-    "blocks": ["MT-040"],
+    "blocks": [
+      "MT-040"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -37,7 +39,9 @@
       "src/frontend/handshake_native/src/backend/knowledge_documents.rs",
       "src/frontend/handshake_native/src/backend/mod.rs",
       "src/frontend/handshake_native/src/lib.rs",
-      "src/frontend/handshake_native/tests/test_knowledge_documents.rs"
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/tests/test_knowledge_documents.rs",
+      "src/frontend/handshake_native/Cargo.toml"
     ],
     "forbidden_paths": [
       "app/src/** (legacy React, reference only)",
@@ -67,7 +71,10 @@
       "The save_document route (PUT /knowledge/documents/:id/save) uses `expected_version` for optimistic concurrency; a 409 response means version conflict. Surface this as SaveConflict { server_version: Option<i64> } by parsing the 409 response body.",
       "Move document uses double-option: `project_ref: Option<Option<String>>` serialized as: absent field when outer=None, `null` when inner=None, string when inner=Some(s). Use a custom serde helper or #[serde(skip_serializing_if)] on the outer option.",
       "Do not hold any document state in this module. It is a stateless HTTP adapter only.",
-      "All route functions are public (pub async fn). No internal state."
+      "All route functions are public (pub async fn). No internal state.",
+      "REUSE-NOT-DUPLICATE (KERNEL_BUILDER gate 2026-06-23 - CRITICAL anti-overlap): the contract says 'create the FIRST native Rust client for these routes' - that is WRONG. backend_client.rs ALREADY binds several /knowledge/documents routes from prior MTs: GET /knowledge/documents/{id} (load, MT-029 RichDocClient), PUT /knowledge/documents/{id}/save (save, MT-020, WITH the 409-conflict handling), GET /knowledge/documents/{id}/backlinks (MT-015). MT-037 must NOT re-implement those - it CONSOLIDATES the knowledge-documents client: the new backend/knowledge_documents.rs ADDS the MISSING routes (POST create + import, GET/PUT/DELETE /draft, GET /blocks, GET /history + /history/:v, GET /projection, GET /embeds + /embeds/broken, POST embeds/:id/repair, POST /backlinks rebuild, POST /rename, POST /move, POST /batch) + the HskDocumentHeaders + the typed KnowledgeDocumentsError enum, and REUSES the existing backend_client.rs load/save/backlinks (delegate to them or re-export - do NOT fork a second load/save with different conflict handling). SaveConflict reuses MT-020's pattern. A duplicated load/save is a FAILURE (the panel will check).",
+      "VERIFY ALL 19 ROUTES + SHAPES + HEADERS vs the REAL backend (KERNEL_BUILDER gate - MANDATORY, this MT IS backend-shape): VERIFY read-only against src/backend/handshake_core/src/api/knowledge_documents.rs that EACH of the 19 routes + its request/response body exists as the contract states (prior MTs repeatedly found contract drift - MT-022/023/024/026/029). Especially VERIFY: the EXACT header constant names (x-hsk-actor-id / x-hsk-kernel-task-run-id / x-hsk-session-run-id / x-hsk-actor-kind / x-hsk-correlation-id) - required ones -> 400 if missing; the save 409 conflict response body shape (SaveConflict{server_version}); the double-option move semantics (project_ref/folder_ref: Option<Option<String>> - absent=omit, inner-None=null, Some=value - per backend adversarial-v2 MT-157); the draft shape (MT-020 already touched drafts - reuse its types); content_json as serde_json::Value (avoid schema coupling). Bind ONLY verified shapes; record any drift.",
+      "MOCK-SERVER FIXTURES MUST USE REAL PAYLOADS (KERNEL_BUILDER gate - Spec-Realism Gate, the load-bearing rule for a binding MT): the ACs use a MOCK HTTP server (good - this MT is fully provable WITHOUT live PG, NO NEEDS_MANAGED_RESOURCE_PROOF needed). BUT the mock JSON responses MUST be REAL backend response shapes - captured from the live backend OR field-verified byte-for-byte against the handshake_core response structs - NOT self-serialized from the client's own Rust types (a fixture that feeds the client its own serialization is a TAUTOLOGY that proves nothing - the Spec-Realism Sub-rule 2). Document where each fixture JSON came from. The mock server (wiremock/httpmock - add as dev-dependency if not present) asserts: load_document deserializes a real DocumentLoadResponse; save 409 -> SaveConflict (not generic); missing actor-id header -> 400 BadRequest variant; double-option move serializes 3 ways; batch>100 -> BatchTooLarge client-side BEFORE send; history limit clamped 1..=200. base_url from backend_client.rs config (NOT hardcoded - GLOBAL-PORTABILITY). Stateless adapter (no doc state held). NO GUI (no screenshot/accesskit this MT - pure client). Full suite stays green."
     ],
     "ports_from_react": [
       "No direct React port: the React app does not have a dedicated knowledge_documents API client file. The backend routes are the authoritative source; this MT creates the first native Rust client for them.",
@@ -124,5 +131,27 @@
       "history limit parameter clamped to 1..=200 client-side before sending.",
       "All acceptance criteria are enforced by cargo tests against a mock HTTP server, not just by compilation."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-015/020/029 existing knowledge-doc client + MT-020 conflict + MT-157 double-option + Spec-Realism Gate + GLOBAL-PORTABILITY",
+    "corrections": [
+      "REUSE existing backend_client.rs load/save/backlinks - ADD only missing routes + headers + error enum; no duplicate load/save",
+      "verify all 19 routes + exact header constants + 409 shape + double-option move vs real handshake_core api/knowledge_documents.rs",
+      "mock-server fixtures MUST be real captured/verified backend payloads (no self-serialized tautology); fully provable without live PG",
+      "SaveConflict typed (reuse MT-020); batch>100 + history-limit client guards; base_url from config; stateless; no GUI"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_ebc66f85 (impl + 3-lens panel + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "44d40c46 feat MT-037 bind knowledge_documents backend API (consolidated typed client)",
+      "ae96a7ed fix harden per adversarial review"
+    ],
+    "review_panel": "correctness=PASS(0), backend-shape=CHANGES_REQUIRED(1), perf-focus-hygiene=PASS(0) -> 1 must-fix hardened.",
+    "proofs": "AC-1..7 + PT-1..4 PASS; 1101 lib + 6 unit + 7 integration green; clippy clean; FULLY provable WITHOUT live PG (mock HTTP server, no NEEDS_MANAGED_RESOURCE_PROOF); no GUI (no screenshot); no tracked artifacts; external artifact root honored.",
+    "steers_held": "(1) REUSE-NOT-DUPLICATE: the new backend/knowledge_documents.rs reuses the SAME header constants (HSK_HEADER_*) + DOC_ACTOR_ID/KIND + BACKEND_BASE_URL + the MT-020 409-conflict pattern as backend_client.rs; ADDS the 19 routes + richer typed responses (DocumentLoadResponse{document,tree,code_nodes}, SaveDocumentResponse w/ backlinks/embeds/index counts) + HskDocumentHeaders + typed KnowledgeDocumentsError enum (no divergent load/save logic). (2) MOCK FIXTURES ARE REAL backend shapes (hand-written from the handler json!({...}) blocks w/ cited line numbers; response-only field names verified against api/knowledge_documents.rs L766+L464 - NOT self-serialized tautology). (3) double-option move wire-captured 3 ways (absent/null/string via TcpListener). (4) SaveConflict 409 distinct.",
+    "honest_backend_note": "VERIFIED the save 409 body is {error:conflict,detail} with NO server_version field -> SaveConflict.server_version=None against the current backend (recorded honestly; the variant stays distinct for the data-loss control; reload via load_document if the editor needs the current version). A backend-shape fact, not a client defect.",
+    "waiver_granted": "backend_client.rs reused (not edited beyond reuse) + new backend/knowledge_documents.rs + backend/mod.rs + lib.rs + test in allowed_paths."
   }
 }

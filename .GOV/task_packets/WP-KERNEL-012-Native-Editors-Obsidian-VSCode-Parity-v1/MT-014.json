@@ -25,10 +25,15 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-011", "MT-012"],
-    "blocks": ["MT-016"],
+    "depends_on": [
+      "MT-011",
+      "MT-012"
+    ],
+    "blocks": [
+      "MT-016"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -72,7 +77,11 @@
       "Asset resolution cache (HashMap<String, EmbedResolutionState>) must be stored in RichEditorState (owned by the shell frame, e.g. via app.rs / backend_client.rs runtime context), not inside the renderer functions, so it persists across frames.",
       "Fail-closed: any EmbedError must render a VISIBLE typed chip. Never render blank space, never panic. This matches the React embed_assets.ts EmbedErrorKind contract.",
       "Backend access goes through the existing WP-011 REST client handshake_native::backend_client (backend_client.rs); do not introduce a new HTTP client. Backend changes are forbidden; consume via API only.",
-      "Cross-WP dependency: this MT builds on the WP-011 native shell modules (accessibility/ registry+snapshot for AccessKit ids, backend_client.rs for REST access, app.rs for the shell frame/runtime context). These are delivered by WP-KERNEL-011 and are reuse targets, not depends_on edges within WP-KERNEL-012."
+      "Cross-WP dependency: this MT builds on the WP-011 native shell modules (accessibility/ registry+snapshot for AccessKit ids, backend_client.rs for REST access, app.rs for the shell frame/runtime context). These are delivered by WP-KERNEL-011 and are reuse targets, not depends_on edges within WP-KERNEL-012.",
+      "EMBED NODE-SHAPE RECONCILIATION (KERNEL_BUILDER gate 2026-06-22, MT-011 hsLink lesson - CRITICAL): do NOT assume/invent a NodeKind::Embed block with {embed_kind, ref_value} attrs - MT-011 NodeKind has NO Embed variant, and inventing one repeats the MT-011 wikilink-mark-vs-hsLink-node mistake. The React reference HsLinkView.tsx renders image/video/album/slideshow embeds AND wikilinks through the SAME hsLink node, so the backend almost certainly represents embeds as the EXISTING hsLink node discriminated by refKind (refKind in {wikilink, image, video, album, slideshow, ...}, refValue = asset_id or comma-list). FIRST verify against app/src/lib/tiptap/hs_link_node.ts + components/HsLinkView.tsx + lib/editor/embed_assets.ts (the real refKind values + refValue format). THEN render embeds from MT-011's EXISTING Child::HsLink atom, dispatching on refKind to image/slideshow/album/video views. ONLY if the captured real shape genuinely uses a separate embed node, add THAT exact node to MT-011's model (node.rs + doc_json, add to allowed_paths) anchored to the real shape - never an invented {embed_kind,ref_value} shape.",
+      "BACKEND PROOF REALITY (MT-008 pattern + Spec-Realism Gate): AC-1 (image renders) + the real-asset-resolve integration test need a LIVE Handshake-managed backend with a SEEDED asset (GET /workspaces/{id}/assets/{asset_id}+/content+/thumbnail). Prove the asset_resolver binding against the REAL backend if it can be started+seeded; gate the image-CONTENT ACs behind the integration Cargo feature + emit NEEDS_MANAGED_RESOURCE_PROOF if the asset cannot be seeded - do NOT fake the backend. The FAIL-CLOSED validation (empty/absolute/traversal/scheme rejection) + view logic (slideshow nav+wrap, album grid, typed error chips, resolution caching, decode-failure->error-chip) are FULLY unit-testable STANDALONE with mock resolution states + a counted mock fetcher - those must all pass with no backend.",
+      "VIDEO + HBR-QUIET (KERNEL_BUILDER gate): the `open` crate's open::that() launches an external OS app and STEALS FOCUS (HBR-QUIET violation - same reason MT-010 declined it). PREFER the poster/thumbnail + play-button + filename + content-URL-text PLACEHOLDER for video (NO `open` dep, no focus theft, in-process decode out of scope). OS-open via open::that() is OPTIONAL and ONLY on EXPLICIT user click + documented as a reviewed HBR-QUIET exception (user-initiated, never automatic); add the `open` dep ONLY if OS-open is actually implemented. Never auto-open on render.",
+      "CRATES + SCREENSHOT (KERNEL_BUILDER gate): the `image` crate (0.25) is ALREADY a runtime dep in the handshake-native Cargo.toml (MT-012 review confirmed) - do NOT re-add or duplicate it (reconcile the pre-existing double-declaration if touched). SCREENSHOTS mt014_image_embed.png + mt014_embed_error.png MUST go to the EXTERNAL ../../../../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-014/ root via external_artifact_dir() + assert_no_local_artifact_dir() - NOT the repo-local tests/screenshots/ the contract names (pipeline fails the MT on git ls-files src/**/*.png). ACCESSKIT VARIANT: field-correct nearest accesskit 0.21.1 Role; ACs assert author_id. Decode off-thread (spawn_blocking, MC-001), album concurrency<=6 (Semaphore, MC-002), traversal '..' substring-anywhere reject (MC-003), decode-fail->Err chip (MC-005)."
     ],
     "ports_from_react": [
       "app/src/lib/editor/embed_assets.ts (EmbedError kinds, path/scheme validation logic, asset metadata URL pattern, parseAssetRefList for album/slideshow)",
@@ -85,7 +94,12 @@
       "GET /workspaces/{workspace_id}/assets/{asset_id}/thumbnail -> thumbnail bytes"
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS", "HBR-QUIET"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS",
+    "HBR-QUIET"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -107,5 +121,28 @@
       "Video view must show the content URL as text alongside the play button so the operator can inspect it; the OS open call is gated on explicit user click only.",
       "Decode failure (image::load_from_memory returns Err) must transition to EmbedResolutionState::Err(EmbedError::MediaLoadFailed) and render the error chip; unit test verifies with intentionally corrupt bytes."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-011 hsLink lesson + MT-008 backend pattern + MT-010 open-crate-focus finding",
+    "corrections": [
+      "embeds = existing hsLink node by refKind, NOT an invented NodeKind::Embed; verify HsLinkView.tsx/embed_assets.ts",
+      "real-backend asset-resolve proof or NEEDS_MANAGED_RESOURCE_PROOF; validation+view logic unit-testable standalone",
+      "video placeholder-first, no open crate / focus theft unless explicit-click OS-open",
+      "image crate already present (no dup); screenshots external; accesskit variant"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_2dd91aeb (impl + adversarial-review + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "69bee02f feat MT-014 embed NodeViews (image/slideshow/album/video)",
+      "97ff8972 fix harden per adversarial review"
+    ],
+    "embed_shape_reconciled": "CONFIRMED embeds bind to the EXISTING MT-011 Child::HsLink atom dispatched by refKind (image/slideshow/album/video) - NO invented NodeKind::Embed; the MT-011 model (node.rs/doc_json) was NOT touched. My reconciliation steer held.",
+    "bugs_caught_and_fixed": "Review caught a Spec-Realism Sub-rule 2 violation the ACs masked: the image content-fetch->off-thread-decode->texture-upload pipeline was built as TEST-ONLY blocks never wired into production (ensure_single fetched METADATA only; the screenshot test manually pre-uploaded the texture - implementer-mock-feeds-implementer-test), so a runtime image embed was a PERMANENT placeholder and AC-1 could not hold even with a live backend. Harden wired the real pipeline: AssetMetadataFetcher::fetch_content + real GET .../content, EmbedRuntime::ensure_image_content spawns the bytes fetch + decode_rgba on spawn_blocking (MC-001) + delivers ColorImage via a ContentDeliveryCell, drain_deliveries uploads the texture (decode-fail -> Err chip), render_resolved_image renders the texture branch + a 'Decoding...' spinner (no permanent placeholder).",
+    "proofs": "AC-1..10 GREEN (AC-1 headless texture-path proof; AC-7 HBR-QUIET reconciled via injected VideoPlayHandler, NO open crate / no focus theft); fail-closed validation (empty/absolute/traversal-anywhere/scheme, zero-fetch-before-validate) + caching (no second fetch) + concurrency cap 6 + decode-fail->typed chip all unit-proven standalone; 644 lib + all integration green; clippy --all-targets clean; theme + accesskit-id gates green; embed error chip ('Embed failed (empty_ref)') visually verified; screenshots EXTERNAL (git ls-files src/**/*.png empty); image dep feature-unified (no dup), no new HTTP crate, no open crate.",
+    "blocked": "PT-2 real-image-resolve = NEEDS_MANAGED_RESOURCE_PROOF: the production ReqwestAssetFetcher binds GET /workspaces/{id}/assets/{id}(+/content) against a real backend, gated #[ignore] + integration feature; run with --features integration -- --ignored + HANDSHAKE_TEST_WORKSPACE_ID/ASSET_ID against a live seeded backend. NOT faked.",
+    "carried_forward_MT_069": "set_embed_context(workspace_id, tokio runtime handle) into EmbedRuntime has NO production caller in this diff - the shell (HandshakeApp) must call it at E11 host-mount or every embed stays on the headless no-spawn path (permanent spinner). Same host-wiring class as MT-008/MT-010.",
+    "carried_forward_MT_016": "VERIFY the embed hsLink shape (standalone-block AND inline-with-text) against a CAPTURED real backend content_json fixture (the MT-011 fixture lesson) - the current standalone-block-only handling is a reconciliation ASSUMPTION; inline media hsLinks currently fall through to text rendering. Close when the backend round-trip is proven."
   }
 }

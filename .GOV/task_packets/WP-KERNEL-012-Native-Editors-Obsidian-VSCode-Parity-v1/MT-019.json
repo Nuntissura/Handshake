@@ -25,9 +25,12 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-011", "MT-012"],
+    "depends_on": [
+      "MT-011",
+      "MT-012"
+    ],
     "blocks": [],
     "validator_verdict": "PENDING"
   },
@@ -71,7 +74,11 @@
       "The journal panel is a separate top-level surface from the rich editor document view. It is mounted as a sibling panel in the WP-011 shell's tile layout (reuse WP-011 modules src/frontend/handshake_native/src/split_layout.rs and src/frontend/handshake_native/src/pane_registry.rs for sibling-panel registration), not as a child of RichEditorWidget.",
       "AccessKit ids must be registered through the WP-011 accessibility infrastructure under src/frontend/handshake_native/src/accessibility/ (reuse, do not re-implement an accessibility tree).",
       "Cross-WP dependency: this MT depends on WP-KERNEL-011 shell modules (split_layout.rs, pane_registry.rs, accessibility/) for panel mounting and AccessKit registration; those modules are produced by WP-KERNEL-011 and reused here, not created by this MT.",
-      "Intra-WP dependencies MT-011 (DocModel) and MT-012 (RichEditorWidget) live under the new WP-012 rich-text module at src/frontend/handshake_native/src/rich_text/; reuse those rather than re-implementing document model or renderer."
+      "Intra-WP dependencies MT-011 (DocModel) and MT-012 (RichEditorWidget) live under the new WP-012 rich-text module at src/frontend/handshake_native/src/rich_text/; reuse those rather than re-implementing document model or renderer.",
+      "NO PERPETUAL SPINNER (KERNEL_BUILDER gate 2026-06-22 - MT-015 spinner-regression lesson): the Loading-state egui::Spinner (AC-8) is correct UX ONLY while a genuine openDailyJournal fetch is in-flight (runtime present + dispatched). Headless/no-runtime must NOT enter a stuck perpetual Loading - only transition Idle->Loading when a runtime actually spawns the fetch (the exact MT-015 backlinks fix); otherwise render a neutral non-animating state. AC-8's spinner kittest + the screenshot tests MUST use harness.step()/run_steps(N) (NOT harness.run(), which loops forever on an animating Spinner) and the process-wide gpu_lock() mutex for wgpu (MT-018 pattern). The journal panel is a SIBLING top-level surface (split_layout/pane_registry), NOT inside rich_editor_widget, so it won't affect the editor bins - but its own test_daily_notes bin must avoid the run()-on-spinner trap.",
+      "BACKEND PROOF REALITY (MT-008/014/015/017 pattern): openDailyJournal (PUT /workspaces/{id}/loom/journals/{date}), doc load (GET /knowledge/documents/{id}), createRichDocument (POST), and auto-save bind the REAL backend; gate the live ACs behind the integration feature + NEEDS_MANAGED_RESOURCE_PROOF if no seeded backend - do NOT fake. The state machine (Loading/Ready/Error transitions), date nav, calendar grid, word/char count, and auto-save debounce-timer are FULLY unit-testable STANDALONE with a mock backend + mock clock. VERIFY the real LoomBlock + openDailyJournal shape in app/src/lib/api.ts (the document_ref/linked-document field name) before binding - the field-existence lesson (don't assume document_ref exists; check).",
+      "MT-020 SAVE SEAM + DEBOUNCE (KERNEL_BUILDER gate): auto-save routes through a MOCKABLE save trait/seam - do NOT hard-depend on unfinished MT-020. Implement+test the dirty-tracking + 3s frame-based debounce timer (egui frame counting per note 70, mock-clock testable) + the save-dispatch call against a mock; the real PUT /knowledge/documents/{id}/save binding reuses MT-017's metadata_client save path or is finalized by MT-020. Auto-save debounced: reset on each keystroke, skip+re-arm if a save is in-flight (MC-001). Rapid date-nav: generation counter cancels stale openDailyJournal responses (MC-002, same as MT-015 backlinks generation). 'Start writing' createRichDocument de-bounced via is_creating flag (MC-003).",
+      "DATE + PATHS (KERNEL_BUILDER gate): chrono::Local::now().date_naive() (today() deprecated); date nav via NaiveDate::checked_add_days(Days::new(1)) (MC-005: 2026-01-31+1=2026-02-01, leap years); calendar allocates EXACTLY 6 rows regardless of month (MC-004, no reflow). Module root is rich_editor/ NOT rich_text/ (real tree). Screenshots mt019_*.png to the EXTERNAL Handshake_Artifacts/handshake-test/wp-kernel-012-mt-019/ root + assert_no_local_artifact_dir(). ACCESSKIT VARIANT: field-correct nearest accesskit 0.21.1 Role; ACs assert author_ids (journal-prev-day/next-day/today/date-display/...)."
     ],
     "ports_from_react": [
       "app/src/components/LoomDailyJournalPanel.tsx (full port: state machine Loading/Ready/Error, date navigation prev/next/today, openDailyJournal call, block title display, error handling)",
@@ -84,7 +91,11 @@
       "PUT /knowledge/documents/{document_id}/save -> RichDocSaveResult (via MT-020 save logic, auto-save on idle)"
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -106,5 +117,27 @@
       "Calendar grid must allocate exactly 6 rows regardless of the month's actual week count (to avoid layout reflowing between months); a kittest screenshot of a 6-row month (e.g. October 2023) must show all cells within the popup Rect.",
       "Date arithmetic must use chrono::NaiveDate::checked_add_days(Days::new(1)); a cargo test asserts 2026-01-31 + 1 = 2026-02-01 and 2026-02-28 + 1 = 2026-03-01."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-015 spinner lesson + MT-008 backend pattern + MT-017 save path",
+    "corrections": [
+      "Loading spinner only with a live fetch (no headless stuck-Loading); spinner tests use step() not run() + gpu_lock",
+      "real-backend openDailyJournal/doc proof or NEEDS_MANAGED_RESOURCE_PROOF; state/date/calendar/count logic unit-testable",
+      "auto-save via mockable seam (no hard MT-020 dep); generation-counter date-nav cancel; createRichDocument debounce",
+      "chrono date_naive + checked_add_days; 6-row calendar; rich_editor/ path; external screenshots; accesskit variant"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_42fc3d9f (impl + adversarial-review + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "944a1ca6 feat MT-019 daily-notes/journal panel",
+      "ced25e09 fix harden per adversarial review"
+    ],
+    "proofs": "AC-1..12 GREEN; 37 lib + 8 integration tests; clippy clean (boxed large Ready variant); journal panel (date nav ◄ Fri Jun 19 2026 ►, calendar, Today, LB-2026-06-19 badge, toolbar, content, '5 words | 25 characters' footer) + calendar popup (June 2026 6x7 grid, day 19 highlighted) visually verified; screenshots EXTERNAL (git ls-files src/**/*.png empty).",
+    "disciplines_held": "no-perpetual-spinner (headless_open_does_not_enter_perpetual_loading test; Loading only with a live fetch; spinner kittest uses step() not run()); auto-save via mockable save seam (no hard MT-020 dep) + frame-based 3s debounce + generation-counter date-nav cancel; chrono date_naive + checked_add_days; backlinks panel shows the fixed 'Backlinks not loaded.' neutral state.",
+    "backend_shape_corrected": "VERIFIED CONTRACT CORRECTION: the contract names LoomBlock.document_ref, but the REAL LoomBlock (app/src/lib/api.ts) has document_id: string|null (no document_ref). Agent bound the verified document_id. Field-existence lesson applied again (hsLink/tableHeader/WP009/rename/now document_id).",
+    "blocked": "PT-4 real openDailyJournal round-trip = NEEDS_MANAGED_RESOURCE_PROOF (gated #[ignore]+integration, real PUT /workspaces/{id}/loom/journals/{date}; not run offline).",
+    "path_note": "module root rich_editor/ not rich_text/."
   }
 }

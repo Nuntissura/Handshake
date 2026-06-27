@@ -1,0 +1,151 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-096",
+  "title": "G2-MT-096-EndToEndProof-Capstone",
+  "group": "G2 End-to-end proof (capstone)",
+  "created_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-096.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-083",
+      "MT-084",
+      "MT-087",
+      "MT-088",
+      "MT-089",
+      "MT-091",
+      "MT-092",
+      "MT-093",
+      "MT-094",
+      "MT-095"
+    ],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: CAPSTONE end-to-end proof that the whole three-tier diagnostic system works as an integrated system on the real binaries (Master Spec v02.196 §5.8 + §6.13 + §10.12.5; HBR-INT-009). This MT runs the full system — real HandshakeApp + the real spawned palmistry.exe + the real shared-memory ring — through the four scenarios the WP exists to handle, proves each, asserts the typed-allowlist privacy invariant holds across EVERY artifact, and writes a proof manifest. It is integration-level: it WIRES the pieces from MT-081..015 together and proves them as a whole; it does not re-implement them.\n\nTHE FOUR END-TO-END SCENARIOS (each a real run, no mocks for the spec-required runtime):\n- (1) FORCE A FREEZE: launch the real HandshakeApp (which spawns palmistry.exe, MT-094), then STALL the UI thread (e.g. a test seam / a test-only pane that blocks the egui frame loop past the ~5s threshold). Assert: the heartbeat goes stale (MT-084), Palmistry detects the freeze via stale-heartbeat + hung-window probe (MT-091), Palmistry CAPTURES + SURVIVES (it is still running while Handshake is frozen, MT-089/010), and RECORDS the last state into the survivor store (MT-093). Palmistry read what Handshake wrote even while Handshake was stalled (zero cooperation, MT-090).\n- (2) FORCE A CRASH: launch the real app + Palmistry, then force a CRASH (a hard unhandled exception / abort on a test seam — NOT a clean shutdown). Assert: Palmistry writes a MINIDUMP out-of-process (MT-092), SURVIVES the parent death (MT-089), records the crash into the survivor store (MT-093), and the minidump validates with the minidump reader. A CLEAN shutdown in the same harness produces NO crash record (the §6.13 clean-shutdown gate).\n- (3) RE-RUN THE BACKEND-DOWN REPRO (MT-088): launch the real app with the backend (127.0.0.1:37501) DOWN; assert the app stays RESPONSIVE (frames complete within a tight bound, the heartbeat keeps advancing, a BackendUnreachable event recorded, a degraded UI shown) — the 2026-06-26 freeze does NOT recur. (This re-proves MT-088 at the integrated level.)\n- (4) TYPED-ALLOWLIST PRIVACY PROOF: across ALL artifacts produced by scenarios 1-3 — every ring record, the heartbeat, the survivor store records, the minidump METADATA (the typed crash record, not the dump's OS image bytes), and the FR-forward body — assert NO project content / NO sensitive data / NO free text appears: only typed event codes, ids, counters, phase markers, thread ids, resource metrics, timestamps, and local path references. A scan of the emitted artifacts confirms the typed-allowlist invariant (§5.8.3 + §6.13.8) holds system-wide.\n\nExact files to create/edit:\n- CREATE `src/frontend/handshake_native/tests/test_three_tier_end_to_end.rs` — the capstone integration test driving scenarios 1-4 against the real HandshakeApp + the built palmistry.exe (the test must build/locate palmistry.exe via the external target dir, the same current_exe()-relative resolution MT-094 uses). Gate the live-backend-up parts (scenario 3 recovery, MT-093 FR forward) behind the `integration`/requires_pg feature where a managed backend is needed; the freeze/crash/backend-down-responsive halves run WITHOUT a backend (the freeze + the backend-DOWN case need no live backend by definition).\n- CREATE any minimal TEST-ONLY seams needed to force the freeze/crash deterministically (a cfg(test)/feature-gated stall pane + a crash trigger) in the smallest possible footprint — these are test harness seams, NOT production behavior, and must NOT be reachable in the shipped binary (gate behind a test feature). If a tiny production hook is unavoidable to make the freeze/crash injectable, keep it test-feature-gated + document it.\n- CREATE the PROOF MANIFEST: emit a `three_tier_end_to_end_proof_manifest.json` to the external artifact root listing each scenario, its verdict (PASS/typed-blocker), the artifacts produced (survivor record paths, minidump path, screenshots), and a `ThreeTierDiagnosticWiringRecord` (MT-095 format) for the whole WP showing all three tiers WIRED with proof_refs. Also emit a wgpu screenshot of the Diagnostics Panel (MT-087) showing live heartbeat/frame/resource + (post-recovery) a forwarded freeze/crash record — visually inspected (GLOBAL-INSPECT).\n- CREATE `src/frontend/handshake_native/tests/test_three_tier_privacy_allowlist.rs` — the system-wide typed-allowlist scan (scenario 4) over the emitted artifacts.\n\nHONESTY (Spec-Realism + the WP's no-mock rule): scenarios 1-3 must use the REAL app + the REAL palmistry.exe + the REAL ring — not mocked tiers. Where a managed backend is genuinely unavailable in the env (the FR-forward live round-trip, MT-093), gate that half as requires_pg/integration and record it as NEEDS_MANAGED_RESOURCE_PROOF — do NOT fake it. A partial-but-honest capstone (freeze + crash + backend-down all PASS on real binaries; the FR-forward live half gated) is the expected acceptable outcome if no managed backend is present.\n\nReuse note: every tier is built in MT-081..014; the evidence format is MT-095. This MT WIRES + PROVES them together — it reuses the real APIs, the real spawn, the real ring. The screenshot + external-artifact discipline is the established WP-012 pattern (external Handshake_Artifacts root; git ls-files src/**/*.png empty).\n\nRisk if missed: the three tiers are each proven in isolation but never as an integrated system, so a wiring gap between them (e.g. Handshake writes a ring Palmistry maps differently, or a freeze the detector misses end-to-end) goes uncaught; the 2026-06-26 repro is not re-proven at the integrated level; the privacy invariant is asserted per-MT but never system-wide.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/tests/test_three_tier_end_to_end.rs",
+      "src/frontend/handshake_native/tests/test_three_tier_privacy_allowlist.rs",
+      "src/frontend/handshake_native/src/diagnostics/mod.rs",
+      "src/frontend/handshake_native/src/diagnostics/test_seams.rs",
+      "src/frontend/handshake_native/Cargo.toml",
+      "src/frontend/palmistry/tests/test_end_to_end_support.rs"
+    ],
+    "forbidden_paths": [
+      "src/frontend/handshake_native/diag_ring/** (MT-081-owned; reuse via API)",
+      "src/backend/** (reuse via API only)",
+      "src/backend/handshake_core/src/flight_recorder/** (FR kept as-is)",
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-016-1 (FREEZE end-to-end): the real HandshakeApp (with the real spawned palmistry.exe) is forced into a UI-thread freeze; the test asserts Palmistry detects the freeze (stale heartbeat + hung-window probe, MT-091), STAYS RUNNING while Handshake is frozen (MT-089/010 zero-cooperation), and records the last state into the survivor store (MT-093) — captured + survived + recorded, end-to-end on real binaries.",
+      "AC-016-2 (CRASH end-to-end): the real app is forced to crash (hard unhandled exception/abort, not a clean shutdown); the test asserts Palmistry writes an out-of-process minidump (MT-092, validated by the minidump reader), SURVIVES the parent death (MT-089), and records the crash into the survivor store (MT-093). A CLEAN shutdown in the same harness produces NO crash record (the §6.13 gate).",
+      "AC-016-3 (BACKEND-DOWN re-prove, MT-088 at integration level): the real app launched with the backend DOWN stays RESPONSIVE — frames complete within a tight bound, the heartbeat keeps advancing, a BackendUnreachable event is recorded, a degraded UI is shown — the 2026-06-26 freeze does NOT recur.",
+      "AC-016-4 (TYPED-ALLOWLIST system-wide): a scan over ALL artifacts from scenarios 1-3 (ring records, heartbeat, survivor records, minidump METADATA/typed crash record, FR-forward body) asserts NO project content / sensitive data / free text — only typed codes/ids/counters/phase-markers/thread-ids/resource-metrics/timestamps/local-path-references (§5.8.3 + §6.13.8 invariant holds system-wide).",
+      "AC-016-5 (PROOF MANIFEST): a `three_tier_end_to_end_proof_manifest.json` is emitted to the external artifact root listing each scenario verdict + artifacts + a whole-WP ThreeTierDiagnosticWiringRecord (MT-095 format, all three tiers WIRED with proof_refs); a wgpu screenshot of the Diagnostics Panel (live heartbeat/frame/resource + a forwarded freeze/crash record post-recovery) is saved external + visually inspected.",
+      "AC-016-6 (HONEST GATING): the FR-forward LIVE round-trip (MT-093) that needs a managed backend is gated requires_pg/integration and recorded NEEDS_MANAGED_RESOURCE_PROOF if no managed backend is present — NOT faked. The freeze/crash/backend-down halves run on real binaries WITHOUT a backend and PASS.",
+      "AC-016-7: any freeze/crash injection seam is TEST-FEATURE-GATED + not reachable in the shipped binary (source review). `cargo build -p handshake-native` + `-p palmistry` clean; clippy `--all-targets -D warnings` clean; full suite `-j 2` green; external target dirs; `git ls-files src/**/*.png` empty; no repo-local target/."
+    ],
+    "proof_targets": [
+      "PT-016-A: `cargo test -p handshake-native three_tier_end_to_end` GREEN — freeze (capture+survive+record) on real binaries.",
+      "PT-016-B: crash end-to-end GREEN — out-of-process minidump validated + survive + record; clean-shutdown-no-crash gate.",
+      "PT-016-C: backend-down re-prove GREEN — responsive + heartbeat advances (2026-06-26 repro does not recur).",
+      "PT-016-D: `cargo test three_tier_privacy_allowlist` GREEN — system-wide typed-allowlist scan; proof manifest + Diagnostics Panel screenshot emitted external + inspected; FR-forward live half gated NEEDS_MANAGED_RESOURCE_PROOF if no backend; both crates build clean + clippy -D warnings + full suite -j 2 green."
+    ],
+    "implementation_notes": [
+      "This is INTEGRATION: wire + prove MT-081..015 together on the REAL HandshakeApp + the REAL palmistry.exe + the REAL ring. Do not re-implement any tier; reuse their real APIs/spawn/ring.",
+      "Locate the built palmistry.exe via the external target dir / current_exe()-relative resolution (the same MT-094 path). The capstone needs both binaries built; run with the external CARGO_TARGET_DIR.",
+      "Freeze/crash injection must be DETERMINISTIC + TEST-FEATURE-GATED (a cfg/feature stall pane + a crash trigger) — NOT reachable in the shipped binary. Keep the footprint minimal; document any unavoidable production hook as test-feature-gated.",
+      "Scenario 4 (privacy) scans the EMITTED ARTIFACTS (ring records, survivor JSON, crash record metadata, FR-forward body) for any free-text/content — the ring + records are typed by construction (MT-081 schema), so this proves the construction held end-to-end and that the minidump's typed METADATA record (not the OS-image dump bytes) carries no project data.",
+      "HONESTY: the FR-forward LIVE round-trip needs a managed backend; gate it requires_pg/integration + record NEEDS_MANAGED_RESOURCE_PROOF if absent. The freeze + crash + backend-DOWN halves need NO live backend and must PASS on real binaries. A partial-but-honest capstone (those three PASS; FR-forward live gated) is the expected acceptable outcome.",
+      "Screenshots + the proof manifest go to the external Handshake_Artifacts root only; git ls-files src/**/*.png must stay empty. Visually inspect the Diagnostics Panel screenshot (GLOBAL-INSPECT) before declaring it shows the live + forwarded state.",
+      "Emit a whole-WP ThreeTierDiagnosticWiringRecord (MT-095 format) in the manifest showing all three tiers WIRED with proof_refs to the proving MTs.",
+      "Read the KERNEL_BUILDER coder protocol under .GOV/ first; the capstone is the WP's integration gate — the four scenarios must run on real binaries, the no-mock rule applies, and honest gating (not faking) is required where a managed resource is absent."
+    ],
+    "ports_from_react": [
+      "NONE (integration capstone)"
+    ],
+    "binds_backend_api": [
+      "REUSES the MT-093 FR-forward path (existing runtime_chat_event route) for the recovery-forward scenario, gated requires_pg/integration. NO new endpoint, NO FR edit. Freeze/crash/backend-down scenarios need no backend."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-VIS",
+    "HBR-SWARM",
+    "HBR-QUIET",
+    "HBR-MAN"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "status": "WIRED",
+      "reason": "The capstone exercises the Tier 1 FR-forward path end-to-end (MT-093) in the recovery scenario (gated requires_pg if no managed backend, NEEDS_MANAGED_RESOURCE_PROOF honestly) and records it in the whole-WP ThreeTierDiagnosticWiringRecord manifest."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "WIRED",
+      "reason": "The capstone proves Tier 2 internal_diagnostics end-to-end: heartbeat (MT-084), backend-down degradation re-prove (MT-088), panic record (MT-083), and the live Diagnostics Panel (MT-087) screenshot — all on the real app."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "WIRED",
+      "reason": "The capstone proves Tier 3 Palmistry end-to-end on the real spawned palmistry.exe: freeze capture+survive (MT-089/010/011), crash minidump+survive (MT-092), survivor store + recovery forward (MT-093), launched-with-Handshake (MT-094). The whole three-tier system is proven as an integrated whole here."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PALMISTRY_WATCHER_V1",
+    "risks": [
+      "RISK-016-1: the tiers are proven in isolation but a wiring gap between them (ring layout mismatch, a freeze the integrated detector misses) goes uncaught. Mitigate: real-binary end-to-end scenarios (AC-016-1/2/3).",
+      "RISK-016-2: a mocked tier substitutes for the real runtime (violates the WP no-mock rule). Mitigate: real HandshakeApp + real palmistry.exe + real ring; honest gating where a managed backend is absent (AC-016-6).",
+      "RISK-016-3: a freeze/crash injection seam leaks into the shipped binary. Mitigate: test-feature-gated, not shipped-reachable (AC-016-7).",
+      "RISK-016-4: project content leaks into some artifact only visible system-wide (not caught per-MT). Mitigate: the system-wide typed-allowlist scan (AC-016-4).",
+      "RISK-016-5: a faked FR-forward success when no managed backend is present. Mitigate: requires_pg gate + NEEDS_MANAGED_RESOURCE_PROOF honest record (AC-016-6).",
+      "RISK-016-6: a tracked PNG / repo-local target leak. Mitigate: external-only artifacts; git ls-files src/**/*.png empty (AC-016-7)."
+    ],
+    "minimum_controls": [
+      "MC-016-1: freeze + crash + backend-down all proven on real binaries (AC-016-1/2/3).",
+      "MC-016-2: system-wide typed-allowlist scan (AC-016-4).",
+      "MC-016-3: honest gating of the FR-forward live half (AC-016-6).",
+      "MC-016-4: proof manifest + Diagnostics Panel screenshot (external, inspected); test seams not shipped; artifact hygiene (AC-016-5/7)."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-KERNEL-012 field research (June 2026); integrates MT-081..015",
+    "field_stack": "End-to-end integration of the Crashpad-style three-tier system on real binaries (real client + real out-of-process watcher + real shared-memory ring), forcing the freeze/crash/backend-down scenarios the WP exists for, with a system-wide privacy scan + a proof manifest in the MT-095 evidence format.",
+    "crate_versions_verified_2026_06_27": {
+      "minidump": "0.26.1 (validates the minidump in the crash scenario)",
+      "egui_kittest": "0.33 (drives the real app)",
+      "all_tier_crates": "as pinned in MT-081/009/012 (memmap2 0.9.11, interprocess 2.4.2, minidumper 0.10.1, minidump-writer 0.12.0, crash-context 0.7.0, crash-handler 0.7.0, sysinfo per MT-086)"
+    },
+    "motivating_incident": "The 2026-06-26 freeze is the origin: scenario 3 re-proves it does not recur (MT-088), and scenarios 1-2 prove the external watcher would have captured it had it happened — the whole three-tier system validated end-to-end against the real incident class.",
+    "validation_plan": "real-binary freeze + crash + backend-down + system-wide privacy scan + proof manifest + Diagnostics Panel screenshot; honest requires_pg gating of the FR-forward live half; clippy -D warnings; full suite -j 2."
+  }
+}

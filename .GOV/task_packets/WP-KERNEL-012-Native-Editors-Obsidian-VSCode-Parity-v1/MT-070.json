@@ -25,10 +25,19 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-008", "MT-030", "MT-048", "MT-049", "MT-050", "MT-057"],
-    "blocks": ["MT-072"],
+    "depends_on": [
+      "MT-008",
+      "MT-030",
+      "MT-048",
+      "MT-049",
+      "MT-050",
+      "MT-057"
+    ],
+    "blocks": [
+      "MT-072"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -72,7 +81,10 @@
       "Gate context-menu entry enablement on action availability for the current selection (e.g. Rename Symbol disabled when no symbol under cursor). A disabled entry is acceptable; a dead-but-enabled entry is a FAIL.",
       "Each editor/canvas pane must register a NavHandler via register_nav_handler(pane_id, handler) at mount; this MT only ensures those registration call sites are wired — the reveal bodies are owned and reused from the panes' own MTs.",
       "Only MT-008 (Peek/Go-to-Def) touches a backend API, and only indirectly via its existing handler; this MT performs NO direct backend calls and NO backend rewrite — any missing backend capability is a typed blocker, not a rewrite.",
-      "Cross-WP dependency (prose, not a depends_on id): WP-011 must provide the context-menu primitive (context_menu.rs / context_menu_surfaces.rs), pane registry (pane_registry.rs), command bus (command_registry.rs + event_bus.rs), and AccessKit id registry (accessibility/registry.rs); these are reused from WP-011, never rebuilt here."
+      "Cross-WP dependency (prose, not a depends_on id): WP-011 must provide the context-menu primitive (context_menu.rs / context_menu_surfaces.rs), pane registry (pane_registry.rs), command bus (command_registry.rs + event_bus.rs), and AccessKit id registry (accessibility/registry.rs); these are reused from WP-011, never rebuilt here.",
+      "NAV BUS = REUSE the MT-030 ShellNavigator, DO NOT FORK (KERNEL_BUILDER gate 2026-06-25, VERIFIED): the MT-030 navigation bus ALREADY EXISTS as crate::quick_switcher::ShellNavigator (open_document/open_code_symbol/open_loom_block/open_work_packet/open_micro_task/open_wiki_page seams), and MT-079 ALREADY wired open_document->mounted rich pane + open_code_symbol->mounted code pane (proven by document_hit_opens_mounted_rich_editor_tab). So navigation_bus.rs MUST be a THIN NavigationTarget layer that DELEGATES to the existing ShellNavigator open_* seams - NOT a parallel bus (RISK-070-4/MC-070-4 forking the substrate). The NavigationTarget enum MUST RECONCILE/map to the ShellNavigator existing open_* methods (RISK-070-2/MC-070-2 - reconcile against the live quick_switcher::ShellNavigator types, do NOT invent drifting variants). dispatch() resolves the pane via pane_registry, focuses, calls the pane NavHandler reveal; unknown/stale pane_id -> Err(NavError::PaneNotFound), NEVER panic (RISK-070-3/MC-070-3). AC-070-3 (quick-switcher routes to pane by id) is LARGELY DONE by MT-079 - verify + reconcile, do NOT re-wire quick_switcher.rs unless genuinely needed (it is NOT in allowed_paths; if a thin edit is unavoidable, disclose as a GLOBAL-SCOPE-005 deviation).",
+      "CONTEXT MENUS bind REAL handlers (KERNEL_BUILDER gate - VERIFIED the handlers exist): EDIT the existing WP-011 context_menu_surfaces.rs (it EXISTS; context_menu.rs is the WP-011 primitive - reuse its builder/entry API verbatim, NO new menu infra, RISK-070-4). populate_editor_body_menu binds: Rename Symbol -> MT-048 handler; Quick Fix -> MT-049 (code_editor/code_actions.rs - CODE_EDITOR_CTX_QUICK_FIX_AUTHOR_ID + the apply path); Format Selection -> MT-050; Peek/Go-to-Definition -> MT-008 (the only backend-touching one, indirect via its existing handler); Create-note-from-link -> MT-057. populate_node_context_menu (canvas_board.rs/graph node menus) binds the node subset (Open note via OpenNote NavigationTarget, Reveal node via RevealNode, Create-note via MT-057). EVERY entry on_activate calls the REAL handler resolved from the command bus / pane registry - NEVER a placeholder/no-op/TODO (RISK-070-1/MC-070-1, AC-070-5 - a cargo test walks every required entry + asserts it resolves to a registered command id or NavHandler; a dead-but-enabled entry is a FAIL). GATE enablement on availability (Rename disabled when no symbol under cursor - a disabled entry is OK, a dead-enabled entry FAILS). on_activate closures must NOT unwrap/expect on fallible results -> logged warning/NavError, never a frame-thread panic (RISK-070-6/MC-070-5).",
+      "ACCESSKIT + HYGIENE (KERNEL_BUILDER gate): every context-menu entry uses a STABLE AccessKit author_id from the WP-011 id registry (accessibility/registry.rs) - reuse the code_editor/code_actions.rs ids where they exist (CODE_EDITOR_CTX_QUICK_FIX_AUTHOR_ID etc.) + the ctxmenu-editor-{action}/ctxmenu-node-{action} scheme; NO parallel id scheme (RISK-070-5/MC-070-5). menu container role=Menu + items role=MenuItem (AC-070-9). NO direct backend call (dispatch-only; only MT-008 touches backend indirectly via its handler); any missing real handler = typed BLOCKER not a placeholder (MC-070-6). NO Color32 literal (theme); external screenshot; full suite -j 2 (serialize); clippy clean. allowed_paths: context_menu_surfaces.rs (EDIT) + navigation_bus.rs (CREATE, delegates to ShellNavigator) + lib.rs (pub mod navigation_bus) + tests."
     ],
     "ports_from_react": [
       "WP-011 context-menu surfaces (context_menu.rs / context_menu_surfaces.rs) — the editor body context menu and canvas/loom node context menu shapes (entry labels, grouping, AccessKit ids) ported to bind WP-012 real actions instead of placeholders"
@@ -81,7 +93,10 @@
       "NONE (dispatch only) — this MT binds existing in-process editor-action handlers and the pane registry/command bus; the only backend touch is indirect via the already-bound MT-008 code-nav handler. No new or direct backend API calls."
     ]
   },
-  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -105,5 +120,27 @@
       "MC-070-5: on_activate closures must not unwrap/expect on fallible handler results; surface errors as a logged warning or NavError, never a frame-thread panic.",
       "MC-070-6: Any missing real handler or backend capability must be raised as a typed blocker (BLOCKER object) rather than satisfied with a placeholder; the required path may not ship with a dead entry."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + VERIFIED quick_switcher::ShellNavigator (MT-030 nav bus, wired by MT-079) + context_menu_surfaces.rs/context_menu.rs exist (WP-011) + code_editor/code_actions.rs (MT-048/049/050 handlers + AccessKit ids)",
+    "corrections": [
+      "nav bus ALREADY = quick_switcher::ShellNavigator (MT-030, MT-079-wired) -> navigation_bus.rs DELEGATES (thin NavigationTarget layer over open_* seams), does NOT fork; reconcile enum vs live ShellNavigator types",
+      "EDIT existing WP-011 context_menu_surfaces.rs (+ context_menu.rs primitive builder) - bind Rename(MT-048)/QuickFix(MT-049 code_actions.rs)/Format(MT-050)/Peek(MT-008)/Create-note(MT-057) REAL handlers via command bus; no dead entries",
+      "dispatch pane-not-found guard (no panic); enablement-gated entries; on_activate no unwrap/panic; reuse WP-011 AccessKit ids (code_actions.rs) - no parallel scheme",
+      "AC-070-3 quick-switcher->pane largely done by MT-079 (verify, do not re-wire); no backend call/Color32; external screenshot; -j 2"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_c000c249 (impl + 3-lens panel + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "cba193ea feat MT-070 wire editor context menus + NavigationTarget bus",
+      "76ac3256 fix harden per adversarial review"
+    ],
+    "review_panel": "correctness=CHANGES_REQUIRED(2), backend-shape=CHANGES_REQUIRED(2), perf-focus-hygiene=CHANGES_REQUIRED(1) -> 5 must-fixes hardened.",
+    "proofs": "AC-070-1..9 + PT-070-1..6 PASS (AC-070-9/PT-070-6 PASS_WITH_DEVIATION); 5 nav-unit + 3 nav-integration + 24 context-menu (11 new) + 33 lib + regression (code_actions 7, rename 11, formatting 14, context_menu 13, quick_switcher 4) green; clippy clean. Dispatch-only MT (no screenshot).",
+    "steers_held": "navigation_bus.rs DELEGATES to the MT-030 quick_switcher::ShellNavigator (NOT forked; quick_switcher.rs untouched - AC-070-3 already satisfied by MT-079, verified+reconciled). context_menu_surfaces.rs EDITED (WP-011 ContextMenu builder reused, no new infra). Context menus bind REAL handlers: Rename(MT-048)/QuickFix(MT-049)/Format(MT-050)/Peek(MT-008)/Create-note(MT-057) - captured as real EditorBodyMenuAction. TYPE-ENFORCED no-dead-handler (action enums have NO placeholder variant; disabled-not-dead-enabled). dispatch pane-not-found -> Err(NavError::PaneNotFound), never panics. AccessKit ids REUSE the existing code_actions.rs consts (CODE_EDITOR_CTX_RENAME_SYMBOL/QUICK_FIX/FORMAT_SELECTION/GOTODEF) - no parallel scheme.",
+    "deviations_honest": "(1) AC-070-9: the menu-popup CONTAINER is a foreground Area/GenericContainer not Role::Menu (the WP-011 context_menu.rs primitive emits addressability on the ITEMS not the container; forcing Role::Menu would FORK the out-of-scope WP-011 primitive) - the items ARE Role::MenuItem (swarm-addressable, intent met). (2) the contract assumed command_bus.dispatch_command(editor.rename_symbol) + register_nav_handler/registry.focus/pane.reveal, but the LIVE baseline is a static AppCommand catalog + the ShellNavigator - the agent RECONCILED to the real types (EditorBodyMenuAction enum + ShellNavigator dispatch), binding to the REAL API not the assumed one.",
+    "waiver_granted": "context_menu_surfaces.rs (EDIT) + navigation_bus.rs (new, delegates to ShellNavigator) + lib.rs + tests in allowed_paths."
   }
 }

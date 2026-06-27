@@ -1,0 +1,103 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-KERNEL-016-Diagnostics-Retrofit-v1",
+  "base_wp_id": "WP-KERNEL-016-Diagnostics-Retrofit",
+  "created_at_utc": "2026-06-27T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-016-Diagnostics-Retrofit-v1.contract.json",
+    "markdown_projection": null
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-KERNEL-016-Diagnostics-Retrofit-v1.md",
+    "status": "NOT_GENERATED_ON_DEMAND_ONLY",
+    "projection_sha256": "",
+    "generated_by": ""
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": true,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "YES",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1 (diagnostic MTs - internal_diagnostics + Palmistry)"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Retroactive application of HBR-INT-009 (Palmistry/internal_diagnostics diagnostic-wiring mandate, build_rules v1.5.0) to all already-implemented work; three-tier diagnostic model (Flight Recorder kept as business-event ledger + internal_diagnostics internal self-diagnostics + Palmistry external watcher).",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: A dedicated retrofit pass whose SOLE focus is to revisit every ALREADY-IMPLEMENTED Work Packet and Micro-Task (the WP-1-* product set + WP-KERNEL-001..012 and their MTs) and ensure each is correctly wired into the three-tier diagnostic model: (1) Flight Recorder (the kept-as-is backend BUSINESS-EVENT ledger - confirm/repair existing FR emits where the behavior is a business event), (2) internal_diagnostics (the NEW Handshake-native INTERNAL self-diagnostics tool - wire panic/health/frame-time/resource + the open diagnostic-event API for in-app runtime behavior), and (3) Palmistry (the NEW EXTERNAL out-of-process watcher - register a tracker where a behavior's freeze/crash/liveness is worth surviving-capture).\n- Why: HBR-INT-009 (build_rules v1.5.0, OPERATOR directive 2026-06-27) mandates the diagnostic wiring for every FUTURE build, but the 80+ already-shipped MTs (notably all of WP-KERNEL-012 native editors) predate it and are largely un-instrumented. Without a retrofit, the mandate only governs new work and the existing surface stays a diagnostic blind spot - exactly the gap exposed by the 2026-06-26 live UI-thread freeze the in-process Flight Recorder could not capture.",
+    "scope_sketch": "- IN_SCOPE:\n  - A systematic inventory of every implemented WP/MT and the runtime behaviors each introduced.\n  - For EACH behavior, a recorded diagnostic-wiring verdict against all three tiers: WIRED | NOT_APPLICABLE(reason) | DEFERRED(reason), per HBR-INT-009 evidence_kind=test_run_with_palmistry_consideration_record.\n  - Add the missing FR emits / internal_diagnostics instrumentation / Palmistry trackers where the verdict is WIRED.\n  - A machine-readable coverage manifest (one row per implemented WP/MT) proving the pass is complete and showing exactly what was wired vs deferred.\n  - Priority ordering: highest-risk / most-interactive surfaces first (native editors WP-KERNEL-012, shell WP-KERNEL-011, session/runtime, backend job paths).\n- OUT_OF_SCOPE:\n  - BUILDING internal_diagnostics or Palmistry themselves (that is the prerequisite build WP-KERNEL-012).\n  - Re-opening the Flight Recorder's closed schema (explicitly KEPT AS-IS per operator decision 2026-06-27; new diagnostic event kinds go to internal_diagnostics, not the FR).\n  - Any product-behavior change beyond adding diagnostic wiring.",
+    "acceptance_criteria": "- Every already-implemented WP and MT has a recorded three-tier diagnostic-wiring verdict (WIRED / NOT_APPLICABLE-with-reason / DEFERRED-with-reason); none silently skipped.\n- Every WIRED verdict is backed by a wire test proving the FR emit / internal_diagnostics event / Palmistry tracker actually fires at runtime (not a stub).\n- A coverage manifest enumerates all implemented WP/MT with their verdicts; HBR-INT-009 is retroactively satisfiable from the manifest.\n- The native-editor surface (WP-KERNEL-012, the most interactive + the freeze origin) is fully instrumented for freeze/crash via Palmistry + internal health via internal_diagnostics.",
+    "risks_unknowns": "- HARD DEPENDENCY: cannot start until WP-KERNEL-012 ships internal_diagnostics + Palmistry (you cannot wire into APIs that do not exist). This stub is intentionally parked behind 013.\n- Large surface (80+ MTs across 100+ WPs) - needs the same ultracode per-unit pipeline + a strict priority order so it does not become an unbounded sweep; log any coverage caps explicitly (no silent truncation).\n- Must not regress shipped behavior - diagnostic wiring is additive-only; each retrofit re-runs the original WP/MT proof to confirm no regression.\n- Privacy boundary: internal_diagnostics + Palmistry record NO project/sensitive data; the retrofit must enforce the typed-allowlist schema, never log document/prompt content.",
+    "governance_artifact_stance": "Repo-governance-light for the mandate trace; product-code (src/) wiring goes through the full WP lifecycle once activated.",
+    "scope_split_note": "OPERATOR SCOPE DECISION 2026-06-27: this WP's SOLE job is to RECONNECT everything ALREADY BUILT (the 80+ shipped MTs across the WP-1-* + WP-KERNEL-001..012 surface) to the internal internal_diagnostics diagnostics + the external Palmistry watcher. It builds NO new tools and makes NO documentation/spec/governance changes - those were all delivered in WP-KERNEL-012. This WP is additive wiring + a coverage manifest only, and stays parked behind WP-KERNEL-012 (cannot wire into APIs that 015 has not yet shipped)."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "await_dependency_WP-KERNEL-012 (diagnostic MTs)_diagnostics_build",
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DIAGNOSTIC_RETROFIT_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "The retrofit can begin before internal_diagnostics/Palmistry exist (FALSE - hard dependency on WP-KERNEL-013).",
+      "Wiring can be claimed WIRED without a runtime wire test (FALSE - must fire at runtime).",
+      "Re-opening the FR schema is in scope (FALSE - FR kept as-is; new kinds go to internal_diagnostics).",
+      "A full sweep is feasible in one pass without priority ordering or coverage logging."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Block activation until WP-KERNEL-013 is shipped.",
+      "Require a runtime wire test per WIRED verdict.",
+      "Require a coverage manifest enumerating ALL implemented WP/MT with explicit verdicts (no silent skip).",
+      "Additive-only: re-run each unit's original proof to confirm no regression.",
+      "Enforce the no-sensitive-data typed allowlist on every added emit."
+    ]
+  }
+}

@@ -1394,6 +1394,24 @@ const specAnchorValues = (refinementData.specAnchors || [])
   .map((anchor) => String(anchor?.specAnchor || anchor || '').trim())
   .filter(Boolean);
 const packetContractPath = path.join(wpDir, 'packet.json');
+
+// HBR-INT-009 (CX-981): three-tier diagnostic acceptance rows. Until WP-KERNEL-012
+// (internal_diagnostics/Palmistry) ships, observable-behavior WPs default these rows to
+// DEFERRED with an explicit reason; the obligation is NEVER omitted silently.
+// Applicability is taken from the signed refinement's HBR-INT-009 review block when
+// present; absent a clear signal it defaults to applicable so the rows surface.
+const hbrInt009Review = refinementData.hbrInt009ThreeTierDiagnostic || null;
+const hbrInt009Applicable = hbrInt009Review && hbrInt009Review.applicable === false ? false : true;
+const HBR_INT_009_DEFERRED_REASON = 'WP-KERNEL-012 (internal_diagnostics/Palmistry) not yet shipped';
+const buildHbrInt009AcceptanceRows = () => {
+  if (!hbrInt009Applicable) return [];
+  return [
+    { id: 'HBR-INT-009-FR', status: 'DEFERRED', evidence: null, reason: HBR_INT_009_DEFERRED_REASON },
+    { id: 'HBR-INT-009-INTERNAL_DIAGNOSTICS', status: 'DEFERRED', evidence: null, reason: HBR_INT_009_DEFERRED_REASON },
+    { id: 'HBR-INT-009-PALMISTRY', status: 'DEFERRED', evidence: null, reason: HBR_INT_009_DEFERRED_REASON },
+  ];
+};
+
 const packetContract = {
   schema_id: WORK_PACKET_CONTRACT_SCHEMA_ID,
   schema_version: 'work_packet_contract_v1',
@@ -1456,7 +1474,11 @@ const packetContract = {
     data_contract_profile: dataContractProfile,
   },
   hbr: buildDefaultHbrContext(),
-  acceptance_matrix: buildDefaultHbrAcceptanceMatrix(),
+  acceptance_matrix: {
+    ...buildDefaultHbrAcceptanceMatrix(),
+    // HBR-INT-009 / CX-981: three-tier diagnostic rows, DEFERRED until WP-KERNEL-012 ships.
+    hbr_int_009_three_tier_diagnostic: buildHbrInt009AcceptanceRows(),
+  },
   refinement: {
     contract_file: `${wpDir.replace(/\\/g, '/')}/refinement.json`,
     source_refinement_file: refinementPath.replace(/\\/g, '/'),
@@ -1659,6 +1681,9 @@ if (clauseClosureRows && clauseClosureRows.length > 0) {
         risk_if_missed: riskIfMissed,
       },
       hbr_obligations: buildDefaultHbrObligations(),
+      // HBR-INT-009 / CX-981: per-MT three-tier diagnostic obligations (FLIGHT_RECORDER|
+      // INTERNAL_DIAGNOSTICS|PALMISTRY). Default empty; rows are added when an MT wires a tier.
+      hbr_int_009_tier_obligations: [],
       handoff: {
         coder_session: null,
         wp_validator_session: null,

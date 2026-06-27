@@ -1,7 +1,7 @@
 {
   "schema": "handshake.build_rules@1",
   "name": "HANDSHAKE_BUILD_RULES",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "status": "ACTIVE",
   "owner": "KERNEL_BUILDER",
   "updated_at": "2026-06-18T00:00:00Z",
@@ -354,6 +354,49 @@
         "WP touches no UUID generation site",
         "Touched site is a hardcoded fixture literal (e.g., \"00000000-...\"), a `Uuid::nil()`, or a `Uuid::parse_str` parse-only path",
         "Touched site is inside `.GOV/`, third-party vendored code, or generated code the WP does not own"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-INT-009",
+      "pillar": "INT",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP touches any observable runtime behavior (emits/ wires Flight Recorder / EventLedger observability)",
+      "applicability": {
+        "predicate_text": "WP introduces or modifies any observable runtime behavior (a behavior that emits Flight Recorder / EventLedger / TraceProjection observability, or any in-app runtime behavior whose health/freeze/crash matters)",
+        "tags": [
+          "flight_recorder",
+          "internal_diagnostics",
+          "palmistry",
+          "diagnostic_three_tier",
+          "observable_behavior",
+          "trace_projection"
+        ]
+      },
+      "required_action": "Wire test proves that any observable runtime behavior is wired across the THREE-TIER diagnostic model and the outcome per tier is recorded as build evidence (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason): (1) FLIGHT RECORDER - the kept-as-is backend BUSINESS-EVENT ledger; confirm/repair the FR emit where the behavior is a business event (no schema re-open). (2) INTERNAL_DIAGNOSTICS - the Handshake-native INTERNAL self-diagnostics tool (panic hook, UI-thread heartbeat, frame-time, CPU/RSS/GPU counters, and the OPEN diagnostic-event API any feature can call); wire in-app runtime behavior here - this is the diagnostic role the Flight Recorder was intended to fill but never did. (3) PALMISTRY - the EXTERNAL out-of-process watcher that survives Handshake freezes/crashes/heavy-CPU; register a tracker where a behavior's liveness/freeze/crash is worth surviving-capture. internal_diagnostics (internal self-sense) + Palmistry (external observation) record NO project/sensitive data (typed allowlist; standard mechanism names kept - heartbeat/minidump/watchdog/ring-buffer). They SUPPLEMENT, never replace, the Flight Recorder.",
+      "evidence_kind": "test_run_with_three_tier_diagnostic_wiring_record",
+      "citations": [
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-INT-001"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-INT-007"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-006-VIS"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-981"
+        }
+      ],
+      "not_applicable_when": [
+        "WP introduces no observable runtime behavior",
+        "internal_diagnostics / Palmistry (WP-KERNEL-012) not yet shipped at WP creation time (record the consideration as DEFERRED-with-reason, never silently skipped); the WP-KERNEL-016 retrofit applies this rule retroactively once 015 ships"
       ],
       "deferred_until": null
     },
@@ -1099,6 +1142,11 @@
       "version": "1.4.0",
       "at_utc": "2026-06-18T00:00:00Z",
       "change": "Added test_environment_prerequisites registry (OPERATOR order 2026-06-18): pgvector >= 0.8.0 is REQUIRED for the test suite (WP-KERNEL-009 MT-264 LoomSearchV2 semantic/hybrid search; migration 0336 fails loud if absent), alongside pg_trgm and pgcrypto. Includes an expansion_directive to grow the list and integrate ensure-present + fail-loud checks into migrations/test paths/PG provisioning where needed, rather than leaving prerequisites implicit."
+    },
+    {
+      "version": "1.5.0",
+      "at_utc": "2026-06-27T00:00:00Z",
+      "change": "Added HBR-INT-009 (OPERATOR directive 2026-06-27): the THREE-TIER DIAGNOSTIC WIRING mandate. Every observable runtime behavior MUST be wired across three tiers with the per-tier outcome (WIRED / NOT_APPLICABLE-with-reason / DEFERRED) recorded as build evidence: (1) Flight Recorder = the kept-as-is backend BUSINESS-EVENT ledger (no schema re-open); (2) INTERNAL_DIAGNOSTICS = the NEW Handshake-native INTERNAL self-diagnostics tool (panic/heartbeat/frame-time/resource + open diagnostic-event API) - the diagnostic role the FR was intended to fill but never did; (3) PALMISTRY = the NEW EXTERNAL out-of-process watcher that survives freezes/crashes. internal_diagnostics + Palmistry record no project/sensitive data and keep standard mechanism names (heartbeat/minidump/watchdog). Motivated by a live 2026-06-26 UI-thread freeze the in-process FR was blind to. internal_diagnostics + Palmistry are built by WP-KERNEL-012; WP-KERNEL-016 retrofits this rule onto all already-shipped work. Cites HBR-INT-001/007 + Codex CX-006-VIS + the planned CX-981 HARD block. Canonical authority; the 6 role protocols project this via their Diagnostics duty bullets."
     }
   ]
 }

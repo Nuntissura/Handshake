@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [],
     "blocks": [],
@@ -36,6 +36,7 @@
     "allowed_paths": [
       "src/frontend/handshake_native/src/backend/loom.rs",
       "src/frontend/handshake_native/src/backend/mod.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
       "src/frontend/handshake_native/tests/test_loom.rs"
     ],
     "forbidden_paths": [
@@ -67,7 +68,10 @@
       "Do not hold workspace state in this module. All functions accept workspace_id as a parameter.",
       "Pagination parameters (limit/offset) are passed as query params; use Option<u32> for optional params with sane defaults documented in comments.",
       "Cross-WP dependency: the shared HTTP client this module calls (src/frontend/handshake_native/src/backend_client.rs) is delivered by WP-011 (handshake-native crate). The new backend/ subdir and loom.rs sit alongside it under src/frontend/handshake_native/src/.",
-      "Same-WP dependency: the BackendClient calling pattern is established by MT-037; follow that pattern rather than introducing a second HTTP client."
+      "Same-WP dependency: the BackendClient calling pattern is established by MT-037; follow that pattern rather than introducing a second HTTP client.",
+      "MASSIVE REUSE-NOT-DUPLICATE (KERNEL_BUILDER gate 2026-06-23 - CRITICAL, the biggest overlap in the WP): ~25 of these 46 loom routes are ALREADY BOUND + VERIFIED in backend_client.rs by prior MTs - DO NOT re-implement them: get/patch loom block + LoomBlockUpdate (MT-022/023/032), GET .../backlinks (MT-024/178), transclusion (MT-025), folders + folder-blocks (MT-022 loom_folders), tags + tag-blocks (MT-023), pin-order (MT-024), unlinked-mentions + breadcrumbs (MT-024), graph traverse/local/global (MT-021), search (MT-029 /loom/graph-search) + search-v2 (MT-028 LoomSearchV2Client), quick-switcher recents (MT-030), block-view definitions/results (MT-027 BlockViewClient), wiki list/compile/get/projection (MT-025 LoomWikiClient), canvas placements (MT-026 CanvasBoardClient). MT-038 CONSOLIDATES: backend/loom.rs RE-EXPORTS / reuses the EXISTING clients (so handshake_native::backend::loom is the unified namespace) + ADDS ONLY the genuinely-missing routes: create/delete block, create/delete edge, open_daily_journal, knowledge-bridge, add/remove block to folder, wiki bootstrap/drift-check/fanout/regenerate/stale/delete, import/markdown, visual-debug. DO NOT MOVE the existing scattered clients (that breaks the MT-021-032 call sites) - reuse/re-export them. A re-implemented get_loom_block/search/canvas is a FAILURE (the panel checks for duplication).",
+      "VERIFY THE MISSING ROUTES + ENUM TOLERANCE (KERNEL_BUILDER gate): VERIFY read-only against src/backend/handshake_core/src/api/loom.rs that the genuinely-NEW routes (edges create/delete, journals PUT, knowledge-bridge GET, folder block add/remove PUT/DELETE, wiki bootstrap/drift/fanout/regenerate/stale, import/markdown POST, visual-debug GET) exist as stated + their req/resp shapes. LoomBlockContentType + LoomEdgeType enums MUST use #[serde(rename_all=snake_case)] + a catch-all (#[serde(other)] Unknown variant) so an unknown backend variant does NOT panic-fail deserialization (RISK-1/MC-1 - MT-022 found content_type=note/document/asset/journal/tag/canvas_board/collection; tolerate additions). LoomTransclusionResponse resolved=false is a FIRST-CLASS Ok result (the unresolved state), NOT mapped to an Err (RISK-3/MC-2 - the MT-025 lesson). wiki staleness_verdict + graph traverse/local/global bodies = serde_json::Value (avoid tight coupling, RISK-4/6/MC-3/4). search-v2 embedding = serde_json::Value, NEVER fabricate an embedding (RISK-7). Loom routes do NOT require x-hsk identity headers (unlike knowledge_documents MT-037) - verify + do NOT add them.",
+      "MOCK FIXTURES REAL + HYGIENE (KERNEL_BUILDER gate - Spec-Realism, the MT-037 rule): the mock-server fixture JSON MUST be REAL backend response shapes (captured or field-verified against api/loom.rs + storage/loom.rs handler json! blocks), NOT self-serialized from the client's own Rust types (no fixture-feeds-its-own-test tautology - cite the backend line numbers). FULLY provable WITHOUT live PG (mock HTTP server) - no NEEDS_MANAGED_RESOURCE_PROOF. Tests cover: block CRUD roundtrip (the NEW create/delete), edge create/delete, tag patch add_tags/remove_tags = tag-hub block IDs not edge IDs (RISK-2 - resolved server-side), transclusion unresolved case, search-v2 parse, journal open, import/markdown. Stateless adapter (workspace_id always a param, no held state). base_url from backend_client.rs config (portability). NO GUI this MT (no screenshot/accesskit - pure client; document the AccessKit requirement for future widget authors in the module doc). Full suite stays green; clippy clean; no tracked artifacts."
     ],
     "ports_from_react": [
       "app/src/components/BlockCollectionView.tsx - reference for block list rendering and the view_type query pattern (views/:view_type route).",
@@ -157,5 +161,28 @@
       "Graph result bodies typed as serde_json::Value initially; graph pane widgets consume them through typed extractors added per-widget.",
       "Cargo tests cover: block CRUD roundtrip, tag patch with add_tags/remove_tags, transclusion unresolved case, search-v2 response parsing."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-021..032 existing loom clients (the ~25 already-bound routes) + MT-037 binding pattern + Spec-Realism + MT-022 content_type set",
+    "corrections": [
+      "MASSIVE reuse: ~25 routes already bound in MT-021-032 - consolidate/re-export, add ONLY the missing ~21 (edges/journal/knowledge-bridge/folder-block/wiki-extras/import/visual-debug); no re-implement, no move",
+      "content_type/edge_type #[serde(other)] tolerance; transclusion resolved=false=Ok; serde_json::Value for graph+staleness+embedding (no fabrication)",
+      "verify the new routes vs api/loom.rs; loom needs NO x-hsk headers (don't add)",
+      "mock fixtures REAL backend shapes (cite lines, no tautology); provable without live PG; stateless; no GUI; full suite green"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_322549ec (impl + 3-lens panel + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "d6426a67 feat MT-038 bind native editors to existing Loom backend APIs",
+      "dbc3fb68 fix harden per adversarial review"
+    ],
+    "review_panel": "correctness=CHANGES_REQUIRED(1), backend-shape=CHANGES_REQUIRED(1), perf-focus-hygiene=PASS(0) -> 2 must-fixes hardened.",
+    "proofs": "AC-1..7 + PT-1..4 PASS; 1783 passed / 0 failed across 89 test binaries; clippy clean; FULLY provable WITHOUT live PG (mock HTTP server); no GUI (no screenshot); no tracked artifacts.",
+    "reuse_held": "RE-EXPORT not re-implement: the existing builder clients (LoomSearchV2Client/BlockViewClient/CanvasBoardClient) are re-exported via pub use crate::backend_client::{...} - proven by ac_unified_namespace_reexports_existing_clients (compiles only if loom::X IS backend_client::X); the new async LoomClient fns are a DISTINCT transport (async vs the egui-thread RequestSpec/cell builders, which the mock-server ACs require). NO builder client edited/moved (git touches only loom.rs/mod.rs/test_loom.rs). backend/loom.rs ADDS the missing routes (block create/delete, edges, journal, knowledge-bridge, folder-block, wiki extras, import, visual-debug).",
+    "verify_over_prose": "LoomBlockContentType used the REAL storage::loom variants (note/file/annotated_file/tag_hub/journal/canvas/view_def - VERIFIED vs storage/loom.rs:41) over the contract's illustrative set (note/document/asset/...) + #[serde(other)] Unknown tolerance. LoomEdgeType real variants. The Spec-Realism gate makes storage/loom.rs authoritative over the contract prose - correct discipline.",
+    "fixtures_real": "mock fixtures hand-authored from backend storage+api structs (cited) carry backend-only fields (created_at, content_hash, keyword_score) the client ignores -> non-tautological parse. transclusion resolved=false=Ok; search-v2 no fabricated embedding; serde_json::Value for graph/wiki/staleness per the contract coupling-avoid mandate.",
+    "waiver_granted": "backend_client.rs reused (re-export only) + new backend/loom.rs + backend/mod.rs + test in allowed_paths."
   }
 }

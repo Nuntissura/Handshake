@@ -25,14 +25,24 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [],
-    "blocks": ["MT-002", "MT-003", "MT-004", "MT-005", "MT-006", "MT-007", "MT-008", "MT-009", "MT-010"],
+    "blocks": [
+      "MT-002",
+      "MT-003",
+      "MT-004",
+      "MT-005",
+      "MT-006",
+      "MT-007",
+      "MT-008",
+      "MT-009",
+      "MT-010"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Goal: Implement the foundational text buffer and syntax highlighting layer for the native code editor panel. This is the root MT that all other E1 MTs build on. Expected diff shape: new Rust module `src/frontend/handshake_native/src/code_editor/buffer.rs` (ropey-based text buffer with edit/query API), new module `src/frontend/handshake_native/src/code_editor/highlight.rs` (tree-sitter highlight pipeline), new `src/frontend/handshake_native/src/code_editor/mod.rs` wiring them, and integration into the egui panel struct at `src/frontend/handshake_native/src/code_editor/panel.rs`.\n\nExact files to create/edit:\n- CREATE `src/frontend/handshake_native/src/code_editor/mod.rs` — declares buffer and highlight submodules, exports the top-level `CodeEditorPanel` egui widget struct.\n- CREATE `src/frontend/handshake_native/src/code_editor/buffer.rs` — wraps the `ropey` crate `Rope` type. Exposes: `TextBuffer::new(text: &str) -> Self`, `insert(byte_offset: usize, text: &str)`, `delete(byte_range: Range<usize>)`, `slice_to_string(line_range: Range<usize>) -> String`, `len_bytes() -> usize`, `len_lines() -> usize`, `line_to_byte(line_idx: usize) -> usize`, `byte_to_line(byte_offset: usize) -> usize`. The buffer is the sole owner of document text; all other subsystems (highlight, folding, minimap) borrow slices from it.\n- CREATE `src/frontend/handshake_native/src/code_editor/highlight.rs` — uses `tree-sitter` + language grammars (start with `tree-sitter-rust` and `tree-sitter-javascript` as bundled crates; add more via a `LanguageRegistry` map keyed on file extension). Exposes `Highlighter::new(language: Language) -> Self`, `highlight(source: &[u8]) -> Vec<HighlightSpan>` where `HighlightSpan { byte_range: Range<usize>, scope: HighlightScope }`. `HighlightScope` is an enum: `Keyword`, `String`, `Comment`, `Number`, `Function`, `Type`, `Operator`, `Other`.\n- EDIT `src/frontend/handshake_native/src/code_editor/panel.rs` (create if not yet existing) — mounts a `CodeEditorPanel` egui widget: renders visible lines from the buffer, applies highlight spans as colored text runs via `egui::RichText`, provides a stable `egui::Id` for the panel, and sets AccessKit metadata.\n\nExact crates/functions/APIs to use:\n- `ropey = \"1.6\"` — battle-tested rope data structure; handles large files and incremental edits cheaply.\n- `tree-sitter = \"0.22\"` + `tree-sitter-rust = \"0.21\"` + `tree-sitter-javascript = \"0.21\"` — canonical grammar crates; parse incrementally using `Parser::parse_with` and the old tree for re-use.\n- `egui` text rendering: `ui.painter().galley(...)` or `ui.label(egui::RichText::new(text).color(color))` per span.\n- AccessKit metadata via the existing WP-011 accessibility layer (`src/frontend/handshake_native/src/accessibility/` — `mod.rs`, `registry.rs`, `snapshot.rs`, `live.rs`): register the outer panel node as `Role::TextInput` with `author_id` = `\"code_editor_buffer\"` through the project's accessibility registry rather than building raw AccessKit nodes directly.\n\nReact reference: `app/src/components/MonacoCodeBlockView.tsx` — the Monaco-based code block that this native surface replaces. Study the language field, readOnly flag, and status-dispatch pattern. Note that Monaco handled highlighting internally; here tree-sitter replaces it.\nBackend: No direct backend call in this MT. The buffer is purely in-process. Backend code-nav APIs are wired in MT-008. Backend access is via the existing API client `src/frontend/handshake_native/src/backend_client.rs` (reuse only; no backend rewrite).\n\nStep-by-step implementation notes:\n1. Add `ropey`, `tree-sitter`, `tree-sitter-rust`, `tree-sitter-javascript` to `src/frontend/handshake_native/Cargo.toml`.\n2. Implement `TextBuffer` in `buffer.rs`. Keep all methods panic-free for out-of-range inputs (clamp or return `Err`).\n3. Implement `Highlighter` in `highlight.rs`. Parse the full buffer on first call; on subsequent calls pass the previous tree as `old_tree` for incremental re-parse. Map tree-sitter `Highlight` indices to `HighlightScope` using a fixed lookup table against the `highlights.scm` capture names (e.g. `keyword` -> `Keyword`, `string` -> `String`).\n4. Implement `CodeEditorPanel::show(&mut self, ui: &mut egui::Ui)` in `mod.rs`. For now render all lines (virtualization is MT-002). Use a `egui::ScrollArea` for vertical scroll. Each line: iterate spans overlapping the line, split text into colored runs, render with `egui::RichText`. Use the existing theme layer (`src/frontend/handshake_native/src/theme/` — `palette.rs`, `syntax.rs`, `egui_apply.rs`) for code background and syntax colors rather than hardcoded hex.\n5. Wire `CodeEditorPanel` into the WP-011 docking surface by registering it through `src/frontend/handshake_native/src/pane_registry.rs` and placing it via `src/frontend/handshake_native/src/split_layout.rs` so it appears as a named pane.\n6. Register AccessKit metadata through the existing accessibility layer (`src/frontend/handshake_native/src/accessibility/registry.rs`): an `author_id = \"code_editor_panel\"` `Role::GenericContainer` on the outer `Frame` and `author_id = \"code_editor_text\"` `Role::TextInput` on the inner text area so swarm agents can address the widget.\n\nDependencies/unblock conditions: None — this is the root MT. Requires `ropey` and `tree-sitter` crates available in the `handshake-native` crate.\nRisk if missed: All other E1 MTs are blocked; no text foundation means no virtualization, no multi-cursor, no find/replace, no folding.",
+    "summary": "Goal: Implement the foundational text buffer and syntax highlighting layer for the native code editor panel. This is the root MT that all other E1 MTs build on. Expected diff shape: new Rust module `src/frontend/handshake_native/src/code_editor/buffer.rs` (ropey-based text buffer with edit/query API), new module `src/frontend/handshake_native/src/code_editor/highlight.rs` (tree-sitter highlight pipeline), new `src/frontend/handshake_native/src/code_editor/mod.rs` wiring them, and integration into the egui panel struct at `src/frontend/handshake_native/src/code_editor/panel.rs`.\n\nExact files to create/edit:\n- CREATE `src/frontend/handshake_native/src/code_editor/mod.rs` — declares buffer and highlight submodules, exports the top-level `CodeEditorPanel` egui widget struct.\n- CREATE `src/frontend/handshake_native/src/code_editor/buffer.rs` — wraps the `ropey` crate `Rope` type. Exposes: `TextBuffer::new(text: &str) -> Self`, `insert(byte_offset: usize, text: &str)`, `delete(byte_range: Range<usize>)`, `slice_to_string(line_range: Range<usize>) -> String`, `len_bytes() -> usize`, `len_lines() -> usize`, `line_to_byte(line_idx: usize) -> usize`, `byte_to_line(byte_offset: usize) -> usize`. The buffer is the sole owner of document text; all other subsystems (highlight, folding, minimap) borrow slices from it.\n- CREATE `src/frontend/handshake_native/src/code_editor/highlight.rs` — uses `tree-sitter` + language grammars (start with `tree-sitter-rust` and `tree-sitter-javascript` as bundled crates; add more via a `LanguageRegistry` map keyed on file extension). Exposes `Highlighter::new(language: Language) -> Self`, `highlight(source: &[u8]) -> Vec<HighlightSpan>` where `HighlightSpan { byte_range: Range<usize>, scope: HighlightScope }`. `HighlightScope` is an enum: `Keyword`, `String`, `Comment`, `Number`, `Function`, `Type`, `Operator`, `Other`.\n- EDIT `src/frontend/handshake_native/src/code_editor/panel.rs` (create if not yet existing) — mounts a `CodeEditorPanel` egui widget: renders visible lines from the buffer, applies highlight spans as colored text runs via `egui::RichText`, provides a stable `egui::Id` for the panel, and sets AccessKit metadata.\n\nExact crates/functions/APIs to use:\n- `ropey = \"1.6\"` — battle-tested rope data structure; handles large files and incremental edits cheaply.\n- `tree-sitter = \"0.25\"` single pinned core + `tree-sitter-language` LanguageFn shim + `tree-sitter-rust = \"0.24\"` + a shim-compatible `tree-sitter-javascript` + `tree-sitter-highlight` [RESEARCH-CORRECTED wf_ffa74d6d 2026-06-22 from 0.22/0.21: field converged on 0.25.x core + tree-sitter-language LanguageFn shim where grammars expose LANGUAGE: LanguageFn, decoupling grammar version from core and avoiding the duplicate-core/ABI wall as more Monaco-parity languages are added; load via the shim, NOT the deprecated language() fn] — canonical grammar crates; parse incrementally using `Parser::parse_with` and the old tree for re-use.\n- `egui` text rendering: `ui.painter().galley(...)` or `ui.label(egui::RichText::new(text).color(color))` per span.\n- AccessKit metadata via the existing WP-011 accessibility layer (`src/frontend/handshake_native/src/accessibility/` — `mod.rs`, `registry.rs`, `snapshot.rs`, `live.rs`): register the outer panel node as `Role::TextInput` with `author_id` = `\"code_editor_buffer\"` through the project's accessibility registry rather than building raw AccessKit nodes directly.\n\nReact reference: `app/src/components/MonacoCodeBlockView.tsx` — the Monaco-based code block that this native surface replaces. Study the language field, readOnly flag, and status-dispatch pattern. Note that Monaco handled highlighting internally; here tree-sitter replaces it.\nBackend: No direct backend call in this MT. The buffer is purely in-process. Backend code-nav APIs are wired in MT-008. Backend access is via the existing API client `src/frontend/handshake_native/src/backend_client.rs` (reuse only; no backend rewrite).\n\nStep-by-step implementation notes:\n1. Add `ropey`, `tree-sitter`, `tree-sitter-rust`, `tree-sitter-javascript` to `src/frontend/handshake_native/Cargo.toml`.\n2. Implement `TextBuffer` in `buffer.rs`. Keep all methods panic-free for out-of-range inputs (clamp or return `Err`).\n3. Implement `Highlighter` in `highlight.rs`. Parse the full buffer on first call; on subsequent calls pass the previous tree as `old_tree` for incremental re-parse. Map tree-sitter `Highlight` indices to `HighlightScope` using a fixed lookup table against the `highlights.scm` capture names (e.g. `keyword` -> `Keyword`, `string` -> `String`).\n4. Implement `CodeEditorPanel::show(&mut self, ui: &mut egui::Ui)` in `mod.rs`. For now render all lines (virtualization is MT-002). Use a `egui::ScrollArea` for vertical scroll. Each line: iterate spans overlapping the line, split text into colored runs, render with `egui::RichText`. Use the existing theme layer (`src/frontend/handshake_native/src/theme/` — `palette.rs`, `syntax.rs`, `egui_apply.rs`) for code background and syntax colors rather than hardcoded hex.\n5. Wire `CodeEditorPanel` into the WP-011 docking surface by registering it through `src/frontend/handshake_native/src/pane_registry.rs` and placing it via `src/frontend/handshake_native/src/split_layout.rs` so it appears as a named pane.\n6. Register AccessKit metadata through the existing accessibility layer (`src/frontend/handshake_native/src/accessibility/registry.rs`): an `author_id = \"code_editor_panel\"` `Role::GenericContainer` on the outer `Frame` and `author_id = \"code_editor_text\"` `Role::TextInput` on the inner text area so swarm agents can address the widget.\n\nDependencies/unblock conditions: None — this is the root MT. Requires `ropey` and `tree-sitter` crates available in the `handshake-native` crate.\nRisk if missed: All other E1 MTs are blocked; no text foundation means no virtualization, no multi-cursor, no find/replace, no folding.",
     "allowed_paths": [
       "src/frontend/handshake_native/src/code_editor/mod.rs",
       "src/frontend/handshake_native/src/code_editor/buffer.rs",
@@ -60,7 +70,8 @@
       "PT-001: Run `cargo test -p handshake-native text_buffer` — all tests GREEN, output logged.",
       "PT-002: Run `cargo test -p handshake-native highlighter` — all tests GREEN, output logged.",
       "PT-003: Run egui_kittest screenshot test `code_editor_panel_basic` — screenshot saved to `test_output/MT-001-panel-basic.png`, pixel check passes.",
-      "PT-004: Run egui_kittest AccessKit dump test `code_editor_panel_accesskit` — JSON output contains both required author_ids."
+      "PT-004: Run egui_kittest AccessKit dump test `code_editor_panel_accesskit` — JSON output contains both required author_ids.",
+      "PT-005: Run cargo tree -d from the crate dir with the enforced external artifact target and confirm a SINGLE tree-sitter core in the dependency graph."
     ],
     "implementation_notes": [
       "Use `ropey::Rope` not `String` from the start — retrofitting later when files are large is expensive.",
@@ -69,7 +80,9 @@
       "Do not call `.to_string()` on the full rope for every frame — slice only the visible range (even before MT-002 virtualization, limit to first 1000 lines as a guard).",
       "Wrap tree-sitter `Language` in a `Send + Sync` newtype if the egui event loop requires it.",
       "HighlightScope must derive Clone, Debug, PartialEq for tests.",
-      "Cross-WP dependency: this MT builds on WP-011 modules (`pane_registry.rs`, `split_layout.rs`, `theme/*`, `accessibility/*`, `backend_client.rs`) already present under `src/frontend/handshake_native/src/`. These are reused, not re-created."
+      "Cross-WP dependency: this MT builds on WP-011 modules (`pane_registry.rs`, `split_layout.rs`, `theme/*`, `accessibility/*`, `backend_client.rs`) already present under `src/frontend/handshake_native/src/`. These are reused, not re-created.",
+      "SALVAGE: buffer.rs + panel.rs from the prior run are high-quality and version-independent - keep/refine, do not rewrite; port highlight.rs + Cargo.toml to the 0.25.x + tree-sitter-language stack; keep the public HighlightSpan{byte_range,scope} + HighlightScope output type stable so panel.rs is unaffected.",
+      "tree-sitter safety: after porting, cargo tree -d MUST show exactly one tree-sitter core (no duplicates)."
     ],
     "ports_from_react": [
       "app/src/components/MonacoCodeBlockView.tsx — language field, readOnly flag, status-dispatch pattern, language picker data model",
@@ -79,7 +92,10 @@
       "None in this MT. Buffer is in-process only. Backend code-nav APIs are wired in MT-008 via the existing `src/frontend/handshake_native/src/backend_client.rs` API client."
     ]
   },
-  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -100,5 +116,36 @@
       "MC-003: Screenshot test must run in CI (headless wgpu or software rasterizer) and artifact the PNG.",
       "MC-004: Cargo.lock must be committed so grammar crate versions are reproducible across machines."
     ]
+  },
+  "research_provenance": {
+    "source": "wf_ffa74d6d WP-012 research/parity workflow 2026-06-22",
+    "corrections": [
+      "tree-sitter 0.22/0.21 -> 0.25.x core + tree-sitter-language shim + tree-sitter-rust 0.24.x",
+      "panel render cap accepted for MT-001; custom virtualized egui painter deferred to MT-002"
+    ],
+    "reconcile_after_green": "pin exact working tree-sitter versions once MT-001 builds green"
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_e361c5d8 (implement + fresh adversarial-review + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "110373f3 feat MT-001 buffer+highlight+panel",
+      "a4420aa4 fix harden per adversarial review"
+    ],
+    "resolved_pins": {
+      "tree-sitter": "0.25.10",
+      "tree-sitter-language": "0.1.7",
+      "tree-sitter-rust": "0.24.2",
+      "tree-sitter-javascript": "0.25.0",
+      "ropey": "1.6.1"
+    },
+    "proofs": "AC-001..006 + PT-001..005 GREEN; lib 374 + buffer 7 + highlighter 4 + panel kittest 3; cargo tree -d single tree-sitter core; clippy --all-targets -D warnings clean; GPU pixel proof + AccessKit ancestry; PNG visually inspected by KERNEL_BUILDER = real tree-sitter highlighting.",
+    "deferred_to_later_mts": [
+      "dedicated function/operator theme tokens in theme/syntax.rs - later highlight MT",
+      "multi-instance panel runtime AccessKit test - MT-009 diff view",
+      "true Tree::edit incremental reparse - later perf MT",
+      ">1000-line cap-notice text test + highlight parse->None branch test - test-hardening follow-up"
+    ],
+    "artifact_hygiene_followup": "kittest panel test writes PNG to a repo-local test_output/ dir (gitignored) in addition to the external Handshake_Artifacts/handshake-test root; redirect to external-only folded into MT-002 (operator artifact directive)."
   }
 }

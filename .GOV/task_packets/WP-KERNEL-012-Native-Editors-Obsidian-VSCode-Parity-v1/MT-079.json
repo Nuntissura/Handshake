@@ -1,0 +1,144 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-079",
+  "title": "E11-MT-079-AppHostMount-EditorPaneFactories",
+  "group": "E11 Shell host-mount (app.rs convergence)",
+  "created_at_utc": "2026-06-25T00:00:00Z",
+  "updated_at_utc": "2026-06-25T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-079.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
+    "depends_on": [
+      "MT-008",
+      "MT-010",
+      "MT-012",
+      "MT-014",
+      "MT-015",
+      "MT-026",
+      "MT-030",
+      "MT-035",
+      "MT-036",
+      "MT-057"
+    ],
+    "blocks": [
+      "MT-069",
+      "MT-070",
+      "MT-071"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "OPERATOR-AUTHORIZED SCOPE EXPANSION (2026-06-25, AskUserQuestion answer = Add app.rs mount MT now): this NEW MT closes the structural gap that NO existing WP-012 MT owned - the actual HOST-MOUNT of the built+widget-proven editor panes into the running Handshake app (app.rs). Today app.rs (~4902 lines) registers PlaceholderPaneFactory for the editor PaneTypes (the editor-pane TYPED SEAM, Rich-text/Code editor pane not mounted yet, at ~app.rs:286), so the panes are proven only at the kittest widget level and never render in the live app; this MT replaces those placeholders with the REAL editor pane factories, threads the per-pane session context, and wires the ~14 accumulated E11 carry-forwards so the native editors become LIVE in the running app (enabling real-app GUI inspection per the goal). HOST-INTEGRATION GLUE ONLY: no new editor features, no backend endpoints, no SQLite. It binds the EXISTING set_* hooks + pane widgets the prior MTs built+tested, and mounts/threads them in app.rs. Every backend gap stays a typed blocker (FEMS/Stage/Calendar/Locus HTTP routes verified ABSENT; live-PG round-trips = NEEDS_MANAGED_RESOURCE_PROOF). PostgreSQL/EventLedger only; no SQLite; src/backend is reuse-via-API-only. CORE MOUNT (must-have, prove first): (1) register a REAL CodeEditorPaneFactory (PaneType::CodeEditor) + RichEditorPaneFactory (rich/document PaneType) in app.rs factories HashMap, replacing PlaceholderPaneFactory for those types; construct from the existing CodeEditorPanel (code_editor/panel.rs) + RichEditorWidget (rich_editor/renderer/rich_editor_widget.rs); create thin impl PaneFactory wrappers if absent. (2) thread session context via PaneRenderContext on mount: code pane set_runtime(tokio Handle)+set_workspace_id (MT-008/010); rich pane RichEditorState::set_embed_context(workspace_id,runtime) (MT-014) + set_wikilink_context (MT-057); use the SAME shared-cell pattern app.rs already uses for LoomSearchV2PaneFactory/FindInFilesPaneFactory. (3) wire the shell command Sender into the code pane so Save/Undo/Redo/OpenCommandPalette reach the WP-011 command bus + MT-035 unified undo (MT-010). (4) wire MT-030 ShellNavigator open_document->rich pane + open_code_symbol->code pane (MT-030). (5) DRAIN RichEditorState.pending_events each frame + ROUTE WikilinkActivated/BacklinkActivated/TagActivated/locus open-ref to the nav bus (MT-015). FULLER MOUNT (as far as the run allows; gate/defer honestly, NEVER fake): (6) CANVAS pane (graph/canvas_board.rs): mount factory; consume MT-061 ResizePlacement/AssignSection/EditTextCard -> real PATCH/POST + getCanvasBoard refresh; set CanvasCardKind from the card response; push_canvas_placement_undo + emit_canvas_node_placed (MT-035/036/061). (7) GRAPH pane (graph/graph_view.rs): depth-parameterized graph-search client (backend_client local_request taking backlink_depth) + consume GraphEvent::DepthChanged to re-query (MT-060). (8) code pane live undo + FR: route code Ctrl+Z/Ctrl+Y -> bus.undo/redo + push_code_edit_undo; emit_code_edit debounced 2s; app.rs bus.set_undo_runtime(handle)+register_undo_commands()+render_undo_count_indicator (MT-035/036). (9) DOCK the widget-proven side panes: loom.outgoing_links (build resolver_index from /knowledge/documents + /loom/blocks, wire on_open) (MT-062); relevant-memory (subscribe refresh_for_context to MT-031 bus, wire source-links) (MT-063); Propose-to-Memory live invocation (MT-064); StagePane + Route-to-Stage/embed-stage-capture (MT-066); DailyJournalPanel + MT-030 date-selected -> open-or-create (MT-067). (10) MT-043 swarm-authoring: add AccessKit Action::SetValue/ReplaceSelectedText on code_editor_text + a wikilink-by-id insertion action; the MT-043 swarm-edit proof STEP2/STEP3 become live-drivable (gated on managed PG). PRIORITIZE core 1-5 (prove code+rich panes render LIVE in the running HandshakeApp tree via a kittest driving the real app + a wgpu screenshot of the mounted editor), THEN 6-10 as far as the run allows. Anything not completed = HONEST typed carry (NOT faked, NOT todo!()); live-PG halves stay NEEDS_MANAGED_RESOURCE_PROOF. A partial-but-honest mount that makes the core editors live + leaves the rest as typed carries is the expected, acceptable outcome.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/lib.rs",
+      "src/frontend/handshake_native/src/pane_registry.rs",
+      "src/frontend/handshake_native/src/editor_pane_factories.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/tests/test_app_host_mount.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "AC-079-1 (CORE, prove first): the real CodeEditorPaneFactory + RichEditorPaneFactory are registered in app.rs (PlaceholderPaneFactory NO LONGER used for PaneType::CodeEditor + the rich/document type) - proven by a kittest that drives the live HandshakeApp tree, opens a code pane + a rich-text pane, and asserts the REAL editor AccessKit subtree renders (code_editor_text TextInput + the rich editor surface) - NOT a placeholder node. A wgpu screenshot of the mounted editor(s) is saved to the EXTERNAL artifact root.",
+      "AC-079-2: on mount the code pane receives set_runtime + set_workspace_id and the rich pane receives set_embed_context + set_wikilink_context (the prior-MT hooks are CALLED with real session context) - proven by kittest asserting the panes are in their wired (not headless-no-runtime) state.",
+      "AC-079-3: the shell command Sender is wired into the code pane so Save/Undo/Redo/OpenCommandPalette dispatch to the WP-011 command bus + MT-035 unified undo (menu/keyboard undo share one stack) - proven by kittest dispatching undo via the bus and observing the code pane unified-undo scope mutate.",
+      "AC-079-4: the MT-030 ShellNavigator open_document -> rich pane + open_code_symbol -> code pane are wired (the typed seam now opens/focuses the real mounted pane) - proven by kittest invoking the navigator and asserting the target editor pane is focused.",
+      "AC-079-5: RichEditorState.pending_events is DRAINED each frame and WikilinkActivated/BacklinkActivated/TagActivated routed to the nav bus - proven by kittest enqueuing an event and asserting it reaches the bus (no event left unrouted).",
+      "AC-079-6 (FULLER, honest-gate): the canvas/graph/side-pane mounts + the MT-060/061/062/063/064/066/067 wirings are done as far as the run allows; whatever is completed is proven by kittest, and whatever is NOT completed is recorded as an HONEST typed carry (no todo!()/unimplemented!()/fake), with live-PG halves NEEDS_MANAGED_RESOURCE_PROOF. The MT-043 AccessKit SetValue/wikilink-by-id actions are added if reached.",
+      "AC-079-7: NO new backend endpoint, NO SQLite, src/backend untouched; the absent FEMS/Stage/Calendar/Locus HTTP routes stay typed blockers (the docked panes show their empty-states); no Color32 literal outside theme/palette.rs (CONTROL-4 stays green) - proven by grep + test_theme.",
+      "AC-079-8: cargo build -p handshake-native (lib + bins) compiles clean (the app actually builds with the editors mounted) + the full suite via -j 2 is green (the host-mount did not regress the ~90 bins); clippy clean. The bare app binary builds."
+    ],
+    "proof_targets": [
+      "PT-079-A: kittest drives the live HandshakeApp, opens code + rich panes, asserts the REAL editor AccessKit subtree (not placeholder) + saves a wgpu screenshot of the mounted editor to the external root (the FIRST real-app GUI inspection of the editors).",
+      "PT-079-B: kittest asserts set_runtime/set_workspace_id (code) + set_embed_context/set_wikilink_context (rich) were called with real session context on mount.",
+      "PT-079-C: kittest dispatches Undo via the command bus + asserts the code pane MT-035 unified-undo scope mutated (menu+keyboard share one stack).",
+      "PT-079-D: kittest invokes ShellNavigator open_document/open_code_symbol + asserts the real mounted editor pane is focused.",
+      "PT-079-E: kittest enqueues a WikilinkActivated event + asserts pending_events drained + routed to the nav bus.",
+      "PT-079-F: cargo build --lib --bins clean + cargo test -j 2 full suite green + clippy clean + test_theme CONTROL-4 green + git ls-files src/**/*.png empty."
+    ],
+    "implementation_notes": [
+      "Use the EXTERNAL CARGO_TARGET_DIR (Handshake_Artifacts/handshake-native-target); NEVER a repo-local target/. Run the full suite with -j 2 (the ~90 bins OOM at default).",
+      "Reuse the shared-cell pattern app.rs ALREADY uses for LoomSearchV2PaneFactory/FindInFilesPaneFactory (a workspace_id/runtime cell the &self PaneFactory::render reads each frame) - do NOT change the PaneFactory trait signature; thread session context through that established pattern.",
+      "The pane widgets + their set_* hooks ALREADY EXIST + are unit-tested (CodeEditorPanel set_runtime/set_workspace_id, RichEditorState set_embed_context/set_wikilink_context, the InteractionBus undo/nav, the canvas/graph event enums, the side-pane register_* fns). This MT CALLS them from app.rs + creates thin PaneFactory wrappers; it does NOT re-implement editor logic.",
+      "PRIORITIZE core mount 1-5 (code + rich panes LIVE) + PROVE it with a real-app kittest + screenshot BEFORE attempting 6-10. A partial honest mount (core live, rest typed-carried) is acceptable + expected given the blast radius.",
+      "HONESTY: anything not wired this run is an explicit typed carry in implementation_result (NOT todo!()/unimplemented!()/panic!() on a live path - unmounted/secondary panes keep PlaceholderPaneFactory or a typed not-yet-mounted seam, honestly disabled). The live-PG round-trips + the absent-HTTP-route panes stay gated (NEEDS_MANAGED_RESOURCE_PROOF / EndpointMissing empty-state).",
+      "Screenshots ONLY to the external Handshake_Artifacts/handshake-test/wp-kernel-012-mt-079/ root; git ls-files src/**/*.png must stay empty.",
+      "Read the KERNEL_BUILDER coder protocol under .GOV/ first; follow the Spec-Realism Gate (no mock nodes, no unwired scaffolding - every mounted factory must be CONSUMED by the live render loop)."
+    ],
+    "ports_from_react": [
+      "NONE (host-integration glue)"
+    ],
+    "binds_backend_api": [
+      "NONE NEW. Mounted panes reach handshake_core via the editors OWN existing calls (MT-020 save, MT-026 canvas, /loom/graph-search, /knowledge/documents). Absent FEMS/Stage/Calendar/Locus routes stay typed blockers. PostgreSQL/EventLedger only; no SQLite."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-VIS",
+    "HBR-SWARM",
+    "HBR-MAN"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_EDITORS_PARITY_V1",
+    "risks": [
+      "RISK-079-1: the 4902-line app.rs core edit regresses the existing shell (pane registry, layout, other mounted panes) - blast radius is the whole running app.",
+      "RISK-079-2: a mounted factory is registered but never CONSUMED by the live render loop (unwired scaffolding - the MT-035/057 class) so the pane looks mounted but renders nothing.",
+      "RISK-079-3: faking a live mount where a backend route is absent (FEMS/Stage/Calendar/Locus) instead of the honest empty-state typed blocker.",
+      "RISK-079-4: trying to do ALL 14 carries in one run, half-finishing several + leaving todo!()/unimplemented!() on live paths (the honesty regression).",
+      "RISK-079-5: threading runtime/workspace by changing the PaneFactory trait signature (forking the established shared-cell pattern) + breaking the other factories.",
+      "RISK-079-6: a repo-local target/ or a tracked screenshot leaks (artifact hygiene); the full suite OOMs at default -j."
+    ],
+    "minimum_controls": [
+      "MC-079-1: a real-app kittest (not a widget harness) drives the live HandshakeApp tree + asserts the REAL editor AccessKit subtree renders + screenshots it - proving the mount is consumed by the live render loop (covers RISK-2). Core mount 1-5 proven before 6-10.",
+      "MC-079-2: every absent-route pane shows its honest empty-state/typed blocker; grep proves no new backend endpoint + no SQLite (covers RISK-3); no todo!()/unimplemented!() on any live dispatch path (covers RISK-4).",
+      "MC-079-3: the PaneFactory trait signature is UNCHANGED; session context threads via the existing shared-cell pattern (covers RISK-5); full suite -j 2 green + the other panes still render (covers RISK-1).",
+      "MC-079-4: external CARGO_TARGET_DIR; git ls-files src/**/*.png empty; no repo-local target/ (covers RISK-6); CONTROL-4 test_theme green.",
+      "MC-079-5: whatever is not mounted this run is an explicit honest typed carry in implementation_result (NOT faked) so the remaining E11 work is precisely scoped for the follow-on."
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_9053eb66 (impl + 3-lens panel; ALL PASS - no harden, on the highest-blast-radius MT)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "78224aec feat MT-079 host-mount native code+rich editors into the live app"
+    ],
+    "review_panel": "correctness=PASS(0), backend-shape=PASS(0), perf-focus-hygiene=PASS(0) -> ALL PASS, zero must-fixes (8th clean all-PASS MT, on the 4902-line app.rs core).",
+    "proofs": "CORE MOUNT 1-5 ALL PASS (AC-079-1..5 + PT-079-A..E); AC-079-6 PARTIAL_HONEST_CARRY (fuller mounts carried); AC-079-7/8 PASS. 4 module unit + 5 live-app proofs + full suite -j 2 (1458 lib + ~90 bins, 0 failed after 1 stale-consumer-test fix) green; lib+BINS compile clean (app builds with editors mounted); clippy clean; CONTROL-4 green.",
+    "MILESTONE": "THE EDITORS ARE LIVE IN THE RUNNING HANDSHAKE APP - visually verified (MT-079-editors-mounted-live.png 1400x900, delivered to operator): the full shell (FILE/EDIT/VIEW/GO/RUN/HELP menu + STUDIO/LAB/STAGE/INGEST/CKC/MAIN tabs + sidebar + status bar Backend OK) with the VS-Code-class CODE editor LIVE in the Workspace pane (gutter + syntax-highlit Rust fn main + Outline/Minimap/Wrap/Keybindings toolbar) AND the Obsidian/Notion RICH editor LIVE in the Inference Lab pane (B/I/U/H1-3 toolbar + Heading One + Hello world + Backlinks + LOCAL-ONLY alias banner); the still-placeholder Media Downloader + Fonts panes prove the real-vs-placeholder distinction. The goal melt as Rust native single app + visually inspect the GUI is now demonstrably real (first real-app GUI inspection, not a widget harness).",
+    "core_done": "editor_pane_factories.rs (CodeEditorPaneMount + RichEditorPaneMount wrappers + EditorSessionContext shared cell + RichPaneEvents queue); app.rs install_editor_mounts (real factories over CodeSymbol/LoomWikiPage placeholders) + per-frame session-context push + drive_editor_mounts (drains code command channel -> Save/CommandPalette/Undo/Redo + rich pending_events -> nav bus) + ShellNavigator open_document/open_code_symbol OPEN the mounted panes. Session context threaded (set_runtime/set_workspace_id + set_embed_context/set_wikilink_context). Code undo -> bus -> MT-035 unified stack. Reused the shared-cell pattern (PaneFactory trait UNCHANGED).",
+    "honest_carries_for_followon": "FULLER MOUNT NOT done this run (honest typed carries, NO todo/fake): (6) canvas pane mount + MT-061 ResizePlacement/AssignSection/EditTextCard -> PATCH/POST + CanvasCardKind; (7) graph pane + MT-060 depth-parameterized client + DepthChanged re-query; (8) code-pane live undo push_code_edit_undo + emit_code_edit/emit_canvas_node_placed FR (MT-035/036); (9) DOCK side panes: loom.outgoing_links (MT-062 resolver_index build), relevant-memory (MT-063 refresh_for_context subscribe), Propose-to-Memory live (MT-064), StagePane (MT-066), DailyJournalPanel (MT-067); (10) MT-043 AccessKit code SetValue + wikilink-by-id. -> a follow-on host-mount MT (MT-080).",
+    "waiver_granted": "editor_pane_factories.rs (new) + app.rs (mount) + pane_registry.rs + code_editor/panel.rs (from_arc + request_undo_for_test) + lib.rs + test_app_host_mount.rs + test_quick_switcher.rs (AC-079-4 consumer update) in allowed_paths."
+  },
+  "kernel_builder_carried_forward": {
+    "fuller_mount_followon": "canvas+graph pane mounts; MT-060 depth-client; MT-061 canvas events->PATCH/POST+CanvasCardKind; MT-035/036 code/canvas undo+FR; DOCK loom.outgoing_links(MT-062)+relevant-memory(MT-063)+Propose(MT-064)+StagePane(MT-066)+DailyJournal(MT-067); MT-043 AccessKit code SetValue+wikilink-by-id. Core code+rich mount DONE; these are the remaining E11 host-mount carries -> MT-080."
+  }
+}

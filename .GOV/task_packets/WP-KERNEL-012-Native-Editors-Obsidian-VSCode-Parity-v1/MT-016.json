@@ -25,9 +25,15 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-011", "MT-012", "MT-013", "MT-014", "MT-015"],
+    "depends_on": [
+      "MT-011",
+      "MT-012",
+      "MT-013",
+      "MT-014",
+      "MT-015"
+    ],
     "blocks": [],
     "validator_verdict": "PENDING"
   },
@@ -68,7 +74,9 @@
       "The filter algorithm: first pass collects items where label.to_lowercase().starts_with(filter_lower); second pass collects remaining items where label.to_lowercase().contains(filter_lower) or any keyword matches. Concat and deduplicate.",
       "The '/' trigger detection must check the character at caret - 1 in the rope. If caret is at position 0 or the character at caret - 1 is whitespace (including newline), the trigger fires. Use Rope::char() for this check.",
       "The embed prompt modal (for image/video/slideshow/album) is a simple egui::Window with a single TextEdit for the ref_value and an Ok/Cancel button pair. This is not a file picker; the operator types or pastes the asset_id directly.",
-      "Templates in this MT are hardcoded DocJson snippets defined in registry.rs as const JSON strings. A future MT can make them user-editable. The two required templates are: 'Daily Note Template' (a heading + 3 bullet items) and 'Meeting Notes Template' (a heading + agenda list + action items table)."
+      "Templates in this MT are hardcoded DocJson snippets defined in registry.rs as const JSON strings. A future MT can make them user-editable. The two required templates are: 'Daily Note Template' (a heading + 3 bullet items) and 'Meeting Notes Template' (a heading + agenda list + action items table).",
+      "KERNEL_BUILDER gate 2026-06-22 (MT-016 = slash command MENU, a UI surface - NOT backend round-trip; model/transform amendments were moved to MT-020 SaveToFormat where the model must be backend-complete). SCREENSHOTS mt016_slash_menu_*.png MUST go to the EXTERNAL Handshake_Artifacts/handshake-test/wp-kernel-012-mt-016/ root via external_artifact_dir() + assert_no_local_artifact_dir() - NOT repo-local (pipeline fails on git ls-files src/**/*.png). Reuse the WP-011 command_palette.rs fuzzy-filter/dispatch pattern + accessibility/registry.rs. ACCESSKIT VARIANT: Role::Menu/MenuItem - field-correct nearest accesskit 0.21.1 (if Menu/MenuItem literals differ, use closest, e.g. List/ListItem); ACs assert author_id. Module root is rich_editor/ not rich_text/ (real tree).",
+      "INLINE-ATOM INSERT NOTE (KERNEL_BUILDER gate): the slash executor's OpenEmbedPrompt/OpenWikilinkAutocomplete paths insert inline atoms (hsLink) reusing MT-014/MT-015 logic, which currently mutate children DIRECTLY (NOT undoable) because MT-011 Step::InsertNode only handles Child::Block. MT-016 does NOT need to fix that here - the transform-completeness fix is carried to MT-020. SetBlock/InsertNode(block) paths ARE transactional/undoable. Snapshot caret+filter length before delete (MC-003); close menu on focus loss (MC-004); don't fire '/' inside URLs/paths (MC-001)."
     ],
     "ports_from_react": [
       "app/src/lib/editor/editor_commands.ts (EDITOR_COMMANDS array categories 'block', 'embed', 'link', 'template' - slash menu items are derived from these same categories)",
@@ -78,7 +86,11 @@
       "No direct backend API calls in this MT. Embed prompt ref_value is handed to MT-014 asset_resolver. Template snippets are hardcoded JSON in this MT."
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -98,5 +110,15 @@
       "The executor must snapshot the caret position and the filter text length immediately before executing; compute the delete range from those values, not from the live selection which may have changed.",
       "The slash menu must close when the egui widget's is_focused() returns false (checked in rich_editor_widget.rs update loop); cargo test with simulated focus loss verifies slash_menu is set to None."
     ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_697fcc39 (impl + adversarial-review PASS, no harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "ed24a35b feat MT-016 slash command menu"
+    ],
+    "review_verdict": "PASS",
+    "proofs": "AC-1..10 GREEN; 41 slash unit + 9 integration + 737 lib; clippy clean; slash menu (Blocks/Embeds/Links grouped popup + descriptions + Paragraph selected) + 'head' filter (3 headings) visually verified; trigger URL-guard (MC-001), focus-loss-close (MC-004); embed prompt inserts hsLink atom (ref_kind=images); screenshots EXTERNAL (git ls-files src/**/*.png empty).",
+    "surfaced_regression": "MT-016's full-suite check (git-stash-isolated) surfaced a PRE-EXISTING MT-015 regression: 12 full-widget tests (test_embeds 6 / test_formatting_toolbar 3 / test_rich_editor_widget 3) were RED since MT-015 because the backlinks panel showed an auto-repainting egui::Spinner in the Idle/headless-Loading state -> harness.run() max_steps. KERNEL_BUILDER fixed it (commit c976dfbd) - see MT-015. MT-016 itself = zero regression (proven via baseline)."
   }
 }

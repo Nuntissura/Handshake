@@ -25,10 +25,20 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-041", "MT-042", "MT-063", "MT-066", "MT-067", "MT-068", "MT-072"],
-    "blocks": ["MT-074"],
+    "depends_on": [
+      "MT-041",
+      "MT-042",
+      "MT-063",
+      "MT-066",
+      "MT-067",
+      "MT-068",
+      "MT-072"
+    ],
+    "blocks": [
+      "MT-074"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -68,7 +78,10 @@
       "The eight GLOBAL-BUILD-MANUAL headings must be exact, individually addressable topics so the heading-presence test can assert each by name.",
       "Persistence references in the manual must state PostgreSQL/EventLedger via handshake_core only — never mention SQLite, and never describe direct DB writes.",
       "This is content + one registration call only (plus the `mod manual_content_editors;` declaration in lib.rs); do not extend, refactor, or restyle the manual pane container, search box, or its AccessKit scaffolding.",
-      "Cross-WP reuse note: the manual pane, docking layout (split_layout.rs, pane_registry.rs, layout_persistence.rs), command/event bus (command_registry.rs, event_bus.rs), command palette (command_palette.rs), and AccessKit registry (accessibility/registry.rs) are WP-011 primitives reused by this MT; they are not part of depends_on but must already exist."
+      "Cross-WP reuse note: the manual pane, docking layout (split_layout.rs, pane_registry.rs, layout_persistence.rs), command/event bus (command_registry.rs, event_bus.rs), command palette (command_palette.rs), and AccessKit registry (accessibility/registry.rs) are WP-011 primitives reused by this MT; they are not part of depends_on but must already exist.",
+      "manual_pane.rs does NOT EXIST -> CREATE THE PANE + CONTENT (KERNEL_BUILDER gate 2026-06-26, VERIFIED): the contract assumes manual_pane.rs was established by MT-072 - WRONG (MT-072 was the SETTINGS sections; it created settings_editor_section.rs, NOT a manual pane). There is NO manual pane yet. FIRST verify read-only whether a manual/help/docs pane exists under another name in the WP-011 shell; if (as verified) genuinely ABSENT, this MT CREATES manual_pane.rs as the manual pane: the ManualSection/ManualTopic data types + a search box (filters topics by keyword) + a navigation tree/list + the section registration API + AccessKit ids (manual-pane container + manual-search + per-topic nodes via accessibility/registry.rs) - PLUS manual_content_editors.rs (the editors content). Scope is pane + content (a bit larger than the contract's content-only assumption, but necessary - the /goal explicitly wants the internal manual for Notes). Keep it a clean egui widget; the LIVE DOCK of the manual pane into the running app (pane_registry/app.rs) is an E11 host-mount CARRY (-> MT-080) - the pane + content + search + AccessKit + the id-audit are PROVABLE NOW at the widget level (kittest).",
+      "REAL MCP TOOL NAMES + LIVE author_id AUDIT (KERNEL_BUILDER gate, VERIFIED mcp/tools.rs): the MCP tool surface (mcp/tools.rs) is a JSON-RPC 2.0 subset with FOUR REAL method names: list_widgets / click_widget / set_value / screenshot (+ mcp/attribution.rs notes click_widget/set_value/list_widgets). The contract's 'gui.invoke_action'/'gui.read_state' are INVENTED - use the REAL tool names. The agent_tool_reference maps each author_id -> the real driving tool (e.g. a button/action = click_widget{target:author_id}; a text field = set_value{target,value}; discovery = list_widgets; vision = screenshot). RISK-002/MC-002 - source tool names from mcp/tools.rs, NOT memory. EVERY documented author_id MUST exist in the LIVE AccessKit registry (accessibility/registry.rs) + the depended-on surfaces (code_editor_text, editor.<pane>.<action> MT-041/043, status-bar-{lang/eol/indent/encoding/whitespace} MT-071, settings-editor-* MT-072, ctx-menu.* MT-070, relevant-memory-*/mem-item-* MT-063, stage-pane/stage-capture-embed-back MT-066, daily-journal-* MT-067, locus-ref-chip-* MT-068, outgoing.resolved/unresolved MT-062) - the ID-AUDIT TEST (AC-004/MC-001) fails on ANY orphan id, so document only REAL registered ids (keep them &'static str literals for the static cross-check).",
+      "8 HEADINGS + 4 INTEROP EDGES + NO-SQLITE (KERNEL_BUILDER gate): the 8 GLOBAL-BUILD-MANUAL headings MUST each be an INDIVIDUAL topic (Purpose / Core Workflows / Startup and Run / Inputs and Outputs / Navigation Paths / Safety Constraints / Common Failure Modes / Recovery Steps) so the heading-presence test asserts each by name (RISK-003/MC-003, AC-001). The 4 INTEROP EDGES (FEMS / Stage / Calendar / Locus) MUST each be documented with author_id(s) + the MCP tool that crosses it (RISK-007/MC-007, AC-005) - and HONESTLY note the verified backend-route gaps (FEMS/Stage/Calendar/Locus have NO HTTP surface yet -> the editor-side interop works, the live cross-edge is gated/EndpointMissing until a backend packet). Content NO-SQLITE / no direct-DB language (RISK-006/MC-006 - persistence = handshake_core PostgreSQL/EventLedger only). Content ACCURATE to real behavior (RISK-004/MC-004 - workflows/keybinds from the real editor MTs + live panes, not assumed). Startup: cargo run -p handshake-native (package handshake-native, bin 'Handshake' - verified Cargo.toml). NO Color32 literal (theme); external screenshot; full suite -j 2 (serialize); clippy clean."
     ],
     "ports_from_react": [
       "NONE (manual content is freshly authored, not ported from React)"
@@ -77,7 +90,11 @@
       "NONE — pure frontend manual content + WP-011 registry read; no backend API call. The manual only references persistence going through existing handshake_core APIs (PostgreSQL/EventLedger); it does not itself invoke them."
     ]
   },
-  "hbr_obligations": ["HBR-MAN", "HBR-VIS", "HBR-SWARM"],
+  "hbr_obligations": [
+    "HBR-MAN",
+    "HBR-VIS",
+    "HBR-SWARM"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -103,5 +120,31 @@
       "MC-006: A lint/test asserts the manual content contains no 'SQLite' token and no direct-DB-write language; persistence is described as handshake_core PostgreSQL/EventLedger only.",
       "MC-007: An interop-edge test asserts all four edge names (FEMS, Stage, Calendar, Locus) appear in the interop topic each with an author_id + mcp_tool (enforces AC-005)."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + VERIFIED manual_pane.rs ABSENT (contract's MT-072 assumption wrong) + mcp/tools.rs (real tools list_widgets/click_widget/set_value/screenshot) + Cargo.toml (handshake-native / bin Handshake) + the live AccessKit registry + the depended-on MT surfaces",
+    "corrections": [
+      "manual_pane.rs does NOT exist -> CREATE the manual pane (types+search+nav+AccessKit) + content (scope = pane+content, not content-only); live dock = E11 carry to MT-080",
+      "MCP tools are REAL list_widgets/click_widget/set_value/screenshot (mcp/tools.rs) - NOT the contract's invented gui.invoke_action; map author_id -> the real tool",
+      "every documented author_id from the LIVE registry (id-audit fails on orphans) - source from accessibility/registry.rs + MT-041/043/062/063/066/067/068/070/071/072 surfaces; &'static str literals",
+      "8 individual GLOBAL-BUILD-MANUAL topics; 4 interop edges (FEMS/Stage/Calendar/Locus) w/ author_id+tool + honest backend-route-gap note; no SQLite in content; cargo run -p handshake-native (bin Handshake); accurate to real behavior"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_1e2f354f (impl + 3-lens panel + harden; the post-harden step hit a transient 529 but the harden COMMITTED c76febac first - KERNEL_BUILDER independently verified)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "MT-073 feat (manual pane + content + agent-tool reference)",
+      "c76febac fix harden per adversarial review (orphan command-palette ids -> dot-form consts; de-rigged id-audit)"
+    ],
+    "review_panel": "correctness=CHANGES_REQUIRED(3), backend-shape=CHANGES_REQUIRED(3), perf-focus-hygiene=CHANGES_REQUIRED(1) -> 7 must-fixes. The panel did EXCELLENT work catching a real honesty defect: the agent-tool steering reference documented ORPHAN hyphen ids (command-palette-list/search) vs the live DOT-form (command-palette.list/.search), AND the id-audit test was RIGGED tautological (hardcoded the hyphen strings into its own 'live' set, defeating AC-004). The harden (c76febac) fixed both; a trailing step hit a transient 529 (NOT a code defect).",
+    "harden_VERIFIED": "KERNEL_BUILDER independently verified the harden applied the fixes (the 529 hit after c76febac committed): manual_content_editors.rs now imports crate::command_palette::{PALETTE_LIST_AUTHOR_ID, PALETTE_SEARCH_AUTHOR_ID} + the rows/prose use the DOT form (command-palette.search/.list); test_manual_pane_editors.rs live_author_id_set() is DE-RIGGED (builds ONLY from DECLARED_IDENTITIES + CANVAS/COLLECTION/GRAPH control catalogs + PALETTE_AUTHOR_IDS, NO hardcoded string injection). PROOF: test_manual_pane_editors 7 passed/0 failed (the de-rigged id-audit now GENUINELY passes -> the documented author_ids ARE live-registered, not a tautology); test_theme CONTROL-4 19/0; test_accesskit_ids 9/0.",
+    "proofs": "AC-001..007 + PT-001..005 PASS (post-harden + independent verify); 7 manual tests (incl the de-rigged id-audit + 8-heading presence + 4-interop-edge + kittest search) + theme + accesskit green; Manual pane (8 GLOBAL-BUILD-MANUAL headings + Interop Edges + Agent Tool Reference with the REAL MCP tools list_widgets/click_widget/set_value/screenshot + dot-form author_id->tool rows) visually verified - the /goal's 'internal manual for Notes' + HBR-MAN/HBR-VIS/HBR-SWARM; screenshot EXTERNAL.",
+    "steers_held": "manual_pane.rs did NOT exist (contract's MT-072 assumption WRONG) -> CREATED the manual pane (types + search + nav + AccessKit) + content. REAL MCP tools (list_widgets/click_widget/set_value/screenshot from mcp/tools.rs, NOT the contract's invented gui.invoke_action). EVERY documented author_id sourced from the LIVE registry (id-audit, no orphans - the harden fixed the 2 that slipped). 8 individual headings; 4 interop edges (FEMS/Stage/Calendar/Locus) w/ honest backend-route-gap note; no SQLite in content; cargo run -p handshake-native (bin Handshake).",
+    "carried_E11": "the manual pane is widget-proven; the LIVE DOCK of the manual pane into the running app (pane_registry/app.rs) is an E11 host-mount CARRY -> MT-080.",
+    "waiver_granted": "manual_pane.rs (new pane) + manual_content_editors.rs (content) + lib.rs + test in allowed_paths."
+  },
+  "kernel_builder_carried_forward": {
+    "dock_manual_pane": "dock the manual pane into the running app (pane_registry/app.rs) - widget-proven, live mount is MT-080 host-mount carry"
   }
 }

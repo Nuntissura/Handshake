@@ -1,0 +1,136 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-097",
+  "title": "U1-MT-097-NotesOnlyDefaultWorksurface",
+  "group": "U1 Usable-Product Expansion (notes+chat worksurface, §product-vision 2026-06-27)",
+  "created_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-097.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-079",
+      "MT-080"
+    ],
+    "blocks": [
+      "MT-098",
+      "MT-099",
+      "MT-104"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "OPERATOR PRODUCT-VISION STEER (2026-06-27): Handshake must work like Obsidian + VS Code / Cursor / Antigravity — a WORK SURFACE (the notes editors) with a CHATBOX beside it. RIGHT NOW the default worksurface opens to four NON-notes seed panes (Workspace / Inference Lab / Media Downloader / Fonts), so the operator does not even see the notes editors on launch — the main selling point is invisible. This MT makes the DEFAULT worksurface NOTES-ONLY: on a fresh launch the operator sees ONLY the notes editors — the VS-Code-class CODE editor (PaneType::CodeSymbol, mounted live in MT-079) + the Obsidian/Notion RICH editor (PaneType::LoomWikiPage, mounted live in MT-079). The non-notes feature panes (canvas/AtelierEditor, graph/KernelDcc, outgoing-links/LoomBlock, relevant-memory/Placeholder('Relevant Memory'), Stage/Placeholder('Stage'), daily-journal/LoomDailyJournal, manual/UserManual, plus Inference Lab / Media Downloader / Fonts) are STRIPPED from the DEFAULT layout (rewired per-feature in a later WP). Diagnostics is NOT on the worksurface — it lives in the Settings window (MT-087). The chat pane is added beside the editors in MT-098 (this MT leaves the seam for it: a two-pane notes default that MT-098 extends to editor+chat).\n\nEXACT files + change (host-integration glue only, NO editor logic, NO backend):\n- EDIT src/frontend/handshake_native/src/app.rs `default_panes()` (~line 570): TODAY it seeds `[(\"pane-a\", Workspace), (\"pane-b\", InferenceLab), (\"pane-c\", MediaDownloader), (\"pane-d\", FontManager)]`. CHANGE the seed set to the NOTES editors only: `pane-a` -> PaneType::CodeSymbol (the VS-Code code editor) and `pane-b` -> PaneType::LoomWikiPage (the Obsidian/Notion rich/notes editor). Remove the MediaDownloader + FontManager + InferenceLab seeds from the DEFAULT. (MT-098 adds the chat pane as `pane-c`; do NOT add it here — leave the default at the two notes panes so MT-098's addition is a clean diff.)\n- EDIT `default_tab_bar_states()` (~line 954): it derives one tab per default pane FROM `default_panes()`, so it auto-tracks the new seed — VERIFY it still produces a tab bar per remaining default pane (the live-tree test asserts each default pane has a tab bar). Update any hard-coded `pane-a..pane-d` count assumptions if present.\n- EDIT `reset_to_default_layout()` (~line 5209): it rebuilds the registry from `default_panes()` re-stamped to the project — so it auto-tracks too; VERIFY no other default-layout constant (SplitWeights::default, module seed = ModuleId::Main, etc.) assumes four panes. The split layout must render cleanly with two (then, after MT-098, three) panes.\n- KEEP the stripped feature panes' FACTORIES REGISTERED: do NOT remove them from `build_default_factories()` / `build_factories_with_loom_search_v2()` / `install_editor_mounts()` (MT-079/080) — the canvas/graph/side-pane/manual factories stay in the factory map so a later WP (or an operator 'Add pane' action) can re-add them. This MT only changes the DEFAULT SEED SET, not the registered factory catalogue. (This is the must-have honesty boundary: panes are HIDDEN from the default, not deleted.)\n- CREATE src/frontend/handshake_native/tests/test_notes_only_default.rs.\n\nReuse notes: the seed -> registry -> SplitLayoutWidget render path is the EXISTING WP-011 worksurface (app.rs CentralPanel ~line 6419 calls SplitLayoutWidget::show over the pane_registry + tab_bar_states). The editors are ALREADY mounted live (MT-079 milestone: code editor live in the Workspace pane, rich editor live in the Inference Lab pane). This MT only re-points the DEFAULT seed at those two editor PaneTypes so they ARE the default worksurface. No new pane type, no factory change, no backend call.\n\nRisk if missed: the operator launches Handshake and the notes editors are not visible (today's state) — the product is unusable as a notes tool. A second risk: deleting the feature-pane factories (instead of just removing them from the default seed) would make them un-re-addable later — the contract forbids that (factories stay registered).",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/pane_registry.rs",
+      "src/frontend/handshake_native/tests/test_notes_only_default.rs"
+    ],
+    "forbidden_paths": [
+      "src/frontend/handshake_native/src/editor_pane_factories.rs (MT-079/080-owned; factories stay as-is)",
+      "src/backend/** (reuse via API only)",
+      "src/backend/handshake_core/src/flight_recorder/** (FR kept as-is)",
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-097-1 (NOTES-ONLY DEFAULT, prove first): `default_panes()` seeds ONLY the two notes editor panes — PaneType::CodeSymbol (code editor) + PaneType::LoomWikiPage (rich/Notes editor) — and NO non-notes feature pane (no Workspace/InferenceLab/MediaDownloader/FontManager/AtelierEditor/KernelDcc/Stage/relevant-memory/daily-journal/manual). Proven by a unit test asserting the exact seed PaneType set.",
+      "AC-097-2 (LIVE DEFAULT TREE): a kittest drives the live HandshakeApp with a FRESH default layout (no stored layout) and asserts the rendered default worksurface AccessKit tree contains the code editor pane subtree + the rich editor pane subtree and DOES NOT contain any of the stripped feature panes' subtrees (canvas/graph/outgoing-links/relevant-memory/Stage/daily-journal/manual/media-downloader/fonts). A wgpu screenshot of the notes-only default is saved to the EXTERNAL artifact root.",
+      "AC-097-3 (FACTORIES STILL REGISTERED): the stripped feature panes' factories remain in the factory map (build_default_factories + the MT-079/080 mounts) — proven by a test asserting the factory map still contains an entry for AtelierEditor, KernelDcc, LoomBlock, LoomDailyJournal, UserManual, Stage/relevant-memory placeholders, etc. (HIDDEN from default, not deleted).",
+      "AC-097-4 (CLEAN MULTI-PANE LAYOUT): the SplitLayoutWidget renders the two-pane notes default without a panic, blank pane, or starved rect (SplitWeights::default + tab_bar_states stay consistent with the new seed count) — proven by the AC-097-2 kittest (both editor panes render a real body) + a default_tab_bar_states test asserting one tab bar per default pane.",
+      "AC-097-5: `cargo build -p handshake-native` (lib + bins) clean; clippy `--all-targets -D warnings` clean; full suite `-j 2` green (the seed change did not regress the ~90 bins / the layout-persistence + live-tree tests); external CARGO_TARGET_DIR; no Color32 literal outside theme/palette.rs (CONTROL-4); `git ls-files src/**/*.png` empty."
+    ],
+    "proof_targets": [
+      "PT-097-A: unit test asserts `default_panes()` seed PaneType set == {CodeSymbol, LoomWikiPage} (no non-notes pane).",
+      "PT-097-B: kittest drives the live HandshakeApp fresh default, asserts the code + rich editor pane subtrees present + the stripped feature panes ABSENT + saves a wgpu screenshot of the notes-only default to the external root.",
+      "PT-097-C: test asserts the feature-pane factories are still registered in the factory map (re-addable later).",
+      "PT-097-D: default_tab_bar_states test (one tab bar per default pane) + the AC-097-2 kittest both editor panes render a real body (no starved/blank rect).",
+      "PT-097-E: cargo build --lib --bins clean + clippy -D warnings clean + full suite -j 2 green + CONTROL-4 test_theme green + git ls-files src/**/*.png empty."
+    ],
+    "implementation_notes": [
+      "Use the EXTERNAL CARGO_TARGET_DIR (Handshake_Artifacts/handshake-native-target); NEVER a repo-local target/. Run the full suite with -j 2 (the ~90 bins OOM at default).",
+      "This is the DEFAULT SEED change only. The editors are ALREADY mounted live (MT-079): CodeSymbol -> CodeEditorPaneMount, LoomWikiPage -> RichEditorPaneMount. Re-pointing default_panes() at those two PaneTypes makes them the default worksurface — no new mount, no factory change.",
+      "DO NOT delete or unregister any feature-pane factory. The canvas/graph/side-pane/manual factories (MT-080) stay in the map so a later per-feature rewire (or an 'Add pane' affordance) can re-add them. Removing them from the DEFAULT SEED is HIDING; removing them from the factory map is DELETING — only the former is in scope.",
+      "Leave the third (chat) pane to MT-098: keep the default at the two notes panes here so MT-098's chat-pane addition is a clean, reviewable diff. depends_on MT-079/080 (the editor host-mount must be live first); blocks MT-098/099/104.",
+      "Watch for tests that hard-code the old four-pane default (pane-a..pane-d, the Workspace/InferenceLab/MediaDownloader/FontManager labels, or `len() == 4` on the registry/tab bars). Update those consumer assertions to the new notes-only default as part of this MT (a waiver-listed allowed edit if the test file is outside allowed_paths — note it in implementation_result).",
+      "Screenshots ONLY to the external Handshake_Artifacts/handshake-test/wp-kernel-012-mt-097/ root; git ls-files src/**/*.png must stay empty.",
+      "Read the KERNEL_BUILDER coder protocol under .GOV/ first; the Spec-Realism Gate forbids a default that looks notes-only but still renders a hidden feature pane — AC-097-2 asserts the stripped panes are ABSENT from the live default tree, and visually inspect the screenshot (GLOBAL-INSPECT) before declaring the default notes-only."
+    ],
+    "ports_from_react": [
+      "NONE (host-integration glue; re-points the existing default seed)."
+    ],
+    "binds_backend_api": [
+      "NONE. Default-layout seed change only; no backend call. PostgreSQL/EventLedger unaffected; no SQLite."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-VIS"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "status": "NOT_APPLICABLE",
+      "reason": "This MT changes the default worksurface seed set only; it neither reads nor writes the Flight Recorder. FR stays as-is/forbidden."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "NOT_APPLICABLE",
+      "reason": "No diagnostics events are emitted by a default-layout seed change. Diagnostics lives in the Settings window (MT-087), not the worksurface this MT edits."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "NOT_APPLICABLE",
+      "reason": "No freeze/crash/debris record path is touched; the change is a static default-seed edit with no record-writing side effect."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "USABLE_PRODUCT_WORKSURFACE_V1",
+    "risks": [
+      "RISK-097-1: the notes editors still don't appear on launch because a stored layout (MT-009 persistence) overwrites the fresh default — the operator's saved layout from before this change carries the old panes. Mitigate: AC-097-2 proves the FRESH default (no stored layout); note in implementation_result that an existing stored layout is a separate operator 'Reset Layout' action (the armed Reset-Layout request already exists in app.rs).",
+      "RISK-097-2: a feature-pane factory is accidentally unregistered (not just unseeded), making it un-re-addable later. Mitigate: AC-097-3 asserts the factories stay in the map.",
+      "RISK-097-3: the split layout starves or blanks a pane when the seed count drops from 4 to 2 (SplitWeights::default assumes four). Mitigate: AC-097-4 proves both editor panes render a real body; fix SplitWeights/tab_bar defaults if needed.",
+      "RISK-097-4: a hidden hard-coded four-pane test assertion (pane-a..pane-d) fails the suite. Mitigate: update consumer assertions; AC-097-5 full suite -j 2 green.",
+      "RISK-097-5: a tracked PNG or repo-local target/ leaks (artifact hygiene). Mitigate: external-only screenshots; git ls-files src/**/*.png empty (AC-097-5)."
+    ],
+    "minimum_controls": [
+      "MC-097-1: AC-097-1/2 prove the notes-only fresh default in the LIVE app tree + screenshot (the operator sees the editors on launch).",
+      "MC-097-2: AC-097-3 keeps the stripped feature-pane factories registered (HIDDEN, not deleted; re-addable later).",
+      "MC-097-3: AC-097-4 proves a clean multi-pane layout (no starved/blank pane).",
+      "MC-097-4: external target dir + no tracked PNG + CONTROL-4 green + full suite -j 2 green (AC-097-5)."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-KERNEL-012 product-vision steer (operator, 2026-06-27); live-app inspection of app.rs default_panes/reset_to_default_layout + the MT-079/080 editor host-mount.",
+    "field_stack": "Obsidian + VS Code / Cursor / Antigravity editor-first default workspace (an editor work surface as the primary launch view, feature panels added on demand). Reuses the existing WP-011 pane_registry seed -> SplitLayoutWidget render path; the editors are already host-mounted live (MT-079). No new subsystem.",
+    "crate_versions_verified_2026_06_27": {
+      "egui_eframe_kittest": "0.33 (already pinned)"
+    },
+    "motivating_incident": "Operator: 'i cannot use notes in handshake' — the default worksurface opens to non-notes panes, so the notes editors (the main selling point) are invisible on launch.",
+    "validation_plan": "live-app fresh-default mount + screenshot (notes editors present, feature panes absent) + factories-still-registered + clean multi-pane layout; clippy -D warnings; full suite -j 2."
+  }
+}

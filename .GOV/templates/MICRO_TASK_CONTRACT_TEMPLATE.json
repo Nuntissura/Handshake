@@ -48,6 +48,7 @@
     "proof_targets": []
   },
   "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null,

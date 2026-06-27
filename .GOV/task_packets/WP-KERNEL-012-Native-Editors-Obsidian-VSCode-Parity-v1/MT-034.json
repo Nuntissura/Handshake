@@ -25,10 +25,18 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-031", "MT-032", "MT-007", "MT-012"],
-    "blocks": ["MT-044", "MT-046"],
+    "depends_on": [
+      "MT-031",
+      "MT-032",
+      "MT-007",
+      "MT-012"
+    ],
+    "blocks": [
+      "MT-044",
+      "MT-046"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -36,11 +44,16 @@
     "allowed_paths": [
       "src/frontend/handshake_native/src/interop/cross_ref.rs",
       "src/frontend/handshake_native/src/interop/mod.rs",
+      "src/frontend/handshake_native/src/interop/interaction_bus.rs",
       "src/frontend/handshake_native/src/code_editor/note_refs_panel.rs",
       "src/frontend/handshake_native/src/code_editor/mod.rs",
-      "src/frontend/handshake_native/src/code_editor/editor.rs",
-      "src/frontend/handshake_native/src/rich_text/editor.rs",
-      "src/frontend/handshake_native/tests/test_code_note_cross_ref.rs"
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs",
+      "src/frontend/handshake_native/src/rich_editor/slash/mod.rs",
+      "src/frontend/handshake_native/src/rich_editor/document_model/node.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/tests/test_code_note_cross_ref.rs",
+      "src/frontend/handshake_native/Cargo.toml"
     ],
     "forbidden_paths": [
       "app/src/** (legacy React, reference only)",
@@ -68,7 +81,11 @@
       "getCodeSymbolReferences maps to GET /code/symbols/{id}/references — api.ts line 2169. Returns CodeSymbolReferencesResponse { symbol, callers: CodeSymbolReference[], callees: CodeSymbolReference[] }.",
       "For find_notes_referencing_symbol: the simplest first-pass approach is to search the RichDocBacklink table for ref_value containing the symbol_key (this is what the backend persists when a rich doc saves a code_ref block with ref_value=symbol_key). Call GET /knowledge/backlinks?ref_value={symbol_key} if that filter endpoint exists; otherwise use GET /knowledge/search. Document the chosen path in a code comment.",
       "Reuse the shared command bus from WP-011 (command_registry.rs + event_bus.rs) for registering and dispatching the 'open-code-symbol' and 'open-document' commands; do not introduce a new bus. Reuse accessibility/registry.rs + accessibility/live.rs for AccessKit node registration.",
-      "React reference: CodeSymbolPanel.tsx (api.ts getCodeSymbol, getCodeFileLens) is the parity source for the symbol detail view. The NoteRefsPanel is a new native-only addition (the React version does not have this cross-ref panel, making it a genuine interconnection improvement)."
+      "React reference: CodeSymbolPanel.tsx (api.ts getCodeSymbol, getCodeFileLens) is the parity source for the symbol detail view. The NoteRefsPanel is a new native-only addition (the React version does not have this cross-ref panel, making it a genuine interconnection improvement).",
+      "code_ref = hsLink ATOM by refKind, NOT a new 'code_ref' node (KERNEL_BUILDER gate 2026-06-23 - the THIRD instance: MT-014 images, MT-033 atelier, now MT-034 code; RISK-4 confirms it): a code reference inside a note is the EXISTING Child::HsLink atom with ref_kind='code'/'code_symbol' + ref_value=symbol_key (and/or symbol_entity_id in attrs) - so it ROUND-TRIPS the backend content_json (AC-1 save/reload) and the backend backlink indexer picks up ref_value. Do NOT invent a 'code_ref' node type the backend strips on save. The [[code:path#Symbol]] wikilink syntax is parsed by MT-011's wikilink parser -> an hsLink atom whose 'code:' prefix is the refKind discriminator. Reuse MT-016's slash-command infra for '/code-ref' (rich_editor/slash/) + MT-014's hsLink embed renderer for the chip.",
+      "open-code-symbol REUSES MT-030's ShellNavigator SEAM (KERNEL_BUILDER gate - the E11 host-mount carry): clicking a code-ref chip dispatches open-code-symbol on the MT-031 bus, which routes via MT-030's ShellNavigator.open_code_symbol(symbol_entity_id). The code editor PANE is NOT mounted in the shell until E11/MT-069 - so MT-034 wires (a) the CodeRef->bus dispatch, (b) resolve_code_ref (GET /code/symbols/{id} -> source_id+line_start), and the actual jump-to-line lands when the code pane is mounted (E11). Until then open-code-symbol stages the target on the ShellNavigator seam (the EditorPaneNotMounted typed status, like MT-030's open_document) - do NOT fake a jump into a non-existent pane. Reuse MT-007's jump-to-line logic for when the pane IS present. Carry-forward already recorded to MT-069.",
+      "VERIFY find-notes ENDPOINT + ENCODE KEYS (KERNEL_BUILDER gate - MT-022/029 route lesson + RISK-1/2): find_notes_referencing_symbol must VERIFY the real backend path read-only - since code-refs are hsLink atoms with ref_value=symbol_key, prefer the backlink/ref_value index (the MT-178 backlinks subsystem MT-024 used: GET /loom/blocks/.../backlinks or a ref_value filter) over a naive full-text /knowledge/search (RISK-1: full-text gives false positives on any note mentioning the word). Confirm the exact endpoint + DOCUMENT the chosen path in a comment; if only full-text exists, add a code_ref filter. PERCENT-ENCODE all symbol_key values (they contain :: / #) before embedding in any URL (RISK-2/MC-2) - unit-test a key with '/', '#', '::'; use the percent_encoding crate (verify it is already a dep - reqwest pulls it; else add). getCodeSymbol/lookup/references (api.ts 2152/2158/2169) - verify the shapes.",
+      "BACKEND PROOF + HYGIENE (MT-008/030/033 pattern): the [[code:path#Symbol]] parse, the hsLink-code round-trip through DocJson, percent-encoding, the 800ms dwell-debounce (reset timer per cursor move, fire ONCE per threshold crossing - the MT-015/024/030 debounce-cancel pattern, no backend spam, RISK-3/MC-3), and the unresolved-404 chip (greyed, no panic, RISK pt(e)) are unit/kittest-testable STANDALONE. The live getCodeSymbol resolve + find-notes + save/reload round-trip are REAL-PG -> bind real + gate behind integration + NEEDS_MANAGED_RESOURCE_PROOF. NoteRefsPanel async load (no perpetual spinner, MT-015 lesson). NO Color32 literal (theme guard - the code-ref chip tint reads a palette token like MT-028's). Screenshots EXTERNAL + assert_no_local_artifact_dir(). ACCESSKIT VARIANT: code-ref-chip-{id}(Button)/note-refs-panel(List)/note-ref-{doc}(ListItem)/code-symbol-search(Dialog) - field-correct accesskit 0.21.1. Paths: rich_editor/ not rich_text/ (CodeRef via document_model hsLink + rich_editor_widget render + slash/); code_editor/panel.rs not editor.rs (the MT-007/008 code pane state + jump-to-line)."
     ],
     "ports_from_react": [
       "app/src/components/CodeSymbolPanel.tsx — getCodeSymbol, getCodeFileLens, definition/staleness display pattern, symbolFilePath helper (reference only; port logic into src/frontend/handshake_native/src/code_editor/editor.rs and interop/cross_ref.rs)",
@@ -82,7 +99,11 @@
       "GET /knowledge/search or GET /knowledge/backlinks?ref_value={symbol_key}  =>  find notes referencing symbol (exact endpoint to be confirmed against backend source)"
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -104,5 +125,26 @@
       "Declare 'code_ref' as an explicit allowed node type in the document schema; if the backend rejects it, raise as a typed blocker.",
       "open-code-symbol handler: if code pane tile does not exist, create it (similar to Stage pane in MT-033) before jumping to line."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-014 hsLink embeds + MT-016 slash + MT-030 ShellNavigator seam + MT-007 jump-to-line + MT-178/024 backlinks + MT-022/029 route lesson",
+    "corrections": [
+      "code_ref = hsLink atom by refKind=code (3rd embed instance) - not an invented node; reuse MT-016 slash + MT-014 chip renderer",
+      "open-code-symbol via MT-030 ShellNavigator seam (code pane mounts at E11/MT-069); resolve_code_ref + jump-when-mounted, no fake jump",
+      "verify find-notes endpoint (prefer ref_value/backlink index over full-text); percent-encode symbol_key (::/#//)",
+      "parse/round-trip/encode/dwell-debounce/unresolved-chip standalone; live resolve+find+round-trip NEEDS_MANAGED_RESOURCE_PROOF; no spinner; no Color32; rich_editor/ + code_editor/panel.rs paths"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_68aabe71 (impl + 3-lens panel + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "44ba0f0d feat MT-034 code<->note cross-references (E5)",
+      "bf9d1775 fix harden per adversarial review"
+    ],
+    "review_panel": "correctness=CHANGES_REQUIRED(1), backend-shape=CHANGES_REQUIRED(1), perf-focus-hygiene=PASS(0) -> 2 must-fixes hardened.",
+    "proofs": "AC-1..6 PASS (live-PG halves gated NEEDS_MANAGED_RESOURCE_PROOF); 1064 lib + 9 ckc-cross-ref + regression (interaction_bus 9, ckc_embed 11, accesskit 5, slash 9) + test_theme green; no screenshot (cross-ref logic + chips/panels inside already-verified editors, proven via AccessKit kittest dumps); no tracked artifacts.",
+    "steers_all_held": "(1) code_ref = hsLink ATOM by refKind=code (3rd embed-lesson application: MT-014 img/MT-033 atelier/MT-034 code) - refValue=ent-... preserved through DocJson round-trip; NO invented node. (2) [[code:...]] prefix registered in MT-011's wikilink parser (ref_kind=code); reused MT-016 slash (/code-ref) + MT-014 chip renderer. (3) open-code-symbol via MT-030's ShellNavigator EditorPaneNotMounted seam (no fake jump; lands at E11/MT-069). (4) find_notes via the VERIFIED loom search-v2 rich-doc-content-type-filtered (not naive full-text, RISK-1). (5) percent_encode_symbol (RISK-2). (6) SymbolDwellTracker 800ms fire-once debounce (RISK-3). (7) unresolved chip greyed via palette token (no Color32 literal; test_theme passes).",
+    "waiver_granted": "interop/interaction_bus.rs (CMD_OPEN_CODE_SYMBOL) + rich_editor/wikilinks/parser.rs+inline_view.rs + rich_editor_widget.rs + slash_commands/* + code_editor/mod.rs+panel.rs + backend_client.rs + tests in allowed_paths."
   }
 }

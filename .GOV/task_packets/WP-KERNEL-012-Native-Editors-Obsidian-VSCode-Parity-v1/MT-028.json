@@ -25,10 +25,13 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [],
-    "blocks": ["MT-030", "MT-044"],
+    "blocks": [
+      "MT-030",
+      "MT-044"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -38,7 +41,8 @@
       "src/frontend/handshake_native/src/lib.rs",
       "src/frontend/handshake_native/src/pane_registry.rs",
       "src/frontend/handshake_native/src/backend_client.rs",
-      "src/frontend/handshake_native/tests/test_loom_search_v2.rs"
+      "src/frontend/handshake_native/tests/test_loom_search_v2.rs",
+      "src/frontend/handshake_native/src/theme/palette.rs"
     ],
     "forbidden_paths": [
       "app/src/** (legacy React, reference only)",
@@ -73,7 +77,10 @@
       "Pane registration: register the LoomSearchV2 pane through the existing WP-011 pane_registry.rs registry (do NOT add a new panel-enum file). In the pane dispatch path, call loom_search_v2::show(ui, state, callbacks). The pane is typically opened from the search rail (search_rail.rs) or a top menu item (top_menu_bar.rs).",
       "LoomBlock struct in Rust (src/frontend/handshake_native/src/backend_client.rs): { block_id: String, workspace_id: String, content_type: String, title: Option<String>, ... } matching the backend storage/loom.rs LoomBlock. Only deserialize the fields needed for display.",
       "graph_boost default: always send 1.0 as the React reference does (LoomSearchV2Panel.tsx line 89). limit: 25.",
-      "Cross-WP dependency (prose, not a depends_on entry): this MT requires the WP-011 shell pane infrastructure (pane_registry.rs), the accessibility/ subsystem, backend_client.rs, and event_bus.rs to be present and loadable. These are delivered by WP-KERNEL-011 and are assumed available in the source tree; there is no WP-012 MT-level depends_on for this MT."
+      "Cross-WP dependency (prose, not a depends_on entry): this MT requires the WP-011 shell pane infrastructure (pane_registry.rs), the accessibility/ subsystem, backend_client.rs, and event_bus.rs to be present and loadable. These are delivered by WP-KERNEL-011 and are assumed available in the source tree; there is no WP-012 MT-level depends_on for this MT.",
+      "THEME-GUARD ON THE <mark> HIGHLIGHT (KERNEL_BUILDER gate 2026-06-23 - PROACTIVE, just fixed this exact class for the tag palette): impl note 67 says background Color32::from_rgb(255,214,0) for marked segments - that opaque `Color32::from_rgb(` form TRIPS the CONTROL-4 guard test_theme::no_hardcoded_color32_outside_theme_module (it exempts ONLY palette.rs/syntax.rs). Do NOT put a from_rgb literal in loom_search_v2.rs. Instead either (a) ADD a search_highlight_bg token to theme/palette.rs (added to allowed_paths) and read it via the palette, or (b) reuse an existing warning/accent palette token, or (c) use Color32::from_rgba_unmultiplied(...) (the sanctioned translucent-affordance form the guard does NOT flag). The correctness lens runs the BARE cargo test (incl test_theme) - a from_rgb literal will fail the gate.",
+      "BACKEND PROOF REALITY + ROUTE VERIFY (MT-008/021-027 pattern, MANDATORY): the search IS the deliverable - it needs the REAL POST /loom/search-v2 (the contract cites api/loom.rs:2679 + storage/loom.rs:637-696 - VERIFY those + the LoomSearchV2Response{hits,content_type_facets,semantic_available,total} + LoomSearchV2Hit{block,score,fts_rank,trgm_sim,vector_sim,edge_degree,highlight} field shape read-only). SAVE-AS-VIEW: align with MT-027's VERIFIED createBlockView route - MT-027 found block-views live at POST /loom/views/definitions (NOT the contract's bare /loom/views); verify + use the same route MT-027 bound (RISK-3/MC-3: do NOT guess). Bind real; gate the live-search ACs behind the integration feature + NEEDS_MANAGED_RESOURCE_PROOF if no seeded backend. The <mark> highlight LayoutJob parser ('<mark>foo</mark> bar <mark>baz</mark>' -> 3 segments, mid+last marked, MC-1), facet sort (value desc), facet-clear-on-query (MC-4), no-workspace guard (MC-7), and semantic_available true/false status are unit/kittest-testable STANDALONE with a mock response.",
+      "ASYNC + HYGIENE (KERNEL_BUILDER gate): the HTTP search MUST be off the UI thread (tokio::spawn + channel, poll try_recv per frame - reuse the existing backend_client.rs reqwest::Client + the WP-011 async-bridge pattern); a synchronous call freezes egui (RISK-2, HBR-QUIET). NO PERPETUAL SPINNER - the 'Searching...' state animates ONLY while a genuine request is in flight; idle/headless neutral (MT-015 lesson); kittest uses step() not run(). serde structs MUST match the snake_case backend JSON keys exactly (RISK-6 - a mismatch silently nulls fields). Flat module placement (src/loom_search_v2.rs + lib.rs pub mod + pane_registry.rs registration) is CORRECT for a pane (not a graph/ sub-widget). Screenshots to the EXTERNAL Handshake_Artifacts/handshake-test/wp-kernel-012-mt-028/ root + assert_no_local_artifact_dir(). ACCESSKIT VARIANT: field-correct accesskit 0.21.1 roles; ACs assert the loom-search-v2.* author_ids."
     ],
     "ports_from_react": [
       "app/src/components/LoomSearchV2Panel.tsx (primary reference - full feature set; ported to src/frontend/handshake_native/src/loom_search_v2.rs)",
@@ -85,7 +92,12 @@
       "POST /workspaces/{workspace_id}/loom/views - body: {kind, query, columns} + block patch {title} - used for save-as-view (src/backend/handshake_core/src/api/loom.rs, list routes section for /loom/views)"
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS", "HBR-QUIET"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS",
+    "HBR-QUIET"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -112,5 +124,28 @@
       "Test the semantic_available=false path: seed a workspace without pgvector and assert the status line shows '(keyword/fuzzy only)'.",
       "Guard no-workspace case: if workspace_id is None, show error label 'No workspace selected' and return early without making an HTTP call."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + the just-fixed tag-palette theme-guard regression + MT-027 createBlockView route + MT-008 backend pattern + MT-015 idle-repaint",
+    "corrections": [
+      "<mark> highlight bg must NOT use Color32::from_rgb( (theme guard) - theme token / from_rgba_unmultiplied; theme/palette.rs in allowed_paths",
+      "verify search + save-as-view routes (align save-as-view with MT-027's /loom/views/definitions, don't guess)",
+      "real-search NEEDS_MANAGED_RESOURCE_PROOF; highlight-parser/facet/guards/semantic-path standalone",
+      "off-thread async (no UI freeze) + no perpetual spinner; serde snake_case match; flat pane module; external screenshots; accesskit variant"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_04384b64 (impl + 3-lens panel + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "c0b5ea32 feat MT-028 native LoomSearchV2 surface (E4 search)",
+      "cc346c71 fix harden per adversarial review"
+    ],
+    "review_panel": "correctness=PASS(0), backend-shape=PASS(0), perf-focus-hygiene=CHANGES_REQUIRED(1) -> 1 must-fix hardened (the perf lens caught it this MT - all 3 lenses contributing across MTs).",
+    "proofs": "AC-1/3/4/5/6/7/8/9/10 PASS; AC-2 + PT-1/PT-2 live-search = NEEDS_MANAGED_RESOURCE_PROOF (gated, real backend health was empty); 965 lib + 11 unit + 13 integration + test_theme 19/19; clippy clean; search panel (query/Search/Save-as-view + '3 results (keyword/fuzzy only)' + note(2)/code(1) facets + 3 rows with AMBER <mark> highlights + content-type badges + scores) visually verified; screenshot EXTERNAL (git ls-files src/**/*.png empty).",
+    "proactive_theme_catch_held": "My PROACTIVE theme-guard patch WORKED: the agent added a search_highlight_bg token (amber rgb(255,214,0)) to the CONTROL-4-exempt theme/palette.rs (HsPalette + light/dark + overrides) and loom_search_v2.rs reads it - NO Color32 literal in the feature module; test_theme::no_hardcoded_color32 PASSES. Prevented a repeat of the MT-023 tag-palette regression.",
+    "route_alignment_held": "Save-as-view reuses MT-027's VERIFIED post_create_block_view -> POST /loom/views/definitions (NOT the contract's guessed /loom/views). Search binds the real POST /loom/search-v2 (verified api/loom.rs).",
+    "pane_mounted": "Registered as PaneType::LoomSearchV2 in pane_registry.rs + app.rs build_default_factories (HOSTED/openable/closable) + module_switcher tab-id - the FIRST WP-012 surface actually mounted in the running shell (app.rs). 47 pane/switcher/layout regression tests green - no breakage from the new variant.",
+    "waiver_granted": "backend_client.rs (LoomSearchV2Client) + theme/palette.rs (highlight token) + lib.rs/pane_registry.rs/app.rs/module_switcher.rs (pane registration) + tests/test_loom_search_v2.rs - all in/added to allowed_paths; pane registration necessarily touches the shell registration files."
   }
 }

@@ -1,0 +1,138 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-095",
+  "title": "G1-MT-095-HbrInt009-ThreeTierEvidenceFormat-GateInfra",
+  "group": "G1 Gate infrastructure (HBR-INT-009)",
+  "created_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-095.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-082",
+      "MT-087",
+      "MT-093"
+    ],
+    "blocks": [
+      "MT-096"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Define the HBR-INT-009 THREE-TIER DIAGNOSTIC EVIDENCE FORMAT — the `test_run_with_three_tier_diagnostic_wiring_record` evidence a WP emits to prove its FR / internal_diagnostics / Palmistry wiring per tier — plus a VALIDATOR-SIDE check that reads it and marks the acceptance rows. This is the GATE INFRA that WP-KERNEL-016 (the retrofit) and ALL future WPs use to satisfy HBR-INT-009 (Master Spec v02.196 §5.8/§6.13 + the CODER_PROTOCOL HBR-INT-009 duty + CX-981). Per the CODER_PROTOCOL, every observable runtime behavior an MT touches must record each of the three tiers as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason. THIS MT makes that recording machine-readable + validator-checkable instead of prose-only.\n\nIMPORTANT BOUNDARY (repo-gov vs product split): the EVIDENCE FORMAT + the validator check are GATE INFRA. Where they live depends on whether they are product code or governance tooling. Decompose:\n- (A) The MACHINE-READABLE EVIDENCE SCHEMA (the JSON a WP/MT emits): this is a small typed schema + emitter usable by product test runs. Build it as a tiny product-side helper crate/module so a Rust test can EMIT a `ThreeTierDiagnosticWiringRecord` JSON artifact to the external artifact root during a WP's test run. Place under the palmistry/diag-ring shared area OR a small `diag_evidence` module — RECOMMEND: a module in the diag_ring crate (MT-081) since it is the shared substrate both binaries already depend on, OR a standalone tiny `src/frontend/handshake_native/src/diagnostics/three_tier_evidence.rs` if it is handshake-native-only. The schema mirrors the `hbr_int_009_tier_obligations` array shape already used in these MT contracts: an array of `{ tier: FLIGHT_RECORDER|INTERNAL_DIAGNOSTICS|PALMISTRY, status: WIRED|NOT_APPLICABLE|DEFERRED, reason: string, proof_ref: string }` plus run metadata (wp_id, mt_id, run timestamp, the observable behavior covered).\n- (B) The VALIDATOR-SIDE CHECK (reads the emitted record, marks acceptance rows): this is GOVERNANCE tooling (it gates WP acceptance), so it belongs under .GOV/ governance scripts — BUT .GOV/ is forbidden_paths for the product-code coder lane. RESOLUTION: this MT builds the PRODUCT-SIDE half (the schema + emitter + a self-validating test that asserts a record is well-formed + every tier is accounted for), and SPECIFIES the governance-side validator as a typed HANDOFF to the validator/governance lane (an RGF item or a validator-protocol check), NOT a product-code edit to .GOV/. The coder must NOT write into .GOV/; instead emit the schema + a documented contract for what the validator check must assert, and raise it as the governance-side follow-on. (If the operator/orchestrator wants the validator check authored in .GOV/ in this MT, that is a governance-lane RGF, not this product MT.)\n\nExact files to create/edit (PRODUCT side only):\n- CREATE the schema + emitter module (RECOMMENDED: `src/frontend/handshake_native/diag_ring/src/three_tier_evidence.rs`, re-exported from the diag_ring crate so both handshake-native + palmistry + any future WP can emit it; OR `src/frontend/handshake_native/src/diagnostics/three_tier_evidence.rs` if handshake-native-scoped — choose + document). Define `ThreeTierDiagnosticWiringRecord { wp_id, mt_id, observable_behavior, run_at, tiers: Vec<TierWiring> }`, `TierWiring { tier: DiagTier, status: WiringStatus, reason: String, proof_ref: String }`, `DiagTier { FlightRecorder, InternalDiagnostics, Palmistry }`, `WiringStatus { Wired, NotApplicable, Deferred }` — serde-serializable. Provide `emit(record, out_dir)` that writes `test_run_with_three_tier_diagnostic_wiring_record.json` to the external artifact root atomically. Provide a `validate(record) -> Result<(), Vec<ValidationError>>` that enforces: all THREE tiers present (no tier silently omitted — the CODER_PROTOCOL 'never silently skip it' rule), every NOT_APPLICABLE/DEFERRED carries a non-empty reason, every WIRED carries a non-empty proof_ref.\n- CREATE `src/frontend/handshake_native/diag_ring/tests/test_three_tier_evidence.rs` (or the handshake-native tests dir if scoped there).\n- Produce a DOCUMENTED CONTRACT (in the module doc + the MT implementation_result handoff) for the governance-side validator: what the validator must read (the emitted JSON), what it asserts (all three tiers accounted for, reasons/proof_refs present), and how it marks the WP acceptance rows. Raise the governance-side authoring as a typed handoff (RGF / validator-protocol update), NOT a .GOV/ product edit here.\n\nWHY this is the gate WP-016 + future WPs use: WP-KERNEL-016 is the RETROFIT — it goes back over already-shipped features and records their three-tier wiring. This evidence format is what it emits per retrofitted surface, and the validator check is what marks those rows. Future WPs emit a `ThreeTierDiagnosticWiringRecord` per observable runtime behavior they touch (the CODER_PROTOCOL HBR-INT-009 duty), and the validator gate reads them. Building it here, in the WP that creates the three tiers, means the format is grounded in the real tier APIs (MT-082 record, MT-087 panel, MT-093 FR forward) rather than invented abstractly.\n\nReuse note: the `hbr_int_009_tier_obligations` array shape already used in every MT contract in THIS WP is the human/contract-side mirror of this machine record — keep them congruent (same tier names, same status vocabulary WIRED/NOT_APPLICABLE/DEFERRED) so a model reading either understands the other. serde/serde_json are available (diag_ring has serde; handshake-native has serde_json). The external artifact root is the standard Handshake_Artifacts target.\n\nRisk if missed: HBR-INT-009 stays prose-only (the CODER_PROTOCOL duty is recorded in narrative, not machine-checkable), so WP-016 + future WPs have no consistent emit format + no validator gate — the three-tier discipline drifts. The boundary risk: writing the validator INTO .GOV/ from the product coder lane (a repo-gov vs product-code confusion) — this MT must keep the product-side schema/emitter separate from the governance-side validator authoring.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/diag_ring/src/three_tier_evidence.rs",
+      "src/frontend/handshake_native/diag_ring/src/lib.rs",
+      "src/frontend/handshake_native/diag_ring/tests/test_three_tier_evidence.rs",
+      "src/frontend/handshake_native/src/diagnostics/three_tier_evidence.rs",
+      "src/frontend/handshake_native/src/diagnostics/mod.rs",
+      "src/frontend/handshake_native/tests/test_three_tier_evidence.rs"
+    ],
+    "forbidden_paths": [
+      ".GOV/** (the governance-side validator check is a HANDOFF to the validator/governance lane, NOT a product-code edit; the coder must not write into .GOV/)",
+      "src/backend/** (reuse via API only)",
+      "src/backend/handshake_core/src/flight_recorder/** (FR kept as-is)",
+      "app/src/** (legacy React, reference only)"
+    ],
+    "acceptance_criteria": [
+      "AC-015-1: the `ThreeTierDiagnosticWiringRecord` schema + emitter exist and a test EMITS a well-formed `test_run_with_three_tier_diagnostic_wiring_record.json` to the external artifact root (atomic write), parseable back into the typed struct.",
+      "AC-015-2: `validate(record)` enforces the HBR-INT-009 rules: (a) all THREE tiers (FLIGHT_RECORDER, INTERNAL_DIAGNOSTICS, PALMISTRY) are present — a record omitting a tier FAILS validation (the 'never silently skip it' rule); (b) every NOT_APPLICABLE/DEFERRED tier carries a non-empty reason; (c) every WIRED tier carries a non-empty proof_ref. Proven by tests for each pass + each fail case.",
+      "AC-015-3: the status vocabulary + tier names are CONGRUENT with the `hbr_int_009_tier_obligations` array used in the WP-KERNEL-012 MT contracts (WIRED/NOT_APPLICABLE/DEFERRED; FLIGHT_RECORDER/INTERNAL_DIAGNOSTICS/PALMISTRY) — a test asserts the serialized enum spellings match the contract vocabulary so a model reading either surface understands the other.",
+      "AC-015-4: a REAL example record is emitted for at least one WP-KERNEL-012 observable behavior (e.g. the heartbeat: FLIGHT_RECORDER=NOT_APPLICABLE+reason, INTERNAL_DIAGNOSTICS=WIRED+proof_ref MT-084, PALMISTRY=WIRED+proof_ref MT-084/011) and passes validate() — grounding the format in this WP's real tiers, not an abstract stub.",
+      "AC-015-5 (repo-gov/product split): the governance-side validator check is specified as a DOCUMENTED CONTRACT + raised as a typed handoff (RGF / validator-protocol update) — NOT written into .GOV/ by this product MT; a review confirms no .GOV/ edit was made and the handoff is recorded in the MT implementation_result.",
+      "AC-015-6: the chosen module placement is documented (diag_ring shared crate vs handshake-native diagnostics) with the rationale; `cargo build` of the owning crate clean; clippy `--all-targets -D warnings` clean; external target dir; no repo-local target/."
+    ],
+    "proof_targets": [
+      "PT-015-A: `cargo test three_tier_evidence` GREEN — emit + parse-back well-formed record to the external root.",
+      "PT-015-B: validate() pass/fail tests GREEN — missing-tier fails, missing-reason/proof_ref fails, complete record passes.",
+      "PT-015-C: vocabulary-congruence-with-contract assertion GREEN; a real WP-015 example record passes validate().",
+      "PT-015-D: no .GOV/ edit (split preserved) + handoff recorded; owning crate builds clean + clippy -D warnings."
+    ],
+    "implementation_notes": [
+      "Keep the machine record CONGRUENT with the `hbr_int_009_tier_obligations` array these MT contracts already use (same tier names + WIRED/NOT_APPLICABLE/DEFERRED vocabulary) — the contract array is the human-side mirror; this is the emitted/validated machine-side. Drift between them is a defect.",
+      "Per the CODER_PROTOCOL HBR-INT-009 duty: a record must account for ALL THREE tiers per observable behavior — WIRED, or NOT_APPLICABLE-with-reason, or DEFERRED-with-reason — never silently omit a tier. validate() enforces exactly this.",
+      "PLACEMENT: RECOMMEND the diag_ring crate (both binaries + future WPs can depend on it for the emit/validate API) — but if the format is only ever emitted by handshake-native tests, a handshake-native diagnostics module is acceptable. Document the choice + rationale.",
+      "REPO-GOV/PRODUCT SPLIT (critical): the EMITTER + SCHEMA are product code; the VALIDATOR GATE that marks WP acceptance rows is GOVERNANCE tooling under .GOV/ — which is forbidden_paths for this product coder lane. Build the product half + the validate() helper, and SPECIFY the governance-side gate as a typed handoff (RGF / validator-protocol update). Do NOT write into .GOV/.",
+      "Ground the format in this WP's real tiers (MT-082 record, MT-084 heartbeat, MT-087 panel, MT-091 freeze, MT-093 FR forward) — emit a real example record (AC-015-4) so the schema is proven against actual wiring, not an abstract shape.",
+      "Read the KERNEL_BUILDER coder protocol under .GOV/ first (read-only); the HBR-INT-009 duty + the repo-gov-vs-product-code split are both governance invariants this MT must respect."
+    ],
+    "ports_from_react": [
+      "NONE (governance/evidence schema)"
+    ],
+    "binds_backend_api": [
+      "NONE. The evidence format is emitted by test runs to the external artifact root; the validator reads it. No backend, no FR edit."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-MAN"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "status": "WIRED",
+      "reason": "This MT defines the evidence format that records the FLIGHT_RECORDER tier wiring per WP/observable-behavior (the FR-forward proof from MT-093 is referenced as a proof_ref in emitted records); the format + validate() cover the FR tier as a first-class row."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "WIRED",
+      "reason": "The evidence format records the INTERNAL_DIAGNOSTICS tier wiring; the real example record (AC-015-4) cites MT-082/004/007 internal_diagnostics proofs. The format is the machine-checkable form of the §5.8 tier obligation."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "WIRED",
+      "reason": "The evidence format records the PALMISTRY tier wiring; the example record cites MT-089..013 Palmistry proofs. THIS MT is the gate infra that all future WPs + the WP-016 retrofit use to prove all three tiers, so it wires the tier-evidence discipline itself."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "governance_side_validator_handoff": "The governance-side validator check (reads the emitted test_run_with_three_tier_diagnostic_wiring_record.json + marks WP acceptance rows) is a VALIDATOR/GOVERNANCE-LANE item (RGF / validator-protocol update under .GOV/), NOT authored by this product coder MT. The product MT delivers the schema + emitter + validate() helper + a documented contract for what the governance gate must assert; the .GOV/ authoring is raised as a typed handoff."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DIAGNOSTIC_SUBSTRATE_V1",
+    "risks": [
+      "RISK-015-1: the product coder writes the validator gate INTO .GOV/ (repo-gov vs product-code confusion). Mitigate: .GOV/ is forbidden_paths; the governance gate is a typed handoff (AC-015-5).",
+      "RISK-015-2: the machine evidence vocabulary drifts from the `hbr_int_009_tier_obligations` contract array (two incompatible spellings of the same thing). Mitigate: congruence assertion (AC-015-3).",
+      "RISK-015-3: a record silently omits a tier (defeating the 'never skip a tier' HBR-INT-009 rule). Mitigate: validate() requires all three tiers (AC-015-2).",
+      "RISK-015-4: the format is abstract/un-grounded (never emitted against a real tier). Mitigate: a real WP-015 example record (AC-015-4).",
+      "RISK-015-5: WIRED rows with no proof_ref or NOT_APPLICABLE/DEFERRED with no reason (empty evidence). Mitigate: validate() requires reason/proof_ref (AC-015-2)."
+    ],
+    "minimum_controls": [
+      "MC-015-1: repo-gov/product split preserved; governance gate is a handoff, not a .GOV/ edit (AC-015-5).",
+      "MC-015-2: vocabulary congruence with the contract array (AC-015-3).",
+      "MC-015-3: validate() enforces all-three-tiers + reason/proof_ref (AC-015-2).",
+      "MC-015-4: a real grounded example record passes (AC-015-4)."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-KERNEL-012 field research (June 2026); HBR-INT-009 duty from the CODER_PROTOCOL + CX-981",
+    "field_stack": "Machine-readable per-tier wiring evidence (the WIRED/NOT_APPLICABLE/DEFERRED-with-reason vocabulary the CODER_PROTOCOL already mandates) emitted as a JSON artifact + a validate() gate — the standard 'evidence record + validator check' governance pattern, kept congruent with the contract-side hbr_int_009_tier_obligations array.",
+    "crate_versions_verified_2026_06_27": {
+      "serde_serde_json": "1.x (already available in diag_ring + handshake-native)"
+    },
+    "motivating_incident": "The 2026-06-26 freeze + the three-tier decoupling created an obligation (HBR-INT-009) that, if left prose-only, drifts; this format makes the per-tier wiring machine-checkable so WP-016's retrofit + all future WPs prove it consistently.",
+    "validation_plan": "emit+parse + validate() pass/fail + vocabulary congruence + real grounded example + repo-gov/product split preserved; clippy -D warnings."
+  }
+}

@@ -1,0 +1,141 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-102",
+  "title": "U6-MT-102-VisualDebugger-WorksurfaceWindowStructureInspect",
+  "group": "U1 Usable-Product Expansion (notes+chat worksurface, §product-vision 2026-06-27)",
+  "created_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-102.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-097"
+    ],
+    "blocks": [
+      "MT-104"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "OPERATOR: a VISUAL DEBUGGER to inspect the operator WORKSURFACES, the egui_tiles WINDOW/PANE structure, and TOOLING state — which panes are mounted, the layout tree, the widget ids. This is the GLOBAL-BUILD-DIAG visual-debugging surface for a no-context model + the operator. Diagnostics (liveness/frame/resource) lives in Settings (MT-087); THIS is the worksurface/window-structure/tooling inspector.\n\nVERIFIED STATE (live-app inspection 2026-06-27): the building blocks EXIST and are REUSE-via-API — this is a REAL WIRE, not a typed blocker:\n- MCP tool surface src/frontend/handshake_native/src/mcp/tools.rs: list_widgets (returns a UiTreeSnapshot — nested AccessKit tree with role/label/value/actions/bounds + the stable author_id per node), click_widget, set_value, screenshot (Win32 PrintWindow(PW_RENDERFULLCONTENT)+BitBlt over an OFFSCREEN DC = HBR-QUIET, no foreground steal; headless test path uses Harness::render()).\n- The live tree dump: collect_ui_tree_snapshot(&accesskit::TreeUpdate) -> UiTreeSnapshot in src/frontend/handshake_native/src/accessibility/snapshot.rs (id/author_id/node_id/role/label/value/actions/bounds/children, capped at MAX_SNAPSHOT_NODES=4000, cycle-guarded, deterministic order).\n- The pane registry (pane_registry.rs) is the source of truth for WHICH panes are mounted (PaneRecord{pane_type, content_id, lock_state, dirty, authority} + the AccessKit node id per pane).\n- egui_kittest harness pattern (tests/test_mcp_tools.rs, test_ui_snapshot.rs, test_accesskit_ids.rs, interconnect_support/mod.rs author_ids/author_node_value) drives the live HandshakeApp headlessly.\n- KNOWN LIMIT (document, do not fight): headless cargo test cannot call Harness::render() pixel readback (STATUS_ACCESS_VIOLATION 0xc0000005 on a headless host) — pixel screenshots run on a REAL-GPU host; the production screenshot path (PrintWindow/BitBlt) is real.\n\nWhat to build (the visual debugger, reusing the above):\n- CREATE src/frontend/handshake_native/src/visual_debugger/mod.rs (+ snapshot dump): a `WorksurfaceInspector` that, on demand, DUMPS the live worksurface/window structure: (1) the PANE TREE — for every mounted pane: pane_id, pane_type label, content_id, lock/dirty/authority, the AccessKit node id, and whether it is in the main split or popped out (PopOutManager); (2) the WIDGET-ID INVENTORY — the list_widgets / collect_ui_tree_snapshot tree with each node's author_id + role + actions (so a no-context model can address any control); (3) the LAYOUT TREE — the split weights / tab-bar states / active pane / active module (the egui_tiles-equivalent split structure app.rs holds). Output a single structured snapshot (a serde-serializable WorksurfaceSnapshot the inspector returns + can write to the EXTERNAL artifact root as JSON).\n- HOST IT in the Settings -> Diagnostics window section (NOT the worksurface — diagnostics is in Settings per the operator steer + MT-087), OR as an MCP-drivable dump (a model calls list_widgets + the inspector's structured dump). It is a DIAGNOSTIC surface, not a feature pane on the worksurface.\n- PRODUCE the proof artifact: the visual debugger dumps the LIVE worksurface/window structure (pane tree + widget ids + layout tree) AND a SCREENSHOT of the running app. The screenshot uses the existing mcp/screenshot.rs path; on a headless test host the pixel readback is the documented known-limit (mark that half real-GPU-host-only), the structured dump (pane tree + widget ids) runs everywhere.\n- WIRE an internal_diagnostics event (optional but in-scope): the inspector MAY record a typed internal_diagnostics event (e.g. a 'worksurface_inspected' / pane-count diag) via the MT-082 process-global recorder so a dump is observable in the diagnostics panel — see hbr_int_009_tier_obligations.\n- CREATE src/frontend/handshake_native/tests/test_visual_debugger.rs.\n\nReuse notes: list_widgets / screenshot (mcp/tools.rs), collect_ui_tree_snapshot (accessibility/snapshot.rs), the pane registry (pane_registry.rs), the kittest harness (interconnect_support/mod.rs), the diagnostics globals (MT-082). HBR-QUIET: the screenshot path is offscreen (PrintWindow/BitBlt), no foreground steal. src/backend untouched.\n\nRisk if missed: a no-context model (and the operator) cannot inspect which panes are mounted / the layout tree / the widget ids to isolate a UI failure (GLOBAL-BUILD-DIAG unmet).",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/visual_debugger/mod.rs",
+      "src/frontend/handshake_native/src/settings_diagnostics_section.rs",
+      "src/frontend/handshake_native/src/settings_dialog.rs",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/lib.rs",
+      "src/frontend/handshake_native/tests/test_visual_debugger.rs"
+    ],
+    "forbidden_paths": [
+      "src/frontend/handshake_native/src/mcp/** (MT-027-owned; reuse via API — list_widgets/screenshot)",
+      "src/frontend/handshake_native/src/accessibility/snapshot.rs (reuse collect_ui_tree_snapshot via API)",
+      "src/frontend/handshake_native/diag_ring/** (MT-081-owned; reuse via API)",
+      "src/backend/** (reuse via API only)",
+      "src/backend/handshake_core/src/flight_recorder/** (FR kept as-is)",
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-102-1 (LIVE STRUCTURED DUMP, prove first): the WorksurfaceInspector dumps the LIVE worksurface/window structure from the running app — (a) the PANE TREE (every mounted pane: pane_id, pane_type, content_id, lock/dirty/authority, AccessKit node id, main-split-vs-popped-out), (b) the WIDGET-ID INVENTORY (the list_widgets / collect_ui_tree_snapshot tree with author_id + role + actions per node), (c) the LAYOUT TREE (split weights, tab-bar states, active pane, active module) — proven by a kittest driving the live HandshakeApp (notes-only default from MT-097) and asserting the dump contains the code + rich editor panes (+ chat pane if MT-098 landed) with their stable author_ids and the split structure. The structured dump is written as JSON to the EXTERNAL artifact root.",
+      "AC-102-2 (SCREENSHOT OF THE RUNNING APP): the visual debugger produces a screenshot of the running app via the existing mcp/screenshot.rs path. On a real-GPU host the pixel screenshot is saved to the EXTERNAL artifact root + visually inspected (HBR-VIS); on a headless test host the pixel readback is the DOCUMENTED known-limit (collect a typed 'screenshot deferred: headless-GPU pixel readback' marker, NOT a fake image), and the structured dump (AC-102-1) still runs.",
+      "AC-102-3 (DIAGNOSTIC SURFACE, NOT A WORKSURFACE PANE): the inspector is reachable from Settings -> Diagnostics (or as an MCP-drivable dump), NOT mounted as a feature pane on the notes-only worksurface (consistent with MT-097 stripping the worksurface to notes+chat and MT-087 putting diagnostics in Settings) — proven by a test asserting the inspector is hosted in the Settings/Diagnostics surface and is NOT in default_panes.",
+      "AC-102-4 (HBR-QUIET): the screenshot path steals no foreground (offscreen PrintWindow/BitBlt or the headless Harness path) — covered by the focus audit (test_focus_audit_quiet.rs stays green; no banned Win32 foreground/SendInput API is added).",
+      "AC-102-5: AccessKit ids in the dump are the REAL live author_ids (cross-checked against the live registries, no invented ids); `cargo build -p handshake-native` (lib + bins) clean; clippy `--all-targets -D warnings` clean; full suite `-j 2` green; external CARGO_TARGET_DIR; no Color32 literal outside theme/palette.rs (CONTROL-4); `git ls-files src/**/*.png` empty."
+    ],
+    "proof_targets": [
+      "PT-102-A: kittest drives the live HandshakeApp + asserts the WorksurfaceInspector dump contains the pane tree (code/rich/chat panes + stable author_ids), the widget-id inventory (list_widgets/snapshot), and the layout tree (split/tabs/active) + writes the JSON dump to the external root.",
+      "PT-102-B: screenshot via mcp/screenshot.rs saved to the external root + visually inspected on a real-GPU host; headless host records the documented pixel-readback known-limit marker (no fake image).",
+      "PT-102-C: test asserts the inspector is hosted in Settings/Diagnostics (not a worksurface feature pane; not in default_panes).",
+      "PT-102-D: test_focus_audit_quiet.rs green (no banned foreground API added); AccessKit ids in the dump are real live ids; cargo build --lib --bins clean + clippy -D warnings clean + full suite -j 2 green + CONTROL-4 green + git ls-files src/**/*.png empty."
+    ],
+    "implementation_notes": [
+      "Use the EXTERNAL CARGO_TARGET_DIR (Handshake_Artifacts/handshake-native-target); NEVER a repo-local target/. Run the full suite with -j 2.",
+      "REUSE, do NOT re-implement: list_widgets + screenshot (mcp/tools.rs), collect_ui_tree_snapshot (accessibility/snapshot.rs), the pane registry (pane_registry.rs is the mounted-pane source of truth), the kittest harness helpers (interconnect_support/mod.rs author_ids/author_node_value). The inspector COMPOSES these into one WorksurfaceSnapshot.",
+      "KNOWN HEADLESS-GPU LIMIT (document, do not fight): Harness::render() pixel readback crashes on a headless host (STATUS_ACCESS_VIOLATION 0xc0000005). Run pixel screenshots on a REAL-GPU host; on headless, record a typed 'screenshot deferred' marker and still produce the structured dump. The production PrintWindow/BitBlt path is real + offscreen (HBR-QUIET).",
+      "DIAGNOSTIC SURFACE, not a worksurface pane: host the inspector in Settings -> Diagnostics (settings_diagnostics_section.rs, the MT-087 section) or as an MCP-drivable dump. The worksurface is notes+chat only (MT-097). Do NOT add a VisualDebugger feature pane to default_panes.",
+      "The structured WorksurfaceSnapshot should be serde-serializable + written as JSON to the external artifact root so a no-context model can ingest it (machine-readable diagnostic output).",
+      "depends_on MT-097 (the notes-only worksurface is what the inspector dumps). blocks MT-104 (the manual documents the visual debugger).",
+      "Read the KERNEL_BUILDER coder protocol under .GOV/ first; HBR-QUIET is critical here — the screenshot must not steal foreground (the focus audit must stay green). GLOBAL-INSPECT the screenshot on a real-GPU host before declaring the app render correct."
+    ],
+    "ports_from_react": [
+      "NONE (native diagnostic inspector over the existing MCP/AccessKit/pane-registry surfaces)."
+    ],
+    "binds_backend_api": [
+      "NONE. The inspector reads in-process UI state (pane registry, AccessKit snapshot, layout) + the in-process diagnostics globals (MT-082) + the offscreen screenshot path. src/backend untouched. No SQLite."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-VIS",
+    "HBR-SWARM",
+    "HBR-MAN",
+    "HBR-QUIET"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "status": "NOT_APPLICABLE",
+      "reason": "The visual debugger reads live UI structure + the offscreen screenshot path; it does not read or write the Flight Recorder. FR stays as-is/forbidden."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "WIRED",
+      "reason": "The inspector MAY record a typed internal_diagnostics event (e.g. a worksurface-inspected / pane-count diag) via the MT-082 process-global recorder so a dump is observable in the Settings->Diagnostics panel (MT-087), AND it consumes the diagnostics surface as its host. If the implementer wires that event, this is WIRED; if they choose not to emit a diag event (read-only inspector), downgrade to NOT_APPLICABLE in implementation_result with the honest reason. Default intent: WIRE a single typed inspected-event so the visual-debugger run is diagnostics-observable."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "NOT_APPLICABLE",
+      "reason": "The inspector dumps live structure on demand; it does not produce or read freeze/crash/debris records (that is the MT-093 Palmistry forwarding into the diagnostics panel, separate from this MT)."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "USABLE_PRODUCT_WORKSURFACE_V1",
+    "risks": [
+      "RISK-102-1: the dump uses invented author_ids (not the live ids), so a model addresses non-existent controls. Mitigate: AC-102-5 cross-checks the dump ids against the live registries (the MT-073 manual-id-audit discipline).",
+      "RISK-102-2: the screenshot path steals foreground (a banned Win32 API) — violates HBR-QUIET. Mitigate: AC-102-4 keeps test_focus_audit_quiet.rs green; reuse the offscreen PrintWindow/BitBlt path only.",
+      "RISK-102-3: the inspector is added as a worksurface feature pane, re-cluttering the notes-only default (contradicts MT-097). Mitigate: AC-102-3 hosts it in Settings/Diagnostics, not default_panes.",
+      "RISK-102-4: a fake screenshot is produced on a headless host instead of recording the known pixel-readback limit. Mitigate: AC-102-2 records a typed 'screenshot deferred' marker on headless, never a fabricated image; pixel screenshots on a real-GPU host.",
+      "RISK-102-5: a repo-local target/ or tracked PNG leaks. Mitigate: external target dir; git ls-files src/**/*.png empty (AC-102-5)."
+    ],
+    "minimum_controls": [
+      "MC-102-1: AC-102-1 dumps the live pane tree + widget-id inventory + layout tree (real live ids) + writes JSON to the external root.",
+      "MC-102-2: AC-102-2 screenshot on a real-GPU host (or the documented headless known-limit marker, no fake image).",
+      "MC-102-3: AC-102-3 hosts the inspector in Settings/Diagnostics, not the worksurface; AC-102-4 keeps the focus audit green (HBR-QUIET).",
+      "MC-102-4: external target + no tracked PNG + CONTROL-4 + full suite -j 2 green (AC-102-5)."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-KERNEL-012 product-vision steer + GLOBAL-BUILD-DIAG (visual debugging suite); live-app inspection (MCP list_widgets/screenshot, collect_ui_tree_snapshot, pane_registry, kittest harness, focus_guard all verified PRESENT; headless-GPU pixel-readback limit documented).",
+    "field_stack": "Browser/Flutter/egui dev-tools-style live UI inspector: dump the widget/pane tree + ids + layout + a screenshot. Composes the existing MCP tool surface (list_widgets/screenshot), the AccessKit snapshot (collect_ui_tree_snapshot), the pane registry, and the kittest harness. The offscreen PrintWindow/BitBlt screenshot is HBR-QUIET (no foreground steal). No new subsystem.",
+    "crate_versions_verified_2026_06_27": {
+      "egui_eframe_kittest": "0.33 (already pinned)",
+      "accesskit": "via egui re-export (already a transitive dep)"
+    },
+    "motivating_incident": "A no-context model (and the operator) needs to inspect which panes are mounted, the layout tree, and the widget ids to isolate a UI failure without guessing — the GLOBAL-BUILD-DIAG visual-debugging requirement.",
+    "validation_plan": "live structured dump (pane tree + widget ids + layout) written as JSON + a screenshot (real-GPU host, or the documented headless known-limit) + hosted in Settings/Diagnostics (not the worksurface) + focus audit green (HBR-QUIET) + real live ids; clippy -D warnings; full suite -j 2."
+  }
+}

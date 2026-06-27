@@ -70,7 +70,8 @@
   "acceptance_matrix": {
     "schema_version": 1,
     "hbr": [],
-    "hbr_not_applicable": []
+    "hbr_not_applicable": [],
+    "hbr_int_009_three_tier_diagnostic": []
   },
   "refinement": {
     "contract_file": ".GOV/task_packets/{{WP_ID}}/refinement.json",

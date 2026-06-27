@@ -25,10 +25,15 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-001"],
-    "blocks": ["MT-004", "MT-010"],
+    "depends_on": [
+      "MT-001"
+    ],
+    "blocks": [
+      "MT-004",
+      "MT-010"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -68,7 +73,9 @@
       "For `insert_at_all`: process cursors in reverse order by head offset so earlier insertions don't invalidate later offsets.",
       "Character width for column alignment: use `ui.fonts(|f| f.glyph_width(&FontId::monospace(font_size), ' '))` — all monospace chars have the same width.",
       "Do not use `egui::TextEdit` — we own the text buffer and render it manually.",
-      "Cross-WP dependency: this MT builds on the WP-KERNEL-011 native shell. The TextBuffer (MT-001 of this WP) plus the WP-011 AccessKit pipeline in `src/frontend/handshake_native/src/accessibility/` and the command bus in `command_registry.rs` + `event_bus.rs` must already exist; wire the multi-cursor commands through those existing surfaces rather than creating new ones."
+      "Cross-WP dependency: this MT builds on the WP-KERNEL-011 native shell. The TextBuffer (MT-001 of this WP) plus the WP-011 AccessKit pipeline in `src/frontend/handshake_native/src/accessibility/` and the command bus in `command_registry.rs` + `event_bus.rs` must already exist; wire the multi-cursor commands through those existing surfaces rather than creating new ones.",
+      "POSITIONING-UNIT DEPENDENCY (KERNEL_BUILDER gate 2026-06-22, from the MT-002 AC-007 harden): MT-002 zeroed item_spacing.y on the scroll-area ui so egui row-height == sans-spacing line_height, and last_visible_range()/perf now report egui ScrollArea::show_rows ACTUAL painted row_range. MT-003 caret/selection positioning MUST use the SAME units: y_for_line(line) (= line*line_height, sans spacing) for vertical, the monospace glyph_width from the SAME FontId the renderer uses for horizontal, and render only cursors within the painted row_range (last_visible_range()) so carets align exactly with rendered glyphs. Do NOT reintroduce a with-spacing vs sans-spacing unit mismatch - that was the MT-002 scroll-to-line bug.",
+      "CURSOR MODEL (research provenance wf_ffa74d6d): Cursor{anchor,head} byte offsets + CursorSet{Vec<Cursor>} IS the field-converged Helix Selection model - keep it. The reverse-order insert_at_all offset adjustment is acceptable for MT-003 multi-cursor insert/delete; a LATER MT MAY generalize to a Helix-style OT Transaction position-mapping for uniform edit/undo handling (not required here). Continue to render carets/selections via ui.painter() over the virtualized rows; never egui::TextEdit."
     ],
     "ports_from_react": [
       "app/src/components/MonacoCodeBlockView.tsx — Monaco multi-cursor is built-in; this MT reimplements equivalent behavior natively. Study the escape-to-prose handler (lines 89-97) for focus management patterns.",
@@ -78,7 +85,10 @@
       "None — cursor and selection state is purely in-process."
     ]
   },
-  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -97,6 +107,33 @@
       "MC-002: column-clamp unit test required.",
       "MC-003: Ctrl+D wrap-around test required.",
       "MC-004: AccessKit cap at 64 cursors documented in code comment."
+    ]
+  },
+  "research_provenance": {
+    "source": "wf_ffa74d6d WP-012 research + MT-002 AC-007 harden",
+    "notes": [
+      "Cursor/CursorSet == Helix Selection model (confirmed field-converged)",
+      "caret positioning must use MT-002-corrected sans-spacing units + painted row_range (last_visible_range)",
+      "painter-based caret/selection overlay, no egui::TextEdit"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_330b17ff (impl + adversarial-review + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "e6bfb420 feat MT-003 multi-cursor + column/box select (CursorSet over TextBuffer)",
+      "2f06f21c fix harden per adversarial review"
+    ],
+    "proofs": "AC-001..006 + PT-001..005 GREEN; clippy clean; cargo tree -d no duplicate core; no repo-local target/ or test_output/; two distinct caret bars visually verified by KERNEL_BUILDER in MT-003-two-cursors.png.",
+    "serious_bug_caught_and_fixed": "Adversarial review caught a latent integer-overflow PANIC (start_char + usize::MAX in line_col_to_byte) on the multi-line-selection paint path - reachable for any selection spanning >=3 lines with a middle row on screen, untested by the 6 ACs. Harden fixed with saturating_add + added a >=3-line-selection paint regression test + a usize::MAX-clamp unit test.",
+    "carried_forward_to_MT_010": [
+      "Command-bus wiring: the contract required routing the multi-cursor commands (Alt+Click add-cursor, Ctrl+D, Ctrl+Alt+Up/Down) through command_registry.rs/event_bus.rs/command_palette.rs for discoverability+rebindability. The impl used a direct egui input handler instead (the actions WORK, but are not palette commands). Reassigned to MT-010 (keymap) which owns keyboard/command wiring.",
+      "Step-7 live keyboard typing: process_cursor_input has no egui::Event::Text or Backspace/Delete branch, so live typing/backspacing at multiple cursors is not keyboard-wired. The model methods insert_at_all/delete_at_all are done + AC-006-tested. Reassigned to MT-010 (Event::Text->insert_at_all, Backspace/Delete->delete_at_all)."
+    ],
+    "deferred_minor": [
+      "AC-005 pixel assertion is weak (counts text columns, not carets) - behavior visually verified; tighten in a test-quality follow-up",
+      "Alt+Shift box-drag has no interactive runtime test (model path AC-002-tested)",
+      "AccessKit cursor NodeId band 210..274 only multi-instance-collision-proof; doc-only follow-up"
     ]
   }
 }

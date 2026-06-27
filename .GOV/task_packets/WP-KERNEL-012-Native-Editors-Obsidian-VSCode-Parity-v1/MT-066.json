@@ -25,10 +25,16 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-014", "MT-033", "MT-036"],
-    "blocks": ["MT-073"],
+    "depends_on": [
+      "MT-014",
+      "MT-033",
+      "MT-036"
+    ],
+    "blocks": [
+      "MT-073"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -36,6 +42,7 @@
     "allowed_paths": [
       "src/frontend/handshake_native/src/interop/stage_interop.rs",
       "src/frontend/handshake_native/src/interop/mod.rs",
+      "src/frontend/handshake_native/src/interop/interaction_bus.rs",
       "src/frontend/handshake_native/src/stage_pane.rs",
       "src/frontend/handshake_native/src/lib.rs",
       "src/frontend/handshake_native/src/pane_registry.rs",
@@ -75,7 +82,10 @@
       "ProvenanceMissing guards evidence-grade integrity: if a fetched artifact lacks sha256 or manifest, refuse to embed rather than embedding an unverifiable capture.",
       "PostgreSQL/EventLedger only — no SQLite, no rusqlite, anywhere in this MT.",
       "Cross-WP dependency (prose, not a depends_on id): the WP-011 native shell primitives in src/frontend/handshake_native/src/ — pane_registry.rs, command_registry.rs, event_bus.rs, accessibility/registry.rs, backend_client.rs, canvas_board.rs — must already be present from WP-011; this MT reuses them and must not recreate them.",
-      "React reference: app/src/components/* Stage surface + MediaDownloaderView — study the capture/import data model and status-dispatch pattern; port the surface, not the transport (transport is the Rust HandshakeClient in backend_client.rs)."
+      "React reference: app/src/components/* Stage surface + MediaDownloaderView — study the capture/import data model and status-dispatch pattern; port the surface, not the transport (transport is the Rust HandshakeClient in backend_client.rs).",
+      "STAGE BACKEND ROUTES ABSENT -> ROUTE = MT-033 BUS COMMAND, EMBED-BACK = TYPED BLOCKER (KERNEL_BUILDER gate 2026-06-25, VERIFIED handshake_core grep): there are NO /stage/ HTTP routes in handshake_core (Stage = Pillar 17, like FEMS has no backend HTTP surface). The contract's 'POST /workspaces/{id}/stage/route (MT-033 uses it)' is WRONG - MT-033's route-to-Stage is a BUS COMMAND: interop/interaction_bus.rs CMD_ROUTE_TO_STAGE='interop.route-to-stage' + request_route_to_stage (the shell drains the staged content cross-pane), NOT a backend POST. SO: (1) route_to_stage EXTENDS the MT-033 bus command (interop.route-to-stage) - the cross-pane routing is via the InteractionBus, add the Selection + CanvasNode payload builders on top (do NOT duplicate the command id, AC-005/MC-003; do NOT assume/require a backend POST - if a stage/route backend POST is genuinely absent the routing stays bus-only, which is what MT-033 does). (2) embed-back GET /workspaces/{id}/stage/artifacts/{id} is ABSENT -> fetch_stage_artifact returns StageInteropError::EmbedBackEndpointAbsent (the TYPED BLOCKER, the contract's designed path; detection BROAD: 404/501/route-not-registered/client-method-missing, RISK-008/MC-008). NO backend route added (RISK-001/MC-001), NO SQLite.",
+      "REUSE MT-014 EMBED + SHA-256 PROVENANCE + FR-via-MT-036 (KERNEL_BUILDER gate): embed_artifact_as_nodeview REUSES the MT-014 EmbedNodeView / Child::HsLink embed atom (by ref_kind - the stage artifact embeds as an hsLink atom, ref_kind='stage_capture' or the existing image/video kind; do NOT define a parallel embed type, RISK-004/MC-004, AC-003). SHA-256 MANIFEST PROVENANCE MUST SURVIVE the conversion: the NodeView carries {source:'stage_capture', artifact_id, sha256, manifest_ref}; if the fetched artifact has NO sha256/manifest -> StageInteropError::ProvenanceMissing (REFUSE to embed an unverifiable evidence-grade capture, RISK-002/MC-002). route_to_stage emits the MT-036 route_to_stage FR event via the EXISTING MT-036 emitter (NO new event kind, RISK-005/MC-005) - NOTE the MT-036 closed-schema gap: the FR emit SHAPE is provable now but live native-editor FR ingestion is GATED (like MT-064). build_from_selection reads the MT-031 SharedSelection (TextRange->Selection, BlockRef->NoteRef, NodeRef->CanvasNode) off the bus; validate selection liveness vs pane_registry before routing + re-resolve the embed target at embed time (refuse a dangling pane, RISK-007/MC-007).",
+      "WIDGET-PROVABLE + LIVE-GATED + HYGIENE (KERNEL_BUILDER gate): PROVABLE NOW (fixtures/kittest): the payload builders (AC-001), embed_artifact_as_nodeview + SHA-256 provenance (AC-003), the EmbedBackEndpointAbsent typed blocker w/ a client-stub matrix (AC-004), ProvenanceMissing, the StagePane AccessKit (stage-pane GenericContainer / stage-capture-embed-back Button / stage-routed-content GenericContainer, AC-006), and the FR route_to_stage payload SHAPE. GATED #[ignore]+integration (NEEDS_MANAGED_RESOURCE_PROOF): AC-002's LIVE route round-trip (real PG + live FR ingestion - both gated). The StagePane registers in pane_registry (factory) now; the LIVE pane DOCK + the live route command wiring through the mounted shell = E11/MT-069. NO Color32 literal (theme); external screenshot if any; full suite -j 2 (serialize, build-lock); clippy clean; AC-007 grep no sqlite/rusqlite + no src/backend edit."
     ],
     "ports_from_react": [
       "app/src/components/* Stage surface + MediaDownloaderView (capture/import reference) — Stage surface layout, capture/import data model, status-dispatch pattern"
@@ -85,7 +95,11 @@
       "GET /workspaces/{workspace_id}/stage/artifacts/{id} (embed-back; typed blocker StageInteropError::EmbedBackEndpointAbsent if absent — no backend route added)"
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -113,5 +127,27 @@
       "MC-007: Payload builders validate selection liveness against the WP-011 pane registry (pane_registry.rs) before routing; embed target is re-resolved at embed time and refuses a dangling pane.",
       "MC-008: EmbedBackEndpointAbsent detection covers 404, 501, route-not-registered, and missing client method — proven by AC-004's client stub matrix."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + VERIFIED handshake_core (NO /stage/ routes) + MT-033 interop.route-to-stage bus command (interaction_bus.rs CMD_ROUTE_TO_STAGE) + MT-014 EmbedNodeView + MT-036 FR emitter (closed schema) + MT-031 SharedSelection",
+    "corrections": [
+      "Stage has NO backend HTTP routes -> route_to_stage EXTENDS the MT-033 bus command (interop.route-to-stage, not a backend POST); embed-back GET /stage/artifacts absent -> EmbedBackEndpointAbsent typed blocker (broad 404/501/route-not-registered/client-missing)",
+      "reuse MT-014 EmbedNodeView (hsLink atom by ref_kind) - no parallel embed type; SHA-256 manifest provenance survives + ProvenanceMissing guard (refuse unverifiable)",
+      "FR via MT-036 route_to_stage emitter (closed-schema -> shape-provable, live ingestion gated); read MT-031 SharedSelection off bus; validate selection liveness + re-resolve embed target",
+      "widget-provable now (builders/embed/provenance/typed-blocker/accesskit/FR-shape) + AC-002 live round-trip gated + dock at E11; no backend/SQLite/Color32; -j 2"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_cfe4708a (impl + 3-lens panel; ALL PASS - no harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "99e8ddb7 feat MT-066 bidirectional Stage interop (route builders + embed-back typed blocker)"
+    ],
+    "review_panel": "correctness=PASS(0), backend-shape=PASS(0), perf-focus-hygiene=PASS(0) -> ALL PASS, zero must-fixes (7th clean all-PASS MT).",
+    "proofs": "AC-001..008 + PT-001..005 PASS (AC-002/PT-002 PARTIAL_GATED); 10 unit + 12 integration (1 gated) + 23 lib + 24 regression green; clippy clean; Stage pane (routed content 'Selection from pane-rich:0-16: routed selection' + 'Capture/Embed back' button) visually verified - bidirectional Stage interop; screenshot EXTERNAL.",
+    "stage_routes_absent_CONFIRMED": "VERIFIED handshake_core has NO /stage/ HTTP routes. So: route_to_stage EXTENDS the MT-033 bus command (interop.route-to-stage, NOT a backend POST - the InteractionBus stages content cross-pane); embed-back GET /stage/artifacts/{id} is ABSENT -> EmbedBackEndpointAbsent typed blocker (BROAD detection: 404 AND 501 proven via mock TcpListener; no fake artifact, no backend route). Joins the FEMS/Stage no-HTTP-surface pattern.",
+    "steers_held": "reuse MT-014 EmbedNodeView (HsLinkNode ref_kind=stage_capture) + StageEmbedProvenance {source:stage_capture, artifact_id, sha256, manifest_ref} - NO parallel embed type; SHA-256 manifest provenance SURVIVES + ProvenanceMissing guard (refuse unverifiable). FR via the MT-036 route_to_stage emitter (NO new event kind; shape proven, live ingestion gated). single route command id (MT-033 reused, NOT duplicated) + interop.embed-stage-capture added. read MT-031 SharedSelection off bus (TextRange->Selection/BlockRef->NoteRef/NodeRef->CanvasNode) + selection-liveness validate + embed-target re-resolve. accesskit stage-pane/stage-routed-content/stage-capture-embed-back. no backend/SQLite (GET-only embed-back, AC-007 grep).",
+    "carried_E11": "AC-002 LIVE route round-trip (real PG + live native-editor FR ingestion) #[ignore]'d NEEDS_MANAGED_RESOURCE_PROOF (both gated - the FR closed-schema gap + no managed PG). The StagePane registers in pane_registry now; the live pane DOCK + live route-command wiring through the mounted shell = E11/MT-069.",
+    "waiver_granted": "interop/stage_interop.rs (new) + interop/mod.rs + interop/interaction_bus.rs (CMD_EMBED_STAGE_CAPTURE) + stage_pane.rs (new) + lib.rs + pane_registry.rs + command_registry.rs + test in allowed_paths."
   }
 }

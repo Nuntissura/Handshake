@@ -1,0 +1,150 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-077",
+  "title": "E13-MT077-IntlTextSegmentationLineBreak",
+  "group": "E13 Internationalization / Unicode / input (CJK, Cyrillic, symbols, RTL)",
+  "created_at_utc": "2026-06-22T00:00:00Z",
+  "updated_at_utc": "2026-06-22T00:00:00Z",
+  "authoring_note": "Authored 2026-06-22 by KERNEL_BUILDER (E13 i18n expansion). Once CJK glyphs render (MT-075) and IME input works (MT-076), the editor still mis-handles CJK TEXT MECHANICS: CJK has no spaces so naive whitespace line-breaking overflows or never wraps; caret movement by char/byte splits grapheme clusters (emoji ZWJ, combining marks, Hangul); and word/char counts (MT-019 footer) use whitespace tokens which is meaningless for CJK. This MT makes text segmentation Unicode-correct.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-077.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
+    "depends_on": [
+      "MT-011",
+      "MT-012",
+      "MT-075"
+    ],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: make text segmentation Unicode-correct across the rich-text and code editors for international text - (1) CJK line-breaking (no spaces -> break between ideographs per UAX#14), (2) grapheme-cluster caret movement (arrow keys / backspace move by user-perceived character, not byte/codepoint), and (3) correct word + character counts for CJK and other scripts. EXPECTED DIFF SHAPE: line-break logic in rich_editor/renderer/line_layout.rs (+ code_editor virtual_lines/buffer where it wraps), grapheme movement in the cursor layer (rich_editor cursor + code_editor/cursor.rs), and the count fix in daily_notes/journal_panel.rs (footer) + a shared text-metrics helper.\n\nWHAT'S WRONG TODAY (the gaps this closes):\n- LINE-BREAK: egui's default line-breaking breaks on whitespace; a long unbroken CJK run (e.g. a Chinese paragraph) has no spaces, so it either overflows the wrap width or never wraps. CJK must break between (almost) any two ideographs, with UAX#14 rules forbidding breaks before closing punctuation / after opening punctuation (kinsoku).\n- CARET: caret/backspace by char or byte splits a grapheme cluster - a flag emoji, a family ZWJ emoji (man+woman+girl), a combining-accent sequence, or a Hangul syllable can be torn in half. Movement must be by GRAPHEME CLUSTER (unicode-segmentation).\n- COUNTS: MT-019's footer word count splits on whitespace; for CJK ('today I wrote' style) that is meaningless. Word count must use Unicode word boundaries (UAX#29 word segmentation, which handles CJK as per-character/per-run); character count = grapheme clusters (or scalar count, documented).\n\nSCOPE OF CORRECTNESS (honest): this MT handles CJK + grapheme + Latin/Cyrillic/Greek word boundaries. FULL bidirectional reordering and complex-script (Arabic/Indic) shaping are MT-078's concern - this MT must not regress LTR behavior and may leave RTL line-break to MT-078.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/rich_editor/renderer/line_layout.rs",
+      "src/frontend/handshake_native/src/rich_editor/document_model/**",
+      "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs",
+      "src/frontend/handshake_native/src/rich_editor/daily_notes/journal_panel.rs",
+      "src/frontend/handshake_native/src/code_editor/buffer.rs",
+      "src/frontend/handshake_native/src/code_editor/cursor.rs",
+      "src/frontend/handshake_native/src/code_editor/virtual_lines.rs",
+      "src/frontend/handshake_native/src/text_intl/**",
+      "src/frontend/handshake_native/src/lib.rs",
+      "src/frontend/handshake_native/Cargo.toml",
+      "src/frontend/handshake_native/tests/test_intl_segmentation.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/**",
+      ".GOV/**",
+      "src/backend/**"
+    ],
+    "acceptance_criteria": [
+      "AC1: A long CJK paragraph (no spaces) WRAPS within the wrap width by breaking between ideographs (UAX#14), not overflowing and not collapsing to one line - proven by a layout test asserting >1 visual line for a CJK run wider than the wrap width, and a kittest screenshot showing wrapped CJK.",
+      "AC2: UAX#14 kinsoku basics: a line never breaks BEFORE a closing bracket/period or AFTER an opening bracket - cargo test on the break-opportunity function with mixed CJK + punctuation.",
+      "AC3: Caret RIGHT/LEFT over a multi-codepoint grapheme (a family ZWJ emoji, a combining-accent 'e+\\u0301', a flag) moves by the WHOLE cluster in one keypress, not into the middle - cargo test (rich + code editor).",
+      "AC4: Backspace deletes a whole grapheme cluster (deleting the family emoji removes all its codepoints, not one) - cargo test.",
+      "AC5: Word count for a CJK string counts via Unicode word boundaries (not whitespace tokens); a mixed 'Hello 世界 test' counts sensibly (documented rule) - cargo test on the count fn; the MT-019 footer uses it.",
+      "AC6: Character count = grapheme clusters (the family emoji counts as 1 character, not 7 codepoints) - cargo test; documented if scalar-count is chosen instead, with rationale.",
+      "AC7: No regression to LTR Latin: existing caret/wrap/count behavior for ASCII is unchanged - existing MT-012/019 tests stay green.",
+      "AC8: Full crate test suite green."
+    ],
+    "proof_targets": [
+      "PROOF1: cargo test -p handshake-native intl_segmentation -- --nocapture: CJK break opportunities (UAX#14) + kinsoku (AC1/AC2), grapheme caret move + delete (AC3/AC4), word/char counts (AC5/AC6).",
+      "PROOF2: egui_kittest screenshot -> EXTERNAL Handshake_Artifacts/handshake-test/wp-kernel-012-mt-077/mt077_cjk_wrap.png showing a wrapped multi-line CJK paragraph; visually inspected.",
+      "PROOF3: cargo test -p handshake-native (FULL suite) = 0 failures (LTR no-regression)."
+    ],
+    "implementation_notes": [
+      "RESEARCH BASIS (field-standard Rust crates, coder verifies current versions): `unicode-segmentation` (UAX#29 grapheme + word boundaries - graphemes() / unicode_words() / split_word_bounds()) for caret movement + word count; `unicode-linebreak` (UAX#14 line break opportunities, including CJK + kinsoku classes) for CJK wrapping. Both are mature, widely-used, pure-Rust, no_std-capable. Reject hand-rolled char-class tables (incomplete/incorrect for the long tail).",
+      "Put the shared helpers in a new src/frontend/handshake_native/src/text_intl/ module (grapheme iteration, break-opportunity, word/char count) and reuse from BOTH editors - do not duplicate the logic in rich + code editors.",
+      "Line-break wiring: the rich editor renders via egui LayoutJob/Galley (MT-012). egui's Galley does its own wrapping; to honor CJK break opportunities, either (a) pre-insert break hints / use egui's wrap with a custom break set if exposed, or (b) compute break opportunities with unicode-linebreak and lay out runs accordingly. Document which mechanism egui 0.33 actually supports; if egui wraps CJK acceptably already for the bundled font, prove it and scope the explicit break-table to where egui falls short.",
+      "Grapheme caret: the MT-011 rope is char-indexed (proven). Caret movement converts char offset <-> grapheme boundary via unicode-segmentation over the leaf text; backspace/delete remove the full grapheme range. Reuse the MT-003 (code) + MT-012 (rich) caret layers - extend, don't fork.",
+      "Counts: MT-019 footer currently splits on whitespace. Replace with text_intl word/char count. Document the chosen character definition (grapheme cluster recommended) in a comment.",
+      "ARTIFACT HYGIENE (CX-212E): screenshot to the EXTERNAL wp-kernel-012-mt-077 root + assert_no_local_artifact_dir(); cargo artifact-root env; FULL-suite gate (touches shared rich/code layout + counts).",
+      "KEY STEERS (KERNEL_BUILDER gate 2026-06-26, my MT-077 contract): (1) VERIFY egui 0.33 Galley WRAP MECHANISM FIRST (RISK-2/MC-2) - egui Galley does its OWN wrapping; before building a break-table, PROVE whether egui 0.33 already wraps a CJK run acceptably with the MT-075 bundled NotoSansSC font (if it breaks between ideographs, scope the explicit unicode-linebreak table ONLY to where egui falls short - e.g. kinsoku punctuation). Document which mechanism egui actually supports (pre-insert break hints vs custom break set vs lay out runs). (2) SHARED text_intl/ module (unicode-segmentation UAX#29 graphemes+words + unicode-linebreak UAX#14, mature pure-Rust - NO hand-rolled char tables) reused by BOTH editors, NOT duplicated. (3) GRAPHEME CARET over the MT-011 char-indexed rope (AC3/AC4/MC-1): caret RIGHT/LEFT + backspace move/delete by WHOLE grapheme cluster - the FAMILY ZWJ EMOJI test (man+woman+girl = 1 cluster, ~7 codepoints) is MANDATORY + combining-accent e+U0301 + flag + Hangul; LOCAL segmentation around the caret only (NOT the whole doc, RISK-1 perf). (4) COUNTS (AC5/AC6): word = UAX#29 word boundaries (not whitespace - meaningful for CJK), char = GRAPHEME CLUSTERS (family emoji = 1 char); MT-019 daily_notes/journal_panel.rs footer uses text_intl; DOCUMENT the definitions. (5) LTR NO-REGRESSION (AC7/MC-3): ASCII caret/wrap/count UNCHANGED + FULL suite (-j 2; the known pre-existing wgpu flake bins - isolate-verify, non-deterministic). SCOPE HONESTY: CJK+grapheme+Latin/Cyrillic/Greek words; FULL bidi + Arabic/Indic shaping = MT-078 (do NOT regress LTR; may leave RTL line-break to MT-078). external screenshot mt077_cjk_wrap.png (wrapped multi-line CJK paragraph); report binary-size delta from the unicode crates (RISK-4); no Color32; clippy clean."
+    ],
+    "ports_from_react": [
+      "The browser handled CJK line-break + grapheme caret natively for the React surface; this is native-only responsibility. (No app/src logic to port - the platform hid it.)"
+    ],
+    "binds_backend_api": [
+      "None - text segmentation is pure frontend."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-INT"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-1: Grapheme segmentation regresses ASCII caret performance (segmentation per keypress on a huge line). Mitigation: segment only the local neighbourhood around the caret, not the whole document; AC7 + perf sanity.",
+      "RISK-2: CJK line-break table disagrees with egui's own wrap, causing double-wrapping or mis-measured widths. Mitigation: document the egui wrap mechanism actually used; prove the chosen approach against a real CJK paragraph (AC1).",
+      "RISK-3: Character-count definition (grapheme vs scalar vs UTF-16 unit) is ambiguous and disagrees with the backend or React. Mitigation: pick grapheme clusters, document it, and note any backend count it must match.",
+      "RISK-4: unicode-segmentation/unicode-linebreak pull a large unicode-data table inflating the binary. Mitigation: report the size delta; these crates are standard and acceptable.",
+      "RISK-5: Mixed CJK+Latin word count double-counts or under-counts at script boundaries. Mitigation: AC5 mixed-string test with a documented expected count."
+    ],
+    "minimum_controls": [
+      "MC-1: Grapheme-correct caret move + delete (AC3/AC4) - the family-emoji test is mandatory.",
+      "MC-2: CJK wraps (AC1) + kinsoku basics (AC2).",
+      "MC-3: LTR no-regression (AC7) + full-suite (AC8).",
+      "MC-4: Documented character/word-count definitions (AC5/AC6)."
+    ]
+  },
+  "research_basis": {
+    "sources_to_check": [
+      "unicode-segmentation crate (UAX#29 graphemes/words)",
+      "unicode-linebreak crate (UAX#14)",
+      "Unicode UAX#14 (line breaking) + UAX#29 (text segmentation)",
+      "egui Galley wrapping behavior for CJK (egui 0.33)"
+    ],
+    "selected_approach": "Shared text_intl module using unicode-segmentation (graphemes + words) + unicode-linebreak (UAX#14), reused by both editors; grapheme caret over the char-indexed rope; CJK-aware wrap; grapheme-based char count + UAX#29 word count.",
+    "rejected": [
+      "hand-rolled char-class tables (incomplete)",
+      "duplicating logic per editor"
+    ],
+    "risks_mitigations": "perf -> local segmentation; wrap disagreement -> document egui mechanism + prove; count ambiguity -> grapheme + documented.",
+    "validation_plan": "segmentation/line-break/count unit tests + wrapped-CJK screenshot + LTR no-regression full suite."
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate (my MT-077 contract) + MT-075 fonts + MT-011 char-rope + MT-012 caret + unicode-segmentation/unicode-linebreak + egui Galley",
+    "corrections": [
+      "VERIFY egui 0.33 Galley wrap mechanism FIRST (does it wrap CJK w/ NotoSansSC? scope the break-table to where it falls short - kinsoku)",
+      "shared text_intl/ (unicode-segmentation + unicode-linebreak, no hand-rolled tables) reused by both editors",
+      "grapheme caret over char-rope (FAMILY-EMOJI test mandatory; local segmentation for perf); counts grapheme-char + UAX#29-word (MT-019 footer); document definitions",
+      "LTR no-regression + full suite (known wgpu-flake isolate); scope = CJK+grapheme+LTR-words, RTL/Arabic=MT-078; external screenshot; size delta; no Color32"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_aa18e39c (impl + 3-lens panel; ALL PASS - no harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "052d0293 feat MT-077 Unicode-correct text segmentation (UAX#14 CJK line-break + UAX#29 grapheme caret + word/char counts)"
+    ],
+    "review_panel": "correctness=PASS(0), backend-shape=PASS(0), perf-focus-hygiene=PASS(0) -> ALL PASS, zero must-fixes (12th clean all-PASS MT).",
+    "proofs": "AC1..8 + PROOF1..3 PASS (AC8/PROOF3 PASS_WITH_ISOLATE_VERIFY); 26 text_intl + 45 cursor/text_intl + 4 integration + isolate-verify (embeds 6/intl 4/daily 10/cursor 8/buffer 7) green; clippy clean; long CJK paragraph wraps to 8 lines between ideographs (real Han glyphs, no tofu/overflow) visually verified; screenshot EXTERNAL.",
+    "steers_held": "VERIFY egui WRAP FIRST (paid off): epaint-0.33.3 RowBreakCandidates ALREADY breaks CJK ideographs/kana -> the unicode-linebreak table scoped ONLY to the gap (kinsoku after-opening-bracket). SHARED text_intl/ (grapheme.rs+linebreak.rs+counts.rs) - unicode-segmentation 1.13 (already transitive) + unicode-linebreak 0.1.5 (the ONE new dep ~289KB) - reused by BOTH editors. GRAPHEME caret RIGHT/LEFT + backspace/delete by WHOLE cluster (family ZWJ emoji 5 scalars/17 bytes + combining + flag + Hangul) in both editors - the MANDATORY family-emoji test present; LOCAL segmentation (perf). COUNTS: word=UAX#29 (Hello 世界 test=4), char=GRAPHEME cluster (family emoji=1, 日本語=3) - MT-019 footer uses text_intl. LTR no-regression (ASCII unchanged). kinsoku (no break before closing ） / after opening （). Scope honesty: RTL/Arabic/Indic = MT-078.",
+    "waiver_granted": "text_intl/{mod,grapheme,linebreak,counts}.rs (new) + line_layout.rs + input_handler.rs + code_editor/cursor.rs + daily_notes/journal_panel.rs (footer) + lib.rs + Cargo.toml/lock + test in allowed_paths."
+  }
+}

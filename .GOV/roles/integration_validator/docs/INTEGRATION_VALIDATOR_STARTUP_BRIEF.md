@@ -33,6 +33,26 @@ Use this brief after `just validator-startup INTEGRATION_VALIDATOR`. It is opera
 - VERIFY: context brief prints packet path, prepare worktree, main compatibility, and closeout blockers
 - SOURCE: INTEGRATION_VALIDATOR_PROTOCOL, GOV-CHANGE-20260429-03
 
+### RAM-INTEGRATION_VALIDATOR-BUILD_RULES_AUTHORITY-001
+
+- ACTION: BUILD_RULES_REGISTRY_AUTHORITY
+- TRIGGER: before whole-WP judgment and before writing PASS for any WP that touched product code or product behavior
+- FAILURE_PATTERN: writing PASS while a required `HBR-*` acceptance-matrix row stays PENDING/STEER/BLOCKED, or letting an observable-runtime-behavior WP close without an HBR-INT-009 three-tier diagnostic outcome on record
+- DO: consult `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json` and treat every applicable `HBR-*` row as a mandatory closure gate; for any WP touching observable runtime behavior, require the HBR-INT-009 THREE-TIER outcome (Tier 1 Flight Recorder business-event ledger kept as-is; Tier 2 internal_diagnostics native INTERNAL self-diagnostics; Tier 3 Palmistry EXTERNAL watcher) recorded as WIRED / NOT_APPLICABLE-with-reason / DEFERRED-with-reason before PASS
+- DO_NOT: write PASS while any required HBR row is PENDING/STEER/BLOCKED [CX-503B1]; accept a silently skipped diagnostic tier; rewrite or weaken an HBR gate to manufacture PASS
+- VERIFY: the verdict report maps each applicable HBR row to PROVED / NOT_APPLICABLE / DEFERRED evidence at the whole-WP level
+- SOURCE: `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json` (HBR-INT-009 + all HBR-*), CX-503B1, CX-006-VIS, CX-981
+
+### RAM-INTEGRATION_VALIDATOR-VISUAL_DEBUG-001
+
+- ACTION: WHOLE_WP_VISUAL_PASS
+- TRIGGER: before whole-WP PASS, when the WP touched the native egui shell or any operator-observable UI surface
+- FAILURE_PATTERN: passing a UI-touching WP on per-MT receipts and green tests alone, or expecting visual evidence from the LEGACY Tauri/WebView2/CDP path (`app/src-tauri/src/visual_debug.rs`, `Page.captureScreenshot`) which does not inspect the current native app
+- DO: run an independent whole-WP visual pass through the NATIVE path in `../wtc-native-editors-v1/src/frontend/handshake_native/` — MCP tools `src/mcp/tools.rs` (`list_widgets` / `click_widget` / `set_value` / `screenshot`), the `egui_kittest` (`0.33`, `wgpu`) `Harness` render harness, and `src/mcp/screenshot.rs`; inspect the rendered result across the WP's touched surfaces, not just per-MT green
+- DO_NOT: accept Tauri CDP evidence for the native app; assume pixel screenshots work headless — `Harness::render()` readback can crash `0xc0000005` on headless-GPU, so require pixel screenshots from a real-GPU host and accept `list_widgets`/AccessKit-tree assertions as the headless fallback; if a UI surface has no automation path, record an HBR-VIS-005 blocking verification gap rather than certifying
+- VERIFY: the verdict report records a whole-WP visual capture or AccessKit snapshot per touched UI surface as HBR-VIS evidence
+- SOURCE: HANDSHAKE_BUILD_RULES.json HBR-VIS-001..005, native `src/mcp/tools.rs` + `src/mcp/screenshot.rs`, CX-006-VIS
+
 ### RAM-INTEGRATION_VALIDATOR-VERDICT-001
 
 - ACTION: VERDICT

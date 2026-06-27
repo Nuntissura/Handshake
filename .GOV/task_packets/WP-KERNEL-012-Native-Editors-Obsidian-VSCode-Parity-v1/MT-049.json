@@ -25,10 +25,16 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-007", "MT-008", "MT-048"],
-    "blocks": ["MT-044"],
+    "depends_on": [
+      "MT-007",
+      "MT-008",
+      "MT-048"
+    ],
+    "blocks": [
+      "MT-044"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -36,8 +42,9 @@
     "allowed_paths": [
       "src/frontend/handshake_native/src/code_editor/code_actions.rs",
       "src/frontend/handshake_native/src/code_editor/lsp_client.rs",
-      "src/frontend/handshake_native/src/code_editor/pane.rs",
-      "src/frontend/handshake_native/src/code_editor/mod.rs"
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/src/code_editor/mod.rs",
+      "src/frontend/handshake_native/tests/test_code_actions.rs"
     ],
     "forbidden_paths": [
       "app/src/** (legacy React, reference only)",
@@ -69,7 +76,10 @@
       "All author_ids ('code_editor_quickfix_menu', 'code_editor_quickfix_item_{i}', 'code_editor_quickfix_lightbulb_{line}') must be allocated through the WP-011 AccessKit id registry at `src/frontend/handshake_native/src/accessibility/registry.rs`, not hand-built string literals.",
       "Register a `code-editor.quick-fix` command on the WP-011 command bus (`src/frontend/handshake_native/src/command_registry.rs` + `src/frontend/handshake_native/src/event_bus.rs`) so the command palette (`src/frontend/handshake_native/src/command_palette.rs`) and swarm agents can trigger quick-fix without the gutter click.",
       "Keep the lightbulb glyph theme-aware (use `visuals.warn_fg_color` or a registered theme token via `src/frontend/handshake_native/src/theme/`), not a hardcoded color.",
-      "Cross-WP dependency: MT-007, MT-008, and MT-048 are sibling WP-KERNEL-012 microtasks; the reused shell primitives (pane registry, command bus, event bus, AccessKit id registry, theme, command palette) are delivered by WP-KERNEL-011 and live as flat modules/subdirs under `src/frontend/handshake_native/src/`."
+      "Cross-WP dependency: MT-007, MT-008, and MT-048 are sibling WP-KERNEL-012 microtasks; the reused shell primitives (pane registry, command bus, event bus, AccessKit id registry, theme, command palette) are delivered by WP-KERNEL-011 and live as flat modules/subdirs under `src/frontend/handshake_native/src/`.",
+      "PATH + REUSE-NOT-REIMPLEMENT (KERNEL_BUILDER gate 2026-06-24): pane.rs -> panel.rs (CodeEditorPanel; pane.rs absent) + lsp_client.rs (additive code_action ONLY, no 2nd transport) + code_actions.rs (new) + mod.rs (pub mod). allowed_paths += tests/test_code_actions.rs (the contract omitted the test file). apply_selected MUST DELEGATE to MT-048's apply function (rename.rs's WorkspaceEdit apply path) - do NOT re-implement WorkspaceEdit application (RISK-002/MC-002, AC-002; a parallel apply = inconsistent edits/broken undo/off-by-one). MT-048's apply ALREADY handles MULTI-FILE (descending-offset + atomic disk write) - so reuse it FULLY: cross-file code-action fixes DO apply (not silently dropped, RISK-005/MC-005). Reuse the MT-007 gutter diagnostic store for the cursor-rest trigger + the MT-008 stdio transport for code_action. lsp-types CodeAction/Command/CodeActionContext/CodeActionParams/CodeActionOrCommand (from MT-008's lsp-types) - normalize both the bare-Command and full-CodeAction forms (RISK-003: a command-only action routes via workspace/executeCommand, graceful no-op if unsupported - never silently dropped).",
+      "STALE-ACTION DATA-INTEGRITY + DEBOUNCE + DEGRADE (KERNEL_BUILDER gate): STALE-ACTION GUARD (RISK-007/MC-007 - data-integrity): tag each action list with the buffer VERSION + line it was requested for; apply_selected REJECTS + re-requests if the buffer changed since the request (NEVER apply stale ranges to a mutated buffer = corruption, the MT-048 offset lesson). DEBOUNCE the cursor-rest request ~300ms idle + ONLY when the rested line carries >=1 diagnostic (read MT-007's store) - cancel/ignore in-flight results if the cursor moved lines (RISK-001/MC-001 - no per-idle-frame server flood). Run code_action OFF the egui frame thread (tokio spawn + mpsc poll_results each frame - the MT-008 non-blocking pattern). DEGRADATION (AC-006): no lsp_client -> request short-circuits to empty, has_actions_on_line=false, NO lightbulb, Ctrl+. opens an empty menu reading 'No quick fixes available' then closes - NEVER panic/error. Ctrl+. via the command bus with explicit consume_shortcut in the code pane (RISK-006/MC-006 - so the bus/another widget doesn't swallow it first).",
+      "ACCESSKIT + THEME + HYGIENE (KERNEL_BUILDER gate): AccessKit ids via the WP-011 registry (accessibility/registry.rs) with the PANE ID as a scope suffix (RISK-004/MC-004 - multi-pane instances must not collide): code_editor_quickfix_menu(Menu)/code_editor_quickfix_item_{i}(MenuItem)/code_editor_quickfix_lightbulb_{line}(Button). Register a code-editor.quick-fix command on the WP-011 command bus so the palette + swarm agents trigger it (HBR-SWARM). The lightbulb glyph is THEME-AWARE (visuals.warn_fg_color OR a theme/ token - NO Color32::from_rgb literal, the CONTROL-4 guard). Wire the EXISTING Editor Body Context Menu quick-fix entry to the SAME request+open_menu flow (no duplicate apply logic, AC-007). Screenshot to the EXTERNAL wp-kernel-012-mt-049 root + assert_no_local_artifact_dir() (the contract's test_output/MT-049-lightbulb.png is REPO-LOCAL - CX-212E violation; git ls-files src/**/*.png must stay empty). NO backend route bound (correct - code actions are LSP-only; binds NONE). FULLY provable WITHOUT live PG (mock LSP for the 2-quickfix request; in-memory buffer for apply via MT-048; the diagnostic store + degradation standalone). Full suite green (touches panel.rs - shared); clippy clean; no unwrap on LSP parse."
     ],
     "ports_from_react": [
       "app/src/components/operator/ProblemsView.tsx — diagnostic-to-action linkage: how a diagnostic row maps to its available quick-fix actions and how selecting an action triggers the edit; port the linkage model into CodeActionController, not the React rendering."
@@ -78,7 +88,10 @@
       "None — code actions are sourced from the attached LSP server via `textDocument/codeAction` over the existing MT-008 stdio JSON-RPC transport. No new handshake_core HTTP/Tauri endpoint is bound; any server-side code-action source would be a separate typed blocker, out of scope."
     ]
   },
-  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -104,5 +117,27 @@
       "MC-006: Register `Ctrl+.` via the command bus with explicit `consume_shortcut` in the code-editor pane; test the no-LSP path opens an empty menu and never panics.",
       "MC-007: Tag each action list with the buffer version/line it was requested for; reject `apply_selected` if the buffer changed since the request, re-requesting instead of applying stale ranges."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + real code_editor/panel.rs + MT-007 diag store + MT-008 transport + MT-048 apply path (multi-file+atomic) + CX-212E + theme guard",
+    "corrections": [
+      "panel.rs not pane.rs; add test_code_actions.rs; apply_selected DELEGATES to MT-048 apply (no re-impl; reuses its multi-file+atomic so cross-file fixes apply)",
+      "reuse MT-007 diag store + MT-008 transport (additive); normalize bare-Command + full-CodeAction; command-only via executeCommand (graceful, not dropped)",
+      "stale-action buffer-version guard (data-integrity); debounce 300ms + cancel-on-move; degrade no-LSP (no panic); Ctrl+. consume_shortcut",
+      "accesskit via registry + pane-id scope; theme-aware lightbulb (no Color32); external screenshot (not test_output/); provable without live PG; no unwrap"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_2624a839 (impl + 3-lens panel + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "6afe14de feat MT-049 code actions / quick-fix lightbulb",
+      "f92e4c63 fix harden per adversarial review"
+    ],
+    "review_panel": "correctness=CHANGES_REQUIRED(1), backend-shape=PASS(0), perf-focus-hygiene=PASS(0) -> 1 must-fix hardened.",
+    "proofs": "AC-001..008 + PT-001..005 PASS; 8 unit + 6 integration + 1172 lib + 70 regression (12 binaries) green; clippy clean; quick-fix lightbulb (amber glyph on the diagnostic line next to the red diag dot, absent on the clean line) visually verified - VS Code quick-fix parity; screenshot EXTERNAL.",
+    "steers_held": "panel.rs; apply_selected DELEGATES to rename::apply_text_edits_to_buffer (the MT-048 apply path, grep-verified, no parallel apply - reuses its multi-file+atomic); reuse MT-007 diag store + MT-008 transport (additive code_action+execute_command); stale-buffer reject (data-integrity); command-only via execute_command; degrade no-LSP (no lightbulb/'No quick fixes available'/no panic); Ctrl+. consume_shortcut (keymap 58 variants); accesskit via registry + pane-scope; theme-aware amber lightbulb (no Color32 literal); external screenshot (not test_output/).",
+    "env_note": "FULL-SUITE OOM (durable env constraint at ~90 test binaries, 49 MTs deep): default-parallelism `cargo test -p handshake-native` OOMs the host (rustc ICE compiling ~90 binaries at once) - NOT a logic failure. Use `cargo test -j 2` (or targeted bins) for the full suite from here. Verified via -j 2 split: 1172 lib + 70 integration all green.",
+    "waiver_granted": "code_editor/code_actions.rs (new) + lsp_client.rs (additive) + panel.rs + keymap.rs (QuickFix+Ctrl+.) + mod.rs + test in allowed_paths."
   }
 }

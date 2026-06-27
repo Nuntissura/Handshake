@@ -25,10 +25,13 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [],
-    "blocks": ["MT-030", "MT-044"],
+    "blocks": [
+      "MT-030",
+      "MT-044"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -78,7 +81,10 @@
       "Whole-word boundary: mirror the React isWordBoundary fn (WorkspaceSearchPanel.tsx:222-230). Check the character immediately before match.start and immediately after match.end; if either is a Unicode word character (letter, number, or underscore) and the match edge is on a word character, the boundary fails.",
       "AccessKit: assign all IDs listed in the summary via the accessibility/* modules (accessibility/registry.rs, accessibility/snapshot.rs). For result rows, stable ref: source_kind + ':' + ref_id with non-alphanumeric replaced by '-'. For preview items, use document_id.",
       "Reuse note: do NOT create a new src/frontend/api/ directory. All backend HTTP calls go through the existing shared client backend_client.rs. Reuse search_rail.rs for the existing workspace search surface, and command_registry.rs + event_bus.rs for the shared selection/clipboard/command bus. Register the pane via pane_registry.rs and wire it into the shell in app.rs.",
-      "Cross-WP dependency: the backend /loom/search, /knowledge/rich-documents, and /workspaces/{id}/search-bookmarks endpoints are delivered by WP-KERNEL-009 (rich documents / loom) and consumed here via API only; no depends_on inside WP-012 is required for this MT."
+      "Cross-WP dependency: the backend /loom/search, /knowledge/rich-documents, and /workspaces/{id}/search-bookmarks endpoints are delivered by WP-KERNEL-009 (rich documents / loom) and consumed here via API only; no depends_on inside WP-012 is required for this MT.",
+      "RICH-DOCUMENT ROUTE DISCREPANCY (KERNEL_BUILDER gate 2026-06-23 - MANDATORY verify, the recurring backend-shape lesson): the contract says load via GET /knowledge/rich-documents/{id} + save via PATCH /knowledge/rich-documents/{id}. But MT-017 + MT-020 VERIFIED the real rich-document routes are under /knowledge/documents/{id} (load = GET /knowledge/documents/{id}; content save = PUT /knowledge/documents/{id}/save with {expected_version, content_json}; title = POST /rename). VERIFY read-only against src/backend/handshake_core + app/src/lib/api.ts which path is real, and ALIGN with the route MT-017/MT-020 bound (reuse their backend_client methods - the LoomWikiClient/SaveManager paths). The LEGACY search is GET /loom/search (NOT the MT-028 /loom/search-v2) - verify the exact param names (q/limit/offset/sourceKinds/tagIds/caseSensitive/wholeWord/isRegex/path) from api/loom.rs:278. Bookmarks: GET/PUT /search-bookmarks with schema_id EXACTLY 'hsk.workspace_search_bookmark_state@1' (RISK-6 - backend rejects a wrong schema_id).",
+      "DATA-LOSS SAFETY ON APPLY (KERNEL_BUILDER gate - HBR-STOP class, the replace-apply MUTATES rich documents): (1) STALE-PLAN-KEY guard (RISK-2/MC-2) - result_set_key = hash(search params); preview_plan_key = hash(result_set_key+replacement); Apply is BLOCKED + shows 'Preview is stale, run Preview Replace again' if the keys do not match the current state (prevents applying a stale plan to a since-edited doc = silent data loss). (2) OPTIMISTIC CONCURRENCY - each PATCH/save carries the expected_version (doc_version) captured at preview; on 409 conflict the doc is NOT overwritten - surface the conflict + keep the other receipts (reuse MT-020's conflict pattern), NEVER a silent overwrite. (3) PARTIAL-FAILURE (RISK-1/MC-1) - if doc 2/3 fails, doc 1's receipt is preserved + shown; no silent loss. (4) content_json WALK preserves ALL non-text nodes VERBATIM - mutate ONLY node.text + node.attrs.code; the replaced content_json must round-trip the backend (do NOT drop/corrupt hsLink/embed/table/transclusion nodes - the MT-011 round-trip lesson). Zero-length regex match advances by 1 (RISK-3/MC-3, no infinite loop); non-regex query is regex::escape'd (RISK-8); KRD- document_id prefix check (RISK-5/MC-5).",
+      "BACKEND PROOF REALITY + HYGIENE (MT-008/021-028 pattern): the search + replace-cycle + bookmark-roundtrip + 501-doc pagination are REAL-PG integration proofs - bind the REAL endpoints; gate them behind the integration feature + NEEDS_MANAGED_RESOURCE_PROOF if no seeded backend - do NOT fake. The compile_search_regex (Rust regex crate - linear-time, no thread-timeout needed, like MT-018; invalid->Err), replaceSegment (zero-length guard, $1..$9/$&/$$ group expansion, whole-word boundary), content_json visitor (text + attrs.code), document_id_from_hit (KRD- prefix), stale-plan-key, and escape-non-regex are ALL unit-testable STANDALONE. NO PERPETUAL SPINNER - loading animates only during a genuine in-flight fetch; off-thread async (tokio::spawn + channel, no UI freeze, RISK HBR-QUIET); kittest step() not run(). REUSE the MT-028 theme search_highlight_bg token for any match highlight - do NOT add a Color32::from_rgb literal (the theme guard, just fixed twice). Screenshots EXTERNAL (wp-kernel-012-mt-029) + assert_no_local_artifact_dir(). ACCESSKIT VARIANT: field-correct accesskit 0.21.1; ACs assert find-in-files.* author_ids. Flat pane module (find_in_files.rs + pane_registry + app.rs) - correct."
     ],
     "ports_from_react": [
       "app/src/components/WorkspaceSearchPanel.tsx (primary reference - full find-in-files + replace + bookmarks)",
@@ -93,7 +99,12 @@
       "PATCH /knowledge/rich-documents/{document_id} - save replaced content (KERNEL-009 endpoint). Body: {doc_version, content_json}. Response: {save_receipt_event_id}."
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS", "HBR-QUIET"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS",
+    "HBR-QUIET"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -121,5 +132,28 @@
       "Pagination test: seed 501 documents in the real-PG test and assert the search result Vec has >= 501 items.",
       "Escape non-regex: unit test that compileSearchRegex('a.b', {is_regex: false}) does not match 'acb' (the dot must be escaped)."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-017/020 rich-doc route + MT-020 conflict pattern + MT-011 round-trip + MT-018 regex + MT-028 highlight token",
+    "corrections": [
+      "VERIFY+ALIGN rich-doc routes with MT-017/020 (/knowledge/documents + /save, not /knowledge/rich-documents); verify /loom/search params + bookmark schema_id",
+      "data-loss safety: stale-plan-key guard + expected_version 409-no-overwrite + partial-failure receipts + content_json preserves non-text nodes (HBR-STOP)",
+      "real-search/replace/bookmark/pagination NEEDS_MANAGED_RESOURCE_PROOF; regex/replaceSegment/walk/KRD/stale-key standalone",
+      "off-thread async + no perpetual spinner; reuse MT-028 highlight token (no from_rgb); external screenshots; accesskit variant"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_72b21692 (impl + 3-lens panel + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "47da54da feat MT-029 native Find-in-Files + Replace-in-Files surface",
+      "5cc58497 fix harden per adversarial review"
+    ],
+    "review_panel": "correctness=CHANGES_REQUIRED(1), backend-shape=PASS(0), perf-focus-hygiene=CHANGES_REQUIRED(2) -> 3 must-fixes (1 correctness + 2 perf) hardened.",
+    "proofs": "AC-1..11 PASS; PT-1/2/3 live-PG (search/replace-cycle/bookmark) = NEEDS_MANAGED_RESOURCE_PROOF (gated); 21 unit + 10 integration + test_theme 28 + 15 pane-regression green; find-in-files surface (FIND_TARGET query + Aa/W/.* + REPLACED + Preview/Apply/Cancel + kind filter + 3 results + Replacement preview First(1)/Second(2)) visually verified; screenshot EXTERNAL (git ls-files src/**/*.png empty).",
+    "route_alignment_held": "My route-alignment patch HELD: bound to the VERIFIED /loom/graph-search (the route React searchLoomGraph calls - the plain /loom/search lacks source_kind/ref_id) + GET /knowledge/documents/{id} + PUT .../save (MT-017/020's verified rich-doc routes, NOT the contract's /knowledge/rich-documents); param is 'regex' not 'isRegex'. Bookmark schema_id 'hsk.workspace_search_bookmark_state@1' + cap-20.",
+    "data_safety_held": "content_json walk preserves ALL non-text nodes VERBATIM (test verified hsLink preserved - the MT-011 round-trip lesson); stale-plan-key guard blocks applying a stale plan; expected_version optimistic concurrency on save; KRD- documentId prefix check; zero-length-match advance-by-1; regex::escape non-regex; reused the MT-028 search_highlight_bg theme token (no Color32 literal - test_theme passes).",
+    "pane_mounted": "Registered PaneType::FindInFiles in pane_registry + app.rs build_factories (hosted) + module_switcher; 15 pane/switcher regression tests green.",
+    "waiver_granted": "backend_client.rs (WorkspaceSearchClient+RichDocClient) + lib.rs/pane_registry.rs/app.rs/module_switcher.rs (pane registration) + tests/test_find_in_files.rs - in/added to allowed_paths."
   }
 }

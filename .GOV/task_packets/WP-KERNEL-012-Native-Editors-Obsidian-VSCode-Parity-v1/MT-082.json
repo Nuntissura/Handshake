@@ -1,0 +1,150 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-082",
+  "title": "D2-MT-082-InternalDiagnosticsModule-OpenRecordApi-LiveWired",
+  "group": "D2 internal_diagnostics (Tier 2 in-process)",
+  "created_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-082.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
+    "depends_on": [
+      "MT-081"
+    ],
+    "blocks": [
+      "MT-083",
+      "MT-084",
+      "MT-085",
+      "MT-086",
+      "MT-087",
+      "MT-088"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Build the `internal_diagnostics` MODULE inside handshake-native and its OPEN diagnostic-event API (Master Spec v02.196 §5.8.2 'Open diagnostic-event API' + §5.8.4). This is Tier 2 of the three-tier model. The module owns a process-global diagnostics facade: any feature (backend call site, widget, GUI action, job bridge) calls `diagnostics::record(DiagEvent)` and the event is (a) written to the MT-081 shared-memory ring (so the external Palmistry watcher sees it) AND (b) appended to a small in-process ring buffer the in-app Diagnostics Panel (MT-087) reads. Per §5.8.2 the API is OPEN BY DESIGN so nothing built is left un-instrumented. CRITICAL (no dead code / wire-into-live, HBR-INT + Spec-Realism Gate): this MT MUST wire AT LEAST ONE real, live call site so `record()` is actually CONSUMED by the running app, not scaffolding.\n\nExact files to create/edit:\n- CREATE `src/frontend/handshake_native/src/diagnostics/mod.rs` — the module root. Declares submodules and exposes the public API. Add `pub mod diagnostics;` to `src/frontend/handshake_native/src/lib.rs` (alphabetically near `debug_console`).\n- CREATE `src/frontend/handshake_native/src/diagnostics/recorder.rs` — the `DiagnosticsRecorder` struct + the process-global facade.\n- EDIT `src/frontend/handshake_native/Cargo.toml` — add the path dependency `handshake-diag-ring = { path = \"diag_ring\" }` (the crate created in MT-081).\n- EDIT one LIVE call site to prove consumption (see step 5).\n- CREATE `src/frontend/handshake_native/tests/test_internal_diagnostics.rs`.\n\nAPI shape (recorder.rs):\n- `pub struct DiagnosticsRecorder { writer: Option<DiagRingWriter>, buffer: Mutex<VecDeque<DiagEvent>>, dropped: AtomicU64 }` — `writer` is the MT-081 `handshake_diag_ring::DiagRingWriter` (None in a headless/test shell that did not create a ring — graceful degradation, never a panic); `buffer` is a bounded in-process last-N (cap 512) the panel reads; `dropped` counts events shed when contended (never blocks).\n- `pub fn record(event: DiagEvent)` — the OPEN public API. Pushes to the in-process buffer (bounded; drop-oldest, never grow unbounded, never block the caller) AND calls `writer.write(event)` if a writer is installed. MUST be cheap + non-blocking + panic-free: a poisoned mutex is recovered (`into_inner`), a full buffer drops the oldest, a missing writer is a silent no-op on the ring side. The UI thread calls this every frame (MT-084/005) so it cannot allocate-heavy or lock-contend.\n- `pub fn record_with(code: DiagEventCode, phase: DiagPhase, severity: DiagSeverity, counters...)` — ergonomic helper that builds a typed DiagEvent and calls `record`; keeps call sites from hand-rolling.\n- `pub fn install(writer: DiagRingWriter)` / a `OnceLock<DiagnosticsRecorder>` global so `record()` is callable from ANY module without threading a handle (the spec's 'any feature MAY call' requirement). Before install, `record()` buffers in-process only (no ring) — still works, just not visible to Palmistry yet.\n- `pub fn snapshot_last_n(n: usize) -> Vec<DiagEvent>` + `pub fn dropped_count() -> u64` — what the panel (MT-087) reads.\n- The recorder NEVER stores anything but DiagEvent (the MT-081 typed allowlist), so the no-sensitive-data invariant is structural: there is no API surface that accepts free text.\n\nWhere to install the writer (HandshakeApp::new): in `src/frontend/handshake_native/src/app.rs` `HandshakeApp::new(cc)` (line ~1181), after the runtime/clients are set up, create the ring writer (named by a per-session id) and call `diagnostics::install(writer)`. The session id + ring backing-file path are needed by MT-094 (passed to Palmistry), so store them on HandshakeApp (a `diag_session: DiagSession { session_id, ring_path }` field). If ring creation fails (e.g. temp dir unwritable), log a tracing::warn and continue WITHOUT a writer (graceful degradation — the app still runs, diagnostics are in-process-only). This app.rs edit is the install point; the per-frame heartbeat/record calls are MT-084/005 (this MT just installs + proves one consume).\n\nStep 5 — the REQUIRED live call site (proves consumption, not dead code): wire `diagnostics::record_with(DiagEventCode::PaneMounted, ...)` (or a similarly cheap existing lifecycle event) at ONE real runtime point that fires in the normal app run — e.g. in `app.rs` when a pane is first mounted, or a `DiagEventCode::Other`/startup marker recorded once in `HandshakeApp::new` right after install. The point is that a NORMAL launch produces at least one real DiagEvent in the ring + buffer with zero test scaffolding. (MT-084 heartbeat + MT-085 frame-time + MT-086 resource counters + MT-088 backend-unreachable are the fuller instrumentation; this MT proves the pipe is live with one consumer.)\n\nReuse note: app.rs already owns the tokio runtime handle + per-session state (workspace id, clients) — reuse those, do not mint a second runtime. The in-process buffer mirrors the existing bounded-error-ring pattern event_emitter.rs already uses (cap-20 in-memory error ring) — same shape, cap 512. src/backend untouched.\n\nRisk if missed: nothing can record diagnostics; MT-084/005/006/007/008 all have no API to call; the open-API spec requirement (§5.8.2) is unmet; and a panel with no producer is empty.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/diagnostics/mod.rs",
+      "src/frontend/handshake_native/src/diagnostics/recorder.rs",
+      "src/frontend/handshake_native/src/lib.rs",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/Cargo.toml",
+      "src/frontend/handshake_native/tests/test_internal_diagnostics.rs"
+    ],
+    "forbidden_paths": [
+      "src/frontend/handshake_native/diag_ring/** (the ring crate is MT-081-owned; reuse via its public API only)",
+      "src/backend/** (reuse via API only)",
+      "src/backend/handshake_core/src/flight_recorder/** (FR kept as-is)",
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-002-1: `cargo test -p handshake-native internal_diagnostics` passes a test that installs a DiagnosticsRecorder with a real DiagRingWriter (a temp ring), calls `diagnostics::record(...)` N times, and asserts both (a) `snapshot_last_n` returns them in-process AND (b) a separate DiagRingReader::open on the same ring reads them back — proving record() writes the ring.",
+      "AC-002-2: `record()` is non-blocking + panic-free under stress: a test calls it from multiple threads thousands of times with a full buffer and asserts no panic, the buffer stays bounded (<= cap), and `dropped_count()` accounts for shed events (no unbounded growth, no deadlock).",
+      "AC-002-3: graceful degradation: with NO writer installed, `record()` still buffers in-process and never errors/panics (the headless/test path).",
+      "AC-002-4 (WIRE-INTO-LIVE, the anti-dead-code gate): a real launch produces at least one DiagEvent through the LIVE call site with zero test scaffolding — proven by a kittest that drives the real HandshakeApp startup (or pane mount) and asserts `diagnostics::snapshot_last_n` is non-empty after the live path ran (the recorded event came from production code, not the test).",
+      "AC-002-5: the API exposes NO free-text/byte-blob surface — `record` and `record_with` accept only DiagEvent / typed enum+integer args; a source scan in the test confirms no `String`/`&str` content parameter on the public diagnostics API (typed-allowlist invariant from §5.8.3 preserved at the API boundary).",
+      "AC-002-6: `cargo build -p handshake-native` (lib + bins) compiles clean with the new path dependency; clippy `--all-targets -D warnings` clean; the full suite via `-j 2` is green (no regression to the ~90 bins).",
+      "AC-002-7: external CARGO_TARGET_DIR used; no repo-local target/; no tracked PNG/artifact leak."
+    ],
+    "proof_targets": [
+      "PT-002-A: `cargo test -p handshake-native internal_diagnostics` GREEN — record() -> ring read-back + in-process snapshot.",
+      "PT-002-B: stress test GREEN — multithread record(), bounded buffer, dropped accounting, no panic/deadlock.",
+      "PT-002-C: kittest drives real HandshakeApp startup/pane-mount and asserts snapshot_last_n non-empty from the LIVE call site (consumption proof).",
+      "PT-002-D: `cargo build --lib --bins` clean + `cargo test -j 2` full suite green + clippy clean.",
+      "PT-002-E: `git status` shows no repo-local target/ and no tracked artifact."
+    ],
+    "implementation_notes": [
+      "Use a `std::sync::OnceLock<DiagnosticsRecorder>` (or `LazyLock`) for the process-global so `record()` is callable from any module without a handle. The recorder itself uses interior mutability (Mutex<VecDeque> + atomics) so `record(&self-free)` is a free function over the global.",
+      "record() MUST be allocation-light on the hot path (MT-084 calls it every frame): push a fixed-size DiagEvent (Copy, no heap) into a pre-allocated VecDeque with a cap; drop_front on overflow. No format!/String building anywhere in record().",
+      "Reuse the bounded-ring shape event_emitter.rs already uses (cap-20 error ring) — same idea, just the diagnostics cap (512) and DiagEvent payload.",
+      "Store the DiagSession (session_id + ring backing-file path) on HandshakeApp so MT-094 can pass it to palmistry.exe; mint the session_id with the existing uuid dep (uuid v4 is already a handshake-native dependency).",
+      "The LIVE call site (step 5) is the anti-scaffolding gate — pick a point that fires on a normal launch (post-install startup marker, or first pane mount). Do NOT gate it behind a test/feature flag; it must run in the shipped binary.",
+      "Graceful degradation is a spec requirement (§5.8.5 family): a missing ring/writer must never crash the app; record() degrades to in-process-only.",
+      "Read the KERNEL_BUILDER coder protocol under .GOV/ first; the Spec-Realism Gate forbids a record() that nothing calls — AC-002-4 is the consumption proof."
+    ],
+    "ports_from_react": [
+      "NONE (native diagnostics facade; no React analogue)"
+    ],
+    "binds_backend_api": [
+      "NONE. internal_diagnostics is in-process; it writes the local ring + an in-process buffer. The Flight Recorder (Tier 1) is reached only at recovery-forward time (MT-093), not here."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "status": "NOT_APPLICABLE",
+      "reason": "internal_diagnostics SUPPLEMENTS the Flight Recorder (§5.8.6); it does not write to Tier 1. Recovery-time forwarding into FR is MT-093."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "WIRED",
+      "reason": "This MT IS the Tier 2 internal_diagnostics module + the open record() API, wired to a live call site so it is consumed by the running app (AC-002-4). Built here, satisfied here, not deferred."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "WIRED",
+      "reason": "record() writes the MT-081 ring that Palmistry reads with zero cooperation; the read-back proof (AC-002-1) confirms the Tier 3 watcher will see recorded events. The watcher binary itself is MT-089+."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DIAGNOSTIC_SUBSTRATE_V1",
+    "risks": [
+      "RISK-002-1: record() blocks or allocates on the UI-thread hot path, reintroducing a frame stall — the opposite of the WP's purpose. Mitigate: fixed-size Copy DiagEvent, pre-allocated bounded VecDeque, no format!, AC-002-2 stress proof.",
+      "RISK-002-2: the record() API is built but nothing calls it (dead scaffolding) — violates the Spec-Realism Gate + §5.8.2 open-API intent. Mitigate: AC-002-4 wires + proves one live consumer in the shipped path.",
+      "RISK-002-3: a poisoned mutex or full buffer panics the app from a diagnostics call. Mitigate: into_inner recovery + drop-oldest + AtomicU64 dropped counter; never unwrap on the buffer lock.",
+      "RISK-002-4: a free-text field is added to the API 'for convenience', breaking the typed allowlist. Mitigate: AC-002-5 source scan; the API only accepts DiagEvent/typed enums.",
+      "RISK-002-5: ring-creation failure crashes startup instead of degrading. Mitigate: install() is optional; missing writer -> in-process-only (AC-002-3)."
+    ],
+    "minimum_controls": [
+      "MC-002-1: AC-002-4 proves a live, shipped-path consumer of record() (anti-dead-code).",
+      "MC-002-2: AC-002-2 multithread stress proves non-blocking + bounded + panic-free.",
+      "MC-002-3: AC-002-5 keeps the typed-allowlist invariant at the API boundary.",
+      "MC-002-4: external target dir + clippy -D warnings + full suite -j 2 green (no regression)."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-KERNEL-012 field research (June 2026); reuses MT-081 ring substrate",
+    "field_stack": "Process-global OnceLock facade (the standard Rust global-logger/global-metrics pattern, e.g. tracing/metrics crates) so any module can record without a handle; bounded lock-free-ish in-process ring mirroring the existing event_emitter cap-20 error ring.",
+    "crate_versions_verified_2026_06_27": {
+      "handshake-diag-ring": "path dep (MT-081)",
+      "uuid": "1.x (already a handshake-native dep, v4)"
+    },
+    "motivating_incident": "The 2026-06-26 backend-down UI freeze (CPU->0, Responding=false) — internal_diagnostics is the surface that makes backend-down observable (the typed BackendUnreachable event, wired in MT-088) and is why record() must never itself block the frame loop.",
+    "validation_plan": "ring read-back + multithread stress + graceful-degradation + live-consumer kittest; clippy -D warnings; full suite -j 2."
+  },
+  "implementation_result": {
+    "commit": "a5989127",
+    "branch": "feat/WP-KERNEL-012",
+    "summary": "internal_diagnostics module + open record() API wrapping the MT-081 ring + bounded in-process buffer; WIRED LIVE into HandshakeApp::new (install_diagnostics_ring + record_startup_marker), consumption proven by kittest build_eframe driving real ctor. 5/5 integration + 3/3 unit GREEN; full suite -j2 2672 passed 0 failed (no editor-MT regression); clippy -D clean. AC-002-1..7 + PT-002-A..E PASS.",
+    "notes": "workspace exclude=[diag_ring] added to consume the nested standalone ring crate; non-blocking record() with dropped-accounting; no free-text API surface (typed allowlist)."
+  }
+}

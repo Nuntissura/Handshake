@@ -1,0 +1,138 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-084",
+  "title": "D4-MT-084-UiThreadHeartbeat-EveryFrame",
+  "group": "D2 internal_diagnostics (Tier 2 in-process)",
+  "created_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-084.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-082"
+    ],
+    "blocks": [
+      "MT-091",
+      "MT-096"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Bump the MT-081 ring HEARTBEAT slot on EVERY egui frame from the UI thread (Master Spec v02.196 §5.8.2 'UI-thread heartbeat -- a frame-loop counter plus a monotonic timestamp, written every frame into a shared-memory ring buffer' + §6.13.4/§6.13.5). This is THE liveness signal Palmistry polls: a stalled UI thread stops advancing the counter, and the staleness is observable out-of-process with zero cooperation. This is the single most important producer in the whole WP — if the heartbeat does not advance every frame, freeze detection (MT-091) is blind.\n\nExact edit (ONE precise wire-in point):\n- EDIT `src/frontend/handshake_native/src/app.rs` `impl eframe::App for HandshakeApp` `fn update(&mut self, ctx, _frame)` (currently at line ~6782 — it calls `self.ui(ctx)` then the MCP snapshot block). Add a heartbeat bump at the TOP of `update` (or immediately after `self.ui(ctx)` — top is preferred so the counter advances even if a later panic aborts the frame; a freeze inside ui() then shows as a stale heartbeat, which is exactly what we want). Maintain a `frame_counter: u64` field on HandshakeApp, increment it each `update`, read a monotonic timestamp, and call `diagnostics::heartbeat(frame_counter, timestamp_nanos)` which forwards to `DiagRingWriter::write_heartbeat` (MT-081) via the MT-082 recorder.\n- ADD a `frame_counter: u64` field to the HandshakeApp struct (init 0 in `HandshakeApp::new`).\n- The timestamp: use a process-start `std::time::Instant` (monotonic, immune to wall-clock changes) for the elapsed-nanos counter the staleness check uses, and optionally a wall `SystemTime` for the human-readable panel. The freeze threshold (MT-091) compares the MONOTONIC value, so the heartbeat MUST write a monotonic source. Store the start Instant on HandshakeApp (or in the recorder).\n- Add a thin `pub fn heartbeat(counter: u64, timestamp_nanos: u64)` to `src/frontend/handshake_native/src/diagnostics/recorder.rs` (mod.rs re-export) that writes the heartbeat slot (NOT a record — the heartbeat is its own header slot in MT-081) and is a no-op if no writer is installed (graceful degradation).\n\nCRITICAL — the heartbeat write MUST be wait-free + allocation-free on the frame path (the whole point is it never blocks the UI thread): it is a single seqlock store of two integers into the mapped header (MT-081 write_heartbeat). No lock contention with the record buffer, no format!, no allocation. egui repaints on demand by default; for the heartbeat to advance even when the UI is idle (so an idle app is not mistaken for a frozen one), call `ctx.request_repaint_after(Duration::from_millis(~250))` from update so the frame loop ticks at least ~4 Hz even with no input. This bounds the idle heartbeat cadence ABOVE Palmistry's poll (MT-091 polls ~200-500ms) and well below the ~5s freeze threshold, so an idle (but healthy) app never trips a false freeze. (Verify this does not regress HBR-QUIET/idle-CPU expectations — a 4 Hz wake is cheap; document the tradeoff.)\n\nReuse note: `fn update` already exists and already calls request_repaint conditionally for the MCP path — extend that pattern. The diagnostics recorder + ring writer are MT-081/MT-082. No backend involvement. egui_kittest can drive frames via `Harness::step()` / `run()` to prove the counter advances.\n\nRisk if missed: Palmistry has no liveness signal; freeze detection (MT-091) cannot work; a healthy-but-idle app could be misread as frozen (if request_repaint cadence is wrong) or a real freeze could go undetected (if the heartbeat is on the wrong thread or written off-frame).",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/diagnostics/recorder.rs",
+      "src/frontend/handshake_native/src/diagnostics/mod.rs",
+      "src/frontend/handshake_native/tests/test_heartbeat.rs"
+    ],
+    "forbidden_paths": [
+      "src/frontend/handshake_native/diag_ring/** (MT-081-owned; reuse via API)",
+      "src/backend/** (reuse via API only)",
+      "src/backend/handshake_core/src/flight_recorder/** (FR kept as-is)",
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-004-1: an egui_kittest test drives the real HandshakeApp through multiple frames (`Harness::step()` N times) and asserts the ring heartbeat counter ADVANCED by N (a separate DiagRingReader reads the heartbeat slot and observes the counter increasing monotonically across frames) — proving the heartbeat is bumped every frame on the UI thread.",
+      "AC-004-2: the heartbeat timestamp is MONOTONIC (sourced from a process-start Instant) — the test asserts the timestamp_nanos strictly increases across frames and never goes backward (immune to wall-clock changes).",
+      "AC-004-3: the heartbeat write is wait-free + allocation-free on the frame path — a source review/assertion confirms `fn update`'s heartbeat call is a single seqlock store (no lock on the record buffer, no format!, no heap alloc); a perf assertion that N frames complete within a tight bound is acceptable corroboration.",
+      "AC-004-4: idle liveness — the test asserts `fn update` requests a repaint at a bounded cadence (~250ms) so the heartbeat keeps advancing when idle, keeping an idle app from looking frozen; the cadence is between Palmistry's poll (~200-500ms, MT-091) and the freeze threshold (~5s).",
+      "AC-004-5: graceful degradation — with no ring writer installed, the heartbeat call is a no-op and `fn update` runs normally (headless/test path, no panic).",
+      "AC-004-6: `cargo build -p handshake-native` (lib + bins) clean; clippy `--all-targets -D warnings` clean; full suite `-j 2` green; external target dir; no repo-local target/, no tracked artifact."
+    ],
+    "proof_targets": [
+      "PT-004-A: `cargo test -p handshake-native heartbeat` GREEN — kittest steps N frames, a separate ring reader sees the heartbeat counter advance by N.",
+      "PT-004-B: monotonic-timestamp assertion GREEN (strictly increasing, never backward).",
+      "PT-004-C: idle-repaint-cadence assertion GREEN (~250ms request_repaint; cadence bound check).",
+      "PT-004-D: `cargo build --lib --bins` clean + clippy clean + full suite -j 2 green."
+    ],
+    "implementation_notes": [
+      "Bump at the TOP of `fn update` so the counter advances even if `self.ui(ctx)` later panics/aborts the frame — a freeze inside ui() then surfaces as a stale heartbeat, which is the desired signal.",
+      "The heartbeat is its OWN header slot in the MT-081 ring (HeartbeatSlot), seqlock-protected, written via `DiagRingWriter::write_heartbeat` — NOT a record in the record array. Palmistry reads only the heartbeat slot for the freeze check (MT-090/011) without scanning records.",
+      "Use a process-start `std::time::Instant` for the monotonic nanos the staleness check compares; a wall SystemTime is fine ONLY for the human panel, never for the threshold (RISK: wall-clock jumps).",
+      "request_repaint_after(~250ms) keeps the frame loop ticking when idle so a healthy idle app is not mistaken for frozen; verify the idle CPU cost is acceptable (4 Hz wake is cheap) and that it does not violate HBR-QUIET (no focus steal — request_repaint does not).",
+      "egui_kittest: `Harness::new_eframe` / `step()` drives real frames; a separate DiagRingReader on the test ring proves the cross-process-visible counter advances.",
+      "Keep the heartbeat call OUT of any lock the record buffer holds — heartbeat and record() must not contend (heartbeat is a hot per-frame write).",
+      "Read the KERNEL_BUILDER coder protocol under .GOV/ first; the heartbeat must be the REAL per-frame signal proven by an out-of-process-style reader, not a counter the test itself bumps.",
+      "CARRY-FORWARD from MT-083: if this MT touches app.rs install_diagnostics_ring, prefer diagnostics::process_session_id() as the ring backing-file session id so the panic-hook crash file and the heartbeat ring share ONE correlation id."
+    ],
+    "ports_from_react": [
+      "NONE (native frame-loop heartbeat; no React analogue)"
+    ],
+    "binds_backend_api": [
+      "NONE. Heartbeat is a local ring header write. The Flight Recorder is not involved."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-VIS",
+    "HBR-QUIET"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "status": "NOT_APPLICABLE",
+      "reason": "The heartbeat is a Tier 2 ring header write; it is not a Tier 1 business event and is not forwarded to the FR."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "WIRED",
+      "reason": "This MT IS the Tier 2 UI-thread heartbeat component (§5.8.2), wired into the live `fn update` frame loop and proven to advance every frame. Built + consumed here."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "WIRED",
+      "reason": "The heartbeat slot is the exact liveness signal Palmistry (Tier 3) polls for freeze detection (§6.13.5). MT-084 produces it; a separate reader proves it advances. The Palmistry-side poll is MT-090/011."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DIAGNOSTIC_SUBSTRATE_V1",
+    "risks": [
+      "RISK-004-1: the heartbeat does not advance when idle (egui only repaints on demand), so a healthy idle app looks frozen to Palmistry -> false freeze. Mitigate: request_repaint_after(~250ms) keeps it ticking (AC-004-4).",
+      "RISK-004-2: a non-monotonic (wall-clock) timestamp goes backward on a clock change, corrupting the staleness math. Mitigate: process-start Instant monotonic source (AC-004-2).",
+      "RISK-004-3: the heartbeat write blocks/allocates on the frame path, adding the very latency the WP fights. Mitigate: single wait-free seqlock store, no lock, no alloc (AC-004-3).",
+      "RISK-004-4: the heartbeat is written off the UI thread (e.g. a background task), so a UI-thread freeze does NOT stop it — defeating freeze detection. Mitigate: the bump lives in `fn update` on the UI thread only.",
+      "RISK-004-5: the ~250ms repaint regresses idle CPU / HBR-QUIET. Mitigate: 4 Hz is cheap and steals no focus; document the tradeoff and verify idle behavior."
+    ],
+    "minimum_controls": [
+      "MC-004-1: a separate ring reader proves the counter advances by N over N kittest frames (AC-004-1).",
+      "MC-004-2: monotonic timestamp source (AC-004-2).",
+      "MC-004-3: wait-free/alloc-free frame-path write (AC-004-3).",
+      "MC-004-4: bounded idle repaint cadence between poll interval and freeze threshold (AC-004-4)."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-KERNEL-012 field research (June 2026)",
+    "field_stack": "The Crashpad/watchdog heartbeat pattern: a monotonic frame-loop counter + timestamp published every frame into shared memory; a separate process detects a stall by the counter going stale. egui request_repaint cadence tuned so idle != frozen.",
+    "crate_versions_verified_2026_06_27": {
+      "egui_eframe": "0.33 (already pinned in handshake-native)",
+      "handshake-diag-ring": "path dep (MT-081)"
+    },
+    "motivating_incident": "The 2026-06-26 freeze (UI thread stalled, CPU->0) is exactly the failure this heartbeat makes observable: a stalled `fn update` stops bumping the counter; Palmistry (MT-091) sees the staleness from outside the hung process.",
+    "validation_plan": "kittest N-frame step + separate-reader counter-advance + monotonic-timestamp + idle-cadence assertions; clippy -D warnings; full suite -j 2."
+  }
+}

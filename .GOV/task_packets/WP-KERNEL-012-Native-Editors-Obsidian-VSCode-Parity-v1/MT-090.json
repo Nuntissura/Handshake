@@ -1,0 +1,135 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-090",
+  "title": "P2-MT-090-PalmistryRingReader-ZeroCooperation",
+  "group": "P1 Palmistry (Tier 3 external watcher)",
+  "created_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-090.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-081",
+      "MT-089"
+    ],
+    "blocks": [
+      "MT-091",
+      "MT-093"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Implement the Palmistry RING READER — map the SAME MT-081 shared-memory ring on the read side and read Handshake's heartbeat + last-N diagnostic events with ZERO COOPERATION from Handshake (Master Spec v02.196 §6.13.4 'Shared-memory ring-buffer reader ... requires zero cooperation from Handshake: it reads the ring even when the UI thread is frozen, because the ring is plain shared memory and the reader never asks the (possibly hung) writer to do anything'). This is the foundation of freeze detection (MT-091) + the survivor store (MT-093). The reader uses the MT-081 `DiagRingReader` (the read side built + proven in MT-081); this MT integrates it into the running Palmistry watcher and proves it reads what Handshake wrote EVEN WHILE the Handshake/writer side is artificially STALLED.\n\nExact files to create/edit (inside the palmistry crate):\n- CREATE `src/frontend/palmistry/src/ring_reader.rs` — a thin `PalmistryRingReader` that wraps `handshake_diag_ring::DiagRingReader::open(ring_path)` (the MT-081 reader), exposes `read_heartbeat() -> Option<Heartbeat>` and `read_last_events(n) -> Vec<DiagEvent>`, handles open-retry (the ring may not exist yet at Palmistry startup if it races Handshake — retry-with-backoff until the ring appears or a bounded deadline), and re-opens if the backing file is replaced. Declare it in the palmistry crate (mod in main.rs).\n- EDIT `src/frontend/palmistry/src/main.rs` — open the ring (from the MT-089 ring-path input) after startup; make the reader available to the watch loop (MT-091 polls heartbeat; MT-093 reads last-N for the survivor store).\n- CREATE `src/frontend/palmistry/tests/test_ring_reader_zero_coop.rs`.\n\nZERO-COOPERATION + FROZEN-WRITER PROOF (the deliverable, §6.13.4): the reader must NOT call into, signal, lock-against, or wait on the writer. It reads plain shared memory via the seqlock (MT-081), which is wait-free on the reader side (bounded retry, never blocks). The proof: a test creates a ring, has a 'Handshake' writer write a heartbeat + N events, then STALLS the writer (the writer thread sleeps / is paused — simulating a frozen UI thread that stopped writing), and asserts the Palmistry reader STILL reads back the last heartbeat + the last-N events that were written before the stall — i.e. a frozen writer does not prevent the reader from reading the last good state. (This is exactly the freeze case: when Handshake freezes, the heartbeat stops advancing but the LAST written heartbeat + events are still readable, which is what lets MT-091 detect the staleness.)\n\nTYPED-ALLOWLIST on the read side (§6.13.8): the reader returns only the typed DiagEvent / Heartbeat (integers) from MT-081 — there is no content to read because the ring carries none. A test confirms the reader exposes no free-text path (it cannot, structurally).\n\nReuse note: the heavy lifting (the seqlock read, torn-read resistance, magic/version validation) is ALL in the MT-081 `DiagRingReader` — this MT REUSES it, adding only Palmistry-side open-retry + integration into the watch loop. Do NOT re-implement the seqlock here. The ring crate is the shared dep (MT-089 already added the path dep). No backend, no cooperation with Handshake beyond mapping the same backing file.\n\nRisk if missed: Palmistry has no way to observe Handshake's liveness/last-state; freeze detection (MT-091) + the survivor store (MT-093) have no data source; OR (if done wrong — e.g. the reader asks Handshake for data over a socket) a frozen Handshake makes the reader block/timeout, defeating the entire passive-observation design (§6.13.4 explicitly rejects a blocking request-response channel for liveness).",
+    "allowed_paths": [
+      "src/frontend/palmistry/src/ring_reader.rs",
+      "src/frontend/palmistry/src/main.rs",
+      "src/frontend/palmistry/tests/test_ring_reader_zero_coop.rs"
+    ],
+    "forbidden_paths": [
+      "src/frontend/handshake_native/diag_ring/** (MT-081-owned; reuse DiagRingReader via the public API — do NOT re-implement the seqlock)",
+      "src/frontend/handshake_native/** (Handshake side is MT-082/004/014)",
+      "src/backend/** (Palmistry never touches the backend)",
+      "src/backend/handshake_core/src/flight_recorder/** (FR kept as-is)",
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-010-1: the Palmistry reader opens the SAME ring backing file a separate 'Handshake' writer created and reads back the heartbeat + last-N events correctly (the cross-process read proven, reusing the MT-081 DiagRingReader).",
+      "AC-010-2 (ZERO COOPERATION / FROZEN WRITER — the deliverable): a test writes a heartbeat + N events, then STALLS the writer (pauses/sleeps the writer thread to simulate a frozen UI thread), and asserts the Palmistry reader STILL reads the last good heartbeat + last-N events — a frozen writer does not block or break the reader. The reader makes no call into, lock against, or wait on the writer (verified by design: it only does seqlock reads of shared memory).",
+      "AC-010-3: open-retry — if the ring does not exist yet when Palmistry starts (it races Handshake), the reader retries-with-backoff until the ring appears or a bounded deadline, then is ready; it does not crash or busy-spin.",
+      "AC-010-4: the reader returns only typed Heartbeat/DiagEvent (integers) — no free-text path exists (typed-allowlist on the read side, §6.13.8); a source scan confirms no string-content read API.",
+      "AC-010-5: the reader is wait-free / non-blocking on the read path (bounded seqlock retry from MT-081) — a test confirms a read completes within a tight bound even under a concurrently-writing writer (no unbounded block).",
+      "AC-010-6: `cargo build -p palmistry` clean; clippy `--all-targets -D warnings` clean; external target dir; no repo-local target/."
+    ],
+    "proof_targets": [
+      "PT-010-A: `cargo test -p palmistry ring_reader` GREEN — cross-process heartbeat + last-N read-back.",
+      "PT-010-B: frozen-writer test GREEN — reader reads last good state while the writer is stalled (zero cooperation).",
+      "PT-010-C: open-retry + wait-free-read + no-content assertions GREEN.",
+      "PT-010-D: `cargo build -p palmistry` clean + clippy -D warnings; external target dir."
+    ],
+    "implementation_notes": [
+      "REUSE the MT-081 DiagRingReader for the seqlock read, torn-read resistance, and magic/version validation — do NOT re-implement them. This MT adds only Palmistry-side open-retry + watch-loop integration.",
+      "The reader must NEVER signal, lock-against, or wait-on the writer — it only does seqlock reads of the mapped bytes (§6.13.4 zero cooperation). Liveness is observed PASSIVELY here, never requested over the control socket (a frozen Handshake could not answer).",
+      "Open-retry: Palmistry may start before Handshake creates the ring (a startup race). Retry-with-backoff (e.g. 50ms..1s) until the backing file exists + opens with a valid magic/version, up to a bounded deadline; then ready. Do not busy-spin.",
+      "The frozen-writer proof (AC-010-2) is the heart of this MT: simulate the freeze by pausing the writer thread, then read — the last good heartbeat/events must still be readable (that staleness is what MT-091 keys on).",
+      "Return only typed values (Heartbeat, DiagEvent) — there is no content to read; the typed-allowlist is preserved by the MT-081 schema.",
+      "Read the KERNEL_BUILDER coder protocol under .GOV/ first; the zero-cooperation proof must use a genuinely stalled writer, not a cooperative one."
+    ],
+    "ports_from_react": [
+      "NONE (native shared-memory reader)"
+    ],
+    "binds_backend_api": [
+      "NONE. Reads the local shared-memory ring only. No backend, no cooperation with the (possibly frozen) Handshake writer."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "status": "NOT_APPLICABLE",
+      "reason": "The ring reader does not touch Tier 1; forwarding read records into the FR at recovery is MT-093."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "WIRED",
+      "reason": "This MT consumes the Tier 2 internal_diagnostics ring output from outside the process — it is the read-side counterpart of MT-082/004's writes, proving the cross-tier link (Tier 2 producer -> Tier 3 reader) works even when the Tier 2 writer is frozen."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "WIRED",
+      "reason": "This MT IS the §6.13.4 Palmistry ring reader: zero-cooperation reads of Handshake's heartbeat + last-N events, proven to work while the writer is stalled. The data source for freeze detection (MT-091) + the survivor store (MT-093). Built + proven here."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PALMISTRY_WATCHER_V1",
+    "risks": [
+      "RISK-010-1: the reader cooperates with the writer (asks for data over a socket / locks against it), so a frozen Handshake blocks the reader — defeating §6.13.4. Mitigate: passive seqlock reads only; AC-010-2 frozen-writer proof.",
+      "RISK-010-2: the seqlock is re-implemented here (divergent from MT-081) and gets it wrong, allowing torn reads of the heartbeat. Mitigate: REUSE the MT-081 DiagRingReader; do not fork it.",
+      "RISK-010-3: a startup race (Palmistry before Handshake's ring) crashes or busy-spins. Mitigate: bounded open-retry-with-backoff (AC-010-3).",
+      "RISK-010-4: the reader blocks unboundedly under a hot writer. Mitigate: MT-081 bounded seqlock retry; AC-010-5.",
+      "RISK-010-5: a repo-local target/ leaks. Mitigate: external target dir (AC-010-6)."
+    ],
+    "minimum_controls": [
+      "MC-010-1: frozen-writer zero-cooperation proof (AC-010-2).",
+      "MC-010-2: reuse MT-081 DiagRingReader (no re-impl).",
+      "MC-010-3: bounded open-retry + wait-free read (AC-010-3/5).",
+      "MC-010-4: external target dir; clippy -D warnings."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-KERNEL-012 field research (June 2026)",
+    "field_stack": "Passive shared-memory observation (the Crashpad/watchdog model): the watcher reads the client's published state from shared memory without any cooperation, so a frozen/dead client is still observable. Reuses the MT-081 seqlock reader.",
+    "crate_versions_verified_2026_06_27": {
+      "handshake-diag-ring": "path dep (MT-081; DiagRingReader)"
+    },
+    "motivating_incident": "The 2026-06-26 freeze: when Handshake's UI thread stalled, an in-process tool could not report — but the LAST heartbeat + events it wrote to shared memory remained readable from outside. This reader is what reads that last good state while Handshake is frozen.",
+    "validation_plan": "cross-process read-back + frozen-writer zero-cooperation + open-retry + wait-free + no-content; external target dir; clippy -D warnings."
+  }
+}

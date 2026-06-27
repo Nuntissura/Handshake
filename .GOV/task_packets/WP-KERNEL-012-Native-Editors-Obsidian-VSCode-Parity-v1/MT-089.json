@@ -1,0 +1,148 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-089",
+  "title": "P1-MT-089-PalmistryWatcherBinary-LifecycleInversion",
+  "group": "P1 Palmistry (Tier 3 external watcher)",
+  "created_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-089.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-081"
+    ],
+    "blocks": [
+      "MT-090",
+      "MT-091",
+      "MT-092",
+      "MT-093",
+      "MT-094"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Create the NEW separate `palmistry` BINARY crate and implement its LIFECYCLE INVERSION (Master Spec v02.196 §6.13.2 'a separate palmistry executable, distinct from the Handshake process' + §6.13.3 'Lifecycle inversion (HARD)'). Palmistry is the Tier 3 external out-of-process watcher following the Google-Crashpad model: a SIBLING process, NOT a thread, NOT an in-process subsystem. This is the ROOT Palmistry MT — it builds the executable, its argument/env intake, its control socket, and the inverted lifecycle (launched with Handshake, survives parent death, closes ONLY on explicit Shutdown). The ring reader (MT-090), freeze detection (MT-091), crash/minidump (MT-092), survivor store + FR forward (MT-093), and the Handshake-side launch (MT-094) build on this.\n\nLIFECYCLE INVERSION (the HARD §6.13.3 requirement — get this exactly right):\n- Launched WITH Handshake at startup (the spawn is MT-094's Handshake-side job; this MT defines the binary + how it is invoked).\n- CLOSES ONLY on explicit command — a deliberate Shutdown signal from Handshake or the operator over the control socket. NOT on parent death, NOT on a timer, NOT on EOF.\n- SURVIVES parent death — if Handshake freezes or crashes, Palmistry KEEPS RUNNING so it can capture + persist the evidence. It holds the parent's OS process handle and WAITS on it: an unexpected parent exit BEFORE a Shutdown command is RECORDED (it is a crash/abnormal-exit signal for MT-092) and Palmistry continues running (it does NOT die) until either an explicit Shutdown arrives OR a bounded post-death finalize window elapses (capture the evidence, write the survivor record, then it MAY exit after the finalize — but it must NOT die at the instant of parent death).\n- MUST NOT be a kill-on-job-close child — it MUST NOT be tied to the parent via a Win32 Job Object / process-group that terminates children when the parent dies (§6.13.3: 'A watcher that dies with its parent cannot record the parent's death'). The Handshake-side spawn (MT-094) must NOT add Palmistry to a kill-on-close job; this MT documents that constraint as a contract on the launcher and the watcher refuses/does-not-assume any job membership.\n\nExact crate to create (NEW workspace member, separate binary):\n- CREATE `src/frontend/palmistry/Cargo.toml` — `[package] name = \"palmistry\"`, `edition = \"2021\"`, `publish = false`, its own `[workspace]` table (standalone, like handshake-native + diag_ring). `[[bin]] name = \"palmistry\" path = \"src/main.rs\"`. Dependencies: `handshake-diag-ring = { path = \"../handshake_native/diag_ring\" }` (the MT-081 ring crate — relative path), `interprocess = \"2\"` (the cross-platform local-socket IPC for the control channel; latest 2.4.2 as of 2026-06-27), `serde`/`serde_json` (control-message + survivor-record JSON), `tracing`/`tracing-subscriber` (its own logging). On Windows for the parent-handle wait: `windows-sys = \"0.61\"` with `Win32_Foundation` + `Win32_System_Threading` (OpenProcess/WaitForSingleObject/GetExitCodeProcess) — matching the handshake-native windows-sys pin so the family is consistent. (minidumper/minidump-writer/crash-context are added in MT-092, not here.)\n- CREATE `src/frontend/palmistry/.cargo/config.toml` — redirect `[build] target-dir` into the EXTERNAL artifact root (`target-dir = \"../../../../Handshake_Artifacts/palmistry-target\"` — VERIFY the `../` depth resolves to the Handshake_Artifacts sibling before committing). NO repo-local target/.\n- CREATE `src/frontend/palmistry/src/main.rs` — arg/env intake + the lifecycle state machine + the control-socket server loop.\n- CREATE `src/frontend/palmistry/src/cli.rs` — parse the inputs: Handshake PID, session-id, ring backing-file path/name, control-socket name. Accept via CLI args AND/OR env vars (document which; env is often cleaner for a spawned sibling). Validate all are present; refuse to run partially-configured.\n- CREATE `src/frontend/palmistry/src/lifecycle.rs` — the parent-handle wait + the Shutdown-only exit logic + the post-death bounded finalize.\n- CREATE `src/frontend/palmistry/src/control.rs` — the interprocess `LocalSocketListener` server; the typed control protocol (a `ControlMessage` enum: `Shutdown`, `Ping`, `CrashContext{...}` (the MT-092 hand-off), and a `HandshakeHello{...}` startup handshake ack). Newline-delimited JSON over the local socket is fine.\n- CREATE `src/frontend/palmistry/tests/test_lifecycle.rs`.\n\nParent-handle wait (lifecycle.rs): on Windows, `OpenProcess(SYNCHRONIZE|PROCESS_QUERY_LIMITED_INFORMATION, false, pid)` to get a handle to the parent, then `WaitForSingleObject(handle, timeout)` in a loop / on a dedicated thread; when it signals, the parent has EXITED. Read `GetExitCodeProcess` to distinguish a clean exit code from a crash code (corroborated by whether a Shutdown was received first). If the parent exited and NO Shutdown was received => abnormal exit (crash/kill) => record it (the typed signal MT-092 consumes) and ENTER the bounded post-death finalize, do NOT exit immediately. If a Shutdown WAS received first => clean shutdown => Palmistry may exit normally (and MUST NOT record a crash, §6.13 clean-shutdown rule). Provide a cross-platform-shaped abstraction (a `ParentWatch` trait) so the Windows impl is behind a seam; the proof runs on Windows.\n\nTHE LIFECYCLE PROOFS (the deliverable, §6.13.3): (1) launches with valid inputs and stays running (does not exit) with no Shutdown; (2) exits promptly + cleanly ONLY when a Shutdown control message arrives; (3) SURVIVES a HARD-KILL of the parent (spawn a dummy parent process, give Palmistry its PID, TerminateProcess/kill the dummy parent, assert Palmistry is STILL RUNNING after the parent is dead and that it RECORDED the abnormal parent exit) — then on a subsequent Shutdown (or the bounded finalize) it exits. This is the inversion: a normal child would die with its parent; Palmistry must outlive it and record its death.\n\nReuse note: the diag_ring crate (MT-081) is the shared dep. interprocess is the field-standard cross-platform local-socket crate (Unix domain sockets / Windows named pipes behind one API). windows-sys is already the handshake-native Windows dep family (match the pin). No backend involvement — Palmistry never talks to src/backend; it talks to Handshake via the ring (read) + the control socket, and to the FR only at recovery via Handshake's existing HTTP route (MT-093, from the Handshake side or a documented reuse).\n\nRisk if missed: the entire Tier 3 watcher has no host process; the inversion done wrong (kill-on-job-close, or dying on parent death) makes the watcher useless precisely when it is needed (it cannot record the parent's death) — §6.13.3 calls that a spec defect.",
+    "allowed_paths": [
+      "src/frontend/palmistry/Cargo.toml",
+      "src/frontend/palmistry/.cargo/config.toml",
+      "src/frontend/palmistry/src/main.rs",
+      "src/frontend/palmistry/src/cli.rs",
+      "src/frontend/palmistry/src/lifecycle.rs",
+      "src/frontend/palmistry/src/control.rs",
+      "src/frontend/palmistry/tests/test_lifecycle.rs"
+    ],
+    "forbidden_paths": [
+      "src/frontend/handshake_native/diag_ring/** (MT-081-owned; reuse via the path dep + public API)",
+      "src/frontend/handshake_native/** (the Handshake-side launch is MT-094; this MT builds the watcher only)",
+      "src/backend/** (Palmistry never touches the backend directly)",
+      "src/backend/handshake_core/src/flight_recorder/** (FR kept as-is)",
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-009-1: the `palmistry` binary builds (`cargo build -p palmistry`, external target dir) and runs; given valid inputs (parent PID, session-id, ring path, control-socket name via args/env) it starts, completes its startup, and STAYS RUNNING with no Shutdown (it does not exit on its own).",
+      "AC-009-2: it refuses to run partially-configured — missing any required input (PID / ring path / socket name) exits with a clear non-zero error, not a silent half-start.",
+      "AC-009-3 (CLOSES ONLY ON SHUTDOWN): with a connected control socket, sending a `Shutdown` control message causes Palmistry to exit promptly + cleanly (bounded exit time); WITHOUT a Shutdown it keeps running (a Ping does NOT cause exit). Proven by a test that pings, asserts still-alive, then shuts down and asserts exit.",
+      "AC-009-4 (SURVIVES PARENT DEATH — the inversion): a test spawns a DUMMY parent process, launches Palmistry with the dummy's PID, HARD-KILLS the dummy parent (TerminateProcess/kill), and asserts Palmistry is STILL RUNNING after the parent is dead AND that it RECORDED the abnormal parent exit (a typed parent-died signal in its state/log). It then exits on a subsequent Shutdown or the bounded post-death finalize — NOT at the instant of parent death.",
+      "AC-009-5 (NOT kill-on-job-close): the design + a documented contract on the MT-094 launcher ensures Palmistry is NOT added to a Win32 Job Object / process-group that terminates it on parent death; the survives-parent-death test (AC-009-4) is the behavioral proof, and a code/doc review confirms no job-membership assumption.",
+      "AC-009-6: clean-shutdown does NOT look like a crash — when a Shutdown precedes the parent exit, Palmistry records NO abnormal-exit/crash signal (the §6.13 clean-shutdown rule that MT-092 relies on).",
+      "AC-009-7: external CARGO_TARGET_DIR (palmistry-target); no repo-local target/; `git status` clean of `palmistry/target/`; clippy `--all-targets -D warnings` clean."
+    ],
+    "proof_targets": [
+      "PT-009-A: `cargo build -p palmistry` clean; binary runs with valid inputs and stays alive (no self-exit).",
+      "PT-009-B: `cargo test -p palmistry lifecycle` GREEN — Shutdown-only exit (Ping does not exit; Shutdown exits).",
+      "PT-009-C: survives-hard-kill-of-parent test GREEN — Palmistry alive after parent death + recorded the abnormal exit; clean-shutdown-is-not-a-crash test GREEN.",
+      "PT-009-D: external target dir; no repo-local target/; clippy -D warnings clean."
+    ],
+    "implementation_notes": [
+      "The inversion is the whole point: a normal child dies with its parent; Palmistry must SURVIVE and RECORD the parent's death. Hold the parent handle (OpenProcess + WaitForSingleObject) and treat the signal as 'parent exited' — distinguish clean (Shutdown-received-first) from abnormal (no Shutdown) via GetExitCodeProcess + the Shutdown flag.",
+      "Do NOT add Palmistry to a Win32 Job Object with JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE (§6.13.3 spec defect). Document this as a hard contract on the MT-094 launcher; the watcher itself assumes no job membership.",
+      "interprocess 2.x LocalSocketListener gives a cross-platform local socket (Unix domain socket / Windows named pipe). Use newline-delimited JSON ControlMessage framing (Shutdown/Ping/CrashContext/HandshakeHello). The control socket is request-response for CONTROL only — liveness is observed PASSIVELY from the ring (MT-090), never requested over the socket (a frozen Handshake could not answer — §6.13.4).",
+      "Inputs via env vars are often cleaner for a spawned sibling (no quoting issues); CLI args are also fine. Validate all required inputs are present; refuse a partial start (AC-009-2).",
+      "Provide a ParentWatch seam so the Windows OpenProcess/WaitForSingleObject impl is behind a trait; the proof runs on Windows. Match the handshake-native windows-sys 0.61 pin + features family.",
+      "The post-death bounded finalize: on abnormal parent exit, capture/persist (MT-092/013 fill the capture), then either wait for Shutdown or exit after a bounded window — NEVER exit at the instant of death (that would lose the capture).",
+      "Read the KERNEL_BUILDER coder protocol under .GOV/ first; the survives-parent-death proof must HARD-KILL a real dummy parent and assert Palmistry is still alive — not a simulated/mocked parent exit."
+    ],
+    "ports_from_react": [
+      "NONE (new native watcher binary; the Google-Crashpad architecture is the reference, §6.13.2)"
+    ],
+    "binds_backend_api": [
+      "NONE. Palmistry talks to Handshake via the shared ring (read, MT-090) + the control socket; it never calls src/backend directly. FR forwarding at recovery is MT-093 (via Handshake's existing HTTP route)."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-QUIET"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "status": "NOT_APPLICABLE",
+      "reason": "The watcher binary + lifecycle do not touch the Tier 1 FR; recovery-time forwarding is MT-093."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "NOT_APPLICABLE",
+      "reason": "This MT builds the external Tier 3 process shell; it does not itself produce Tier 2 internal_diagnostics events (it READS them via the ring in MT-090). The control-socket handshake to internal_diagnostics is MT-094."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "WIRED",
+      "reason": "This MT IS the Tier 3 Palmistry watcher executable + the HARD §6.13.3 lifecycle inversion (launched-with, closes-only-on-Shutdown, survives-parent-death, not-kill-on-job-close), proven by the Shutdown-only-exit + survives-hard-kill-of-parent tests. Built + proven here."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PALMISTRY_WATCHER_V1",
+    "risks": [
+      "RISK-009-1: Palmistry dies with the parent (kill-on-job-close child, or exits on parent-handle signal) — useless precisely when needed (§6.13.3 spec defect). Mitigate: hold the parent handle + survive the signal + record it; AC-009-4/5 hard-kill proof.",
+      "RISK-009-2: a clean shutdown is misread as a crash (records a false crash on every normal exit). Mitigate: Shutdown-flag-before-parent-exit => clean; AC-009-6.",
+      "RISK-009-3: liveness requested over the control socket (a blocking request-response) — a frozen Handshake can never answer, so the watcher would block/false-timeout. Mitigate: control socket is for CONTROL only; liveness is passive ring reads (MT-090); documented here.",
+      "RISK-009-4: partial/half-configured start (missing PID/ring/socket) leads to a silent no-op watcher. Mitigate: validate all inputs, refuse partial (AC-009-2).",
+      "RISK-009-5: a repo-local target/ or wrong relative target-dir depth (artifact hygiene). Mitigate: external target dir verified (AC-009-7).",
+      "RISK-009-6: exiting at the instant of parent death loses the capture. Mitigate: bounded post-death finalize before any exit (AC-009-4)."
+    ],
+    "minimum_controls": [
+      "MC-009-1: survives a hard-kill of a real dummy parent + records the abnormal exit (AC-009-4).",
+      "MC-009-2: closes ONLY on Shutdown; clean-shutdown is not a crash (AC-009-3/6).",
+      "MC-009-3: no kill-on-job-close membership; documented launcher contract (AC-009-5).",
+      "MC-009-4: refuse partial start; external target dir; clippy -D warnings (AC-009-2/7)."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-KERNEL-012 field research (June 2026) + crates.io verification 2026-06-27",
+    "field_stack": "Google Crashpad architecture (separate watcher process that survives the parent and captures the moment of death) — §6.13.2 names it. interprocess 2.x for the cross-platform control socket (Unix domain socket / Windows named pipe); windows-sys OpenProcess+WaitForSingleObject+GetExitCodeProcess for the parent-handle wait; the lifecycle inversion is the Crashpad handler-survives-client pattern.",
+    "crate_versions_verified_2026_06_27": {
+      "interprocess": "2.4.2 (pin \"2\")",
+      "windows-sys": "0.61 (match handshake-native; Win32_Foundation + Win32_System_Threading)",
+      "handshake-diag-ring": "path dep (MT-081)",
+      "minidumper_minidump_writer_crash_context": "added in MT-092, not here"
+    },
+    "motivating_incident": "The 2026-06-26 freeze (UI thread stalled, the in-process tools were exactly the thing that stopped running) is why an EXTERNAL survivor watcher is needed; the lifecycle inversion is what lets it observe + record a freeze/crash from outside the hung/dead process.",
+    "validation_plan": "build + run-and-stay-alive + Shutdown-only-exit + survives-hard-kill-of-parent + clean-shutdown-not-a-crash + refuse-partial; external target dir; clippy -D warnings."
+  }
+}

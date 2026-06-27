@@ -25,9 +25,13 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-001", "MT-002", "MT-005"],
+    "depends_on": [
+      "MT-001",
+      "MT-002",
+      "MT-005"
+    ],
     "blocks": [],
     "validator_verdict": "PENDING"
   },
@@ -67,7 +71,10 @@
       "Outline reuse: share the tree traversal with FoldProvider — both walk the same tree. Consider a single `TreeAnalyzer::analyze(tree, buffer) -> TreeAnalysis { fold_regions, outline_items }` function called once per tree re-parse.",
       "SidePanel memory: egui stores SidePanel state by Id. Use stable Ids: `egui::Id::new(\"code_editor_outline_panel\")` and `egui::Id::new(\"code_editor_minimap_panel\")`.",
       "Minimap viewport indicator: use `egui::Color32::from_rgba_unmultiplied(255, 255, 255, 30)` overlay rect covering the visible_range rows.",
-      "Cross-WP dependency: this MT depends on WP-011 native shell modules (`command_registry.rs`, `command_palette.rs`, `event_bus.rs`, and the `accessibility/` subsystem) which already exist under `src/frontend/handshake_native/src/`; register the Ctrl+G go-to-line command through `command_registry.rs` rather than introducing a new command bus."
+      "Cross-WP dependency: this MT depends on WP-011 native shell modules (`command_registry.rs`, `command_palette.rs`, `event_bus.rs`, and the `accessibility/` subsystem) which already exist under `src/frontend/handshake_native/src/`; register the Ctrl+G go-to-line command through `command_registry.rs` rather than introducing a new command bus.",
+      "POSITIONING + FOLD CORRECTNESS (from MT-002 AC-007 + MT-005 harden 4300e976): minimap viewport indicator, outline click-to-scroll, and go-to-line MUST use the MT-002-corrected units (sans-spacing line_height, y_for_line, the corrected scroll_to_line / actual painted row_range) AND the MT-005-corrected FoldSet::visible_line_count + visible_line_to_buffer_line. The nested-fold double-count was fixed - use visible_line_count, do NOT reintroduce a naive per-region collapsed sum. Minimap-click->line and go-to-line must map through the fold-aware visible<->buffer line mapping so navigation lands on the correct line when folds are active.",
+      "TREE TRAVERSAL REUSE (MC-002 / RISK-002): MT-005 FoldProvider already walks the highlighter's cached tree via Highlighter::tree() (added MT-005). Prefer a single TreeAnalyzer::analyze(tree, buffer) -> {fold_regions, outline_items} per buffer_version, or have OutlineProvider reuse the same TreeCursor pattern + Highlighter::tree(), rather than a third independent parse.",
+      "ACCESSKIT VARIANT: if accesskit 0.21.1 (pinned by eframe 0.33) lacks the literal Role::ScrollBar / Role::Tree / Role::TextInput named here, use the field-correct nearest existing variant and document inline (as MT-003 used Caret, MT-005 confirmed TreeItem). The ACs assert the author_id, not the literal role string."
     ],
     "ports_from_react": [
       "app/src/harness/editor_workbench_chrome_harness.tsx — ED-NAV-004 (outline heading tree with click-to-scroll) and ED-NAV-006 (go-to-line palette); these are the React reference behaviors to match.",
@@ -77,7 +84,10 @@
       "None — minimap, outline, and go-to-line are purely in-process. Backend code-nav (symbol lookup) is wired in MT-008."
     ]
   },
-  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -95,6 +105,29 @@
       "MC-001: Three-panel layout must have toggle buttons for outline and minimap — verified in screenshot AC-003.",
       "MC-002: Unified TreeAnalyzer recommended — document in a code comment that FoldProvider and OutlineProvider share the same traversal.",
       "MC-003: Go-to-line input must clamp and not panic — verified in AC-002."
+    ]
+  },
+  "research_provenance": {
+    "source": "MT-002 AC-007 + MT-005 harden + KERNEL_BUILDER gate",
+    "notes": [
+      "navigation uses MT-002-corrected positioning units + MT-005-corrected visible_line_count",
+      "reuse Highlighter::tree() / unify tree traversal (TreeAnalyzer)",
+      "accesskit variant fallback documented"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_7e1395a6 (impl + adversarial-review PASS, no harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "dbaf1c11 feat MT-006 minimap + outline + go-to-line navigation aids"
+    ],
+    "review_verdict": "PASS (reviewer re-ran proofs + inspected; no must_fix)",
+    "proofs": "AC-001..006 + PT-001..005 GREEN; 440 lib + all integration; clippy clean; three-panel layout (outline left / editor center / minimap right + toggles) visually verified by KERNEL_BUILDER; no leakage.",
+    "self_caught_fix": "impl found+fixed a perf regression it introduced (minimap cloned all spans/frame -> 2423ms debug frame; fixed with a (buffer_version,painted_rows,dark_mode)-keyed row-color cache -> 14.5ms).",
+    "deferred": [
+      "fold-aware navigation only indirectly proven (no test folds a region above a go-to-line/outline target then asserts the landed visible row) -> follow-up test",
+      "outline click driven via navigate_to_line not a raw pixel click on the outline row -> stronger pixel-click kittest as follow-up",
+      "AC-002 perf 4ms gate authoritative under --release (debug 14.5ms < 60ms invariant) -> Integration Validator CI runs cargo test --release"
     ]
   }
 }

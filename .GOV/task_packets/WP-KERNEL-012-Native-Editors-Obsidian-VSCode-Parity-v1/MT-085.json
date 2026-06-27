@@ -1,0 +1,132 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-085",
+  "title": "D5-MT-085-FrameTimeTracking-SlowFrameFlag",
+  "group": "D2 internal_diagnostics (Tier 2 in-process)",
+  "created_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-085.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-084"
+    ],
+    "blocks": [
+      "MT-087"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Track per-frame FRAME TIME on the UI thread and emit a typed `internal_diagnostics` event when a frame is SLOW (Master Spec v02.196 §5.8.2 'frame-time and resource counters'). Frame-time is the in-process degradation signal BELOW a full freeze: a frame that takes 250ms is not yet a 5s freeze, but it is a stutter the Diagnostics Panel (MT-087) should surface and the panel's frame-time stats (§5.8.4) need. This is the cheap in-process complement to Palmistry's external freeze detection.\n\nExact edit (build on MT-084's wire-in point):\n- EDIT `src/frontend/handshake_native/src/app.rs` `fn update` — alongside the MT-084 heartbeat, measure the wall duration of the frame. Use a `last_frame_instant: Option<Instant>` field on HandshakeApp: at the top of `update`, compute `dt = now - last_frame_instant` (the inter-frame interval) and store `now`; this is the frame period. (Optionally also measure the WORK time inside update by sampling an Instant before `self.ui(ctx)` and after — the period is simplest + sufficient for the slow-frame flag; document which you use.)\n- CREATE `src/frontend/handshake_native/src/diagnostics/frame_timing.rs` — a `FrameTimer` helper: rolling stats (last, min, max, and a small ring of the last ~120 frame durations for a p50/p95 the panel reads) + a `record_frame(dt: Duration)` that updates the stats and, when `dt` exceeds a SLOW threshold (default ~100ms => below ~10fps; make it a const, tune so normal 60fps frames never flag), calls `diagnostics::record_with(DiagEventCode::SlowFrame, DiagPhase::Tick, DiagSeverity::Warn, frame_micros, ...)`. Declare `pub mod frame_timing;` in diagnostics/mod.rs.\n- Expose `pub fn frame_stats() -> FrameStats` (last/min/max/p50/p95 in micros) for the panel (MT-087). All typed integers (micros) — no content.\n- DEBOUNCE the SlowFrame event so a sustained slow period does not flood the ring (e.g. emit at most one SlowFrame per ~1s window, or only on the rising edge into a slow streak + a count) — the ring is bounded (MT-081) and flooding it with SlowFrame would evict useful events. Use a simple last-emit Instant gate.\n- CREATE `src/frontend/handshake_native/tests/test_frame_timing.rs`.\n\nWhy the threshold matters (no false flags): the SlowFrame threshold (~100ms) sits ABOVE a normal 16ms (60fps) / 33ms (30fps) frame and the ~250ms idle-repaint cadence from MT-084 — BUT the idle 250ms repaint period would itself look like a slow frame if you measure the PERIOD. AVOID THIS: either measure WORK time inside update (before/after self.ui), OR exclude the idle path (only flag when the app was actively repainting due to input/animation, not the idle keep-alive). Document the chosen approach so the idle keep-alive heartbeat (MT-084) does not generate spurious SlowFrame spam. Measuring update WORK time (Instant around self.ui(ctx)) is the cleaner choice and is recommended.\n\nReuse note: builds directly on the MT-084 `fn update` edit + the MT-082 recorder. No backend. egui_kittest drives frames; a slow frame can be simulated by sleeping inside a test pane or by feeding a known duration to FrameTimer::record_frame directly (unit-level) plus a kittest that a real slow frame flags.\n\nRisk if missed: no frame-time stats for the panel (§5.8.4 unmet); stutters below the freeze threshold are invisible; OR (if done wrong) the idle keep-alive is mis-flagged as slow, flooding the ring and burying real events.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/diagnostics/frame_timing.rs",
+      "src/frontend/handshake_native/src/diagnostics/mod.rs",
+      "src/frontend/handshake_native/tests/test_frame_timing.rs"
+    ],
+    "forbidden_paths": [
+      "src/frontend/handshake_native/diag_ring/** (MT-081-owned; reuse via API)",
+      "src/backend/** (reuse via API only)",
+      "src/backend/handshake_core/src/flight_recorder/** (FR kept as-is)",
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-005-1: a unit test feeds FrameTimer a sequence of durations including one above the slow threshold and asserts (a) the stats (last/min/max/p50/p95) are correct and (b) exactly one SlowFrame DiagEvent was recorded for the slow frame (typed micros, no content).",
+      "AC-005-2: a kittest drives the real HandshakeApp with an artificially slow frame (e.g. a test pane that sleeps past the threshold) and asserts a SlowFrame event reaches the ring/buffer from the live frame path — and that NORMAL fast frames do NOT flag.",
+      "AC-005-3: the idle keep-alive (MT-084 ~250ms repaint) does NOT produce spurious SlowFrame events — proven by stepping idle frames and asserting no SlowFrame is emitted (the chosen measurement excludes/handles the idle period; document the approach).",
+      "AC-005-4: SlowFrame is DEBOUNCED — a sustained slow streak emits a bounded number of events (not one per frame), proven by a test feeding many consecutive slow frames and asserting the emit count is gated (e.g. <= 1 per ~1s window).",
+      "AC-005-5: `frame_stats()` returns typed integer micros only (no content); the panel can read it. `cargo build -p handshake-native` clean; clippy `--all-targets -D warnings` clean; full suite `-j 2` green; external target dir; no repo-local target/."
+    ],
+    "proof_targets": [
+      "PT-005-A: `cargo test -p handshake-native frame_timing` GREEN — stats correctness + one SlowFrame on the slow frame.",
+      "PT-005-B: kittest GREEN — real slow frame flags from the live path; fast frames do not.",
+      "PT-005-C: idle-no-false-flag + debounce assertions GREEN.",
+      "PT-005-D: `cargo build --lib --bins` clean + clippy clean + full suite -j 2 green."
+    ],
+    "implementation_notes": [
+      "Prefer measuring update WORK time (Instant before/after self.ui(ctx)) over the inter-frame PERIOD, so the MT-084 idle keep-alive (a long idle period with trivial work) is NOT mis-flagged as a slow frame. Document the choice.",
+      "Tune the slow threshold (~100ms) so 60fps (16ms) and 30fps (33ms) never flag; only genuine stutters do. Make it a named const for easy tuning.",
+      "Debounce: keep a last-slow-emit Instant; only emit a SlowFrame if > ~1s since the last, so a sustained slow period emits a bounded count (the ring is bounded — flooding it evicts useful events).",
+      "All exposed numbers are micros (u64) — typed allowlist; no content. p50/p95 over a small fixed ring (~120 samples) is enough for the panel.",
+      "Reuse the MT-084 `fn update` edit + MT-082 recorder; do not add a second frame timer or a second runtime.",
+      "Read the KERNEL_BUILDER coder protocol under .GOV/ first; the slow-frame flag must fire from the REAL frame path (kittest), not only the unit feed."
+    ],
+    "ports_from_react": [
+      "NONE (native frame timing; no React analogue)"
+    ],
+    "binds_backend_api": [
+      "NONE. Frame-time stats are in-process; SlowFrame is a local ring/buffer event. FR not involved."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-VIS"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "status": "NOT_APPLICABLE",
+      "reason": "Frame-time stats + SlowFrame are Tier 2 in-process diagnostics; not Tier 1 business events, not forwarded to FR."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "WIRED",
+      "reason": "This MT IS the Tier 2 frame-time component (§5.8.2/§5.8.4): live frame-time tracking + a typed SlowFrame event + stats for the panel, wired into the live frame loop. Built + consumed here."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "NOT_APPLICABLE",
+      "reason": "SlowFrame is an in-process stutter signal below a full freeze; Palmistry's external freeze detection (MT-091) reads the heartbeat staleness (MT-084), not the SlowFrame event. No Palmistry wiring is required for this MT."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DIAGNOSTIC_SUBSTRATE_V1",
+    "risks": [
+      "RISK-005-1: the MT-084 idle keep-alive (long idle period) is mis-measured as a slow frame, flooding the ring with false SlowFrame events and evicting real ones. Mitigate: measure update WORK time, not the period; AC-005-3.",
+      "RISK-005-2: a sustained slow streak emits one event per frame, flooding the bounded ring. Mitigate: debounce gate (AC-005-4).",
+      "RISK-005-3: a too-low threshold flags normal 30/60fps frames. Mitigate: tuned ~100ms const + AC-005-2 fast-frames-do-not-flag.",
+      "RISK-005-4: frame-time work adds latency to the very frame it measures. Mitigate: two Instant reads + an integer push are negligible; no alloc/format on the path."
+    ],
+    "minimum_controls": [
+      "MC-005-1: idle path produces no spurious SlowFrame (AC-005-3).",
+      "MC-005-2: debounce bounds the emit rate (AC-005-4).",
+      "MC-005-3: real slow frame flags, fast frames do not (AC-005-2).",
+      "MC-005-4: external target dir + clippy -D warnings + full suite -j 2."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-KERNEL-012 field research (June 2026)",
+    "field_stack": "Standard frame-time instrumentation (rolling p50/p95 over a small ring, slow-frame threshold + debounce) as used by game/GUI profilers; tuned so the egui idle keep-alive cadence is excluded.",
+    "crate_versions_verified_2026_06_27": {
+      "egui_eframe": "0.33 (already pinned)",
+      "handshake-diag-ring": "path dep (MT-081)"
+    },
+    "motivating_incident": "The 2026-06-26 freeze began as the UI thread stalling; frame-time tracking surfaces the degradation that precedes/accompanies a stall (slow frames before a full stop) as a panel-visible signal below the 5s freeze threshold.",
+    "validation_plan": "stats correctness + live slow-frame flag + idle-no-false-flag + debounce; clippy -D warnings; full suite -j 2."
+  }
+}

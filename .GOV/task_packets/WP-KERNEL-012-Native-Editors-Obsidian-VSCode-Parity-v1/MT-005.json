@@ -25,18 +25,27 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-001", "MT-002"],
-    "blocks": ["MT-006", "MT-007"],
+    "depends_on": [
+      "MT-001",
+      "MT-002"
+    ],
+    "blocks": [
+      "MT-006",
+      "MT-007"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Goal: Implement code folding derived from the tree-sitter parse tree. Foldable regions are identified from tree-sitter node types (function bodies, class bodies, block statements, if/else branches, comment blocks). Folded regions are collapsed to a single summary line with an ellipsis. The gutter (rendered in MT-007) shows fold triangles; this MT only computes fold regions and applies them to the virtual line layout. Expected diff shape: new module `src/frontend/handshake_native/src/code_editor/folding.rs`, edits to `src/frontend/handshake_native/src/code_editor/mod.rs` and `src/frontend/handshake_native/src/code_editor/code_editor_panel.rs`.\n\nExact files to create/edit:\n- CREATE `src/frontend/handshake_native/src/code_editor/folding.rs` — defines `FoldRegion { start_line: usize, end_line: usize, folded: bool, label: String }` where `label` is the first line of the region plus `...` (e.g. `fn main() {…}`). Implements `FoldProvider::compute(tree: &tree_sitter::Tree, buffer: &TextBuffer) -> Vec<FoldRegion>` — walks the tree-sitter syntax tree using `tree.root_node().children()` recursively, identifies nodes whose type is in a configurable set (`FoldableNodeTypes`), and extracts their start/end row from `node.start_position().row` / `node.end_position().row`. Returns only regions spanning at least 2 lines. Also: `FoldSet { regions: Vec<FoldRegion> }` with methods `toggle(start_line: usize)`, `is_line_visible(line: usize) -> bool` (returns false if the line falls inside a folded region that is not the start line), `visible_line_to_buffer_line(visible_line: usize) -> usize` (maps from visible (post-fold) line index to actual buffer line index, accounting for collapsed regions).\n- EDIT `src/frontend/handshake_native/src/code_editor/mod.rs` — add `fold_set: FoldSet` to `CodeEditorPanel`. After each buffer edit or tree-sitter re-parse, call `FoldProvider::compute` and update `fold_set`. In `show()`, wrap the `VirtualLineLayout` visible_range computation with `FoldSet::is_line_visible` filtering so folded lines are skipped.\n- EDIT `src/frontend/handshake_native/src/code_editor/code_editor_panel.rs` — in the line rendering loop, when the current line is the start line of a folded region, render the summary label line (first line text + `…`) instead of the actual line, and skip all subsequent lines until `end_line`. The gutter click handler (for fold triangles, to be rendered in MT-007) calls `fold_set.toggle(start_line)`.\n\nFoldable node types (initial set for Rust and JS):\n- Rust: `function_item`, `impl_item`, `struct_item`, `enum_item`, `block`, `match_expression`, `use_declaration` (group).\n- JS/TS: `function_declaration`, `arrow_function`, `class_declaration`, `block_statement`, `object`, `array`.\n- Store in a `HashMap<&'static str, &'static [&'static str]>` keyed by language id.\n\nExact crates/functions/APIs to use:\n- `tree-sitter` — already a dependency from MT-001. Use `Node::kind()`, `Node::start_position()`, `Node::end_position()`, `Node::children()` cursor API.\n- No additional crates needed.\n- AccessKit: add `author_id = \"code_editor_fold_{start_line}\"` `Role::TreeItem` nodes for each foldable region, with `actions: [Action::Expand, Action::Collapse]` depending on fold state. Reuse the AccessKit integration in `src/frontend/handshake_native/src/accessibility/` (mod.rs, live.rs, registry.rs, snapshot.rs) from WP-011 rather than introducing a new accessibility surface.\n\nStep-by-step implementation notes:\n1. Implement `FoldProvider::compute` using a tree-sitter `TreeCursor` traversal (more efficient than recursive children). Push a `FoldRegion` whenever `cursor.node().kind()` is in `FoldableNodeTypes` for the current language and `end_row - start_row >= 1`.\n2. Sort `FoldSet::regions` by `start_line` ascending. `is_line_visible`: binary-search for the last region with `start_line <= line`; if found and `folded == true` and `line > region.start_line` and `line <= region.end_line`, return false.\n3. `visible_line_to_buffer_line`: iterate regions in order, accumulate skipped lines (for each folded region before the visible line, add `region.end_line - region.start_line` to a running offset), return `visible_line + offset`.\n4. In the rendering loop: iterate visible line indices from VirtualLineLayout, map each to buffer line via `visible_line_to_buffer_line`, render normally unless the buffer line is the start of a folded region, in which case render the fold label.\n5. Keyboard shortcut for fold/unfold: Ctrl+Shift+[ folds the region at the cursor; Ctrl+Shift+] unfolds. Wire these in the code editor key handler (MT-010 will formalize; pre-wire here).\n6. Total line count for VirtualLineLayout must account for folds: compute `visible_line_count` as `buffer.len_lines() - sum(folded_region.end_line - folded_region.start_line for all folded regions)` and pass this to `VirtualLineLayout::new`.\n\nDependencies/unblock conditions: MT-001 (tree-sitter parse tree available in CodeEditorPanel), MT-002 (VirtualLineLayout — folding modifies the effective line count that it receives). Cross-WP: the AccessKit accessibility surface (accessibility/*) comes from WP-011 and is reused, not rebuilt.\nRisk if missed: Large files (thousands of lines) are harder to navigate without folding. The gutter (MT-007) renders fold triangles and needs the fold region list.",
+    "summary": "Goal: Implement code folding derived from the tree-sitter parse tree. Foldable regions are identified from tree-sitter node types (function bodies, class bodies, block statements, if/else branches, comment blocks). Folded regions are collapsed to a single summary line with an ellipsis. The gutter (rendered in MT-007) shows fold triangles; this MT only computes fold regions and applies them to the virtual line layout. Expected diff shape: new module `src/frontend/handshake_native/src/code_editor/folding.rs`, edits to `src/frontend/handshake_native/src/code_editor/mod.rs` and `src/frontend/handshake_native/src/code_editor/panel.rs`.\n\nExact files to create/edit:\n- CREATE `src/frontend/handshake_native/src/code_editor/folding.rs` — defines `FoldRegion { start_line: usize, end_line: usize, folded: bool, label: String }` where `label` is the first line of the region plus `...` (e.g. `fn main() {…}`). Implements `FoldProvider::compute(tree: &tree_sitter::Tree, buffer: &TextBuffer) -> Vec<FoldRegion>` — walks the tree-sitter syntax tree using `tree.root_node().children()` recursively, identifies nodes whose type is in a configurable set (`FoldableNodeTypes`), and extracts their start/end row from `node.start_position().row` / `node.end_position().row`. Returns only regions spanning at least 2 lines. Also: `FoldSet { regions: Vec<FoldRegion> }` with methods `toggle(start_line: usize)`, `is_line_visible(line: usize) -> bool` (returns false if the line falls inside a folded region that is not the start line), `visible_line_to_buffer_line(visible_line: usize) -> usize` (maps from visible (post-fold) line index to actual buffer line index, accounting for collapsed regions).\n- EDIT `src/frontend/handshake_native/src/code_editor/mod.rs` — add `fold_set: FoldSet` to `CodeEditorPanel`. After each buffer edit or tree-sitter re-parse, call `FoldProvider::compute` and update `fold_set`. In `show()`, wrap the `VirtualLineLayout` visible_range computation with `FoldSet::is_line_visible` filtering so folded lines are skipped.\n- EDIT `src/frontend/handshake_native/src/code_editor/panel.rs` — in the line rendering loop, when the current line is the start line of a folded region, render the summary label line (first line text + `…`) instead of the actual line, and skip all subsequent lines until `end_line`. The gutter click handler (for fold triangles, to be rendered in MT-007) calls `fold_set.toggle(start_line)`.\n\nFoldable node types (initial set for Rust and JS):\n- Rust: `function_item`, `impl_item`, `struct_item`, `enum_item`, `block`, `match_expression`, `use_declaration` (group).\n- JS/TS: `function_declaration`, `arrow_function`, `class_declaration`, `block_statement`, `object`, `array`.\n- Store in a `HashMap<&'static str, &'static [&'static str]>` keyed by language id.\n\nExact crates/functions/APIs to use:\n- `tree-sitter` — already a dependency from MT-001. Use `Node::kind()`, `Node::start_position()`, `Node::end_position()`, `Node::children()` cursor API.\n- No additional crates needed.\n- AccessKit: add `author_id = \"code_editor_fold_{start_line}\"` `Role::TreeItem` nodes for each foldable region, with `actions: [Action::Expand, Action::Collapse]` depending on fold state. Reuse the AccessKit integration in `src/frontend/handshake_native/src/accessibility/` (mod.rs, live.rs, registry.rs, snapshot.rs) from WP-011 rather than introducing a new accessibility surface.\n\nStep-by-step implementation notes:\n1. Implement `FoldProvider::compute` using a tree-sitter `TreeCursor` traversal (more efficient than recursive children). Push a `FoldRegion` whenever `cursor.node().kind()` is in `FoldableNodeTypes` for the current language and `end_row - start_row >= 1`.\n2. Sort `FoldSet::regions` by `start_line` ascending. `is_line_visible`: binary-search for the last region with `start_line <= line`; if found and `folded == true` and `line > region.start_line` and `line <= region.end_line`, return false.\n3. `visible_line_to_buffer_line`: iterate regions in order, accumulate skipped lines (for each folded region before the visible line, add `region.end_line - region.start_line` to a running offset), return `visible_line + offset`.\n4. In the rendering loop: iterate visible line indices from VirtualLineLayout, map each to buffer line via `visible_line_to_buffer_line`, render normally unless the buffer line is the start of a folded region, in which case render the fold label.\n5. Keyboard shortcut for fold/unfold: Ctrl+Shift+[ folds the region at the cursor; Ctrl+Shift+] unfolds. Wire these in the code editor key handler (MT-010 will formalize; pre-wire here).\n6. Total line count for VirtualLineLayout must account for folds: compute `visible_line_count` as `buffer.len_lines() - sum(folded_region.end_line - folded_region.start_line for all folded regions)` and pass this to `VirtualLineLayout::new`.\n\nDependencies/unblock conditions: MT-001 (tree-sitter parse tree available in CodeEditorPanel), MT-002 (VirtualLineLayout — folding modifies the effective line count that it receives). Cross-WP: the AccessKit accessibility surface (accessibility/*) comes from WP-011 and is reused, not rebuilt.\nRisk if missed: Large files (thousands of lines) are harder to navigate without folding. The gutter (MT-007) renders fold triangles and needs the fold region list.",
     "allowed_paths": [
       "src/frontend/handshake_native/src/code_editor/folding.rs",
       "src/frontend/handshake_native/src/code_editor/mod.rs",
-      "src/frontend/handshake_native/src/code_editor/code_editor_panel.rs"
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/tests/test_code_folding.rs",
+      "src/frontend/handshake_native/tests/test_fold_accesskit.rs",
+      "src/frontend/handshake_native/src/code_editor/highlight.rs"
     ],
     "forbidden_paths": [
       "app/src/** (legacy React, reference only)",
@@ -64,7 +73,10 @@
       "Do not recompute fold regions every frame — recompute only when `buffer_version` changes (same version counter used for highlight cache in MT-002).",
       "Nested folds: a fold region can contain inner fold regions; `is_line_visible` must handle this — outer fold hides all inner folds and their lines. The outer fold toggle does not change inner fold state.",
       "accessible fold state: when toggling fold, update the AccessKit action on the node (Expand <-> Collapse) so swarm agents can address it. Use the existing accessibility surface at `src/frontend/handshake_native/src/accessibility/` (mod.rs, live.rs, registry.rs, snapshot.rs) delivered by WP-011 — this is a cross-WP reuse dependency on WP-011, not a new module.",
-      "Test files are flat under `src/frontend/handshake_native/tests/test_*.rs` (e.g. `tests/test_code_folding.rs`); there is no nested test directory."
+      "Test files are flat under `src/frontend/handshake_native/tests/test_*.rs` (e.g. `tests/test_code_folding.rs`); there is no nested test directory.",
+      "CONTRACT FILENAME CORRECTION (KERNEL_BUILDER gate 2026-06-22): code_editor/code_editor_panel.rs does NOT exist - edit the EXISTING code_editor/panel.rs; do NOT create a duplicate. Test files added to allowed_paths: tests/test_code_folding.rs (fold_provider/fold_set_visibility/fold_set_mapping/idempotency) + tests/test_fold_accesskit.rs (PT-005 GUI screenshot + AccessKit). Unit tests MAY also live in folding.rs #[cfg(test)].",
+      "VIRTUALIZATION COMPOSITION (from MT-002 AC-007): fold rendering composes with the MT-002 corrected virtualization. Pass the fold-adjusted visible line count to VirtualLineLayout; render fold-label lines within egui show_rows' actual painted row_range using y_for_line + sans-spacing line_height (item_spacing.y is zeroed). Do not reintroduce a row-height-unit mismatch.",
+      "ACCESSKIT VARIANT NOTE: if accesskit 0.21 (pinned by eframe 0.33) lacks the literal Role::TreeItem or Action::Expand/Collapse named in this contract, use the field-correct nearest existing variant and document it inline (as MT-003 did Role::Caret for the nonexistent TextCursor). AC-005 asserts the author_id ('code_editor_fold_0'), not the literal role string."
     ],
     "ports_from_react": [
       "Monaco handles folding internally in app/src/.../MonacoCodeBlockView.tsx (legacy React reference only — no explicit React code for folding). The native implementation uses tree-sitter node types as the fold source — equivalent to Monaco's built-in language-aware folding."
@@ -73,7 +85,10 @@
       "None — fold computation is purely in-process from the tree-sitter parse tree."
     ]
   },
-  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -90,6 +105,35 @@
       "MC-001: Cache fold mapping Vec — document the invalidation strategy in a code comment.",
       "MC-002: Stale region guard: clamp start_line and end_line to buffer.len_lines() - 1 before use.",
       "MC-003: Nested fold test included in AC-002 test suite."
+    ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-002 AC-007",
+    "corrections": [
+      "code_editor_panel.rs -> panel.rs",
+      "added test files to allowed_paths (no waiver needed)",
+      "fold rendering composes with MT-002 corrected virtualization units",
+      "accesskit variant fallback documented"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_e793b787 (impl + adversarial-review + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "69210ba0 feat MT-005 tree-sitter code folding (FoldProvider/FoldSet + panel wiring)",
+      "4300e976 fix harden per adversarial review"
+    ],
+    "proofs": "AC-001..006 + PT-001..005 GREEN; 424 lib + all integration; clippy --all-targets clean; single tree-sitter 0.25.10 core; Role::TreeItem + Action::Expand/Collapse confirmed present in accesskit 0.21; fold collapse visually verified by KERNEL_BUILDER (fn render body collapsed to one '...' summary line); no repo-local target/ or test_output/; no code_editor_panel.rs duplicate (edited the real panel.rs).",
+    "bug_caught_and_fixed": "Adversarial review caught a latent nested-fold double-count: FoldSet::visible_line_count summed collapsed lines over ALL folded regions independently, diverging from the is_line_visible render path when an outer AND nested inner region are both folded (would mis-size MT-006 minimap / MT-007 gutter). The correct counter hidden_line_count existed but was DEAD code, and a doc comment falsely claimed it was wired (anti-vibe misleading-comment). Harden delegated visible_line_count -> hidden_line_count, corrected the docs, and added nested-both-folded regression tests (unit + integration).",
+    "waiver_granted": "highlight.rs additive accessors (Highlighter::tree()/language_id()/with_language_id() + language_id_for_extension()) - not in original allowed_paths but within packet src/frontend/**; REQUIRED to reuse the highlighter's already-cached tree-sitter Tree for FoldProvider::compute (the contract mandates reuse-not-fork, avoiding a wasteful second parse). Purely additive (Highlighter::new delegates to with_language_id(..,\"\")); all 424 lib tests pass. Granted per GLOBAL-SCOPE-005; added to allowed_paths.",
+    "signature_deviation": "FoldProvider::compute(tree, buffer, language_id) vs the contract's compute(tree, buffer) - language_id is required to select the per-language FoldableNodeTypes set. Documented inline. Also: JS node kind is statement_block (the contract prose said block_statement, which does not exist in tree-sitter-javascript) - corrected + documented.",
+    "deferred": [
+      "per-frame fold AccessKit NodeId keyed on painted slot -> MT-007 (addressing is by stable author_id, correct for agents)",
+      "per-row region_starting_at O(regions) scan + double mutex lock in render hot loop -> MT-007 perf (viewport-bounded, not a correctness issue)",
+      "set_regions inherits folded=true by start_line equality after edit-shift -> needs stable region identity, defer",
+      "MAX_ACCESSKIT_FOLDS=64 cap drops folds beyond 64 in a dense window -> documented cap",
+      "fold-label paints in punctuation/comment color ignoring real token highlighting -> MT-007/MT-010 cosmetic parity",
+      "tests for mid-window highlight clip / real Ctrl+Shift+[] key events / edit-reparse fold preservation -> follow-up"
     ]
   }
 }

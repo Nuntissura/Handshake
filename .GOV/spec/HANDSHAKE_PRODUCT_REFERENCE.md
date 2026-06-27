@@ -3,7 +3,11 @@
 Companion to the Master Spec (`SPEC_CURRENT.md`). Single-page entry point for models and humans.
 Every row links to a spec section. This file describes what Handshake IS — not roadmap status or WP backlog.
 
+**Pegged spec version:** `v02.195` (resolved via `SPEC_CURRENT.md`) · **updated_at:** `2026-06-27`
+
 > **REFERENCE ONLY.** This file is a navigation aid. All decisions, technical advice, and implementation guidance MUST be derived from the Master Spec (via `SPEC_CURRENT.md`), not from this summary. When in doubt, read the spec section referenced in the §ref column. Do not cite this file as authority for design choices.
+>
+> **Canonical frontend = NATIVE RUST GUI.** Since WP-KERNEL-011 (2026-06-19) the canonical desktop shell + frontend is a native Rust GUI (egui + egui_tiles + wgpu + AccessKit), no webview. The legacy React/Tauri app under `app/src` is a **reference-only parity source — do not edit**; it is retired as native parity lands. Spec modules 07/10/11 may still carry stale React/Tauri prose (tracked as non-blocking spec-debt); the canonical tech-stack declaration is native Rust.
 
 ---
 
@@ -17,14 +21,15 @@ Handshake is a local-first, AI-native desktop application combining Notion-like 
 
 | Layer | Technology | Spec §ref |
 |---|---|---|
-| Desktop shell | Tauri (not Electron) | §1.1.3, §2.1.1 |
+| Desktop shell (canonical) | **Native Rust GUI — no webview** (not Tauri, not Electron), single bundled installer; canonical since WP-KERNEL-011 (2026-06-19) | §1.1.3, §2.1.1 |
+| GUI toolkit (canonical) | **egui + egui_tiles** (dockable work-surface) **+ wgpu** (GPU viewport) **+ AccessKit** (model-see/steer surface) | §2.1.1 |
 | Backend coordinator | Rust | §2.1.1 |
 | AI orchestration | Python (AutoGen/LangGraph) | §1.1.3 |
-| Frontend | React + TypeScript | §1.1.3 |
-| Rich text editor | Tiptap / ProseMirror + BlockNote | §7.1.1 |
+| Rich text editor (canonical) | **Native Rust** Obsidian/Notion-class rich editor (WP-KERNEL-012); legacy Tiptap/ProseMirror + BlockNote is reference-only | §7.1.1 |
+| Code editor (canonical) | **Native Rust** tree-sitter / ropey / cosmic-text VS-Code-class editor (WP-KERNEL-012); legacy Monaco + Monarch is reference-only | §10.2 |
 | Spreadsheet engine | Wolf-Table + HyperFormula | §7.1.0, §2.2.1.13 |
-| Code editor | Monaco + Monarch grammar | §10.2 |
 | Canvas | Excalidraw | §6.3.3.5 |
+| Legacy frontend (reference-only — do not edit) | React + TypeScript + Tauri shell under `app/src`, retired as native parity lands | §1.1.3 |
 | Control-plane storage | PostgreSQL (primary runtime authority) | §2.3.13 |
 | Collaboration state | Yjs CRDTs and PostgreSQL-backed authoritative records | §1.1.3, §2.3.13 |
 | Storage boundary | PostgreSQL authority with CRDT collaboration boundaries | §2.3.13 |
@@ -39,14 +44,14 @@ Handshake is a local-first, AI-native desktop application combining Notion-like 
 
 ## 3. Pillars
 
-The 22 product pillars. Every WP refinement forces a status declaration against each pillar to surface force multipliers.
+The 24 product pillars (22 original + internal_diagnostics #23 and Palmistry #24, both DESIGN-COMMITTED per build-rule HBR-INT-009). Every WP refinement forces a status declaration against each pillar to surface force multipliers.
 
 | # | Pillar | What it is | Technical approach | Spec §ref |
 |---|---|---|---|---|
-| 1 | Flight Recorder | Event-level observability for every runtime action | DuckDB event store, typed event families (FR-EVT-001+), trace correlation, 7-30d retention, replay UI | §11.5 |
+| 1 | Flight Recorder | **Tier 1** of the three-tier diagnostic model (HBR-INT-009): the kept-as-is backend **business-event** ledger | DuckDB event store, typed event families (FR-EVT-001+), trace correlation, 7-30d retention, replay UI. Supplemented (never replaced) by internal_diagnostics (tier 2, internal self-diagnostics, #23) and Palmistry (tier 3, external watcher, #24) | §11.5 |
 | 2 | Calendar | Time-structured workspace view — not just appointments but activity correlation | React Big Calendar (dumb view) + canonical backend law, ActivitySpan join, temporal correlation with FR | §10.4 |
-| 3 | Monaco | Code editor surface | Monaco + Monarch grammar for Handshake syntax, LSP bridges, block-level edit IDs for AI ops | §10.2 |
-| 4 | Word clone | Block-based document editor (Notion-like) | Tiptap/ProseMirror + BlockNote, block IDs, `ai_origin` provenance, Yjs collab, slash commands | §7.1.1, §2.5.10 |
+| 3 | Code editor | VS-Code-class code editor surface | **CANONICAL: native Rust** tree-sitter + ropey + cosmic-text editor shipped by WP-KERNEL-012 (block-level edit IDs for AI ops, in-file symbol + sticky scroll, bracket/indent/wrap chrome). **Legacy reference-only:** Monaco + Monarch grammar under `app/src` (do not edit) | §10.2 |
+| 4 | Rich-text / Word clone | Block-based document editor (Notion/Obsidian-like) | **CANONICAL: native Rust** Obsidian/Notion-class rich editor shipped by WP-KERNEL-012 (block IDs, `ai_origin` provenance, slash commands). **Legacy reference-only:** Tiptap/ProseMirror + BlockNote + Yjs collab under `app/src` (do not edit) | §7.1.1, §2.5.10 |
 | 5 | Excel clone | Spreadsheet surface | Wolf-Table grid + HyperFormula (400+ functions), stable cell IDs, `ai_source` provenance, MEX adapter | §2.2.1.13, §7.1.0 |
 | 6 | Locus | Structured work tracking — WP/MT lifecycle with full observability | Canonical structured records, Bronze/Silver/Gold sync, dependency management, Spec Router integration | §2.3.15 |
 | 7 | Loom | Artifact retrieval library — block-as-unit-of-meaning | Heaper-pattern UX (All/Unlinked/Sorted/Pins), relational linking, content hashing, AI-generated metadata | §10.12 |
@@ -65,6 +70,8 @@ The 22 product pillars. Every WP refinement forces a status declaration against 
 | 20 | Skill distillation / LoRA | Training pair extraction from governed work for model specialization | Escalation-driven candidate generation, teacher→student format, adapter-only LoRA/QLoRA/DoRA, benchmark-gated | §2.6.6.8.13, §9 |
 | 21 | ACE | Autonomous Collaboration Engine — context engineering runtime | WorkingContext compilation per model call, tiered memory (durable vs per-call), ContextSnapshot for audit/replay | §2.6.6.7 |
 | 22 | RAG | Retrieval-Augmented Generation — Shadow Workspace + evidence pipeline | Bronze/Silver/Gold layers, hybrid search (HNSW + BM25 + graph), cross-encoder reranking, deterministic candidate selection | §2.3.8, §2.3.14 |
+| 23 | internal_diagnostics **(NEW, DESIGN-COMMITTED)** | **Tier 2** of the three-tier diagnostic model (HBR-INT-009): Handshake-native **INTERNAL** self-diagnostics — the role the Flight Recorder was meant to fill but never did | Panic hook, UI-thread heartbeat, frame-time, CPU/RSS/GPU counters, OPEN diagnostic-event API any feature can call, in-app diagnostics panel. Records **no** project/sensitive data (typed allowlist; standard mechanism names kept: heartbeat/watchdog/ring-buffer). **Supplements, never replaces, the Flight Recorder.** Built by WP-KERNEL-012; retrofitted onto shipped work by WP-KERNEL-016 | HBR-INT-009; CX-981 |
+| 24 | Palmistry **(NEW, DESIGN-COMMITTED)** | **Tier 3** of the three-tier diagnostic model (HBR-INT-009): **EXTERNAL** out-of-process watcher that survives Handshake freezes / crashes / heavy-CPU | Shared-memory ring-buffer reader, minidumps, watchdog. Records **no** project/sensitive data (typed allowlist; standard mechanism names kept: heartbeat/minidump/watchdog/ring-buffer). **Supplements, never replaces, the Flight Recorder.** Built by WP-KERNEL-012; retrofitted onto shipped work by WP-KERNEL-016 | HBR-INT-009; CX-981 |
 
 ---
 
@@ -285,8 +292,13 @@ Designed-in pillar × pillar interactions. These are intentional architectural c
 | PostgreSQL Authority × FR | PostgreSQL, FR | Artifact lineage and runtime authority logging for PostgreSQL-backed control-plane records | IMX-020 |
 | Locus × Debug Bundle | Locus, FR | WP export anchor for debug bundles | IMX-019 |
 | Spec Router × Capabilities | Spec to prompt, ACE | CapabilitySnapshot injected into compiled prompts | IMX-018 |
+| Native Editors × Loom | Code/Rich-text editors (WP-012), Loom | Editor blocks are block-as-unit-of-meaning artifacts retrievable through the Loom library | (WP-012 interconnection) |
+| Native Editors × FEMS | Code/Rich-text editors (WP-012), Front End Memory System | Editor decisions/blockers/edits emit typed FEMS records with source links and retrieval policy | (WP-012 interconnection) |
+| Native Editors × CKC | Code/Rich-text editors (WP-012), Studio/Atelier (CKC) | Editor content feeds governed creative extraction / CKC source patterns | (WP-012 interconnection) |
+| FR × internal_diagnostics × Palmistry | Flight Recorder (#1), internal_diagnostics (#23), Palmistry (#24) | Three-tier diagnostic model: business-event ledger (tier 1) supplemented by internal self-diagnostics (tier 2) and an external survives-crash watcher (tier 3); no tier replaces another | HBR-INT-009 |
 
-> Full interaction matrix with 100+ edges: Appendix 12.6 in Master Spec
+> Full interaction matrix with 100+ edges: Appendix 12.6 in Master Spec.
+> Native-editor interconnection edges trace to the WP-KERNEL-012 `interconnection_contract`; canonical edge IDs are assigned in the spec interaction matrix as the native surfaces are spec-reconciled.
 
 ---
 
@@ -333,3 +345,16 @@ All tool calls (MCP and native) route through the same governance gates: capabil
 | Loom | FR-EVT-LOOM-* | Library operations |
 | MicroTask | FR-EVT-MT-* | MT lifecycle events |
 | Memory | FR-EVT-MEM-001..005 | FEMS proposal/review/commit/pack/status |
+
+---
+
+## 8. Major Shipped Native Surfaces
+
+Surfaces shipped against the canonical native-Rust frontend. The canonical build target is the `handshake-native` crate (`src/frontend/handshake_native/`); the legacy React/Tauri app under `app/src` is reference-only (do not edit).
+
+| WP | Surface | What shipped | Status | Spec §ref |
+|---|---|---|---|---|
+| WP-KERNEL-011 | Native Work-Surface Shell | Native Rust GUI shell with no webview — dockable work-surface (egui + egui_tiles + wgpu + AccessKit), single bundled installer, model-steerable via AccessKit. Locked the canonical toolkit (MT-001 spike). 31 MTs. | Shipped 2026-06-19 (whole-WP INTEGRATION_VALIDATOR verdict PASS; held for merge) | §1.1.3, §2.1.1 |
+| WP-KERNEL-012 | Native Editors | Native Rust VS-Code-class code editor (tree-sitter / ropey / cosmic-text) + Obsidian/Notion-class rich-text editor, to full parity with the legacy React editors, plus interconnection wiring (Loom, FEMS, CKC, Stage/Calendar/Locus) and parity/perf proof suites. 80 MTs. | Shipped 2026-06-26 (native editors implemented + adversarial-review hardened; governance close-out / merge tracked separately) | §10.2, §7.1.1 |
+
+> Note on status: governance state files on the `gov_kernel` branch may lag the product-code branches. The "Shipped" column reflects the native product code landed on the `feat/WP-KERNEL-011` and `feat/WP-KERNEL-012` branches; consult Locus / the taskboard for current merge and validation state.

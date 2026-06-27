@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [],
     "blocks": [],
@@ -36,6 +36,8 @@
     "allowed_paths": [
       "src/frontend/handshake_native/src/backend/knowledge_code_nav.rs",
       "src/frontend/handshake_native/src/backend/mod.rs",
+      "src/frontend/handshake_native/src/backend/knowledge_documents.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
       "src/frontend/handshake_native/tests/test_knowledge_code_nav.rs"
     ],
     "forbidden_paths": [
@@ -67,7 +69,10 @@
       "Each nav request leaves a KnowledgeRetrievalTraceRecorded EventLedger receipt on the backend (spec 2.3.13.11). The client exposes this receipt ID in the response struct for traceability; consumers should log or store it for audit.",
       "The quiet_background_work_receipt_id comes from the ParallelSwarmStateRecoveryStore; it is present on all six routes. Preserve it even if your immediate consumer does not use it.",
       "Do not fabricate actor_ids or session_ids: call sites must supply them from the current editor session context. Use EditorSessionContext or a similar type passed as a parameter.",
-      "The staleness contract: anything not provably fresh (fresh=true) is stale. Never render an unverified symbol as authoritative in the UI."
+      "The staleness contract: anything not provably fresh (fresh=true) is stale. Never render an unverified symbol as authoritative in the UI.",
+      "VERIFY vs MT-034 CodeNavClient + REUSE HEADERS (KERNEL_BUILDER gate 2026-06-23): MT-034 (code<->note) ALREADY built a CodeNavClient in backend_client.rs that binds GET code symbols (resolve_code_ref / lookup_symbols / references). VERIFY whether MT-034's routes are the SAME API as this MT's /knowledge/code/* (MT-034 may have used a /code/symbols path vs this contract's /knowledge/code/symbols - confirm against api/knowledge_code_nav.rs which prefix is real). If SAME: REUSE/extend the existing CodeNavClient (add only the missing routes: tests, spans, file_lens) - do NOT fork a second symbol-lookup with divergent logic. If DISTINCT: bind fresh in backend/knowledge_code_nav.rs but reuse the same patterns. HEADERS: reuse MT-037's HskDocumentHeaders (same 5-field x-hsk-* contract) - import it / consolidate into a shared type, do NOT define a 4th copy of the header struct. The async-fn transport mirrors MT-037/038.",
+      "VERIFY 6 ROUTES + file_lens %2F + GUARDS (KERNEL_BUILDER gate): VERIFY read-only against src/backend/handshake_core/src/api/knowledge_code_nav.rs that the 6 routes + the response shapes (SymbolNavProjection, StalenessState, SymbolReferencesResponse callers/callees, FileLensResponse, the receipt fields) match. file_lens: the :path segment MUST %2F-encode embedded '/' (the backend decodes %2F->/; a bare / mis-parses in axum's path extractor -> 404, RISK-1/MC-1); test the OUTGOING URL contains %2F not bare /; REJECT absolute paths + any '..' segment from callers (path-traversal guard - security). lookup_symbols: pre-flight GUARD that >=1 of name/prefix/path is non-empty BEFORE building the request (RISK-2/MC-2 - typed LookupRequest or a check, not a backend-400 surprise). limit clamped <=500 client-side (RISK-6/MC-5). entity_id is an opaque string (KE-<uuid>) - do NOT parse/assume its format (RISK-5).",
+      "STALENESS TOLERANCE + RECEIPTS + FIXTURES (KERNEL_BUILDER gate - Spec-Realism): StalenessState.state is a TOLERANT String (NOT a closed enum) with #[serde(default)] on optional fields - it MUST deserialize an unknown future state ({state:'custom_future_state',fresh:false}) WITHOUT error/panic (RISK-3/MC-3/MC-6); the freshness rule = anything not fresh==true is stale, never render unverified as authoritative. PRESERVE nav_receipt_event_id + quiet_background_work_receipt_id in EVERY response struct (#[allow(dead_code)] if unused now - audit-trail requirement, RISK-4/MC-4). Mock-server fixture JSON MUST be REAL backend shapes (captured/field-verified vs api/knowledge_code_nav.rs handler json! blocks, cite lines - NOT self-serialized tautology). FULLY provable WITHOUT live PG (mock server) - no NEEDS_MANAGED_RESOURCE_PROOF. Stateless adapter (actor/session from a passed EditorSessionContext, never fabricated). NO GUI this MT (no screenshot/accesskit - pure client; document the AccessKit requirement for the future CodeSymbolPanel widget in the module doc). Full suite green; clippy clean; no tracked artifacts; base_url from config (portability)."
     ],
     "ports_from_react": [
       "app/src/components/CodeSymbolPanel.tsx - the full React component being ported; shows how symbol_entity_id drives getCodeSymbol, then conditionally loads getCodeFileLens using the staleness.indexed_content_hash and indexed_parser_version fields from the symbol response.",
@@ -114,5 +119,27 @@
       "Client-side limit clamp: limit = limit.min(500).",
       "Cargo test validates that StalenessState { state: 'custom_future_state', fresh: false } deserializes without error."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-034 CodeNavClient + MT-037 HskDocumentHeaders + MT-037/038 binding pattern + Spec-Realism",
+    "corrections": [
+      "verify vs MT-034 CodeNavClient (same /knowledge/code API? reuse/extend, add only missing tests/spans/file_lens; don't fork)",
+      "reuse MT-037 HskDocumentHeaders (no 4th copy); file_lens %2F-encode + reject absolute/.. paths; lookup pre-flight guard; limit<=500 clamp",
+      "StalenessState tolerant String (no panic on new states); preserve nav+quiet receipt ids in every struct",
+      "mock fixtures REAL backend shapes (no tautology); provable without live PG; stateless; no GUI; opaque entity_id"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_52c1591b (impl + 3-lens panel + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "ead76049 feat MT-039 bind native editor to /knowledge/code/* nav API",
+      "5eb3aa48 fix harden per adversarial review"
+    ],
+    "review_panel": "correctness=CHANGES_REQUIRED(2), backend-shape=CHANGES_REQUIRED(1), perf-focus-hygiene=PASS(0) -> 3 must-fixes hardened.",
+    "proofs": "AC-1..9 + PT-1..4 PASS; 7 integration + 7 lib = 14 tests green; clippy clean; provable WITHOUT live PG (mock server); no GUI; no tracked artifacts.",
+    "steers_held": "(1) VERIFY-OVER-PROSE: bound the REAL backend FileLens shape (CodeLensEntry/MonacoCodeLensPayload, monaco_bridge.rs:37-55/737) over the contract prose's different FileLensEntry fields. (2) reused MT-037 HskDocumentHeaders (nav header, system actor-kind). (3) file_lens encode_path_segment (% then / -> %2F) + unsafe-path (absolute/..) reject. (4) lookup EmptyLookup pre-flight guard before the wire. (5) StalenessState tolerant String (fresh/unindexed/custom_future_state all deserialize, no panic). (6) nav_receipt_event_id + quiet_background_work_receipt_id preserved in all 6 structs. (7) limit<=500 clamp; opaque entity_id. Mock fixtures REAL (vs handler json! blocks).",
+    "client_proliferation_note": "There are now distinct code-nav clients by purpose: MT-008 code_editor::code_nav (Value-based inline graceful-degradation for the editor), MT-034 CodeNavClient (cross-ref resolve), MT-039 KnowledgeCodeNavClient (the typed backend/ consolidation). Panel reviewed + hardened (3 must-fixes) - distinct purposes/transports, not a pure fork. A future cleanup could unify them but each is currently justified.",
+    "waiver_granted": "backend/knowledge_code_nav.rs + backend/mod.rs + backend/knowledge_documents.rs (header reuse) + backend_client.rs + test in allowed_paths."
   }
 }

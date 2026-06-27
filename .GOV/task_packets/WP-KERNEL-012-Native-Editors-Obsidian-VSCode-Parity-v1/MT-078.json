@@ -1,0 +1,149 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-078",
+  "title": "E13-MT078-RtlAndComplexScripts",
+  "group": "E13 Internationalization / Unicode / input (CJK, Cyrillic, symbols, RTL)",
+  "created_at_utc": "2026-06-22T00:00:00Z",
+  "updated_at_utc": "2026-06-22T00:00:00Z",
+  "authoring_note": "Authored 2026-06-22 by KERNEL_BUILDER (E13 i18n expansion). This is the GENUINELY HARD 10% (Arabic/Hebrew RTL + bidi + Arabic/Indic cursive shaping). egui's native text layout does NOT do full bidi reordering or complex-script shaping. This MT is scoped HONESTLY: deliver correct RTL coverage + visual reordering + best-effort caret, and surface a TYPED LIMITATION (visible note + future-MT pointer) for what egui cannot do, rather than silently rendering Arabic broken. No faking.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-078.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
+    "depends_on": [
+      "MT-075"
+    ],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: support right-to-left (Arabic, Hebrew) and complex scripts (Arabic cursive joining, Indic reordering) as far as the egui layout stack honestly allows, and explicitly SURFACE the limits rather than render broken text. EXPECTED DIFF SHAPE: a bidi/shaping layer (reuse the text_intl module from MT-077) feeding the rich + code renderers; a visible 'limited RTL/complex-script support' note where full shaping is unavailable. Builds on MT-075 (Arabic/Hebrew/Indic glyphs must be in the fallback chain first).\n\nHONEST PROBLEM STATEMENT (the hard 10%, verified by the earlier egui rich-text research): immediate-mode egui's epaint layout does line-based LTR layout and does NOT natively perform (a) the Unicode Bidirectional Algorithm (visual reordering of mixed LTR/RTL runs), nor (b) complex-script shaping (Arabic letters change form by position - isolated/initial/medial/final cursive joining; Indic reordering/conjuncts). Getting these fully correct requires a real shaping engine (HarfBuzz / rustybuzz) + a bidi pass, which egui does not wire in by default.\n\nTIERED SCOPE (deliver the achievable tier, typed-block the rest - NO silent breakage):\nTIER 1 (DELIVER): glyph coverage (MT-075 fallback includes Noto Sans Arabic / Noto Sans Hebrew / Noto Sans Devanagari); paragraph direction detection (first-strong character) so a Hebrew/Arabic paragraph renders right-aligned with RTL base direction; logical<->visual REORDERING of runs via the `unicode-bidi` crate so a mixed 'abc ABC 123' (where UPPER=RTL) line displays in correct visual order; correct storage (logical order in the rope) + correct rendering order.\nTIER 2 (BEST-EFFORT, prove what works): caret/selection in RTL text moves in logical order (arrow-key direction documented); Hebrew (which needs NO cursive shaping - it is non-joining) should render + edit correctly end-to-end as the RTL proof case.\nTIER 3 (TYPED LIMITATION, do NOT fake): Arabic CURSIVE JOINING (contextual letter forms) and Indic conjunct reordering require a shaping engine. If egui + the chosen approach cannot shape Arabic correctly, render the available (possibly isolated-form) glyphs AND surface a visible, documented 'Arabic shaping limited - full cursive shaping pending a shaping-engine MT' state (a typed limitation), and record a future-MT pointer. Optionally evaluate routing complex-script runs through cosmic-text/rustybuzz as a bounded spike; if it integrates cleanly, deliver it; if not, the typed limitation stands. Either way: NO silently-broken Arabic presented as 'done'.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/text_intl/**",
+      "src/frontend/handshake_native/src/rich_editor/renderer/line_layout.rs",
+      "src/frontend/handshake_native/src/rich_editor/renderer/block_renderer.rs",
+      "src/frontend/handshake_native/src/code_editor/virtual_lines.rs",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/assets/fonts/**",
+      "src/frontend/handshake_native/Cargo.toml",
+      "src/frontend/handshake_native/tests/test_rtl_complex.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/**",
+      ".GOV/**",
+      "src/backend/**"
+    ],
+    "acceptance_criteria": [
+      "AC1 (Tier1): A Hebrew paragraph ('שלום עולם') renders right-aligned with RTL base direction and correct visual character order - kittest screenshot, visually inspected (glyphs from MT-075 Noto Hebrew).",
+      "AC2 (Tier1): A mixed-direction line (LTR Latin + RTL run + digits) is REORDERED to correct visual order via unicode-bidi (logical order preserved in the rope, visual order on screen) - cargo test on the bidi reorder fn + a screenshot.",
+      "AC3 (Tier1): Paragraph base direction is auto-detected from the first strong character (RTL for Arabic/Hebrew, LTR otherwise); a cargo test covers both.",
+      "AC4 (Tier2): Hebrew end-to-end edit: type/caret/select/delete in a Hebrew run behaves in logical order with the documented arrow-key semantics; cargo test (Hebrew needs no cursive shaping, so this is the honest RTL editing proof).",
+      "AC5 (Tier3, HONEST): Arabic renders with available glyphs; IF cursive joining is not shaped, a VISIBLE typed-limitation note ('Arabic cursive shaping limited') is shown for Arabic content and a future-MT pointer is recorded - a cargo/kittest test asserts the limitation surface appears (NOT silently broken). If cursive shaping IS delivered (e.g. via a rustybuzz/cosmic-text spike), AC5 instead asserts correct contextual forms - document which path was taken.",
+      "AC6: No regression to LTR + CJK (MT-075/077) - existing suites green; bidi reorder is a NO-OP for pure-LTR text (identity), proven by a test.",
+      "AC7: Full crate test suite green."
+    ],
+    "proof_targets": [
+      "PROOF1: cargo test -p handshake-native rtl_complex -- --nocapture: bidi reorder (mixed line -> visual order, LTR identity), base-direction detection, Hebrew caret/edit (AC2/AC3/AC4/AC6).",
+      "PROOF2: egui_kittest screenshots -> EXTERNAL Handshake_Artifacts/handshake-test/wp-kernel-012-mt-078/ : mt078_hebrew_rtl.png (right-aligned RTL, AC1) + mt078_arabic_state.png (Arabic glyphs + the typed-limitation note OR shaped cursive forms, AC5); visually inspected.",
+      "PROOF3: A test asserting the Tier-3 typed limitation is SURFACED for Arabic if shaping is not delivered (no-silent-breakage gate), OR asserting correct Arabic contextual forms if it is.",
+      "PROOF4: cargo test -p handshake-native (FULL suite) = 0 failures; bidi NO-OP for LTR proven."
+    ],
+    "implementation_notes": [
+      "RESEARCH BASIS: `unicode-bidi` crate implements UAX#9 (the Bidirectional Algorithm: resolve embedding levels + reorder runs visually) - this is the achievable Tier-1/2 win and is pure-Rust. Complex-script SHAPING (Arabic cursive, Indic) needs HarfBuzz; in Rust that is `rustybuzz` (pure-Rust HarfBuzz port) or going through `cosmic-text` (which uses rustybuzz + swash and does bidi+shaping+layout). egui/epaint does NOT shape complex scripts natively. The earlier egui rich-text research flagged the bidi+shaping tail as the 'hardest 10%' - hence the tiered, honest scope.",
+      "Reuse the MT-077 src/frontend/handshake_native/src/text_intl/ module for the bidi pass; do not create a parallel i18n module.",
+      "DECISION the coder must make + document: (A) ship Tier-1/2 (unicode-bidi reorder + Hebrew) + Tier-3 typed limitation for Arabic shaping (lower risk, honest, likely the right call for this WP), OR (B) attempt a bounded cosmic-text/rustybuzz spike for complex-script runs and only ship it if it integrates cleanly without destabilizing the egui LayoutJob/Galley path. Default to (A) unless the spike clearly succeeds. NEVER present unshaped Arabic as complete.",
+      "Logical vs visual order: ALWAYS store text in LOGICAL order in the rope (the model is direction-agnostic); apply bidi reordering only at render/caret time. This keeps MT-011 model invariants + DocJson backend round-trip intact (the backend stores logical-order text).",
+      "ARTIFACT HYGIENE (CX-212E): screenshots to the EXTERNAL wp-kernel-012-mt-078 root + assert_no_local_artifact_dir(); cargo artifact-root env; FULL-suite gate. NO repo-local artifacts.",
+      "TYPED LIMITATION is a first-class deliverable here (HBR honesty): a visible, documented capability boundary beats silently-broken text. Record the future-MT pointer (e.g. 'WP-KERNEL-012 follow-on or WP-KERNEL-014: full complex-script shaping engine') in code + handoff.",
+      "FONT GAP + ALLOWED-PATH FIX (KERNEL_BUILDER gate 2026-06-26): MT-075 bundled NotoSansSC/KR/Symbols2/Math + Inter but NOT Arabic/Hebrew/Devanagari - so Tier-1 glyph coverage needs them ADDED to the install_fonts fallback chain (app.rs:build_font_definitions). ADDED app.rs + assets/fonts to allowed_paths. Add Noto Sans Hebrew (REQUIRED for the AC1/AC4 Hebrew proof - Hebrew is non-joining, the honest RTL case) + Noto Sans Arabic + (optional) Noto Sans Devanagari to the chain AFTER the existing faces (BUNDLE via include_bytes! if fetchable - SIL OFL; else OS-LOAD the verified Windows NotoKufiArabic/NotoNaskhArabic + a Hebrew font fail-soft). APPEND-only (Inter still index-0); full-suite no-regression (install_fonts is shared infra - known wgpu-flake isolate). TIERED HONEST SCOPE (the load-bearing design, NO faking): TIER-1 DELIVER (unicode-bidi UAX#9 reorder + first-strong base-direction + right-aligned RTL + Hebrew glyphs); TIER-2 Hebrew end-to-end edit (caret/select/delete logical-order, the honest RTL proof - Hebrew needs NO cursive shaping); TIER-3 Arabic cursive joining + Indic = TYPED LIMITATION (RISK-1/MC-1, AC5/PROOF3 - render available glyphs + a VISIBLE documented Arabic-shaping-limited note + future-MT pointer; NEVER present unshaped Arabic as done). DEFAULT DECISION A (unicode-bidi + Hebrew + Arabic typed-limit - lower risk, honest, right for this WP) unless a bounded rustybuzz/cosmic-text spike integrates CLEANLY without destabilizing the egui Galley path (RISK-4).",
+      "LOGICAL-ORDER ROPE + BIDI-IDENTITY (KERNEL_BUILDER gate): the rope/model stays LOGICAL order (direction-agnostic) - apply bidi REORDER only at RENDER/caret time (RISK-3/MC-2 - preserves the MT-011 model invariants + the DocJson backend round-trip which stores logical-order text; storing visual-order = a model-corruption FAIL). BIDI is IDENTITY for pure-LTR (RISK-2/MC-3, AC6 - a no-op test; NO regression to Latin/CJK from MT-075/077). REUSE the MT-077 text_intl/ module for the bidi pass (unicode-bidi added there) - do NOT create a parallel i18n module. CARET in RTL moves logical-order with DOCUMENTED arrow semantics (RISK-5, AC4 Hebrew). External screenshots mt078_hebrew_rtl.png (right-aligned RTL Hebrew שלום עולם, visually inspected real glyphs) + mt078_arabic_state.png (Arabic glyphs + the typed-limitation note OR shaped forms - document which path). FULL-suite no-regression (AC7, known wgpu-flake isolate-verify); no Color32; clippy clean."
+    ],
+    "ports_from_react": [
+      "The browser did bidi + complex shaping natively for the React surface; native must do it explicitly. No app/src logic to port - the platform hid the hardest part."
+    ],
+    "binds_backend_api": [
+      "None - bidi/shaping is pure frontend; the rope/model stays logical-order so backend round-trip is unaffected."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-INT"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-1 (the big one): shipping unshaped Arabic that LOOKS present but reads as disconnected isolated letters - a silent correctness failure. Mitigation: AC5 typed-limitation gate - either shape it or visibly flag the limit; no silent breakage (PROOF3).",
+      "RISK-2: bidi reorder corrupts LTR text (non-identity for pure-LTR). Mitigation: AC6 LTR-identity test.",
+      "RISK-3: storing visual-order text in the rope breaks the backend round-trip + MT-011 invariants. Mitigation: rope stays LOGICAL order; reorder only at render/caret (implementation note).",
+      "RISK-4: a cosmic-text/rustybuzz spike destabilizes the egui Galley path (dual layout engines fighting). Mitigation: default to Tier-1/2 + typed limitation; only ship the spike if it integrates cleanly (documented decision A vs B).",
+      "RISK-5: caret in RTL moves the wrong visual direction, confusing the operator. Mitigation: AC4 documents + tests the logical-order arrow semantics for Hebrew."
+    ],
+    "minimum_controls": [
+      "MC-1: NO silently-broken Arabic - shape it or surface a visible typed limitation (AC5/PROOF3).",
+      "MC-2: rope stays logical-order; reorder at render only (RISK-3).",
+      "MC-3: bidi is identity for LTR (AC6) - no regression to Latin/CJK.",
+      "MC-4: Hebrew end-to-end edit is the honest RTL proof case (AC4); full-suite gate (AC7)."
+    ]
+  },
+  "research_basis": {
+    "sources_to_check": [
+      "unicode-bidi crate (UAX#9)",
+      "rustybuzz (pure-Rust HarfBuzz) / cosmic-text (bidi+shaping+layout)",
+      "UAX#9 Bidirectional Algorithm + Arabic joining / Indic reordering references",
+      "egui/epaint complex-script + bidi support status (issues)"
+    ],
+    "selected_approach": "Tiered, honest: Tier-1/2 via unicode-bidi (reorder + base direction + Hebrew edit) on top of MT-075 fonts; Tier-3 Arabic cursive shaping either via a bounded rustybuzz/cosmic-text spike (ship only if clean) or a visible typed limitation. Rope stays logical-order.",
+    "rejected": [
+      "storing visual-order text (breaks model + backend round-trip)",
+      "silently rendering unshaped Arabic as done",
+      "forcing cosmic-text into the egui path if it destabilizes Galley"
+    ],
+    "risks_mitigations": "silent-broken-Arabic -> typed limitation/shape-or-flag; LTR corruption -> identity test; model corruption -> logical-order rope; engine conflict -> default Tier-1/2.",
+    "validation_plan": "bidi reorder + base-direction + Hebrew-edit unit tests + Hebrew RTL screenshot + Arabic shaped-or-flagged screenshot + LTR/CJK no-regression full suite."
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate (my MT-078 contract) + MT-075 font chain (CJK/symbols, NO Arabic/Hebrew) + MT-077 text_intl + unicode-bidi UAX#9 + Windows NotoKufi/NaskhArabic + rustybuzz/cosmic-text (Tier-3)",
+    "corrections": [
+      "ADDED app.rs + assets/fonts to allowed_paths (MT-075 lacked Arabic/Hebrew/Devanagari - Tier-1 needs them in install_fonts; append-only, Inter index-0)",
+      "TIERED HONEST: Tier-1 unicode-bidi reorder + base-dir + Hebrew glyphs; Tier-2 Hebrew end-to-end edit; Tier-3 Arabic = VISIBLE typed-limitation (NO silent-broken Arabic) + future-MT pointer; default decision A",
+      "logical-order rope (reorder at render only - backend round-trip intact); bidi identity for LTR (no regression); reuse MT-077 text_intl",
+      "external Hebrew + Arabic-state screenshots; full-suite (known wgpu-flake isolate); no Color32; clippy"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_99be43cc (impl + 3-lens panel + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "96ed5435 feat MT-078 RTL + complex scripts (bidi reorder + Hebrew + Arabic typed-limitation)",
+      "6d06e8d0 fix harden per adversarial review"
+    ],
+    "review_panel": "correctness=CHANGES_REQUIRED(1), backend-shape=CHANGES_REQUIRED(1), perf-focus-hygiene=PASS(0) -> 2 must-fixes hardened.",
+    "proofs": "AC1..7 + PROOF1..4 PASS; 14 bidi lib + 9 integration + 6 font-coverage + 1559 lib + FULL suite (59 integration bins, 418+1559=1977 tests, 0 failed) --test-threads=1 green; clippy clean; Hebrew right-aligned RTL (שלום עולם real Noto Hebrew) + Arabic isolated-forms + VISIBLE typed-limitation note both visually verified; screenshots EXTERNAL.",
+    "tiered_honest_scope": "DECISION A (unicode-bidi 0.3.18 + Hebrew + Arabic typed-limitation; rustybuzz/cosmic-text spike NOT taken to avoid destabilizing the egui Galley path). TIER-1 DELIVERED: added Noto Hebrew/Arabic/Devanagari to install_fonts (app.rs, FALLBACK_FACE_ORDER 4->7, Inter index-0); unicode-bidi UAX#9 reorder + first-strong base-direction + right-aligned RTL. TIER-2: Hebrew end-to-end edit (logical-order caret/select/delete via real input_handler). TIER-3 HONEST: Arabic renders isolated glyphs + a VISIBLE shaping_limitation note (Arabic cursive shaping limited...) + future-MT pointer (SHAPING_FOLLOW_ON_POINTER) - NEVER silently-broken (PROOF3 gate). logical-order rope (reorder at render only - DocJson round-trip intact); bidi IDENTITY for LTR/CJK (no regression). reuse MT-077 text_intl/bidi.rs.",
+    "honest_note": "unicode-bidi WAS a new dep family (the agent corrected the contract assumption - it was in a different crate tree, not this standalone crate locked graph). The 2 .wgpu() screenshot tests crash CONCURRENTLY (known WP-wide wgpu hazard 0xc0000005) but pass serially --test-threads=1.",
+    "waiver_granted": "app.rs (install_fonts + Noto Arabic/Hebrew/Devanagari) + assets/fonts/Noto*.ttf + text_intl/{mod,bidi}.rs + line_layout.rs + block_renderer.rs + virtual_lines.rs + Cargo.toml/lock + test in allowed_paths."
+  }
+}

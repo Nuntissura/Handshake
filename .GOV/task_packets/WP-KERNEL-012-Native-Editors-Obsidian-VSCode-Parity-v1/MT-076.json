@@ -1,0 +1,147 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-076",
+  "title": "E13-MT076-ImeCompositionInlinePreedit",
+  "group": "E13 Internationalization / Unicode / input (CJK, Cyrillic, symbols, RTL)",
+  "created_at_utc": "2026-06-22T00:00:00Z",
+  "updated_at_utc": "2026-06-22T00:00:00Z",
+  "authoring_note": "Authored 2026-06-22 by KERNEL_BUILDER (E13 i18n expansion). Closes the MT-012 AC-6 PARTIAL: IME COMMIT works (committed CJK text inserts char-correct) but the in-progress underlined preedit is held as state and NOT painted inline. CJK/Japanese/Korean text entry is impossible to use comfortably without seeing the composition; this MT makes IME input first-class in BOTH editors.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-076.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
+    "depends_on": [
+      "MT-012",
+      "MT-075"
+    ],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: make IME (Input Method Editor) composition first-class so Chinese (pinyin/zhuyin), Japanese (romaji/kana), and Korean (Hangul jamo) can be typed and SEEN inline in both the rich-text editor and the code editor. EXPECTED DIFF SHAPE: edit rich_editor/renderer/ime_handler.rs + rich_editor_widget.rs + block_renderer.rs (paint the preedit run); add IME handling to the code editor (code_editor/panel.rs); enable IME at the shell (app.rs set_ime_allowed). Builds on MT-075 (CJK glyphs must exist to render the composition).\n\nWHAT EXISTS (verified): MT-012 wired egui::Event::Ime (Enabled | Preedit(String) | Commit(String) | Disabled) in ime_handler.rs; COMMIT inserts the committed text char-correct, and the double-insert guard (clear preedit region before commit) is proven. GAP: egui 0.33 ImeEvent::Preedit(String) carries NO cursor range, the preedit is overlay-only PreeditState, and block_renderer does NOT paint the underlined in-progress composition inline (MT-012 AC-6 PARTIAL).\n\nWHAT THIS MT ADDS:\n1. Paint the in-progress preedit run INLINE at the caret in the rich-text editor: render the PreeditState text as an underlined (dotted/solid underline) inline run at the caret pixel position (via the MT-012 Galley pos_from_cursor), visually distinct (e.g. underline + subtle background), WITHOUT mutating the document model (preedit stays overlay-only - the double-insert guard depends on it). On Commit, clear the overlay and insert via the existing path. On Disabled/cancel (empty Commit or Escape), clear the overlay with no insert.\n2. Position the OS IME candidate window at the caret: egui exposes Context::output Mut.ime / the egui-winit bridge uses the widget's IME rect - ensure the editor reports the caret rect so the OS candidate list appears at the caret, not the window origin (ctx.output_mut(|o| o.ime = Some(egui::output::IMEOutput { rect, cursor_rect }))).\n3. Enable IME at the shell: app.rs / eframe setup must call set_ime_allowed(true) on the window (documented as the shell contract in ime_handler.rs) so winit forwards IME events. Wire it (coordinate with E11/MT-069 host-mount; if the window handle is only available at host-mount, land the call there and reference it here - typed note, not a silent gap).\n4. Bring the code editor (code_editor/panel.rs) to the same IME behavior (its input handler currently does plain Event::Text; add Event::Ime preedit+commit so CJK works in code too).\n\nGrapheme correctness: the committed text + preedit may contain multi-codepoint graphemes (CJK is mostly 1 codepoint/glyph, but Korean can compose); insert via the MT-011 char-indexed rope (already proven char-correct by the emoji test). Caret after commit lands after the committed run.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/rich_editor/renderer/ime_handler.rs",
+      "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs",
+      "src/frontend/handshake_native/src/rich_editor/renderer/block_renderer.rs",
+      "src/frontend/handshake_native/src/rich_editor/renderer/line_layout.rs",
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/tests/test_ime_composition.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/**",
+      ".GOV/**",
+      "src/backend/**"
+    ],
+    "acceptance_criteria": [
+      "AC1: Feeding a Preedit('ni') then Preedit('nihao') then Commit('你好') event sequence to the rich-text editor inserts ONLY '你好' into the document (no preedit chars left in the rope), proven by a cargo test (extends the MT-012 double-insert guard with the new paint path).",
+      "AC2: While composing (PreeditState non-empty), a kittest screenshot shows the preedit text rendered INLINE at the caret with an UNDERLINE decoration (visually distinct from committed text) - the MT-012 AC-6 visual half now satisfied; verified by pixel/visual inspection (CJK glyphs render thanks to MT-075).",
+      "AC3: Escape / empty-Commit during composition clears the preedit overlay with NO insertion (cancel path) - cargo test.",
+      "AC4: The editor reports an IME caret rect via ctx.output_mut(...).ime so the OS candidate window anchors at the caret - asserted by inspecting the egui output IMEOutput in a kittest (rect matches the caret region, not origin).",
+      "AC5: The CODE editor (code_editor/panel.rs) handles the same Preedit/Commit sequence - a CJK string composes + commits into a code buffer (cargo test feeding Event::Ime through the code input handler).",
+      "AC6: set_ime_allowed(true) is wired at the shell (app.rs or the E11 host-mount it references) so winit forwards IME events; a grep/test confirms the call exists (or a typed BLOCKER names the exact host-mount step if the window handle is only available there).",
+      "AC7: AccessKit - the composing editor exposes its text + selection so a screen reader/agent can observe composition state (reuse the existing editor AccessKit nodes; no new tree).",
+      "AC8: No regression - full crate test suite green (this touches shared rich_editor_widget/block_renderer/input paths)."
+    ],
+    "proof_targets": [
+      "PROOF1: cargo test -p handshake-native ime_composition -- --nocapture: Preedit->Commit insert-only-commit (AC1), cancel clears (AC3), code-editor IME (AC5), IMEOutput rect (AC4).",
+      "PROOF2: egui_kittest screenshot -> EXTERNAL Handshake_Artifacts/handshake-test/wp-kernel-012-mt-076/mt076_ime_preedit.png showing the underlined inline CJK preedit at the caret; visually inspected.",
+      "PROOF3: grep/test confirming set_ime_allowed wiring (AC6).",
+      "PROOF4: cargo test -p handshake-native (FULL suite) = 0 failures."
+    ],
+    "implementation_notes": [
+      "RESEARCH BASIS: egui IME = ctx.output_mut(|o| o.ime = Some(IMEOutput{rect, cursor_rect})) to position the OS candidate window; consume egui::Event::Ime (NOT raw winit - the egui-winit bridge already surfaces it, per MT-012). winit's set_ime_allowed gates whether the OS sends composition events. The preedit-underline is a RENDER overlay (egui Galley + a painter underline line_segment), not a model mutation - this preserves MT-012's double-insert guard (preedit lives only in PreeditState).",
+      "DO NOT mutate the document model with preedit text - render it as an overlay. Commit is the only path that inserts (existing, proven). This is the load-bearing correctness invariant from MT-012.",
+      "Code editor: code_editor/panel.rs already has the live-typing/keymap loop (MT-010); add an Event::Ime arm that drives the CursorSet insert on Commit + a preedit overlay paint in the code painter (mirror the rich-editor approach).",
+      "set_ime_allowed: the window handle lives in the eframe/app bootstrap; if it is only reachable at the E11 host-mount (MT-069), land the call there and leave a typed reference here (carry-forward note), do NOT ship a silent no-op.",
+      "ARTIFACT HYGIENE (CX-212E): screenshot to the EXTERNAL wp-kernel-012-mt-076 root + assert_no_local_artifact_dir(); no repo-local tests/screenshots/. Cargo artifact-root env hotfix. FULL-suite gate (shared widgets touched).",
+      "NO PERPETUAL REPAINT: a blinking composition caret/underline must follow the MT-012 focus-guarded blink (request_repaint_after only while focused), never an unconditional per-frame repaint (MT-015 lesson).",
+      "MT-079 MOUNT CONTEXT + LOAD-BEARING STEERS (KERNEL_BUILDER gate 2026-06-26): set_ime_allowed(true) - the window handle IS now reachable: MT-079 host-mounted the editors in app.rs + established app.rs edits in-scope, so wire set_ime_allowed in the app.rs eframe/window bootstrap (AC6/RISK-3/MC-3 - NOT a typed blocker anymore; the window exists). LOAD-BEARING INVARIANT (RISK-1/MC-1, AC1 - the MT-012 double-insert bug): the preedit is OVERLAY-ONLY (PreeditState) - paint it as an underlined inline run at the caret (Galley pos_from_cursor) WITHOUT mutating the document model/rope; ONLY Commit inserts (via the existing proven char-indexed MT-011 path); Escape/empty-Commit clears the overlay with NO insert (AC3). Report the IMEOutput caret rect (ctx.output_mut(|o| o.ime=Some(IMEOutput{rect,cursor_rect}))) so the OS candidate window anchors at the caret not origin (RISK-2/MC-2, AC4). CODE editor (panel.rs) gets the same Event::Ime preedit+commit arm (AC5). FOCUS-GUARDED BLINK (RISK-4/MC-4, the MT-015 lesson): any composition caret/underline blink uses request_repaint_after ONLY while focused - NEVER an unconditional per-frame repaint. CJK preedit renders via the MT-075 font chain (done). FULL-SUITE no-regression (AC8/PROOF4): the -j2 suite has a KNOWN PRE-EXISTING wgpu flake (3 bins 0xc0000005: code_editor_panel/diff_editor_panel/embeds + 2 timing races e7_swarm/swarm_concurrency) - run those in ISOLATION to prove no IME regression (NOT a new failure). external screenshot mt076_ime_preedit.png (underlined inline CJK preedit at caret); no Color32 literal (theme); clippy clean."
+    ],
+    "ports_from_react": [
+      "No direct React port - the browser handled IME natively for the webview. app/src rich/code editors relied on the DOM's contenteditable/textarea IME; the native app must drive egui IME itself."
+    ],
+    "binds_backend_api": [
+      "None - IME is pure frontend input."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM",
+    "HBR-QUIET"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "NATIVE_GUI_V1",
+    "risks": [
+      "RISK-1: Painting the preedit accidentally inserts it into the rope (double-insert) - the exact MT-012 bug. Mitigation: preedit is overlay-only; AC1 + the existing guard test.",
+      "RISK-2: Candidate window appears at the window origin (not the caret) because the IME rect is not reported - unusable CJK input. Mitigation: AC4 IMEOutput rect.",
+      "RISK-3: set_ime_allowed never called -> the OS sends no composition events -> IME silently dead. Mitigation: AC6 explicit wiring or typed blocker.",
+      "RISK-4: Composition caret blink repaints every frame (idle CPU / harness.run max_steps - the MT-015 class). Mitigation: focus-guarded blink only.",
+      "RISK-5: Korean jamo composition produces combining sequences that the char-indexed rope mis-counts. Mitigation: insert via the proven char-indexed path; AC1 covers a multi-codepoint commit."
+    ],
+    "minimum_controls": [
+      "MC-1: preedit overlay-only (no model mutation) - AC1.",
+      "MC-2: IME caret rect reported - AC4.",
+      "MC-3: set_ime_allowed wired or typed blocker - AC6.",
+      "MC-4: focus-guarded blink (no perpetual repaint) - implementation note + full-suite gate."
+    ]
+  },
+  "research_basis": {
+    "sources_to_check": [
+      "egui IMEOutput / Context::output_mut().ime + Event::Ime docs (egui 0.33)",
+      "winit set_ime_allowed / Ime events",
+      "egui examples for IME / CJK input",
+      "MT-012 ime_handler.rs (existing commit + double-insert guard)"
+    ],
+    "selected_approach": "Paint preedit as an inline underlined overlay (no model mutation); report IMEOutput caret rect; enable set_ime_allowed; mirror in the code editor; commit via the existing char-indexed insert.",
+    "rejected": [
+      "mutating the model with preedit text (re-introduces double-insert)",
+      "raw winit IME handling (egui already surfaces Event::Ime)"
+    ],
+    "risks_mitigations": "double-insert -> overlay-only; wrong candidate position -> IMEOutput rect; dead IME -> set_ime_allowed; perpetual repaint -> focus-guarded blink.",
+    "validation_plan": "Preedit->Commit insert-only test in both editors + underlined-preedit screenshot + IMEOutput rect assertion + full-suite no-regression."
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate (my MT-076 contract) + MT-012 ime_handler.rs (commit+double-insert guard) + MT-075 CJK glyphs + MT-079 app.rs mount + egui IMEOutput",
+    "corrections": [
+      "set_ime_allowed wireable in app.rs NOW (MT-079 mounted the window/editors) - not a blocker",
+      "overlay-only preedit (no model mutation - the MT-012 double-insert invariant); underlined inline at caret; only Commit inserts char-correct; Escape clears",
+      "IMEOutput caret rect (candidate window at caret); code editor same Ime arm; focus-guarded blink (no perpetual repaint, MT-015 lesson)",
+      "full-suite no-regression w/ known wgpu-flake isolation; external screenshot; no Color32; clippy clean"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_4a27fb5e (impl + 3-lens panel; ALL PASS - no harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "56a5d405 feat MT-076 IME composition inline preedit in both editors"
+    ],
+    "review_panel": "correctness=PASS(0), backend-shape=PASS(0), perf-focus-hygiene=PASS(0) -> ALL PASS, zero must-fixes (11th clean all-PASS MT).",
+    "proofs": "AC1..8 + PROOF1..4 PASS; 11 IME tests + 1504 lib + FULL suite green in ONE run (136 binary results ok, 0 FAILED - even the known wgpu-flake bins passed) + clippy clean; IME inline preedit (Hi你好世界: Hi committed + 你好世界 underlined composing CJK real glyphs at caret) visually verified - MT-012 AC-6 visual half satisfied; screenshot EXTERNAL.",
+    "steers_held": "OVERLAY-ONLY preedit (the MT-012 double-insert invariant HELD): rope UNCHANGED while composing, ONLY Commit inserts char-correct (caret +2 CHARS not bytes); empty-Commit + ImeEvent::Disabled clear overlay no-insert. Underlined inline preedit at caret (Galley pos_from_cursor) + tinted bg, distinct from committed. IMEOutput caret rect [[22.6,59]-[60.5,77]] anchored at caret not origin. CODE editor same Event::Ime arm (composes x -> commits x你好). set_ime_allowed WIRED in app.rs (ViewportCommand::IMEAllowed(true) on first frame, live+grep - MT-079 mounted the window, not a blocker). AccessKit composition value in both editors. focus-guarded blink (no perpetual repaint). CJK renders via MT-075 chain.",
+    "waiver_granted": "app.rs (set_ime_allowed) + code_editor/panel.rs (Ime arm) + rich_editor/renderer/{block_renderer,ime_handler,rich_editor_widget}.rs (preedit paint) + test in allowed_paths."
+  }
+}

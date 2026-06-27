@@ -25,10 +25,15 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-001", "MT-010"],
-    "blocks": ["MT-072"],
+    "depends_on": [
+      "MT-001",
+      "MT-010"
+    ],
+    "blocks": [
+      "MT-072"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -37,6 +42,8 @@
       "src/frontend/handshake_native/src/top_menu_bar.rs",
       "src/frontend/handshake_native/src/code_editor/language_mode.rs",
       "src/frontend/handshake_native/src/code_editor/file_meta.rs",
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/src/code_editor/mod.rs",
       "src/frontend/handshake_native/tests/test_status_bar_editor_segments.rs"
     ],
     "forbidden_paths": [
@@ -71,7 +78,10 @@
       "RenderWhitespace here owns only the toggle state and the status-bar control; the actual middot/arrow glyph rendering is read from this flag by the MT-001 editor draw path.",
       "available_languages() must source from the MT-001 LanguageRegistry so the picker set matches the highlighter's supported languages exactly.",
       "Encoding reopen routes through the existing MT-010 document load path (re-decode on-disk bytes under the chosen encoding); read a BOM on load if present, else assume Utf8. No backend call — backend gaps are typed blockers.",
-      "AccessKit ids are registered via the WP-011 registry in accessibility/registry.rs (accessibility/mod.rs); do not hand-roll a new id registry."
+      "AccessKit ids are registered via the WP-011 registry in accessibility/registry.rs (accessibility/mod.rs); do not hand-roll a new id registry.",
+      "PATHS + REUSE VERIFIED (KERNEL_BUILDER gate 2026-06-25): the MT-001 LanguageRegistry is in code_editor/highlight.rs (with the extension lookup) - REUSE it for the Extension FALLBACK + available_languages() so the picker set matches the highlighter (AC-001/MC). language_mode.rs + file_meta.rs do NOT exist -> CREATE under code_editor/. The WP-011 status-bar SEGMENT helper + the right cluster (layout/pane-type/line:col/swarm/theme segments) are in top_menu_bar.rs (MT-069 already worked there) - FIND + REUSE the existing segment helper verbatim for all 5 new segments (NO new status bar / segment type, RISK-001/MC-001, AC-004/008); right-click via the WP-011 context_menu.rs/context_menu_surfaces.rs helper (now also MT-070-wired). The per-document language_id + buffer live on the CodeEditorPanel doc model (panel.rs / line_ops.rs) - ADDED panel.rs + code_editor/mod.rs to allowed_paths so the new metadata (language override / indent prefs / encoding / render-whitespace flag) HANGS OFF the MT-010 doc model (NOT a side store, RISK-004/MC-004 - persists across re-render+re-focus; the MT-001 draw + Tab-key path reads it). MT-079 already established panel.rs edits are in-scope (request_save_for_host).",
+      "DETECTION + EOL-SINGLE-UNDO + DEFAULTS (KERNEL_BUILDER gate): detect_language STRICT precedence UserOverride > Shebang > Content > Extension(MT-001 highlight.rs fallback) - encode explicitly, NEVER let extension beat an override/shebang (RISK-003/MC-003, AC-001 - shebang #!/usr/bin/env python->python, #!/bin/bash->shell; content <?php / <!DOCTYPE / package main->go; user override sticks per document). EOL convert LF<->CRLF MUST be ONE buffer-edit TRANSACTION (the MT-001/MT-010 buffer transaction API) so ONE Ctrl+Z reverts the WHOLE conversion - NOT per-line edits (RISK-002/MC-002, AC-002 - test: convert then single undo restores byte-for-byte). detect_indent: tabs in leading indent->Tabs; else infer space size from the most common positive leading-space delta; set_indent updates the doc Tab-key behavior. encoding reopen routes through the EXISTING MT-010 document LOAD path (re-decode on-disk bytes; BOM on load else Utf8) - NO backend call (RISK-005/MC-005, typed blocker if a field absent). RenderWhitespace owns ONLY the toggle state + status-bar control; the MT-001 editor draw path reads the flag for middot/arrow glyphs. DEFAULTS when ambiguous: Indent=Spaces size 4, EOL=Lf, Encoding=Utf8 (MC-007 - avoid surprising Tab-key flips).",
+      "HIDE + ACCESSKIT + WIRE-INTO-LIVE (KERNEL_BUILDER gate): all 5 segments (LanguageMode/Eol/Indent/Encoding/RenderWhitespace, left-to-right in the right cluster) HIDE (return early) when NO code-editor document is active (non-code pane focused) - NOT stale data (RISK-006/MC-006, AC-005). AccessKit status-bar-language-mode/eol/indent/encoding/render-whitespace (role=Button) + picker items status-bar-{segment}-item-{value} (ListItem) + picker container role=List - via the WP-011 accessibility/registry.rs (stable+unique, no hand-rolled registry, RISK-006/MC-006, AC-006). WIRE INTO THE LIVE (MT-079-MOUNTED) status bar: now that the code pane is mounted, the segments read the ACTIVE code document's metadata - re-prove against the LIVE top_menu_bar (kittest: focus a code pane -> 5 segments appear with real metadata + left-click picker + right-click menu; focus a non-code pane -> hidden). NO Color32 literal (theme); NO backend/SQLite; external screenshot; full suite -j 2 (serialize); clippy clean."
     ],
     "ports_from_react": [
       "WP-011 status/menu-bar segments (src/frontend/handshake_native/src/top_menu_bar.rs) — segment render pattern, right-cluster layout, and the segment context-menu pattern (context_menu.rs / context_menu_surfaces.rs) reused as the substrate for the five new editor metadata segments"
@@ -80,7 +90,10 @@
       "NONE — pure frontend status/menu-bar + editor-state work; language/EOL/indent detection are in-process; encoding reopen routes through the existing MT-010 frontend document load path; any genuine backend document-metadata gap is a typed blocker, not implemented here (no backend rewrite, PostgreSQL/EventLedger only at the backend, never SQLite)"
     ]
   },
-  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -106,5 +119,26 @@
       "MC-006: All five segments return early (hide) when no code-editor document is active; AccessKit author_ids are stable and unique per segment; verify via egui_kittest AccessKit dump.",
       "MC-007: Default indent to Spaces size=4 and default EOL to LF and default Encoding to Utf8 when detection is ambiguous, to avoid surprising mid-edit Tab-key flips."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + VERIFIED code_editor/highlight.rs LanguageRegistry (MT-001) + top_menu_bar.rs segment helper (WP-011, MT-069-touched) + CodeEditorPanel doc model (panel.rs/line_ops.rs) + MT-079 panel.rs in-scope + MT-070 context_menu helper",
+    "corrections": [
+      "LanguageRegistry in highlight.rs (reuse for extension fallback + available_languages); language_mode/file_meta CREATE under code_editor/; reuse top_menu_bar.rs WP-011 segment helper (no new bar)",
+      "added panel.rs + code_editor/mod.rs to allowed_paths - metadata HANGS OFF the doc model (not side store; Tab-key+draw read it; EOL convert uses the buffer transaction)",
+      "detection precedence UserOverride>Shebang>Content>Extension; EOL convert = ONE transaction (single Ctrl+Z); encoding via MT-010 load path (BOM/Utf8); defaults Spaces-4/Lf/Utf8",
+      "5 segments hide when no code doc; accesskit status-bar-{segment} via WP-011 registry; wire into the live MT-079-mounted status bar + re-prove; no backend/SQLite/Color32; -j 2"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_a6957144 (impl + 3-lens panel + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "2c7d3975 feat MT-071 status-bar editor segments + language/EOL/indent/encoding/whitespace metadata",
+      "5baa1e55 fix harden per adversarial review"
+    ],
+    "review_panel": "correctness=CHANGES_REQUIRED(2), backend-shape=CHANGES_REQUIRED(1), perf-focus-hygiene=CHANGES_REQUIRED(2) -> 5 must-fixes hardened.",
+    "proofs": "AC-001..008 + PT-001..005 PASS; 13 unit + 9 integration + 1482 lib + regression (top_menu_bar 13, panel 6, buffer 7, highlight 4, accesskit 9, context_menu 11/24, host_mount 5, menu_wireup 15, ui_snapshot 3) green; clippy clean; status-bar segments (Rust | LF | Spaces: 4 | UTF-8 | Whitespace) visually verified - VS Code file-metadata parity; screenshot EXTERNAL.",
+    "steers_held": "LanguageRegistry reused from code_editor/highlight.rs (extension fallback + available_languages); detection precedence UserOverride>Shebang>Content>Extension explicit; EOL convert = ONE pending_line_op_undo snapshot -> interop_adapter::push_code_edit_undo (single Ctrl+Z byte-for-byte restore); indent tabs/spaces+size -> MT-051 Tab-key path; 5 segments reuse the WP-011 segment helper + status_bar_context_items context-menu (no new bar/type); metadata HANGS OFF the doc model (panel.rs slots); encoding via doc load path (BOM/Utf8, typed blocker); RenderWhitespace flag -> MT-001 draw; hide-when-no-code-doc; accesskit status-bar-{segment} via accesskit_node_builder (collision test green); defaults Spaces-4/Lf/Utf8.",
+    "waiver_granted": "top_menu_bar.rs + code_editor/language_mode.rs (new) + file_meta.rs (new) + panel.rs (doc-model slots + convert_eol) + code_editor/mod.rs + test in allowed_paths."
   }
 }

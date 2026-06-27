@@ -25,10 +25,14 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-001"],
-    "blocks": ["MT-006"],
+    "depends_on": [
+      "MT-001"
+    ],
+    "blocks": [
+      "MT-006"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -37,7 +41,8 @@
       "src/frontend/handshake_native/src/code_editor/virtual_lines.rs",
       "src/frontend/handshake_native/src/code_editor/mod.rs",
       "src/frontend/handshake_native/src/code_editor/panel.rs",
-      "src/frontend/handshake_native/tests/test_virtual_lines.rs"
+      "src/frontend/handshake_native/tests/test_virtual_lines.rs",
+      "src/frontend/handshake_native/tests/test_code_editor_panel.rs"
     ],
     "forbidden_paths": [
       "app/src/** (legacy React, reference only)",
@@ -49,7 +54,9 @@
       "AC-002: Benchmark harness test `large_file_frame_time` renders a 100 000-line buffer through the CodeEditorPanel for 60 frames and records `frame_time_ms`; the test asserts max frame time < 4 ms (soft warn at 2 ms, hard fail at 4 ms).",
       "AC-003: egui_kittest screenshot of a 200-line buffer with scroll at line 100 shows lines 92-116 (±overscan) rendered and line 0 NOT rendered (pixel row for line 0 is background color).",
       "AC-004: AccessKit tree contains a node with author_id='code_editor_scroll_area' and role=ScrollView.",
-      "AC-005: No regression on MT-001 acceptance criteria (AC-001 through AC-006 still pass)."
+      "AC-005: No regression on MT-001 acceptance criteria (AC-001 through AC-006 still pass).",
+      "AC-006 (artifact hygiene, operator directive): the MT-001 panel screenshot test writes its PNG ONLY to the external artifact root (Handshake_Artifacts/handshake-test/...). NO repo-local test_output/ dir is created or left behind. Assert no repo-local test_output/ exists after the test run, and remove the existing orphan test_output/ dir.",
+      "AC-007 (KERNEL_BUILDER gate finding 2026-06-22, MUST-FIX): last_visible_range() and perf.frame_lines_rendered MUST reflect the ACTUAL line indices egui::ScrollArea::show_rows painted - capture the row_range passed to the paint closure - NOT a separate VirtualLineLayout::visible_range() recompute that adds +/-OVERSCAN_LINES which egui does not apply. The committed code (40b63602) stores the overscan-padded VirtualLineLayout range, which over-reports the painted window by ~8 lines and will misposition the cursor/gutter/selection overlay in MT-003+. FIX: capture egui's row_range into last_visible_range + perf.frame_lines_rendered; keep VirtualLineLayout for the headless AC-001 boundary math + total_height_px/y_for_line only; correct the virtual_lines.rs doc claim that the calc and the live render are identical (they agree only within overscan). Strengthen scroll_mid_virtualizes to assert last_visible_range() EQUALS the painted row_range (not merely contains(100)/excludes(0))."
     ],
     "proof_targets": [
       "PT-001: `cargo test -p handshake-native virtual_lines` — GREEN, output logged.",
@@ -61,7 +68,8 @@
       "Do not re-query `buffer.len_lines()` inside the row closure — cache it before the ScrollArea call.",
       "Highlight cache invalidation: use a `buffer_version: u64` counter incremented on every edit; cache is valid while `highlight_cache.version == buffer_version`.",
       "For the benchmark, use `std::time::Instant` around the egui frame call in a headless test; egui_kittest supports headless rendering via software rasterizer.",
-      "overscan constant: `const OVERSCAN_LINES: usize = 8;` defined in `virtual_lines.rs`."
+      "overscan constant: `const OVERSCAN_LINES: usize = 8;` defined in `virtual_lines.rs`.",
+      "RESEARCH-PROVENANCE wf_ffa74d6d 2026-06-22: egui::ScrollArea::show_rows IS the correct native virtualization primitive and is available in egui 0.33 (>> 0.27 in RISK-001); no custom painter needed for read/highlight virtualization. FORWARD NOTE: the editable cursor/selection/multi-cursor overlay (MT-003+) must be a custom egui painter layer over the virtualized rows, NOT an egui TextEdit (TextEdit cannot virtualize and forces full materialization). Keep MT-001 HighlightSpan{byte_range,scope} output stable."
     ],
     "ports_from_react": [
       "app/src/components/MonacoCodeBlockView.tsx lines 65-68 and 171-190 — Monaco's lazy viewport-driven mount (L7 pattern) is conceptually equivalent; native version is always mounted but renders only visible lines.",
@@ -71,7 +79,10 @@
       "None — virtualization is purely in-process rendering. No backend calls."
     ]
   },
-  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -89,6 +100,49 @@
       "MC-001: Benchmark test is gated in CI; failure blocks MT-002 DONE verdict.",
       "MC-002: visible_range unit tests must cover boundary conditions (0-line buffer, single-line buffer, scroll past end).",
       "MC-003: Screenshot test must verify that invisible lines are not rendered (background color check)."
+    ]
+  },
+  "research_provenance": {
+    "source": "wf_ffa74d6d WP-012 research/parity workflow 2026-06-22",
+    "notes": [
+      "show_rows confirmed for egui 0.33",
+      "editing surfaces use a painter not TextEdit",
+      "folded artifact-hygiene fix: redirect MT-001 panel-test PNG to external-only"
+    ]
+  },
+  "kernel_builder_review_findings": {
+    "reviewer": "KERNEL_BUILDER main-loop gate 2026-06-22 (subagent review blocked by sustained Anthropic API 529; formal subagent review+harden deferred until API recovers)",
+    "must_fix": [
+      "range/render divergence -> AC-007 (last_visible_range must equal egui's painted row_range)"
+    ],
+    "accepted_quality_notes": [
+      "panel.rs uses ~8 separate Mutex/Atomic fields to make the panel Sync (WP-011 PaneFactory is Send+Sync and holds the panel in Arc; RefCell is not Sync). Justified, uncontended on the single egui UI thread, poison-recovered via unwrap_or_else(into_inner). OPTIONAL later consolidation into one Mutex<RenderState>; not blocking, no deadlock/re-entrancy observed."
+    ],
+    "confirmed_clean": [
+      "virtual_lines.rs is pure + panic-free + boundary-tested (zero/NaN/inf line height, scroll-past-end)",
+      "no vibe/mocks/placeholders found in code_editor",
+      "artifact hygiene AC-006 satisfied (no repo-local test_output/ after tests)",
+      "virtualization visually verified: scroll-mid PNG shows mid-document lines, line 0 absent",
+      "release bench 0.846ms < 4ms; full crate suite green; clippy --all-targets -D warnings clean"
+    ],
+    "subagent_review_status": "PENDING: 4x API 529 (review agent could not spawn, 0 tokens). The pipeline review+harden will run when the API recovers and MUST satisfy AC-007 before MT-002 advances to READY_FOR_VALIDATION."
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline (impl wf_4eab00f1; KERNEL_BUILDER main-loop gate raised AC-007; adversarial-review + harden after API-529 recovery)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "40b63602 feat MT-002 virtualization (VirtualLineLayout + ScrollArea::show_rows)",
+      "5469ef71 fix harden per adversarial review (AC-007 + scroll-unit root cause + doc + test corrections)"
+    ],
+    "ac007_status": "SATISFIED: last_visible_range()/perf now capture egui show_rows ACTUAL painted row_range (not the overscan-padded recompute); item_spacing.y zeroed so egui row-height unit matches VirtualLineLayout; tautological AC-003 test rewritten to reconcile against on-screen labels; false 'calc==render' docs corrected.",
+    "deeper_bug_fixed": "scroll_to_line(N) landed on the wrong line (~83 for N=100) due to a sans-spacing vs with-spacing row-height mismatch; fixed. KERNEL_BUILDER gate flagged the symptom (PNG 83-93 vs range 92..122); adversarial review diagnosed the root cause; harden fixed + proved (PNG now shows line 100 at top).",
+    "proofs": "full crate suite GREEN (385 unit + all integration); release AC-002 gate median 0.630ms < 4ms (painted 47/100001); clippy --all-targets -D warnings clean; no repo-local target/ or test_output/; PNG visually inspected by KERNEL_BUILDER.",
+    "deferred": [
+      "AC-002 4ms perf gate runs only under --release (debug uses a 60ms invariant); CI MUST run cargo test --release for the hard gate - Integration Validator / CI-wiring concern (coder cannot edit .GOV/CI).",
+      "line_height_px is cached for the panel lifetime with no invalidation hook; a future zoom/font-size MT must invalidate it alongside buffer_version.",
+      "spans_in_byte_window MAX_BACKSTEP=4096 silent cap for >4096-span comments above the viewport -> MT-005 folding/large-comment handling.",
+      "RISK-002 undo version-bump end-to-end proof -> MT-003 (no length-changing undo path until then).",
+      "RISK-004 two-panel simultaneous scroll independence runtime test -> later (diff view MT-009)."
     ]
   }
 }

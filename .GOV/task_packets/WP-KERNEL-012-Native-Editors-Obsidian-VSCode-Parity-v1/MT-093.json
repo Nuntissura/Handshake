@@ -1,0 +1,147 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-093",
+  "title": "P5-MT-093-SurvivorStore-FlightRecorderForwarding",
+  "group": "P1 Palmistry (Tier 3 external watcher)",
+  "created_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-093.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-090",
+      "MT-091",
+      "MT-092"
+    ],
+    "blocks": [
+      "MT-096"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Implement Palmistry's DURABLE SURVIVOR STORE + recovery-time FLIGHT-RECORDER FORWARDING (Master Spec v02.196 §6.13.7). On a detected freeze (MT-091) or crash (MT-092), Palmistry persists a durable LOCAL survivor record (the freeze/crash timeline: last heartbeat snapshot, last-N events, OS hung-window probe result, minidump file path) that outlives the Handshake process. When Handshake RECOVERS (restarts after a crash, or unfreezes), Palmistry FORWARDS the captured freeze/crash records into the Flight Recorder (Tier 1) via the EXISTING FR HTTP route (reuse-via-API) so the out-of-process evidence rejoins the governed business-event ledger + shows up in the Diagnostics Panel (MT-087). CRITICAL HONESTY GATE (§6.13.7 + the FR-kept-as-is constraint): if the existing FR ingestion route CANNOT accept the forwarded record, surface a TYPED BLOCKER (honest) — do NOT fake the forward, do NOT edit the FR, do NOT invent a new FR route (the FR is forbidden_paths).\n\nExact files to create/edit (inside the palmistry crate + a thin reuse seam):\n- CREATE `src/frontend/palmistry/src/survivor_store.rs` — the durable local store. A `SurvivorRecord` (typed allowlist: record kind = Freeze|Crash, session-id, timestamps, stale-duration, last-heartbeat counter/timestamp, last-N DiagEvents (typed), hung-window-probe result, minidump path, exit code — NO project content / free text) serialized as JSON to a durable local dir (reuse the same portable per-user data dir convention as MT-083's crash dir, e.g. dirs-resolved `data_local_dir()/handshake/palmistry/survivors/`). ATOMIC writes (temp+rename) so a record survives a Palmistry restart. The store outlives both Handshake AND a Palmistry restart (read existing records on Palmistry startup).\n- CREATE `src/frontend/palmistry/src/fr_forward.rs` — the recovery-time forwarder. It REUSES the EXISTING Flight Recorder HTTP route. VERIFIED ROUTE (do not invent): `POST http://127.0.0.1:37501/api/flight_recorder/runtime_chat_event` is the verified FR ingestion endpoint (confirmed in the Handshake-side event_emitter.rs which posts exactly there, building a `RuntimeChatEventV0_1` body; the route requires an `actor_id` and a non-nil session UUID). The forwarder builds a FR event body carrying ONLY the typed survivor fields (event code, timestamps, counters, minidump path string as a local reference — NO project content), posts it to the FR route via reqwest, and on success marks the survivor record forwarded (idempotent — do not double-forward). HONESTY: if the FR route does NOT accept the survivor shape (e.g. runtime_chat_event's schema cannot represent a freeze/crash record, or it rejects the actor_id, or the route is absent), the forwarder returns a TYPED BLOCKER (`FrForwardBlocker::SchemaIncompatible` / `RouteAbsent` / `Rejected{status}`) and the survivor record stays local + flagged 'forward pending — typed blocker', surfaced honestly; it MUST NOT fabricate a success and MUST NOT edit the FR. The coder VERIFIES against the running FR whether runtime_chat_event can carry the survivor payload; if it cannot, the typed blocker is the correct, honest outcome (and a follow-on/WP-016 item to add a proper FR ingestion shape — without touching the FR here).\n- WHO forwards (recovery detection): Palmistry detects Handshake recovery either (a) the heartbeat resumes advancing after a freeze (MT-091 recovery), or (b) a NEW Handshake instance reconnects to Palmistry's control socket / starts a new session (after a crash-restart). On either, drain the unforwarded survivor records and forward them. Forwarding can ALSO be initiated from the Handshake side on recovery (Handshake reads Palmistry's survivor store + posts to its own FR) — choose the simpler reliable path and document it; the constraint is the same: reuse the existing route, honest blocker if incompatible.\n- CREATE `src/frontend/palmistry/tests/test_survivor_store.rs` + `src/frontend/palmistry/tests/test_fr_forward.rs`.\n\nTYPED-ALLOWLIST (§6.13.8): the survivor record + the forwarded FR body carry NO project content, NO free text — only typed integers, enums, timestamps, and local file-path references (the minidump path is a local path string, not project data). A test asserts the survivor record + the forward body contain no free-text/content field.\n\nReuse note: the FR HTTP route is the EXISTING verified `POST /api/flight_recorder/runtime_chat_event` (event_emitter.rs is the in-repo reference for the exact body shape + actor_id/session requirements). reqwest is the client (palmistry already has serde_json; add reqwest if forwarding from the palmistry side, OR forward from the handshake-native side which already has reqwest + the FR client — choose + document). dirs for the portable store path. src/backend + the FR module are forbidden_paths (reuse-via-API only).\n\nRisk if missed: §6.13.7 unmet (out-of-process evidence never rejoins the ledger; the Diagnostics Panel Tier-3 section stays empty); OR (the dishonest failure) a faked forward that claims success when the FR cannot actually accept the record — which would hide the real integration gap and violate the no-fake-runtime + FR-kept-as-is constraints.",
+    "allowed_paths": [
+      "src/frontend/palmistry/src/survivor_store.rs",
+      "src/frontend/palmistry/src/fr_forward.rs",
+      "src/frontend/palmistry/src/main.rs",
+      "src/frontend/palmistry/Cargo.toml",
+      "src/frontend/palmistry/tests/test_survivor_store.rs",
+      "src/frontend/palmistry/tests/test_fr_forward.rs",
+      "src/frontend/handshake_native/src/diagnostics/mod.rs",
+      "src/frontend/handshake_native/src/diagnostics/survivor_forward.rs",
+      "src/frontend/handshake_native/tests/test_survivor_forward.rs"
+    ],
+    "forbidden_paths": [
+      "src/backend/handshake_core/src/flight_recorder/** (FR KEPT AS-IS — reuse the existing HTTP route only; if it cannot accept the record, raise a typed blocker, do NOT edit the FR)",
+      "src/backend/** (reuse via API only)",
+      "src/frontend/handshake_native/diag_ring/** (MT-081-owned; reuse via API)",
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-013-1: a detected freeze (MT-091) or crash (MT-092) writes a durable local SurvivorRecord (typed: kind, session-id, timestamps, stale-duration, last heartbeat, last-N typed events, probe result, minidump path, exit code) via an atomic write; the record is re-readable after a simulated Palmistry restart (it outlives the process).",
+      "AC-013-2: the survivor record + the forward body carry NO project content / free text — a source + value scan asserts only typed integers/enums/timestamps + local path references (typed allowlist, §6.13.8).",
+      "AC-013-3 (FR FORWARD, reuse-via-API): on Handshake recovery, the forwarder posts the typed survivor record to the EXISTING `POST /api/flight_recorder/runtime_chat_event` route (the verified FR ingestion endpoint) and, on HTTP success, marks the record forwarded idempotently (no double-forward). Proven against a running FR (gated requires_pg/integration if no managed backend in the env) OR by a local stub server asserting the exact route + body shape is what the real FR expects (matching event_emitter.rs's verified body).",
+      "AC-013-4 (HONEST BLOCKER): if the FR route CANNOT accept the survivor shape (schema incompatible / route rejects / absent), the forwarder returns a TYPED BLOCKER and the record stays local flagged 'forward pending', surfaced honestly — proven by a test feeding an incompatible/absent route and asserting the typed blocker (NOT a faked success). The FR module is NOT edited.",
+      "AC-013-5: recovery detection works — the forwarder fires on heartbeat-resume (unfreeze) and on a new-session reconnect (crash-restart); a stale unforwarded record is drained on the next recovery, not lost.",
+      "AC-013-6: the Diagnostics Panel (MT-087) Tier-3 section can now show forwarded freeze/crash records (the §10.12.5 Tier-3 surface is fed) — at minimum the forward path is wired so MT-087's empty-state becomes populated post-recovery (proven by the panel reading a forwarded record, or a documented seam if the panel reads via the FR pane).",
+      "AC-013-7: `cargo build -p palmistry` + `-p handshake-native` clean; clippy `--all-targets -D warnings` clean; full handshake-native suite `-j 2` green; external target dirs; no repo-local target/, no tracked artifact."
+    ],
+    "proof_targets": [
+      "PT-013-A: `cargo test -p palmistry survivor_store` GREEN — atomic durable record, survives Palmistry restart, typed-allowlist only.",
+      "PT-013-B: `cargo test fr_forward` GREEN — posts to the verified runtime_chat_event route on recovery (live-FR gated or stub-shape-matched), idempotent mark-forwarded.",
+      "PT-013-C: honest-blocker test GREEN — incompatible/absent route => typed blocker, no fake success, FR untouched.",
+      "PT-013-D: recovery-detection (unfreeze + crash-restart) drains unforwarded records; both crates build clean + clippy -D warnings + full suite -j 2 green."
+    ],
+    "implementation_notes": [
+      "The FR route is the EXISTING verified `POST http://127.0.0.1:37501/api/flight_recorder/runtime_chat_event` — event_emitter.rs is the in-repo reference for the exact RuntimeChatEventV0_1 body + the actor_id + non-nil session-UUID requirements. REUSE it; do NOT invent a new route, do NOT edit the FR module (forbidden_paths).",
+      "HONESTY GATE: VERIFY whether runtime_chat_event can actually carry a freeze/crash survivor payload. If its schema cannot represent it (it is a chat-event shape), the correct outcome is a TYPED BLOCKER (FrForwardBlocker) + the record stays local flagged pending, plus a documented follow-on (WP-016) to add a proper FR ingestion shape WITHOUT touching the FR here. Do NOT fake a success. (event_emitter.rs already documents a similar typed-backend-blocker pattern for a missing native-editor ingestion shape — mirror that honesty.)",
+      "Survivor store: typed-allowlist JSON, atomic temp+rename, portable dirs-resolved per-user dir (same convention as MT-083). Read existing records on startup so a Palmistry restart does not lose pending forwards.",
+      "Idempotent forward: mark a record forwarded on HTTP success; never double-forward; a failed forward leaves it pending for the next recovery.",
+      "Choose the forward INITIATOR (Palmistry-side reqwest post, OR handshake-native-side which already has reqwest + the FR client) and document it. Either way: reuse the existing route + honest blocker if incompatible. The handshake-native survivor_forward.rs seam is provided in allowed_paths for the Handshake-side option (it can read Palmistry's store + post via its existing FR client on recovery).",
+      "Minidump path is a LOCAL path string reference (not project data); the minidump itself stays local-only (§6.13.8) — the forward carries the typed metadata + the path, never the dump bytes, never project content.",
+      "Read the KERNEL_BUILDER coder protocol under .GOV/ first; the FR-kept-as-is + no-fake-runtime constraints make the honest typed blocker (AC-013-4) a first-class acceptable outcome if the route is incompatible — surface it, do not paper over it."
+    ],
+    "ports_from_react": [
+      "NONE (native survivor store + FR reuse)"
+    ],
+    "binds_backend_api": [
+      "REUSES the EXISTING verified `POST /api/flight_recorder/runtime_chat_event` Flight Recorder ingestion route (event_emitter.rs reference). NO new endpoint, NO FR edit. If the route cannot carry the survivor shape, a TYPED BLOCKER is raised (honest) and a WP-016 follow-on is noted — without touching the FR module."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "status": "WIRED",
+      "reason": "This MT forwards the out-of-process freeze/crash survivor evidence into the Tier 1 Flight Recorder via the EXISTING verified runtime_chat_event HTTP route (reuse-via-API, FR kept as-is). The cross-tier recovery-forward (§6.13.7) is the FR-touching obligation, satisfied here — with an HONEST typed blocker if the existing route cannot carry the shape (the FR is never edited)."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "WIRED",
+      "reason": "The survivor record bundles the Tier 2 ring's last heartbeat + last-N events (read via MT-090) into the durable evidence, and the forwarded record feeds the §10.12.5 Diagnostics Panel Tier-3 section that MT-087 left as an empty-state. The Tier 2 -> survivor -> panel link is wired here."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "WIRED",
+      "reason": "This MT IS §6.13.7 Palmistry's durable survivor store + recovery-time forwarding: the out-of-process freeze/crash evidence persisted locally and rejoined to the governed ledger on recovery. Built + proven here."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PALMISTRY_WATCHER_V1",
+    "risks": [
+      "RISK-013-1: a FAKED forward that claims FR success when the FR cannot actually accept the record — hides the real integration gap + violates no-fake-runtime + FR-kept-as-is. Mitigate: honest typed blocker on incompatibility (AC-013-4); never fabricate success.",
+      "RISK-013-2: editing/extending the FR module to accept the record (forbidden — FR kept as-is). Mitigate: FR is forbidden_paths; only the existing route is used; a typed blocker + WP-016 follow-on if incompatible.",
+      "RISK-013-3: project content / free text leaks into the survivor record or the forward body. Mitigate: typed-allowlist only; value scan (AC-013-2).",
+      "RISK-013-4: a survivor record is lost on Palmistry restart (non-durable / non-atomic write). Mitigate: atomic temp+rename + read-existing-on-startup (AC-013-1).",
+      "RISK-013-5: double-forward on flapping recovery, or a pending record never drained. Mitigate: idempotent mark-forwarded + drain-on-recovery (AC-013-3/5).",
+      "RISK-013-6: forwarding the minidump bytes (not just the path) auto-uploads dump data (violates §6.13.8 local-only). Mitigate: forward the typed metadata + local path reference only, never the dump bytes."
+    ],
+    "minimum_controls": [
+      "MC-013-1: honest typed blocker if the FR route is incompatible; FR never edited (AC-013-4 / RISK-013-1/2).",
+      "MC-013-2: typed-allowlist survivor record + forward body (AC-013-2).",
+      "MC-013-3: atomic durable store surviving a restart (AC-013-1).",
+      "MC-013-4: idempotent forward + drain-on-recovery (AC-013-3/5)."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-KERNEL-012 field research (June 2026); FR route verified in-repo (event_emitter.rs) 2026-06-27",
+    "field_stack": "Crashpad-style durable survivor store (records outlive the client + the handler restart) + recovery-time upload-to-ledger. Here the 'ledger' is the existing Flight Recorder reached via its verified runtime_chat_event HTTP route (reuse-via-API). The honest-typed-blocker pattern mirrors event_emitter.rs's existing typed-backend-blocker for an absent native-editor ingestion shape.",
+    "crate_versions_verified_2026_06_27": {
+      "reqwest": "0.12 (FR post; already a handshake-native dep)",
+      "serde_json": "1 (survivor JSON; palmistry already has it)",
+      "dirs": "5 (portable store path; already a handshake-native dep — add to palmistry if forwarding/storing there)",
+      "fr_route_verified": "POST /api/flight_recorder/runtime_chat_event (event_emitter.rs, requires actor_id + non-nil session UUID)"
+    },
+    "motivating_incident": "The 2026-06-26 freeze produced no governed-ledger record of the freeze; §6.13.7 + this MT close that gap — the out-of-process evidence rejoins the FR on recovery and shows in the Diagnostics Panel, instead of being lost when the in-process tools stalled.",
+    "validation_plan": "durable atomic survivor store + restart-survival + typed-allowlist + FR forward via the verified route (live-gated or stub-shape-matched) + honest blocker on incompatibility + recovery-drain; clippy -D warnings; full suite -j 2."
+  }
+}

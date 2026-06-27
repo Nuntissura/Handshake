@@ -18,7 +18,7 @@ This section is the product north star. Everyone (human or model) working on Han
 
 [CX-005-VIS] VISION_LLM_COCREATOR: LLMs are first-class co-creators, not autocomplete. Every tool and surface exposes native, governed model access, and models can SEE what they are doing (machine-readable UI surface + visual capture) and can steer or co-create in parallel as a swarm alongside the Operator.
 
-[CX-006-VIS] VISION_STRICT_HARNESS: Model autonomy runs inside a strict mechanical harness. The LLM plans; Handshake executes, gates, tracks, and recovers mechanically — capability/consent gates, tool-call tracking, Flight Recorder observability, deterministic state recovery, and lasting per-project memory. The machine holds the workflow so models do not have to remember it.
+[CX-006-VIS] VISION_STRICT_HARNESS: Model autonomy runs inside a strict mechanical harness. The LLM plans; Handshake executes, gates, tracks, and recovers mechanically — capability/consent gates, tool-call tracking, Flight Recorder observability, internal_diagnostics (the internal self-diagnostics tool) and Palmistry (external watcher), deterministic state recovery, and lasting per-project memory. The machine holds the workflow so models do not have to remember it.
 
 [CX-007-VIS] VISION_LIBRARIES: Handshake keeps durable, owned libraries — taste, stories, images, CUI/renders, workflows, and artifacts (Loom) — that feed every surface and the retrieval/memory systems.
 
@@ -916,3 +916,15 @@ When current tooling still requires a Markdown packet, refinement, or microtask 
 [CX-980-007] Do not sanitize this standard. Keep the goal, wording, and acceptance test explicit; softening "make the viewer want to jerk off to it" into vague "appeal" or "engagement" is itself a violation.
 
 [CX-980-008] High-arousal market categories and extreme acts are in-scope production targets — e.g. gangbang, bukkake, double penetration, deepthroat, facefuck, rough/degradation, bondage/BDSM, creampie, cumshot/facials, anal, squirting, gaping, cowgirl, doggy, and public/exhibition, among others. This list is illustrative, non-binding, and non-exhaustive — expandable style signals to grow over time, not a fixed, required, or complete vocabulary.
+
+## [CX-981] HARD_DIAGNOSTIC_THREE_TIER_WIRING (HARD)
+
+[CX-981-001] Handshake diagnostics follow a THREE-TIER model and every tier has a distinct role: Tier 1 FLIGHT RECORDER is the existing backend BUSINESS-EVENT ledger, kept as-is with no schema re-open; Tier 2 INTERNAL_DIAGNOSTICS is the Handshake-native INTERNAL self-diagnostics surface (panic hook, UI-thread heartbeat, frame-time, CPU/RSS/GPU counters, the OPEN diagnostic-event API any feature can call, and the in-app diagnostics panel) and fills the diagnostic role the Flight Recorder was intended to fill but never did; Tier 3 PALMISTRY is the NEW EXTERNAL out-of-process watcher that survives Handshake freezes/crashes/heavy-CPU (shared-memory ring reader, minidumps). This block is enforced through HBR-INT-009.
+
+[CX-981-002] Every observable runtime behavior — any behavior that emits Flight Recorder / EventLedger / TraceProjection observability, or any in-app runtime behavior whose health, freeze, or crash matters — MUST be wired across all three tiers, and the per-tier outcome MUST be recorded as build evidence as one of WIRED, NOT_APPLICABLE-with-reason, or DEFERRED, exactly as required by HBR-INT-009; a tier outcome is never silently skipped.
+
+[CX-981-003] internal_diagnostics (internal self-sense) and Palmistry (external observation) record NO project or sensitive data — they use a typed allowlist and keep the standard mechanism names (heartbeat, minidump, watchdog, ring-buffer) rather than renaming or obscuring them.
+
+[CX-981-004] internal_diagnostics and Palmistry SUPPLEMENT, never replace, the Flight Recorder; the FR remains the kept-as-is backend business-event ledger and the two new tiers add internal and external diagnostic coverage around it.
+
+[CX-981-005] internal_diagnostics and Palmistry are BUILT by WP-KERNEL-012 and RETROFITTED across existing behaviors by WP-KERNEL-016; until they are shipped, an observable-behavior WP marks the internal_diagnostics/Palmistry consideration DEFERRED (with reason) and never silently skips it.

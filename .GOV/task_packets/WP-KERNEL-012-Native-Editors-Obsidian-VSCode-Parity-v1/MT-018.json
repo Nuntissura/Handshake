@@ -25,9 +25,12 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-011", "MT-012"],
+    "depends_on": [
+      "MT-011",
+      "MT-012"
+    ],
     "blocks": [],
     "validator_verdict": "PENDING"
   },
@@ -71,7 +74,11 @@
       "Replace-all in reverse order: sort matches by (node_path descending, char_start descending) before applying; this ensures earlier matches are not invalidated by later replacements.",
       "The highlight layer paints AFTER all block content is painted, so highlights appear on top of the text. Use painter.add(epaint::Shape::Rect) with a semi-transparent fill.",
       "The panel must NOT steal keyboard focus from the editor content; egui::Window does not auto-steal focus. The find input is focused explicitly only when the panel opens (call ui.memory().request_focus(find_input_id)).",
-      "For code_block matches, the highlight is painted over the code_block egui widget's bounding rect region corresponding to the matched char range in the rope."
+      "For code_block matches, the highlight is painted over the code_block egui widget's bounding rect region corresponding to the matched char range in the rope.",
+      "HIGHLIGHT POSITIONS = Galley, NOT cosmic-text (KERNEL_BUILDER gate 2026-06-22): the contract says resolve match char ranges via 'cosmic-text glyph layout' - but MT-012 uses egui LayoutJob + epaint Galley (NO cosmic-text), and MT-015's chip painting already uses Galley. Resolve match rects via the SAME Galley row layout / pos_from_cursor, scroll-adjusted, painted as semi-transparent epaint::Shape::Rect AFTER block content (current match accent ~60% / others ~25%). Module root is rich_editor/ NOT rich_text/ (real tree).",
+      "RUST REGEX IS LINEAR-TIME (KERNEL_BUILDER gate - corrects RISK-003/MC-003): the Rust `regex` crate is a finite-automaton engine with NO catastrophic backtracking (unlike PCRE/JS), so '(a+)+$' does NOT hang it. Do NOT add the MC-003 thread/channel timeout machinery for a non-existent backtracking risk - instead use regex::RegexBuilder::size_limit/dfa_size_limit (compile-time memory guard) + the MAX_MATCHES=1000 cap (matching the React EMPTY_SCAN). Invalid regex -> FindScanResult::invalid_regex(message) -> red 'find-error' + cleared highlights.",
+      "SCANNER IS PURE IN-MEMORY CPU, NO PERPETUAL SPINNER (KERNEL_BUILDER gate - MT-015 spinner-regression lesson): scan() walks the DocModel in-process (NO backend, NO tokio runtime needed) - run it SYNCHRONOUSLY (optionally spawn_blocking ONLY for very large >50ms docs). Any 'Scanning…' indicator must animate ONLY during a genuine in-flight off-thread scan, NEVER an idle auto-repainting Spinner (the find panel + highlight layer live in the shared rich_editor_widget.rs - an idle spinner would re-break test_embeds/test_formatting_toolbar/test_rich_editor_widget). The panel renders ONLY when open (Ctrl+F/Ctrl+H; default closed), so the common path adds no repaint.",
+      "REPLACE TRANSACTIONS (KERNEL_BUILDER gate): Replace operates on TextLeaf rope char ranges via MT-011 Step::DeleteText + Step::InsertText - these ARE proper undoable Steps (this is TEXT replace, NOT the inline-atom-insert gap carried to MT-020). Replace-One = ONE atomic Transaction (single Ctrl+Z) then advance. Replace-All = ONE Transaction with all steps sorted DESCENDING by (node_path, char_start) so earlier positions don't drift (MC-001). Panel must NOT steal editor keyboard focus - egui::Window doesn't auto-steal; request_focus the find-input ONLY on open (HBR-QUIET). Screenshots mt018_*.png to the EXTERNAL Handshake_Artifacts/handshake-test/wp-kernel-012-mt-018/ root + assert_no_local_artifact_dir(). ACCESSKIT VARIANT: field-correct nearest accesskit 0.21.1 Role; ACs assert the author_ids (find-panel/find-input/find-count/...)."
     ],
     "ports_from_react": [
       "app/src/components/FindReplacePanel.tsx (panel layout: find input, toggle buttons, count display, next/prev/replace-one/replace-all/close; AccessKit stable ids; keyboard: Enter/Shift+Enter/Escape)",
@@ -82,7 +89,11 @@
       "No backend API calls. Find/replace operates entirely on the in-memory DocModel."
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -102,5 +113,27 @@
       "Wrap the regex match call in a timeout using the regex crate's 'size-limit' feature or a std::thread::spawn with a 200 ms channel timeout; on timeout, return FindScanResult::regex_timeout_error.",
       "After any document mutation (Transaction applied), immediately clear highlight_layer highlights and set a 'scan_needed' flag; highlights are repainted only after the next scan completes."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-012 Galley engine + MT-015 spinner lesson + Rust regex semantics",
+    "corrections": [
+      "highlight positions via Galley not cosmic-text",
+      "Rust regex is linear-time - drop the thread-timeout, use size_limit + MAX_MATCHES",
+      "scanner pure-CPU synchronous, no idle spinner in the shared widget",
+      "replace via Step::DeleteText/InsertText (undoable text replace), reverse-sorted Replace-All",
+      "panel non-focus-stealing; screenshots external; accesskit variant"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_90b5f46a (impl + adversarial-review PASS, no harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "455a6690 feat MT-018 document-wide rich-text find/replace (prose + code blocks)"
+    ],
+    "review_verdict": "PASS",
+    "proofs": "AC-1..11 GREEN; 28 lib + 8 integration + 45 find_replace tests; clippy --all-targets clean; find panel (foo · Aa/W/.* toggles · '1 of 5' · prev/next · 5 matches highlighted green across PROSE + CODE BLOCK) visually verified; replace-one/replace-all atomic single-undo proven; screenshots EXTERNAL (git ls-files src/**/*.png empty).",
+    "corrections_held": "My patches held: highlight positions via egui Galley (chip_rect_for_span, NOT cosmic-text); Rust regex linear-time (no thread-timeout - used size_limit + MAX_MATCHES cap); scanner pure-CPU synchronous (no idle spinner); replace via undoable Step::DeleteText/InsertText (one Transaction, reverse-sorted Replace-All).",
+    "no_spinner_regression": "Agent explicitly ran the at-risk shared-widget bins (test_rich_editor_widget 6 / test_embeds / test_formatting_toolbar / test_slash_commands 9 / test_wikilinks 8) ALL GREEN - the spinner-regression risk did NOT recur. The find-panel screenshot ALSO confirms the MT-015 spinner fix is live: the backlinks panel shows 'Backlinks not loaded.' (neutral Idle state, no perpetual Spinner).",
+    "notes": "GPU race mitigated with a process-wide gpu_lock() Mutex (2 concurrent wgpu adapters fault on this host; 8/8 parallel green with the lock). Residual: scrolled-tall-doc highlight tracking is unit-proven (chip_rect_for_span scroll-adjust inherited from MT-015) but not integration-tested while scrolled - minor. RISK-4 stale highlights mitigated by per-frame rescan (supersedes the literal clear-flag). Module root rich_editor/ not rich_text/."
   }
 }

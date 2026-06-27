@@ -25,10 +25,15 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-001", "MT-002"],
-    "blocks": ["MT-045"],
+    "depends_on": [
+      "MT-001",
+      "MT-002"
+    ],
+    "blocks": [
+      "MT-045"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -36,7 +41,10 @@
     "allowed_paths": [
       "src/frontend/handshake_native/src/code_editor/render_decorations.rs",
       "src/frontend/handshake_native/src/code_editor/word_wrap.rs",
-      "src/frontend/handshake_native/src/code_editor/viewport.rs",
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/src/code_editor/virtual_lines.rs",
+      "src/frontend/handshake_native/src/code_editor/mod.rs",
+      "src/frontend/handshake_native/src/theme/palette.rs",
       "src/frontend/handshake_native/tests/test_bracket_match.rs",
       "src/frontend/handshake_native/tests/test_indent_guides.rs",
       "src/frontend/handshake_native/tests/test_word_wrap.rs"
@@ -70,7 +78,10 @@
       "Indent level = leading whitespace columns / tab_width (expand tabs to tab_width columns); active guide = the guide enclosing the cursor's current block. Draw guides with ui.painter().vline, theme tokens visuals.indent_guide and visuals.indent_guide_active sourced from the theme/ layer.",
       "Alt+Z shortcut: egui::KeyboardShortcut { modifiers: egui::Modifiers::ALT, key: egui::Key::Z }; consume via ui.input_mut(|i| i.consume_shortcut(&sc)) before default handling to avoid inserting 'z'.",
       "Bracket-pair colors are painted by re-drawing the bracket glyph in the depth color over the syntax-highlighted text (z-order: text, then bracket-pair color, then bracket-match highlight, then indent guides under text); do not mutate buffer text or the HighlightSpan list.",
-      "Cross-WP reuse pointer: the AccessKit toggle node attaches to the existing accessibility/registry.rs registry (WP-011 module under src/frontend/handshake_native/src/accessibility/), and editor visuals draw their colors through the existing theme/ layer (WP-011 module under src/frontend/handshake_native/src/theme/). Reuse these; do not stand up parallel accessibility or theme machinery."
+      "Cross-WP reuse pointer: the AccessKit toggle node attaches to the existing accessibility/registry.rs registry (WP-011 module under src/frontend/handshake_native/src/accessibility/), and editor visuals draw their colors through the existing theme/ layer (WP-011 module under src/frontend/handshake_native/src/theme/). Reuse these; do not stand up parallel accessibility or theme machinery.",
+      "PATH + THEME-TOKEN (KERNEL_BUILDER gate 2026-06-24): viewport.rs DOES NOT EXIST (verified at MT-053) - the MT-002 virtualization is code_editor/panel.rs (CodeEditorPanel::show paints via egui::ScrollArea::show_rows) + virtual_lines.rs (the visible-row window math). Integrate the word-wrap VisualRow math into virtual_lines.rs + overlay the decorations (bracket match/colorize, indent guides) in panel.rs's paint pass + persist WrapConfig on the panel state - NOT a fictional viewport.rs. THEME TOKENS (CRITICAL - the CONTROL-4 guard, the MT-023/028 lesson): indent_guide + indent_guide_active + bracket_pair_palette (Vec<Color32>) MUST live in theme/palette.rs (added to allowed_paths) - NO Color32::from_rgb/hex literal in render_decorations.rs/word_wrap.rs/panel.rs paint paths (test_theme::no_hardcoded_color32 exempts ONLY palette.rs/syntax.rs). Pull the bracket-pair colors + guide colors THROUGH the theme layer. The correctness lens runs bare cargo test incl test_theme - a paint-path from_rgb fails the gate.",
+      "WRAP SCROLL-MATH SINGLE SOURCE + 1:1 FAST PATH (KERNEL_BUILDER gate - the trickiest integration): under wrap, the egui::ScrollArea::show_rows ROW COUNT + first-visible-row + scrollbar extent MUST all be driven from the VisualRow list (NOT logical lines) so paint + scroll share ONE source of truth (RISK-001/MC-001 - else scrolling a wrapped doc jumps/clips). When wrap is DISABLED, layout_visual_rows is a STRICT 1:1 identity (wrap_index=0, fast path skipping the wrap computation entirely) so the MT-002 non-wrap baseline render is UNCHANGED (RISK-006/MC-006 - regression guard: assert the existing virtual_lines/panel show_rows tests + the non-wrap screenshot are byte-identical). char_width_px + row_height_px from the SAME egui::FontId the MT-002 renderer uses (ui.fonts(|f| f.glyph_width(&font_id,' ')) - RISK-002/MC-002, no independent metric recompute -> indent-guide x + wrap breaks stay aligned with painted glyphs).",
+      "DECORATION CORRECTNESS + HYGIENE (KERNEL_BUILDER gate): find_matching_bracket BOUNDED to the visible byte range + a fixed look-ahead/behind cap - return None past the cap, do NOT scan the whole file every frame (RISK-003/MC-003 - no O(n)/frame stall on big files); VS Code adjacency (cursor before-open OR after-close); shared depth counter across families for the color index but match partners WITHIN the same family (note 67); string/comment bracket-matching is a DOCUMENTED v1 limitation (syntactic only, no string-awareness, RISK-004/MC-004). indent guides SUPPRESSED on wrap-continuation rows (wrap_index>0 - only the first visual row of a logical line carries guides, RISK-007/MC-007); active guide = the block enclosing the cursor (indent_guide_active token). Alt+Z = egui::KeyboardShortcut{ALT,Key::Z} consumed via ui.input_mut(consume_shortcut) BEFORE default text handling (RISK-005/MC-005 - unit-test toggling inserts NO 'z'); WrapConfig.enabled persisted on the panel state. NO buffer mutation - render/decoration ONLY (AC-007 grep: no TextBuffer::insert/delete in the 3 files); z-order text->bracket-pair-color->bracket-match-highlight->indent-guides. AccessKit editor-wrap-toggle (Role::Button, Toggled prop) under the MT-002 editor container via accessibility/registry.rs (no 2nd root). Screenshot to the EXTERNAL wp-kernel-012-mt-054 root (NOT test_output/ - CX-212E). PURE frontend (binds NONE, no live PG); full suite via -j 2 (~90 bins OOM); clippy clean."
     ],
     "ports_from_react": [
       "app/src/lib/monaco/* (bracket pair / guides / wrap options) — port the Monaco editor option model for bracketPairColorization, guides.indentation/guides.bracketPairs, and wordWrap (off|on|wordWrapColumn) into the Rust WrapConfig + decoration palette; match the option semantics, not the Monaco internals."
@@ -79,7 +90,9 @@
       "NONE — pure frontend render-layer MT; no handshake_core API call. Bracket scanning, indent computation, and wrap layout all read the in-process TextBuffer from MT-001."
     ]
   },
-  "hbr_obligations": ["HBR-VIS"],
+  "hbr_obligations": [
+    "HBR-VIS"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -105,5 +118,26 @@
       "MC-006: Keep a strict 1:1 fast path in layout_visual_rows when wrap is disabled and add a regression test that the MT-002 non-wrap baseline screenshot is byte-identical.",
       "MC-007: Suppress indent guides on wrap continuation rows (wrap_index > 0) so only the first visual row of a logical line carries its indent guides."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + real code_editor/ (panel.rs show_rows + virtual_lines.rs; viewport.rs absent) + MT-002 renderer FontId + MT-023/028 theme-token lesson + CONTROL-4 guard + CX-212E",
+    "corrections": [
+      "viewport.rs fictional -> panel.rs (paint) + virtual_lines.rs (row math); theme tokens (indent_guide/active + bracket_pair_palette) in theme/palette.rs - NO from_rgb in paint paths",
+      "wrap scroll-math single VisualRow source (scrollbar/first-visible/count); 1:1 fast path wrap-off (no MT-002 baseline regress); font metrics from MT-002 FontId",
+      "bounded bracket scan (no O(n)/frame); VS Code adjacency + same-family match + shared depth color; string-bracket v1 limitation documented",
+      "guides off wrap-continuation rows; Alt+Z consume_shortcut (no stray z); no buffer mutation (render-only); accesskit wrap-toggle; external screenshot; -j 2 full suite"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_2ba86d02 (impl + 3-lens panel + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "4d387d90 feat MT-054 editor chrome - bracket match/colorize, indent guides, word wrap",
+      "fd445462 fix harden per adversarial review"
+    ],
+    "review_panel": "correctness=PASS(0), backend-shape=PASS(0), perf-focus-hygiene=CHANGES_REQUIRED(1) -> 1 must-fix hardened (perf lens caught a paint-loop issue).",
+    "proofs": "AC-001..008 + PT-001..004 PASS; 44 new tests (9+13 lib + 10 bracket + 8 wrap + 4 indent) + regression (theme 19, keymap 12, panel 6, accesskit 9) green; clippy clean; editor chrome (bracket-pair depth colors + indent guides + matching-bracket box + sticky header + Wrap toggle) visually verified - VS Code chrome parity; screenshot EXTERNAL.",
+    "steers_held": "viewport.rs fictional -> panel.rs (wrap-aware show_rows + paint_chrome_decorations) + word_wrap/render_decorations modules; THEME TOKENS (indent_guide/active + bracket_pair_palette in theme/palette.rs) - test_theme 19 pass, NO Color32 literal in paint paths (CONTROL-4); wrap scroll-math single VisualRow source (show_rows from wrap_rows.len()); 1:1 fast path wrap-off (MT-002 baseline test_code_editor_panel UNCHANGED, RISK-006); bounded bracket scan (no O(n)/frame); VS Code adjacency both dirs + same-family + depth-modulo colors; Alt+Z consume_shortcut (no stray 'z', single-dispatch invariant held); guides off wrap-continuation rows; NO buffer mutation (AC-007 grep); external screenshot.",
+    "waiver_granted": "code_editor/render_decorations.rs + word_wrap.rs (new) + panel.rs (render+state) + mod.rs + theme/palette.rs (tokens) + 3 tests in allowed_paths (virtual_lines.rs not needed - wrap math in word_wrap.rs consumed by panel show_rows)."
   }
 }

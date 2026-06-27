@@ -25,10 +25,15 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-031"],
-    "blocks": ["MT-044", "MT-046"],
+    "depends_on": [
+      "MT-031"
+    ],
+    "blocks": [
+      "MT-044",
+      "MT-046"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -36,11 +41,14 @@
     "allowed_paths": [
       "src/frontend/handshake_native/src/undo_stack.rs",
       "src/frontend/handshake_native/src/lib.rs",
-      "src/frontend/handshake_native/src/interaction_bus.rs",
-      "src/frontend/handshake_native/src/code_editor/undo.rs",
-      "src/frontend/handshake_native/src/rich_text/undo.rs",
+      "src/frontend/handshake_native/src/interop/interaction_bus.rs",
+      "src/frontend/handshake_native/src/interop/mod.rs",
+      "src/frontend/handshake_native/src/code_editor/mod.rs",
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/src/rich_editor/undo.rs",
+      "src/frontend/handshake_native/src/rich_editor/mod.rs",
       "src/frontend/handshake_native/src/loom_graph.rs",
-      "src/frontend/handshake_native/src/canvas_board.rs",
+      "src/frontend/handshake_native/src/graph/canvas_board.rs",
       "src/frontend/handshake_native/src/stage_pane.rs",
       "src/frontend/handshake_native/tests/test_undo_scope.rs"
     ],
@@ -70,7 +78,11 @@
       "For canvas async undo: define UndoAction.undo_async_fn: Option<Arc<dyn Fn() -> Pin<Box<dyn Future<Output=UndoResult> + Send>> + Send + Sync>>. Local pane undos use the sync undo_fn; canvas undo uses undo_async_fn. The bus dispatches sync and async variants separately.",
       "The React codebase has no shared undo architecture to port from (each surface used its own). This MT is a greenfield design. The VS Code undo model (per-editor undo ring, no cross-editor) and Obsidian's per-note undo model are the behavioral references.",
       "Do NOT attempt to implement CRDT-based undo here; CRDT is handled by the CRDT backend (MT-038/MT-039). This undo stack is purely the in-memory UI-layer undo for immediate local feedback.",
-      "Cross-WP dependency: the InteractionBus this MT extends is built atop the WP-011 command bus (command_registry.rs) and event bus (event_bus.rs) shipped in WP-KERNEL-011; reuse those modules rather than introducing a new selection/clipboard/command bus."
+      "Cross-WP dependency: the InteractionBus this MT extends is built atop the WP-011 command bus (command_registry.rs) and event bus (event_bus.rs) shipped in WP-KERNEL-011; reuse those modules rather than introducing a new selection/clipboard/command bus.",
+      "PATHS + INTEGRATE-NOT-DUPLICATE (KERNEL_BUILDER gate 2026-06-23): the bus is interop/interaction_bus.rs (MT-031, NOT a root interaction_bus.rs). rich_text/undo.rs -> rich_editor/. canvas_board.rs -> graph/canvas_board.rs (MT-026). CHECK FIRST for EXISTING undo: the code editor (MT-001 ropey buffer + MT-010 keymap) and the rich editor (MT-011..020) may already have local undo/redo (a Ctrl+Z handler). INTEGRATE existing undo into bus.push_undo_local - do NOT add a SECOND parallel undo stack alongside a working one (the wrap-not-fork discipline from MT-031). If a pane has no undo yet, add it via the bus. Code edit state lives on CodeEditorPanel (code_editor/panel.rs).",
+      "POLICY-3 NO Serialize + Weak REFS + egui Ctrl+Z SUPPRESSION (KERNEL_BUILDER gate): (POLICY-3/AC-3) UnifiedUndoScope/UndoAction/rings MUST NOT derive or implement Serialize/Deserialize - session-scoped only, never persisted; the AC asserts the type cannot serialize (a #[derive(Serialize)] is a FAILURE). UndoAction closures use Weak<Mutex<PaneState>> back-refs (upgrade only during invocation, skip if dropped) to avoid retain cycles with pane state the bus holds (RISK-3/MC-3). Ctrl+Z: the code + rich editors are CUSTOM widgets (ropey buffer / rich_editor_widget, NOT egui::TextEdit) so the bus undo is the path; for ANY egui::TextEdit field call ui.input_mut(|i| i.consume_shortcut(&ctrl_z)) BEFORE delegating so egui's built-in text undo does not also fire (RISK-4/MC-4, the MT-031 keybind-suppression pattern). Ctrl+Shift+Z = cross-pane; Ctrl+Y = redo - via command_registry.",
+      "CANVAS COMPENSATING UNDO via MT-026 ROUTES + REFACTOR SAFETY (KERNEL_BUILDER gate): (POLICY-4) the canvas node create/move undo is a COMPENSATING backend call - align it with MT-026's VERIFIED /loom/canvas/{block_id}/placements routes (the CanvasBoardClient delete/move), NOT the contract's PUT /canvas/{id}/graph (the MT-033 correction). Snapshot the previous placement AT ACTION-CREATE time, not at undo-invoke time (RISK-2/MC-2 - else intermediate edits get clobbered); async undo_fn via the existing tokio bridge. This MT touches 5 pane modules (code/rich/graph/canvas/stage) - the FULL suite (every bin: the correctness lens runs bare cargo test) MUST stay green; the undo-ring data structure (push_local/undo/redo/cap=200, cross-pane cap=50, local-first, no-Serialize) is PURE + unit-testable STANDALONE; rich-text 500ms batching window (RISK-1/MC-1); canvas-compensating + rich-doc-revert are REAL-PG -> NEEDS_MANAGED_RESOURCE_PROOF. NO Color32 literal (undo-count indicator uses a palette token); accesskit undo-count-{pane_id}(StaticText). NOT CRDT undo (that is MT-038/039) - this is in-memory UI undo only.",
+      "HARDEN RESOLUTION (KERNEL_BUILDER gate 2026-06-23, after the 3-lens panel caught UNWIRED SCAFFOLDING + the harden stage died on a transient API 500): the impl shipped a REAL, tested undo data structure (undo_stack.rs) + bus methods + per-pane adapters, full suite green - BUT every push_*/register_undo_commands/set_undo_runtime/RichUndoBatcher entrypoint is reachable ONLY from the test (zero live call sites). RESOLUTION (deliverable-honest, no scaffolding-hiding): (1) RICH PANE - FIX NOW: the rich editor widget has a LIVE input loop (rich_editor/renderer/input_handler.rs:~223) that uses its OWN parallel UndoManager - the exact second undo stack the contract forbade. WIRE the rich widget's block-mutation + Ctrl+Z/Ctrl+Y through bus.push_rich_edit_undo (gated by a real RichUndoBatcher 500ms instance) + bus.undo(pane)/redo(pane), REMOVE/retire the parallel UndoManager, and re-prove AC-1's rich half through the REAL rich-widget kittest path (drive a real edit + keystroke), NOT the sync_action logging stand-in. (2) CODE PANE + CANVAS + app.rs RUNTIME INSTALL + register_undo_commands - BLOCKED_ON_DEPENDENCY E11/MT-069: these require the code/canvas editor panes MOUNTED in app.rs (the host-mount work E11 owns). Do NOT fake a live wire into an unmounted pane. Reclassify AC-1's code half + AC-2's canvas half + AC-6 live-count as BLOCKED_ON_DEPENDENCY (carried to MT-069); keep the data-structure + adapter ACs (POLICY-3/4-shape/5) PASS. No dead code may be asserted as a PASS via a stand-in."
     ],
     "ports_from_react": [
       "No direct React parity source — the React version has no shared undo implementation. VS Code undo model (per-editor ring) and Obsidian per-note undo are behavioral references."
@@ -80,7 +92,11 @@
       "POST /knowledge/documents/{doc_id}  =>  api.ts saveRichDocument  =>  used in rich-text undo compensating call to restore previous content_json (only for cross-pane undo; local undo is in-memory only)"
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-QUIET"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-QUIET"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -102,5 +118,34 @@
       "In bus.dispatch_keybind for Ctrl+Z: call ui.input_mut(|i| i.consume_shortcut(&ctrl_z)) before delegating to undo, so egui's text-widget handler does not also fire.",
       "Expose a visual undo history inspector (accessible via command palette: 'Show Undo History') showing the last 10 local + cross-pane entries; this makes the policy testable by humans and swarm agents."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-031 bus/keybind-suppression + MT-010 keymap undo + MT-026 canvas routes + MT-033 canvas-route correction",
+    "corrections": [
+      "interop/interaction_bus.rs + rich_editor/ + graph/canvas_board.rs paths; integrate existing code/rich undo, don't duplicate",
+      "POLICY-3 no Serialize (session-scoped); Weak back-refs (no retain cycle); egui Ctrl+Z consume_shortcut suppression",
+      "canvas compensating undo via MT-026 /loom/canvas placement routes (not PUT /canvas/graph); snapshot at action-create time",
+      "undo-ring pure+standalone (cap/local-first/cross-pane); 5-pane touch -> full suite green; real-PG compensating NEEDS_MANAGED_RESOURCE_PROOF; no Color32; not CRDT"
+    ]
+  },
+  "kernel_builder_harden_resolution": {
+    "panel": "correctness=CHANGES_REQUIRED(1), backend-shape=CHANGES_REQUIRED(2), perf=PASS(0)",
+    "root_cause": "unwired scaffolding (MT-008/010/014 class) - undo entrypoints reachable only from the test; rich pane kept a parallel UndoManager; harden died on transient API 500 leaving partial edits (discarded).",
+    "fix_now": "wire rich-pane live undo through the bus + RichUndoBatcher; remove parallel UndoManager; re-prove AC-1 rich through the real rich-widget path.",
+    "deferred_to_MT_069": "code-pane + canvas live undo wiring + app.rs set_undo_runtime + register_undo_commands (need the editor panes mounted - E11 host-mount)."
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_af4edb47 (impl + 3-lens panel) + re-harden agent a7ef9daa (the pipeline harden died on a transient API 500; re-run honestly)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "ea0d53ea feat MT-035 unified undo scope (data structure + bus + adapters)",
+      "026691f8 fix harden - wire rich-pane live undo through bus; defer code/canvas live wiring to E11"
+    ],
+    "review_panel": "correctness=CHANGES_REQUIRED(1), backend-shape=CHANGES_REQUIRED(2), perf-focus-hygiene=PASS(0) -> caught UNWIRED SCAFFOLDING (MT-008/010/014 class): undo entrypoints reachable only from the test; rich pane kept a parallel UndoManager; AC-1 rich-half proven via a fake logging action.",
+    "harden_500_recovery": "The automated harden stage died on a transient API 500 leaving partial uncommitted edits in 6 files; KERNEL_BUILDER discarded them (clean tree -> ea0d53ea) and re-ran a focused coder-protocol harden agent with a precise rich-now/code-defer split.",
+    "rich_pane_LIVE": "FIXED + INDEPENDENTLY VERIFIED: the rich editor widget's live Ctrl+Z/Ctrl+Y is now routed through the unified InteractionBus (decode_undo_chord strips the chords before the formatting pass so the parallel UndoManager is no longer consulted; recording via content_json before/after diff incl IME-commit; chord invocation deferred outside the lock to avoid deadlock; pane_id installed live by RichEditorPaneFactory). AC-1 rich-half re-proven by rich_pane_ctrl_z_reverts_through_bus (REAL typed edit + REAL Ctrl+Z keystroke -> bus.local_undo_count==1 then doc reverts via the unified scope). The fake sync_action('rich-edit') stand-in DELETED. RichUndoBatcher 500ms coalescing real-tested (replace_tail coalesces a burst into ONE entry that reverts the whole burst, not gate-only-drop).",
+    "code_canvas_DEFERRED_E11": "HONEST typed dependency (NOT faked): code-pane + canvas live undo wiring + app.rs set_undo_runtime + register_undo_commands require the editor panes MOUNTED in app.rs (E11/MT-069). Tests code_pane_live_undo_blocked_on_e11 + canvas_pane_live_placement_undo_blocked_on_e11 are #[ignore]d with the E11 dependency named; the push_code_edit_undo/push_canvas_placement_undo adapters stay as tested data-structure helpers (relabeled, NOT asserted as live). Carry-forward recorded to MT-069.",
+    "proofs": "POLICY-3 (no-Serialize), POLICY-4 (canvas compensating DELETE via verified MT-026 /loom/canvas-placements route SHAPE), POLICY-5 (caps 200/50) PASS; rich-pane LIVE proven; code/canvas live = BLOCKED_ON_DEPENDENCY E11. INDEPENDENT full-suite verify: exit 0, 86 bins, every bin 0 failed (1724 passed/0 failed/16 ignored); test_theme 19 incl no_hardcoded_color32 (CONTROL-4 green); clippy --all-targets clean; git ls-files src/**/*.png empty.",
+    "waiver_granted": "undo_stack.rs + interop/interaction_bus.rs + rich_editor/mod.rs + rich_editor/renderer/rich_editor_widget.rs + tests/test_undo_scope.rs in allowed_paths."
   }
 }

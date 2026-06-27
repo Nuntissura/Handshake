@@ -25,10 +25,17 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-011", "MT-031", "MT-037"],
-    "blocks": ["MT-065", "MT-074"],
+    "depends_on": [
+      "MT-011",
+      "MT-031",
+      "MT-037"
+    ],
+    "blocks": [
+      "MT-065",
+      "MT-074"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -38,8 +45,8 @@
       "src/frontend/handshake_native/src/fems/relevant_memory_panel.rs",
       "src/frontend/handshake_native/src/fems/mod.rs",
       "src/frontend/handshake_native/src/lib.rs",
-      "src/frontend/handshake_native/src/app.rs",
       "src/frontend/handshake_native/src/pane_registry.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
       "src/frontend/handshake_native/tests/test_relevant_memory.rs",
       "src/frontend/handshake_native/Cargo.toml"
     ],
@@ -72,7 +79,10 @@
       "Build the navigation target with a clear precedence: prefer MemorySource.uri, else document_id + byte_range, else event_id; pass to the MT-037 navigation bus.",
       "Debounce refresh_for_context on selection/cursor changes (compare against last_context; skip identical contexts) to avoid spamming the read endpoint.",
       "EndpointMissing is a first-class typed outcome, not an error to swallow: surface it to the WP validator via the handoff and render the calm empty-state banner so the editor stays usable.",
-      "Pull AccessKit author_ids through the WP-011 AccessKit id registry; register the panel through the WP-011 pane registry and command bus rather than inventing new shell wiring."
+      "Pull AccessKit author_ids through the WP-011 AccessKit id registry; register the panel through the WP-011 pane registry and command bus rather than inventing new shell wiring.",
+      "VERIFY FEMS ENDPOINT - DESIGNED FOR ENDPOINT-MISSING (KERNEL_BUILDER gate 2026-06-25): VERIFY read-only against src/backend/handshake_core whether the FEMS read route GET /workspaces/{id}/memory/pack?context= exists. FEMS = Pillar 12, a SEPARATE system - it may NOT be in the frozen handshake_core. If ABSENT (likely): fetch_pack returns MemoryClientError::EndpointMissing (the TYPED BLOCKER variant) on a 404/feature-absent sentinel, the panel renders the calm empty-state banner ('Relevant Memory unavailable - FEMS read endpoint not present'), and the blocker is SURFACED to the validator (NOT a silent no-op, NOT a panic, RISK-005/MC-002, AC-005). Do NOT add the route, do NOT rewrite src/backend/**, NO SQLite (RISK-001). This is the contract's PRIMARY designed path - the client/panel/parsing are proven against FIXTURE JSON regardless; the LIVE fetch (if the endpoint exists) = NEEDS_MANAGED_RESOURCE_PROOF. NAV BUS CORRECTION: the contract says 'MT-037 navigation bus' - WRONG, MT-037 is the knowledge_documents client; the nav bus is the MT-030 ShellNavigator (the navigate_to/on_open seam). Reuse the MT-030 nav seam for the provenance source links.",
+      "PILLAR-12 MODEL + READ-ONLY + PROVENANCE (KERNEL_BUILDER gate): model MemoryPack EXACTLY to Pillar 12 - 3 kinds (Episodic/Semantic/Procedural, serde lowercase), provenance-first MemorySource (uri/document_id+byte_range/event_id - at least one for navigable; validate()), <=24 items HARD-CAPPED CLIENT-SIDE (fetch_pack clamps after decode: truncate + truncated=true + log warning REGARDLESS of server, RISK-002/MC-001, AC-002), <=500 token_estimate as ADVISORY metadata the client SURFACES never recomputes. READ-ONLY consumption (RISK-008/MC-007, AC-006): GET only - NO POST/PUT/DELETE to any memory endpoint, NO direct store access (grep-gate). PROVENANCE precedence: prefer source.uri, else document_id+byte_range, else event_id -> build the NavTarget for the MT-030 bus; an item with NO resolvable source renders but DISABLES the source link (navigate-target construction returns None SAFELY, no dead link, no panic, RISK-003/MC-003). Reuse the shared backend_client.rs ApiClient + async runtime (NO 2nd HTTP stack, RISK-006/MC-005). DEBOUNCE refresh_for_context (compare last_context, skip unchanged, RISK-004/MC-004).",
+      "ACCESSKIT + WIDGET-PROVABLE + DOCK-AT-E11 (KERNEL_BUILDER gate): AccessKit relevant-memory-panel (GenericContainer) / relevant-memory-list (List) / mem-item-{id} (ListItem) / mem-source-{id} (Button) via accessibility/registry.rs - item ids unique per pack, no collision (RISK-007/MC-006). The MemoryClient + MemoryPack parsing + the <=24 clamp + EndpointMissing + the RelevantMemoryPanel render (grouped by kind, provenance link, empty-state/banner) + the nav-target build are PROVABLE NOW at the widget/client level (fixture JSON + kittest). The LIVE pane DOCK (app.rs pane factory / the shell opening it) + the MT-031 interaction-bus context subscription (focus/SharedSelection -> refresh_for_context) + the live MT-030 nav wiring is E11/MT-069 (like the other panes - register the pane factory now; the live dock + bus subscription lands at E11). app.rs edit minimal-additive (pane factory registration). NO Color32 literal (theme); external screenshot; full suite -j 2 (~90 bins OOM/build-lock - serialize); clippy clean."
     ],
     "ports_from_react": [
       "app/src/components/* Front End Memory Panel (memory browser / MemoryPack preview reference) — port the item grouping (episodic/semantic/procedural), provenance source-link affordance, and empty-state pattern into the egui RelevantMemoryPanel"
@@ -81,7 +91,11 @@
       "GET /workspaces/{workspace_id}/memory/pack?context=... (existing handshake_core FEMS read endpoint returning the MemoryPack/retrieval capsule). Read-only. If the route is ABSENT in the current build, fetch_pack returns MemoryClientError::EndpointMissing as a TYPED BLOCKER — do not add the route, do not rewrite the backend; gaps are typed blockers."
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -108,5 +122,29 @@
       "MC-006: AccessKit author_ids are drawn from the WP-011 id registry and item ids are unique per pack, preventing collisions (AC-007).",
       "MC-007: Static check / grep gate confirms no write verbs (POST/PUT/DELETE) and no direct store access in the memory module — read-only consumption only (AC-006)."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + Pillar 12 MemoryPack contract + frozen handshake_core (FEMS may be absent) + MT-030 ShellNavigator (not MT-037) + backend_client ApiClient + MT-031 bus + E11 dock pattern",
+    "corrections": [
+      "verify memory/pack route - if absent (likely, FEMS=Pillar12 separate) -> EndpointMissing typed blocker + empty-state banner (designed path, no backend add); fixture-proven client; live fetch gated",
+      "nav bus is MT-030 ShellNavigator (contract's 'MT-037' is the knowledge-docs client, wrong)",
+      "Pillar-12 model (3 kinds + provenance-first source + <=24 hard cap client-side + token advisory); read-only GET only (grep); provenance precedence + safe non-navigable",
+      "reuse backend_client ApiClient (no 2nd stack); debounce; accesskit dedup; widget/client-provable now + dock/bus-subscription at E11; no Color32; -j 2 serialize"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_1c656334 (impl + 3-lens panel + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "89a4093a feat MT-063 FEMS retrieval-capsule (MemoryPack) consumer + Relevant Memory panel",
+      "194f8327 fix harden per adversarial review"
+    ],
+    "review_panel": "correctness=CHANGES_REQUIRED(1), backend-shape=CHANGES_REQUIRED(2), perf-focus-hygiene=PASS(0) -> 3 must-fixes hardened.",
+    "proofs": "AC-001..008 + PT-001..005 PASS; 15 fems lib + 9 integration (incl in-process mock-server live fetch + 404->EndpointMissing) green; clippy clean; theme green; Relevant Memory panel (3 kinds Episodic/Semantic/Procedural, kind badges [EP]/[SEM]/[PROC], scores, 'Go to source' provenance links, ~280-token advisory budget) visually verified (fixture render); screenshot EXTERNAL.",
+    "endpoint_missing_CONFIRMED": "The contract's PRIMARY designed path is REAL: the agent VERIFIED src/backend/handshake_core - GET /workspaces/{id}/memory/pack does NOT exist (only /knowledge/memory/{claims,conflicts,facts,entities,visual-debug} read routes + an INTERNAL MemoryPack builder (ace/, memory/builder.rs) + a .handshake/fems/packs/*.json file path - NO HTTP retrieval-capsule route). So fetch_pack returns MemoryClientError::EndpointMissing on 404 + the panel renders the empty-state banner (has_endpoint_missing_blocker surfaced to the validator). NO backend route added. The client/model/parsing/clamp/panel are FULLY PROVEN against fixture JSON + an in-process mock server; the LIVE fetch = NEEDS_MANAGED_RESOURCE_PROOF.",
+    "steers_held": "fems/ paths; <=24 clamp (30->24 truncated+log, server-untrusted); 3-kind decode (serde lowercase); provenance precedence (uri->doc+range->event, non-navigable disabled SAFE); read-only GET only (AC-006 grep no POST/PUT/DELETE/store); nav via MT-030 (MemoryNavTarget->FnNavigationBus, NOT MT-037); accesskit relevant-memory-panel/list/mem-item/mem-source dedup; debounce; reuse backend_client ApiClient (no 2nd stack); token budget advisory (surfaced not recomputed).",
+    "strategic_gap": "FEMS HTTP READ-ROUTE GAP (verified, joins Flight Recorder + aliases + property-tag-persistence gaps): handshake_core has the INTERNAL MemoryPack builder + .handshake/fems/packs/*.json but NO HTTP route to retrieve a context-keyed capsule. A future BACKEND packet must expose GET /workspaces/{id}/memory/pack (or equivalent) - then the MT-063 consumer goes live with zero frontend change (EndpointMissing flips to a real pack).",
+    "carried_E11": "DEFERRED to E11/MT-069: the live pane DOCK (app.rs pane factory open) + the MT-031 interaction-bus context subscription (focus/SharedSelection -> refresh_for_context) + the live MT-030 nav wiring. The pane factory is registered (register_relevant_memory_pane); the live dock + bus subscription lands at E11.",
+    "waiver_granted": "fems/memory_client.rs + fems/relevant_memory_panel.rs + fems/mod.rs (new) + lib.rs + pane_registry.rs + test in allowed_paths (app.rs not needed - pane factory in pane_registry; backend_client reused read-only)."
   }
 }

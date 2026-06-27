@@ -25,21 +25,31 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-031", "MT-021", "MT-022"],
-    "blocks": ["MT-033", "MT-034", "MT-044"],
+    "depends_on": [
+      "MT-031",
+      "MT-021",
+      "MT-022"
+    ],
+    "blocks": [
+      "MT-033",
+      "MT-034",
+      "MT-044"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
     "summary": "Goal: make every document, rich-text block, canvas node, and code-file node in the native surface addressable as a Loom block with a content hash and live backlinks. This is the 'everything is a Loom block' invariant from the interconnection contract. Expected diff: (a) a new module src/frontend/handshake_native/src/loom_address.rs (~200–300 lines) that holds LoomBlockAddr, LoomBlockRecord, ContentHash, and the resolution logic; (b) a LoomBlockResolver that calls the existing backend APIs (getLoomBlock, getLoomBlockTransclusion, getDocumentBacklinks); (c) a BacklinkPanel widget added to the bottom of the rich-text editor and the graph pane; (d) tests proving that creating a rich document yields a loom:// URI and that the backlink panel loads real backlinks from the live PG backend.\n\nFiles to CREATE:\n  - src/frontend/handshake_native/src/loom_address.rs  — defines LoomBlockAddr { workspace_id: String, block_id: String }, ContentHash(String), LoomBlockRecord { addr: LoomBlockAddr, title: String, content_hash: ContentHash, block_type: LoomBlockType }, LoomBlockType enum { RichDocument | CanvasNode | CodeFileNode | GraphNode }. Provides fn loom_uri(addr: &LoomBlockAddr) -> String (format: \"loom://{workspace_id}/{block_id}\"). Provides fn parse_loom_uri(s: &str) -> Option<LoomBlockAddr>.\n  - src/frontend/handshake_native/src/backlink_panel.rs  — egui widget; takes workspace_id + document_id; on first render calls backend GET /knowledge/documents/{doc_id}/backlinks; shows list of RichDocBacklink { backlink_id, source_document_id, link_kind, target, block_id }; each row is a clickable button that fires the OpenDocument command via the shared command bus (command_registry.rs + event_bus.rs, established in MT-031). AccessKit: panel container author_id=\"backlinks-panel-{doc_id}\", role=List; each row author_id=\"backlink-{backlink_id}\", role=ListItem, actions=[Press].\n\nFiles to EDIT:\n  - src/frontend/handshake_native/src/lib.rs  — add `pub mod loom_address;` and `pub mod backlink_panel;` module declarations (the native crate uses flat module registration in lib.rs; there is no shared/mod.rs or widgets/mod.rs).\n  - src/frontend/handshake_native/src/rich_text/editor.rs  — after saving a document, call backend PATCH /loom/blocks/{block_id} with the document's content_hash (derived as SHA-256 of canonical JSON); embed BacklinkPanel at the bottom of the pane. (rich_text/ is the new WP-012 rich-text editor module subdir under handshake_native/src/.)\n  - src/frontend/handshake_native/src/canvas_board.rs  — each canvas node that maps to a placed Loom block must resolve and display its loom:// address in the node header; double-click opens the referenced document. (canvas_board.rs is the existing WP-011 canvas surface; reuse it, do not create a new canvas pane.)\n  - src/frontend/handshake_native/src/loom_graph.rs  — each graph node tooltip shows its loom:// URI and backlink count. (loom_graph.rs is the existing WP-011 graph surface; reuse it.)\n\nStep-by-step implementation notes:\n  1. ContentHash: use sha2::Sha256 (add sha2 ^0.10 to Cargo.toml if not present). Canonical JSON: serialize the document's ProseMirror JSONContent using serde_json with sorted keys (use indexmap if needed) then hash bytes.\n  2. LoomBlockAddr is stable across renames: the block_id is the backend's UUID; the workspace_id is the app-level workspace UUID.\n  3. To resolve a document_id to its loom block_id: the existing backend RichDocument (from loadRichDocument / GET /knowledge/documents/{id}) already carries a block_id field (see api.ts LoomBlock: block_id). Read this field on document load.\n  4. BacklinkPanel loading: call GET /knowledge/documents/{doc_id}/backlinks — this maps to the React call getRichDocBacklinks (api.ts line ~3326: request('/knowledge/documents/${documentId}/backlinks')). Response is { source_document_id, backlinks: RichDocBacklink[] }. Cache the result in BacklinkPanel's local egui state (load once per document_id change).\n  5. Backlink row: display source_document_id (truncated), link_kind badge, and a right-arrow icon. On click: dispatch the \"open-document\" command via the shared command bus (command_registry.rs + event_bus.rs) with CommandArgs::DocumentId(source_document_id). The OpenDocument command must be registered on the command bus (MT-031).\n  6. Canvas node addressing: each CanvasNode in the DB has a placed_block_id (see api.ts CanvasPlacedNode line ~1642). Use this as the loom block_id. On canvas_board render, for each node, show a loom:// chip in the node header if placed_block_id is Some.\n  7. Content hash write-back: after saveRichDocument returns (api.ts ~3245), read the save_receipt_event_id and doc_version. Derive ContentHash of the saved JSON. Call PATCH /loom/blocks/{block_id} with { content_hash }. This is the backend updateLoomBlock call (api.ts ~1890: request('/loom/blocks/${blockId}', { method: 'PATCH', body })). Map to the Rust IPC/backend client (backend_client.rs).\n  8. AccessKit: see above under BacklinkPanel; reuse the accessibility/* helpers (accessibility/live.rs, accessibility/registry.rs, accessibility/snapshot.rs) for node registration.\n  9. Tests: src/frontend/handshake_native/tests/test_loom_address.rs — (a) unit: parse_loom_uri(\"loom://ws1/block1\") returns Some(LoomBlockAddr { workspace_id: 'ws1', block_id: 'block1' }); (b) unit: loom_uri round-trips; (c) integration (real PG): create a rich document via backend API, load it, assert block_id is non-empty, assert GET /knowledge/documents/{id}/backlinks returns 200; (d) integration: create doc A with a wikilink to doc B, save A, assert B's backlinks include A's block_id.\n\nDependencies / unblock conditions:\n  - MT-031 (shared command bus / OpenDocument command registration on command_registry.rs + event_bus.rs) merged.\n  - MT-021 (graph surface) and MT-022 (canvas surface placing loom blocks) merged so canvas node placed_block_id field is accessible.\n  - sha2 crate ^0.10 added to Cargo.toml.\n  - Backend: GET /knowledge/documents/{id}/backlinks endpoint must exist (it does — confirmed in api.ts line 3326).\n  - Backend: PATCH /loom/blocks/{block_id} must exist (confirmed api.ts updateLoomBlock line 1890).\n\nRisk if missed: without the loom block addressing layer, MT-033 (CKC embeds as loom:// refs) and MT-034 (code<->note cross-refs) both lack a stable addressable target, and the parity proof suite (MT-044) cannot assert the 'everything is a Loom block' invariant.",
     "allowed_paths": [
       "src/frontend/handshake_native/src/loom_address.rs",
-      "src/frontend/handshake_native/src/backlink_panel.rs",
       "src/frontend/handshake_native/src/lib.rs",
-      "src/frontend/handshake_native/src/rich_text/editor.rs",
-      "src/frontend/handshake_native/src/canvas_board.rs",
+      "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs",
+      "src/frontend/handshake_native/src/rich_editor/wikilinks/backlinks_panel.rs",
+      "src/frontend/handshake_native/src/graph/canvas_board.rs",
+      "src/frontend/handshake_native/src/graph/sidebar_panel.rs",
       "src/frontend/handshake_native/src/loom_graph.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
       "src/frontend/handshake_native/tests/test_loom_address.rs",
       "Cargo.toml"
     ],
@@ -71,7 +81,10 @@
       "Cross-WP reuse (WP-KERNEL-011): the shared selection/clipboard/command bus is command_registry.rs + event_bus.rs; the OpenDocument command must be registered there (MT-031). Backend HTTP calls route through backend_client.rs. AccessKit node registration reuses accessibility/live.rs, accessibility/registry.rs, accessibility/snapshot.rs.",
       "React reference for backlinks: LoomBlockPanel.tsx (api.ts getLoomBlock, updateLoomBlock) and LoomTransclusionView.tsx (getLoomBlockTransclusion) show how block_id is threaded through the frontend. The direct backlinks call is api.ts line 3326 getRichDocBacklinks.",
       "React reference for placed_block_id: CanvasView.tsx line ~1642 CanvasPlacedNode type has canvas_block_id + placed_block_id. In native, mirror this from the canvas graph response (GET /canvas/{id} returns CanvasWithGraph which includes placed nodes with placed_block_id).",
-      "Do NOT cache backlinks longer than the document session; invalidate on saveRichDocument completion so the panel refreshes after the user edits links."
+      "Do NOT cache backlinks longer than the document session; invalidate on saveRichDocument completion so the panel refreshes after the user edits links.",
+      "REUSE, DO NOT DUPLICATE (KERNEL_BUILDER gate 2026-06-23 - CRITICAL anti-overlap): a backlinks panel ALREADY EXISTS - MT-015 built rich_editor/wikilinks/backlinks_panel.rs (GET /knowledge/documents/{id}/backlinks, with the no-perpetual-spinner fix + 404->empty already done) AND MT-024 built a sidebar Backlinks section. Do NOT create a new src/backlink_panel.rs (the contract's file) - that would be a THIRD duplicate. MT-032's UNIQUE deliverable is: (1) the loom_address.rs module (LoomBlockAddr, ContentHash, loom_uri/parse_loom_uri, LoomBlockResolver) - the 'everything is a Loom block' addressing layer; (2) loom:// chips + backlink-count on canvas nodes (graph/canvas_board.rs MT-026 placements with placed_block_id) and graph nodes (loom_graph.rs tooltips). EMBED/reuse the EXISTING MT-015 backlinks panel where the contract says 'BacklinkPanel' (extend it if needed); do not fork it. Reuse MT-024's sidebar too.",
+      "CONTENT-HASH IS LIKELY BACKEND-COMPUTED, NOT CLIENT-WRITABLE (KERNEL_BUILDER gate - the MT-022 field-existence + MT-020 canonical-hash lesson): the contract says PATCH /loom/blocks/{block_id} {content_hash}. But MT-022 VERIFIED LoomBlockUpdate exposes only pinned/favorite/journal_date/pin_order (NO content_hash/content_json field), and MT-020 found the backend computes the canonical-JSON hash server-side (knowledge_canonical_json_sha256). VERIFY read-only whether content_hash is a WRITABLE field on PATCH /loom/blocks/{id}; if it is NOT (likely), the backend computes content_hash on save - so READ it from the loaded LoomBlock (getLoomBlock), do NOT client-PATCH a hash (no fake/unsupported write). If a real content-hash write route exists, bind it; else the loom_address ContentHash READS the backend's hash (or recomputes matching MT-020's canonical_hash.rs algorithm for display only). REUSE MT-020's canonical_hash.rs + the existing sha2 dep (already in the tree) - do NOT reinvent canonical JSON with indexmap or add a duplicate sha2.",
+      "BACKEND PROOF + PATHS (MT-008/015/020/022 pattern): loom_uri/parse_loom_uri round-trip + ContentHash determinism are unit-testable STANDALONE; the create-doc + backlinks-load + (any) hash round-trip are REAL-PG -> bind real + gate behind integration + NEEDS_MANAGED_RESOURCE_PROOF. Paths: rich_text/editor.rs -> the rich-text editor is rich_editor/ (save write-back lives in MT-020's save path / rich_editor_widget; embed the backlinks via the EXISTING MT-015 panel). canvas_board.rs -> graph/canvas_board.rs (MT-026, placed_block_id). loom_graph.rs is the WP-011 graph surface (tooltips). backend_client.rs for the LoomBlockResolver (reuse the existing Loom clients). 404 backlinks -> empty 'No backlinks yet' (already handled by MT-015's panel). placed_block_id None -> skip the loom:// chip (no panic, RISK-3). NO Color32 literal (theme guard); screenshots EXTERNAL; accesskit variant (reuse MT-015's backlinks-panel author_ids, do NOT mint colliding duplicates)."
     ],
     "ports_from_react": [
       "app/src/components/LoomBlockPanel.tsx — getLoomBlock, updateLoomBlock, block_id threading, pinned/favorite state pattern",
@@ -85,7 +98,11 @@
       "GET /canvas/{canvas_id}  =>  api.ts line ~1639 getCanvas  =>  returns CanvasWithGraph including placed nodes with placed_block_id"
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -107,5 +124,28 @@
       "Load BacklinkPanel data in a Tokio spawn or equivalent non-blocking task; store result in Arc<Mutex<BacklinkState>> polled in update().",
       "Debounce content hash write-back: only fire PATCH if the new hash differs from the last known hash stored in pane state."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-015 backlinks panel + MT-024 sidebar + MT-020 canonical_hash + MT-022 LoomBlockUpdate limits + MT-026 canvas",
+    "corrections": [
+      "REUSE MT-015 backlinks_panel + MT-024 sidebar - no 3rd duplicate; MT-032's value is loom_address + loom:// chips",
+      "content_hash likely backend-computed - READ it, do NOT client-PATCH a hash (verify LoomBlockUpdate); reuse MT-020 canonical_hash + existing sha2",
+      "rich_editor/ + graph/canvas_board.rs + loom_graph.rs paths; loom_uri standalone, real-PG NEEDS_MANAGED_RESOURCE_PROOF",
+      "placed_block_id-None skip chip; reuse MT-015 panel author_ids; no Color32 literal; external screenshots"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_844c68bd (impl + 3-lens panel + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "db43eb96 feat MT-032 everything-is-a-Loom-block addressing + loom:// chips/backlinks",
+      "d798f0af fix harden per adversarial review"
+    ],
+    "review_panel": "correctness=CHANGES_REQUIRED(3), backend-shape=CHANGES_REQUIRED(2), perf-focus-hygiene=PASS(0) -> 5 must-fixes hardened.",
+    "proofs": "AC-1/4/5/7/8 PASS; AC-2/3/6-live = NEEDS_MANAGED_RESOURCE_PROOF (gated); 1022 lib + 13 loom_address + 9 integration green; test_theme 19 (palette.accent, no Color32 literal); clippy clean; canvas loom:// chips (loom://ws-32/blk-7, blk-8 green footers) visually verified; screenshot EXTERNAL.",
+    "reuse_held": "My reuse-not-duplicate steer HELD: NO new backlink_panel.rs (lib.rs documents MT-015 owns it); dispatch_backlink_open bridge routes the EXISTING MT-015 panel's click -> bus CMD_OPEN_DOCUMENT (AC-4). loom_address.rs is the unique deliverable (LoomBlockAddr/ContentHash/loom_uri/resolver) + loom:// chips on canvas (graph/canvas_board.rs) + graph (loom_graph.rs tooltip + backlink_count).",
+    "content_hash_verified": "CONTRACT CORRECTION (verified, the predicted MT-022 lesson): LoomBlockUpdate has NO writable content_hash (pinned/favorite/title only) - so NO client PATCH; the backend computes content_hash server-side. The live test READS the backend content_hash via getLoomBlock + asserts it equals the local canonical SHA-256 (reused MT-020's canonical algorithm + existing sha2). No fake write.",
+    "transient_confirmed": "The earlier MT-027 full-suite exit-101 was confirmed a TRANSIENT incremental-cache race ('invalid metadata for crate reqwest') under high concurrency, NOT a code defect (clean recompile + clean re-run).",
+    "waiver_granted": "backend_client.rs (LiveBlock content_hash read) + interop/interaction_bus.rs (CMD_OPEN_DOCUMENT) + rich_editor/wikilinks/backlinks_panel.rs (dispatch bridge) + graph/canvas_board.rs + loom_graph.rs + tests in allowed_paths."
   }
 }

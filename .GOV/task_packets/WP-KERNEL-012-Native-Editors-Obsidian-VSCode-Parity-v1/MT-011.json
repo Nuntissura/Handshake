@@ -25,10 +25,20 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [],
-    "blocks": ["MT-012", "MT-013", "MT-014", "MT-015", "MT-016", "MT-017", "MT-018", "MT-019", "MT-020"],
+    "blocks": [
+      "MT-012",
+      "MT-013",
+      "MT-014",
+      "MT-015",
+      "MT-016",
+      "MT-017",
+      "MT-018",
+      "MT-019",
+      "MT-020"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -73,7 +83,10 @@
       "The Mark enum must carry typed payloads for link (href: String) and wikilink (kind: String, value: String, label: Option<String>) because the render layer (MT-012/MT-015) needs them.",
       "All error types use thiserror::Error derives.",
       "AccessKit: this layer has no UI widgets; AccessKit author_ids are assigned in MT-012 which consumes the model. No AccessKit calls here.",
-      "The doc_json module must import schema_version from a single const (RICH_DOCUMENT_SCHEMA_VERSION = 'rich_document_v1') so a version bump is a one-line change."
+      "The doc_json module must import schema_version from a single const (RICH_DOCUMENT_SCHEMA_VERSION = 'rich_document_v1') so a version bump is a one-line change.",
+      "DOCUMENT-MODEL ARCHITECTURE RECONCILIATION (KERNEL_BUILDER gate 2026-06-22 + research wf_ffa74d6d): the AUTHORITATIVE model is the ProseMirror/Tiptap-style typed block model + DocJson in the Tiptap JSONContent shape (schema_version rich_document_v1) - BECAUSE the existing handshake_core backend stores knowledge/documents content_json in EXACTLY that shape and the editor must round-trip it (createRichDocument/loadRichDocument/saveRichDocument). Do NOT make the authoritative model a comrak/CommonMark AST: the backend's task_item/table/wikilink/embed nodes + marks do not round-trip cleanly through CommonMark and would BREAK backend compatibility. The research's 'comrak-AST block tree' is RECONCILED: comrak (format_commonmark) + egui_commonmark are SECONDARY tools for markdown import/export (MT-016 save-to-format) and reading-mode RENDERING (MT-055), layered ON the Tiptap-JSONContent model - NOT a replacement. The research's 'egui TextEdit unfit / one-active-TextEdit-per-block' applies to the RENDERING widget (MT-012), not this model MT.",
+      "BACKEND-SHAPE ANCHOR (no-guess, KERNEL_BUILDER gate): before finalizing DocJson, READ the ports_from_react parity files in the WP worktree (app/src/lib/editor/export_formats.ts, schema_versioning.ts for WP009_RICH_DOCUMENT_SCHEMA_VERSION, build_editor_extensions.ts node/mark inventory, wikilink.ts payload shape) so DocJson serialize/deserialize round-trips the REAL backend content_json shape the React Tiptap editor produces - not a guessed shape. (Reading app/src as the frozen parity reference is intended; only EDITING app/src is forbidden.) The DocJson<->backend content_json round-trip is the load-bearing compatibility contract that E6/MT-037 later binds to the real /knowledge/documents API.",
+      "CRATES + CHAR-INDEX (KERNEL_BUILDER gate): ropey + serde + serde_json are ALREADY in the handshake-native dep graph (MT-001+); add thiserror only if not already present (likely transitive). Run cargo tree -d to confirm no new duplicate cores. CHAR-INDEX DISCIPLINE (red-team RISK): every rope op uses CHAR indices (Rope::insert/remove/char), never byte indices; the mandatory test inserts a 4-byte emoji at char position 1 and asserts char-count correctness. apply_transaction MUST clone the doc before applying any Step and roll back on schema-validation Err (atomicity)."
     ],
     "ports_from_react": [
       "app/src/lib/editor/export_formats.ts (DocJson shape: type/content/text/marks fields, schema_version 'rich_document_v1')",
@@ -87,7 +100,10 @@
       "PUT /knowledge/documents/:id/save (saveRichDocument) - content_json sent is this module's DocJson output"
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -110,6 +126,33 @@
       "The UndoManager must compute inverse steps before each step's apply call in a deterministic order; unit test verifies undo of InsertText produces the exact pre-insert rope content.",
       "schema_version const must equal the string 'rich_document_v1' (case-sensitive); a test must assert it equals the string literally.",
       "UndoManager cap is tested at exactly 201 pushes; the test checks history.len() == 200 afterwards."
+    ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + research wf_ffa74d6d reconciled against backend content_json constraint",
+    "notes": [
+      "authoritative model = Tiptap JSONContent block model (rich_document_v1) for backend round-trip, NOT comrak-AST",
+      "comrak/egui_commonmark are secondary (markdown export MT-016 + reading-mode MT-055), not the model",
+      "egui-TextEdit-unfit/per-block applies to the rendering widget MT-012",
+      "DocJson anchored to the real React/backend content_json shape (read export_formats.ts etc.)"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_d842e05c (impl + adversarial-review + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "f4389494 feat MT-011 block document model",
+      "2754846a fix harden per adversarial review"
+    ],
+    "proofs": "AC-1..12 GREEN; 33 lib + 24 integration document_model tests; full suite 928+ green; clippy --all-targets -D warnings clean; char-index emoji test real; pure model layer (no UI/AccessKit, no screenshot); no leakage.",
+    "bugs_caught_and_fixed": "Adversarial review caught BACKEND-COMPAT-BREAKING bugs the ACs + impl tests missed: (1) wikilink modeled as a Mark but the real backend uses an hsLink NODE (refKind/refValue/label) -> deserializer threw on any real Notes doc with a wikilink; harden made it Child::HsLink atom node. (2) schema_version flattened into the doc node vs the backend's bare content_json + sibling schema_version; harden split them (matches api.ts). (3) DocJson tests were self-referential (serializer<->its own deserializer); harden added a captured-REAL-backend-content_json fixture test. (4) apply_split/apply_merge silently DROPPED all text runs after the first (data loss on any bold/italic block); harden rewrote both for full inline-sequence split + full-child merge + corrected the MergeNodes->SplitNode inverse. thiserror direct dep moved to v2.",
+    "the_anchor_paid_off": "The backend-shape-anchor + Tiptap-JSONContent reconciliation notes set the review up to verify against the REAL app/src hs_link_node.ts/export_formats.ts/api.ts shapes - which exposed that the impl (following the contract's wrong 'wikilink mark' wording) got it wrong. Editor can now round-trip real Notes documents.",
+    "deferred": [
+      "RopeText clamps out-of-range char indices silently (panic-safety design) -> MT-012 decides whether higher-layer caret addressing should error before reaching the rope",
+      "from_json_value does not validate schema_version on load -> MT-037/API-bridge owns the version guard (content_json is intentionally version-less; version on the record envelope)",
+      "AddMark/RemoveMark whole-run only; sub-run mark ranges -> renderer-split MT (MT-012/MT-015)",
+      "HeadingLevel clamps level 4+ to 3 (resilience) -> validator confirms clamp-vs-error policy",
+      "thiserror v1/v2 dup is PRE-EXISTING from upstream GUI/platform crates (accesskit/winit/ndk/redox); handshake-native's own dep is now v2; full removal needs upstream bumps, out of scope"
     ]
   }
 }

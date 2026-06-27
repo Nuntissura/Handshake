@@ -25,10 +25,16 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-011", "MT-012", "MT-013"],
-    "blocks": ["MT-044"],
+    "depends_on": [
+      "MT-011",
+      "MT-012",
+      "MT-013"
+    ],
+    "blocks": [
+      "MT-044"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -37,8 +43,9 @@
       "src/frontend/handshake_native/src/rich_editor/reading_mode.rs",
       "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs",
       "src/frontend/handshake_native/src/rich_editor/mod.rs",
+      "src/frontend/handshake_native/src/theme/palette.rs",
       "src/frontend/handshake_native/Cargo.toml",
-      "src/frontend/handshake_native/tests/test_*.rs"
+      "src/frontend/handshake_native/tests/test_reading_mode.rs"
     ],
     "forbidden_paths": [
       "app/src/** (legacy React, reference only)",
@@ -71,7 +78,10 @@
       "Guard MT-014/MT-015 click handlers so they still fire in the read-only branch when present, but the build does not break on a tree that predates those MTs (feature/None guard).",
       "AccessKit: mark the active toggle segment as selected/toggled (set the toggled state on the node) via the WP-011 accessibility/* helpers (accessibility/mod.rs, accessibility/registry.rs) so a no-context swarm agent can read the current view mode without inferring from labels.",
       "Cross-WP reuse (WP-011, prose dependency — not a WP-012 microtask depends_on): the shared navigation/command bus is the existing command_registry.rs + event_bus.rs pair; reading typography uses theme/*; AccessKit author_id registration uses accessibility/*. These WP-011 modules already exist under src/frontend/handshake_native/src/ and must be reused, not re-created.",
-      "Persistence here is egui local context persistence only — do NOT route view-mode state through the EventLedger/PostgreSQL; this is pure frontend view-state with no backend binding."
+      "Persistence here is egui local context persistence only — do NOT route view-mode state through the EventLedger/PostgreSQL; this is pure frontend view-state with no backend binding.",
+      "REUSE THE MT-012 RENDERER - NO 2ND RENDERER (KERNEL_BUILDER gate 2026-06-24 - the Edit|Reading PARITY INVARIANT, RISK-001/MC-001): Reading mode reuses the EXISTING MT-012 block renderer in rich_editor/renderer/rich_editor_widget.rs via a read_only branch - the ONLY differences are (a) no caret/selection state allocation, (b) no egui TextEdit emission (render runs as immutable galleys/labels), (c) no input-handler edit dispatch, (d) reading margins/typography. Do NOT fork a 2nd renderer (a forked renderer drifts -> Reading shows different output than Edit, breaking the MT-044 parity proof). MT-011 DocModel stays the SINGLE source of truth. The paths are correct (rich_editor/renderer/rich_editor_widget.rs is the real MT-011/012 widget); allowed_paths tightened to tests/test_reading_mode.rs + theme/palette.rs (for the reading-typography tokens).",
+      "NO-EDIT IN READING + LINKS/EMBEDS LIVE + PERSISTENCE (KERNEL_BUILDER gate): (RISK-002/MC-002, AC-003) the Reading AccessKit tree MUST contain ZERO editable TextEdit/TextInput node for the document body (hard test assertion). (RISK-005/MC-005, AC-001) no caret/selection alloc + no input dispatch in Reading -> editing-attempt leaves the DocModel UNCHANGED (test edits in Reading + asserts DocModel unchanged). (RISK-003/MC-003, AC-004) wikilink chips (MT-015) + embeds (MT-014) STAY interactive in read-only - their click handlers fire + route through the shared bus (command_registry+event_bus); MT-014/015 EXIST now (E2 base done) so wire them directly (the predates-guard is moot but harmless). (RISK-004/MC-004, AC-007) mode persists PER document_id via ctx.data_mut get_persisted_mut_or_default::<ReadingModeStore>(egui::Id::new('handshake_rich_reading_modes')) - survives re-render; ReadingModeStore is egui-FREE + serde+Default so it round-trips + is unit-testable without a Context; per-document isolation (doc-B still defaults Edit). NOT EventLedger/Postgres - pure frontend view-state (binds NONE).",
+      "THEME TYPOGRAPHY + CHROME + HYGIENE (KERNEL_BUILDER gate): reading margins/typography (centered content column ~700-760 logical px, wider paragraph spacing) - the COLUMN-WIDTH/spacing may be named consts, but any COLOR goes through theme/palette.rs tokens (RISK-006/MC-006 - NO Color32::from_rgb literal, the CONTROL-4 guard; readable in light+dark). The Edit|Reading segmented toggle (rich-reading-mode-toggle Group / rich-reading-mode-edit Button / rich-reading-mode-reading Button via accessibility/registry.rs, active segment marked toggled/selected) renders at the WIDGET level (provable now in kittest); its full editor-CHROME placement integrates at E11 host-mount (like the menu entries - MT-050/052/053 precedent). Switching back to Edit = the EXACT MT-012 editable path, no regression (AC-008 - toggle Reading then Edit + edit a run successfully). Screenshot to the EXTERNAL wp-kernel-012-mt-055 root (mt055_reading_mode.png; NOT repo-local test_output/ - CX-212E; git ls-files src/**/*.png empty). PURE frontend (no live PG); full suite via -j 2 (~90 bins OOM); clippy clean; no unwrap."
     ],
     "ports_from_react": [
       "app/src/App.tsx — ViewMode state (Edit vs Reading per-document model)",
@@ -82,7 +92,11 @@
       "NONE — pure frontend view-state; no handshake_core API bound. Per-document mode persists via egui local context persistence, not the EventLedger/PostgreSQL."
     ]
   },
-  "hbr_obligations": ["HBR-VIS", "HBR-SWARM", "HBR-QUIET"],
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM",
+    "HBR-QUIET"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -108,5 +122,27 @@
       "MC-006: Reading typography/margins must use WP-011 theme tokens (theme/*); code inspection plus a screenshot in both themes (or at least the default theme) confirms readable contrast.",
       "MC-007: MT-014/MT-015 handler calls in the read-only path are guarded so the crate compiles and tests pass on a build that predates those MTs."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + real rich_editor/renderer/rich_editor_widget.rs (MT-011/012) + MT-014 embeds + MT-015 wikilinks + theme tokens + egui persistence + MT-050/052/053 chrome-at-E11",
+    "corrections": [
+      "reuse MT-012 block renderer (read_only branch) - NO 2nd renderer (Edit|Reading parity invariant); DocModel single source",
+      "Reading AccessKit has NO editable node + no caret/input (DocModel unchanged on edit-attempt); links/embeds stay interactive (MT-014/015 exist); per-document egui persistence (not EventLedger)",
+      "reading typography via named consts + theme COLOR tokens (no Color32 literal); toggle provable at widget level, chrome placement at E11",
+      "external screenshot (mt055_reading_mode.png not test_output/); pure frontend (binds NONE); -j 2 full suite; Edit return = exact MT-012 no-regress"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_9ae5c67f (impl + 3-lens panel + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "57400f1a feat MT-055 per-document reading mode (Obsidian reading view)",
+      "cab1ebae fix harden per adversarial review"
+    ],
+    "review_panel": "correctness=PASS(0), backend-shape=CHANGES_REQUIRED(1), perf-focus-hygiene=PASS(0) -> 1 must-fix hardened.",
+    "proofs": "AC-001..009 + PT-001..005 PASS; 5 unit + 9 integration + regression (rich_editor_widget 6, formatting 14, find_replace 7, e7 13, ckc_embed 11, theme 19, accesskit 9) green; clippy clean; reading view (H1 'Reading View Title' + bullet + green-accent blockquote + interactive 'Target Note' wikilink, centered column) visually verified - Obsidian reading-view parity; screenshot EXTERNAL.",
+    "steers_held": "reuse the MT-012 renderer: render_blocks is the SINGLE function for both modes (read_only only sets caret_block=None + centered column + extra gap; paint_block byte-for-byte same) - NO 2nd renderer (the Edit|Reading parity invariant); ZERO editable body TextInput node in Reading AccessKit (pt002); NO DocModel mutation (typed X+Enter -> content_json byte-identical); wikilinks/embeds STAY interactive (chip click -> WikilinkActivated, NOT gated behind editable branch); per-document egui persistence (doc-A Reading persists, doc-B defaults Edit); reading typography via named consts + theme COLOR tokens (no Color32 literal, test_theme green); toggle accesskit ids+toggled; Edit-return = exact MT-012 no-regression.",
+    "honest_note": "didn't produce a side-by-side Edit screenshot for the strict parity comparison (weakest unproven point, mitigated by the shared-renderer being literally one function render_blocks). Toggle proven at widget level; full editor-chrome placement at E11.",
+    "waiver_granted": "rich_editor/reading_mode.rs (new) + rich_editor/renderer/rich_editor_widget.rs (read_only branch) + rich_editor/mod.rs + test in allowed_paths (theme/palette.rs + Cargo.toml not needed - existing tokens/serde reused)."
   }
 }

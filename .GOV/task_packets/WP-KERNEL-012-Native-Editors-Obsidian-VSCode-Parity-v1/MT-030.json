@@ -25,10 +25,15 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-028", "MT-029"],
-    "blocks": ["MT-044"],
+    "depends_on": [
+      "MT-028",
+      "MT-029"
+    ],
+    "blocks": [
+      "MT-044"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -38,7 +43,9 @@
       "src/frontend/handshake_native/src/lib.rs",
       "src/frontend/handshake_native/src/app.rs",
       "src/frontend/handshake_native/src/command_registry.rs",
-      "src/frontend/handshake_native/src/backend_client.rs"
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/module_switcher.rs",
+      "src/frontend/handshake_native/tests/test_quick_switcher.rs"
     ],
     "forbidden_paths": [
       "app/src/** (legacy React, reference only)",
@@ -80,7 +87,10 @@
       "Source labels map: loom_block->'Loom Block', file->'File', tag_hub->'Tag Hub', document->'Document', symbol->'Symbol', work_packet->'Work Packet', micro_task->'Microtask', user_manual_page->'UserManual Page', wiki_page->'Wiki Page'. Match the React SOURCE_LABELS (QuickSwitcher.tsx:23-33).",
       "work_packet_id extraction from metadata: check metadata.work_packet_id, then metadata.wp_id, then parse metadata.entity_key for WP-[A-Za-z0-9-]+ pattern, then parse ref_id for the same pattern. Mirror workPacketId fn (loom_search_open_target.ts:36-43).",
       "micro_task_target extraction: check metadata.micro_task_id, metadata.mt_id, then parse metadata.entity_key/ref_id for MT-[A-Za-z0-9-]+ pattern. wp_id from metadata.work_packet_id, metadata.wp_id, metadata.work_packet, or metadata.entity_key WP parse. Mirror microTaskTarget fn (loom_search_open_target.ts:45-58).",
-      "Quick-switcher recents endpoint: GET /workspaces/{id}/loom/quick-switcher/recents?limit=20 (src/backend/handshake_core/src/api/loom.rs, list_quick_switcher_recents handler). POST /workspaces/{id}/loom/quick-switcher/recents (record_quick_switcher_recent handler). POST body: {result_kind, source_kind, ref_id, title, excerpt, metadata}. Response: {hit_key, ...}."
+      "Quick-switcher recents endpoint: GET /workspaces/{id}/loom/quick-switcher/recents?limit=20 (src/backend/handshake_core/src/api/loom.rs, list_quick_switcher_recents handler). POST /workspaces/{id}/loom/quick-switcher/recents (record_quick_switcher_recent handler). POST body: {result_kind, source_kind, ref_id, title, excerpt, metadata}. Response: {hit_key, ...}.",
+      "REUSE MT-029's VERIFIED SEARCH (KERNEL_BUILDER gate 2026-06-23): MT-029 already bound + verified GET /loom/graph-search (the route React searchLoomGraph calls - the plain /loom/search lacks source_kind/ref_id) + the LoomGraphSearchHit shape on backend_client.rs (WorkspaceSearchClient). REUSE that fn/type directly (the contract's RISK-7 graph-search-ambiguity is already resolved - it is /loom/graph-search, NOT /loom/search). Only ADD the quick-switcher recents endpoints (GET/POST /loom/quick-switcher/recents) - verify the route + QuickSwitcherRecent{hit_key,...} shape read-only against api/loom.rs. allowed_paths += module_switcher.rs (if a PaneType/tab arm is needed) + tests/test_quick_switcher.rs (the named test file, missing from the contract).",
+      "SHELLNAVIGATOR BUS + EDITOR-PANE SEAM (KERNEL_BUILDER gate - the integration core, carries to E11): DEFINE the ShellNavigator trait (open_document / open_loom_block / open_code_symbol / open_work_packet / open_micro_task / open_user_manual_page / open_wiki_page) - this is the navigation interface E5 (MT-031+) and E11 reuse, so design it extensibly. resolve_open_target maps ALL 9 source_kinds to a NavigationTarget via an exhaustive enum match + catch-all -> None (RISK-4/MC-4). Wire dispatch to the panes that EXIST NOW (Loom viewer MT-021 loom_graph.rs, wiki MT-025, search MT-028). BUT the rich-text editor (MT-012) + code editor (MT-001) panes are NOT yet mounted in app.rs (E11/MT-069 owns that), so open_document -> rich-text and open_code_symbol -> code editor route THROUGH the ShellNavigator methods as a TYPED SEAM that E11 wires to the mounted editor panes - do NOT fake the editor open; leave the bus method + a 'no editor pane mounted yet (E11)' typed status if called before E11. Carry-forward recorded to MT-069.",
+      "BACKEND PROOF + HYGIENE (MT-008/021-029 pattern): search + recents-roundtrip are REAL-PG proofs (gate behind integration + NEEDS_MANAGED_RESOURCE_PROOF if unseeded - do NOT fake). resolve_open_target (9 source_kinds, KRD- doc-id, WP-/MT- metadata parse), hit_key ('{source_kind}:{ref_id}'), stable_part (non-empty unique AccessKit ids, RISK-8/MC-8), debounce-cancel via a generation counter (RISK-2/MC-2 - only the latest query's response shows, like the MT-015/024 cancel pattern), ordered-results (recents-first), and recents prepend-dedup-cap-20 are ALL unit-testable STANDALONE. MODAL FOCUS SCOPING (RISK-3/MC-3, HBR-QUIET): the Ctrl+P overlay scopes keyboard to itself while open + RELEASES on close - a background editor must receive keys after the modal closes (no focus theft); first-frame autofocus on the search input. NO PERPETUAL SPINNER - 'Searching graph...' only during a genuine in-flight request (MT-015 lesson); kittest step() not run(). Ctrl+P via command_registry.rs (egui Key::P+CTRL). Screenshots EXTERNAL (wp-kernel-012-mt-030) + assert_no_local_artifact_dir(); reuse any theme token, NO Color32::from_rgb literal (theme guard). ACCESSKIT VARIANT: field-correct accesskit 0.21.1; ACs assert quick-switcher.* author_ids."
     ],
     "ports_from_react": [
       "app/src/components/QuickSwitcher.tsx (primary reference - full quick switcher feature)",
@@ -92,7 +102,13 @@
       "POST /workspaces/{workspace_id}/loom/quick-switcher/recents - record a new recent hit (src/backend/handshake_core/src/api/loom.rs, record_quick_switcher_recent). Body: QuickSwitcherRecentInput {result_kind, source_kind, ref_id, title, excerpt, metadata}. Response: QuickSwitcherRecent {hit_key, ...}."
     ]
   },
-  "hbr_obligations": ["HBR-INT", "HBR-SWARM", "HBR-VIS", "HBR-QUIET", "HBR-MAN"],
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM",
+    "HBR-VIS",
+    "HBR-QUIET",
+    "HBR-MAN"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -120,5 +136,28 @@
       "Verify graph-search route: read src/backend/handshake_core/src/api/loom.rs routes section before coding to confirm the exact path and param names used by searchLoomGraph.",
       "stable_part uniqueness: unit test that stable_part produces distinct non-empty strings for the ref_ids of the 9 hit types in the kittest snapshot."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + MT-029 graph-search route + MT-015/024 debounce-cancel + E11 host-mount + MT-028 theme token",
+    "corrections": [
+      "reuse MT-029's verified /loom/graph-search + LoomGraphSearchHit (RISK-7 resolved); verify recents endpoint; add module_switcher+test to allowed_paths",
+      "define ShellNavigator bus + exhaustive resolve_open_target; editor-pane targets are a typed seam wired at E11/MT-069 (not faked)",
+      "real search/recents NEEDS_MANAGED_RESOURCE_PROOF; resolve/hit_key/stable_part/debounce/ordered/dedup standalone",
+      "modal focus scoping (no key theft) + autofocus; no perpetual spinner; no Color32 literal; external screenshots; accesskit variant"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_5e5e6896 (impl + 3-lens panel + harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "58ea04a5 feat MT-030 ShellNavigator bus + quick-switcher integration",
+      "5a356a33 fix harden per adversarial review"
+    ],
+    "review_panel": "correctness=CHANGES_REQUIRED(1), backend-shape=PASS(0), perf-focus-hygiene=PASS(0) -> 1 must-fix hardened.",
+    "proofs": "AC-1..12 PASS (AC-9 PARTIAL = editor-pane seam by design); PT-1/2 live-PG search/recents = NEEDS_MANAGED_RESOURCE_PROOF (gated, backend refused); PT-3/4/5 PASS; 25 unit + 13 integration + 989 lib green, 0 warnings; quick-switcher overlay visually verified RENDERED IN THE FULL SHELL (menu bar + module tabs + left rail + panes + modal with 4 results + target hints + selected Loom Block + Backend:OK status); screenshot EXTERNAL (git ls-files src/**/*.png empty).",
+    "shell_navigator_bus": "Defined the ShellNavigator trait (7 methods) + resolve_open_target (9 source_kinds exhaustive + catch-all->Unsupported disabled row); dispatch_target routes all 7 targets to the right method (PT-5 via mock navigator). loom_block opens a REAL Loom tab (AC-8). E5 interconnection reuses this bus.",
+    "e11_seam_held": "My E11-seam patch HELD: a document hit dispatches open_document -> a typed EditorPaneNotMounted seam (visible status, NO faked open) because the rich-text editor pane is not mounted until E11/MT-069; carry-forward recorded to MT-069 (wire open_document->rich-text pane + open_code_symbol->code pane).",
+    "reuse_held": "Reused MT-029's verified /loom/graph-search + LoomGraphSearchHit (RISK-7 already resolved); added only the verified /loom/quick-switcher/recents endpoints; debounce-cancel via generation counter; recents prepend-dedup-cap-20; modal focus scoping (no key theft) + first-frame autofocus; no Color32 literal (theme guard).",
+    "waiver_granted": "app.rs (overlay/dispatch/Ctrl+P) + tests/test_quick_switcher.rs in allowed_paths; quick_switcher.rs is the existing WP-011 module extended."
   }
 }

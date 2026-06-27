@@ -25,10 +25,17 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
-    "depends_on": ["MT-006", "MT-007", "MT-008", "MT-010"],
-    "blocks": ["MT-044"],
+    "depends_on": [
+      "MT-006",
+      "MT-007",
+      "MT-008",
+      "MT-010"
+    ],
+    "blocks": [
+      "MT-044"
+    ],
     "validator_verdict": "PENDING"
   },
   "scope": {
@@ -37,6 +44,8 @@
       "src/frontend/handshake_native/src/code_editor/navigation.rs",
       "src/frontend/handshake_native/src/code_editor/jump_history.rs",
       "src/frontend/handshake_native/src/code_editor/keymap.rs",
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/src/code_editor/mod.rs",
       "src/frontend/handshake_native/src/top_menu_bar.rs",
       "src/frontend/handshake_native/tests/test_navigation.rs",
       "src/frontend/handshake_native/tests/test_jump_history.rs",
@@ -75,7 +84,10 @@
       "GO-menu items and keybindings must share ONE code path by dispatching the same CodeEditorAction through the WP-011 command bus (command_registry.rs + event_bus.rs); never duplicate the navigation logic between menu handler and key handler.",
       "Reuse the WP-011 AccessKit id registry (accessibility/registry.rs) for the four menu-item author_ids; do not mint ad-hoc ids outside the registry.",
       "Reuse the WP-011 native-shell modules under src/frontend/handshake_native/src/: top_menu_bar.rs for the GO menu bar surface, pane_registry.rs to resolve the focused code-editor pane, command_registry.rs + event_bus.rs as the command bus, and accessibility/registry.rs for AccessKit author_ids. Do not create parallel shell, pane, command-bus, or accessibility infrastructure.",
-      "Tests are flat under src/frontend/handshake_native/tests/test_*.rs (e.g. test_navigation.rs, test_jump_history.rs, test_code_editor_f8_next_diagnostic.rs); all cargo invocations target the package via `-p handshake-native`."
+      "Tests are flat under src/frontend/handshake_native/tests/test_*.rs (e.g. test_navigation.rs, test_jump_history.rs, test_code_editor_f8_next_diagnostic.rs); all cargo invocations target the package via `-p handshake-native`.",
+      "PATH + DISPATCH SITE (KERNEL_BUILDER gate 2026-06-24): keymap.rs gets the 4 NEW CodeEditorAction variants (GoToNextDiagnostic/GoToPrevDiagnostic/NavigateBack/NavigateForward) + their default bindings (F8/Shift+F8/Alt+Left/Alt+Right) APPENDED to the MT-010 table (RISK-008/MC-008 - do NOT reorder/rewrite existing arms; re-run the keymap suite to prove no regression). But the ACTION DISPATCH arms (move caret + record jump; NavigateBack/Forward open file + move) live in code_editor/panel.rs::process_keymap (where MT-047-051 ALL dispatch) - NOT keymap.rs. The JumpHistory is panel state. allowed_paths += panel.rs (dispatch+JumpHistory state) + mod.rs (pub mod navigation/jump_history). The 4 jump-RECORD call sites (goto-def/references/outline-symbol/goto-line) are in panel.rs's existing jump dispatch arms (MT-006/008) - add the JumpHistory::record(pre-jump location) there WITHOUT altering their jump behavior (RISK-006/MC-006: ONLY these 4 navigation jumps record - NOT typing/arrow caret moves; grep-prove).",
+      "VERIFY+IMPORT TYPES + TRAVERSAL CORRECTNESS (KERNEL_BUILDER gate): VERIFY the REAL type names by reading code_editor/gutter.rs (the MT-007 DiagnosticMarker - confirm the exact name/fields) + the cursor module (the MT-001/003 cursor/position type - it may be a byte-offset Cursor{anchor,head} NOT a line/column BufferPosition; the MT-051 lesson: MT-001 used a STRING language_id not the enum the contract assumed). IMPORT the real types - do NOT redefine a parallel DiagnosticMarker or Position (RISK-001/MC-001 - a parallel type fragments the model). next_diagnostic = first marker STRICTLY after the cursor (exclude the marker the caret is ON - RISK-002/MC-002, no stall/skip), wrap to index 0 if none; prev_diagnostic = last STRICTLY before, wrap to last; EMPTY list -> None BEFORE any indexing (RISK-003/MC-003, no panic). Total order by (line,column) ascending matching ProblemsView.tsx ordering (sort a BORROWED copy, don't mutate the gutter store).",
+      "VS CODE JUMP SEMANTICS + MENU + HYGIENE (KERNEL_BUILDER gate): JumpHistory VS Code semantics - FORWARD-TAIL TRUNCATION on a new jump while cursor!=tail (RISK-004/MC-004); CROSS-FILE path retention (each entry carries its own file_path; Back restores a position in a DIFFERENT file, AC-004/RISK-005); MISSING-file Back is GRACEFUL (log warning, no-op the open, history cursor unchanged - NO panic, RISK-005/MC-005); COALESCE consecutive same-file near-line entries; cap 50 (drop oldest). SINGLE dispatch path: menu click AND keybind dispatch the SAME CodeEditorAction via the WP-011 command bus (command_registry+event_bus) - NO duplicate navigation logic (RISK-007/MC-007). GO-menu items (top_menu_bar.rs): added present-but-DISABLED-until-E11 (like MT-050's EDIT menu - the WP-011 menu entries fire once E11/MT-069 mounts the editor; lighting them up live IS MT-069's job); Back/Forward also gated on can_back/can_forward; AccessKit menu-go-next-diagnostic/prev/back/forward (Role::MenuItem) via accessibility/registry.rs. The LIVE TESTABLE CORE = the keybind path (F8 etc -> panel dispatch -> caret move/jump), kittest-provable now. PURE frontend (binds NONE, no live PG, no persistence - in-memory session jump stack); full suite green via -j 2 (~90 bins OOM at default); clippy clean; no unwrap/panic; external screenshot if any."
     ],
     "ports_from_react": [
       "app/src/components/operator/ProblemsView.tsx — port diagnostic ORDERING semantics only (sort by file, then line, then column, then severity) so native F8/Shift+F8 traversal order matches the Problems-list order; do not port React rendering."
@@ -84,7 +96,10 @@
       "NONE — pure frontend. Diagnostic markers are read from the in-process MT-007 gutter store (populated by the MT-008 LSP client); jump positions come from in-process editor cursor state. No handshake_core API call is introduced and no persistence (no PostgreSQL/EventLedger) is touched."
     ]
   },
-  "hbr_obligations": ["HBR-VIS", "HBR-SWARM"],
+  "hbr_obligations": [
+    "HBR-VIS",
+    "HBR-SWARM"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null
@@ -112,5 +127,26 @@
       "MC-007: A single dispatch function handles both menu click and keybinding (one CodeEditorAction path through the WP-011 command bus); reviewed by grep showing menu handlers dispatch actions, not inline navigation logic.",
       "MC-008: cargo test re-runs the full MT-010 keymap test suite after this MT's edits to prove no pre-existing binding regressed."
     ]
+  },
+  "research_provenance": {
+    "source": "KERNEL_BUILDER gate + real code_editor/panel.rs dispatch + MT-007 gutter DiagnosticMarker + MT-001/003 cursor type + MT-006/008 jump sites + MT-050 menu-disabled-until-E11 + ProblemsView ordering",
+    "corrections": [
+      "4 variants+bindings in keymap.rs (appended, no regress); dispatch arms + JumpHistory state in panel.rs; record at the 4 jump sites only (not typing)",
+      "verify+import real DiagnosticMarker + cursor type (no parallel redefine; cursor may be byte-offset not line/col - verify); strict before/after + empty->None + wraparound",
+      "VS Code jump semantics (forward-truncate, cross-file retain, missing-file graceful, jump-only-record, cap 50); single dispatch path (menu+keybind via bus)",
+      "GO-menu present-but-disabled-until-E11 (live = keybind path); accesskit via registry; pure standalone; -j 2 full suite; don't regress MT-010 keymap"
+    ]
+  },
+  "implementation_result": {
+    "implemented_by": "KERNEL_BUILDER folded pipeline wf_5e3ba442 (impl + 3-lens panel; ALL PASS - no harden)",
+    "branch": "feat/WP-KERNEL-012",
+    "commits": [
+      "ab6b6332 feat MT-052 diagnostic nav (F8/Shift+F8) + jump history (Alt+Left/Right)"
+    ],
+    "review_panel": "correctness=PASS(0), backend-shape=PASS(0), perf-focus-hygiene=PASS(0) -> ALL PASS, zero must-fixes (3rd clean all-PASS MT - the pre-patching paid off).",
+    "proofs": "AC-001..008 + PT-001..006 PASS; navigation 14 + jump_history 12 + keymap 14 unit + 7+6 integration + F8 kittest green; FULL suite via -j 2: lib 1240/0-failed + 88 integration bins 0 failed; clippy -D warnings clean; F8 diagnostic nav (caret to red marker on line 21, scroll-to-reveal) visually verified; screenshot EXTERNAL.",
+    "steers_held": "panel.rs dispatch (4 arms + JumpHistory state + record at 4 jump sites) NOT keymap.rs; REUSED the REAL MT-007 GutterMarker (not 'DiagnosticMarker' the contract assumed - verify-over-prose, no redefine); strict before/after traversal + wraparound + empty->None; VS Code jump semantics (forward-tail truncate, cross-file retain src/a.rs, missing-file graceful, jump-only-record); keymap 4 appended (64 variants, MT-010 NOT regressed - keymap suite 12 green); single dispatch path (menu+keybind via dispatch_action); GO-menu disabled-until-E11 (4 MenuItem nodes).",
+    "honest_note": "find-references (Shift+F12) does NOT record a jump-origin because the current baseline ShowReferences parks results WITHOUT moving the caret (no references panel in MT-010 scope) - recording it would create a phantom Back; the agent records ONLY at the 4 sites that actually move the caret (goto-line/goto-def/hover-go-to-def/outline). When a references-panel-open MT lands (it moves the caret), add a record there. Baseline-scope note, not a defect.",
+    "waiver_granted": "code_editor/navigation.rs + jump_history.rs (new) + keymap.rs (4 variants) + panel.rs (dispatch+state) + mod.rs + top_menu_bar.rs (GO-menu) + 3 tests in allowed_paths."
   }
 }

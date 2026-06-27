@@ -1,0 +1,140 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-091",
+  "title": "P3-MT-091-FreezeDetection-StaleHeartbeat-HungWindowProbe",
+  "group": "P1 Palmistry (Tier 3 external watcher)",
+  "created_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-091.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-089",
+      "MT-090"
+    ],
+    "blocks": [
+      "MT-093",
+      "MT-096"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: Implement Palmistry FREEZE DETECTION (Master Spec v02.196 §6.13.5): poll the ring heartbeat (~200-500ms); when it goes STALE (the frame-loop counter / monotonic timestamp stops advancing for longer than a threshold, default ~5s) AND the OS hung-window probe corroborates, declare a FREEZE. The double-signal (stale heartbeat + hung-window probe) avoids false positives during a legitimate long frame (§6.13.5: 'Staleness alone is corroborated by an OS hung-window probe ... before Palmistry declares a freeze'). A healthy, advancing heartbeat must NEVER trip a freeze.\n\nExact files to create/edit (inside the palmistry crate):\n- CREATE `src/frontend/palmistry/src/freeze_detect.rs` — a `FreezeDetector` that, on a poll tick (~200-500ms, between the MT-084 ~250ms idle heartbeat cadence and the ~5s threshold), reads the heartbeat via the MT-090 reader, tracks the last-seen counter + the wall time it was last observed to ADVANCE, and computes staleness = now - last_advance_time. When staleness > the threshold (~5s, a named const), it runs the hung-window probe; if the probe also says not-responding, it declares `FreezeState::Frozen` (with the stale duration + last heartbeat snapshot, typed integers). If the heartbeat advances again, it clears back to `Healthy` (a freeze can recover — the app may unfreeze).\n- CREATE `src/frontend/palmistry/src/hung_window_probe.rs` — the Windows hung-window probe. Use `SendMessageTimeoutW(hwnd, WM_NULL, 0, 0, SMTO_ABORTIFHUNG|SMTO_BLOCK, timeout_ms, &result)`: if it TIMES OUT, the window's message pump is not pumping => not responding (the standard Win32 hung-window check; it is what Task Manager uses for 'Not responding'). Resolve Handshake's top-level HWND from the parent PID (enumerate top-level windows via EnumWindows + GetWindowThreadProcessId, match the PID; pass the resolved HWND in or resolve once at startup). windows-sys features needed: `Win32_UI_WindowsAndMessaging` (SendMessageTimeoutW, EnumWindows, WM_NULL, the SMTO_ flags) + `Win32_Foundation` — add these to the palmistry Cargo.toml windows-sys features (matching the handshake-native family; Win32_UI_WindowsAndMessaging is already enabled there). Provide a `HungWindowProbe` trait so a headless/non-Windows test can inject a fake probe result.\n- EDIT `src/frontend/palmistry/src/main.rs` — run the FreezeDetector poll in the watch loop (a dedicated poll thread / loop at the ~200-500ms cadence). On a Frozen transition, hand off to MT-093 (survivor store) — for THIS MT, record the freeze state + a typed `DiagEventCode::FreezeSuspected`-style marker in Palmistry's own state/log (the durable survivor record is MT-093).\n- CREATE `src/frontend/palmistry/tests/test_freeze_detect.rs`.\n\nNO-FALSE-POSITIVE PROOF (the deliverable, §6.13.5): (1) HEALTHY: a test where the heartbeat keeps advancing (a writer bumps it faster than the threshold) and the FreezeDetector NEVER declares a freeze — even across many poll ticks, even past the ~5s threshold in wall time, because the counter keeps advancing. (2) FREEZE: a test where the writer STOPS bumping the heartbeat (simulated freeze), staleness crosses the threshold, the (injected/fake) hung-window probe returns not-responding, and the detector declares Frozen with the correct stale duration. (3) CORROBORATION: a test where the heartbeat is stale BUT the hung-window probe says responding (a borderline long frame) and the detector does NOT yet declare a hard freeze (or declares only a 'suspected' state, not a confirmed freeze) — proving the double-signal gate. (4) RECOVERY: after a freeze, the heartbeat resumes and the detector clears to Healthy.\n\nTHRESHOLD TUNING (no false positive on a healthy heartbeat — AC-011-1 is the gate): the poll cadence (~200-500ms) is BELOW the MT-084 idle heartbeat cadence (~250ms) — verify the chosen poll + threshold do not flag a healthy IDLE app (whose heartbeat advances every ~250ms via request_repaint_after). The ~5s threshold is >> the ~250ms idle cadence, so a healthy idle app never goes stale. Document the relationship between MT-084's idle cadence, this poll interval, and the freeze threshold so they are provably consistent.\n\nReuse note: the heartbeat read is the MT-090 reader; the parent PID + HWND resolution uses the MT-089 inputs + windows-sys (already the handshake-native Windows family). No backend. The hung-window probe is the standard Win32 SendMessageTimeout WM_NULL technique (Task Manager's 'Not responding' check).\n\nRisk if missed: Palmistry cannot detect freezes (its primary §6.13.1 job); OR (false positives) it declares freezes on healthy long frames / idle apps, crying wolf and producing noise; OR (false negatives) a wrong staleness reference (e.g. comparing wall timestamps that jumped, or never resetting last_advance on a counter bump) misses real freezes or fires spuriously.",
+    "allowed_paths": [
+      "src/frontend/palmistry/src/freeze_detect.rs",
+      "src/frontend/palmistry/src/hung_window_probe.rs",
+      "src/frontend/palmistry/src/main.rs",
+      "src/frontend/palmistry/Cargo.toml",
+      "src/frontend/palmistry/tests/test_freeze_detect.rs"
+    ],
+    "forbidden_paths": [
+      "src/frontend/handshake_native/diag_ring/** (MT-081-owned; reuse via API)",
+      "src/frontend/handshake_native/** (Handshake side is MT-084/014)",
+      "src/backend/** (Palmistry never touches the backend)",
+      "src/backend/handshake_core/src/flight_recorder/** (FR kept as-is)",
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-011-1 (NO FALSE POSITIVE — the gate): a test where the heartbeat keeps ADVANCING (a writer bumps it faster than the threshold, including at the ~250ms idle cadence) and the FreezeDetector NEVER declares a freeze across many poll ticks and past the ~5s wall-time threshold — a healthy/idle heartbeat must not trip a freeze.",
+      "AC-011-2 (FREEZE DETECTED): a test where the writer STOPS bumping the heartbeat, staleness crosses the ~5s threshold, the hung-window probe (injected fake = not-responding) corroborates, and the detector declares Frozen with the correct stale duration + last-heartbeat snapshot (typed integers).",
+      "AC-011-3 (CORROBORATION / double-signal): a test where the heartbeat is stale BUT the hung-window probe says responding (borderline long frame) and the detector does NOT declare a confirmed hard freeze (suspected-only, not confirmed) — proving the §6.13.5 double-signal gate prevents false positives on legitimate long frames.",
+      "AC-011-4 (RECOVERY): after a declared freeze, the heartbeat resumes advancing and the detector clears back to Healthy (a freeze can recover).",
+      "AC-011-5: the poll cadence (~200-500ms) + threshold (~5s) are named consts and provably consistent with MT-084's ~250ms idle heartbeat cadence (documented relationship); staleness is measured against a MONOTONIC reference (the heartbeat's monotonic timestamp + Palmistry's own monotonic clock), never a wall clock that can jump.",
+      "AC-011-6: the hung-window probe is the real Win32 SendMessageTimeoutW(WM_NULL, SMTO_ABORTIFHUNG) on Handshake's resolved top-level HWND (Windows); a `HungWindowProbe` trait allows a fake in headless tests. `cargo build -p palmistry` clean; clippy `--all-targets -D warnings` clean; external target dir; no repo-local target/."
+    ],
+    "proof_targets": [
+      "PT-011-A: `cargo test -p palmistry freeze_detect` GREEN — healthy/idle heartbeat never trips (no false positive).",
+      "PT-011-B: stale-heartbeat + corroborating probe => Frozen declared with correct duration; recovery clears to Healthy.",
+      "PT-011-C: corroboration test GREEN — stale-but-responding does not confirm a hard freeze (double-signal gate).",
+      "PT-011-D: consts + monotonic-reference review; `cargo build -p palmistry` clean + clippy -D warnings; external target dir."
+    ],
+    "implementation_notes": [
+      "Track last-SEEN heartbeat counter + the Palmistry monotonic time it was last observed to ADVANCE. staleness = now - last_advance_time. Reset last_advance_time every time the counter changes. NEVER compare wall clocks that can jump — use Palmistry's own Instant + the heartbeat's monotonic nanos (MT-084).",
+      "Double-signal (§6.13.5): stale heartbeat ALONE => suspected; stale heartbeat AND hung-window-probe-not-responding => confirmed Frozen. A legitimate long frame (stale but the window still pumps messages) must NOT confirm a hard freeze.",
+      "Hung-window probe: SendMessageTimeoutW(hwnd, WM_NULL, 0, 0, SMTO_ABORTIFHUNG|SMTO_BLOCK, timeout_ms, &result) — a TIMEOUT means the message pump is stuck (not responding). This is exactly Task Manager's 'Not responding' check. Resolve Handshake's HWND from the parent PID (EnumWindows + GetWindowThreadProcessId match) once at startup or lazily.",
+      "Poll cadence ~200-500ms is BELOW MT-084's ~250ms idle heartbeat cadence and WAY below the ~5s threshold, so a healthy idle app (heartbeat advancing every ~250ms) never goes stale. Document this so AC-011-1 is provably satisfied.",
+      "A freeze can RECOVER (the app unfreezes) — clear back to Healthy when the heartbeat resumes; do not latch Frozen forever.",
+      "Use a HungWindowProbe trait so headless/CI tests inject a fake probe result (Windows GUI message-pump probing is awkward in CI); the real Win32 impl is behind the seam.",
+      "Read the KERNEL_BUILDER coder protocol under .GOV/ first; the no-false-positive proof (AC-011-1) is the gate — a detector that cries wolf on a healthy heartbeat is worse than none."
+    ],
+    "ports_from_react": [
+      "NONE (native freeze detection)"
+    ],
+    "binds_backend_api": [
+      "NONE. Reads the local ring heartbeat (MT-090) + probes the OS window manager. No backend."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-SWARM"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "status": "NOT_APPLICABLE",
+      "reason": "Freeze detection produces a Tier 3 freeze state; forwarding it into the Tier 1 FR at recovery is MT-093."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "WIRED",
+      "reason": "Freeze detection keys on the Tier 2 internal_diagnostics heartbeat (MT-084) — it is the cross-tier consumer that turns the heartbeat staleness into a freeze verdict. The link from Tier 2 producer to Tier 3 detector is proven by the freeze/healthy tests."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "WIRED",
+      "reason": "This MT IS §6.13.5 Palmistry freeze detection: stale-heartbeat poll + OS hung-window corroboration + recovery, with the no-false-positive-on-healthy-heartbeat gate. Built + proven here."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PALMISTRY_WATCHER_V1",
+    "risks": [
+      "RISK-011-1: false positive — a healthy long frame or an idle app (heartbeat advancing every ~250ms) is flagged as frozen. Mitigate: ~5s threshold >> idle cadence + the hung-window double-signal gate (AC-011-1/3).",
+      "RISK-011-2: false negative — a wrong staleness reference (wall clock jump, or never resetting last_advance) misses a real freeze. Mitigate: monotonic reference + reset-on-advance (AC-011-5).",
+      "RISK-011-3: latching Frozen forever, missing recovery. Mitigate: clear to Healthy on heartbeat resume (AC-011-4).",
+      "RISK-011-4: the hung-window probe blocks Palmistry (SendMessageTimeout with no/long timeout). Mitigate: bounded timeout_ms + SMTO_ABORTIFHUNG; run on the poll thread, not the control loop.",
+      "RISK-011-5: HWND resolution fails (multiple windows / wrong PID match), so the probe checks the wrong window. Mitigate: match top-level window by GetWindowThreadProcessId == parent PID; handle no-window gracefully.",
+      "RISK-011-6: repo-local target/ leak. Mitigate: external target dir (AC-011-6)."
+    ],
+    "minimum_controls": [
+      "MC-011-1: no-false-positive-on-healthy/idle-heartbeat gate (AC-011-1).",
+      "MC-011-2: double-signal corroboration (AC-011-3).",
+      "MC-011-3: monotonic staleness reference + reset-on-advance + recovery (AC-011-4/5).",
+      "MC-011-4: bounded probe timeout; external target dir; clippy -D warnings."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-KERNEL-012 field research (June 2026)",
+    "field_stack": "Watchdog stale-heartbeat detection + the Win32 SendMessageTimeout(WM_NULL, SMTO_ABORTIFHUNG) hung-window probe (the technique Task Manager uses for 'Not responding'); double-signal corroboration to avoid false positives on legitimate long frames (§6.13.5).",
+    "crate_versions_verified_2026_06_27": {
+      "windows-sys": "0.61 (match handshake-native; Win32_UI_WindowsAndMessaging + Win32_Foundation for SendMessageTimeoutW/EnumWindows/WM_NULL/SMTO_*)",
+      "handshake-diag-ring": "path dep (MT-081; heartbeat read via MT-090)"
+    },
+    "motivating_incident": "The 2026-06-26 freeze (UI thread stalled, Responding=false) is EXACTLY the case this detects: the heartbeat would have stopped advancing and the hung-window probe would have returned not-responding — a confirmed freeze Palmistry captures from outside the hung process.",
+    "validation_plan": "no-false-positive-on-healthy + stale+corroborated freeze + double-signal corroboration + recovery + monotonic reference; external target dir; clippy -D warnings."
+  }
+}

@@ -396,6 +396,30 @@ From `D:\Projects\LLM projects\NotebookLM_gpt_bridge\product`:
 ../Handshake_Artifacts/             - external build/test/tool artifacts [CX-212E]
 ```
 
+## Build Rules Authority
+
+`.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json` is the authoritative `HBR-*` build-rule registry (schema `handshake.build_rules@1`). It is machine-readable JSON authority; do not auto-create a `.md` projection (markdown is on-demand only, per its own `non_authority_surfaces.markdown_projection_policy = ON_DEMAND_ONLY`).
+
+- READ it before any product-code WP. It is injected/read and must be ACKNOWLEDGED AS AUTHORITATIVE at startup for every product-build role (`kernel_builder`, `coder`, `wp_validator`, `integration_validator`).
+- On packet hydration, applicable `HBR-*` rules auto-generate `PACKET_ACCEPTANCE_MATRIX` rows keyed by `rule_id`. Validators mark each row PROVED / NOT_APPLICABLE (with reason) / BLOCKED (with cause). PASS closure is illegal while any required HBR row is PENDING, STEER, or BLOCKED [CX-503B1].
+- Pillars: INT (interconnectivity proof), SWARM (parallel agent + operator safety), VIS (visual debug + operator GUI drive), QUIET (non-intrusive operation), MAN (in-product ModelManual currency), STOP (implementer stop discipline).
+- **HBR-INT-009 — THREE-TIER DIAGNOSTICS is MANDATORY** for any WP that touches observable runtime behavior. Every observable runtime behavior must be wired across three tiers, with the per-tier outcome recorded as build evidence (WIRED / NOT_APPLICABLE-with-reason / DEFERRED-with-reason):
+  - **Tier 1 — Flight Recorder:** the KEPT-AS-IS backend BUSINESS-EVENT ledger. Confirm/repair the FR emit where the behavior is a business event; no schema re-open.
+  - **Tier 2 — internal_diagnostics:** the Handshake-native INTERNAL self-diagnostics tool (panic hook, UI-thread heartbeat, frame-time, CPU/RSS/GPU counters, OPEN diagnostic-event API). This is the diagnostic role the FR was intended to fill but never did.
+  - **Tier 3 — Palmistry:** the EXTERNAL out-of-process watcher that survives freezes/crashes/heavy-CPU (shared-memory ring reader, minidumps).
+  - internal_diagnostics + Palmistry record NO project/sensitive data (typed allowlist; standard mechanism names kept: heartbeat/minidump/watchdog/ring-buffer). They SUPPLEMENT, never replace, the Flight Recorder. Built by WP-KERNEL-012; retrofitted by WP-KERNEL-016. Until shipped, observable-behavior WPs mark the consideration DEFERRED-with-reason (never silently skipped). Cites HBR-INT-001/007 + Codex CX-006-VIS + CX-981.
+
+## Debug and Diagnostic Tools
+
+The current Handshake app is the NATIVE egui shell. Its visual-debug surface is the native MCP tool path in the product worktree `../wtc-native-editors-v1/src/frontend/handshake_native/` — NOT the legacy Tauri/WebView2/CDP path (`app/src-tauri/src/visual_debug.rs`, `Page.captureScreenshot`), which belongs to the retired React/Tauri stack and must not be used to inspect the native app.
+
+Native visual-debug path:
+
+- **MCP tool surface** (`src/mcp/tools.rs`): `list_widgets` (returns the current-frame `UiTreeSnapshot` JSON read surface), `click_widget` (`{ "target": "<author_id>" }`), `set_value` (`{ "target": "<author_id>", "value": "…" }`), `screenshot` (returns `{ png_base64, width, height, captured_at_utc }`). `click_widget`/`set_value` ENQUEUE an action onto the egui frame loop; take a fresh `list_widgets` after a frame to observe the post-action state.
+- **egui_kittest harness** (`egui_kittest = "0.33"`, `wgpu` feature; `Harness` in `tests/`): the widget-test render harness that drives the real app frame loop and produces frame snapshots / AccessKit trees for assertion.
+- **Screenshot capture** (`src/mcp/screenshot.rs`): two sources — (1) production = focus-safe Win32 `PrintWindow`/`BitBlt` OS-window grab that NEVER calls `SetForegroundWindow`/`BringWindowToTop` and never changes Z-order (HBR-QUIET); needs a real on-screen window; (2) headless proof = `egui_kittest`'s wgpu `Harness::render()` offscreen-texture readback (focus-safe by construction).
+- **Known limitation:** pixel-level `Harness::render()` readback can crash with `STATUS_ACCESS_VIOLATION (0xc0000005)` on headless-GPU hosts (the real-GPU screenshot test is OFF by default for this reason). Run pixel screenshots on a real-GPU host; on a headless host rely on `list_widgets`/AccessKit-tree assertions for visual proof.
+
 ## Sync Flow (How Changes Reach Main)
 
 - `.GOV/` changes -> edit in `wt-gov-kernel` on `gov_kernel` -> commit on `gov_kernel` -> `just sync-gov-to-main` -> push `main`
