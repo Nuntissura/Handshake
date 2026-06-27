@@ -17,15 +17,53 @@ pub const BACKEND_BASE_URL: &str = "http://127.0.0.1:37501";
 /// minting an independent pool/TLS stack per sub-client. New `/knowledge/documents/*` transport (the
 /// MT-037 consolidated client + the MT-029 find/replace `RichDocClient`, which now delegates to it)
 /// resolves its client from here so there is exactly ONE document-transport pool. Lazily initialized on
-/// first use; the build is infallible (`reqwest::Client::new()` with the crate's default rustls config).
+/// first use; the build degrades gracefully ([`build_backend_client`] falls back to
+/// `reqwest::Client::new()` if the builder somehow fails) and carries the backend-down timeouts below.
 static SHARED_HTTP_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+
+/// WP-KERNEL-012 MT-088 (D2 internal_diagnostics — backend-down graceful degradation, Master Spec
+/// v02.196 §5.8.5 "Backend-down graceful degradation (HARD)"). Connect timeout for every backend
+/// reqwest client: a dead backend (nothing listening on `127.0.0.1:37501`) refuses the TCP connection
+/// fast, but a HALF-OPEN backend (a host that accepts the SYN but never completes the handshake, e.g. a
+/// firewalled/black-holed port) would otherwise hang the connect attempt for the OS default (tens of
+/// seconds). A short connect timeout bounds that worst case so even a TCP-accepting-but-silent backend
+/// cannot hang a worker indefinitely (AC-008-5 / defense in depth — the off-thread move in `app.rs`
+/// already prevents a UI-thread stall; this prevents a leaked worker on a half-open socket).
+pub const BACKEND_CONNECT_TIMEOUT: Duration = Duration::from_millis(1500);
+
+/// WP-KERNEL-012 MT-088: the overall per-request timeout floor applied to the shared backend client so a
+/// request that connects but never sends a response body cannot hang a worker forever. Individual call
+/// sites may set a tighter per-request `.timeout(..)` (e.g. the 5s layout/health probes); this is the
+/// outer bound on the shared pool.
+pub const BACKEND_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// WP-KERNEL-012 MT-088: build a backend [`reqwest::Client`] carrying the backend-down timeouts
+/// ([`BACKEND_CONNECT_TIMEOUT`] + [`BACKEND_REQUEST_TIMEOUT`]). Graceful: if the builder fails for any
+/// reason it falls back to the infallible `reqwest::Client::new()` (no timeouts) rather than panicking —
+/// a missing timeout degrades to the old behavior, it never crashes startup. Used by the shared pool,
+/// the `/health` probe, and the layout transport (the UI-thread-reachable backend paths this MT fixes).
+pub fn build_backend_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .connect_timeout(BACKEND_CONNECT_TIMEOUT)
+        .timeout(BACKEND_REQUEST_TIMEOUT)
+        .build()
+        .unwrap_or_else(|e| {
+            tracing::warn!(
+                error = %e,
+                "backend reqwest client builder failed; falling back to a default client without \
+                 timeouts (graceful degradation — startup never blocks on this)"
+            );
+            reqwest::Client::new()
+        })
+}
 
 /// Return a clone of the process-wide shared backend [`reqwest::Client`] (one connection pool for the
 /// whole app). Cloning is cheap (the pool is shared behind an `Arc`); callers that need to own a client
-/// should clone this rather than calling `reqwest::Client::new()` so they share the single pool.
+/// should clone this rather than calling `reqwest::Client::new()` so they share the single pool and its
+/// backend-down timeouts ([`build_backend_client`]).
 pub fn shared_http_client() -> reqwest::Client {
     SHARED_HTTP_CLIENT
-        .get_or_init(reqwest::Client::new)
+        .get_or_init(build_backend_client)
         .clone()
 }
 /// Health probe (CONTROL-2). Kept as a full URL for the existing MT-002 health wiring.
@@ -42,10 +80,12 @@ pub struct HealthInfo {
     pub migration_version: Option<i64>,
 }
 
-/// GET /health with a 5s timeout (CONTROL-2). Non-success status or a parse failure is an error,
-/// never a panic.
+/// GET /health with a 5s request timeout (CONTROL-2) plus the MT-088 backend-down connect timeout
+/// ([`build_backend_client`]). Non-success status, a refused connection (backend down), or a parse
+/// failure is an error, never a panic. The connect timeout bounds a half-open backend; the off-thread
+/// spawn (`HandshakeApp::new` / `poll_health`) keeps this off the egui UI thread.
 pub async fn fetch_health(url: &str) -> Result<HealthInfo, AppError> {
-    let client = reqwest::Client::new();
+    let client = build_backend_client();
     let resp = client
         .get(url)
         .timeout(Duration::from_secs(5))
@@ -93,9 +133,15 @@ pub struct WorkbenchLayoutClient {
 
 impl WorkbenchLayoutClient {
     /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
+    ///
+    /// WP-KERNEL-012 MT-088: the client carries the backend-down timeouts ([`build_backend_client`] —
+    /// connect + request), so the `GET`/`PUT` layout round-trips this transport performs cannot hang a
+    /// worker forever on a dead/half-open backend. This is the transport whose UI-thread-reachable
+    /// `block_on` was the latent 2026-06-26 freeze; the freeze fix moves the call off the UI thread (in
+    /// `app.rs`) AND bounds the network wait here (defense in depth).
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: build_backend_client(),
             base_url: base_url.into(),
             runtime,
         }

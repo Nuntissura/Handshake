@@ -107,6 +107,14 @@ pub const SETTINGS_SAVE_DEBOUNCE: std::time::Duration = std::time::Duration::fro
 pub const HEARTBEAT_IDLE_REPAINT_INTERVAL: std::time::Duration =
     std::time::Duration::from_millis(250);
 
+/// WP-KERNEL-012 MT-088 (D2 internal_diagnostics — backend-down graceful degradation, §5.8.5 HARD).
+/// Cadence for the background `/health` re-probe. The ctor fires one `/health` poll; this re-arms it so
+/// a backend that goes down (then recovers) is continuously re-observed — which is what drives the
+/// debounced `BackendUnreachable`/`BackendRecovered` transition events and the re-connect after recovery
+/// (AC-008-6). Each probe is a single off-UI-thread `rt.spawn` (HBR-QUIET — no UI-thread blocking, no
+/// focus steal); 2s is frequent enough to notice a down/up transition promptly yet cheap on idle CPU.
+pub const HEALTH_REPROBE_INTERVAL: std::time::Duration = std::time::Duration::from_secs(2);
+
 /// A generous default all-monitors extent for the restore-time pop-out clamp before egui reports the
 /// real monitor size. Large enough that a legitimate position is never clamped on the first frame.
 const DEFAULT_MONITOR_EXTENT: egui::Rect =
@@ -132,6 +140,28 @@ pub enum HealthDisplayState {
     Ok(HealthInfo),
     Error(String),
 }
+
+/// WP-KERNEL-012 MT-088 (D2 internal_diagnostics — backend-down graceful degradation, §5.8.5 HARD).
+/// The result a spawned layout-LOAD worker delivers into [`HandshakeApp::layout_load_cell`]:
+/// - `project_id` — the project the load was requested for (so a delivery for a since-switched project is
+///   ignored rather than clobbering the now-current layout);
+/// - `reachable` — whether the backend was REACHABLE for this load (the manager swallows a transport
+///   error into `Ok(fallback)` + an `Error` STATUS, so the worker reads the status right after `load`
+///   and delivers the reachability here — the UI thread folds the correct edge without re-reading a
+///   possibly-since-changed manager status);
+/// - `snapshot` — the manager's validated `load` outcome: `Ok(Some(..))` is a restored layout to apply;
+///   `Ok(None)` is "no stored layout / fell back to default" (keep the seeded default — the
+///   degraded-but-responsive state); `Err` would be unreachable-with-no-LKG.
+///
+/// The worker runs the load OFF the egui UI thread; the UI thread NEVER `lock()`s the manager on the
+/// frame path (it uses `try_lock` and skips when the worker holds it), so a backend-down `GET` can never
+/// stall the frame loop — the freeze fix is BOTH "the `block_on` is off the UI thread" AND "the UI thread
+/// never blocks waiting for the manager lock the worker holds during that `block_on`".
+type LayoutLoadResult = (
+    String,
+    bool,
+    Result<Option<LayoutSnapshot>, crate::layout_persistence::LayoutError>,
+);
 
 pub struct HandshakeApp {
     health_status: HealthDisplayState,
@@ -262,6 +292,33 @@ pub struct HandshakeApp {
     /// A debounced save flush is in flight on a worker thread. Prevents spawning a second overlapping
     /// flush for the same coalesced change set.
     save_in_flight: Arc<std::sync::atomic::AtomicBool>,
+    /// WP-KERNEL-012 MT-088 (D2 internal_diagnostics — backend-down graceful degradation, §5.8.5 HARD).
+    /// The delivery cell a spawned layout-LOAD worker writes the loaded snapshot result into; the egui UI
+    /// thread drains it next frame and applies it. This is THE fix for the latent 2026-06-26 freeze: the
+    /// project-layout load runs a backend `GET` that USED to `block_on` ON the egui UI thread inside
+    /// `drive_layout_persistence` (so a backend-down `GET` stalled the whole frame loop — Responding=false,
+    /// CPU->0). The load now runs OFF the UI thread (the same short-lived-worker shape the debounced SAVE
+    /// already uses) and delivers here, so a dead backend degrades (the seeded default stays visible) and
+    /// never freezes. `(project_id, result)` so a stale delivery for a since-switched project is ignored.
+    layout_load_cell: Arc<Mutex<Option<LayoutLoadResult>>>,
+    /// WP-KERNEL-012 MT-088: a layout-LOAD worker is in flight. Prevents spawning a second overlapping
+    /// load for the same project while the first is still running (mirrors `save_in_flight`).
+    layout_load_in_flight: Arc<std::sync::atomic::AtomicBool>,
+    /// WP-KERNEL-012 MT-088: the DEBOUNCED backend-reachability state — `true` once the app has observed
+    /// the backend as unreachable and has NOT yet seen it recover. The typed diagnostic transition events
+    /// are emitted on the EDGES only (RISK-008-4 / AC-008-3): `BackendUnreachable` once on the
+    /// reachable->unreachable edge, `BackendRecovered` once on the unreachable->reachable edge — NEVER
+    /// every frame. Driven by the periodic `/health` poll result (the canonical reachability oracle) and
+    /// by a layout-load transport failure. Starts `false` (assume reachable until proven otherwise; the
+    /// first real `/health` result settles it without a spurious "recovered").
+    backend_down: bool,
+    /// WP-KERNEL-012 MT-088: when the NEXT background `/health` re-probe is due. The ctor fires one
+    /// `/health` poll; without a re-probe a recovered backend would never be re-observed (so
+    /// `BackendRecovered` / re-connect could never fire — AC-008-6). After each resolved poll the next
+    /// probe is scheduled this far out (a bounded cadence — cheap, off the UI thread via `rt.spawn`).
+    /// `None` while a probe is in flight (re-armed when it resolves). Skipped entirely in the headless
+    /// shell (no runtime to spawn on).
+    health_next_poll_at: Option<std::time::Instant>,
     /// The layout blob as of the last frame, used to DETECT a layout-affecting change without
     /// instrumenting every divider/tab/pop-out call site: if this frame's captured `layout_state`
     /// differs, the layout changed and a debounced save is scheduled. `None` until the first frame
@@ -1342,6 +1399,16 @@ impl HandshakeApp {
             loaded_project_id: None,
             layout_dirty_signal: false,
             save_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            // WP-KERNEL-012 MT-088: the off-thread layout-load delivery cell + in-flight guard + the
+            // debounced backend-reachability state. The load now runs off the UI thread so a backend-down
+            // `GET` never freezes the frame loop (the 2026-06-26 freeze fix). `backend_down` starts false
+            // (assume reachable until the first `/health` result settles it — no spurious "recovered").
+            layout_load_cell: Arc::new(Mutex::new(None)),
+            layout_load_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            backend_down: false,
+            // MT-088: the ctor already fired ONE `/health` poll above; arm the next re-probe so a
+            // down/up transition is continuously observed (the seed for the typed transition events).
+            health_next_poll_at: Some(std::time::Instant::now() + HEALTH_REPROBE_INTERVAL),
             monitor_extent: DEFAULT_MONITOR_EXTENT,
             last_seen_layout: None,
             project_tabs: default_project_tabs(),
@@ -1741,6 +1808,15 @@ impl HandshakeApp {
             loaded_project_id: None,
             layout_dirty_signal: false,
             save_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            // WP-KERNEL-012 MT-088: same off-thread layout-load cell + guard + backend-reachability state
+            // as the production ctor. The headless shell wires a `NullLayoutTransport` (load -> Ok(None)),
+            // so a load resolves instantly to "keep default" with no network and never marks backend_down.
+            layout_load_cell: Arc::new(Mutex::new(None)),
+            layout_load_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            backend_down: false,
+            // Headless/test shell: no runtime to spawn a `/health` re-probe on, so none is armed (the
+            // preset `health_status` is the fixed reachability for the session).
+            health_next_poll_at: None,
             monitor_extent: DEFAULT_MONITOR_EXTENT,
             last_seen_layout: None,
             project_tabs: default_project_tabs(),
@@ -5467,7 +5543,12 @@ impl HandshakeApp {
             return false;
         }
         // 1. Persist the leaving project's layout (keyed on the current active id) before switching.
-        self.save_layout_now();
+        //    WP-KERNEL-012 MT-088: this runs OFF the egui UI thread (`spawn_layout_save_now`) — a project
+        //    switch is a UI action and the old synchronous `save_layout_now()` `block_on`'d the backend
+        //    `PUT` on the UI thread, so a backend-down switch would stall the frame loop (the same freeze
+        //    class this MT fixes). The snapshot is captured on the UI thread (it reads live shell state),
+        //    then the network `PUT` runs on a short-lived worker; the layout reset below proceeds at once.
+        self.spawn_layout_save_now();
         // 2. Reset to the entered project's fresh default + point the shell at it. The next frame's
         //    lifecycle load overwrites this default with the stored layout if one exists (loaded_project_id
         //    now differs from active_project_id), else the fresh default remains.
@@ -5519,6 +5600,42 @@ impl HandshakeApp {
     /// Production wires the real [`WorkbenchLayoutClient`] via `new`.
     pub fn set_layout_manager(&mut self, manager: LayoutPersistenceManager) {
         self.layout_manager = Arc::new(Mutex::new(manager));
+    }
+
+    /// WP-KERNEL-012 MT-088 TEST SEAM (the backend-down re-prove, AC-008-1): re-point the app's
+    /// UI-thread-reachable backend interactions — the `/health` poll AND the layout-persistence transport
+    /// — at `base_url`, then force a fresh off-thread layout load against it. Used by the backend-down
+    /// responsiveness re-prove so it can drive a GENUINELY connection-refusing endpoint (a dead port) even
+    /// when a real backend happens to be listening on the hardcoded `127.0.0.1:37501` in the build
+    /// environment. This points the REAL production code paths (the real `WorkbenchLayoutClient`
+    /// `block_on(GET)` transport + the real `fetch_health`) at a down backend — it does NOT mock the
+    /// failure (Spec-Realism, RISK-008-2); the connection is really refused.
+    ///
+    /// `base_url` is a scheme+host+port like `http://127.0.0.1:1` (a port nothing listens on). The
+    /// `/health` URL is derived as `{base_url}/health`. Only meaningful in the production (multi-thread
+    /// runtime) shell; a no-op for the layout re-fire in the headless shell with no runtime handle.
+    #[doc(hidden)]
+    pub fn set_backend_unreachable_for_test(&mut self, base_url: &str) {
+        // Re-point the layout manager's transport (the freeze-path `block_on(GET)`/`block_on(PUT)`) at the
+        // down base URL. The off-thread load worker uses this manager, so the load now hits the dead port.
+        let handle = self
+            .runtime_handle
+            .clone()
+            .unwrap_or_else(|| self.rt.handle().clone());
+        let transport =
+            crate::backend_client::WorkbenchLayoutClient::new(base_url.to_owned(), handle.clone());
+        self.layout_manager = Arc::new(Mutex::new(LayoutPersistenceManager::new(
+            Box::new(transport),
+            LAYOUT_SAVE_DEBOUNCE,
+        )));
+        // Force a fresh off-thread load against the down backend on the next frame.
+        self.loaded_project_id = None;
+        // Re-fire the `/health` poll at the down backend so the reachability oracle observes it down.
+        let health_url = format!("{}/health", base_url.trim_end_matches('/'));
+        self.health_status = HealthDisplayState::Loading;
+        self.health_next_poll_at = None;
+        self.health_handle =
+            Some(handle.spawn(async move { backend_client::fetch_health(&health_url).await }));
     }
 
     /// Shared handle to the layout persistence manager (tests assert status / call counts; the save
@@ -5689,21 +5806,67 @@ impl HandshakeApp {
             .save_now(&snapshot);
     }
 
-    /// Load and apply the persisted layout for `project_id` (MT-009), with the documented fallback
-    /// chain (delegated to the manager): a valid stored blob is applied; a corrupt/foreign/wrong-project
-    /// one falls back to the manager's in-memory last-known-good, then to the seeded default layout
-    /// (which is infallible). `monitor_extent` is the full all-monitors rect used for the restore
+    /// WP-KERNEL-012 MT-088 (§5.8.5 HARD): persist the current layout NOW but OFF the egui UI thread —
+    /// the non-blocking sibling of [`save_layout_now`](Self::save_layout_now), used on the UI-action path
+    /// (a project switch). The snapshot is captured on the UI thread (it reads live shell state), then the
+    /// manager's retry/LKG `save_now` (which `block_on`s the backend `PUT`) runs on a short-lived OS
+    /// worker thread, exactly like the debounced flush. A backend-down `PUT` therefore blocks only that
+    /// throwaway worker (bounded by the MT-088 connect/request timeouts), never the frame loop.
+    ///
+    /// Best-effort: if a save is already in flight (`save_in_flight`), this coalesces by simply marking
+    /// the layout dirty so the debounced flush re-saves the leaving project's final layout — no overlap.
+    fn spawn_layout_save_now(&mut self) {
+        let snapshot = self.capture_layout_snapshot();
+        // If a debounced flush is already running, don't spawn a second overlapping save; mark dirty so
+        // the in-flight/next flush captures the leaving project's final state.
+        if self
+            .save_in_flight
+            .swap(true, std::sync::atomic::Ordering::SeqCst)
+        {
+            self.layout_dirty_signal = true;
+            return;
+        }
+        let manager = self.layout_manager.clone();
+        let in_flight = self.save_in_flight.clone();
+        std::thread::spawn(move || {
+            {
+                let mut mgr = manager.lock().expect("layout manager mutex poisoned");
+                mgr.save_now(&snapshot);
+            }
+            in_flight.store(false, std::sync::atomic::Ordering::SeqCst);
+        });
+    }
+
+    /// Load and apply the persisted layout for `project_id` (MT-009) SYNCHRONOUSLY, with the documented
+    /// fallback chain (delegated to the manager): a valid stored blob is applied; a corrupt/foreign/
+    /// wrong-project one falls back to the manager's in-memory last-known-good, then to the seeded default
+    /// layout (which is infallible). `monitor_extent` is the full all-monitors rect used for the restore
     /// clamp. Returns `true` if a stored snapshot was applied, `false` if the default was kept.
     ///
     /// The manager never returns an unvalidated snapshot, so `apply_layout_snapshot` here is always
     /// applied to a validated layout — no infinite restore loop. Marks `loaded_project_id` so the
     /// lifecycle does not reload the same project every frame.
+    ///
+    /// WP-KERNEL-012 MT-088: this path runs the transport `GET` to completion in the caller's thread (the
+    /// manager's `load` `block_on`s internally). It is therefore only safe to call OFF the egui UI thread
+    /// — tests use it directly with a stub/Null transport (instant, no network), and the steady-state
+    /// frame path NO LONGER calls it. The live per-frame lifecycle uses [`spawn_layout_load`] +
+    /// [`poll_layout_load`] so a backend-down `GET` can never stall the frame loop (the freeze fix).
     pub fn load_layout(&mut self, project_id: &str, monitor_extent: egui::Rect) -> bool {
-        let loaded = {
+        let (loaded, reachable) = {
             let mut mgr = self.layout_manager.lock().expect("layout manager mutex poisoned");
-            mgr.load(project_id)
+            let loaded = mgr.load(project_id);
+            // The manager SWALLOWS a transport error into Ok(fallback) + an `Error` STATUS (so a corrupt/
+            // unreachable load never applies garbage). The reachability signal is therefore the manager
+            // STATUS, not the `Result` (which is always Ok). An `Error` status == the backend was
+            // unreachable for this load; any other status == reachable.
+            let reachable = !matches!(mgr.status(), LayoutPersistenceStatus::Error { .. });
+            (loaded, reachable)
         };
         self.loaded_project_id = Some(project_id.to_owned());
+        // Fold the transport reachability into the debounced backend-down state (the explicit/test path
+        // observes the same edges the live frame path does).
+        self.note_backend_reachability(reachable);
         match loaded {
             Ok(Some(snapshot)) => {
                 // The manager already validated it; apply (which re-validates + clamps, all-or-nothing).
@@ -5711,6 +5874,197 @@ impl HandshakeApp {
             }
             // No stored layout (first run) or a failed load with no LKG: keep the seeded default.
             Ok(None) | Err(_) => false,
+        }
+    }
+
+    /// WP-KERNEL-012 MT-088 (D2 internal_diagnostics — backend-down graceful degradation, §5.8.5 HARD):
+    /// spawn the project-layout LOAD on a short-lived OS worker thread instead of running it on the egui
+    /// UI thread. THIS IS THE FREEZE FIX. The manager's `load` performs a backend `GET` (via the
+    /// transport's `block_on`); running that on the UI thread inside `drive_layout_persistence` was the
+    /// latent 2026-06-26 stall (a backend-down `GET` hung the whole frame loop). The worker delivers the
+    /// `(project_id, result)` into [`layout_load_cell`](Self::layout_load_cell); the UI thread drains it
+    /// next frame in [`poll_layout_load`](Self::poll_layout_load) and applies it. Until then the seeded
+    /// default layout stays visible (a degraded-but-responsive state, NOT a hang and NOT a spinner).
+    ///
+    /// `loaded_project_id` is set to `project_id` IMMEDIATELY (before the worker finishes) so the
+    /// lifecycle does not spawn a second load for the same project every frame; the in-flight guard is a
+    /// second belt-and-suspenders against overlap. This mirrors the established off-thread debounced-SAVE
+    /// shape (step 3) exactly — a plain `std::thread::spawn`, the transport's `block_on` valid off-runtime.
+    fn spawn_layout_load(&mut self, project_id: &str) {
+        // Mark loaded NOW so step 1 does not re-enter and re-spawn every frame while the load is running.
+        self.loaded_project_id = Some(project_id.to_owned());
+        // Guard against an overlapping load (e.g. a rapid double project switch): if one is already in
+        // flight, the newer `active_project_id` will simply trigger a fresh load once it lands.
+        if self
+            .layout_load_in_flight
+            .swap(true, std::sync::atomic::Ordering::SeqCst)
+        {
+            return;
+        }
+        let project = project_id.to_owned();
+        let manager = self.layout_manager.clone();
+        let cell = self.layout_load_cell.clone();
+        let in_flight = self.layout_load_in_flight.clone();
+        // A plain OS thread (not a runtime worker): the transport's `block_on` is valid off-runtime, so
+        // the network GET runs HERE, never on the egui UI thread. The worker holds the manager lock during
+        // the GET (the manager owns the transport + the LKG/status bookkeeping), but that is SAFE because
+        // the UI thread NEVER `lock()`s the manager on the frame path — `drive_layout_persistence` uses
+        // `try_lock` and SKIPS a frame's dirty/due bookkeeping when the worker holds the lock. So a
+        // backend-down GET blocks only THIS throwaway worker (bounded by the MT-088 connect/request
+        // timeouts), and the UI keeps painting at full cadence (the freeze fix — both halves: off the UI
+        // thread AND the UI thread never waits on the lock the worker holds).
+        std::thread::spawn(move || {
+            let (result, reachable) = {
+                let mut mgr = manager.lock().unwrap_or_else(|p| p.into_inner());
+                let result = mgr.load(&project);
+                // The manager swallows a transport error into Ok(fallback) + an `Error` STATUS; the
+                // `Error` status == the backend was unreachable for this load.
+                let reachable = !matches!(
+                    mgr.status(),
+                    crate::layout_persistence::LayoutPersistenceStatus::Error { .. }
+                );
+                (result, reachable)
+            };
+            // Deliver the result for the UI thread to apply next frame. Recover a poisoned cell lock
+            // rather than propagating a panic out of the worker.
+            let mut slot = match cell.lock() {
+                Ok(g) => g,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+            *slot = Some((project, reachable, result));
+            in_flight.store(false, std::sync::atomic::Ordering::SeqCst);
+        });
+    }
+
+    /// WP-KERNEL-012 MT-088: drain a delivered off-thread layout-load result (from [`spawn_layout_load`])
+    /// and apply it on the UI thread. Non-blocking: only reads an already-delivered cell, so it never
+    /// stalls the frame. A result for a project that is no longer active (the operator switched again
+    /// before the load landed) is DISCARDED rather than applied over the now-current project's layout.
+    ///
+    /// Folds the transport reachability into the debounced backend-down state and re-baselines change
+    /// detection to the just-applied layout (so a restore does not immediately re-save itself). Returns
+    /// `true` if a delivered result was consumed this frame (a repaint is then worthwhile).
+    fn poll_layout_load(&mut self, monitor_extent: egui::Rect) -> bool {
+        // MT-027: a snapshot-capture pass must not consume the async load result (the real frame owns it).
+        if self.capturing_snapshot {
+            return false;
+        }
+        let delivered = {
+            let mut slot = match self.layout_load_cell.lock() {
+                Ok(g) => g,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+            slot.take()
+        };
+        let Some((project, reachable, result)) = delivered else {
+            return false;
+        };
+        // Reachability edge: the worker captured the manager status (Error == backend unreachable).
+        self.note_backend_reachability(reachable);
+        // Ignore a stale delivery for a since-switched project (do not clobber the current layout).
+        if project != self.active_project_id {
+            return true;
+        }
+        // `Ok(Some(snapshot))` is a restored layout to apply (the manager already validated it;
+        // `apply_layout_snapshot` re-validates + clamps, all-or-nothing). `Ok(None)` (first run) or `Err`
+        // (backend down, no LKG) keeps the seeded default — the degraded-but-responsive state, nothing to
+        // apply.
+        if let Ok(Some(snapshot)) = result {
+            let _ = self.apply_layout_snapshot(snapshot, monitor_extent);
+        }
+        // Re-baseline change detection to the just-settled layout so the restore is not re-saved.
+        self.last_seen_layout = Some(self.capture_layout_snapshot().to_layout_state());
+        true
+    }
+
+    /// WP-KERNEL-012 MT-088 (D2 internal_diagnostics — §5.8.5): fold one backend-reachability observation
+    /// into the DEBOUNCED backend-down state and emit the typed transition events on the EDGES ONLY
+    /// (AC-008-3 / RISK-008-4 — never every frame). `reachable == false` on the reachable->unreachable
+    /// edge records exactly one [`DiagEventCode::BackendUnreachable`]; `reachable == true` on the
+    /// unreachable->reachable edge records exactly one [`DiagEventCode::BackendRecovered`]. A steady
+    /// state (no edge) records nothing. The recorded event is a typed-allowlist `DiagEvent` (the backend
+    /// port as a numeric counter — NO free text); it lands in the in-process buffer (the Diagnostics
+    /// Panel) AND the MT-081 ring (Palmistry) through the OPEN MT-082 `record_with` API.
+    fn note_backend_reachability(&mut self, reachable: bool) {
+        let was_down = self.backend_down;
+        if reachable && was_down {
+            // Recovery edge: unreachable -> reachable.
+            self.backend_down = false;
+            Self::record_backend_event(false);
+            tracing::info!("backend recovered (BackendRecovered emitted; degraded state cleared)");
+        } else if !reachable && !was_down {
+            // Down edge: reachable -> unreachable.
+            self.backend_down = true;
+            Self::record_backend_event(true);
+            tracing::warn!(
+                "backend unreachable (BackendUnreachable emitted; surfaces degrade, frame loop stays \
+                 responsive — §5.8.5 HARD)"
+            );
+        }
+    }
+
+    /// WP-KERNEL-012 MT-088: record one typed backend transition event through the OPEN MT-082 recorder.
+    /// `down == true` records [`DiagEventCode::BackendUnreachable`]; `down == false` records
+    /// [`DiagEventCode::BackendRecovered`]. The numeric backend port (37501) rides `counter_a` — there is
+    /// NO free-text field (the typed-allowlist invariant, §5.8.3). Timestamp is monotonic-ish wall nanos
+    /// (consistent with the other transition markers); the event is for the panel + Palmistry, not the
+    /// heartbeat staleness math (which uses the dedicated monotonic heartbeat slot).
+    fn record_backend_event(down: bool) {
+        // The native backend port (from BACKEND_BASE_URL `http://127.0.0.1:37501`). Numeric only.
+        const BACKEND_PORT: u64 = 37501;
+        let now_nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos() as u64)
+            .unwrap_or(0);
+        let (code, phase, severity) = if down {
+            (
+                handshake_diag_ring::DiagEventCode::BackendUnreachable,
+                handshake_diag_ring::DiagPhase::Degraded,
+                handshake_diag_ring::DiagSeverity::Error,
+            )
+        } else {
+            (
+                handshake_diag_ring::DiagEventCode::BackendRecovered,
+                handshake_diag_ring::DiagPhase::Recovered,
+                handshake_diag_ring::DiagSeverity::Info,
+            )
+        };
+        crate::diagnostics::record_with(
+            code,
+            phase,
+            severity,
+            /* thread_id    */ 0,
+            /* sequence_id  */ 0,
+            /* counter_a    */ BACKEND_PORT,
+            /* counter_b    */ 0,
+            /* metric_micros*/ 0,
+            now_nanos,
+        );
+    }
+
+    /// WP-KERNEL-012 MT-088: whether the app currently believes the backend is unreachable (the debounced
+    /// down state). Drives the degraded/disconnected UI indicator and is asserted by the backend-down
+    /// re-prove (AC-008-4). `false` until the first unreachable observation; cleared on recovery.
+    pub fn backend_is_down(&self) -> bool {
+        self.backend_down
+    }
+
+    /// WP-KERNEL-012 MT-088: the live status-bar health-segment label — the EXACT text the global backend
+    /// indicator renders AND that its AccessKit `Status` node carries. When the debounced backend-down
+    /// state is set this is the explicit, FINITE "Disconnected" indicator (NOT a perpetual spinner, NOT a
+    /// hang — AC-008-4 / RISK-008-3); otherwise it reflects the `/health` state. Computed in ONE place so
+    /// the rendered label and the AC-008-4 test accessor cannot drift.
+    pub fn status_bar_health_text(&self) -> String {
+        if self.backend_down {
+            "Backend: Disconnected (degraded — UI responsive)".to_owned()
+        } else {
+            match &self.health_status {
+                HealthDisplayState::Loading => "Backend: Loading...".to_owned(),
+                HealthDisplayState::Ok(h) => {
+                    format!("Backend: OK (db {}, migration {:?})", h.db_status, h.migration_version)
+                }
+                HealthDisplayState::Error(e) => format!("Backend: error: {e}"),
+            }
         }
     }
 
@@ -5734,13 +6088,27 @@ impl HandshakeApp {
         if self.capturing_snapshot {
             return;
         }
-        // ── 1. Load on first frame / project change ─────────────────────────────────────────────
-        if self.loaded_project_id.as_deref() != Some(self.active_project_id.as_str()) {
+        // ── 1. Load on first frame / project change (OFF the UI thread — MT-088 freeze fix) ─────────
+        // WP-KERNEL-012 MT-088 (§5.8.5 HARD backend-down graceful degradation): the layout LOAD performs
+        // a backend `GET` that USED to `block_on` ON the egui UI thread right here — so a backend-down
+        // `GET` stalled the whole frame loop (the 2026-06-26 Responding=false / CPU->0 freeze). The load
+        // now runs OFF the UI thread (`spawn_layout_load`) and its result is drained + applied next frame
+        // (`poll_layout_load`), exactly like the debounced SAVE below. The frame loop NEVER blocks on the
+        // network here; until the load lands the seeded default layout stays visible (degraded, not hung).
+        //
+        // (a) Drain a delivered off-thread load result (non-blocking — only reads an already-set cell).
+        let extent = self.monitor_extent;
+        self.poll_layout_load(extent);
+        // (b) Kick off a load when the active project has no (or a stale) loaded layout and none is in
+        //     flight. `spawn_layout_load` marks `loaded_project_id` immediately so this does not re-spawn
+        //     every frame; the worker delivers into the cell for (a) next frame.
+        if self.loaded_project_id.as_deref() != Some(self.active_project_id.as_str())
+            && !self.layout_load_in_flight.load(std::sync::atomic::Ordering::SeqCst)
+        {
             let project = self.active_project_id.clone();
-            let extent = self.monitor_extent;
-            self.load_layout(&project, extent);
-            // Re-baseline change detection to the just-loaded layout so a restore does not immediately
-            // re-save itself as a "change".
+            self.spawn_layout_load(&project);
+            // Re-baseline change detection to the CURRENT (default, pre-load) layout so the seeded default
+            // shown while the load is in flight is not mistaken for a user change and re-saved.
             self.last_seen_layout = Some(self.capture_layout_snapshot().to_layout_state());
         }
 
@@ -5755,19 +6123,29 @@ impl HandshakeApp {
             // First settled frame: establish the baseline, do not treat the seed as a change.
             None => false,
         };
+        // WP-KERNEL-012 MT-088 (§5.8.5 HARD): use `try_lock` for the per-frame manager bookkeeping. A
+        // debounced SAVE worker holds the manager lock during its network `PUT` (the manager's `save_now`
+        // `block_on`s while holding `&mut self`); on a backend-down PUT that hold lasts up to the connect/
+        // request timeout. If the UI thread `lock()`'d here it would BLOCK on the contended manager for
+        // that whole window — the SAME freeze class this MT fixes, just on the save path. `try_lock`
+        // makes the UI thread SKIP this frame's dirty/due bookkeeping when a save is mid-flight (it
+        // retries next frame); the frame loop never stalls. The save itself already runs off-thread.
         if changed || self.layout_dirty_signal {
-            self.layout_dirty_signal = false;
-            self.layout_manager
-                .lock()
-                .expect("layout manager mutex poisoned")
-                .mark_dirty(now);
+            // Only clear the signal once the dirty mark is actually recorded, so a contended frame does
+            // not silently drop the change (it is re-detected next frame by change detection or retried).
+            if let Ok(mut mgr) = self.layout_manager.try_lock() {
+                self.layout_dirty_signal = false;
+                mgr.mark_dirty(now);
+            }
         }
         self.last_seen_layout = Some(current_layout);
 
         // ── 3. Debounced save off the UI thread ─────────────────────────────────────────────────
-        let due = {
-            let mgr = self.layout_manager.lock().expect("layout manager mutex poisoned");
-            mgr.due_to_flush(now)
+        // `try_lock`: if a save worker holds the manager (mid backend PUT), skip the due-check this frame
+        // (retried next frame) rather than block the UI thread on the contended lock.
+        let due = match self.layout_manager.try_lock() {
+            Ok(mgr) => mgr.due_to_flush(now),
+            Err(_) => false,
         };
         if due && !self.save_in_flight.swap(true, std::sync::atomic::Ordering::SeqCst) {
             // Capture the snapshot on the UI thread (it reads live shell state), then flush on a worker.
@@ -6185,6 +6563,29 @@ impl HandshakeApp {
                     Ok(Err(e)) => HealthDisplayState::Error(e.to_string()),
                     Err(e) => HealthDisplayState::Error(format!("join error: {e}")),
                 };
+                // WP-KERNEL-012 MT-088: `/health` is the canonical reachability oracle — fold the just-
+                // resolved result into the debounced backend-down state (emits the typed transition events
+                // on the edges only). An `Ok` health is reachable; an `Error` (refused/timeout/non-success)
+                // is unreachable. Then ARM the next re-probe so a recovered backend is re-observed.
+                let reachable = matches!(self.health_status, HealthDisplayState::Ok(_));
+                self.note_backend_reachability(reachable);
+                self.health_next_poll_at =
+                    Some(std::time::Instant::now() + HEALTH_REPROBE_INTERVAL);
+            }
+        }
+        // WP-KERNEL-012 MT-088: fire the next background `/health` re-probe when due and none is in
+        // flight. A single off-UI-thread `rt.spawn` (HBR-QUIET — the UI thread never blocks on it); the
+        // result is folded above next frame. Only the production shell (with a runtime handle) re-probes.
+        if self.health_handle.is_none() {
+            let due = self
+                .health_next_poll_at
+                .is_some_and(|at| std::time::Instant::now() >= at);
+            if due {
+                if let Some(handle) = self.runtime_handle.clone() {
+                    self.health_next_poll_at = None;
+                    self.health_handle =
+                        Some(handle.spawn(async { backend_client::fetch_health(HEALTH_URL).await }));
+                }
             }
         }
     }
@@ -6394,13 +6795,13 @@ impl HandshakeApp {
             }
         }
 
-        let status_text = match &self.health_status {
-            HealthDisplayState::Loading => "Backend: Loading...".to_owned(),
-            HealthDisplayState::Ok(h) => {
-                format!("Backend: OK (db {}, migration {:?})", h.db_status, h.migration_version)
-            }
-            HealthDisplayState::Error(e) => format!("Backend: error: {e}"),
-        };
+        // WP-KERNEL-012 MT-088 (§5.8.5 HARD): the status-bar health segment is the global backend
+        // indicator. When the debounced backend-down state is set it shows an explicit, FINITE
+        // "Disconnected" indicator (NOT a perpetual spinner and NOT a hang — AC-008-4 / RISK-008-3),
+        // computed once in `status_bar_health_text()` so the rendered label and the test accessor cannot
+        // drift. The segment is a live AccessKit `Status` node, so the degraded state is perceivable by
+        // the operator AND a swarm agent reading the tree.
+        let status_text = self.status_bar_health_text();
         // The health segment is hidden iff the operator hid it via the status-bar menu (MT-021).
         let health_hidden = self.statusbar_hidden.contains("health");
         // WP-KERNEL-012 MT-071: the live editor file-metadata segment cluster reads the FOCUSED code
@@ -6838,18 +7239,39 @@ impl HandshakeApp {
         self.drive_layout_persistence(std::time::Instant::now());
 
         // While a save is debounced/pending, keep frames coming so the debounce window actually
-        // elapses even without further input (otherwise a quiescent app would never flush).
+        // elapses even without further input (otherwise a quiescent app would never flush). WP-KERNEL-012
+        // MT-088 (§5.8.5): `try_lock` so a save worker mid backend-down PUT (holding the manager lock)
+        // never blocks the UI thread here; if contended, the in-flight save itself already keeps frames
+        // coming via `save_in_flight`, and the next frame re-checks.
         let pending_save = self
             .layout_manager
-            .lock()
-            .expect("layout manager mutex poisoned")
-            .is_dirty();
+            .try_lock()
+            .map(|mgr| mgr.is_dirty())
+            .unwrap_or(false);
         if pending_save {
             ctx.request_repaint_after(LAYOUT_SAVE_DEBOUNCE);
         }
 
         if matches!(self.health_status, HealthDisplayState::Loading) {
             ctx.request_repaint_after(std::time::Duration::from_millis(100));
+        }
+
+        // WP-KERNEL-012 MT-088: while a backend interaction is OUTSTANDING (a layout load in flight, or a
+        // `/health` re-probe in flight / due), keep frames coming so the off-thread result is drained +
+        // applied promptly even on an otherwise-idle app — so the degraded state appears (and clears on
+        // recovery) without input. These are schedule-only wakes (HBR-QUIET: no focus steal, no input
+        // grab). The MT-084 heartbeat already guarantees a ~250ms idle tick, so this only tightens the
+        // cadence around an in-flight backend interaction; it never busy-loops.
+        if self.layout_load_in_flight.load(std::sync::atomic::Ordering::SeqCst)
+            || self.save_in_flight.load(std::sync::atomic::Ordering::SeqCst)
+            || self.health_handle.is_some()
+        {
+            ctx.request_repaint_after(std::time::Duration::from_millis(100));
+        } else if let Some(at) = self.health_next_poll_at {
+            // A re-probe is scheduled but not yet in flight: wake when it comes due.
+            let now = std::time::Instant::now();
+            let delay = at.saturating_duration_since(now);
+            ctx.request_repaint_after(delay.max(std::time::Duration::from_millis(50)));
         }
     }
 
