@@ -156,6 +156,18 @@ pub struct HandshakeApp {
     /// A wall `SystemTime` would be WRONG here (a clock jump would corrupt the staleness math); it is
     /// fine only for a human-readable panel, never for the threshold.
     heartbeat_clock: std::time::Instant,
+    /// WP-KERNEL-012 MT-085 (D2 — internal_diagnostics, Tier 2 frame-time, §5.8.2/§5.8.4). The rolling
+    /// frame-time tracker fed once per [`eframe::App::update`] frame with the WORK time of
+    /// `self.ui(ctx)` (NOT the inter-frame period, so the MT-084 idle keep-alive is never mis-flagged
+    /// as slow — RISK-005-1). It keeps last/min/max + p50/p95 stats for the Diagnostics Panel (MT-087)
+    /// and emits a typed `SlowFrame` event (debounced) when a frame's work exceeds the slow threshold.
+    frame_timer: crate::diagnostics::FrameTimer,
+    /// WP-KERNEL-012 MT-085 TEST SEAM: extra synthetic WORK injected inside `self.ui(ctx)` so a kittest
+    /// can drive a REAL slow frame from the live frame path (AC-005-2) without test-only branches in the
+    /// production frame-time measurement. `0` in production (no injected work); a test sets it via
+    /// [`HandshakeApp::set_extra_frame_work_for_test`]. The measurement wraps `self.ui(ctx)`, so the
+    /// injected sleep lands INSIDE the measured work window exactly like real heavy UI work would.
+    extra_frame_work_micros: u64,
     /// Active base theme. Toggled by the top-bar button; not persisted in MT-003.
     current_theme: HsTheme,
     /// Last theme actually pushed to egui via `apply_to_ctx` (CONTROL-1: only re-apply on
@@ -1273,6 +1285,10 @@ impl HandshakeApp {
             // construction nanos — strictly increasing, never affected by a wall-clock change.
             frame_counter: 0,
             heartbeat_clock: std::time::Instant::now(),
+            // MT-085: the per-frame frame-time tracker starts empty (all-zero stats) and is fed the
+            // WORK time of `self.ui(ctx)` once per frame; no synthetic test work in production.
+            frame_timer: crate::diagnostics::FrameTimer::new(),
+            extra_frame_work_micros: 0,
             // Desktop default mirrors the React app's dark default.
             current_theme: HsTheme::Dark,
             last_applied_theme: None,
@@ -1513,6 +1529,23 @@ impl HandshakeApp {
         self.frame_counter
     }
 
+    /// WP-KERNEL-012 MT-085: the current frame-time stats (last/min/max/p50/p95 + counts) the
+    /// Diagnostics Panel (MT-087, §5.8.4) reads. All typed integer MICROS — no content. All zero before
+    /// the first frame. Exposed so the panel and a test can read the live tracker's stats by value.
+    pub fn frame_stats(&self) -> crate::diagnostics::FrameStats {
+        self.frame_timer.stats()
+    }
+
+    /// WP-KERNEL-012 MT-085 TEST SEAM: inject `micros` of extra synthetic WORK INSIDE `self.ui(ctx)` on
+    /// every subsequent frame so a kittest can drive a REAL slow frame from the live frame path
+    /// (AC-005-2) and prove the SlowFrame flag fires from production code — NOT by feeding the
+    /// `FrameTimer` directly (which is the unit-level AC-005-1 path). Set to `0` to stop injecting. The
+    /// injected work lands inside the measured `self.ui(ctx)` window exactly like real heavy UI work.
+    #[doc(hidden)]
+    pub fn set_extra_frame_work_for_test(&mut self, micros: u64) {
+        self.extra_frame_work_micros = micros;
+    }
+
     /// Bind the MCP transport (MT-027) on the app's tokio runtime and store the handle. Logged + non-fatal
     /// on failure so the shell always opens. Only the production shell (with a multi-thread runtime) binds;
     /// the headless/test shell drives the server's `dispatch_request` directly instead.
@@ -1588,6 +1621,11 @@ impl HandshakeApp {
             // exactly as in production, and the monotonic clock starts at construction.
             frame_counter: 0,
             heartbeat_clock: std::time::Instant::now(),
+            // MT-085: same frame-time tracker as production (the headless shell runs the SAME `update`
+            // frame-time measurement; with no ring writer installed a SlowFrame emit is an in-process
+            // buffer record only — the live-frame kittest reads it back via `diagnostics::snapshot_last_n`).
+            frame_timer: crate::diagnostics::FrameTimer::new(),
+            extra_frame_work_micros: 0,
             current_theme: HsTheme::Dark,
             last_applied_theme: None,
             pane_registry: Arc::new(Mutex::new(seeded_registry())),
@@ -6967,7 +7005,31 @@ impl eframe::App for HandshakeApp {
         // schedule-only call: it steals no focus and grabs no input (HBR-QUIET preserved).
         ctx.request_repaint_after(HEARTBEAT_IDLE_REPAINT_INTERVAL);
 
+        // WP-KERNEL-012 MT-085 (D2 internal_diagnostics, Tier 2 — frame-time, §5.8.2/§5.8.4).
+        //
+        // Measure the WORK TIME of this frame — the wall duration of `self.ui(ctx)` (the actual
+        // per-frame work), NOT the inter-frame PERIOD. This is the load-bearing design choice
+        // (RISK-005-1 / AC-005-3): egui only repaints on demand, and MT-084 schedules an idle keep-alive
+        // repaint every ~250ms so the heartbeat keeps advancing. If we timed the PERIOD, that idle 250ms
+        // gap (time spent WAITING for the next frame, doing nothing) would look like a 250ms "slow frame"
+        // and FLOOD the bounded ring with false SlowFrame events. Timing the WORK inside `update` is
+        // small on an idle frame regardless of the wait, so the idle keep-alive never flags.
+        let work_start = std::time::Instant::now();
+        // MT-085 test seam: a kittest may inject synthetic work so a REAL slow frame flags from this live
+        // path (AC-005-2). `0` in production — a single `if` with no sleep, so the measurement is
+        // unchanged for the shipped binary. The sleep lands INSIDE the measured window, exactly like
+        // heavy real UI work.
+        if self.extra_frame_work_micros > 0 {
+            std::thread::sleep(std::time::Duration::from_micros(self.extra_frame_work_micros));
+        }
         self.ui(ctx);
+        let frame_work = work_start.elapsed();
+        // Record the frame's work time + (debounced) emit a typed SlowFrame if it exceeded the slow
+        // threshold. Allocation-free + lock-free on a fast frame (the common case); the ring write only
+        // happens on a debounced slow frame. The emit goes through the OPEN MT-082 recorder, so it lands
+        // in the in-process buffer (panel) AND the MT-081 ring (Palmistry) when a writer is installed.
+        self.frame_timer.record_frame_live(frame_work);
+
         // MT-027: publish the just-rendered UI tree into the shared MCP snapshot slot so the server's
         // `list_widgets` returns the live tree and `click_widget`/`set_value` resolve against it. This
         // runs a side-effect-free capture pass (guarded by `capturing_snapshot`) and requests a repaint
