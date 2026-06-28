@@ -125,6 +125,54 @@ async fn mt196_documented_startup_constants_match_product_source() {
     assert!(main_rs.contains(".nest(\"/api\", api_routes)"));
 }
 
+/// MT-002 (WP-CKC-posekit-overhaul): CKC/PoseKit guidance must teach a
+/// no-context operator/model that these are already native Atelier surfaces,
+/// with the legacy CastKit app serving as behavior reference only.
+#[test]
+fn ckc_posekit_quickstart_is_native_first_and_reachable() {
+    let corpus = seed_corpus();
+    let page = corpus
+        .pages
+        .iter()
+        .find(|page| page.slug == "quickstart-atelier-ckc-posekit")
+        .expect("CKC/PoseKit quickstart page seeded");
+    let body = page
+        .sections
+        .iter()
+        .map(|section| section.body_md.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    for required in [
+        "built-in Handshake-native tools",
+        "old CastKit app is behavior reference",
+        "POST /atelier/image-import/url",
+        "OpenPose JSON",
+        "identity crop artifacts",
+        "ComfyUI",
+        "deferred-feature list",
+        "Do not fake detector execution",
+    ] {
+        assert!(
+            body.contains(required),
+            "CKC/PoseKit quickstart missing required guidance: {required}"
+        );
+    }
+
+    let toc = corpus
+        .pages
+        .iter()
+        .find(|page| page.slug == "manual-toc")
+        .expect("manual-toc seeded");
+    assert!(
+        toc.anchors.iter().any(|anchor| {
+            anchor.anchor_kind == "page_link"
+                && anchor.anchor_value == "quickstart-atelier-ckc-posekit"
+        }),
+        "manual-toc must link the CKC/PoseKit quickstart"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // MT-197 / MT-198: documented failure modes triggered at runtime.
 // ---------------------------------------------------------------------------

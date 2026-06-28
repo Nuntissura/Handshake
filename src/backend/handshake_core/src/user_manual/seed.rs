@@ -213,6 +213,7 @@ fn page_manual_toc() -> NewUserManualPage {
         "quickstart-index",
         "quickstart-editor",
         "quickstart-loom",
+        "quickstart-atelier-ckc-posekit",
         "quickstart-retrieval",
         "quickstart-validation",
         "quickstart-state-recovery",
@@ -295,7 +296,8 @@ fn page_product_purpose() -> NewUserManualPage {
                 "- Operate the product: [[startup-and-run-commands]]\n\
                  - Call backend APIs: [[backend-navigation-and-identity]]\n\
                  - Task-sized intros: [[quickstart-index]], [[quickstart-editor]], \
-                 [[quickstart-loom]], [[quickstart-retrieval]]\n\
+                 [[quickstart-loom]], [[quickstart-atelier-ckc-posekit]], \
+                 [[quickstart-retrieval]]\n\
                  - When something breaks: [[failure-modes-and-recovery]]",
             ),
         ],
@@ -1388,6 +1390,7 @@ pub const QUICKSTART_AREAS: &[&str] = &[
     "index",
     "editor",
     "loom",
+    "atelier-ckc-posekit",
     "retrieval",
     "validation",
     "state-recovery",
@@ -1466,6 +1469,38 @@ fn quickstart_pages() -> Vec<NewUserManualPage> {
             vec![
                 page_link("notes-loom-surface"),
                 page_link("startup-and-run-commands"),
+            ],
+        ),
+        quickstart(
+            "atelier-ckc-posekit",
+            "Quickstart — Atelier CKC/PoseKit",
+            "1. Start from native Handshake Atelier: CKC/PoseKit are built-in Handshake-native \
+             tools. The old CastKit app is behavior reference, not the runtime to port.\n\
+             2. Bring images into the governed Atelier graph through existing media intake or \
+             `POST /atelier/image-import/url`; include `x-hsk-actor-id`, an idempotency key, \
+             and capability profile/grant refs.\n\
+             3. Use PoseKit as Atelier pose state: set pose context, ingest validated OpenPose \
+             rigs, list rigs, inspect one rig, and keep calibration explicit. If calibration is \
+             unresolved, record BLOCKED with a block reason instead of inventing values.\n\
+             4. Attach production artifacts as typed sidecars: OpenPose JSON, OpenPose PNG, and \
+             conditioning PNG. These are exported/inspectable pose assets and stay hidden from \
+             normal galleries unless a projection says otherwise.\n\
+             5. Maintain character identity through append-only identity profiles and 512x512 \
+             identity crop artifacts, with provenance by reference and no raw secrets.\n\
+             6. For ComfyUI, record workflow receipts, replay history, SaveImage fallback \
+             reasons, and retryable output-registration failures so saved outputs are not lost.\n\
+             7. For visual/behavioral polish, use this native state map: source image strip, \
+             open rig tabs, OpenPose sidecar strip, identity crop review, Comfy history/replay, \
+             and deferred-feature list. Compare screens to the original CKC app for behavior, \
+             but keep Handshake as the implementation authority.\n\
+             8. Before changing UI behavior, read the relevant MT contract and the \
+             Pose/Comfy deferred features. Do not fake detector execution, calibration, \
+             route wiring, or external bridge authority just to make a screen look complete.",
+            vec![
+                page_link("legacy-model-manual-bridge"),
+                page_link("quickstart-validation"),
+                page_link("state-recovery-guide"),
+                route_anchor("POST", "/atelier/image-import/url"),
             ],
         ),
         quickstart(

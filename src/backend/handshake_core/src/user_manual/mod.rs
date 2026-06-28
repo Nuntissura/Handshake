@@ -62,7 +62,7 @@ pub use store::{
 /// content change — the freshness check (MT-204) compares stored
 /// `content_hash` per page, and `user_manual_versions` records each seeded
 /// version.
-pub const USER_MANUAL_VERSION: &str = "2.0.2";
+pub const USER_MANUAL_VERSION: &str = "2.0.3";
 
 /// The canonical stuck-together product term (operator decision; constraint in
 /// every MT-193..MT-208 contract). Route namespace, slugs, and citations all
