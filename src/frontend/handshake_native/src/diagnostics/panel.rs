@@ -104,6 +104,12 @@ pub struct DiagnosticsView {
     /// Whether the MT-081 ring writer is installed (Palmistry can see events out-of-process). When
     /// false, diagnostics are in-process-only this session (graceful degradation) — surfaced honestly.
     pub ring_writer_installed: bool,
+    /// WP-KERNEL-012 MT-093 (§6.13.7 / §10.12.5 Tier-3): the freeze/crash survivor records the external
+    /// Palmistry watcher persisted + (on recovery) forwarded, read by the shell from the durable survivor
+    /// store via [`crate::diagnostics::read_default_survivor_records`]. Empty before any freeze/crash (the
+    /// honest empty-state MT-087 renders); POPULATED post-recovery (AC-013-6). Typed-allowlist only — no
+    /// project content.
+    pub palmistry_records: Vec<crate::diagnostics::PalmistrySurvivorView>,
 }
 
 /// The in-app Diagnostics Panel widget (§5.8.4). STATELESS beyond the read-only [`DiagnosticsView`]
@@ -290,19 +296,25 @@ impl DiagnosticsPanel {
         set_group(ui, group.response.id, DIAGNOSTICS_EVENTS_AUTHOR_ID, "Recent events");
     }
 
-    /// Tier-3 Palmistry section (§10.12.5): an honest empty-state placeholder until MT-093 forwards the
-    /// external watcher's freeze/crash/debris records into the panel. The three-tier layout is PRESENT
-    /// from this MT (AC-007-4), honestly empty — NOT faked. `Role::Group`, author_id
+    /// Tier-3 Palmistry section (§10.12.5): projects the freeze/crash survivor records the external
+    /// Palmistry watcher persisted + forwarded (MT-093 §6.13.7). When no records exist it renders the
+    /// honest empty-state MT-087 established (NOT faked, NOT a spinner — AC-007-4/5); when records exist
+    /// (POST-RECOVERY) it lists each typed record (AC-013-6). `Role::Group`, author_id
     /// `diagnostics_palmistry`.
     fn palmistry_section(&self, ui: &mut egui::Ui, view: &DiagnosticsView, palette: &HsPalette) {
         let group = ui.scope(|ui| {
             section_heading(ui, "Palmistry (Tier 3 — external watcher)", palette);
-            muted_empty(ui, "No freeze/crash records.", palette);
-            ui.label(
-                egui::RichText::new("Palmistry forwarding wired in MT-093.")
-                    .small()
-                    .color(palette.text_subtle),
-            );
+            if view.palmistry_records.is_empty() {
+                // Honest empty-state (no freeze/crash this session, or none forwarded yet).
+                muted_empty(ui, "No freeze/crash records.", palette);
+            } else {
+                // POPULATED post-recovery (AC-013-6): one row per forwarded/known survivor record. Every
+                // value is typed (kind, codes, durations, exit code, LOCAL minidump path, timestamp) — no
+                // project content. The forwarded flag shows whether it rejoined the Flight Recorder ledger.
+                for rec in &view.palmistry_records {
+                    palmistry_record_row(ui, rec, palette);
+                }
+            }
             // Honest status of the out-of-process visibility path so the operator knows whether the
             // external watcher could even see events this session (graceful-degradation transparency).
             let ring_status = if view.ring_writer_installed {
@@ -317,6 +329,61 @@ impl DiagnosticsPanel {
             );
         });
         set_group(ui, group.response.id, DIAGNOSTICS_PALMISTRY_AUTHOR_ID, "Palmistry");
+    }
+}
+
+/// One Tier-3 survivor-record row (MT-093 §10.12.5): the typed kind + the typed evidence (stale duration
+/// for a freeze, exit code + LOCAL minidump path for a crash) + whether it has been forwarded to the
+/// Flight Recorder ledger. NO free text (the record carries none). Severity colour from `palette` tokens.
+fn palmistry_record_row(
+    ui: &mut egui::Ui,
+    rec: &crate::diagnostics::PalmistrySurvivorView,
+    palette: &HsPalette,
+) {
+    use crate::diagnostics::PalmistrySurvivorKind;
+    ui.horizontal(|ui| {
+        // The kind, coloured by severity (a crash is an error tone, a freeze a warn tone).
+        let kind_color = match rec.kind {
+            PalmistrySurvivorKind::Crash => palette.diagnostics.error,
+            PalmistrySurvivorKind::Freeze => palette.diagnostics.warning,
+            PalmistrySurvivorKind::Other => palette.text_subtle,
+        };
+        ui.label(egui::RichText::new(rec.kind.label()).strong().color(kind_color));
+        // The typed evidence specific to the kind.
+        match rec.kind {
+            PalmistrySurvivorKind::Freeze => {
+                ui.label(
+                    egui::RichText::new(format!("stale {}ms", rec.stale_ms))
+                        .monospace()
+                        .color(palette.text),
+                );
+            }
+            _ => {
+                if let Some(code) = rec.exit_code {
+                    ui.label(
+                        egui::RichText::new(format!("exit 0x{code:X}"))
+                            .monospace()
+                            .color(palette.text),
+                    );
+                }
+            }
+        }
+        // The forwarded-to-ledger flag (the §6.13.7 recovery-rejoin signal).
+        let (fwd_text, fwd_color) = if rec.forwarded {
+            ("forwarded", palette.accent)
+        } else {
+            ("pending", palette.text_subtle)
+        };
+        ui.label(egui::RichText::new(fwd_text).small().color(fwd_color));
+    });
+    // A crash's LOCAL minidump path (a local reference only — never the bytes).
+    if let Some(path) = &rec.minidump_path {
+        ui.label(
+            egui::RichText::new(format!("minidump: {path}"))
+                .small()
+                .monospace()
+                .color(palette.text_subtle),
+        );
     }
 }
 

@@ -25,13 +25,12 @@
 //! parent exit). `2` = a configuration / startup error (refused a partial start, or could not bind the
 //! control socket). The startup error is printed to stderr.
 
-mod cli;
-mod control;
-mod crash_capture;
-mod freeze_detect;
-mod hung_window_probe;
-mod lifecycle;
-mod ring_reader;
+// The watcher's reusable modules live in the `palmistry` LIBRARY crate (src/lib.rs) so the integration
+// tests under `tests/` can drive the REAL production types. The binary is a thin entrypoint over them.
+use palmistry::{
+    cli, control, crash_capture, fr_forward, freeze_detect, hung_window_probe, lifecycle,
+    ring_reader, survivor_store,
+};
 
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
@@ -45,6 +44,7 @@ use crash_capture::{
     minidump_path_for, persist_crash_record, CrashRecord, CrashServerHandler,
     CRASH_SERVER_STALE_TIMEOUT,
 };
+use fr_forward::FrForwarder;
 use freeze_detect::{FreezeDetector, FreezeState};
 use hung_window_probe::HungWindowProbe;
 use lifecycle::{
@@ -52,6 +52,7 @@ use lifecycle::{
     ParentWatch,
 };
 use ring_reader::PalmistryRingReader;
+use survivor_store::SurvivorStore;
 
 /// Startup-error exit code (refused partial start / could not bind control socket).
 const EXIT_CONFIG_ERROR: i32 = 2;
@@ -494,12 +495,17 @@ impl FreezeStatus {
 /// records the freeze (a `FreezeSuspected`-style marker in Palmistry's own log + the shared
 /// [`FreezeStatus`]); the durable survivor record is MT-093. It stops when `run` is cleared by the
 /// lifecycle. Returns the join handle.
+#[allow(clippy::too_many_arguments)]
 fn spawn_freeze_poll(
     reader: Arc<PalmistryRingReader>,
     probe: Box<dyn HungWindowProbe>,
     status: Arc<FreezeStatus>,
     run: Arc<AtomicBool>,
     poll_interval: Duration,
+    session_id: String,
+    parent_pid: u32,
+    store: Arc<Mutex<SurvivorStore>>,
+    forwarder: Arc<FrForwarder>,
 ) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || {
         let mut detector = FreezeDetector::new();
@@ -514,7 +520,7 @@ fn spawn_freeze_poll(
 
             // Record a `FreezeSuspected`-style marker on the Healthy->Frozen EDGE (not every tick) so the
             // log/state is not spammed while a freeze persists. MT-093 turns this into the durable
-            // survivor record + the Tier-1 FR forward at recovery.
+            // survivor record (here) + the Tier-1 FR forward at recovery (the Frozen->Healthy edge below).
             match (last_was_frozen, &state) {
                 (false, FreezeState::Frozen(report)) => {
                     tracing::warn!(
@@ -523,11 +529,37 @@ fn spawn_freeze_poll(
                         last_heartbeat_counter = report.last_heartbeat_counter,
                         last_heartbeat_ts_nanos = report.last_heartbeat_ts_nanos,
                         "FREEZE CONFIRMED (heartbeat stale + hung-window probe not responding) — \
-                         the §6.13.5 double-signal gate fired; survivor capture is MT-093"
+                         the §6.13.5 double-signal gate fired; persisting the durable survivor record (MT-093)"
                     );
+                    // MT-093 (AC-013-1): persist a DURABLE survivor record on the freeze edge. Read the
+                    // ring's last-N events PASSIVELY for the evidence count (the events are POD integers;
+                    // only the COUNT enters the typed-allowlist record). The probe corroborated NOT
+                    // RESPONDING (that is what made this a confirmed freeze).
+                    let last_events = reader.read_last_events(reader.capacity().min(64));
+                    let record = survivor_store::SurvivorRecord::from_freeze(
+                        &session_id,
+                        parent_pid,
+                        report,
+                        survivor_store::last_event_count(&last_events),
+                        survivor_store::SurvivorProbeResult::NotResponding,
+                    );
+                    match store.lock().expect("survivor store mutex").put(record) {
+                        Ok(path) => tracing::warn!(
+                            path = %path.display(),
+                            "durable freeze survivor record persisted (§6.13.7); forward at recovery"
+                        ),
+                        Err(err) => tracing::warn!(%err, "failed to persist the freeze survivor record"),
+                    }
                 }
                 (true, FreezeState::Healthy) => {
-                    tracing::info!("freeze RECOVERED — heartbeat resumed advancing (§6.13.5 recovery)");
+                    tracing::info!(
+                        "freeze RECOVERED — heartbeat resumed advancing (§6.13.5 recovery); draining \
+                         unforwarded survivor records to the Flight Recorder (MT-093 §6.13.7)"
+                    );
+                    // MT-093 (AC-013-5): on the recovery edge (unfreeze), DRAIN the unforwarded survivor
+                    // records and forward them to the Tier-1 Flight Recorder. Honest typed blocker if the
+                    // existing route cannot carry the shape (the record stays pending — AC-013-4).
+                    drain_and_forward(&store, &forwarder);
                 }
                 (false, FreezeState::Suspected { stale_ms }) => {
                     // Suspected-only: log at debug so a borderline long frame does not flood warnings.
@@ -545,6 +577,70 @@ fn spawn_freeze_poll(
             std::thread::sleep(poll_interval);
         }
     })
+}
+
+/// Drain the survivor store's UNFORWARDED records and forward each to the Tier-1 Flight Recorder via the
+/// EXISTING route (reuse-via-API, MT-093 §6.13.7). On a FAITHFUL forward (HTTP success against a route
+/// that can carry the survivor shape) the record is marked forwarded IDEMPOTENTLY (RISK-013-5). On a
+/// typed blocker — the existing chat-event route cannot carry the survivor shape (AC-013-4), the route is
+/// absent, or it rejected the body — the record STAYS pending + flagged honestly for the next recovery;
+/// the FR is NEVER edited and a success is NEVER faked. Returns `(forwarded, blocked)` counts.
+fn drain_and_forward(store: &Arc<Mutex<SurvivorStore>>, forwarder: &FrForwarder) -> (usize, usize) {
+    // Snapshot the pending records WITHOUT holding the store lock across the network post (so a slow FR
+    // never blocks the freeze-poll loop on the lock).
+    let pending = {
+        let guard = store.lock().expect("survivor store mutex");
+        guard.unforwarded()
+    };
+    if pending.is_empty() {
+        return (0, 0);
+    }
+    let mut forwarded = 0usize;
+    let mut blocked = 0usize;
+    for stored in pending {
+        match forwarder.forward(&stored.record) {
+            Ok(()) => {
+                // FAITHFUL forward: mark the record forwarded idempotently (survives a restart).
+                match store.lock().expect("survivor store mutex").mark_forwarded(&stored.path) {
+                    Ok(_) => {
+                        forwarded += 1;
+                        tracing::info!(
+                            path = %stored.path.display(),
+                            "survivor record forwarded to the Flight Recorder + marked forwarded (MT-093)"
+                        );
+                    }
+                    Err(err) => tracing::warn!(%err, "failed to mark a survivor record forwarded"),
+                }
+            }
+            Err(blocker) => {
+                // HONEST typed blocker (AC-013-4): the record stays LOCAL + pending; the FR is untouched.
+                blocked += 1;
+                tracing::warn!(
+                    path = %stored.path.display(),
+                    blocker = %blocker,
+                    "survivor record NOT forwarded — typed blocker (record kept local, forward pending; \
+                     the FR is kept as-is, no fake success)"
+                );
+            }
+        }
+    }
+    (forwarded, blocked)
+}
+
+/// Persist a detected CRASH as a DURABLE survivor record in the survivor store (MT-093 §6.13.7), if the
+/// store opened. Best-effort: a `None` store (open failed) or a write error is logged, never fatal — the
+/// ring-sibling crash record still covers the crash. The durable survivor record is what a later recovery
+/// (or the next Palmistry instance's startup drain) forwards to the Tier-1 Flight Recorder.
+fn put_crash_survivor(store: &Option<Arc<Mutex<SurvivorStore>>>, crash: &CrashRecord) {
+    let Some(store) = store else { return };
+    let record = survivor_store::SurvivorRecord::from_crash(crash);
+    match store.lock().expect("survivor store mutex").put(record) {
+        Ok(path) => tracing::warn!(
+            path = %path.display(),
+            "durable crash survivor record persisted (§6.13.7); forwarded at the next recovery"
+        ),
+        Err(err) => tracing::warn!(%err, "failed to persist the crash survivor record"),
+    }
 }
 
 /// Run the watcher to lifecycle completion. The library-shaped entrypoint (tested directly): it binds
@@ -635,20 +731,97 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
         );
     });
 
+    // MT-093 (§6.13.7): open the DURABLE SURVIVOR STORE + build the recovery-time FR FORWARDER. The store
+    // is a per-user data dir (`dirs::data_local_dir()/handshake/palmistry/survivors/`, the MT-083
+    // convention) with a ring-sibling fallback so a record is ALWAYS durable locally. Opening READS ALL
+    // existing records on startup (AC-013-1 / AC-013-5), so a survivor record captured by a PRIOR Palmistry
+    // instance (e.g. a crash that the previous session persisted) is loaded and can be forwarded by THIS
+    // instance once Handshake reconnects — the crash-restart recovery path. The store is shared (Arc<Mutex>)
+    // so the freeze-poll thread and the lifecycle-end crash path both write through it. A store-open failure
+    // is NON-FATAL: the watcher degrades to the existing ring-sibling crash/survivor records (best-effort)
+    // rather than refusing to watch.
+    let ring_dir = Path::new(&config.ring_path)
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| PathBuf::from("."));
+    let survivor_store = match SurvivorStore::open_default_or_sibling(&ring_dir) {
+        Ok(store) => {
+            tracing::info!(
+                dir = %store.dir().display(),
+                pending = store.unforwarded_count(),
+                "durable survivor store opened (§6.13.7); existing records read on startup"
+            );
+            Some(Arc::new(Mutex::new(store)))
+        }
+        Err(err) => {
+            tracing::warn!(
+                %err,
+                "could not open the durable survivor store; freeze/crash survivor records this session \
+                 fall back to the ring-sibling crash records only (MT-093 best-effort)"
+            );
+            None
+        }
+    };
+    // The recovery-time forwarder targets the EXISTING verified FR route (reuse-via-API). Its honesty
+    // verdict is baked in via `for_existing_fr`: the kept-as-is chat-event route cannot faithfully carry a
+    // survivor record, so a forward returns the typed SchemaIncompatible blocker (HONEST, not faked) and
+    // the record stays local pending — WP-KERNEL-016 must add a proper ingestion shape WITHOUT editing the
+    // FR here (AC-013-4 / RISK-013-1/2). The FR base URL is the verified loopback (overridable via env).
+    let fr_base_url = std::env::var("HANDSHAKE_FR_BASE_URL")
+        .unwrap_or_else(|_| fr_forward::FR_DEFAULT_BASE_URL.to_owned());
+    let forwarder = Arc::new(FrForwarder::for_existing_fr(fr_base_url));
+
+    // MT-093 (AC-013-5, crash-restart recovery): on startup, attempt to drain any survivor records a PRIOR
+    // session left pending (a previous crash). This is the "new Handshake instance reconnects after a
+    // crash-restart" recovery path: the next Palmistry instance forwards the previous instance's evidence.
+    // An incompatible/absent route is the honest typed blocker (the record stays pending), never a fake.
+    if let Some(store) = &survivor_store {
+        let (fwd, blocked) = drain_and_forward(store, &forwarder);
+        if fwd > 0 || blocked > 0 {
+            tracing::info!(
+                forwarded = fwd,
+                blocked,
+                "startup survivor drain complete (prior-session records; §6.13.7 crash-restart recovery)"
+            );
+        }
+    }
+
     // Spawn the MT-091 FREEZE-POLL thread (§6.13.5). On its OWN thread (NOT the control loop —
     // RISK-011-4: the bounded hung-window probe must never block control), it polls the FreezeDetector
     // every POLL_INTERVAL with the heartbeat read PASSIVELY through the zero-cooperation reader and the
     // hung-window probe, and publishes the typed verdict into the shared FreezeStatus. The reader is
-    // shared (Arc) so the poll thread reads the SAME map without re-opening it. It stops when `run` is
-    // cleared by the lifecycle.
+    // shared (Arc) so the poll thread reads the SAME map without re-opening it. On the freeze edge it
+    // persists a durable survivor record (MT-093); on the recovery edge it drains+forwards (MT-093). It
+    // stops when `run` is cleared by the lifecycle.
     let freeze_status = Arc::new(FreezeStatus::default());
     let probe = (options.hung_window_probe_factory)(config.parent_pid);
+    // A store handle for the freeze thread (a no-op store when the open failed, so the thread signature is
+    // uniform; a None store simply never persists/forwards — the ring-sibling crash record still covers a
+    // crash). Build a throwaway in-temp store as the inert fallback so the Arc is always Some.
+    let freeze_store = match &survivor_store {
+        Some(s) => Arc::clone(s),
+        None => Arc::new(Mutex::new(
+            SurvivorStore::open(std::env::temp_dir().join(format!(
+                "hsk-palmistry-survivors-inert-{}",
+                std::process::id()
+            )))
+            .unwrap_or_else(|_| {
+                // Last-resort inert store in the CWD; if even this fails the freeze thread's put() just
+                // logs an error (best-effort), never panicking.
+                SurvivorStore::open(".survivors-inert").expect("inert survivor store")
+            }),
+        )),
+    };
     let freeze_handle = spawn_freeze_poll(
         Arc::clone(&ring_reader),
         probe,
         Arc::clone(&freeze_status),
         Arc::clone(&run),
         freeze_detect::POLL_INTERVAL,
+        config.session_id.clone(),
+        config.parent_pid,
+        freeze_store,
+        Arc::clone(&forwarder),
     );
     tracing::info!(
         poll_interval_ms = freeze_detect::POLL_INTERVAL.as_millis() as u64,
@@ -798,6 +971,11 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
             ),
             Err(err) => tracing::warn!(%err, "failed to persist the crash record"),
         }
+        // MT-093 (§6.13.7 / AC-013-1): ALSO persist the crash as a DURABLE survivor record in the survivor
+        // store, so the next recovery (this session's recovery edge, or — after the process exits — the
+        // NEXT Palmistry instance's startup drain) forwards it to the Tier-1 Flight Recorder. The store
+        // record reuses the crash record's typed fields (minidump path is a LOCAL reference only).
+        put_crash_survivor(&survivor_store, &crash);
     } else if state.parent_exit_abnormal() {
         // (b) FLOOR: abnormal parent death, no CrashContext — best-effort post-mortem record. Surface a
         // crash-socket write error if one occurred so a missed RICH dump is visible.
@@ -823,6 +1001,9 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
             ),
             Err(err) => tracing::warn!(%err, "failed to persist the post-mortem crash record"),
         }
+        // MT-093: also persist the post-mortem crash as a durable survivor record (forwarded by the next
+        // recovery / the next Palmistry instance's startup drain).
+        put_crash_survivor(&survivor_store, &crash);
     } else {
         // CLEAN shutdown: NO crash record, NO minidump (§6.13 clean-shutdown rule, AC-012-2). The crash
         // server never wrote a dump (no CrashContext arrived) and the exit was not abnormal, so there is

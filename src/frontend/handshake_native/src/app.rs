@@ -1688,6 +1688,12 @@ impl HandshakeApp {
             gpu_info: self.gpu_info.clone(),
             dropped_count: crate::diagnostics::dropped_count(),
             ring_writer_installed: crate::diagnostics::has_ring_writer(),
+            // WP-KERNEL-012 MT-093 (§6.13.7 / §10.12.5 Tier-3, AC-013-6): read the freeze/crash survivor
+            // records the external Palmistry watcher persisted to its durable per-user store so the panel's
+            // Tier-3 section is POPULATED post-recovery (the honest empty-state until a freeze/crash). A
+            // pure file read of the typed-allowlist records — no project content. Empty when the store is
+            // absent/empty (the honest empty-state MT-087 renders).
+            palmistry_records: crate::diagnostics::read_default_survivor_records(),
         }
     }
 

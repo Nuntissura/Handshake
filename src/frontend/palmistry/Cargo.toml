@@ -20,6 +20,14 @@ edition = "2021"
 publish = false
 description = "Handshake Tier 3 external out-of-process watcher (Google-Crashpad model): launched-with, closes-only-on-Shutdown, survives-parent-death. Reads the MT-081 diag ring; controlled over a local socket."
 
+# A library target exposing the watcher's reusable modules (MT-093 added the survivor store + FR
+# forwarder). This lets the integration tests under `tests/` drive the REAL production types directly (a
+# `[bin]`-only crate's items are not importable by `tests/`), so the binary and the tests exercise the
+# SAME code with no test-only reimplementation. The binary is a thin entrypoint over this lib.
+[lib]
+name = "palmistry"
+path = "src/lib.rs"
+
 [[bin]]
 name = "palmistry"
 path = "src/main.rs"
@@ -70,6 +78,28 @@ serde_json = "1"
 # Palmistry's own logging (separate from Handshake's tracing).
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# WP-KERNEL-012 MT-093 (durable SURVIVOR STORE + recovery-time FR FORWARD, §6.13.7). Versions verified
+# against crates.io / the handshake-native manifest 2026-06-27 (the same families handshake-native pins,
+# so no new family is introduced across the two crates):
+# - `dirs` 5: the PORTABLE per-user data dir for the durable survivor store
+#   (`dirs::data_local_dir()/handshake/palmistry/survivors/`), the SAME convention as MT-083's crash dir.
+dirs = "5"
+# - `reqwest` 0.12 (blocking + rustls): the FORWARDER posts the survivor record to the EXISTING verified
+#   Flight Recorder route `POST /api/flight_recorder/runtime_chat_event` (reuse-via-API; the FR is
+#   forbidden_paths). The BLOCKING client is used because the forward runs on Palmistry's own recovery
+#   thread (no tokio runtime in this watcher binary), with a bounded connect+read timeout so a dead/absent
+#   FR can never hang the watcher. `default-features=false` + rustls-tls matches handshake-native's pin
+#   (no native-tls/OpenSSL pull-in).
+reqwest = { version = "0.12", default-features = false, features = ["json", "blocking", "rustls-tls"] }
+# - `uuid` 1 (v7 + v4): the FR route REQUIRES a non-nil UUID `session_id` + an `event_id` (verified in
+#   event_emitter.rs). HBR-INT-008 (root clippy.toml `disallowed-methods`) mandates `Uuid::now_v7()`
+#   (time-ordered) over `new_v4()`, so the code uses `now_v7` (`v7` feature). The `v4` feature is ALSO
+#   enabled ONLY so the root clippy.toml's `disallowed-methods` entry for `uuid::Uuid::new_v4` resolves to
+#   a reachable function (else clippy warns the disallowed path is unreachable); `new_v4` is never called.
+uuid = { version = "1", features = ["v7", "v4"] }
+# - `chrono` 0.4: the FR route requires an RFC3339 `ts_utc`; matches handshake-native's pin
+#   (default-features off + clock/std for the timestamp only).
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 
 # Windows parent-handle wait: OpenProcess(SYNCHRONIZE|PROCESS_QUERY_LIMITED_INFORMATION) +
 # WaitForSingleObject + GetExitCodeProcess for the lifecycle inversion (MT-089). MT-091 adds the

@@ -51,6 +51,12 @@ pub mod panel;
 pub mod panic_hook;
 pub mod recorder;
 pub mod resource_counters;
+// WP-KERNEL-012 MT-093 (§6.13.7 + §10.12.5): the Handshake-side READ seam for the freeze/crash records the
+// external Palmistry watcher persisted to its durable survivor store. Feeds the Diagnostics Panel (MT-087)
+// Tier-3 section so the §10.12.5 Tier-3 surface becomes POPULATED post-recovery (AC-013-6) instead of the
+// honest empty-state MT-087 left. Reuse-via-FILE (the cross-process durable store) — handshake-native and
+// the `palmistry` crate share no dependency edge; the FR is kept as-is.
+pub mod survivor_forward;
 
 // MT-085 re-exports so the panel + the app can `use crate::diagnostics::{FrameTimer, FrameStats, ...}`.
 pub use frame_timing::{
@@ -83,4 +89,12 @@ pub use recorder::{
 // the SAME id the crash file is named with so Palmistry (Tier 3) correlates the crash file to the ring.
 pub use panic_hook::{
     default_crash_dir, install_panic_hook, process_session_id, set_process_session_id,
+};
+
+// WP-KERNEL-012 MT-093 (§6.13.7 / §10.12.5 Tier-3) re-exports so the shell + the panel can
+// `use crate::diagnostics::{PalmistrySurvivorView, read_default_survivor_records, ...}` to feed the
+// Tier-3 panel section with the forwarded freeze/crash records (AC-013-6).
+pub use survivor_forward::{
+    read_default_survivor_records, read_survivor_records, PalmistrySurvivorKind,
+    PalmistrySurvivorView,
 };
