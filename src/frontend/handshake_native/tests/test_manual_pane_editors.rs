@@ -179,6 +179,34 @@ fn manual_loads_section_with_all_eight_required_headings() {
     assert_eq!(REQUIRED_HEADINGS.len(), 8, "exactly the eight GLOBAL-BUILD-MANUAL headings");
 }
 
+// ── MT-006 Argus: native manual names the non-intrusive visual inspection tool ───────────────────────
+#[test]
+fn manual_documents_argus_as_native_non_intrusive_visual_inspection() {
+    let section = editors_manual_section();
+    let topic = section
+        .topic("Argus Visual Inspection")
+        .expect("Argus topic exists in the native manual");
+
+    for required in [
+        "Argus",
+        "Rust-native",
+        "AccessKit",
+        "list_widgets",
+        "screenshot",
+        "parallel agents",
+        "must not bring Handshake to the foreground",
+        "must not steal keyboard focus",
+        "must not steal mouse input",
+        "stable author_id",
+        "not inspected",
+    ] {
+        assert!(
+            topic.body.contains(required),
+            "Argus native manual topic missing required guidance: {required}"
+        );
+    }
+}
+
 // ── AC-002 / PT-002: every agent-tool row has a non-empty author_id + a REAL mcp_tool ─────────────────
 #[test]
 fn agent_tool_reference_rows_are_complete_and_use_real_tools() {

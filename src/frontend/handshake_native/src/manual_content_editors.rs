@@ -39,7 +39,9 @@
 //! The manual states this as a typed blocker rather than fabricating live cross-edge behavior.
 
 use crate::accessibility::editor_action_registry::{rich_action_catalog, CODE_ACTION_CATALOG};
-use crate::accessibility::{CANVAS_CONTROL_CATALOG, COLLECTION_CONTROL_CATALOG, GRAPH_CONTROL_CATALOG};
+use crate::accessibility::{
+    CANVAS_CONTROL_CATALOG, COLLECTION_CONTROL_CATALOG, GRAPH_CONTROL_CATALOG,
+};
 use crate::command_palette::{PALETTE_LIST_AUTHOR_ID, PALETTE_SEARCH_AUTHOR_ID};
 use crate::manual_pane::{
     AgentToolReference, AgentToolRow, ManualSection, ManualSurface, ManualTopic,
@@ -72,18 +74,49 @@ pub const INTEROP_EDGES: &[&str] = &["FEMS", "Stage", "Calendar", "Locus"];
 /// naming all four cross-pillar edges, and the `author_id -> MCP tool` agent-tool reference.
 pub fn editors_manual_section() -> ManualSection {
     let mut topics = vec![
-        ManualTopic { heading: "Purpose", body: purpose_body() },
-        ManualTopic { heading: "Core Workflows", body: core_workflows_body() },
-        ManualTopic { heading: "Startup and Run", body: startup_and_run_body() },
-        ManualTopic { heading: "Inputs and Outputs", body: inputs_and_outputs_body() },
-        ManualTopic { heading: "Navigation Paths", body: navigation_paths_body() },
-        ManualTopic { heading: "Safety Constraints", body: safety_constraints_body() },
-        ManualTopic { heading: "Common Failure Modes", body: common_failure_modes_body() },
-        ManualTopic { heading: "Recovery Steps", body: recovery_steps_body() },
+        ManualTopic {
+            heading: "Purpose",
+            body: purpose_body(),
+        },
+        ManualTopic {
+            heading: "Core Workflows",
+            body: core_workflows_body(),
+        },
+        ManualTopic {
+            heading: "Startup and Run",
+            body: startup_and_run_body(),
+        },
+        ManualTopic {
+            heading: "Inputs and Outputs",
+            body: inputs_and_outputs_body(),
+        },
+        ManualTopic {
+            heading: "Navigation Paths",
+            body: navigation_paths_body(),
+        },
+        ManualTopic {
+            heading: "Safety Constraints",
+            body: safety_constraints_body(),
+        },
+        ManualTopic {
+            heading: "Common Failure Modes",
+            body: common_failure_modes_body(),
+        },
+        ManualTopic {
+            heading: "Recovery Steps",
+            body: recovery_steps_body(),
+        },
     ];
+    topics.push(ManualTopic {
+        heading: "Argus Visual Inspection",
+        body: argus_visual_inspection_body(),
+    });
     // The interop topic (its own addressable topic). AC-005/MC-007 assert all four edge names + an
     // author_id + mcp_tool appear in this topic's body.
-    topics.push(ManualTopic { heading: "Interop Edges", body: interop_edges_body() });
+    topics.push(ManualTopic {
+        heading: "Interop Edges",
+        body: interop_edges_body(),
+    });
     // The agent-tool reference is also a searchable/selectable topic (so the search box surfaces it), and
     // its structured rows live in `agent_tools`.
     topics.push(ManualTopic {
@@ -188,6 +221,26 @@ fems-propose-confirm), never an editor-direct commit."
         .to_owned()
 }
 
+fn argus_visual_inspection_body() -> String {
+    "Argus is the named Rust-native visual inspection capability for Handshake. Models and operators use \
+Argus to inspect panels, tabs, buttons, labels, bounds, disabled state, stable author_id values, and \
+screenshots before claiming GUI or behavior work is complete. Argus is not an external foreground \
+automation habit; it is built on the native AccessKit tree and the MCP tools already wired into the shell: \
+list_widgets for structured GUI state, screenshot for pixels, and click_widget / set_value for attributed \
+agent actions.\n\
+\n\
+Use Argus first for GUI validation. Start with list_widgets, assert the exact stable author_id values, \
+then use screenshot only as the visual companion for layout, overlap, readability, and rendered pixels. \
+For parallel agents, share Argus snapshot reads and use the existing MCP lease/receipt path for mutations \
+instead of coordinating through screen coordinates or hidden chat context.\n\
+\n\
+Argus must be quiet. It must not bring Handshake to the foreground, must not steal keyboard focus, must \
+not steal mouse input, must not move the cursor, and must not require the operator to activate the window. \
+If Argus cannot inspect a surface, report not inspected and keep the verdict unclaimed until a \
+non-intrusive proof path exists."
+        .to_owned()
+}
+
 fn common_failure_modes_body() -> String {
     "A pane fails to mount (the docking layout could not place the tile, or the host-mount carry MT-080 is \
 not yet live). The clipboard daemon is missing on a headless CI runner so a copy/paste no-ops. A pane_id \
@@ -266,7 +319,8 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         surface: ManualSurface::Code,
         action_label: "Type a command into the palette",
         mcp_tool: "set_value",
-        description: "set_value{target:'command-palette.search', value:'<command>'} filters the palette.",
+        description:
+            "set_value{target:'command-palette.search', value:'<command>'} filters the palette.",
     });
     rows.push(AgentToolRow {
         author_id: PALETTE_LIST_AUTHOR_ID,
@@ -348,14 +402,16 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         surface: ManualSurface::Fems,
         action_label: "Read the FEMS retrieval capsule",
         mcp_tool: "list_widgets",
-        description: "list_widgets surfaces the relevant-memory-panel + its items for the agent to read.",
+        description:
+            "list_widgets surfaces the relevant-memory-panel + its items for the agent to read.",
     });
     rows.push(AgentToolRow {
         author_id: crate::fems::RELEVANT_MEMORY_LIST_AUTHOR_ID,
         surface: ManualSurface::Fems,
         action_label: "Enumerate memory items",
         mcp_tool: "list_widgets",
-        description: "list_widgets reveals the relevant-memory-list rows (provenance-first capsule items).",
+        description:
+            "list_widgets reveals the relevant-memory-list rows (provenance-first capsule items).",
     });
     rows.push(AgentToolRow {
         author_id: crate::fems::FEMS_PROPOSE_DIALOG_AUTHOR_ID,
@@ -369,7 +425,8 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         surface: ManualSurface::Fems,
         action_label: "Confirm the memory-write proposal",
         mcp_tool: "click_widget",
-        description: "click_widget{target:'fems-propose-confirm'} submits the review-gated proposal.",
+        description:
+            "click_widget{target:'fems-propose-confirm'} submits the review-gated proposal.",
     });
 
     // ── Stage interop edge (Pillar 17) ───────────────────────────────────────────────────────────────
@@ -378,7 +435,8 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         surface: ManualSurface::Interop,
         action_label: "Stage edge: the Stage pane container",
         mcp_tool: "list_widgets",
-        description: "list_widgets surfaces the stage-pane; an agent reads what was routed to Stage.",
+        description:
+            "list_widgets surfaces the stage-pane; an agent reads what was routed to Stage.",
     });
     rows.push(AgentToolRow {
         author_id: crate::stage_pane::STAGE_ROUTED_CONTENT_AUTHOR_ID,
@@ -401,7 +459,8 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         surface: ManualSurface::Interop,
         action_label: "Calendar edge: the daily-journal panel",
         mcp_tool: "list_widgets",
-        description: "list_widgets surfaces the daily-journal-panel (daily-note <-> CalendarEvent binding).",
+        description:
+            "list_widgets surfaces the daily-journal-panel (daily-note <-> CalendarEvent binding).",
     });
     rows.push(AgentToolRow {
         author_id: crate::graph::daily_journal_panel::DAILY_JOURNAL_DATE_HEADER_AUTHOR_ID,
@@ -415,7 +474,8 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         surface: ManualSurface::Interop,
         action_label: "Calendar edge: a bound CalendarEvent chip",
         mcp_tool: "click_widget",
-        description: "click_widget{target:'daily-journal-calendar-event-chip'} opens the bound event.",
+        description:
+            "click_widget{target:'daily-journal-calendar-event-chip'} opens the bound event.",
     });
     rows.push(AgentToolRow {
         author_id: crate::graph::daily_journal_panel::DAILY_JOURNAL_ACTIVITY_STRIP_AUTHOR_ID,
@@ -431,21 +491,25 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         surface: ManualSurface::Interop,
         action_label: "Locus edge: the outgoing-links pane",
         mcp_tool: "list_widgets",
-        description: "list_widgets surfaces the outgoing.panel listing locus:// and wikilink references.",
+        description:
+            "list_widgets surfaces the outgoing.panel listing locus:// and wikilink references.",
     });
     rows.push(AgentToolRow {
         author_id: crate::rich_editor::wikilinks::outgoing_links_panel::RESOLVED_SECTION_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Locus edge: resolved references section",
         mcp_tool: "list_widgets",
-        description: "list_widgets reveals outgoing.section.resolved rows (each navigable by click_widget).",
+        description:
+            "list_widgets reveals outgoing.section.resolved rows (each navigable by click_widget).",
     });
     rows.push(AgentToolRow {
-        author_id: crate::rich_editor::wikilinks::outgoing_links_panel::UNRESOLVED_SECTION_AUTHOR_ID,
+        author_id:
+            crate::rich_editor::wikilinks::outgoing_links_panel::UNRESOLVED_SECTION_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Locus edge: unresolved (dangling) references section",
         mcp_tool: "list_widgets",
-        description: "list_widgets reveals outgoing.section.unresolved rows (Locus read route gated).",
+        description:
+            "list_widgets reveals outgoing.section.unresolved rows (Locus read route gated).",
     });
 
     rows
@@ -473,7 +537,9 @@ fn code_author_id_static(action_id: &str) -> &'static str {
         "multi-cursor-clear" => "editor.code.multi-cursor-clear",
         "command-palette-open" => "editor.code.command-palette-open",
         "language-picker-open" => "editor.code.language-picker-open",
-        other => panic!("code action_id '{other}' has no static editor.code.* literal — add it here"),
+        other => {
+            panic!("code action_id '{other}' has no static editor.code.* literal — add it here")
+        }
     }
 }
 
@@ -501,7 +567,9 @@ fn rich_author_id_static(action_id: &str) -> &'static str {
         "format-heading-6" => "editor.rich.format-heading-6",
         "insert-slash-command" => "editor.rich.insert-slash-command",
         "command-palette-open" => "editor.rich.command-palette-open",
-        other => panic!("rich action_id '{other}' has no static editor.rich.* literal — add it here"),
+        other => {
+            panic!("rich action_id '{other}' has no static editor.rich.* literal — add it here")
+        }
     }
 }
 

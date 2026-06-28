@@ -172,6 +172,7 @@ fn seed_pages() -> Vec<NewUserManualPage> {
         page_startup_and_run_commands(),
         page_backend_navigation_and_identity(),
         page_permissions_and_safety(),
+        page_argus_visual_inspection(),
         page_knowledge_index_surface(),
         page_notes_loom_surface(),
         page_rich_documents_surface(),
@@ -197,6 +198,7 @@ fn page_manual_toc() -> NewUserManualPage {
         "startup-and-run-commands",
         "backend-navigation-and-identity",
         "permissions-and-safety",
+        "argus-visual-inspection",
         "knowledge-index-surface",
         "notes-loom-surface",
         "rich-documents-surface",
@@ -613,6 +615,76 @@ fn page_permissions_and_safety() -> NewUserManualPage {
             page_link("rich-documents-surface"),
             route_anchor("POST", "/usermanual/resync"),
             spec_anchor("10.15.8"),
+        ],
+    }
+}
+
+fn page_argus_visual_inspection() -> NewUserManualPage {
+    NewUserManualPage {
+        slug: "argus-visual-inspection".into(),
+        title: "Argus Visual Inspection".into(),
+        page_kind: "diagnostics",
+        audience: "model_and_operator",
+        spec_anchors: vec!["10.15.8".into()],
+        sections: vec![
+            section(
+                "purpose",
+                "What Argus is",
+                "Argus is the named Handshake visual inspection capability for operators and \
+                 models. It is the eyes of future model work across Handshake products: use Argus \
+                 to inspect panels, tabs, buttons, labels, bounds, enabled/disabled state, \
+                 screenshots, and structured GUI state before claiming visual or behavioral work \
+                 is done.\n\n\
+                 Argus must be Rust-native and deeply integrated with Handshake. Its first \
+                 implementation layer is the native shell's AccessKit UI-tree snapshot, the MCP \
+                 swarm tool surface (`list_widgets`, `click_widget`, `set_value`, `screenshot`), \
+                 stable author_id addressing, and the existing inspector/visual-debug posture. Do \
+                 not replace Argus with a loose external screenshot script as the primary path.",
+            ),
+            section(
+                "workflow",
+                "How models use Argus",
+                "1. Use `list_widgets` first to read the current AccessKit tree: author_id, role, \
+                 label, value, actions, disabled state, bounds, and children.\n\
+                 2. Use stable author_id selectors for assertions and steering. If a control has \
+                 no stable author_id, treat that as a product defect for model operation.\n\
+                 3. Use `screenshot` only as the visual companion to the structured tree, so a \
+                 model can compare layout, overlap, readability, and actual rendered pixels.\n\
+                 4. For parallel agents, prefer shared reads of the Argus snapshot and explicit \
+                 MCP leases/receipts for mutations. Parallel agents must not coordinate through \
+                 fragile screen position guesses.\n\
+                 5. Record the Argus path used in validation evidence: snapshot route/tool, \
+                 target author_id values, screenshot artifact when available, and the observed \
+                 pass/fail result.",
+            ),
+            section(
+                "safety",
+                "Non-intrusive operation",
+                "Argus must be quiet. It must not bring Handshake to the foreground, must not \
+                 steal keyboard focus, must not steal mouse input, must not move the cursor, and \
+                 must not require the operator to make the Handshake window active. Foreground \
+                 desktop automation is not an acceptable substitute for Argus.\n\n\
+                 If Argus cannot inspect a surface, state `not inspected`, keep any verdict \
+                 unclaimed, and fall back to the closest non-intrusive proof path: headless \
+                 egui/AccessKit tests, backend diagnostic snapshots, or a bounded operator-visible \
+                 artifact that does not steal attention.",
+            ),
+            section(
+                "recovery",
+                "Failure and recovery",
+                "Common failure modes: stale snapshots after a frame did not publish, missing \
+                 author_id values, GPU-gated screenshots on a headless host, an MCP binding file \
+                 that is not present yet, or a surface rendered outside the native AccessKit tree. \
+                 Recover by rerunning a frame, querying `list_widgets` again, using the structured \
+                 snapshot before the screenshot, checking MCP binding state, and filing the \
+                 missing author_id or missing Argus coverage as product work instead of forcing \
+                 foreground automation.",
+            ),
+        ],
+        anchors: vec![
+            page_link("quickstart-validation"),
+            page_link("startup-and-run-commands"),
+            page_link("permissions-and-safety"),
         ],
     }
 }

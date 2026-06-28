@@ -173,6 +173,57 @@ fn ckc_posekit_quickstart_is_native_first_and_reachable() {
     );
 }
 
+/// MT-006 (WP-CKC-posekit-overhaul): Argus is the named native visual
+/// inspection capability. The manual must teach no-context models to use it
+/// for GUI validation without foregrounding the app or stealing input.
+#[test]
+fn argus_visual_inspection_manual_is_native_and_non_intrusive() {
+    let corpus = seed_corpus();
+    let page = corpus
+        .pages
+        .iter()
+        .find(|page| page.slug == "argus-visual-inspection")
+        .expect("Argus visual inspection page seeded");
+    let body = page
+        .sections
+        .iter()
+        .map(|section| section.body_md.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    for required in [
+        "Argus",
+        "Rust-native",
+        "AccessKit",
+        "MCP",
+        "list_widgets",
+        "screenshot",
+        "parallel agents",
+        "must not bring Handshake to the foreground",
+        "must not steal keyboard focus",
+        "must not steal mouse input",
+        "stable author_id",
+        "not inspected",
+    ] {
+        assert!(
+            body.contains(required),
+            "Argus manual missing required guidance: {required}"
+        );
+    }
+
+    let toc = corpus
+        .pages
+        .iter()
+        .find(|page| page.slug == "manual-toc")
+        .expect("manual-toc seeded");
+    assert!(
+        toc.anchors.iter().any(|anchor| {
+            anchor.anchor_kind == "page_link" && anchor.anchor_value == "argus-visual-inspection"
+        }),
+        "manual-toc must link the Argus visual inspection page"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // MT-197 / MT-198: documented failure modes triggered at runtime.
 // ---------------------------------------------------------------------------
