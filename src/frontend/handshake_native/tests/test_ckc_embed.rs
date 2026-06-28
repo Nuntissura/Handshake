@@ -30,6 +30,9 @@ use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
+use handshake_native::atelier_panel::{
+    ATELIER_CONTENT_CKC_AUTHOR_ID, ATELIER_PANEL_AUTHOR_ID, ATELIER_TAB_CKC_AUTHOR_ID,
+};
 use handshake_native::atelier_side_panel::{
     item_author_id, AtelierSidePanel, PANEL_AUTHOR_ID, REFRESH_AUTHOR_ID,
 };
@@ -37,7 +40,10 @@ use handshake_native::backend_client::{AtelierBatchRow, AtelierItemRow, HealthIn
 use handshake_native::interop::{
     AtelierItemKind, AtelierRef, DragPayload, InteractionBus, CMD_ROUTE_TO_STAGE,
 };
-use handshake_native::rich_editor::renderer::rich_editor_widget::{RichEditorState, RichEditorWidget};
+use handshake_native::module_switcher::ModuleId;
+use handshake_native::rich_editor::renderer::rich_editor_widget::{
+    RichEditorState, RichEditorWidget,
+};
 use handshake_native::stage_pane::{StageContent, StagePane, STAGE_PANE_AUTHOR_ID};
 use handshake_native::theme::HsTheme;
 
@@ -126,11 +132,21 @@ fn ac1_drag_payload_serde_round_trips() {
     let json = serde_json::to_string(&payload).expect("serialize");
     let back: DragPayload = serde_json::from_str(&json).expect("deserialize");
     assert_eq!(payload, back, "AC-1: AtelierRef round-trips losslessly");
-    let link = payload.to_hs_link().expect("AtelierRef becomes an hsLink atom");
-    assert_eq!(link.ref_kind, "character", "AC-1: CKC refKind discriminates the embed atom");
-    assert_eq!(link.ref_value, "item-7", "AC-1: refValue is the atelier item id");
+    let link = payload
+        .to_hs_link()
+        .expect("AtelierRef becomes an hsLink atom");
+    assert_eq!(
+        link.ref_kind, "character",
+        "AC-1: CKC refKind discriminates the embed atom"
+    );
+    assert_eq!(
+        link.ref_value, "item-7",
+        "AC-1: refValue is the atelier item id"
+    );
     assert!(link.resolved);
-    println!("AC-1: DragPayload::AtelierRef round-trips + becomes an hsLink atom (refKind=character)");
+    println!(
+        "AC-1: DragPayload::AtelierRef round-trips + becomes an hsLink atom (refKind=character)"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -160,7 +176,11 @@ fn ac1_drop_atelier_ref_on_editor_inserts_hs_link_embed() {
     harness.run();
     egui::DragAndDrop::set_payload(
         &harness.ctx,
-        DragPayload::AtelierRef(AtelierRef::new("item-aaa", AtelierItemKind::Media, "sunset.png")),
+        DragPayload::AtelierRef(AtelierRef::new(
+            "item-aaa",
+            AtelierItemKind::Media,
+            "sunset.png",
+        )),
     );
     harness.event(egui::Event::PointerButton {
         pos: drop_pos,
@@ -179,7 +199,10 @@ fn ac1_drop_atelier_ref_on_editor_inserts_hs_link_embed() {
     // The inserted atom is the CKC embed (refKind=media, refValue=item-aaa) — the round-trippable shape.
     let (rk, rv) = first_hs_link(&after_json).expect("an hsLink atom is present after the drop");
     assert_eq!(rk, "media", "AC-1: the embed is a CKC media hsLink");
-    assert_eq!(rv, "item-aaa", "AC-1: refValue is the dropped atelier item id");
+    assert_eq!(
+        rv, "item-aaa",
+        "AC-1: refValue is the dropped atelier item id"
+    );
     // The payload was consumed (no dangling double-insert next frame).
     assert!(
         !egui::DragAndDrop::has_payload_of_type::<DragPayload>(&harness.ctx),
@@ -198,9 +221,13 @@ fn ac1_drop_atelier_ref_on_editor_inserts_hs_link_embed() {
 fn ac2_ckc_embed_round_trips_content_json() {
     let mut state = RichEditorState::demo();
     // Insert a CKC character embed at the caret via the production insert path.
-    let link = DragPayload::AtelierRef(AtelierRef::new("char-9", AtelierItemKind::Character, "Mira"))
-        .to_hs_link()
-        .expect("AtelierRef -> hsLink");
+    let link = DragPayload::AtelierRef(AtelierRef::new(
+        "char-9",
+        AtelierItemKind::Character,
+        "Mira",
+    ))
+    .to_hs_link()
+    .expect("AtelierRef -> hsLink");
     assert!(
         RichEditorWidget::insert_atelier_embed_at_caret(&mut state, link),
         "the embed insert must succeed at the demo caret"
@@ -209,25 +236,44 @@ fn ac2_ckc_embed_round_trips_content_json() {
     // The current content_json carries the hsLink node (NOT an `atelier_embed` / `atelierEmbed` node).
     let json = state.current_content_json();
     let json_str = serde_json::to_string(&json).unwrap();
-    assert!(json_str.contains("\"hsLink\""), "AC-2: the embed serializes as an hsLink node");
+    assert!(
+        json_str.contains("\"hsLink\""),
+        "AC-2: the embed serializes as an hsLink node"
+    );
     assert!(
         !json_str.contains("atelier_embed") && !json_str.contains("atelierEmbed"),
         "AC-2: the embed must NOT be an invented atelier_embed node (it would be dropped on save)"
     );
-    assert!(json_str.contains("character"), "AC-2: the CKC refKind is present");
-    assert!(json_str.contains("char-9"), "AC-2: the refValue (item id) is present");
+    assert!(
+        json_str.contains("character"),
+        "AC-2: the CKC refKind is present"
+    );
+    assert!(
+        json_str.contains("char-9"),
+        "AC-2: the refValue (item id) is present"
+    );
 
     // Round-trip through the backend DocJson exactly as saveRichDocument -> loadRichDocument would: the
     // bare doc content_json -> a JSON string (what the backend persists) -> parse back to a BlockNode ->
     // re-serialize. A stable round-trip proves the CKC embed survives a save/reload (AC-2).
-    use handshake_native::rich_editor::document_model::doc_json::{from_json_string, to_json_string};
-    let serialized = serde_json::to_string(&json).expect("serialize content_json (the persisted blob)");
-    let reloaded = from_json_string(&serialized).expect("deserialize doc (the loadRichDocument shape)");
+    use handshake_native::rich_editor::document_model::doc_json::{
+        from_json_string, to_json_string,
+    };
+    let serialized =
+        serde_json::to_string(&json).expect("serialize content_json (the persisted blob)");
+    let reloaded =
+        from_json_string(&serialized).expect("deserialize doc (the loadRichDocument shape)");
     let reserialized = to_json_string(&reloaded).expect("re-serialize the reloaded doc");
     let reparsed = from_json_string(&reserialized).expect("the reloaded doc itself round-trips");
-    assert_eq!(reloaded, reparsed, "AC-2: the CKC embed doc round-trips through DocJson byte-for-byte");
+    assert_eq!(
+        reloaded, reparsed,
+        "AC-2: the CKC embed doc round-trips through DocJson byte-for-byte"
+    );
     // The reloaded doc still carries the CKC hsLink atom with intact attrs.
-    assert!(reserialized.contains("\"hsLink\""), "AC-2: the reloaded doc still carries the hsLink atom");
+    assert!(
+        reserialized.contains("\"hsLink\""),
+        "AC-2: the reloaded doc still carries the hsLink atom"
+    );
     assert!(reserialized.contains("char-9") && reserialized.contains("character"));
     println!("AC-2: CKC embed is an hsLink atom that round-trips content_json (no invented node)");
 }
@@ -244,7 +290,9 @@ fn ac3_resolved_atelier_ref_places_on_canvas_unresolved_is_no_op() {
     // Each drop runs in its OWN harness (one drag-release per harness — the proven canvas-drop pattern;
     // reusing a harness for a second release leaves egui's pointer-button state stale).
     fn drop_payload_on_canvas(payload: DragPayload) -> Vec<CanvasEvent> {
-        let board = std::sync::Arc::new(std::sync::Mutex::new(LoomCanvasBoard::new("ws-test", "canvas-1")));
+        let board = std::sync::Arc::new(std::sync::Mutex::new(LoomCanvasBoard::new(
+            "ws-test", "canvas-1",
+        )));
         let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::<CanvasEvent>::new()));
         let board_h = std::sync::Arc::clone(&board);
         let events_h = std::sync::Arc::clone(&events);
@@ -292,7 +340,9 @@ fn ac3_resolved_atelier_ref_places_on_canvas_unresolved_is_no_op() {
         "blk-resolved",
     )));
     let placed = resolved.iter().find_map(|e| match e {
-        CanvasEvent::PlaceBlock { placed_block_id, .. } => Some(placed_block_id.clone()),
+        CanvasEvent::PlaceBlock {
+            placed_block_id, ..
+        } => Some(placed_block_id.clone()),
         _ => None,
     });
     assert_eq!(
@@ -331,14 +381,19 @@ fn ac4_route_to_stage_displays_routed_selection() {
     harness.run();
 
     // Before routing: the Stage pane shows the empty prompt; its Region value summarizes "nothing routed".
-    assert!(stage_value(&harness).unwrap_or_default().contains("nothing routed"));
+    assert!(stage_value(&harness)
+        .unwrap_or_default()
+        .contains("nothing routed"));
 
     // The context-menu path: register the command, stage a selection, dispatch — exactly as the shell
     // does on a right-click "Route to Stage" of a rich-text selection.
     let bus = InteractionBus::get_or_init(&harness.ctx);
     let dispatched = InteractionBus::with_try_lock(&bus, |bus| {
         bus.register_route_to_stage_command();
-        assert!(bus.commands().get(CMD_ROUTE_TO_STAGE).is_some(), "AC-4: route-to-stage command registered");
+        assert!(
+            bus.commands().get(CMD_ROUTE_TO_STAGE).is_some(),
+            "AC-4: route-to-stage command registered"
+        );
         bus.route_to_stage(
             &harness.ctx,
             StageContent::Selection("the quick brown fox".to_owned(), "DOC-42".to_owned()),
@@ -351,13 +406,21 @@ fn ac4_route_to_stage_displays_routed_selection() {
 
     // The Stage pane now displays the routed selection; the stage-pane Region value carries the summary.
     let val = stage_value(&harness).expect("AC-4: stage-pane Region node must be present");
-    assert!(val.contains("DOC-42"), "AC-4: the routed selection's source document is shown ({val})");
-    assert!(val.contains("the quick brown fox"), "AC-4: the routed selection text is shown ({val})");
+    assert!(
+        val.contains("DOC-42"),
+        "AC-4: the routed selection's source document is shown ({val})"
+    );
+    assert!(
+        val.contains("the quick brown fox"),
+        "AC-4: the routed selection text is shown ({val})"
+    );
     assert!(
         stage.lock().unwrap().content.is_some(),
         "AC-4: the Stage pane holds the routed content after the command"
     );
-    println!("AC-4: Route-to-Stage opened the Stage pane and displayed the routed selection ({val})");
+    println!(
+        "AC-4: Route-to-Stage opened the Stage pane and displayed the routed selection ({val})"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -379,8 +442,14 @@ fn ac6_accesskit_nodes_present() {
     harness.run();
 
     let ids = author_ids(&harness);
-    assert!(ids.contains(PANEL_AUTHOR_ID), "AC-6: atelier-side-panel List node present ({ids:?})");
-    assert!(ids.contains(REFRESH_AUTHOR_ID), "AC-6: refresh button node present");
+    assert!(
+        ids.contains(PANEL_AUTHOR_ID),
+        "AC-6: atelier-side-panel List node present ({ids:?})"
+    );
+    assert!(
+        ids.contains(REFRESH_AUTHOR_ID),
+        "AC-6: refresh button node present"
+    );
     let expected_item = item_author_id("item-aaa");
     assert!(
         ids.contains(&expected_item),
@@ -396,11 +465,19 @@ fn ac6_accesskit_nodes_present() {
         let ak = node.accesskit_node();
         match ak.author_id() {
             Some(a) if a == PANEL_AUTHOR_ID => {
-                assert_eq!(ak.role(), egui::accesskit::Role::List, "AC-6: panel is a List");
+                assert_eq!(
+                    ak.role(),
+                    egui::accesskit::Role::List,
+                    "AC-6: panel is a List"
+                );
                 saw_list = true;
             }
             Some(a) if a == expected_item => {
-                assert_eq!(ak.role(), egui::accesskit::Role::ListItem, "AC-6: item is a ListItem");
+                assert_eq!(
+                    ak.role(),
+                    egui::accesskit::Role::ListItem,
+                    "AC-6: item is a ListItem"
+                );
                 let desc = ak.description().unwrap_or_default();
                 assert!(
                     desc.contains("draggable"),
@@ -416,7 +493,10 @@ fn ac6_accesskit_nodes_present() {
         }
     }
     assert!(saw_list, "AC-6: the List container node was inspected");
-    assert!(saw_list_item_draggable, "AC-6: the draggable ListItem node was inspected");
+    assert!(
+        saw_list_item_draggable,
+        "AC-6: the draggable ListItem node was inspected"
+    );
 
     // (b) The Stage pane: Region container node.
     let stage = std::sync::Arc::new(std::sync::Mutex::new(StagePane::new()));
@@ -437,7 +517,11 @@ fn ac6_accesskit_nodes_present() {
     for node in stage_harness.root().children_recursive() {
         let ak = node.accesskit_node();
         if ak.author_id() == Some(STAGE_PANE_AUTHOR_ID) {
-            assert_eq!(ak.role(), egui::accesskit::Role::Region, "AC-6: stage-pane is a Region");
+            assert_eq!(
+                ak.role(),
+                egui::accesskit::Role::Region,
+                "AC-6: stage-pane is a Region"
+            );
             saw_region = true;
         }
     }
@@ -480,14 +564,18 @@ fn live_shell() -> HandshakeApp {
             }],
         )),
     );
+    assert!(
+        app.set_module(ModuleId::Ckc),
+        "live CKC shell proof activates the top-level Atelier module so CKC is visible in the central pane"
+    );
     app
 }
 
 #[test]
 fn ac6_atelier_side_panel_mounted_in_live_shell() {
-    // Render the REAL shell for two frames; the right-edge Atelier side panel must contribute its List
-    // container + a draggable item ListItem to the LIVE AccessKit tree (proving it is actually mounted in
-    // app.rs, not only in a standalone harness).
+    // Render the REAL shell for two frames; the central Atelier pane must contribute its main panel,
+    // Castkit Codex tab/content region, the reused CKC List container, and a draggable item ListItem to
+    // the LIVE AccessKit tree.
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 800.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), live_shell());
@@ -495,16 +583,32 @@ fn ac6_atelier_side_panel_mounted_in_live_shell() {
     harness.run();
 
     let ids = author_ids(&harness);
+    for expected in [
+        ATELIER_PANEL_AUTHOR_ID,
+        ATELIER_TAB_CKC_AUTHOR_ID,
+        ATELIER_CONTENT_CKC_AUTHOR_ID,
+    ] {
+        assert!(
+            ids.contains(expected),
+            "AC-6 live: central Atelier panel id {expected} present in the REAL shell tree ({ids:?})"
+        );
+    }
     assert!(
         ids.contains(PANEL_AUTHOR_ID),
-        "AC-6 live: atelier-side-panel List node present in the REAL shell tree ({ids:?})"
+        "AC-6 live: CKC intake List node present inside the central Atelier pane ({ids:?})"
     );
     let expected_item = item_author_id("item-aaa");
     assert!(
         ids.contains(&expected_item),
         "AC-6 live: a draggable atelier item node present in the REAL shell (looked for {expected_item})"
     );
-    println!("AC-6 live: the Atelier side panel is mounted + reachable in the real HandshakeApp shell");
+    for retired_split_pane in ["pane-b", "pane-c", "pane-d"] {
+        assert!(
+            !ids.contains(retired_split_pane),
+            "AC-6 live: Atelier is a full central panel, not the old 2x2 split; unexpected {retired_split_pane} in {ids:?}"
+        );
+    }
+    println!("AC-6 live: the central Atelier pane exposes CKC intake rows in the real HandshakeApp shell");
 }
 
 #[test]
@@ -535,7 +639,10 @@ fn ac4_route_to_stage_in_live_shell_shows_stage_pane() {
         )
     })
     .unwrap_or(false);
-    assert!(dispatched, "AC-4 live: the route-to-stage command dispatched on the shell bus");
+    assert!(
+        dispatched,
+        "AC-4 live: the route-to-stage command dispatched on the shell bus"
+    );
     harness.run(); // frame 1: the shell drain pulls the staged content + opens the Stage panel
     harness.run(); // frame 2: the now-open Stage pane renders + emits its Region node
 
@@ -545,10 +652,21 @@ fn ac4_route_to_stage_in_live_shell_shows_stage_pane() {
         "AC-4 live: the shell drain opened the Stage pane (stage-pane Region node present) ({ids:?})"
     );
     let val = stage_value(&harness).expect("AC-4 live: stage-pane Region node present");
-    assert!(val.contains("DOC-42"), "AC-4 live: routed selection's source document shown ({val})");
-    assert!(val.contains("the quick brown fox"), "AC-4 live: routed selection text shown ({val})");
-    assert!(harness.state().stage_panel_open(), "AC-4 live: the Stage panel is open after routing");
-    println!("AC-4 live: Route-to-Stage dispatched in the REAL shell opened + filled the Stage pane");
+    assert!(
+        val.contains("DOC-42"),
+        "AC-4 live: routed selection's source document shown ({val})"
+    );
+    assert!(
+        val.contains("the quick brown fox"),
+        "AC-4 live: routed selection text shown ({val})"
+    );
+    assert!(
+        harness.state().stage_panel_open(),
+        "AC-4 live: the Stage panel is open after routing"
+    );
+    println!(
+        "AC-4 live: Route-to-Stage dispatched in the REAL shell opened + filled the Stage pane"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -570,7 +688,10 @@ fn ac4_explorer_context_menu_route_to_stage_item_routes_document() {
         .iter()
         .find(|i| i.id == explorer_ids::ROUTE_TO_STAGE)
         .expect("AC-4: explorer 'Route to Stage' menu item present on a Document row");
-    assert!(route_item.enabled, "AC-4: 'Route to Stage' is enabled on a Document row");
+    assert!(
+        route_item.enabled,
+        "AC-4: 'Route to Stage' is enabled on a Document row"
+    );
     assert_eq!(
         explorer_action_for_id(explorer_ids::ROUTE_TO_STAGE, ExplorerRowKind::Document),
         Some(ExplorerMenuAction::RouteToStage),
@@ -582,8 +703,14 @@ fn ac4_explorer_context_menu_route_to_stage_item_routes_document() {
             .into_iter()
             .find(|i| i.id == explorer_ids::ROUTE_TO_STAGE)
             .expect("the item is rendered for every kind (disabled where not applicable)");
-        assert!(!item.enabled, "{kind:?} Route-to-Stage is disabled + disclosed");
-        assert_eq!(explorer_action_for_id(explorer_ids::ROUTE_TO_STAGE, kind), None);
+        assert!(
+            !item.enabled,
+            "{kind:?} Route-to-Stage is disabled + disclosed"
+        );
+        assert_eq!(
+            explorer_action_for_id(explorer_ids::ROUTE_TO_STAGE, kind),
+            None
+        );
     }
     println!("AC-4: explorer-row 'Route to Stage' item is the named dispatch surface (Document-only, enabled)");
 }
@@ -618,10 +745,15 @@ fn atelier_panel_screenshot() {
             let _ = std::fs::create_dir_all(&ext_dir);
             let png = ext_dir.join("MT-033-atelier-side-panel.png");
             let saved = image.save(&png).is_ok();
-            println!("HBR-VIS: {w}x{h} atelier panel screenshot, saved={saved} ({})", png.display());
+            println!(
+                "HBR-VIS: {w}x{h} atelier panel screenshot, saved={saved} ({})",
+                png.display()
+            );
         }
         Err(e) => {
-            println!("BLOCKER(non-fatal): atelier panel screenshot unavailable (no wgpu adapter): {e}.");
+            println!(
+                "BLOCKER(non-fatal): atelier panel screenshot unavailable (no wgpu adapter): {e}."
+            );
         }
     }
     assert_no_local_artifact_dir();
@@ -660,7 +792,9 @@ fn atelier_client_builds_verified_routes() {
         "http://127.0.0.1:37501/atelier/intake/batches/batch-7/items",
         "AC-5: the verified per-batch items route"
     );
-    println!("AC-5: AtelierClient builds the verified /atelier routes (batches, command-corpus, items)");
+    println!(
+        "AC-5: AtelierClient builds the verified /atelier routes (batches, command-corpus, items)"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -690,13 +824,19 @@ fn ac5_atelier_side_panel_loads_from_live_pg() {
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    let data = data.expect("live PG fetch within 5s").expect("live PG fetch ok (no mocks)");
+    let data = data
+        .expect("live PG fetch within 5s")
+        .expect("live PG fetch ok (no mocks)");
     assert!(
         !data.batches.is_empty(),
         "AC-5 live: at least one seeded intake batch expected, got {}",
         data.batches.len()
     );
-    println!("AC-5 live: AtelierSidePanel loaded {} batches + {} corpus entries from real PG", data.batches.len(), data.corpus.len());
+    println!(
+        "AC-5 live: AtelierSidePanel loaded {} batches + {} corpus entries from real PG",
+        data.batches.len(),
+        data.corpus.len()
+    );
 }
 
 /// AC-2 + AC-3 against REAL PG: insert a CKC embed in a rich doc, save (PUT /knowledge/documents/{id}/save),

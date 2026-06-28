@@ -7,13 +7,20 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::accessibility::{self, ChromeWidget};
+use crate::atelier_side_panel::AtelierSidePanel;
 use crate::backend_client::{self, HealthInfo, WorkbenchLayoutClient, HEALTH_URL};
-use crate::error::AppError;
-use crate::layout_persistence::{
-    DrawersState, LayoutPersistenceManager, LayoutPersistenceStatus, LayoutSnapshot, LayoutTransport,
-    PopOutSnapshot,
+use crate::code_editor::keymap::CodeEditorAction;
+use crate::code_editor::panel::CodeEditorPanel;
+use crate::editor_pane_factories::{
+    CodeEditorPaneMount, EditorSessionContext, RichEditorPaneMount, RichPaneEvents,
+    SharedSessionContext,
 };
+use crate::error::AppError;
 use crate::event_bus::{new_shell_event_bus, ShellEvent, ShellEventReceiver, ShellEventSender};
+use crate::layout_persistence::{
+    DrawersState, LayoutPersistenceManager, LayoutPersistenceStatus, LayoutSnapshot,
+    LayoutTransport, PopOutSnapshot,
+};
 use crate::left_rail::{LeftRail, LeftRailColors, LeftRailEvent};
 use crate::module_switcher::{ModuleId, ModuleSwitcher, ModuleSwitcherColors};
 use crate::pane_header::{PaneHeader, PaneHeaderColors, PANE_HEADER_HEIGHT};
@@ -26,16 +33,9 @@ use crate::project_tabs::{
     fetch_workspaces, ProjectItem, ProjectTabBar, ProjectTabColors, PROJECT_TAB_BAR_HEIGHT,
 };
 use crate::rails::{apply_rail_scrollbar_style, RailColors, RailDimensions};
-use crate::atelier_side_panel::AtelierSidePanel;
-use crate::code_editor::keymap::CodeEditorAction;
-use crate::code_editor::panel::CodeEditorPanel;
-use crate::editor_pane_factories::{
-    CodeEditorPaneMount, EditorSessionContext, RichEditorPaneMount, RichPaneEvents,
-    SharedSessionContext,
-};
 use crate::rich_editor::renderer::rich_editor_widget::RichEditorState;
+use crate::split_layout::SplitWeights;
 use crate::stage_pane::{StageContent, StagePane};
-use crate::split_layout::{DividerColors, SplitDragState, SplitLayoutWidget, SplitWeights};
 use crate::tab_bar::{TabBar, TabBarColors, TabBarState, TabState, TAB_BAR_HEIGHT};
 use crate::theme::{self, HsTheme};
 use crate::top_menu_bar::{
@@ -127,10 +127,17 @@ const DEFAULT_MONITOR_EXTENT: egui::Rect =
 struct NullLayoutTransport;
 
 impl LayoutTransport for NullLayoutTransport {
-    fn load(&self, _workspace_id: &str) -> Result<Option<serde_json::Value>, crate::layout_persistence::LayoutError> {
+    fn load(
+        &self,
+        _workspace_id: &str,
+    ) -> Result<Option<serde_json::Value>, crate::layout_persistence::LayoutError> {
         Ok(None)
     }
-    fn save(&self, _workspace_id: &str, _layout_state: serde_json::Value) -> Result<(), crate::layout_persistence::LayoutError> {
+    fn save(
+        &self,
+        _workspace_id: &str,
+        _layout_state: serde_json::Value,
+    ) -> Result<(), crate::layout_persistence::LayoutError> {
         Ok(())
     }
 }
@@ -251,10 +258,6 @@ pub struct HandshakeApp {
     /// by MT-009. Initialized to the React `DEFAULT_SPLIT_WEIGHTS` (`{ vertical: 0.5, horizontal:
     /// 0.55 }`).
     split_weights: SplitWeights,
-    /// Per-frame pointer-drag state for the dividers (MT-006). Deliberately separate from
-    /// `split_weights` so transient drag flags are never serialized into a layout snapshot
-    /// (red-team RISK-5).
-    split_drag: SplitDragState,
     /// The pane the operator last clicked. `None` until a pane is activated; later MTs use it to
     /// highlight the focused pane / route operator actions.
     active_pane: Option<PaneId>,
@@ -605,8 +608,10 @@ pub struct HandshakeApp {
     /// in-app "Confirm Discard" `egui::Window` (HBR-QUIET — never an OS dialog). The DELETE fires ONLY when
     /// the window's OK is pressed; Cancel clears this with NO backend call. `None` when no discard is
     /// awaiting confirmation.
-    confirm_discard:
-        Option<(crate::stash_shelf::DrawerCardKind, crate::stash_shelf::DrawerActionTarget)>,
+    confirm_discard: Option<(
+        crate::stash_shelf::DrawerCardKind,
+        crate::stash_shelf::DrawerActionTarget,
+    )>,
     /// MT-024 MAJOR FIX (AC-024-4/5): the kind of the card whose last action SUCCEEDED, retained so the
     /// drawer shows a brief success indicator (the contract's card-removal/reorder lifecycle assumes a
     /// per-block item list; the MT-023 TYPE-card drawer's success effect is feedback + count refresh, not
@@ -645,17 +650,10 @@ pub struct HandshakeApp {
     /// frame sends the command. Skipped during a snapshot-capture pass (the throwaway capture context
     /// must stay side-effect-free).
     ime_allowed_sent: bool,
-    /// WP-KERNEL-012 MT-033 (E5 — CKC drag-in): the live CKC / Atelier side panel mounted on the RIGHT
-    /// edge of the shell (the `egui::SidePanel::right` mirror of the left activity rail). This is the
-    /// drag SOURCE the rich-editor / canvas drop zones consume — it is rendered every frame so its
-    /// `dnd_drag_source` item rows are reachable in the real product, not only in a standalone test
-    /// harness. In the production shell it is `AtelierSidePanel::production(runtime)` (loads from the
-    /// real `/atelier` backend off the UI thread); the headless/test shell has no runtime, so the panel
-    /// stays idle/neutral (no perpetual spinner) until a test injects rows.
-    atelier_side_panel: AtelierSidePanel,
-    /// MT-033: whether the right-edge Atelier/CKC side panel is expanded. Defaults open so a fresh shell
-    /// shows the drag source. Toggled by the bus / future affordance; persisted state is a later MT.
-    atelier_panel_open: bool,
+    /// MT-006: shared CKC intake state rendered inside the central Atelier pane's Castkit Codex tab. This
+    /// remains the drag SOURCE the rich-editor / canvas drop zones consume, but it is no longer mounted as
+    /// a duplicate right-edge side panel.
+    atelier_side_panel: Arc<Mutex<AtelierSidePanel>>,
     /// MT-033: the live Stage pane (the route-to-Stage DISPLAY surface). Held by the shell and mounted as
     /// a bottom panel; the per-frame bus drain (`take_pending_stage_content`) sets its content when a
     /// "Route to Stage" command is dispatched (palette or context menu). Read-only display — deeper Stage
@@ -797,7 +795,8 @@ struct SecondaryMountHandles {
     graph_view: Arc<Mutex<crate::graph::graph_view::LoomGraphView>>,
     graph_events: Arc<Mutex<Vec<crate::graph::graph_view::GraphEvent>>>,
     /// The outgoing-links panel state + its outbound nav-target queue.
-    outgoing_links: Arc<Mutex<crate::rich_editor::wikilinks::outgoing_links_panel::OutgoingLinksPanel>>,
+    outgoing_links:
+        Arc<Mutex<crate::rich_editor::wikilinks::outgoing_links_panel::OutgoingLinksPanel>>,
     outgoing_nav: Arc<Mutex<Vec<crate::rich_editor::wikilinks::outgoing_links_panel::NavTarget>>>,
     /// The relevant-memory panel state + its outbound memory-nav queue.
     relevant_memory: Arc<Mutex<crate::fems::relevant_memory_panel::RelevantMemoryPanel>>,
@@ -825,6 +824,7 @@ struct SecondaryMountHandles {
 fn build_factories_with_loom_search_v2(
     runtime: tokio::runtime::Handle,
     palette: theme::HsPalette,
+    atelier_side_panel: Arc<Mutex<AtelierSidePanel>>,
 ) -> FactoriesWithSharedCells {
     let mut map = build_default_factories();
     let shared = Arc::new(Mutex::new(
@@ -856,7 +856,7 @@ fn build_factories_with_loom_search_v2(
     // surfaces the WP-011 shell already routes those panes to — no new PaneType variant is forked). The
     // session-threaded MOUNT wrappers thread runtime/workspace/embed/wikilink context on mount through
     // the SAME shared-cell pattern (the `session` cell the shell overwrites each frame).
-    let editor_mounts = install_editor_mounts(&mut map);
+    let editor_mounts = install_editor_mounts(&mut map, atelier_side_panel);
 
     (map, shared, fif_shared, editor_mounts)
 }
@@ -868,22 +868,19 @@ fn build_factories_with_loom_search_v2(
 /// session-context threading + the command/event drains the host-mount needs.
 fn install_editor_mounts(
     map: &mut HashMap<PaneType, Box<dyn PaneFactory>>,
+    atelier_side_panel: Arc<Mutex<AtelierSidePanel>>,
 ) -> EditorMountHandles {
     // The session-context cell every mount reads; starts UNbound (empty workspace, no runtime). The shell
     // overwrites it with the active workspace + runtime each frame (sync_editor_session), at which point
     // the mounts thread real session context into the editors (AC-079-2).
-    let session: SharedSessionContext =
-        Arc::new(Mutex::new(EditorSessionContext::default()));
+    let session: SharedSessionContext = Arc::new(Mutex::new(EditorSessionContext::default()));
 
     // CODE pane: a small seed snippet so the mounted pane shows a real editor (a fresh shell with no
     // open file). The command channel routes Save/Undo/Redo/OpenCommandPalette to the shell bus.
     let code_panel = Arc::new(CodeEditorPanel::new(CODE_EDITOR_SEED, "rs"));
     let (command_tx, command_rx) = std::sync::mpsc::channel::<CodeEditorAction>();
-    let code_mount = CodeEditorPaneMount::new(
-        Arc::clone(&code_panel),
-        Arc::clone(&session),
-        command_tx,
-    );
+    let code_mount =
+        CodeEditorPaneMount::new(Arc::clone(&code_panel), Arc::clone(&session), command_tx);
     map.insert(PaneType::CodeSymbol, Box::new(code_mount));
 
     // RICH/Notes pane: a demo document so the mounted Notes pane shows a real rich editor. The outbound
@@ -903,9 +900,16 @@ fn install_editor_mounts(
 
     // WP-KERNEL-012 MT-080 (E11 host-mount, part 2): install the SECONDARY pane factories over their
     // placeholders so the canvas / graph / side panes render LIVE too.
-    let secondary = install_secondary_mounts(map);
+    let secondary = install_secondary_mounts(map, atelier_side_panel);
 
-    EditorMountHandles { session, code_panel, rich_state, command_rx, rich_events, secondary }
+    EditorMountHandles {
+        session,
+        code_panel,
+        rich_state,
+        command_rx,
+        rich_events,
+        secondary,
+    }
 }
 
 /// WP-KERNEL-012 MT-080: build the SECONDARY pane factories (canvas / graph / outgoing-links /
@@ -917,10 +921,11 @@ fn install_editor_mounts(
 /// placeholder.
 fn install_secondary_mounts(
     map: &mut HashMap<PaneType, Box<dyn PaneFactory>>,
+    atelier_side_panel: Arc<Mutex<AtelierSidePanel>>,
 ) -> SecondaryMountHandles {
     use crate::editor_pane_factories::{
-        CanvasBoardPaneMount, DailyJournalPaneMount, GraphViewPaneMount, ManualPaneMount,
-        OutgoingLinksPaneMount, RelevantMemoryPaneMount, StagePaneMount,
+        DailyJournalPaneMount, GraphViewPaneMount, ManualPaneMount, OutgoingLinksPaneMount,
+        RelevantMemoryPaneMount, StagePaneMount,
     };
 
     // One shared palette cell, seeded with the default dark palette; the shell overwrites it from the
@@ -929,14 +934,17 @@ fn install_secondary_mounts(
         Arc::new(Mutex::new(HsTheme::Dark.palette()));
 
     // ── Canvas board (PaneType::AtelierEditor) ───────────────────────────────────────────────────────
-    let canvas_board = Arc::new(Mutex::new(crate::graph::canvas_board::LoomCanvasBoard::new(
-        DEFAULT_PROJECT_ID,
-        SECONDARY_CANVAS_BLOCK_ID,
-    )));
+    let canvas_board = Arc::new(Mutex::new(
+        crate::graph::canvas_board::LoomCanvasBoard::new(
+            DEFAULT_PROJECT_ID,
+            SECONDARY_CANVAS_BLOCK_ID,
+        ),
+    ));
     let canvas_events = Arc::new(Mutex::new(Vec::new()));
     map.insert(
         PaneType::AtelierEditor,
-        Box::new(CanvasBoardPaneMount::new(
+        Box::new(crate::atelier_panel::AtelierPanelPaneMount::new(
+            Arc::clone(&atelier_side_panel),
             Arc::clone(&canvas_board),
             Arc::clone(&palette),
             Arc::clone(&canvas_events),
@@ -1081,6 +1089,76 @@ fn default_tab_bar_states() -> HashMap<PaneId, TabBarState> {
             (record.pane_id.clone(), bar)
         })
         .collect()
+}
+
+fn sync_registry_record_to_active_tab(
+    registry: &Arc<Mutex<PaneRegistry>>,
+    tab_bars: &HashMap<PaneId, TabBarState>,
+    pane_id: &PaneId,
+) -> bool {
+    let Some((pane_type, content_id)) = tab_bars.get(pane_id).and_then(|bar| {
+        bar.active()
+            .map(|tab| (tab.pane_type.clone(), tab.content_id.clone()))
+    }) else {
+        return false;
+    };
+    let mut guard = registry.lock().expect("pane registry mutex poisoned");
+    let Some(record) = guard.get_mut(pane_id) else {
+        return false;
+    };
+    if record.pane_type == pane_type && record.content_id == content_id {
+        return false;
+    }
+    record.pane_type = pane_type;
+    record.content_id = content_id;
+    record.last_update = std::time::Instant::now();
+    true
+}
+
+fn apply_single_pane_tab_response(
+    tab_bars: &mut HashMap<PaneId, TabBarState>,
+    active_pane: &mut Option<PaneId>,
+    pane_id: &PaneId,
+    response: &crate::tab_bar::TabBarResponse,
+) -> bool {
+    let mut changed = false;
+    if let Some(bar) = tab_bars.get_mut(pane_id) {
+        if let Some(idx) = response.activated_index {
+            bar.activate(idx);
+            *active_pane = Some(pane_id.clone());
+            changed = true;
+        }
+        if let Some((idx, pin)) = response.pin_toggled {
+            if pin {
+                bar.pin_tab(idx);
+            } else {
+                bar.unpin_tab(idx);
+            }
+            changed = true;
+        }
+        if let Some(idx) = response.closed_index {
+            changed |= bar.close_tab(idx);
+        }
+        if let Some(keep) = response.close_others_index {
+            for idx in (0..bar.tabs.len()).rev() {
+                if idx != keep {
+                    changed |= bar.close_tab(idx);
+                }
+            }
+        }
+        if response.close_all {
+            for idx in (0..bar.tabs.len()).rev() {
+                changed |= bar.close_tab(idx);
+            }
+        }
+        if let Some((payload, target)) = &response.drop_completed {
+            if payload.source_pane_id == target.target_pane_id {
+                crate::tab_bar::apply_drop_same_pane(payload, target, bar);
+                changed = true;
+            }
+        }
+    }
+    changed
 }
 
 /// The project-tab strip a fresh shell shows before the `/workspaces` fetch resolves (MT-011): a
@@ -1260,7 +1338,8 @@ const NOTO_SANS_HEBREW: &[u8] = include_bytes!("../assets/fonts/NotoSansHebrew-R
 #[cfg(feature = "bundled-fonts")]
 const NOTO_SANS_ARABIC: &[u8] = include_bytes!("../assets/fonts/NotoSansArabic-Regular.ttf");
 #[cfg(feature = "bundled-fonts")]
-const NOTO_SANS_DEVANAGARI: &[u8] = include_bytes!("../assets/fonts/NotoSansDevanagari-Regular.ttf");
+const NOTO_SANS_DEVANAGARI: &[u8] =
+    include_bytes!("../assets/fonts/NotoSansDevanagari-Regular.ttf");
 
 /// egui `font_data` key for the primary proportional face (Inter). Always index-0 / first in both the
 /// Proportional and Monospace fallback vecs so the Latin look is unchanged (MC-1 / AC1).
@@ -1314,12 +1393,12 @@ impl HandshakeApp {
             .build()
             .expect("build tokio runtime");
         // Fire-once, non-blocking health poll: window opens immediately, label shows Loading...
-        let health_handle = Some(rt.spawn(async { backend_client::fetch_health(HEALTH_URL).await }));
+        let health_handle =
+            Some(rt.spawn(async { backend_client::fetch_health(HEALTH_URL).await }));
         // Fire-once, non-blocking workspace list fetch (MT-011): the shell opens immediately with the
         // seeded default-project tab; when the fetch resolves, the real workspace tabs replace it.
-        let workspaces_handle = Some(rt.spawn(async {
-            fetch_workspaces(backend_client::BACKEND_BASE_URL).await
-        }));
+        let workspaces_handle =
+            Some(rt.spawn(async { fetch_workspaces(backend_client::BACKEND_BASE_URL).await }));
         // Real transport: the backend's PostgreSQL-authoritative layout REST endpoint, bridged onto
         // this app's tokio runtime handle. No local file authority (CX-503S / Data Posture).
         let transport = WorkbenchLayoutClient::production(rt.handle().clone());
@@ -1333,22 +1412,28 @@ impl HandshakeApp {
         // MT-017: the REAL Loom-graph search transport, bridged onto the app runtime (MT-009 pattern).
         let quick_switcher_transport: Option<
             Arc<dyn crate::quick_switcher::LoomGraphSearchTransport>,
-        > = Some(Arc::new(crate::quick_switcher::LoomGraphSearchClient::production(
-            rt_handle.clone(),
-        )));
+        > = Some(Arc::new(
+            crate::quick_switcher::LoomGraphSearchClient::production(rt_handle.clone()),
+        ));
         // MT-018: the REAL settings transport, bridged onto the app runtime (MT-009 pattern).
         let settings_transport: Option<Arc<dyn crate::workspace_settings::SettingsTransport>> =
-            Some(Arc::new(crate::workspace_settings::SettingsClient::production(
-                rt_handle.clone(),
-            )));
+            Some(Arc::new(
+                crate::workspace_settings::SettingsClient::production(rt_handle.clone()),
+            ));
         // MT-014 FIX-B: the in-process shell event bus, constructed once at app construction (the
         // "subscribe at app/LeftRail construction" control). Drained each frame in `ui()`.
         let (event_bus_tx, event_bus_rx) = new_shell_event_bus();
+        let atelier_side_panel =
+            Arc::new(Mutex::new(AtelierSidePanel::production(rt_handle.clone())));
         // MT-028 + MT-029: install the CONCRETE LoomSearchV2 + FindInFiles pane factories over their
         // placeholders so opening the "Loom Search" / "Find in Files" panes renders the REAL panels,
         // wired to the verified search/save/bookmark routes.
         let (factories, loom_search_v2_shared, find_in_files_shared, editor_mounts) =
-            build_factories_with_loom_search_v2(rt_handle.clone(), HsTheme::Dark.palette());
+            build_factories_with_loom_search_v2(
+                rt_handle.clone(),
+                HsTheme::Dark.palette(),
+                Arc::clone(&atelier_side_panel),
+            );
         // WP-KERNEL-012 MT-082 (D2 — internal_diagnostics, Tier 2): create the MT-081 shared-memory ring
         // for this session and install its writer onto the process-global diagnostics recorder, so any
         // feature can `diagnostics::record(..)` and Palmistry (Tier 3) can map the ring. Ring creation is
@@ -1400,7 +1485,6 @@ impl HandshakeApp {
             editor_mounts,
             last_editor_command: None,
             split_weights: SplitWeights::default(),
-            split_drag: SplitDragState::default(),
             active_pane: None,
             tab_bar_states: default_tab_bar_states(),
             popout_manager: PopOutManager::new(),
@@ -1479,7 +1563,9 @@ impl HandshakeApp {
             scm_text_cell: Arc::new(Mutex::new(None)),
             scm_display_text: None,
             scm_error: None,
-            canvas_client: Some(crate::backend_client::CanvasClient::production(rt_handle.clone())),
+            canvas_client: Some(crate::backend_client::CanvasClient::production(
+                rt_handle.clone(),
+            )),
             canvas_op_cell: Arc::new(Mutex::new(None)),
             canvas_error: None,
             loom_flag_cell: Arc::new(Mutex::new(None)),
@@ -1520,11 +1606,8 @@ impl HandshakeApp {
             mcp_token: crate::mcp::SessionToken::generate(),
             capturing_snapshot: false,
             ime_allowed_sent: false,
-            // MT-033: the production Atelier/CKC side panel loads from the real `/atelier` backend off the
-            // UI thread (the same runtime handle every other off-thread client uses). Mounted on the right
-            // edge so its drag-source rows are reachable in the running product.
-            atelier_side_panel: AtelierSidePanel::production(rt_handle.clone()),
-            atelier_panel_open: true,
+            // MT-006: shared CKC intake state rendered inside the main Atelier pane's Castkit Codex tab.
+            atelier_side_panel,
             stage_pane: StagePane::new(),
             stage_panel_open: false,
         };
@@ -1631,8 +1714,8 @@ impl HandshakeApp {
         // Monotonic source: Instant elapsed in nanos (immune to wall-clock changes). Clamp the u128
         // nanos into u64 (saturating) — u64 nanos is ~584 years of runtime, so this never saturates in
         // practice and never allocates/panics.
-        let elapsed_nanos = u64::try_from(self.heartbeat_clock.elapsed().as_nanos())
-            .unwrap_or(u64::MAX);
+        let elapsed_nanos =
+            u64::try_from(self.heartbeat_clock.elapsed().as_nanos()).unwrap_or(u64::MAX);
         crate::diagnostics::heartbeat(self.frame_counter, elapsed_nanos);
     }
 
@@ -1726,9 +1809,9 @@ impl HandshakeApp {
         let snapshot = self.mcp_snapshot.clone();
         let channel = self.mcp_action_channel.clone();
         let capture = crate::mcp::SwarmMcpServer::os_window_capture();
-        let result = self
-            .rt
-            .block_on(async move { crate::mcp::SwarmMcpServer::bind(token, snapshot, channel, capture).await });
+        let result = self.rt.block_on(async move {
+            crate::mcp::SwarmMcpServer::bind(token, snapshot, channel, capture).await
+        });
         match result {
             Ok(server) => {
                 tracing::info!(tcp = %server.tcp_addr(), pipe = ?server.pipe_name(), "MCP swarm server bound");
@@ -1774,12 +1857,17 @@ impl HandshakeApp {
         )));
         // MT-014 FIX-B: the in-process shell event bus (same construction as the production ctor).
         let (event_bus_tx, event_bus_rx) = new_shell_event_bus();
+        let atelier_side_panel = Arc::new(Mutex::new(AtelierSidePanel::with_client(None)));
         // MT-028: install the CONCRETE LoomSearchV2 pane factory over its placeholder here too, so a
         // headless/test shell opens the REAL panel via the registry-dispatched pane (AC-9). The
         // current-thread runtime handle bridges the (no-backend) search/save spawns; with no live
         // backend the request simply never delivers (the panel stays idle/neutral — no perpetual spinner).
         let (factories, loom_search_v2_shared, find_in_files_shared, editor_mounts) =
-            build_factories_with_loom_search_v2(rt.handle().clone(), HsTheme::Dark.palette());
+            build_factories_with_loom_search_v2(
+                rt.handle().clone(),
+                HsTheme::Dark.palette(),
+                Arc::clone(&atelier_side_panel),
+            );
         Self {
             health_status: state,
             rt,
@@ -1812,7 +1900,6 @@ impl HandshakeApp {
             editor_mounts,
             last_editor_command: None,
             split_weights: SplitWeights::default(),
-            split_drag: SplitDragState::default(),
             active_pane: None,
             tab_bar_states: default_tab_bar_states(),
             popout_manager: PopOutManager::new(),
@@ -1936,12 +2023,9 @@ impl HandshakeApp {
             mcp_token: crate::mcp::SessionToken::generate(),
             capturing_snapshot: false,
             ime_allowed_sent: false,
-            // MT-033: headless/test shell — no runtime to bridge the atelier client onto, so the panel has
-            // no client (it renders no rows + never touches the network; a test injects rows via the
-            // `atelier_side_panel_mut` accessor + `with_rows`-style state if it wants seeded rows). The
-            // panel is still MOUNTED every frame so its List container node is in the live AccessKit tree.
-            atelier_side_panel: AtelierSidePanel::with_client(None),
-            atelier_panel_open: true,
+            // MT-006: headless/test shell — the shared CKC intake state has no client and is rendered
+            // inside the main Atelier pane when that pane is active.
+            atelier_side_panel,
             stage_pane: StagePane::new(),
             stage_panel_open: false,
         }
@@ -1979,10 +2063,13 @@ impl HandshakeApp {
         self.current_theme
     }
 
-    /// MT-033: mutable access to the mounted Atelier/CKC side panel (for tests that seed rows so the
-    /// live-shell render shows real draggable item nodes without a backend).
-    pub fn atelier_side_panel_mut(&mut self) -> &mut AtelierSidePanel {
-        &mut self.atelier_side_panel
+    /// MT-006: mutable access to the shared CKC intake widget state rendered inside the central Atelier
+    /// pane (for tests that seed rows so the live-shell render shows draggable item nodes without a
+    /// backend).
+    pub fn atelier_side_panel_mut(&mut self) -> std::sync::MutexGuard<'_, AtelierSidePanel> {
+        self.atelier_side_panel
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
     }
 
     /// MT-033: the Stage pane's currently-staged content (read-only; for tests asserting the shell drain
@@ -2102,12 +2189,10 @@ impl HandshakeApp {
         self.left_rail_open = open;
     }
 
-    /// MT-033: open/close the right-edge Atelier/CKC side panel. Like the left rail, an OPEN panel is a
-    /// `SidePanel::right` that narrows + shifts the central 2x2 pane grid; geometry-sensitive tests
-    /// (live tab click/drag) close it for stable pane rects, exactly as they close the left rail.
-    pub fn set_atelier_panel_open(&mut self, open: bool) {
-        self.atelier_panel_open = open;
-    }
+    /// MT-033 compatibility seam: before MT-006 this opened/closed the right-edge Atelier/CKC side panel.
+    /// CKC now lives inside the central Atelier pane, so geometry-sensitive tests may still call this
+    /// without changing the current canonical layout.
+    pub fn set_atelier_panel_open(&mut self, _open: bool) {}
 
     /// Whether the bottom stash drawer is open (MT-014). Persisted as `drawers.bottom`.
     pub fn bottom_drawer_open(&self) -> bool {
@@ -2289,8 +2374,9 @@ impl HandshakeApp {
                     Err(_no_selection) => {
                         // No live selection: disclose it on the next dialog-status surface rather than
                         // opening an empty dialog or fabricating a proposal.
-                        self.memory_proposal_status =
-                            Some("Select text or a block first, then run Propose to Memory.".to_owned());
+                        self.memory_proposal_status = Some(
+                            "Select text or a block first, then run Propose to Memory.".to_owned(),
+                        );
                         true
                     }
                 }
@@ -2316,9 +2402,9 @@ impl HandshakeApp {
             // `workbench.*` command-palette/quick-open ids and every `editor.{file,edit,find}.*` id resolve
             // there. (The rich-text `editor.format.*` / `editor.block.*` etc. catalog commands stay disabled
             // and are not dispatched, so they never reach here as an enabled Run.)
-            id if crate::command_registry::all_commands()
-                .iter()
-                .any(|c| c.id == id && c.kind == crate::command_registry::CommandKind::EditorMenu) =>
+            id if crate::command_registry::all_commands().iter().any(|c| {
+                c.id == id && c.kind == crate::command_registry::CommandKind::EditorMenu
+            }) =>
             {
                 self.dispatch_editor_command(ctx, id)
             }
@@ -2366,13 +2452,17 @@ impl HandshakeApp {
     /// wires them up without forking the editor-pane mount logic.
     fn dispatch_editor_command(&mut self, ctx: &egui::Context, command_id: &str) -> bool {
         use crate::command_registry as cr;
-        use crate::interop::{InteractionBus, CMD_COPY, CMD_CUT, CMD_FIND, CMD_PASTE, CMD_REDO,
-            CMD_SELECT_ALL, CMD_UNDO};
+        use crate::interop::{
+            InteractionBus, CMD_COPY, CMD_CUT, CMD_FIND, CMD_PASTE, CMD_REDO, CMD_SELECT_ALL,
+            CMD_UNDO,
+        };
 
         // GO-nav ids whose owner has not yet registered the live code-nav command: a typed logged no-op
         // (never a panic), keeping the item honestly inert until its owner MT lands (AC-003 / MC-003).
         if cr::is_go_nav_pending(command_id) {
-            tracing::info!("editor command {command_id} not yet available (GO-nav owner unregistered); no-op");
+            tracing::info!(
+                "editor command {command_id} not yet available (GO-nav owner unregistered); no-op"
+            );
             return false;
         }
 
@@ -2604,23 +2694,29 @@ impl HandshakeApp {
     pub fn set_runtime_handle(&mut self, handle: tokio::runtime::Handle) {
         // Build the Loom-block rename client onto the injected runtime so an injected-runtime shell
         // (kittest) gets live off-thread rename too (MT-020).
-        self.loom_block_client =
-            Some(crate::backend_client::LoomBlockClient::production(handle.clone()));
+        self.loom_block_client = Some(crate::backend_client::LoomBlockClient::production(
+            handle.clone(),
+        ));
         // MT-021: bridge the SCM + canvas off-thread clients onto the injected runtime too, so an
         // injected-runtime shell (kittest) gets live source-control + canvas calls.
-        self.source_control_client =
-            Some(crate::backend_client::SourceControlClient::production(handle.clone()));
-        self.canvas_client = Some(crate::backend_client::CanvasClient::production(handle.clone()));
+        self.source_control_client = Some(crate::backend_client::SourceControlClient::production(
+            handle.clone(),
+        ));
+        self.canvas_client = Some(crate::backend_client::CanvasClient::production(
+            handle.clone(),
+        ));
         // MT-022: the rail makes NO backend call (AC-022-9), so there is no rail transport to bridge onto
         // the runtime — the rail emits its RailQuery intent into `search_rail_query` silently.
         // MT-023: bridge the drawer-data client onto the injected runtime so an injected-runtime shell
         // (kittest) gets live off-thread card fetches.
-        self.drawer_data_client =
-            Some(crate::backend_client::DrawerDataClient::production(handle.clone()));
+        self.drawer_data_client = Some(crate::backend_client::DrawerDataClient::production(
+            handle.clone(),
+        ));
         // MT-024: bridge the drawer card-action client onto the injected runtime so an injected-runtime
         // shell (kittest) gets live off-thread pin/discard/stow/attach-evidence dispatch.
-        self.drawer_action_client =
-            Some(crate::backend_client::DrawerActionClient::production(handle.clone()));
+        self.drawer_action_client = Some(crate::backend_client::DrawerActionClient::production(
+            handle.clone(),
+        ));
         self.runtime_handle = Some(handle);
     }
 
@@ -2664,9 +2760,7 @@ impl HandshakeApp {
     /// WP-KERNEL-012 MT-080: the Arc-shared graph view behind the MOUNTED graph pane (the AC-080-3 proof
     /// puts the view in Local mode + enqueues a `DepthChanged` and asserts the depth re-query carries the
     /// new backlink_depth).
-    pub fn mounted_graph_view(
-        &self,
-    ) -> Arc<Mutex<crate::graph::graph_view::LoomGraphView>> {
+    pub fn mounted_graph_view(&self) -> Arc<Mutex<crate::graph::graph_view::LoomGraphView>> {
         Arc::clone(&self.editor_mounts.secondary.graph_view)
     }
 
@@ -2745,7 +2839,9 @@ impl HandshakeApp {
         if !self.focused_pane_is_code_editor(ctx) {
             return None;
         }
-        Some(EditorMetaSegmentState::from_panel(&self.editor_mounts.code_panel))
+        Some(EditorMetaSegmentState::from_panel(
+            &self.editor_mounts.code_panel,
+        ))
     }
 
     /// WP-KERNEL-012 MT-071: apply a typed [`EditorSegmentAction`] the status-bar segment emitted back
@@ -2754,7 +2850,11 @@ impl HandshakeApp {
     /// convert, indent style (flips the Tab key), in-process encoding reopen (surfacing the typed `Err`),
     /// render-whitespace flip, or clipboard copy. Returns `true` when the action mutated state worth a
     /// repaint. NO backend call (the encoding reopen is the in-process MT-010 re-decode — RISK-005).
-    fn apply_editor_segment_action(&self, ctx: &egui::Context, action: EditorSegmentAction) -> bool {
+    fn apply_editor_segment_action(
+        &self,
+        ctx: &egui::Context,
+        action: EditorSegmentAction,
+    ) -> bool {
         let panel = &self.editor_mounts.code_panel;
         match action {
             EditorSegmentAction::SetLanguage(lang) => {
@@ -2807,16 +2907,29 @@ impl HandshakeApp {
     /// assert the EXACT URL + body reaches the wire through the REAL app dispatch path. Production code
     /// never calls this (it uses [`set_runtime_handle`](Self::set_runtime_handle) -> hardcoded backend
     /// URL); it exists so the MAJOR #1/#2/#3 "client genuinely consumed by the app" proof is end-to-end.
-    pub fn set_backend_base_url_for_test(&mut self, base_url: &str, handle: tokio::runtime::Handle) {
-        self.loom_block_client =
-            Some(crate::backend_client::LoomBlockClient::new(base_url, handle.clone()));
-        self.source_control_client =
-            Some(crate::backend_client::SourceControlClient::new(base_url, handle.clone()));
-        self.canvas_client = Some(crate::backend_client::CanvasClient::new(base_url, handle.clone()));
+    pub fn set_backend_base_url_for_test(
+        &mut self,
+        base_url: &str,
+        handle: tokio::runtime::Handle,
+    ) {
+        self.loom_block_client = Some(crate::backend_client::LoomBlockClient::new(
+            base_url,
+            handle.clone(),
+        ));
+        self.source_control_client = Some(crate::backend_client::SourceControlClient::new(
+            base_url,
+            handle.clone(),
+        ));
+        self.canvas_client = Some(crate::backend_client::CanvasClient::new(
+            base_url,
+            handle.clone(),
+        ));
         // MT-024: the drawer card-action client too, so the confirm-discard -> DELETE wire test (mirroring
         // PROOF-024-2(e)) can drive the REAL dispatch path against a localhost capture server.
-        self.drawer_action_client =
-            Some(crate::backend_client::DrawerActionClient::new(base_url, handle.clone()));
+        self.drawer_action_client = Some(crate::backend_client::DrawerActionClient::new(
+            base_url,
+            handle.clone(),
+        ));
         self.runtime_handle = Some(handle);
     }
 
@@ -2901,7 +3014,8 @@ impl HandshakeApp {
             let idx = bar.insert_tab(tab);
             bar.activate(idx);
         }
-        self.active_pane = Some(pane_id);
+        self.active_pane = Some(pane_id.clone());
+        sync_registry_record_to_active_tab(&self.pane_registry, &self.tab_bar_states, &pane_id);
         Some(surface)
     }
 
@@ -2936,9 +3050,10 @@ impl HandshakeApp {
         //    the delivery cell; drive_quick_switcher drains it next frame (red-team MC3 surfaces errors).
         //    The same off-thread spawn pattern as the one-shot recents LOAD in drive_quick_switcher.
         let workspace = self.active_project_id.clone();
-        if let (Some(transport), Some(handle)) =
-            (self.quick_switcher_transport.clone(), self.runtime_handle.clone())
-        {
+        if let (Some(transport), Some(handle)) = (
+            self.quick_switcher_transport.clone(),
+            self.runtime_handle.clone(),
+        ) {
             let cell = self.quick_switcher_record_recent_cell.clone();
             let hit = hit.clone();
             handle.spawn(async move {
@@ -3249,7 +3364,12 @@ impl HandshakeApp {
         //     a brief success indicator, and refresh the affected count (re-fire the open fetches so the
         //     badge reflects the mutation). On Err, surface the error and clear the success indicator
         //     (disclosed deviation — feedback + count refresh, not removal/reorder).
-        if let Some(result) = self.drawer_action_cell.lock().ok().and_then(|mut s| s.take()) {
+        if let Some(result) = self
+            .drawer_action_cell
+            .lock()
+            .ok()
+            .and_then(|mut s| s.take())
+        {
             let kind = self.drawer_action_in_flight.take();
             match result {
                 Ok(()) => {
@@ -3284,7 +3404,8 @@ impl HandshakeApp {
         let mut action_event: Option<crate::stash_shelf::DrawerCardActionEvent> = None;
         if open {
             let avail = ctx.available_rect().height();
-            self.drawer.clamp_height(avail, crate::search_rail::RAIL_HEIGHT + 24.0);
+            self.drawer
+                .clamp_height(avail, crate::search_rail::RAIL_HEIGHT + 24.0);
             let height = self.drawer.height;
             let drawer = &mut self.drawer;
             // ORDER: drawer -> rail -> central -- do not reorder. (egui registration order in THIS
@@ -3316,7 +3437,9 @@ impl HandshakeApp {
                 crate::stash_shelf::DrawerEvent::MailTooltip => {
                     // The hover tooltip is shown by the card itself; a click is a no-op navigation
                     // (AC-023-7) — Mail has no pane to open.
-                    tracing::debug!("drawer: Mail card clicked — no backend / pane yet (Coming soon)");
+                    tracing::debug!(
+                        "drawer: Mail card clicked — no backend / pane yet (Coming soon)"
+                    );
                 }
                 crate::stash_shelf::DrawerEvent::ToggleOpen => {
                     self.bottom_drawer_open = !self.bottom_drawer_open;
@@ -3386,11 +3509,20 @@ impl HandshakeApp {
                     // OK = the single destructive trigger. A fixed-id button carrying the stable
                     // author_id `hsk.drawer.confirm.ok` (the codebase's fixed-id-button + node-builder
                     // pattern, so the interactive node and the named node are the SAME node).
-                    if Self::confirm_button(ui, "Discard", "hsk.drawer.confirm.ok", colors.error_text) {
+                    if Self::confirm_button(
+                        ui,
+                        "Discard",
+                        "hsk.drawer.confirm.ok",
+                        colors.error_text,
+                    ) {
                         do_confirm = true;
                     }
-                    if Self::confirm_button(ui, "Cancel", "hsk.drawer.confirm.cancel", colors.card_text)
-                    {
+                    if Self::confirm_button(
+                        ui,
+                        "Cancel",
+                        "hsk.drawer.confirm.cancel",
+                        colors.card_text,
+                    ) {
                         do_cancel = true;
                     }
                 });
@@ -3443,7 +3575,11 @@ impl HandshakeApp {
         self.drawer_action_error = None;
         // Attribute the delivered receipt to this card (MAJOR FIX AC-024-4/5 success feedback).
         self.drawer_action_in_flight = Some(kind);
-        client.discard(&t.workspace_id, &t.block_id, self.drawer_action_cell.clone());
+        client.discard(
+            &t.workspace_id,
+            &t.block_id,
+            self.drawer_action_cell.clone(),
+        );
         true
     }
 
@@ -3498,8 +3634,7 @@ impl HandshakeApp {
             // ── Persisting, backend actions ──────────────────────────────────────────────────────────
             A::Stow | A::Pin | A::AttachEvidence | A::Discard => {
                 let Some(t) = target else {
-                    self.drawer_action_error =
-                        Some("This card has no block to act on".to_owned());
+                    self.drawer_action_error = Some("This card has no block to act on".to_owned());
                     return false;
                 };
                 // HBR-STOP / RISK-024-A / AC-024-11 / CONTROL-024-A: a DESTRUCTIVE action
@@ -3540,7 +3675,10 @@ impl HandshakeApp {
                     }
                     A::AttachEvidence => {
                         // The no-job case was handled above; here a job is guaranteed present.
-                        let job_id = self.active_job_id.clone().expect("active job checked above");
+                        let job_id = self
+                            .active_job_id
+                            .clone()
+                            .expect("active job checked above");
                         client.attach_evidence(
                             &t.workspace_id,
                             &t.block_id,
@@ -3576,7 +3714,10 @@ impl HandshakeApp {
     /// The most recent LOCAL drawer-action intents (MT-024, HBR-SWARM): Promote / Send-to-pane signals a
     /// swarm reader or test observes off the shared lock. Cloned snapshot.
     pub fn drawer_intents(&self) -> DrawerIntents {
-        self.drawer_intents.lock().map(|i| i.clone()).unwrap_or_default()
+        self.drawer_intents
+            .lock()
+            .map(|i| i.clone())
+            .unwrap_or_default()
     }
 
     /// A cheap clone of the concurrency-safe drawer-intents handle for a swarm reader (HBR-SWARM).
@@ -3600,7 +3741,9 @@ impl HandshakeApp {
     /// RISK-024-A), with the target block id if so. Readable by tests: a `Some` proves the menu's Discard
     /// item ARMED the confirm gate instead of dispatching the DELETE.
     pub fn confirm_discard_block_id(&self) -> Option<&str> {
-        self.confirm_discard.as_ref().map(|(_, t)| t.block_id.as_str())
+        self.confirm_discard
+            .as_ref()
+            .map(|(_, t)| t.block_id.as_str())
     }
 
     /// Set the active job id an Attach-evidence action records against (MT-024 AC-024-9). `None` disables
@@ -3642,7 +3785,11 @@ impl HandshakeApp {
             crate::backend_client::DrawerDataKind::Lists,
             cell.clone(),
         );
-        client.fetch_count(&workspace_id, crate::backend_client::DrawerDataKind::Notes, cell);
+        client.fetch_count(
+            &workspace_id,
+            crate::backend_client::DrawerDataKind::Notes,
+            cell,
+        );
     }
 
     /// Open the pane a drawer card links to (AC-023-12): Agenda → the daily-journal pane, Lists/Notes →
@@ -3651,7 +3798,9 @@ impl HandshakeApp {
     fn open_drawer_card_pane(&mut self, kind: crate::stash_shelf::DrawerCardKind) -> bool {
         use crate::stash_shelf::DrawerCardKind;
         match kind {
-            DrawerCardKind::Agenda => self.open_content_on_active_pane(PaneType::LoomDailyJournal, None),
+            DrawerCardKind::Agenda => {
+                self.open_content_on_active_pane(PaneType::LoomDailyJournal, None)
+            }
             // Lists/Notes open the Loom-block collection pane; the content_id carries the content_type
             // filter the collection pane reads (its filtered content lands with the pane-content WP).
             DrawerCardKind::Lists => {
@@ -3725,7 +3874,10 @@ impl HandshakeApp {
     /// known theme before exercising a change. Sets both the persisted-settings theme and the in-memory
     /// `current_theme` so the dialog + the shell agree from frame one.
     #[doc(hidden)]
-    pub fn set_workspace_theme_for_test(&mut self, theme: crate::workspace_settings::WorkspaceTheme) {
+    pub fn set_workspace_theme_for_test(
+        &mut self,
+        theme: crate::workspace_settings::WorkspaceTheme,
+    ) {
         self.workspace_settings.theme = theme;
         self.current_theme = theme.to_hs_theme();
         self.last_applied_theme = None;
@@ -3737,7 +3889,8 @@ impl HandshakeApp {
     /// conflicting state through it).
     #[doc(hidden)]
     pub fn set_keybinding_for_test(&mut self, action_id: &str, chord: &str) {
-        self.workspace_settings.set_chord(action_id, chord.to_owned());
+        self.workspace_settings
+            .set_chord(action_id, chord.to_owned());
     }
 
     /// Test helper (MT-072): seed the workspace syntax palette directly so a kittest can render the
@@ -3978,7 +4131,8 @@ impl HandshakeApp {
             if let Some(result) = cell.take() {
                 match result {
                     Ok(blob) => {
-                        let fallback = crate::workspace_settings::default_workspace_settings_state();
+                        let fallback =
+                            crate::workspace_settings::default_workspace_settings_state();
                         self.workspace_settings = match blob {
                             // A stored blob is normalized against defaults (red-team R6/MC6).
                             Some(value) => {
@@ -3990,7 +4144,8 @@ impl HandshakeApp {
                             None => fallback,
                         };
                         // Back the in-memory flags from the loaded settings (apply theme next frame).
-                        self.pending_theme_change = Some(self.workspace_settings.theme.to_hs_theme());
+                        self.pending_theme_change =
+                            Some(self.workspace_settings.theme.to_hs_theme());
                         self.view_mode = match self.workspace_settings.view_mode {
                             crate::workspace_settings::SettingsViewMode::Nsfw => ViewMode::Nsfw,
                             crate::workspace_settings::SettingsViewMode::Sfw => ViewMode::Sfw,
@@ -4126,13 +4281,29 @@ impl HandshakeApp {
             Some(active) => match ids.iter().position(|p| p == active) {
                 Some(i) => {
                     let len = ids.len();
-                    let ni = if forward { (i + 1) % len } else { (i + len - 1) % len };
+                    let ni = if forward {
+                        (i + 1) % len
+                    } else {
+                        (i + len - 1) % len
+                    };
                     ids[ni].clone()
                 }
                 // Active pane not in the tab-bar set (shouldn't happen): fall back to the first/last.
-                None => if forward { ids[0].clone() } else { ids[ids.len() - 1].clone() },
+                None => {
+                    if forward {
+                        ids[0].clone()
+                    } else {
+                        ids[ids.len() - 1].clone()
+                    }
+                }
             },
-            None => if forward { ids[0].clone() } else { ids[ids.len() - 1].clone() },
+            None => {
+                if forward {
+                    ids[0].clone()
+                } else {
+                    ids[ids.len() - 1].clone()
+                }
+            }
         };
         let changed = self.active_pane.as_ref() != Some(&next);
         self.active_pane = Some(next);
@@ -4150,7 +4321,15 @@ impl HandshakeApp {
         if let Some(bar) = self.tab_bar_states.get_mut(&target) {
             let index = bar.active().map(|_| bar.active_index);
             if let Some(index) = index {
-                return bar.close_tab(index);
+                let closed = bar.close_tab(index);
+                if closed {
+                    sync_registry_record_to_active_tab(
+                        &self.pane_registry,
+                        &self.tab_bar_states,
+                        &target,
+                    );
+                }
+                return closed;
             }
         }
         false
@@ -4237,7 +4416,9 @@ impl HandshakeApp {
             // editor command by id through the ONE shared dispatcher the command palette also calls
             // (`dispatch_editor_command`), so menu-driven and palette-driven editor actions share one path
             // (RISK-001). The menu handler routes by command id ONLY — no inline editor logic here.
-            MenuBarAction::EditorCommand(command_id) => self.dispatch_editor_command(ctx, command_id),
+            MenuBarAction::EditorCommand(command_id) => {
+                self.dispatch_editor_command(ctx, command_id)
+            }
             // ── Disabled in MT-015 (target surface is a future MT) — leaves render disabled, so these
             //    are unreachable; handled as explicit no-ops to keep the match honest + exhaustive. ──
             MenuBarAction::NewDocument
@@ -4267,7 +4448,10 @@ impl HandshakeApp {
             .lock()
             .map(|reg| {
                 reg.iter().any(|(_, record)| {
-                    matches!(record.pane_type, PaneType::CodeSymbol | PaneType::LoomWikiPage)
+                    matches!(
+                        record.pane_type,
+                        PaneType::CodeSymbol | PaneType::LoomWikiPage
+                    )
                 })
             })
             .unwrap_or(false)
@@ -4357,10 +4541,7 @@ impl HandshakeApp {
             }
         }
         // Deterministic fallback: the lowest pane id (BTree-style order) that owns a tab bar.
-        self.tab_bar_states
-            .keys()
-            .min()
-            .cloned()
+        self.tab_bar_states.keys().min().cloned()
     }
 
     /// Switch the active MODULE (MT-012), mirroring the React `setModule` (`app/src/App.tsx` lines
@@ -4406,6 +4587,7 @@ impl HandshakeApp {
             rebuilt.activate(default_index);
             *bar = rebuilt;
         }
+        sync_registry_record_to_active_tab(&self.pane_registry, &self.tab_bar_states, &target);
         true
     }
 
@@ -4428,7 +4610,9 @@ impl HandshakeApp {
         pane_ids.sort();
         let mut entries = Vec::new();
         for pane_id in pane_ids {
-            let Some(bar) = self.tab_bar_states.get(pane_id) else { continue };
+            let Some(bar) = self.tab_bar_states.get(pane_id) else {
+                continue;
+            };
             for (index, tab) in bar.tabs.iter().enumerate() {
                 entries.push(crate::quick_links::QuickLinkEntry {
                     pane_id: pane_id.clone(),
@@ -4457,7 +4641,10 @@ impl HandshakeApp {
                 // Canvases open on the Atelier editor surface (the canvas editor), carrying the id.
                 self.open_content_on_active_pane(PaneType::AtelierEditor, Some(canvas_id))
             }
-            LeftRailEvent::OpenBookmark { document_id, block_id } => {
+            LeftRailEvent::OpenBookmark {
+                document_id,
+                block_id,
+            } => {
                 // Mirror React `handleOpenBookmark`: a document pin opens as that document on the
                 // Workspace surface; otherwise the pinned Loom block opens on the LoomBlock surface.
                 match document_id {
@@ -4473,7 +4660,10 @@ impl HandshakeApp {
                 ctx.copy_text(id);
                 true
             }
-            LeftRailEvent::RenameBlock { block_id, current_title } => {
+            LeftRailEvent::RenameBlock {
+                block_id,
+                current_title,
+            } => {
                 // Open the small inline rename dialog seeded with the current title; the dialog confirm
                 // spawns the verified PATCH off the UI thread (see `drive_rename` + the dialog render).
                 self.rename_error = None;
@@ -4490,13 +4680,14 @@ impl HandshakeApp {
                 // the staged content into the mounted Stage pane next frame and opens it — so the
                 // context-menu path produces a visible result, not a silent no-op. The Stage pane displays
                 // the document's identity (title + id); deeper Stage capture/embed-back is E10 (MT-066).
-                let content = StageContent::Document(crate::rich_editor::save::save_manager::RichDocLoad {
-                    rich_document_id: document_id,
-                    doc_version: 0,
-                    title,
-                    content_json: None,
-                    updated_at: None,
-                });
+                let content =
+                    StageContent::Document(crate::rich_editor::save::save_manager::RichDocLoad {
+                        rich_document_id: document_id,
+                        doc_version: 0,
+                        title,
+                        content_json: None,
+                        updated_at: None,
+                    });
                 let bus = crate::interop::InteractionBus::get_or_init(ctx);
                 crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
                     bus.register_route_to_stage_command();
@@ -4511,6 +4702,11 @@ impl HandshakeApp {
                 self.active_pane = Some(pane_id.clone());
                 if let Some(bar) = self.tab_bar_states.get_mut(&pane_id) {
                     bar.activate(tab_index);
+                    sync_registry_record_to_active_tab(
+                        &self.pane_registry,
+                        &self.tab_bar_states,
+                        &pane_id,
+                    );
                     return true;
                 }
                 false
@@ -4545,7 +4741,11 @@ impl HandshakeApp {
     /// off the UI thread; Cancel/empty-title closes the dialog with no backend call.
     fn drive_rename(&mut self, ctx: &egui::Context) {
         // ── Drain a delivered PATCH result ───────────────────────────────────────────────────────────
-        let delivered = self.rename_cell.lock().ok().and_then(|mut slot| slot.take());
+        let delivered = self
+            .rename_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
         if let Some(result) = delivered {
             match result {
                 Ok(_new_title) => {
@@ -4618,7 +4818,12 @@ impl HandshakeApp {
             match (self.loom_block_client.clone(), workspace_id) {
                 (Some(client), Some(ws)) => {
                     self.rename_error = None;
-                    client.rename_block(&ws, &pending.block_id, &new_title, self.rename_cell.clone());
+                    client.rename_block(
+                        &ws,
+                        &pending.block_id,
+                        &new_title,
+                        self.rename_cell.clone(),
+                    );
                     // Keep the dialog open until the delivered result clears it (or surfaces an error),
                     // so a failed PATCH does not silently lose the operator's edit.
                     self.pending_rename = Some(pending);
@@ -4769,7 +4974,12 @@ impl HandshakeApp {
         match event {
             E::Stage { path } => {
                 self.scm_error = None;
-                client.stage_paths(ScmWriteOp::Stage, repo_path, &path, self.scm_receipt_cell.clone());
+                client.stage_paths(
+                    ScmWriteOp::Stage,
+                    repo_path,
+                    &path,
+                    self.scm_receipt_cell.clone(),
+                );
                 true
             }
             E::Unstage { path } => {
@@ -4992,7 +5202,11 @@ impl HandshakeApp {
         for event in events {
             use crate::rich_editor::wikilinks::inline_view::EditorEvent;
             match event {
-                EditorEvent::WikilinkActivated { ref_kind, ref_value, .. } => {
+                EditorEvent::WikilinkActivated {
+                    ref_kind,
+                    ref_value,
+                    ..
+                } => {
                     // Route through the MT-030 ShellNavigator: a note/document target opens the rich
                     // editor; any other ref kind opens as a Loom block reference (the same routing the
                     // search panes use). The editor enqueues even an unresolved link so the shell can
@@ -5002,7 +5216,9 @@ impl HandshakeApp {
                         "note" | "file" | "doc" | "document" => {
                             crate::quick_switcher::ShellNavigator::open_document(self, &ref_value)
                         }
-                        _ => crate::quick_switcher::ShellNavigator::open_loom_block(self, &ref_value),
+                        _ => {
+                            crate::quick_switcher::ShellNavigator::open_loom_block(self, &ref_value)
+                        }
                     };
                     self.nav_pending_label = None;
                     self.surface_nav_outcome(&outcome);
@@ -5188,7 +5404,10 @@ impl HandshakeApp {
             if let (false, Some(rt), false) = (
                 self.active_project_id.is_empty(),
                 self.runtime_handle.clone(),
-                self.editor_mounts.secondary.relevant_memory_fetched.load(std::sync::atomic::Ordering::Relaxed),
+                self.editor_mounts
+                    .secondary
+                    .relevant_memory_fetched
+                    .load(std::sync::atomic::Ordering::Relaxed),
             ) {
                 let mem_ctx = crate::fems::memory_client::MemoryContext::for_workspace(
                     self.active_project_id.clone(),
@@ -5241,7 +5460,8 @@ impl HandshakeApp {
             return; // No runtime: a headless shell cannot dispatch off-thread mutations (graceful no-op).
         };
         let client = crate::backend_client::CanvasBoardClient::production(rt);
-        let (workspace_id, canvas_block_id) = match self.editor_mounts.secondary.canvas_board.lock() {
+        let (workspace_id, canvas_block_id) = match self.editor_mounts.secondary.canvas_board.lock()
+        {
             Ok(b) => (b.workspace_id.clone(), b.canvas_block_id.clone()),
             Err(_) => return,
         };
@@ -5251,7 +5471,10 @@ impl HandshakeApp {
                 CanvasEvent::ResizePlacement { placement_id, w, h } => {
                     Some(client.resize_request(&workspace_id, &placement_id, w as f64, h as f64))
                 }
-                CanvasEvent::AssignSection { placement_id, group_id } => Some(match group_id {
+                CanvasEvent::AssignSection {
+                    placement_id,
+                    group_id,
+                } => Some(match group_id {
                     Some(gid) => client.group_request(&workspace_id, &placement_id, &gid),
                     None => client.clear_group_request(&workspace_id, &placement_id),
                 }),
@@ -5303,14 +5526,18 @@ impl HandshakeApp {
                 GraphEvent::DepthChanged { depth } => {
                     // Re-query the focused block's neighbourhood at the new depth. The focus + title come
                     // from the live graph-view mode (Local); a Global-mode depth change never fires.
-                    let focus = self.editor_mounts.secondary.graph_view.lock().ok().and_then(|v| {
-                        match &v.mode {
+                    let focus = self
+                        .editor_mounts
+                        .secondary
+                        .graph_view
+                        .lock()
+                        .ok()
+                        .and_then(|v| match &v.mode {
                             GraphMode::Local { block_id, title } => {
                                 Some((v.workspace_id.clone(), block_id.clone(), title.clone()))
                             }
                             GraphMode::Global => None,
-                        }
-                    });
+                        });
                     if let (Some((ws, block_id, title)), Some(rt)) =
                         (focus, self.runtime_handle.clone())
                     {
@@ -5376,18 +5603,8 @@ impl HandshakeApp {
 
         let palette = self.current_theme.palette();
 
-        // ── Right edge: the Atelier/CKC drag-source side panel (mirrors the left activity rail) ─────────
-        if self.atelier_panel_open {
-            let panel = &mut self.atelier_side_panel;
-            let panel_palette = palette.clone();
-            egui::SidePanel::right("atelier-side-panel-host")
-                .resizable(true)
-                .min_width(200.0)
-                .default_width(260.0)
-                .show(ctx, |ui| {
-                    panel.show(ui, &panel_palette);
-                });
-        }
+        // MT-006: CKC intake is now rendered inside the central Atelier pane's Castkit Codex tab. The
+        // former right-edge side panel is intentionally not mounted as a second canonical CKC home.
 
         // ── Bottom edge: the Stage pane (route-to-Stage display surface), shown when content is routed ──
         if self.stage_panel_open {
@@ -5447,9 +5664,15 @@ impl HandshakeApp {
                 );
                 true
             }
-            E::Rename { block_id, current_title } => {
+            E::Rename {
+                block_id,
+                current_title,
+            } => {
                 self.rename_error = None;
-                self.pending_rename = Some(PendingRename { block_id, text: current_title });
+                self.pending_rename = Some(PendingRename {
+                    block_id,
+                    text: current_title,
+                });
                 true
             }
             // Local UI actions (open a tab / clipboard / focus a pane): no backend call here.
@@ -5484,7 +5707,11 @@ impl HandshakeApp {
     /// native equivalent of React `setActiveTabForPane(activePaneId, tab)`. De-duplicates by
     /// `(pane_type, content_id)` (an already-open tab is re-activated, not duplicated) via the
     /// MT-007 `TabBarState::insert_tab`. Returns `true` if a pane was targeted.
-    fn open_content_on_active_pane(&mut self, pane_type: PaneType, content_id: Option<String>) -> bool {
+    fn open_content_on_active_pane(
+        &mut self,
+        pane_type: PaneType,
+        content_id: Option<String>,
+    ) -> bool {
         let Some(target) = self.module_target_pane() else {
             return false;
         };
@@ -5493,6 +5720,7 @@ impl HandshakeApp {
             let mut tab = TabState::new(pane_type);
             tab.content_id = content_id;
             bar.insert_tab(tab);
+            sync_registry_record_to_active_tab(&self.pane_registry, &self.tab_bar_states, &target);
             return true;
         }
         false
@@ -5526,7 +5754,10 @@ impl HandshakeApp {
         // Rebuild the registry from the default panes, re-stamped to the entered project so the captured
         // snapshot's pane records are self-consistent with `active_project_id`.
         {
-            let mut guard = self.pane_registry.lock().expect("pane registry mutex poisoned");
+            let mut guard = self
+                .pane_registry
+                .lock()
+                .expect("pane registry mutex poisoned");
             *guard = PaneRegistry::new();
             for mut record in default_panes() {
                 record.project_id = project_id.to_owned();
@@ -5583,7 +5814,10 @@ impl HandshakeApp {
         if self.capturing_snapshot {
             return;
         }
-        let finished = self.workspaces_handle.as_ref().is_some_and(|h| h.is_finished());
+        let finished = self
+            .workspaces_handle
+            .as_ref()
+            .is_some_and(|h| h.is_finished());
         if !finished {
             return;
         }
@@ -5596,7 +5830,9 @@ impl HandshakeApp {
                     self.active_project_id = self.project_tabs.active_id().to_owned();
                 }
                 Ok(Err(e)) => self.project_tabs.apply_fetch_error(e.to_string()),
-                Err(e) => self.project_tabs.apply_fetch_error(format!("join error: {e}")),
+                Err(e) => self
+                    .project_tabs
+                    .apply_fetch_error(format!("join error: {e}")),
             }
         }
     }
@@ -5704,8 +5940,14 @@ impl HandshakeApp {
     /// merged back this frame (`open == false`) is captured as closed.
     pub fn capture_layout_snapshot(&self) -> LayoutSnapshot {
         let panes: std::collections::BTreeMap<PaneId, PaneRecord> = {
-            let guard = self.pane_registry.lock().expect("pane registry mutex poisoned");
-            guard.iter().map(|(id, rec)| (id.clone(), rec.clone())).collect()
+            let guard = self
+                .pane_registry
+                .lock()
+                .expect("pane registry mutex poisoned");
+            guard
+                .iter()
+                .map(|(id, rec)| (id.clone(), rec.clone()))
+                .collect()
         };
 
         let tab_bars: std::collections::BTreeMap<PaneId, TabBarState> = self
@@ -5787,7 +6029,10 @@ impl HandshakeApp {
         // Rebuild the registry from the snapshot records (single source of truth). `insert` reassigns
         // stable AccessKit ids, so out-of-process steering keeps working after a restore.
         {
-            let mut guard = self.pane_registry.lock().expect("pane registry mutex poisoned");
+            let mut guard = self
+                .pane_registry
+                .lock()
+                .expect("pane registry mutex poisoned");
             *guard = PaneRegistry::new();
             for (_id, record) in snapshot.panes {
                 guard.insert(record);
@@ -5877,7 +6122,10 @@ impl HandshakeApp {
     /// [`poll_layout_load`] so a backend-down `GET` can never stall the frame loop (the freeze fix).
     pub fn load_layout(&mut self, project_id: &str, monitor_extent: egui::Rect) -> bool {
         let (loaded, reachable) = {
-            let mut mgr = self.layout_manager.lock().expect("layout manager mutex poisoned");
+            let mut mgr = self
+                .layout_manager
+                .lock()
+                .expect("layout manager mutex poisoned");
             let loaded = mgr.load(project_id);
             // The manager SWALLOWS a transport error into Ok(fallback) + an `Error` STATUS (so a corrupt/
             // unreachable load never applies garbage). The reachability signal is therefore the manager
@@ -6093,7 +6341,10 @@ impl HandshakeApp {
             match &self.health_status {
                 HealthDisplayState::Loading => "Backend: Loading...".to_owned(),
                 HealthDisplayState::Ok(h) => {
-                    format!("Backend: OK (db {}, migration {:?})", h.db_status, h.migration_version)
+                    format!(
+                        "Backend: OK (db {}, migration {:?})",
+                        h.db_status, h.migration_version
+                    )
                 }
                 HealthDisplayState::Error(e) => format!("Backend: error: {e}"),
             }
@@ -6135,7 +6386,9 @@ impl HandshakeApp {
         //     flight. `spawn_layout_load` marks `loaded_project_id` immediately so this does not re-spawn
         //     every frame; the worker delivers into the cell for (a) next frame.
         if self.loaded_project_id.as_deref() != Some(self.active_project_id.as_str())
-            && !self.layout_load_in_flight.load(std::sync::atomic::Ordering::SeqCst)
+            && !self
+                .layout_load_in_flight
+                .load(std::sync::atomic::Ordering::SeqCst)
         {
             let project = self.active_project_id.clone();
             self.spawn_layout_load(&project);
@@ -6179,7 +6432,11 @@ impl HandshakeApp {
             Ok(mgr) => mgr.due_to_flush(now),
             Err(_) => false,
         };
-        if due && !self.save_in_flight.swap(true, std::sync::atomic::Ordering::SeqCst) {
+        if due
+            && !self
+                .save_in_flight
+                .swap(true, std::sync::atomic::Ordering::SeqCst)
+        {
             // Capture the snapshot on the UI thread (it reads live shell state), then flush on a worker.
             let snapshot = self.capture_layout_snapshot();
             let manager = self.layout_manager.clone();
@@ -6269,22 +6526,26 @@ impl HandshakeApp {
         //    `font_data`. (Registering a face here does NOT by itself put it in a family — the family
         //    vecs below decide order. `from_static` borrows the `&'static [u8]` include_bytes! data,
         //    so there is no copy.)
-        fonts
-            .font_data
-            .insert(FONT_KEY_INTER.to_owned(), Arc::new(FontData::from_static(INTER_REGULAR)));
-        fonts
-            .font_data
-            .insert(FONT_KEY_NOTO_SC.to_owned(), Arc::new(FontData::from_static(NOTO_SANS_SC)));
-        fonts
-            .font_data
-            .insert(FONT_KEY_NOTO_KR.to_owned(), Arc::new(FontData::from_static(NOTO_SANS_KR)));
+        fonts.font_data.insert(
+            FONT_KEY_INTER.to_owned(),
+            Arc::new(FontData::from_static(INTER_REGULAR)),
+        );
+        fonts.font_data.insert(
+            FONT_KEY_NOTO_SC.to_owned(),
+            Arc::new(FontData::from_static(NOTO_SANS_SC)),
+        );
+        fonts.font_data.insert(
+            FONT_KEY_NOTO_KR.to_owned(),
+            Arc::new(FontData::from_static(NOTO_SANS_KR)),
+        );
         fonts.font_data.insert(
             FONT_KEY_NOTO_SYMBOLS2.to_owned(),
             Arc::new(FontData::from_static(NOTO_SANS_SYMBOLS2)),
         );
-        fonts
-            .font_data
-            .insert(FONT_KEY_NOTO_MATH.to_owned(), Arc::new(FontData::from_static(NOTO_SANS_MATH)));
+        fonts.font_data.insert(
+            FONT_KEY_NOTO_MATH.to_owned(),
+            Arc::new(FontData::from_static(NOTO_SANS_MATH)),
+        );
         // MT-078: the three RTL/complex-script faces. Registered here; the family loop below adds them to
         // the fallback chain (after the CJK faces) because they are part of FALLBACK_FACE_ORDER.
         fonts.font_data.insert(
@@ -6363,8 +6624,11 @@ impl HandshakeApp {
         // only affects IdMap distribution; one fixed widget cannot self-collide).
         let id = unsafe { egui::Id::from_high_entropy_bits(THEME_TOGGLE_NODE_ID) };
 
-        let galley =
-            ui.painter().layout_no_wrap(label.to_owned(), egui::FontId::proportional(14.0), ui.visuals().text_color());
+        let galley = ui.painter().layout_no_wrap(
+            label.to_owned(),
+            egui::FontId::proportional(14.0),
+            ui.visuals().text_color(),
+        );
         let padding = ui.spacing().button_padding;
         let desired = galley.size() + padding * 2.0;
         let (_auto, rect) = ui.allocate_space(desired);
@@ -6427,11 +6691,9 @@ impl HandshakeApp {
         let id = chrome.egui_id();
 
         let font = egui::FontId::proportional(20.0); // heading-sized
-        let galley = ui.painter().layout_no_wrap(
-            label.to_owned(),
-            font,
-            ui.visuals().text_color(),
-        );
+        let galley = ui
+            .painter()
+            .layout_no_wrap(label.to_owned(), font, ui.visuals().text_color());
         let (rect, _response) = ui.allocate_exact_size(galley.size(), egui::Sense::hover());
         if ui.is_rect_visible(rect) {
             ui.painter()
@@ -6465,15 +6727,16 @@ impl HandshakeApp {
         let segment_id = "health"; // the live status bar's one segment today (backend health).
 
         let font = egui::TextStyle::Body.resolve(ui.style());
-        let galley =
-            ui.painter()
-                .layout_no_wrap(text.to_owned(), font, ui.visuals().text_color());
+        let galley = ui
+            .painter()
+            .layout_no_wrap(text.to_owned(), font, ui.visuals().text_color());
         // Allocate with Sense::hover() (NOT click) so the auto-id allocation node is non-interactive;
         // the ONE clickable node is the interact at the FIXED chrome id below (which carries the stable
         // author_id), so the MT-025 interactive-naming gate stays green (no unnamed clickable node).
         let (rect, _response) = ui.allocate_exact_size(galley.size(), egui::Sense::hover());
         if ui.is_rect_visible(rect) {
-            ui.painter().galley(rect.min, galley, ui.visuals().text_color());
+            ui.painter()
+                .galley(rect.min, galley, ui.visuals().text_color());
         }
         // The addressable, secondary-clickable segment node at the FIXED chrome id (stable author_id).
         let seg_resp = ui.interact(rect, id, egui::Sense::click());
@@ -6487,13 +6750,14 @@ impl HandshakeApp {
             related_panel_name: statusbar_related_panel_name(segment_id),
         };
         let mut action = None;
-        let menu =
-            crate::context_menu::ContextMenu::new("statusbar").items(status_bar_context_items(&state));
+        let menu = crate::context_menu::ContextMenu::new("statusbar")
+            .items(status_bar_context_items(&state));
         if let Some(confirmed_id) = menu.show_on(&seg_resp) {
             action = status_bar_action_for_id(confirmed_id, &state);
         }
         // Shift+F10 keyboard-open parity when the segment is focused.
-        if seg_resp.has_focus() && ui.input(|i| i.key_pressed(egui::Key::F10) && i.modifiers.shift) {
+        if seg_resp.has_focus() && ui.input(|i| i.key_pressed(egui::Key::F10) && i.modifiers.shift)
+        {
             crate::context_menu::request_open(ui.ctx(), seg_resp.id, seg_resp.rect.left_bottom());
         }
         action
@@ -6558,7 +6822,9 @@ impl HandshakeApp {
             A::OpenPanel => match statusbar_related_pane_type(segment_id) {
                 Some(pane_type) => self.open_content_on_active_pane(pane_type, None),
                 None => {
-                    tracing::warn!("statusbar.open_panel: segment {segment_id} has no related pane");
+                    tracing::warn!(
+                        "statusbar.open_panel: segment {segment_id} has no related pane"
+                    );
                     false
                 }
             },
@@ -7029,26 +7295,18 @@ impl HandshakeApp {
         // dispatched Route-to-Stage command (palette or context menu) is DRAINED into the visible pane.
         self.drive_ckc_interop(ctx);
 
-        // Split the borrow of `self` up-front so the CentralPanel closure can hold a `&mut` to the
-        // split state (weights/drag/active pane) AND a `&` to the factories + registry at the same
-        // time. The registry is the single source of truth (MT-005); MT-006 partitions the central
-        // panel into a 2x2 grid with two draggable/keyboard-resizable dividers around it.
+        // Render one active work surface in the central panel. The older four-pane workbench split stays
+        // as data/state for compatibility, but it is not the visible main-window model for Atelier/Notes
+        // work: the active pane gets the full panel and owns the tab strip.
+        let single_pane_id = self.module_target_pane();
         let registry = &self.pane_registry;
         let factories = &self.factories;
-        let split_weights = &mut self.split_weights;
-        let split_drag = &mut self.split_drag;
         let active_pane = &mut self.active_pane;
         let tab_bar_states = &mut self.tab_bar_states;
         // Catch-all factory for any PaneType without a dedicated entry: the empty-label Placeholder
         // key registered in build_default_factories.
         let fallback_key = PaneType::Placeholder(String::new());
 
-        // Snapshot the popped-out pane set so the CentralPanel's `is_popped_out` predicate can borrow
-        // it by `&` while `popout_manager` is reserved for the post-frame `show_all` (&mut). Merge-back
-        // clicks collected by the placeholder are applied to the manager after the CentralPanel closes.
-        let popped_out: std::collections::HashSet<PaneId> =
-            self.popout_manager.popped_out_ids().into_iter().collect();
-        let mut merge_requests: Vec<PaneId> = Vec::new();
         // MT-013: pane-header Lock/Unlock clicks collected from the split layout this frame, applied to
         // the registry's LockState after the CentralPanel closes (single source of truth for pane
         // state). The active module is read once for the tab-chip module/type badge.
@@ -7057,15 +7315,7 @@ impl HandshakeApp {
         // layout this frame, applied via `request_pop_out` after the CentralPanel closes (MT-008).
         let mut pop_out_requests: Vec<PaneId> = Vec::new();
         let active_module = self.module_switcher.active();
-
-        // Divider colors come from the active theme's MT-003 tokens (idle/hover/grab), so the
-        // dividers are themed and flip dark<->light with the rest of the shell (MT-006 contract).
         let palette = self.current_theme.palette();
-        let divider_colors = DividerColors {
-            idle: palette.divider_idle,
-            hover: palette.divider_hover,
-            grab: palette.divider_grab,
-        };
         // Tab-bar colors come from the same MT-003 theme tokens so the tab strip is themed and flips
         // dark<->light with the rest of the shell (mirrors the divider token wiring above): the active
         // tab uses the accent-soft fill, inactive tabs use the surface fill, glyphs/dots use accent.
@@ -7086,44 +7336,124 @@ impl HandshakeApp {
             lock_hover_bg: palette.accent_soft,
             locked_accent: palette.accent,
         };
-        // The placeholder tile's label + Merge Back button paint with the active theme's text token.
-        let placeholder_text = palette.text;
 
+        if let Some(pane_id) = &single_pane_id {
+            *active_pane = Some(pane_id.clone());
+            sync_registry_record_to_active_tab(registry, tab_bar_states, pane_id);
+        }
+        let mut single_tab_response: Option<(PaneId, crate::tab_bar::TabBarResponse)> = None;
         egui::CentralPanel::default().show(ctx, |ui| {
-            // SplitLayoutWidget renders the four panes into their split rects and the two dividers.
-            // The pane render path keeps LIVE AccessKit emission (MT-025): the emit callback is
-            // invoked once per pane inside its egui scope, so panes remain findable out-of-process
-            // by author_id and the MT-025 live-tree tests still pass. A pane that is popped out
-            // (MT-008) renders a PopOutPlaceholder tile here instead of its tab bar + body; a Merge
-            // Back click is collected into `merge_requests` and applied after the panel closes.
-            SplitLayoutWidget::show(
-                ui,
-                split_weights,
-                split_drag,
-                active_pane,
-                registry,
-                divider_colors,
-                tab_bar_states,
-                tab_colors,
-                active_module,
-                header_colors,
-                &mut lock_requests,
-                &mut pop_out_requests,
-                |pane_id| popped_out.contains(pane_id),
-                &mut merge_requests,
-                placeholder_text,
-                |pane_type| {
-                    factories
-                        .get(pane_type)
-                        .or_else(|| factories.get(&fallback_key))
-                        .expect("placeholder fallback factory always registered")
-                        .as_ref()
-                },
-                |ui_ctx, pane_egui_id, pane_author_id, role, label| {
-                    accessibility::emit_pane_node(ui_ctx, pane_egui_id, pane_author_id, role, label);
-                },
+            let Some(pane_id) = single_pane_id.clone() else {
+                ui.centered_and_justified(|ui| {
+                    ui.label("No active pane");
+                });
+                return;
+            };
+            let (record, node_id) = {
+                let guard = registry.lock().expect("pane registry mutex poisoned");
+                let Some(record) = guard.get(&pane_id).cloned() else {
+                    return;
+                };
+                let node_id = guard.accesskit_id(&pane_id).map(|n| n.0);
+                (record, node_id)
+            };
+            let pane_egui_id = node_id
+                .map(|id| unsafe { egui::Id::from_high_entropy_bits(id) })
+                .unwrap_or_else(|| egui::Id::new(("single-active-pane", pane_id.as_ref())));
+            let factory = factories
+                .get(&record.pane_type)
+                .or_else(|| factories.get(&fallback_key))
+                .expect("placeholder fallback factory always registered")
+                .as_ref();
+            let role = factory.accesskit_role();
+            let label = record.pane_type.label();
+
+            let full = ui.available_rect_before_wrap();
+            if full.width() <= 1.0 || full.height() <= 1.0 {
+                return;
+            }
+            let header_h = PANE_HEADER_HEIGHT.min(full.height());
+            let header_rect =
+                egui::Rect::from_min_max(full.min, egui::pos2(full.right(), full.top() + header_h));
+            let after_header_top = full.top() + header_h;
+            let tab_h = TAB_BAR_HEIGHT.min((full.bottom() - after_header_top).max(0.0));
+            let tab_rect = egui::Rect::from_min_max(
+                egui::pos2(full.left(), after_header_top),
+                egui::pos2(full.right(), after_header_top + tab_h),
             );
+            let body_rect = egui::Rect::from_min_max(
+                egui::pos2(full.left(), after_header_top + tab_h),
+                full.max,
+            );
+
+            let active_tab_label = tab_bar_states
+                .get(&pane_id)
+                .and_then(|bar| bar.active().map(|t| t.label()))
+                .unwrap_or_else(|| label.to_owned());
+            let mut header_ui = ui.new_child(
+                egui::UiBuilder::new()
+                    .id_salt(("single-pane-header", node_id.unwrap_or(0)))
+                    .max_rect(header_rect)
+                    .layout(egui::Layout::left_to_right(egui::Align::Center)),
+            );
+            header_ui.set_clip_rect(header_rect);
+            let header_resp = PaneHeader::show(
+                &mut header_ui,
+                pane_id.as_ref(),
+                &active_tab_label,
+                record.lock_state == LockState::Locked,
+                true,
+                header_colors,
+            );
+            if header_resp.lock_toggled {
+                lock_requests.push(pane_id.clone());
+            }
+            if header_resp.pop_out_requested {
+                pop_out_requests.push(pane_id.clone());
+            }
+            if header_resp.focus_requested {
+                *active_pane = Some(pane_id.clone());
+            }
+
+            if let Some(tab_state) = tab_bar_states.get(&pane_id) {
+                let mut tab_ui = ui.new_child(
+                    egui::UiBuilder::new()
+                        .id_salt(("single-tab-bar", node_id.unwrap_or(0)))
+                        .max_rect(tab_rect)
+                        .layout(egui::Layout::left_to_right(egui::Align::Center)),
+                );
+                tab_ui.set_clip_rect(tab_rect);
+                let resp = TabBar::show(&mut tab_ui, tab_state, tab_colors, active_module);
+                single_tab_response = Some((pane_id.clone(), resp));
+            }
+
+            let render_ctx = PaneRenderContext {
+                record: &record,
+                egui_id: pane_egui_id,
+            };
+            let mut child = ui.new_child(
+                egui::UiBuilder::new()
+                    .id_salt(("single-pane-body", node_id.unwrap_or(0)))
+                    .max_rect(body_rect)
+                    .layout(egui::Layout::top_down(egui::Align::Min)),
+            );
+            child.set_clip_rect(body_rect);
+            factory.render(&mut child, &render_ctx);
+            let pane_response = child.interact(body_rect, pane_egui_id, egui::Sense::click());
+            if pane_response.clicked() {
+                *active_pane = Some(pane_id.clone());
+            }
+            accessibility::emit_pane_node(ui.ctx(), pane_egui_id, pane_id.as_ref(), role, &label);
         });
+
+        if let Some((pane_id, response)) = single_tab_response {
+            if apply_single_pane_tab_response(tab_bar_states, active_pane, &pane_id, &response) {
+                sync_registry_record_to_active_tab(registry, tab_bar_states, &pane_id);
+            }
+            if response.pop_out_requested {
+                pop_out_requests.push(pane_id);
+            }
+        }
 
         // ── MT-028: drain LoomSearchV2 open-block requests into the Loom block-open path ─────────────
         // A result-row click in the in-product Loom Search pane pushed the block id into the shared cell;
@@ -7171,7 +7501,10 @@ impl HandshakeApp {
         // the MT-009 layout change-detector below (LockState is part of the captured pane record), so
         // it persists through the debounced save with no synchronous save here.
         if !lock_requests.is_empty() {
-            let mut guard = self.pane_registry.lock().expect("pane registry mutex poisoned");
+            let mut guard = self
+                .pane_registry
+                .lock()
+                .expect("pane registry mutex poisoned");
             for pane_id in &lock_requests {
                 if let Some(record) = guard.get_mut(pane_id) {
                     record.lock_state = match record.lock_state {
@@ -7189,14 +7522,6 @@ impl HandshakeApp {
         // of the next frame by the existing MT-008 pop-out lifecycle.
         if let Some(pane_id) = pop_out_requests.last() {
             self.request_pop_out(pane_id.clone());
-        }
-
-        // ── Apply merge-back requests, then render detached pop-out windows (MT-008) ────────────────
-        // A Merge Back click from the placeholder (pointer OR out-of-process AccessKit Click) marks
-        // the pop-out for close; `show_all`'s post-show drain removes it next frame so the pane
-        // returns to the main split.
-        for pane_id in &merge_requests {
-            self.popout_manager.merge_back(pane_id);
         }
 
         // Render every open pop-out into its own deferred viewport. The pane is STILL in the registry,
@@ -7246,8 +7571,11 @@ impl HandshakeApp {
             // MT-069: pass the live editor-available predicate so the EditorMenu palette rows are enabled
             // only when an editor pane is the focusable target (no fake-enabled rows when none is mounted).
             let editor_available = self.editor_available();
-            let outcome =
-                crate::command_palette::show(ctx, self.command_palette_open_count, editor_available);
+            let outcome = crate::command_palette::show(
+                ctx,
+                self.command_palette_open_count,
+                editor_available,
+            );
             match outcome {
                 crate::command_palette::PaletteOutcome::Run(command_id) => {
                     self.close_command_palette();
@@ -7295,8 +7623,7 @@ impl HandshakeApp {
         // egui has not reported a monitor size yet (headless).
         if let Some(monitor) = ctx.input(|i| i.viewport().monitor_size) {
             if monitor.x > 0.0 && monitor.y > 0.0 {
-                self.monitor_extent =
-                    egui::Rect::from_min_size(egui::Pos2::ZERO, monitor);
+                self.monitor_extent = egui::Rect::from_min_size(egui::Pos2::ZERO, monitor);
             }
         }
         self.drive_layout_persistence(std::time::Instant::now());
@@ -7382,10 +7709,8 @@ impl HandshakeApp {
             // stack the docked pane uses, so a popped-out pane keeps its header binding + tab badges.
             let full = ui.available_rect_before_wrap();
             let header_h = PANE_HEADER_HEIGHT.min(full.height());
-            let header_rect = egui::Rect::from_min_max(
-                full.min,
-                egui::pos2(full.right(), full.top() + header_h),
-            );
+            let header_rect =
+                egui::Rect::from_min_max(full.min, egui::pos2(full.right(), full.top() + header_h));
             let after_header_top = full.top() + header_h;
             let tab_h = TAB_BAR_HEIGHT.min((full.bottom() - after_header_top).max(0.0));
             let tab_rect = egui::Rect::from_min_max(
@@ -7534,7 +7859,10 @@ impl crate::quick_switcher::ShellNavigator for HandshakeApp {
         mt_id: &str,
         wp_id: Option<&str>,
     ) -> crate::quick_switcher::NavDispatchOutcome {
-        let label = self.nav_pending_label.clone().unwrap_or_else(|| mt_id.to_owned());
+        let label = self
+            .nav_pending_label
+            .clone()
+            .unwrap_or_else(|| mt_id.to_owned());
         let content_id = format!("MT:{}:{mt_id}", wp_id.unwrap_or_default());
         match self.open_navigator_tab(PaneType::KernelDcc, content_id, &label) {
             Some(surface) => crate::quick_switcher::NavDispatchOutcome::Opened { surface },
@@ -7543,7 +7871,10 @@ impl crate::quick_switcher::ShellNavigator for HandshakeApp {
     }
 
     fn open_user_manual_page(&mut self, slug: &str) -> crate::quick_switcher::NavDispatchOutcome {
-        let label = self.nav_pending_label.clone().unwrap_or_else(|| slug.to_owned());
+        let label = self
+            .nav_pending_label
+            .clone()
+            .unwrap_or_else(|| slug.to_owned());
         match self.open_navigator_tab(PaneType::UserManual, slug.to_owned(), &label) {
             Some(surface) => crate::quick_switcher::NavDispatchOutcome::Opened { surface },
             None => crate::quick_switcher::NavDispatchOutcome::NoTargetPane,
@@ -7613,7 +7944,9 @@ impl eframe::App for HandshakeApp {
         // unchanged for the shipped binary. The sleep lands INSIDE the measured window, exactly like
         // heavy real UI work.
         if self.extra_frame_work_micros > 0 {
-            std::thread::sleep(std::time::Duration::from_micros(self.extra_frame_work_micros));
+            std::thread::sleep(std::time::Duration::from_micros(
+                self.extra_frame_work_micros,
+            ));
         }
         self.ui(ctx);
         let frame_work = work_start.elapsed();
