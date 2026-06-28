@@ -430,7 +430,7 @@ pub fn launch_palmistry_at(
         command.creation_flags(CREATE_NO_WINDOW);
     }
 
-    let child = command.spawn()?;
+    let mut child = command.spawn()?;
     tracing::info!(
         child_pid = child.id(),
         parent_pid,
@@ -446,7 +446,7 @@ pub fn launch_palmistry_at(
     let (tx, rx) = mpsc::channel();
     let worker_socket = control_socket.to_string();
     let worker_session = session.session_id.clone();
-    std::thread::Builder::new()
+    if let Err(spawn_err) = std::thread::Builder::new()
         .name("palmistry-handshake".to_string())
         .spawn(move || {
             let result = perform_handshake(
@@ -456,7 +456,16 @@ pub fn launch_palmistry_at(
                 HANDSHAKE_CONNECT_DEADLINE,
             );
             let _ = tx.send(result);
-        })?;
+        })
+    {
+        // The palmistry child is ALREADY spawned; if we cannot even start the handshake worker thread
+        // (e.g. resource/thread exhaustion) we must REAP the child before returning Err — otherwise it
+        // orphans with no handle to reap it and, when this still-alive parent later exits without a
+        // Shutdown, the watcher records a FALSE abnormal-parent-exit. Reap, then propagate the error.
+        let _ = child.kill();
+        let _ = child.wait();
+        return Err(spawn_err);
+    }
 
     let (control, handshake_acked) = match rx.recv_timeout(HANDSHAKE_OVERALL_DEADLINE) {
         Ok(Ok(reader)) => {

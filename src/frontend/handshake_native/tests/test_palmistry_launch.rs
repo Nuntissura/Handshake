@@ -14,9 +14,13 @@
 //!   `launch_palmistry_at()` DIRECTLY against the REAL binary and asserts (a) a real child process
 //!   spawns, (b) the startup handshake ACKS over the MT-089 control socket, (c) a clean `Shutdown` reaps
 //!   it with a SUCCESS exit and NO crash record written (a clean shutdown is not a crash). The real
-//!   windowed binary is NEVER executed (it would hang the suite — the MT-094 HANG lesson). If no
-//!   `palmistry` binary is available, the live test SOFT-SKIPS with a loud message (build `-p palmistry`
-//!   or set `HANDSHAKE_PALMISTRY_EXE`).
+//!   windowed binary is NEVER executed (it would hang the suite — the MT-094 HANG lesson). This live
+//!   proof is `#[ignore]`d so a DEFAULT `cargo test` reports it as not-run (a visible "ignored", never a
+//!   FALSE green that masks an un-run handshake proof); the governed lane MUST build `-p palmistry`
+//!   (into `../../../../Handshake_Artifacts/palmistry-target/debug`) and run it via
+//!   `cargo test ... -- --include-ignored`. When the live test IS run but no `palmistry` binary is
+//!   discoverable it HARD-FAILS (build `-p palmistry` or set `HANDSHAKE_PALMISTRY_EXE`) — it NEVER
+//!   silently skips, so a passing live result is durable proof the real cross-process handshake ran.
 
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -234,16 +238,25 @@ fn unique_session_id() -> String {
 }
 
 #[test]
+#[ignore = "LIVE cross-process proof (AC-014-1/AC-014-4): needs a built palmistry binary, so it is \
+            #[ignore]d to keep a default `cargo test` from reporting a FALSE green that masks an un-run \
+            handshake proof. The governed lane builds `-p palmistry` then runs \
+            `cargo test ... -- --include-ignored`. Run without a discoverable binary => HARD FAIL, never \
+            a silent skip."]
 fn live_spawn_handshake_then_clean_shutdown_no_crash() {
     assert_no_local_artifact_dir();
-    let Some(exe) = find_palmistry_binary() else {
-        eprintln!(
-            "SKIP live_spawn_handshake_then_clean_shutdown_no_crash: no palmistry binary found. \
-             Build it (`cargo build -p palmistry`) or set {ENV_PALMISTRY_EXE} to the built binary. \
-             The unconditional MT-094 tests (wiring/quiet/no-job/degradation/payload) still ran."
-        );
-        return;
-    };
+    // HARD-FAIL (never soft-skip) once this live proof is actually invoked: if the live handshake was
+    // asked for but no palmistry binary is discoverable, that is a proof-SETUP failure, not a pass. A
+    // silent `return` here would let a green count mask the fact that the real HandshakeHello/Ack never
+    // crossed the MT-089 socket — exactly the false-completion the #[ignore] gate + this assert prevent.
+    let exe = find_palmistry_binary().unwrap_or_else(|| {
+        panic!(
+            "AC-014-1/AC-014-4 LIVE proof requires a built palmistry binary, but none was discoverable. \
+             Build it (`cargo build -p palmistry`) or set {ENV_PALMISTRY_EXE} to the built binary, then \
+             re-run with `-- --include-ignored`. (This test is #[ignore]d; reaching here means it was \
+             explicitly invoked, so a missing binary is a hard failure — never a silent skip.)"
+        )
+    });
 
     // Real MT-081 ring (the file Palmistry maps) under the EXTERNAL artifact root, so Palmistry's sibling
     // survivor/crash records also land externally (CX-212E), never repo-local.
