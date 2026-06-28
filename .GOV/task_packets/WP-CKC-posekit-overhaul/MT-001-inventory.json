@@ -1,0 +1,355 @@
+{
+  "schema_id": "hsk.ckc_posekit_non_rust_inventory@1",
+  "schema_version": "inventory_v1",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-001",
+  "generated_at_utc": "2026-06-28T12:49:12.999Z",
+  "product_worktree": "../wtc-ckc-posekit-overhaul",
+  "inventory_status": "COMPLETE_READ_ONLY",
+  "product_edit_allowed": false,
+  "subagent_inputs": [
+    {
+      "agent_id": "019f0e3d-b553-76f2-9be1-12a93d422842",
+      "nickname": "Chandrasekhar",
+      "result": "current-product non-Rust CKC/PoseKit/Atelier surface inventory completed"
+    },
+    {
+      "agent_id": "019f0e3d-e9f6-73e1-bf94-a40f688890f7",
+      "nickname": "Averroes",
+      "result": "original/test-app evidence scan completed; actual legacy app files not found"
+    }
+  ],
+  "search_summary": {
+    "completed": [
+      "current hotfix worktree non-Rust surface search",
+      "current hotfix worktree Rust/native anchor search",
+      "narrow sibling-root filename scans over RnD, scripts_archive, Notes, Ideas, Prompts, Tasks, and handshake_main",
+      "targeted local evidence checks for React shell, Atelier panel, API wrapper, PoseKit Rust anchors, and ComfyUI Rust anchors"
+    ],
+    "timed_out": [
+      "broad all-Handshake filename scan",
+      "broad all-Handshake content scan",
+      "full backup/root search from original/test-app explorer"
+    ],
+    "not_found": [
+      "src/posekit/core.mjs",
+      "src/posekit/poseDetection.worker.ts",
+      "comfyui_node/legacy_bridge.py"
+    ],
+    "preserved_legacy_source_refs": [
+      {
+        "path": "src/backend/handshake_core/src/atelier/pose.rs",
+        "evidence": "comments identify legacy src/posekit/core.mjs and src/posekit/poseDetection.worker.ts as translated sources"
+      },
+      {
+        "path": "src/backend/handshake_core/src/atelier/comfy.rs",
+        "evidence": "comments identify comfyui_node/legacy_bridge.py as legacy source intent"
+      }
+    ]
+  },
+  "classification_summary": {
+    "KEEP": 8,
+    "MIGRATE": 8,
+    "REPLACE": 5,
+    "DELETE": 1,
+    "INVESTIGATE": 5
+  },
+  "non_rust_surfaces": [
+    {
+      "path": "app/src/App.tsx",
+      "language": "TSX",
+      "classification": "MIGRATE",
+      "evidence": "ModuleId includes CKC; CKC defaultTab is atelier; App mounts AtelierPanel.",
+      "reason": "React shell still owns CKC module routing. Native shell should own this route before retiring React routing."
+    },
+    {
+      "path": "app/src/components/AtelierPanel.tsx",
+      "language": "TSX",
+      "classification": "REPLACE",
+      "evidence": "Panel exposes overview, intake, command corpus, and stealth windows.",
+      "reason": "This is a React CKC/Atelier panel that should be replaced by native Atelier/side-panel behavior once parity is proven."
+    },
+    {
+      "path": "app/src/components/AtelierCollaborationPanel.tsx",
+      "language": "TSX",
+      "classification": "INVESTIGATE",
+      "evidence": "Creates doc_edit job atelier-doc-suggest-v1 and applies Atelier patchsets.",
+      "reason": "May still be the only UI for document role suggestions and patch application."
+    },
+    {
+      "path": "app/src/components/DocumentView.tsx",
+      "language": "TSX",
+      "classification": "MIGRATE",
+      "evidence": "Imports and renders AtelierCollaborationPanel.",
+      "reason": "Document workflow depends on React Atelier collaboration until native parity exists."
+    },
+    {
+      "path": "app/src/lib/api.ts",
+      "language": "TypeScript",
+      "classification": "MIGRATE",
+      "evidence": "Defines WP-KERNEL-005 Atelier domain wrappers for /atelier/overview and /atelier/image-import/clipboard.",
+      "reason": "React API wrapper duplicates backend/native client behavior and should migrate behind native Rust UI/client surfaces."
+    },
+    {
+      "path": "app/src/App.css",
+      "language": "CSS",
+      "classification": "MIGRATE",
+      "evidence": "Contains atelier-collab-panel and CKC media embed styles.",
+      "reason": "CSS is tied to React Atelier collaboration and CKC embed UI."
+    },
+    {
+      "path": "app/src/App.test.tsx",
+      "language": "TSX test",
+      "classification": "MIGRATE",
+      "evidence": "Tests CKC module defaults and Atelier tab behavior.",
+      "reason": "React routing coverage should become native/module tests before deletion."
+    },
+    {
+      "path": "app/src/lib/api.test.ts",
+      "language": "TypeScript test",
+      "classification": "MIGRATE",
+      "evidence": "Tests /atelier/image-import/clipboard and activeModule CKC payloads.",
+      "reason": "Tests React API/layout assumptions that need native equivalents."
+    },
+    {
+      "path": "app/tests/atelier/atelier_nav.spec.ts",
+      "language": "TypeScript Playwright",
+      "classification": "REPLACE",
+      "evidence": "CKC > Atelier navigation proof.",
+      "reason": "Headless React proof should be replaced by native GUI/visual proof when React route retires."
+    },
+    {
+      "path": "app/playwright.atelier.config.ts",
+      "language": "TypeScript config",
+      "classification": "DELETE",
+      "evidence": "Config targets only app/tests/atelier.",
+      "reason": "Delete only after the React Atelier Playwright spec is migrated or retired."
+    },
+    {
+      "path": "app/src/harness/rich_editor_embeds_harness.tsx",
+      "language": "TSX harness",
+      "classification": "REPLACE",
+      "evidence": "CKC embed, export, and find proof harness.",
+      "reason": "Native rich editor embeds should own CKC embed proof."
+    },
+    {
+      "path": "app/src/lib/editor/embed_assets.ts",
+      "language": "TypeScript",
+      "classification": "REPLACE",
+      "evidence": "CKC embed asset resolution, fail-closed.",
+      "reason": "Likely superseded by native embed/runtime asset behavior after parity proof."
+    },
+    {
+      "path": "app/src/components/HsLinkView.test.tsx",
+      "language": "TSX test",
+      "classification": "REPLACE",
+      "evidence": "CKC embed NodeView tests.",
+      "reason": "Old React NodeView proof should be replaced by native embed tests."
+    },
+    {
+      "path": "app/scripts/handshake-screenshot-capture.mjs",
+      "language": "MJS",
+      "classification": "INVESTIGATE",
+      "evidence": "Screenshot helper has CKC or Kernel DCC navigation fallback.",
+      "reason": "Keep until a native screenshot/visual proof path replaces it."
+    },
+    {
+      "path": "app/vite.config.ts",
+      "language": "TypeScript config",
+      "classification": "KEEP",
+      "evidence": "Excludes Playwright Atelier config from Vitest collection.",
+      "reason": "Incidental tooling reference; not a CKC implementation surface."
+    },
+    {
+      "path": "tests/visual/quick-switcher.spec.ts",
+      "language": "TypeScript visual test",
+      "classification": "MIGRATE",
+      "evidence": "Mocks /atelier/overview and /atelier/intake/batches.",
+      "reason": "Visual test mocks React /atelier assumptions; update with native route behavior."
+    },
+    {
+      "path": "tests/visual/workbench-split-editors.spec.ts",
+      "language": "TypeScript visual test",
+      "classification": "MIGRATE",
+      "evidence": "Mocks requests whose path starts with /atelier/.",
+      "reason": "Same React endpoint mock issue as quick-switcher visual tests."
+    },
+    {
+      "path": "app/src/lib/dependency_policy/no_sqlite_regression.test.ts",
+      "language": "TypeScript test",
+      "classification": "KEEP",
+      "evidence": "Guards Atelier no-SQLite behavior and fixtures.",
+      "reason": "This is a useful policy guard, not a legacy UI surface."
+    },
+    {
+      "path": "app/src/lib/dependency_policy/runtime_dependency_allowlist.json",
+      "language": "JSON",
+      "classification": "KEEP",
+      "evidence": "Allows Atelier path validation rejecting SQLite-shaped storage inputs.",
+      "reason": "Negative validation allowlist, not a migration target."
+    },
+    {
+      "path": "assets/atelier_rolepack_digital_production_studio_v1.json",
+      "language": "JSON",
+      "classification": "KEEP",
+      "evidence": "Atelier rolepack data with claim_features.",
+      "reason": "Product data/config asset; no Rust rewrite target identified."
+    },
+    {
+      "path": "src/backend/handshake_core/migrations/*atelier*.sql",
+      "language": "SQL",
+      "classification": "KEEP",
+      "evidence": "PostgreSQL/EventLedger contracts for Atelier, Pose, and Comfy.",
+      "reason": "Native data contracts, not legacy JS/TS implementation."
+    },
+    {
+      "path": "src/backend/handshake_core/tests/fixtures/atelier_pose/*.json",
+      "language": "JSON fixtures",
+      "classification": "KEEP",
+      "evidence": "Pose fixture corpus for OpenPose/PoseKit behavior.",
+      "reason": "Portable native fixture corpus."
+    },
+    {
+      "path": "src/backend/handshake_core/tests/fixtures/atelier_core_data/*.json",
+      "language": "JSON fixtures",
+      "classification": "KEEP",
+      "evidence": "Core data fixtures include CKC/CastKit namespace regression guards.",
+      "reason": "Regression fixtures proving portable/non-legacy contracts."
+    },
+    {
+      "path": "src/frontend/handshake_native/tests/test_interconnect_manifest.json",
+      "language": "JSON",
+      "classification": "INVESTIGATE",
+      "evidence": "Records ckc_moodboard_content_type_absent and ckc_character blockers.",
+      "reason": "Native interconnect blockers are real scope, not cleanup."
+    },
+    {
+      "path": "wp-kernel-005-ready-for-validation-v2.json",
+      "language": "JSON marker",
+      "classification": "INVESTIGATE",
+      "evidence": "Root validation marker with product-side skip set.",
+      "reason": "Behaves like validation/governance state outside .GOV; cleanup needs authority decision."
+    },
+    {
+      "path": "wp-kernel-005-revalidation-ready.json",
+      "language": "JSON marker",
+      "classification": "INVESTIGATE",
+      "evidence": "Superseded by wp-kernel-005-ready-for-validation-v2.json.",
+      "reason": "Superseded marker retained for compatibility; cleanup needs authority decision."
+    },
+    {
+      "path": "app/src-tauri/Cargo.lock and src/backend/handshake_core/Cargo.lock",
+      "language": "lockfiles",
+      "classification": "KEEP",
+      "evidence": "Only incidental comfy-table dependency hits.",
+      "reason": "Generated dependency lockfiles, not CKC/PoseKit source surfaces."
+    }
+  ],
+  "rust_native_anchors": [
+    {
+      "path": "src/backend/handshake_core/src/api/atelier.rs",
+      "role": "Axum API routes for /atelier/* over AtelierStore, including image import routes."
+    },
+    {
+      "path": "src/backend/handshake_core/src/atelier/mod.rs",
+      "role": "AtelierStore, reject_legacy_runtime_ref, event-family registry, pose/comfy module ownership."
+    },
+    {
+      "path": "src/backend/handshake_core/src/atelier/pose.rs",
+      "role": "Rust PoseKit data and receipt model translating legacy posekit core.mjs and poseDetection.worker.ts behavior."
+    },
+    {
+      "path": "src/backend/handshake_core/tests/atelier_pose_tests.rs",
+      "role": "Pose/OpenPose round-trip, detector status, sidecar, fallback, and JSONB preservation proofs."
+    },
+    {
+      "path": "src/backend/handshake_core/src/atelier/comfy.rs",
+      "role": "Governed ComfyUI intake records, capability registration, output routing, fallback, dedup, workflow receipts, and job lifecycle."
+    },
+    {
+      "path": "src/frontend/handshake_native/src/atelier_side_panel.rs",
+      "role": "Native CKC/Atelier side panel reading live Atelier backend and emitting drag payloads."
+    },
+    {
+      "path": "src/frontend/handshake_native/src/rich_editor/embeds/mod.rs",
+      "role": "Native CKC media embeds through hsLink atom behavior."
+    },
+    {
+      "path": "src/frontend/handshake_native/tests/test_ckc_embed.rs",
+      "role": "Native CKC embed and Stage route proof."
+    }
+  ],
+  "original_app_evidence": {
+    "actual_original_app_found": false,
+    "located_files": [],
+    "preserved_behavior_anchors": [
+      "Pose rig contract: OpenPose-style people[] payload with body-18 required, face-70 and hand-21 optional/zero-filled; JSONB round-trip preserves payload verbatim.",
+      "Detector boundary: MediaPipe/OpenPose keypoint detection runs out-of-module as a capability-gated Workflow-Engine job; Atelier stores governed data and receipts only.",
+      "No legacy runtime: no SQLite, Electron authority, localhost authority, sockets, process spawning, polling, direct LLM/model endpoints, or machine-local refs.",
+      "Head pose constraints: YXZ Euler to quaternion with yaw +/-90, pitch +/-75, roll +/-45.",
+      "Comfy bridge contract: workflow_json, prompt, seed, model, sampler, cfg, steps, filename_hint, character_id, bridge probes, capability registration, output routing, SaveImage fallback, dedup by workflow_run_id/content_hash, durable receipts.",
+      "CKC embed behavior: drag AtelierRef into rich editor inserts hsLink atom; route-to-Stage opens Stage pane; AccessKit IDs prove side panel and Stage surfaces."
+    ],
+    "evidence_gap": "The original test app files were not found locally. Visual/behavioral overhaul must either locate them in a later MT or treat preserved Rust source comments/tests as the parity baseline."
+  },
+  "next_mt_candidates": [
+    {
+      "mt_id": "MT-002",
+      "title": "Original-app evidence recovery or parity-baseline decision",
+      "base_scope": "Perform a narrower artifact/source hunt for the original CKC/PoseKit app, or declare preserved Rust docs/tests as the baseline for the first migration pass.",
+      "why_high_roi": "Prevents deleting or replacing proven production behavior from memory.",
+      "reuse": "MT-001 preserved source refs, pose.rs, comfy.rs, test_ckc_embed.rs, and Atelier tests.",
+      "verification": "Either exact original files found or an explicit parity-baseline decision recorded."
+    },
+    {
+      "mt_id": "MT-003",
+      "title": "React AtelierPanel replacement map",
+      "base_scope": "Map App.tsx, AtelierPanel.tsx, atelier_nav.spec.ts, and playwright.atelier.config.ts to native Rust UI routes/tests.",
+      "why_high_roi": "This is the largest visible non-Rust CKC/Atelier surface and has clear native anchors.",
+      "reuse": "Native atelier_side_panel, backend /atelier routes, module switcher, AccessKit tests.",
+      "verification": "Native route/test proof covers overview/intake/corpus/stealth before React panel deletion."
+    },
+    {
+      "mt_id": "MT-004",
+      "title": "CKC embed React-to-native proof",
+      "base_scope": "Prove native rich_editor/embeds and test_ckc_embed.rs cover React embed_assets, HsLinkView.test.tsx, and harness behavior.",
+      "why_high_roi": "Small cluster with direct native replacement and low UI sprawl.",
+      "reuse": "src/frontend/handshake_native/src/rich_editor/embeds/mod.rs and test_ckc_embed.rs.",
+      "verification": "Native tests cover insert, export/find, and route-to-Stage behavior."
+    },
+    {
+      "mt_id": "MT-005",
+      "title": "Atelier collaboration parity investigation",
+      "base_scope": "Decide whether AtelierCollaborationPanel and DocumentView have native doc-edit role suggestion and patchset apply equivalents.",
+      "why_high_roi": "Avoids breaking a potentially unique document collaboration workflow.",
+      "reuse": "AtelierCollaborationPanel, DocumentView, backend doc_edit/job APIs if present.",
+      "verification": "Native equivalent found or follow-up build MT scoped before any deletion."
+    },
+    {
+      "mt_id": "MT-006",
+      "title": "Native interconnect blockers",
+      "base_scope": "Resolve or reclassify ckc_moodboard and ckc_character content-type blockers in the native interconnect manifest.",
+      "why_high_roi": "Improves Handshake force-multiplier integration by making CKC outputs reusable by other modules.",
+      "reuse": "test_interconnect_manifest.json, Atelier media/moodboard/character backend modules.",
+      "verification": "Manifest blockers become passing evidence or deliberate tracked follow-up."
+    }
+  ],
+  "risk_register": [
+    {
+      "risk": "Replacing React surfaces before native parity exists loses production value.",
+      "mitigation": "Use next MTs to prove native behavior first; keep AtelierCollaborationPanel as INVESTIGATE."
+    },
+    {
+      "risk": "Original app not found means visual/behavioral parity could drift.",
+      "mitigation": "Make MT-002 an evidence recovery or parity-baseline decision before visual overhaul."
+    },
+    {
+      "risk": "Tests can remain green while mocking obsolete React /atelier endpoints.",
+      "mitigation": "Migrate tests together with each surface, especially visual mocks and API wrapper tests."
+    },
+    {
+      "risk": "Root validation marker JSONs could be cleaned up incorrectly.",
+      "mitigation": "Treat them as INVESTIGATE and require authority decision before moving or deleting."
+    }
+  ]
+}

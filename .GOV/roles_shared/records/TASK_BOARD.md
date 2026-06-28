@@ -168,6 +168,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 ## In Progress
 
 Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
+- **[WP-CKC-posekit-overhaul]** - [IN_PROGRESS]
 
 
 

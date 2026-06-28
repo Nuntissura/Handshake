@@ -1,0 +1,83 @@
+{
+  "schema_id": "hsk.refinement_contract@1",
+  "schema_version": "refinement_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "created_at_utc": "2026-06-28T12:26:14.447Z",
+  "updated_at_utc": "2026-06-28T12:26:14.447Z",
+  "authority_files": {
+    "refinement_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/refinement.json",
+    "refinement_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/refinement.md",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "packet_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.md",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/refinement.md",
+    "status": "GENERATED_IN_SYNC",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/refinement.json"
+  },
+  "activation_manager": {
+    "required": false,
+    "status": "OPERATOR_APPROVED_DEVIATION",
+    "standard_protocol_inspected": true,
+    "deviation_reason": "Operator requested hotfix copy of an active worktree and ad hoc MT execution with recovery state, not the full pre-launch ceremony."
+  },
+  "refinement": {
+    "operator_request": "Create a hotfix copy of wtc-native-editors-v1 for CKC/PoseKit overhaul under Atelier, create WP-CKC-posekit-overhaul, update taskboard/build-order/traceability, and use one microtask per future requested change before implementation.",
+    "project_intent": "CKC and PoseKit should become native Handshake features, written and wired in the Rust/native architecture where possible, with every feature interconnected so other modules can use the outputs.",
+    "starting_priority": "Address non-Rust language surfaces first, then perform visual and behavioral overhaul against the original proven test app.",
+    "scope_edges": [
+      "This WP owns work in ../wtc-ckc-posekit-overhaul only.",
+      "The copied source dirty state is baseline context, not automatically in-scope for CKC commits.",
+      "Each product edit gets its own MT contract before implementation."
+    ],
+    "assumptions": [
+      "The active source worktree dirty state must be preserved in the hotfix copy so the operator can compare and recover.",
+      "The original test app is available or can be located before parity MTs begin.",
+      "CKC/PoseKit currently span Rust backend and non-Rust frontend/test-app surfaces."
+    ],
+    "non_goals": [
+      "No active source worktree edits.",
+      "No merge-to-main or validator PASS claim.",
+      "No broad governance refactor.",
+      "No visual/behavioral overhaul before the non-Rust surface pass unless the operator changes priority."
+    ],
+    "microtask_plan": [
+      "MT-001 should inventory CKC/PoseKit/Atelier non-Rust surfaces and classify keep, migrate, replace, or delete.",
+      "Subsequent MTs should migrate one coherent surface or behavior at a time.",
+      "Visual/behavioral MTs should cite original-app evidence before edits."
+    ],
+    "verification_plan": [
+      "Confirm hotfix worktree branch, source HEAD, dirty state match, and .GOV junction.",
+      "Run governance sync/checks after WP pointer updates.",
+      "For product MTs, run the narrow Rust/UI/test commands tied to the touched files.",
+      "Use visual debugging once GUI behavior is changed."
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "identified_risks": [
+      "Cross-WP baseline contamination from copied dirty files.",
+      "Original-app production value lost during native rewrite.",
+      "Premature deletion of non-Rust code before replacement is complete.",
+      "Parallel MT conflicts in native shell or Atelier files.",
+      "Recovery drift if MT index and packet are not updated after ad hoc changes."
+    ],
+    "minimum_controls": [
+      "Path-limited staging and diff review per MT.",
+      "Original-app parity evidence before visual/behavioral changes.",
+      "MT target-file declarations before product edits.",
+      "mt_index.json active_mt_id updated during active implementation.",
+      "Packet and WP communications updated after each MT."
+    ]
+  }
+}

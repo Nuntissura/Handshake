@@ -1,0 +1,46 @@
+{
+  "schema_id": "hsk.microtask_index@1",
+  "schema_version": "microtask_index_v1",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "updated_at_utc": "2026-06-28T13:57:27.986Z",
+  "active_mt_id": null,
+  "next_mt_id": "MT-003",
+  "microtask_contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
+  "policy": {
+    "create_before_product_edit": true,
+    "one_operator_change_per_mt": true,
+    "record_target_files": true,
+    "record_validation_commands": true,
+    "update_status_after_each_mt": true,
+    "parallel_allowed_only_for_non_overlapping_files": true
+  },
+  "microtasks": [
+    {
+      "mt_id": "MT-001",
+      "status": "COMPLETED",
+      "title": "Inventory CKC/PoseKit/Atelier non-Rust surfaces before migration",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-001.json",
+      "product_edit_allowed": false,
+      "started_at_utc": "2026-06-28T12:39:33.432Z",
+      "completed_at_utc": "2026-06-28T12:49:12.999Z",
+      "inventory_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-001-inventory.json"
+    },
+    {
+      "mt_id": "MT-002",
+      "status": "COMPLETED",
+      "title": "Add native CKC/PoseKit operator and model quickstart coverage",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-002.json",
+      "product_edit_allowed": true,
+      "started_at_utc": "2026-06-28T13:06:35.842Z",
+      "completed_at_utc": "2026-06-28T13:57:27.986Z"
+    }
+  ],
+  "baseline": {
+    "product_worktree_dir": "../wtc-ckc-posekit-overhaul",
+    "product_branch": "feat/WP-CKC-posekit-overhaul",
+    "source_worktree_dir": "../wtc-native-editors-v1",
+    "source_branch": "feat/WP-KERNEL-012",
+    "source_head": "6bb8cfb4f81a06c4718403826f3b30433f74a426",
+    "dirty_state_matches_source": true
+  }
+}

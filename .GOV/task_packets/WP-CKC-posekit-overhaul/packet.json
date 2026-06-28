@@ -1,0 +1,287 @@
+{
+  "schema_id": "hsk.work_packet_contract@1",
+  "schema_version": "work_packet_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract"
+    ]
+  },
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "base_wp_id": "WP-CKC-posekit-overhaul",
+  "created_at_utc": "2026-06-28T12:26:14.447Z",
+  "updated_at_utc": "2026-06-28T13:57:27.986Z",
+  "authority_files": {
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "packet_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.md",
+    "refinement_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/refinement.json",
+    "refinement_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/refinement.md",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
+    "microtask_contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.md",
+    "status": "GENERATED_IN_SYNC",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "generated_at_utc": "2026-06-28T12:26:14.447Z",
+    "generator": "manual-kernel-builder-hotfix-projection"
+  },
+  "workflow": {
+    "lane": "MANUAL_RELAY",
+    "sublane": "HOTFIX_ADHOC_MICROTASK",
+    "execution_owner": "CODER_A",
+    "coder_compatible_execution_lane": "CODER_A",
+    "agentic_mode": "YES",
+    "workflow_authority": "ORCHESTRATOR",
+    "technical_advisor": "WP_VALIDATOR",
+    "technical_authority": "INTEGRATION_VALIDATOR",
+    "merge_authority": "INTEGRATION_VALIDATOR",
+    "deviation_from_activation_manager": {
+      "standard_flow_checked": true,
+      "standard_flow_summary": "Activation Manager normally prepares refinement, signature, packet hydration, branch/worktree prep, task-board, traceability, build-order, and readiness before execution.",
+      "approved_operator_deviation": "Operator requested a hotfix copy of an active worktree and ad hoc microtasks to preserve momentum while keeping state recoverable.",
+      "control_kept": "Use a real git worktree and branch, gov-kernel junction, WP packet, task-board entry, traceability entry, build-order sync, WP communications, and one MT contract per operator-requested product edit."
+    },
+    "worktree_policy": {
+      "product_worktree_dir": "../wtc-ckc-posekit-overhaul",
+      "product_branch": "feat/WP-CKC-posekit-overhaul",
+      "source_worktree_dir": "../wtc-native-editors-v1",
+      "source_branch": "feat/WP-KERNEL-012",
+      "source_head": "6bb8cfb4f81a06c4718403826f3b30433f74a426",
+      "copy_strategy": "created real git worktree at source HEAD via worktree helper, then overlaid source dirty/untracked product files while excluding .git and .GOV",
+      "gov_link_required": true,
+      "gov_link_target": "../wt-gov-kernel/.GOV"
+    },
+    "microtask_policy": {
+      "rule": "Before any product-code edit for a requested change, create or update one MT-### contract under this WP and set active_mt_id in mt_index.json.",
+      "allowed_without_mt": [
+        "hotfix worktree creation",
+        "WP creation",
+        "task-board, traceability, build-order, and communication pointer setup"
+      ],
+      "handoff_rule": "Each MT records target files, expected behavior, validation commands, risk notes, and closeout state before the next MT begins."
+    },
+    "parallel_agent_policy": {
+      "allowed": true,
+      "constraint": "Parallel subagents may inspect or implement independent MTs only after the MT owns a non-overlapping file set or explicit merge plan.",
+      "state_recovery": "Subagents must write results back to MT contracts or WP communications, not to chat-only memory."
+    }
+  },
+  "source_control": {
+    "work_branch": "feat/WP-CKC-posekit-overhaul",
+    "worktree_dir": "../wtc-ckc-posekit-overhaul",
+    "source_branch": "feat/WP-KERNEL-012",
+    "source_worktree_dir": "../wtc-native-editors-v1",
+    "source_head": "6bb8cfb4f81a06c4718403826f3b30433f74a426"
+  },
+  "communications": {
+    "communication_dir": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul",
+    "thread_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/THREAD.md",
+    "runtime_status_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/RUNTIME_STATUS.json",
+    "receipts_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-CKC-posekit-overhaul/RECEIPTS.jsonl"
+  },
+  "lifecycle": {
+    "status": "In Progress",
+    "current_wp_status": "IN_PROGRESS",
+    "role_owner": "KERNEL_BUILDER",
+    "coder_model": "codex-gpt-5",
+    "coder_reasoning_strength": "HIGH",
+    "wp_validator_of_record": "UNCLAIMED",
+    "integration_validator_of_record": "UNCLAIMED",
+    "main_containment_status": "NOT_STARTED",
+    "current_main_compatibility_status": "NOT_RUN",
+    "current_main_compatibility_baseline_sha": "NONE",
+    "current_main_compatibility_verified_at_utc": "N/A",
+    "packet_widening_decision": "NONE",
+    "packet_widening_evidence": "N/A",
+    "merged_main_commit": "NONE",
+    "main_containment_verified_at_utc": "N/A",
+    "risk_tier": "HIGH",
+    "user_signature": "operator-live-2026-06-28",
+    "claim_notes": "Operator requested setup and future ad hoc MT execution in a hotfix copy of the active native editors worktree."
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [],
+    "blocks": []
+  },
+  "scope": {
+    "base_scope": "Overhaul CastKit Codex and PoseKit inside Handshake Atelier as native, interconnected Handshake features, starting with non-Rust language reduction before visual and behavioral parity work.",
+    "current_phase": "Inventory and reduce non-Rust CKC/PoseKit/Atelier surfaces where Handshake-native Rust equivalents are appropriate.",
+    "later_phase": "Visual and behavioral overhaul to mirror the original proven test app inside Handshake while preserving Handshake's native interconnected model.",
+    "in_scope": [
+      "Atelier CKC/PoseKit native Rust backend and native UI surfaces",
+      "Legacy TypeScript/React or JavaScript CKC/PoseKit surfaces that need migration, replacement, or containment",
+      "Pose artifact contracts, receipts, and capability wiring used by other Handshake modules",
+      "Feature parity checks against the original CKC/PoseKit test app before each behavioral change"
+    ],
+    "non_goals": [
+      "Do not edit ../wtc-native-editors-v1.",
+      "Do not edit ../handshake_main directly for this WP.",
+      "Do not copy .git or .GOV from the source worktree.",
+      "Do not merge, validate PASS/FAIL, or close the WP from Kernel Builder alone.",
+      "Do not reintroduce SQLite, Electron IPC authority, localhost-only app assumptions, or direct external LLM control patterns into Handshake runtime."
+    ],
+    "relevant_product_files_initial": [
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/mod.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/pose.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/comfy.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/module_switcher.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/pane_header.rs",
+      "../wtc-ckc-posekit-overhaul/app/src/App.tsx",
+      "../wtc-ckc-posekit-overhaul/app/src/AtelierPanel.tsx"
+    ]
+  },
+  "baseline": {
+    "source_dirty_state_verified": true,
+    "target_dirty_state_matches_source": true,
+    "inherited_dirty_files": [
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/diagnostics/mod.rs",
+      "src/frontend/handshake_native/src/diagnostics/panel.rs",
+      "src/frontend/handshake_native/src/diagnostics/survivor_forward.rs",
+      "src/frontend/handshake_native/tests/test_survivor_forward.rs",
+      "src/frontend/palmistry/Cargo.lock",
+      "src/frontend/palmistry/Cargo.toml",
+      "src/frontend/palmistry/src/fr_forward.rs",
+      "src/frontend/palmistry/src/lib.rs",
+      "src/frontend/palmistry/src/main.rs",
+      "src/frontend/palmistry/src/survivor_store.rs",
+      "src/frontend/palmistry/tests/test_fr_forward.rs",
+      "src/frontend/palmistry/tests/test_survivor_store.rs"
+    ],
+    "line_ending_warning_files": [
+      "src/frontend/handshake_native/src/diagnostics/panel.rs",
+      "src/frontend/palmistry/Cargo.lock",
+      "src/frontend/palmistry/Cargo.toml",
+      "src/frontend/palmistry/src/main.rs"
+    ]
+  },
+  "refinement": {
+    "contract_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/refinement.json",
+    "projection_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/refinement.md",
+    "status": "IN_PROGRESS",
+    "activation_manager_required": false,
+    "enforcement_profile": "HOTFIX_ADHOC_MICROTASK_WITH_RECOVERY_POINTERS"
+  },
+  "microtasks": {
+    "active_id": null,
+    "contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
+    "index_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
+    "count": 2,
+    "declared_ids": [
+      "MT-001",
+      "MT-002"
+    ],
+    "next_id": "MT-003",
+    "latest_completed_id": "MT-002",
+    "latest_completed_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-002.json"
+  },
+  "research_basis": {
+    "sources_checked": [
+      "Activation Manager protocol",
+      "worktree-add helper",
+      "work packet and microtask schemas",
+      "current Atelier Rust backend files",
+      "current native UI files",
+      "current TypeScript Atelier app surfaces"
+    ],
+    "patterns_found": [
+      "CKC/PoseKit logic already has Rust Atelier domain code, but legacy TSX/JS surfaces still exist.",
+      "Handshake worktree creation should use the governed helper to preserve the .GOV junction and avoid inherited governance dirt.",
+      "A native feature overhaul should compare against the original test app behavior before replacing surfaces."
+    ],
+    "rejected_options": [
+      "Raw filesystem copy of the source worktree, because copying .git would corrupt isolation and copying .GOV would risk following the junction.",
+      "Full Activation Manager packet ceremony for every tweak, because the operator requested an ad hoc hotfix lane with recoverable MT state instead."
+    ],
+    "selected_approach": "Real hotfix git worktree from source HEAD, dirty product overlay, JSON-first WP contract, MT-per-change execution, and minimal shared record updates."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      {
+        "risk": "Inherited WP-KERNEL-012 dirty files can pollute CKC commits or reviews.",
+        "failure_scenario": "A CKC MT stages all files and accidentally ships unrelated diagnostics or Palmistry work from the copied source baseline.",
+        "mitigation": "Each MT must record touched files and use path-limited staging/review. Inherited baseline files remain explicitly listed here."
+      },
+      {
+        "risk": "Feature parity drifts from the original test app.",
+        "failure_scenario": "Native Rust rewrites remove behaviors that made the test app high-value in production.",
+        "mitigation": "Before behavioral or visual changes, create an MT that records original-app behavior evidence and parity expectations."
+      },
+      {
+        "risk": "Non-Rust removal can become language-churn instead of product value.",
+        "failure_scenario": "A TSX or JS surface is removed before an equivalent native Handshake route exists.",
+        "mitigation": "Inventory first, then migrate surface-by-surface only when replacement behavior, receipts, and tests are identified."
+      },
+      {
+        "risk": "Parallel agents conflict in the same files.",
+        "failure_scenario": "Two MTs edit the native shell or Atelier panel concurrently and produce a hard-to-recover merge conflict.",
+        "mitigation": "Parallel work requires non-overlapping MT target files or an explicit merge owner in mt_index.json."
+      },
+      {
+        "risk": "Governance recovery is too light.",
+        "failure_scenario": "After leaving repo governance, a no-context model cannot determine active WP, active MT, worktree, branch, source baseline, or validation state.",
+        "mitigation": "Keep packet.json, mt_index.json, task board, traceability, build-order, and WP communications synced after each MT."
+      }
+    ],
+    "minimum_controls": [
+      "One MT-### contract per operator-requested product change.",
+      "No edits in ../wtc-native-editors-v1.",
+      "No product edits outside ../wtc-ckc-posekit-overhaul for this WP.",
+      "No commit or validation claim that includes inherited baseline files unless the MT explicitly owns them.",
+      "Record original-app parity evidence before visual or behavioral overhaul MTs."
+    ]
+  },
+  "roi_additions": [
+    {
+      "addition": "Create a CKC/PoseKit non-Rust surface inventory as the first implementation MT.",
+      "why_high_roi": "It is cheap now and prevents blind language churn.",
+      "gap_closed": "Clarifies which TSX/JS surfaces are legacy, still active, or replaceable.",
+      "reuses": "Existing rg/code search and Atelier/native module files.",
+      "validation": "Inventory MT cites every non-Rust CKC/PoseKit surface and proposed disposition."
+    },
+    {
+      "addition": "Add an original-app parity checklist before visual/behavioral changes.",
+      "why_high_roi": "The source app already proved production value; preserving its behavior is the main value driver.",
+      "gap_closed": "Prevents native rewrite drift from the proven workflow.",
+      "reuses": "Original test app files and Handshake Atelier packet scope.",
+      "validation": "Each parity item maps to code paths, UI behavior, or a deliberate non-goal."
+    },
+    {
+      "addition": "Keep MT receipts path-limited with touched-file declarations.",
+      "why_high_roi": "It makes parallel agent work safer while the baseline contains unrelated inherited changes.",
+      "gap_closed": "Reduces accidental cross-WP contamination.",
+      "reuses": "MT contract files and WP communications receipts.",
+      "validation": "Diff review compares MT declared files to actual git status/diff."
+    }
+  ],
+  "tooling_notes": [
+    {
+      "note": "Repomem decision writes failed with 'No active session' after open; this WP should not depend on repomem active-session state until that tooling gap is repaired."
+    },
+    {
+      "note": "A broad .GOV rg search timed out; subsequent targeted file reads were used instead."
+    },
+    {
+      "note": "Two PowerShell Select-Object range reads initially used a string range; corrected with parenthesized range syntax."
+    },
+    {
+      "note": "WP communications initially rejected the packet until the workflow tuple and canonical communication paths were declared; ensure-wp-communications now passes."
+    },
+    {
+      "note": "Repo-wide just gov-check exceeded a 120 second timeout and left Node child processes; only the gov-check-related PIDs were stopped. Targeted checks for this WP passed: build-order-sync idempotent, wp-communication-health-check STATUS ok, and wp-declared-topology-check PASS."
+    }
+  ]
+}

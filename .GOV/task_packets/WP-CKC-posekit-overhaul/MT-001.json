@@ -1,0 +1,176 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract"
+    ]
+  },
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-001",
+  "created_at_utc": "2026-06-28T12:39:33.432Z",
+  "updated_at_utc": "2026-06-28T12:49:12.999Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-001.json",
+    "microtask_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-001.md",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
+    "inventory_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-001-inventory.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-001.md",
+    "status": "GENERATED_IN_SYNC",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-001.json"
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [],
+    "started_at_utc": "2026-06-28T12:39:33.432Z",
+    "completed_at_utc": "2026-06-28T12:49:12.999Z"
+  },
+  "scope": {
+    "title": "Inventory CKC/PoseKit/Atelier non-Rust surfaces before migration",
+    "type": "READ_ONLY_INVENTORY",
+    "product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_worktree": "../wtc-native-editors-v1",
+    "product_edit_allowed": false,
+    "base_scope": "Find CKC, CastKit Codex, PoseKit, and Atelier surfaces that are currently not Rust, classify each surface, and identify Rust/native anchors that can replace or absorb the behavior.",
+    "included_search_terms": [
+      "CKC",
+      "CastKit",
+      "CastKit Codex",
+      "posekit",
+      "PoseKit",
+      "poseDetection",
+      "core.mjs",
+      "Atelier",
+      "comfy",
+      "keypoint",
+      "image workflow"
+    ],
+    "excluded_paths": [
+      ".GOV",
+      "target",
+      "node_modules",
+      "build",
+      "dist",
+      "Handshake_Artifacts"
+    ],
+    "classification_values": [
+      "KEEP",
+      "MIGRATE",
+      "REPLACE",
+      "DELETE",
+      "INVESTIGATE"
+    ],
+    "acceptance_criteria": [
+      "List each relevant non-Rust file or directory with path, language, evidence, and classification.",
+      "Identify likely original/test-app locations or state that none were found locally.",
+      "List Rust/native anchors already present for equivalent behavior.",
+      "Call out gaps where a non-Rust surface cannot be classified without original-app evidence.",
+      "Recommend the next MT candidates in a migration order.",
+      "Leave product code untouched."
+    ]
+  },
+  "execution": {
+    "subagents": [
+      {
+        "agent_id": "019f0e3d-b553-76f2-9be1-12a93d422842",
+        "nickname": "Chandrasekhar",
+        "assignment": "Current Handshake product non-Rust surface scan in the hotfix worktree."
+      },
+      {
+        "agent_id": "019f0e3d-e9f6-73e1-bf94-a40f688890f7",
+        "nickname": "Averroes",
+        "assignment": "Original/test-app evidence scan across Handshake sibling directories and the hotfix worktree."
+      }
+    ],
+    "commands_planned": [
+      "rg --files with excluded directories",
+      "rg content searches for CKC/CastKit/PoseKit/Atelier terms",
+      "targeted file reads for candidate surfaces"
+    ],
+    "commands_run": [],
+    "product_files_changed": []
+  },
+  "inventory": {
+    "artifact_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-001-inventory.json",
+    "non_rust_surfaces": [
+      "see inventory_artifact"
+    ],
+    "rust_native_anchors": [
+      "see inventory_artifact"
+    ],
+    "original_app_evidence": [
+      "actual original app not found locally; see inventory_artifact for preserved source anchors"
+    ],
+    "classification_summary": {
+      "KEEP": 8,
+      "MIGRATE": 8,
+      "REPLACE": 5,
+      "DELETE": 1,
+      "INVESTIGATE": 5
+    },
+    "next_mt_candidates": [
+      "MT-002 original-app evidence recovery or parity-baseline decision",
+      "MT-003 React AtelierPanel replacement map",
+      "MT-004 CKC embed React-to-native proof",
+      "MT-005 Atelier collaboration parity investigation",
+      "MT-006 native interconnect blockers"
+    ]
+  },
+  "verification": {
+    "commands": [
+      "ConvertFrom-Json on MT-001.json",
+      "git -C ../wtc-ckc-posekit-overhaul status --short --branch",
+      "just wp-communication-health-check WP-CKC-posekit-overhaul STATUS"
+    ],
+    "results": [
+      "Initial MT-001.json, mt_index.json, and packet.json parsed successfully before inventory.",
+      "Product worktree status after MT scaffold still showed only inherited baseline dirty files.",
+      "Subagents reported read-only completion and no product edits.",
+      "Final MT-001.json parsed successfully.",
+      "Final MT-001-inventory.json parsed successfully.",
+      "Final mt_index.json parsed successfully.",
+      "Final packet.json parsed successfully.",
+      "git -C ../wtc-ckc-posekit-overhaul status --short --branch still shows only the inherited baseline dirty files.",
+      "just wp-communication-health-check WP-CKC-posekit-overhaul STATUS passed.",
+      "just wp-declared-topology-check WP-CKC-posekit-overhaul passed.",
+      "just build-order-sync reported BUILD_ORDER.md already up to date."
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      {
+        "risk": "Inventory misses renamed or indirect CKC/PoseKit surfaces.",
+        "mitigation": "Search both explicit names and domain terms such as pose, keypoint, comfy, image workflow, and Atelier."
+      },
+      {
+        "risk": "Original-app evidence is not found and classifications become speculation.",
+        "mitigation": "Mark those surfaces INVESTIGATE and create a follow-up evidence MT instead of deleting or migrating blind."
+      },
+      {
+        "risk": "Subagents accidentally edit files.",
+        "mitigation": "Subagent prompts explicitly require read-only work; final verification checks product worktree status for no new changes beyond inherited baseline."
+      },
+      {
+        "risk": "Large directories make searches slow or noisy.",
+        "mitigation": "Exclude .GOV, node_modules, target, build, dist, and artifact roots."
+      }
+    ]
+  },
+  "handoff": {
+    "status": "COMPLETED",
+    "summary": "Inventory completed. Non-Rust current-product surfaces are recorded in MT-001-inventory.json. Original legacy app files were not found locally; preserved Rust source anchors are the current parity evidence unless MT-002 locates the original app."
+  }
+}

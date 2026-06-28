@@ -4,7 +4,7 @@
   "authority_surface": "MACHINE_CONTRACT",
   "rendered_md_projection_path": ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md",
   "rendered_md_projection_policy": "GENERATED_FROM_JSON_DO_NOT_HAND_EDIT",
-  "updated_at_utc": "2026-06-11T05:27:29.084Z",
+  "updated_at_utc": "2026-06-28T12:35:23.978Z",
   "entries": [
     {
       "base_wp_id": "WP-1-ACE-Auditability",
@@ -971,6 +971,12 @@
       "active_packet_path": ".GOV/task_packets/WP-KERNEL-005/packet.md",
       "task_board_projection": "Done: WP-KERNEL-005 [VALIDATED]",
       "notes": "Integration Validation v3 PASS_V3 (205/207 MTs PASS_V3, 2 OUT_OF_SCOPE_BY_OPERATOR) at head 17b2abd4; merged to main 41b610df 2026-06-11; verdict record gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-005/MT_VERDICTS_INTEGRATION_VALIDATOR_V3.json"
+    },
+    {
+      "base_wp_id": "WP-CKC-posekit-overhaul",
+      "active_packet_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.md",
+      "task_board_projection": "In Progress: WP-CKC-posekit-overhaul",
+      "notes": "hotfix ad hoc MT lane; product worktree ../wtc-ckc-posekit-overhaul; source branch feat/WP-KERNEL-012 at 6bb8cfb4f81a06c4718403826f3b30433f74a426"
     }
   ],
   "superseded_activation_history": [
