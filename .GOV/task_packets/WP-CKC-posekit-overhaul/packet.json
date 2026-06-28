@@ -16,7 +16,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "base_wp_id": "WP-CKC-posekit-overhaul",
   "created_at_utc": "2026-06-28T12:26:14.447Z",
-  "updated_at_utc": "2026-06-28T13:57:27.986Z",
+  "updated_at_utc": "2026-06-28T15:29:06.058Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
     "packet_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.md",
@@ -177,14 +177,15 @@
     "active_id": null,
     "contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
     "index_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
-    "count": 2,
+    "count": 3,
     "declared_ids": [
       "MT-001",
-      "MT-002"
+      "MT-002",
+      "MT-003"
     ],
-    "next_id": "MT-003",
-    "latest_completed_id": "MT-002",
-    "latest_completed_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-002.json"
+    "next_id": "MT-004",
+    "latest_completed_id": "MT-003",
+    "latest_completed_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003.json"
   },
   "research_basis": {
     "sources_checked": [

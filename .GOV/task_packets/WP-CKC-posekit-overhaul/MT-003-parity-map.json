@@ -1,0 +1,450 @@
+{
+  "schema_id": "hsk.ckc_posekit_parity_map@1",
+  "schema_version": "ckc_posekit_parity_map_v1",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-003",
+  "status": "FINAL",
+  "created_at_utc": "2026-06-28T15:29:06.058Z",
+  "updated_at_utc": "2026-06-28T15:29:06.058Z",
+  "product_code_changed": false,
+  "source_summary": {
+    "operator_intent": "CKC and PoseKit are already native Handshake Atelier tools. The overhaul should first correct framing and workflow parity: the top-right button should be Atelier, CKC should be a tab/workspace inside Atelier, and later MTs should restore the proven original CKC/PoseKit production workflows without disturbing the active GUI rebuild WP.",
+    "current_handshake_read": "Current Handshake already has Rust-native Atelier domain modules for character data, media, intake, collections/contact sheets, documents/story/moodboards, search/tags/similarity, PoseKit/OpenPose sidecars, identity profiles, and ComfyUI receipts. The largest immediate gap is UI/navigation framing and presentation parity, not absence of a native Rust data layer.",
+    "original_ckc_read": "Original CastKit Codex confirms the operator's memory: CKC was a character/avatar database plus sheet/versioning, linked images and collections, search/tags/notes/story/moodboards, intake sorting, contact sheets, PoseKit/OpenPose, ComfyUI bridge, identity profiles, and visual book/split layout.",
+    "facial_read": "Facial is a Rust image-quality, identity, dedupe, review, and dataset-prep app with headless command/receipt APIs. It is valuable as a future Atelier ingest helper, but should not be pulled into the first CKC/PoseKit shell-polish MT.",
+    "leeseo_read": "The Leeseo handoff asks for deterministic prompt feedback inside Handshake with importable prompt/render receipts, review verdicts, rule-pack rewrites, and traceable exports. It is adjacent to Atelier/Comfy/intake, but should be a later prompt-feedback lane rather than the first CKC UI correction."
+  },
+  "delegated_evidence": [
+    {
+      "agent": "Ramanujan",
+      "lane": "current-handshake-native",
+      "status": "COMPLETED",
+      "summary": "Confirmed CKC is currently a top-level control in React and native UI, while Atelier is already the actual default tab/panel/backend shell. Recommended smallest next MT is visible label inversion only: top module label CKC -> Atelier and displayed Atelier tab label -> CKC, while preserving internal CKC IDs and /atelier routes."
+    },
+    {
+      "agent": "Helmholtz",
+      "lane": "original-ckc-posekit",
+      "status": "COMPLETED",
+      "summary": "Confirmed original CKC feature groups and their implementation/planning status: character sheets, image collections, search, tags/notes, story/moodboard, intake, contact sheets, PoseKit, OpenPose sidecars, ComfyUI, and identity profiles."
+    },
+    {
+      "agent": "Herschel",
+      "lane": "leeseo-feedback",
+      "status": "COMPLETED",
+      "summary": "Extracted Handshake prompt-feedback kernel requests: PromptCase/Receipt/RenderReceipt/ReviewVerdict/FailureTag/RulePack/RewriteTrace/PromptExport records, PostgreSQL/EventLedger authority, vector search as advisory only, and Leeseo i76 fixtures as first adapter material."
+    },
+    {
+      "agent": "Locke",
+      "lane": "facial-ingest",
+      "status": "COMPLETED",
+      "summary": "Confirmed Facial is a Rust image-curation app with non-destructive ingest, quality/identity/dedupe analysis, accept/reject/hold review sessions, content-hash IDs, montage ID maps, export lineage, command/receipt APIs, and UI inspection. Classified it as direct ingest-pattern reuse and adjacent future Handshake tooling, not CKC/PoseKit core or a current runtime dependency."
+    }
+  ],
+  "current_handshake_surfaces": {
+    "ui_shell": {
+      "finding": "The top-right module rail still exposes CKC as a top-level module label. The module default tab is Atelier Editor, and the right side panel is already Atelier/CKC.",
+      "evidence": [
+        "src/frontend/handshake_native/src/module_switcher.rs:5",
+        "src/frontend/handshake_native/src/module_switcher.rs:65",
+        "src/frontend/handshake_native/src/module_switcher.rs:167",
+        "src/frontend/handshake_native/src/module_switcher.rs:168",
+        "src/frontend/handshake_native/src/module_switcher.rs:183",
+        "src/frontend/handshake_native/src/atelier_side_panel.rs:1",
+        "src/frontend/handshake_native/src/atelier_side_panel.rs:5",
+        "src/frontend/handshake_native/src/atelier_side_panel.rs:243",
+        "src/frontend/handshake_native/src/app.rs:350",
+        "src/frontend/handshake_native/src/app.rs:648",
+        "src/frontend/handshake_native/src/app.rs:5385",
+        "src/frontend/handshake_native/src/app.rs:7036",
+        "src/frontend/handshake_native/src/pane_registry.rs:73",
+        "src/frontend/handshake_native/src/pane_registry.rs:119",
+        "src/frontend/handshake_native/src/pane_header.rs:483"
+      ],
+      "risk": "Changing only visible text without updating tests and accessibility expectations will create misleading state or test failures.",
+      "safe_next_step": "Create MT-004 for visible label inversion with internal IDs preserved: displayed top module CKC -> Atelier; displayed Atelier tab -> CKC; keep ModuleId::Ckc, serialized CKC, module-ckc, PaneType::AtelierEditor, and /atelier routes unchanged."
+    },
+    "native_backend_domain": {
+      "finding": "Rust Atelier backend already covers most original CKC data concepts.",
+      "evidence": [
+        "src/backend/handshake_core/src/atelier/core.rs",
+        "src/backend/handshake_core/src/atelier/sheet.rs",
+        "src/backend/handshake_core/src/atelier/media.rs",
+        "src/backend/handshake_core/src/atelier/intake.rs",
+        "src/backend/handshake_core/src/atelier/collections.rs",
+        "src/backend/handshake_core/src/atelier/documents.rs",
+        "src/backend/handshake_core/src/atelier/moodboards.rs",
+        "src/backend/handshake_core/src/atelier/search.rs",
+        "src/backend/handshake_core/src/atelier/pose.rs",
+        "src/backend/handshake_core/src/atelier/comfy.rs",
+        "src/backend/handshake_core/src/api/atelier.rs:47",
+        "src/backend/handshake_core/src/api/atelier.rs:107"
+      ],
+      "coverage": [
+        "character identity and sheet versioning",
+        "media materialization and review metadata",
+        "intake batches and classification",
+        "ordered collections and contact-sheet manifests",
+        "character documents, story cards, and story beats",
+        "schema-versioned moodboards",
+        "search, tags, AI tag suggestions, and perceptual similarity",
+        "pose context, OpenPose rigs, sidecars, identity profiles, identity crops",
+        "ComfyUI workflow receipts, output registration, retry/fallback state"
+      ],
+      "risk": "Treating this as a Rust rewrite problem will cause rework; the direct gap is native UI presentation and workflow affordances over existing Rust state."
+    },
+    "manual_and_model_surfaces": {
+      "finding": "MT-002 added a native-first quickstart. Existing model manual rows already describe Atelier CKC/PoseKit commands, but many Pose/Comfy command rows are planned rather than wired routes.",
+      "evidence": [
+        "src/backend/handshake_core/src/user_manual/seed.rs:1476",
+        "src/backend/handshake_core/src/model_manual/content.rs:84",
+        "src/backend/handshake_core/src/model_manual/content.rs:187",
+        "src/backend/handshake_core/src/model_manual/content.rs:2102",
+        "src/backend/handshake_core/tests/user_manual_content_tests.rs:128",
+        "src/backend/handshake_core/tests/model_manual_tests.rs:471",
+        "src/backend/handshake_core/tests/model_manual_tests.rs:595"
+      ],
+      "risk": "A no-context model may see the word CKC as a top-level module while the manual says Atelier is the native shell. Labeling and manual navigation should converge."
+    },
+    "tests_at_risk_for_mt_004": [
+      "src/frontend/handshake_native/tests/test_module_switcher.rs",
+      "src/frontend/handshake_native/tests/test_pane_header.rs",
+      "src/frontend/handshake_native/tests/test_ckc_embed.rs",
+      "src/frontend/handshake_native/tests/test_interconnect_ckc_to_note.rs",
+      "app/tests/atelier/atelier_nav.spec.ts",
+      "app/src/lib/api.test.ts"
+    ]
+  },
+  "original_ckc_parity_groups": [
+    {
+      "group_id": "ckc-character-core",
+      "operator_intent": "Character/avatar database with reusable character data sheets for CUI workflows, porn production workflows, Unreal, Blender, and related production contexts.",
+      "original_status": "IMPLEMENTED",
+      "original_evidence": [
+        "CKC_GOV/spec/SESSION_DUMP_2026-02-10.md:15",
+        "CKC_main/app/backend/db.js:1079",
+        "CKC_main/app/backend/library.js:5154",
+        "CKC_main/src/ui/CharacterView.tsx:3130",
+        "CKC_main/test/backend_sheet.test.js",
+        "CKC_main/test/backend_sheet_ingest_versions.test.js"
+      ],
+      "handshake_current": "Rust Atelier character identity and append-only sheet/version surfaces exist.",
+      "handshake_evidence": [
+        "src/backend/handshake_core/src/atelier/core.rs",
+        "src/backend/handshake_core/src/atelier/sheet.rs",
+        "src/backend/handshake_core/src/model_manual/content.rs:84"
+      ],
+      "gap": "Need visual CKC tab/work surface that feels like the original character book, not just backend commands."
+    },
+    {
+      "group_id": "ckc-media-albums",
+      "operator_intent": "Link images and folders to a character sheet; create albums per character; keep large picture browsing close to editable sheet data.",
+      "original_status": "IMPLEMENTED_WITH_COLLECTION_HARDENING",
+      "original_evidence": [
+        "CKC_main/src/vite-env.d.ts:142",
+        "CKC_main/src/vite-env.d.ts:545",
+        "CKC_main/src/vite-env.d.ts:945",
+        "CKC_GOV/work_packets/WP-0128_Collections_Photo_Sets_V2.md:11"
+      ],
+      "handshake_current": "Rust Atelier media, collection, and contact-sheet modules exist.",
+      "handshake_evidence": [
+        "src/backend/handshake_core/src/atelier/media.rs",
+        "src/backend/handshake_core/src/atelier/collections.rs",
+        "src/backend/handshake_core/src/model_manual/content.rs:96"
+      ],
+      "gap": "UI should expose image-left/sheet-right and albums/collections as first-class CKC tab affordances."
+    },
+    {
+      "group_id": "ckc-search-tags-notes",
+      "operator_intent": "Fuzzy search, vector search, combination search, rich tags, image notes, tag notes, and character-sheet notes.",
+      "original_status": "MIXED",
+      "original_evidence": [
+        "CKC_GOV/work_packets/WP-0083_Global_Full_Text_Search.md:8",
+        "CKC_GOV/work_packets/WP-0083_Global_Full_Text_Search.md:36",
+        "CKC_GOV/work_packets/WP-0089_Visual_Similarity_Search.md:12",
+        "CKC_main/app/backend/library.js:800",
+        "CKC_main/app/backend/library.js:8151",
+        "CKC_main/app/backend/library.js:8483",
+        "CKC_main/app/backend/library.js:9295"
+      ],
+      "handshake_current": "Rust Atelier search/tags/similarity and media review metadata exist.",
+      "handshake_evidence": [
+        "src/backend/handshake_core/src/atelier/search.rs",
+        "src/backend/handshake_core/src/atelier/media.rs:1905",
+        "src/backend/handshake_core/src/model_manual/content.rs:152"
+      ],
+      "gap": "Baseline parity is FTS/saved search/dHash-style similarity. Fuzzy typo tolerance and embedding/vector search should not be claimed until implemented. Tag notes remain unproven in original CKC and should be a separate decision."
+    },
+    {
+      "group_id": "ckc-story-moodboard",
+      "operator_intent": "Story panels per character; moodboards should use Handshake's native Notion-style moodboard system rather than the failed Excalidraw-style attempt.",
+      "original_status": "IMPLEMENTED_OR_PROTOTYPED",
+      "original_evidence": [
+        "CKC_GOV/work_packets/WP-0005_Notes_Stories_Moodboard_DB_First.md:8",
+        "CKC_GOV/work_packets/WP-0062_Stories_Corkboard_Outliner.md:8",
+        "CKC_main/src/ui/components/MoodboardCanvas.tsx",
+        "CKC_main/src/ui/CharacterView.tsx:1209"
+      ],
+      "handshake_current": "Rust Atelier documents/story/moodboard modules exist; native Handshake already has graph/canvas/moodboard-adjacent primitives.",
+      "handshake_evidence": [
+        "src/backend/handshake_core/src/atelier/documents.rs",
+        "src/backend/handshake_core/src/atelier/moodboards.rs",
+        "src/frontend/handshake_native/src/graph/canvas_board.rs"
+      ],
+      "gap": "Need Atelier CKC tab layout that can show the third middle panel only for stories, sheet notes, and moodboards."
+    },
+    {
+      "group_id": "ckc-book-layout",
+      "operator_intent": "Original CKC worked like a book: left panel almost always images from a character sheet, right panel editable sheet; stories, sheet notes, and moodboard add a third middle panel.",
+      "original_status": "IMPLEMENTED",
+      "original_evidence": [
+        "CKC_GOV/spec/SESSION_DUMP_2026-02-10.md:27",
+        "CKC_GOV/work_packets/WP-0003_Portfolio_Layout_Drawers_Minimal_UI.md:8",
+        "CKC_GOV/work_packets/WP-0029_Resizable_Panels_Persisted_Layouts.md:8",
+        "CKC_main/src/ui/CharacterView.tsx:449"
+      ],
+      "handshake_current": "Native shell has panes, side panels, tab bars, persistent layout, and Stage interop, but CKC-specific book layout parity has not been visually verified in this MT.",
+      "handshake_evidence": [
+        "src/frontend/handshake_native/src/app.rs:7029",
+        "src/frontend/handshake_native/src/atelier_side_panel.rs",
+        "src/frontend/handshake_native/src/pane_registry.rs:73"
+      ],
+      "gap": "Needs a later visual/behavioral MT after shell label correction."
+    },
+    {
+      "group_id": "posekit-core",
+      "operator_intent": "PoseKit/OpenRepose takes an image, shows a live 3D figure and OpenPose split view, rotates pose/head angle, rerenders OpenPose, and exports ComfyUI-ready OpenPose.",
+      "original_status": "CORE_IMPLEMENTED_ADVANCED_PARTIAL",
+      "original_evidence": [
+        "CKC_GOV/work_packets/WP-0107_Pose_Workflow_Schema_And_Shell.md:15",
+        "CKC_GOV/work_packets/WP-0108_Pose_Pipeline_React.md:8",
+        "CKC_GOV/work_packets/WP-0109_ComfyUI_Bridge_And_Workflow.md:8",
+        "CKC_GOV/work_packets/WP-0110_Pitch_Roll_Head_Pose.md:8",
+        "CKC_GOV/work_packets/WP-0113_Hand_Detection_Openpose.md:113",
+        "CKC_main/src/posekit/core.mjs:3",
+        "CKC_main/src/posekit/core.mjs:111",
+        "CKC_main/src/posekit/core.mjs:140",
+        "CKC_main/src/posekit/core.mjs:557",
+        "CKC_main/src/vite-env.d.ts:971",
+        "CKC_main/src/vite-env.d.ts:985"
+      ],
+      "handshake_current": "Rust Atelier PoseKit stores pose context, rigs, sidecars, identity profiles/crops, and deferred features; detector execution remains out-of-module/capability-gated.",
+      "handshake_evidence": [
+        "src/backend/handshake_core/src/atelier/pose.rs",
+        "src/backend/handshake_core/src/model_manual/content.rs:187",
+        "src/backend/handshake_core/src/model_manual/content.rs:2102"
+      ],
+      "gap": "Need UI parity audit for actual split 3D/OpenPose surface. Current MT did not prove a live native PoseKit viewport."
+    },
+    {
+      "group_id": "posekit-advanced-interaction",
+      "operator_intent": "Toggle markers, adjust facial marker placement, zoom/framing to force lens/angle by adding black space, add/remove body markers, remove bad limbs, later sculpt single-model and group poses.",
+      "original_status": "PLANNED_OR_BLOCKED_CARRY_FORWARD",
+      "original_evidence": [
+        "CKC_GOV/work_packets/WP-0114_Pose_Tab_Polish_Carryover.md:8",
+        "CKC_GOV/work_packets/WP-0133_PoseKit_Calibration_Markers_And_History.md:11",
+        "CKC_main/src/posekit/core.mjs:616"
+      ],
+      "handshake_current": "Rust PoseKit has deferred-feature registry entries for draggable overlays, marker placement, 3D live split, forked history, multi-angle export, sync zoom, import OpenPose JSON, and multi-subject carry-forward.",
+      "handshake_evidence": [
+        "src/backend/handshake_core/src/atelier/pose.rs:3133",
+        "src/backend/handshake_core/src/atelier/pose.rs:3260",
+        "src/backend/handshake_core/src/atelier/pose.rs:3286",
+        "src/backend/handshake_core/src/atelier/pose.rs:3350",
+        "src/backend/handshake_core/src/atelier/pose.rs:3374",
+        "src/backend/handshake_core/src/atelier/pose.rs:3386"
+      ],
+      "gap": "Do not mark advanced PoseKit parity complete. Use deferred entries to drive later MTs after CKC/Atelier shell is coherent."
+    },
+    {
+      "group_id": "ckc-ingest-lora-mining",
+      "operator_intent": "Image ingest front for large datasets; mark pass/reject/unsure; mass apply tags/notes/events/dates/location; link passed images to a character sheet.",
+      "original_status": "IMPLEMENTED",
+      "original_evidence": [
+        "CKC_GOV/work_packets/WP-0094_Image_Intake_Sorter.md:8",
+        "CKC_GOV/work_packets/WP-0100_Image-sourcing_workflow_spec_registry_and_adapter.md",
+        "CKC_GOV/work_packets/WP-0124_Persistent_Intake_Batch_Review.md:11",
+        "CKC_GOV/work_packets/WP-0125_Intake_Character_Sheet_And_Metadata_Linking.md:14",
+        "CKC_main/src/vite-env.d.ts:598",
+        "CKC_main/src/vite-env.d.ts:1209",
+        "CKC_main/src/vite-env.d.ts:1213"
+      ],
+      "handshake_current": "Rust Atelier intake/image import/media review exists, with image-import route and media review metadata.",
+      "handshake_evidence": [
+        "src/backend/handshake_core/src/atelier/intake.rs",
+        "src/backend/handshake_core/src/atelier/image_import.rs",
+        "src/backend/handshake_core/src/atelier/media.rs:1905",
+        "src/backend/handshake_core/src/api/atelier.rs:72",
+        "src/backend/handshake_core/src/api/atelier.rs:75"
+      ],
+      "gap": "Native UI should expose accepted/rejected/pending states and batch metadata as LoRA-mining workflow, not generic intake only."
+    },
+    {
+      "group_id": "ckc-contact-sheets",
+      "operator_intent": "Flexible contact sheet creator with DPI, rows, columns, export, usable by image-mining models for visual inspection.",
+      "original_status": "SVG_AND_MANIFEST_IMPLEMENTED_RASTER_PLANNED",
+      "original_evidence": [
+        "CKC_GOV/work_packets/WP-0129_Contact_Sheet_System.md:11",
+        "CKC_GOV/work_packets/WP-0136_Raster_Contact_Sheet_Export.md:11",
+        "CKC_main/src/vite-env.d.ts:566",
+        "CKC_main/src/vite-env.d.ts:954"
+      ],
+      "handshake_current": "Atelier collections/contact sheets exist in model manual; raster proof not checked in this MT.",
+      "handshake_evidence": [
+        "src/backend/handshake_core/src/model_manual/content.rs:108",
+        "src/backend/handshake_core/tests/fixtures/atelier_core_data/collection_contact_sheet.json"
+      ],
+      "gap": "Minimum parity is deterministic contact sheet manifest/SVG. Raster export and global creator should be separate later MTs."
+    }
+  ],
+  "adjacent_integrations": {
+    "facial": {
+      "classification": "ADJACENT_INGEST_REUSE_NOT_CKC_CORE",
+      "useful_capabilities": [
+        "Rust-native image quality/IQ passes",
+        "identity gate and identity_dedup",
+        "review sessions with accept/reject/hold",
+        "content-addressed image IDs",
+        "parallel review claims and decisions",
+        "review montage PNG plus stable tile/image ID maps",
+        "sort_run into keep/review/cull",
+        "headless command/receipt queue",
+        "ui-inspect visual diagnostics"
+      ],
+      "evidence": [
+        "D:/Projects/LLM projects/facial/specs/app-spec.md:1",
+        "D:/Projects/LLM projects/facial/specs/app-spec.md:301",
+        "D:/Projects/LLM projects/facial/specs/app-spec.md:427",
+        "D:/Projects/LLM projects/facial/product/src/api.rs:1",
+        "D:/Projects/LLM projects/facial/product/src/api.rs:44",
+        "D:/Projects/LLM projects/facial/product/src/api.rs:107",
+        "D:/Projects/LLM projects/facial/product/src/review.rs:1",
+        "D:/Projects/LLM projects/facial/product/src/review.rs:37",
+        "D:/Projects/LLM projects/facial/product/src/review.rs:414",
+        "D:/Projects/LLM projects/facial/product/src/review.rs:780",
+        "D:/Projects/LLM projects/facial/product/src/review.rs:950",
+        "D:/Projects/LLM projects/facial/product/src/service.rs:520",
+        "D:/Projects/LLM projects/facial/product/src/service.rs:853",
+        "D:/Projects/LLM projects/facial/product/src/service.rs:1121",
+        "D:/Projects/LLM projects/facial/product/src/service.rs:1582",
+        "D:/Projects/LLM projects/facial/product/src/ui_inspect.rs:1",
+        "D:/Projects/LLM projects/facial/product/docs/MANUAL.md:13"
+      ],
+      "safe_stance": "Create a later MT/WP for Atelier ingest to call or absorb Facial capabilities through deterministic command/receipt surfaces. Do not mix Facial integration into MT-004's UI naming correction."
+    },
+    "leeseo_prompt_feedback": {
+      "classification": "ADJACENT_PROMPT_FEEDBACK_AND_COMFY_LINEAGE",
+      "useful_capabilities": [
+        "Prompt/render receipt import",
+        "review verdicts and failure tags",
+        "versioned RulePack rewrites",
+        "machine-readable rewrite traces",
+        "PostgreSQL/EventLedger authority",
+        "Leeseo i76 fixture import",
+        "vector search as advisory but not rewrite authority"
+      ],
+      "evidence": [
+        "D:/Projects/LLM projects/comfyui-workbench/projects/leeseo/HANDSHAKE_PROMPT_FEEDBACK_KERNEL_HANDOFF_2026-06-28.md:14",
+        "D:/Projects/LLM projects/comfyui-workbench/projects/leeseo/HANDSHAKE_PROMPT_FEEDBACK_KERNEL_HANDOFF_2026-06-28.md:97",
+        "D:/Projects/LLM projects/comfyui-workbench/projects/leeseo/HANDSHAKE_PROMPT_FEEDBACK_KERNEL_HANDOFF_2026-06-28.md:172",
+        "D:/Projects/LLM projects/comfyui-workbench/projects/leeseo/HANDSHAKE_PROMPT_FEEDBACK_KERNEL_HANDOFF_2026-06-28.md:217",
+        "D:/Projects/LLM projects/comfyui-workbench/projects/leeseo/HANDSHAKE_PROMPT_FEEDBACK_KERNEL_HANDOFF_2026-06-28.md:263",
+        "D:/Projects/LLM projects/comfyui-workbench/projects/leeseo/HANDSHAKE_PROMPT_FEEDBACK_KERNEL_HANDOFF_2026-06-28.md:410",
+        "D:/Projects/LLM projects/comfyui-workbench/projects/leeseo/leeseo_wishlist.md:35",
+        "D:/Projects/LLM projects/comfyui-workbench/projects/leeseo/leeseo_wishlist.md:281"
+      ],
+      "safe_stance": "Use as a later Atelier/Comfy prompt-feedback lane after shell and CKC/PoseKit presentation are clarified."
+    }
+  },
+  "recommended_microtask_queue": [
+    {
+      "next_mt_id": "MT-004",
+      "title": "Rename top CKC module label to Atelier and CKC tab label inside Atelier",
+      "type": "PRODUCT_UI_POLISH",
+      "why_first": "It directly matches the operator's latest concrete correction, is small, and aligns current UI language with the native Atelier architecture before broader visual rebuild work.",
+      "base_scope": [
+        "Change displayed top-right module label from CKC to Atelier.",
+        "Change displayed Atelier tab/work-surface label to CKC where it represents the CKC default tab.",
+        "Preserve internal ModuleId::Ckc, serialized CKC active_module, module-ckc stable id, PaneType::AtelierEditor, backend /atelier routes, and persisted layout compatibility."
+      ],
+      "target_files_initial": [
+        "src/frontend/handshake_native/src/module_switcher.rs",
+        "src/frontend/handshake_native/src/pane_registry.rs",
+        "src/frontend/handshake_native/src/pane_header.rs",
+        "src/frontend/handshake_native/tests/test_module_switcher.rs",
+        "src/frontend/handshake_native/tests/test_pane_header.rs"
+      ],
+      "possible_react_files_if_still_in_scope": [
+        "app/src/App.tsx",
+        "app/tests/atelier/atelier_nav.spec.ts",
+        "app/src/lib/api.test.ts"
+      ],
+      "verification_needs": [
+        "Focused native module switcher tests",
+        "Focused pane header tests",
+        "Search for visible CKC module-label expectations",
+        "If React surface is still shipped, update its label tests separately or explicitly mark React legacy surface as not in MT-004"
+      ],
+      "risks": [
+        {
+          "risk": "Breaking layout persistence by renaming internal IDs.",
+          "mitigation": "Change visible labels only; keep CKC serialization and stable data IDs."
+        },
+        {
+          "risk": "Confusing CKC embeds and refKind names by renaming domain IDs.",
+          "mitigation": "Do not change embed ref kinds, route names, table names, or serialized module IDs in MT-004."
+        },
+        {
+          "risk": "Collision with active GUI rebuild WP.",
+          "mitigation": "Stage only MT-004-owned files and ignore inherited WP-KERNEL-012 baseline dirt."
+        }
+      ]
+    },
+    {
+      "next_mt_id": "MT-005",
+      "title": "Audit native Atelier/CKC visual layout against original book workflow",
+      "type": "READ_ONLY_OR_VISUAL_AUDIT",
+      "why_second": "After the shell label is corrected, the next useful unit is proving what the native CKC tab actually renders versus the original left-image/right-sheet/optional-middle-panel workflow.",
+      "verification_needs": [
+        "Run the native GUI visual/debug route or headless UI snapshot if available",
+        "Compare CKC tab to original book layout requirements",
+        "Record missing controls for image strip, sheet editor, story/sheet-note/moodboard middle panel, and model-navigable stable IDs"
+      ]
+    },
+    {
+      "next_mt_id": "MT-006",
+      "title": "PoseKit native split-view and deferred-feature audit",
+      "type": "READ_ONLY_OR_VISUAL_AUDIT",
+      "why_later": "PoseKit parity is bigger and has known deferred features. It should follow the CKC shell and layout correction instead of being mixed with button naming.",
+      "verification_needs": [
+        "Verify whether a native 3D/OpenPose split view exists",
+        "Map deferred pose features to visible UI gaps",
+        "Decide first PoseKit implementation MT: sidecar strip, split view, import OpenPose JSON, sync zoom, or marker editing"
+      ]
+    },
+    {
+      "next_mt_id": "MT-007",
+      "title": "Atelier ingest lane: CKC accepted/rejected/pending plus Facial reuse decision",
+      "type": "DESIGN_AND_IMPLEMENTATION_PREP",
+      "why_later": "The ingest story matters for LoRA mining but should reuse existing Atelier intake plus Facial's command/receipt/review surfaces. It is not required for the immediate shell correction."
+    },
+    {
+      "next_mt_id": "MT-008",
+      "title": "Atelier prompt feedback lane from Leeseo handoff",
+      "type": "DESIGN_AND_IMPLEMENTATION_PREP",
+      "why_later": "Prompt feedback belongs with Comfy/Atelier lineage after basic CKC/PoseKit navigation and visual surfaces are coherent."
+    }
+  ],
+  "explicit_non_goals_preserved": [
+    "Do not turn this WP into Rust rebuilds of Affinity, Photoshop, Marvelous Designer, or full 3D avatar creation.",
+    "Do not import Facial directly into CKC before an explicit integration MT/WP.",
+    "Do not claim fuzzy/vector search parity unless current Handshake proves typo-tolerant and embedding/vector search.",
+    "Do not claim advanced PoseKit parity while marker editing, multi-angle export, sync zoom, OpenPose JSON import, and multi-subject interactions remain deferred.",
+    "Do not disturb ../wtc-native-editors-v1 or the active WP-KERNEL-012 GUI rebuild worktree."
+  ],
+  "open_questions_for_later_not_blocking_mt_004": [
+    "Should React app/src surfaces still be maintained in the hotfix, or should MT-004 be native-only?",
+    "Should the displayed CKC tab eventually split into sub-tabs: Characters, Media, Story, Moodboard, PoseKit, Ingest, Workflow?",
+    "Should tag notes be added as a real entity, or are image notes, sheet notes, collection notes, and document notes enough?",
+    "Should Facial be called as an external command/receipt helper first, or should its Rust modules be absorbed into handshake_core later?"
+  ]
+}

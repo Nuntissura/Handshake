@@ -1,0 +1,106 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-003",
+  "title": "Map CKC/PoseKit original intent to current Handshake Atelier native surfaces",
+  "status": "COMPLETED",
+  "created_at_utc": "2026-06-28T15:20:55.051Z",
+  "updated_at_utc": "2026-06-28T15:29:06.058Z",
+  "started_at_utc": "2026-06-28T15:20:55.051Z",
+  "completed_at_utc": "2026-06-28T15:29:06.058Z",
+  "product_edit_allowed": false,
+  "governance_edit_allowed": true,
+  "operator_request": "Process the operator's CKC/PoseKit history and current Handshake Atelier intent before visual and behavioral overhaul work.",
+  "scope": {
+    "base_scope": "Read-only parity and intent audit covering the current Handshake native Atelier/CKC/PoseKit implementation, the original CastKit Codex and PoseKit app evidence, the Facial image sorting app, and the Leeseo Handshake prompt feedback wishlist.",
+    "in_scope": [
+      "Confirm whether current Handshake exposes CKC as a top-level control or under an Atelier shell.",
+      "Recover original CKC feature intent: character/avatar database, editable sheets, linked images/folders, albums, search, tags, image notes, sheet notes, story panels, moodboards, image ingest, LoRA mining review states, and contact sheets.",
+      "Recover original PoseKit/OpenRepose feature intent: split 3D/OpenPose view, 360 rotation, marker toggles, facial marker editing, export-ready OpenPose, zoom/framing control, body marker removal, and future pose sculpting.",
+      "Map Facial app capabilities to a future Handshake-native image ingest pipeline only where they support CKC/LoRA mining workflows.",
+      "Extract Leeseo handoff and wishlist items that affect Handshake Atelier, CKC, PoseKit, prompt feedback, or model-facing workflows."
+    ],
+    "non_goals": [
+      "Do not implement UI changes in this MT.",
+      "Do not rewrite CKC, PoseKit, Facial, or Leeseo files in this MT.",
+      "Do not disturb ../wtc-native-editors-v1 or the active WP-KERNEL-012 GUI rebuild.",
+      "Do not expand future Rust native Affinity, Photoshop, Marvelous Designer, or full 3D avatar creation into this MT."
+    ]
+  },
+  "target_files": {
+    "read_only_product_paths": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/user_manual",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/model_manual",
+      "D:/Projects/LLM projects/CastKit-Codex/CKC_main",
+      "D:/Projects/LLM projects/CastKit-Codex/CKC_GOV/taskboard/TASK_BOARD.md",
+      "D:/Projects/LLM projects/CastKit-Codex/CKC_GOV/work_packets",
+      "D:/Projects/LLM projects/facial/product",
+      "D:/Projects/LLM projects/facial/specs/app-spec.md",
+      "D:/Projects/LLM projects/comfyui-workbench/projects/leeseo/HANDSHAKE_PROMPT_FEEDBACK_KERNEL_HANDOFF_2026-06-28.md",
+      "D:/Projects/LLM projects/comfyui-workbench/projects/leeseo/leeseo_wishlist.md"
+    ],
+    "write_paths": [
+      ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003.json",
+      ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003-parity-map.json",
+      ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
+      ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json"
+    ]
+  },
+  "expected_behavior": [
+    "Produce a machine-readable parity and intent map that a no-context model can use to select the next CKC/PoseKit overhaul microtasks.",
+    "Separate proven/current Handshake implementation facts from operator intent, original app evidence, and future non-goals.",
+    "Identify the smallest useful next implementation MT without changing product code."
+  ],
+  "parallel_agent_plan": [
+    {
+      "lane": "current-handshake-native",
+      "scope": "Inspect current native Atelier/CKC/PoseKit UI, backend, tests, and manual anchors in the CKC hotfix worktree.",
+      "write_allowed": false
+    },
+    {
+      "lane": "original-ckc-posekit",
+      "scope": "Inspect original CastKit Codex source and governance for CKC/PoseKit feature intent and parity evidence.",
+      "write_allowed": false
+    },
+    {
+      "lane": "facial-ingest",
+      "scope": "Inspect Facial product/spec for image sorting and LoRA mining ingest capabilities relevant to future Handshake native tools.",
+      "write_allowed": false
+    },
+    {
+      "lane": "leeseo-feedback",
+      "scope": "Inspect Leeseo Handshake prompt feedback handoff and wishlist for CKC/PoseKit/Atelier-relevant requests.",
+      "write_allowed": false
+    }
+  ],
+  "acceptance_criteria": [
+    "Current Handshake native Atelier/CKC/PoseKit surfaces are cited by file path and line or symbol where practical.",
+    "Original CKC/PoseKit behavior is broken into feature groups with source evidence and unknowns.",
+    "Facial and Leeseo findings are triaged as direct CKC/PoseKit relevance, adjacent ingest relevance, or out-of-scope future work.",
+    "Next MT recommendation is specific enough to implement without re-reading this conversation.",
+    "No product code is changed."
+  ],
+  "validation_commands": [
+    "pwsh: Test-Json .GOV/task_packets/WP-CKC-posekit-overhaul/MT-003.json",
+    "pwsh: Test-Json .GOV/task_packets/WP-CKC-posekit-overhaul/MT-003-parity-map.json",
+    "pwsh: just wp-declared-topology-check WP-CKC-posekit-overhaul",
+    "pwsh: just wp-communication-health-check WP-CKC-posekit-overhaul STATUS"
+  ],
+  "risk_notes": [
+    "The user provided broad future tool intent; this MT must not convert future Rust rebuilds into current CKC/PoseKit scope.",
+    "The active GUI rebuild WP owns nearby native shell files; this MT must avoid product edits and avoid committing unrelated WP-KERNEL-012 governance dirt.",
+    "Original CKC and Facial apps may contain implementation details that are useful references but not acceptable as direct Handshake architecture."
+  ],
+  "artifacts": {
+    "parity_map": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003-parity-map.json"
+  },
+  "closeout": {
+    "result": "COMPLETED",
+    "product_code_changed": false,
+    "summary": "Produced a machine-readable CKC/PoseKit parity map that separates current Handshake native facts, original CKC/PoseKit parity evidence, Facial ingest reuse, Leeseo prompt-feedback adjacency, and a recommended MT queue. The recommended next microtask is MT-004: visible Atelier/CKC label inversion while preserving internal CKC IDs and /atelier routes.",
+    "next_recommended_mt": "MT-004"
+  }
+}

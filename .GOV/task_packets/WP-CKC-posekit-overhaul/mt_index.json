@@ -2,9 +2,9 @@
   "schema_id": "hsk.microtask_index@1",
   "schema_version": "microtask_index_v1",
   "wp_id": "WP-CKC-posekit-overhaul",
-  "updated_at_utc": "2026-06-28T13:57:27.986Z",
+  "updated_at_utc": "2026-06-28T15:29:06.058Z",
   "active_mt_id": null,
-  "next_mt_id": "MT-003",
+  "next_mt_id": "MT-004",
   "microtask_contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
   "policy": {
     "create_before_product_edit": true,
@@ -33,6 +33,16 @@
       "product_edit_allowed": true,
       "started_at_utc": "2026-06-28T13:06:35.842Z",
       "completed_at_utc": "2026-06-28T13:57:27.986Z"
+    },
+    {
+      "mt_id": "MT-003",
+      "status": "COMPLETED",
+      "title": "Map CKC/PoseKit original intent to current Handshake Atelier native surfaces",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003.json",
+      "product_edit_allowed": false,
+      "started_at_utc": "2026-06-28T15:20:55.051Z",
+      "completed_at_utc": "2026-06-28T15:29:06.058Z",
+      "parity_map_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003-parity-map.json"
     }
   ],
   "baseline": {
