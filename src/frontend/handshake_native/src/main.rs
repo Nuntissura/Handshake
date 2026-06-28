@@ -382,6 +382,32 @@ fn main() -> eframe::Result<()> {
     // tests/test_focus_audit_quiet.rs (the shell makes no Win32 foreground/input-injection call).
     focus_guard::assert_quiet_mode_installed();
 
+    // WP-KERNEL-012 MT-094 (§6.13.3 "launched WITH Handshake at startup"): create the MT-081 diagnostics
+    // ring and LAUNCH the external Palmistry watcher HERE — in `main()`, BEFORE `eframe::run_native` — so
+    // the watcher is up before the app can freeze. The ring is created here (not in `HandshakeApp::new`)
+    // for two reasons: (1) we need the ring/session to hand to Palmistry BEFORE the event-loop closure
+    // runs, and (2) the whole egui_kittest suite builds `HandshakeApp::new` directly and must NOT each
+    // spawn + leak a palmistry child (the MT-094 anti-leak rule). `HandshakeApp::new` REUSES this
+    // already-created ring via the process-global preinstalled-session slot. The launch is QUIET
+    // (CREATE_NO_WINDOW, no focus steal), BOUNDED (a slow/absent watcher never blocks startup), preserves
+    // the not-kill-on-job-close survives-parent-death inversion, and DEGRADES GRACEFULLY: a missing
+    // palmistry.exe or a failed spawn leaves `palmistry = None` and Handshake starts anyway (§5.8.6).
+    let palmistry = match HandshakeApp::create_and_install_diag_ring() {
+        Some(session) => {
+            let control_socket = diagnostics::control_socket_name(&session.session_id);
+            // Make `HandshakeApp::new` reuse THIS ring instead of creating a second one.
+            diagnostics::set_preinstalled_diag_session(session.clone());
+            diagnostics::launch_palmistry_or_degrade(&session, &control_socket)
+        }
+        None => {
+            tracing::warn!(
+                "internal_diagnostics ring unavailable at startup; Palmistry not launched this session \
+                 (diagnostics are in-process-only — graceful degradation)"
+            );
+            None
+        }
+    };
+
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("Handshake")
@@ -394,6 +420,15 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "handshake-native",
         native_options,
-        Box::new(|cc| Ok(Box::new(HandshakeApp::new(cc)))),
+        Box::new(move |cc| {
+            let mut app = HandshakeApp::new(cc);
+            // Hand the running shell the Palmistry handle so a clean exit (`HandshakeApp::on_exit`) sends
+            // the explicit Shutdown control message (§6.13.3). `None` when the watcher was not launched
+            // (graceful degradation) — the app simply runs without it.
+            if let Some(handle) = palmistry {
+                app.set_palmistry_handle(handle);
+            }
+            Ok(Box::new(app))
+        }),
     )
 }

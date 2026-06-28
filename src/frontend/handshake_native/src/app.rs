@@ -173,6 +173,15 @@ pub struct HandshakeApp {
     /// installed in [`HandshakeApp::new`]); `None` in the headless/test shell and when ring creation
     /// failed (graceful degradation — diagnostics are in-process-only that session, the app still runs).
     diag_session: Option<crate::diagnostics::DiagSession>,
+    /// WP-KERNEL-012 MT-094 (Tier 3 — Palmistry launched WITH Handshake, §6.13.3): the handle to the
+    /// external `palmistry` watcher process `main()` spawned BEFORE the event loop (held so a clean app
+    /// exit sends the explicit `Shutdown` control message — the "closes only on explicit command" path).
+    /// `Some` only in the production shell when the watcher launched + the launch path set it via
+    /// [`HandshakeApp::set_palmistry_handle`]; `None` in the headless/test shell and when the watcher
+    /// could not be launched (graceful degradation — the app runs without the supplementary watcher).
+    /// Dropping the handle reaps the child (best-effort Shutdown then a kill backstop), so even an
+    /// `on_exit`-less teardown never orphans the watcher.
+    palmistry: Option<crate::diagnostics::PalmistryHandle>,
     /// WP-KERNEL-012 MT-084 (D2 — internal_diagnostics, Tier 2 UI-thread heartbeat, §5.8.2). The
     /// monotonic frame-loop counter bumped at the TOP of every [`eframe::App::update`] call on the UI
     /// thread and published into the MT-081 ring heartbeat slot. A stalled UI thread stops advancing
@@ -1377,6 +1386,10 @@ impl HandshakeApp {
             rt,
             health_handle,
             diag_session,
+            // WP-KERNEL-012 MT-094: the Palmistry watcher is launched by `main()` BEFORE the event loop
+            // (NOT here in `new`) so the kittest suite never spawns a child; `main()`'s eframe closure
+            // installs the handle via `set_palmistry_handle` after constructing the app.
+            palmistry: None,
             // MT-084: the UI-thread heartbeat counter starts at 0 (first frame publishes 1) and the
             // monotonic clock starts now (process start), so the heartbeat timestamp is elapsed-since-
             // construction nanos — strictly increasing, never affected by a wall-clock change.
@@ -1546,6 +1559,30 @@ impl HandshakeApp {
     /// `None` if ring creation/install failed (graceful degradation — the app then records
     /// in-process-only and never crashes on a missing/unwritable ring; RISK-002-5 / AC-002-3).
     fn install_diagnostics_ring() -> Option<crate::diagnostics::DiagSession> {
+        // WP-KERNEL-012 MT-094: in the production launch path, `main()` already created + installed the
+        // ring (BEFORE `eframe::run_native`, so it could launch Palmistry against it) and recorded the
+        // session in the process-global preinstalled slot. REUSE it here instead of creating a SECOND
+        // ring (which would leak a backing file and fail to install onto the one-shot global recorder).
+        // The kittest path (which builds `HandshakeApp::new` directly, with no `main()`) leaves the slot
+        // empty and falls through to create its own ring exactly as before.
+        if let Some(session) = crate::diagnostics::take_preinstalled_diag_session() {
+            tracing::info!(
+                session_id = %session.session_id,
+                ring_path = %session.ring_path.display(),
+                "internal_diagnostics ring reused from main()'s pre-launch install (MT-094)"
+            );
+            return Some(session);
+        }
+        Self::create_and_install_diag_ring()
+    }
+
+    /// WP-KERNEL-012 MT-082/MT-094: create the MT-081 shared-memory ring for a fresh session and install
+    /// its writer onto the process-global diagnostics recorder. Returns the [`DiagSession`](crate::
+    /// diagnostics::DiagSession) (session id + ring backing-file path), or `None` on a graceful failure.
+    /// Exposed (pub) so `main()` (MT-094) can create + install the ring BEFORE `eframe::run_native` and
+    /// launch Palmistry against it; the in-process [`install_diagnostics_ring`](Self::install_diagnostics_ring)
+    /// reuses that result via the preinstalled-session slot rather than creating a second ring.
+    pub fn create_and_install_diag_ring() -> Option<crate::diagnostics::DiagSession> {
         let session_id = uuid::Uuid::new_v4().to_string();
         let ring_path = handshake_diag_ring::default_backing_path(&session_id);
         match handshake_diag_ring::DiagRingWriter::create(
@@ -1611,6 +1648,14 @@ impl HandshakeApp {
     /// failure). MT-094 reads this to launch `palmistry.exe` against the SAME ring.
     pub fn diag_session(&self) -> Option<&crate::diagnostics::DiagSession> {
         self.diag_session.as_ref()
+    }
+
+    /// WP-KERNEL-012 MT-094: install the [`PalmistryHandle`](crate::diagnostics::PalmistryHandle) the
+    /// `main()` launch path produced (the watcher `main()` spawned BEFORE the event loop). Called once
+    /// by `main()`'s eframe creation closure AFTER constructing the app, so the running shell owns the
+    /// handle and a clean exit ([`eframe::App::on_exit`]) sends the explicit `Shutdown` to the watcher.
+    pub fn set_palmistry_handle(&mut self, handle: crate::diagnostics::PalmistryHandle) {
+        self.palmistry = Some(handle);
     }
 
     /// WP-KERNEL-012 MT-084: bump the UI-thread heartbeat ONE step and publish it into the MT-081 ring
@@ -1794,6 +1839,9 @@ impl HandshakeApp {
             // process-global recorder buffers in-process only; a test that wants ring read-back installs
             // its own writer directly). MT-082 AC-002-3.
             diag_session: None,
+            // WP-KERNEL-012 MT-094: the headless/test shell never launches the external watcher (the
+            // launch lives in `main()`, which this constructor bypasses).
+            palmistry: None,
             // MT-084: the heartbeat still bumps every frame in the headless shell; with no ring writer
             // installed the publish is a silent no-op (AC-004-5), but the in-app frame_counter advances
             // exactly as in production, and the monotonic clock starts at construction.
@@ -7580,6 +7628,19 @@ impl eframe::App for HandshakeApp {
         };
         if !events.is_empty() {
             raw_input.events.extend(events);
+        }
+    }
+
+    /// WP-KERNEL-012 MT-094 (§6.13.3 clean-shutdown rule, AC-014-4): on a clean Handshake exit, send the
+    /// explicit `Shutdown` control message to the Palmistry watcher so it exits cleanly and records NO
+    /// crash (a clean shutdown is NOT a crash). eframe calls this once on shutdown (after `save`). Taking
+    /// the handle here performs the bounded reap; the handle's `Drop` is the backstop if `on_exit` is
+    /// ever skipped, so the watcher never orphans either way.
+    fn on_exit(&mut self) {
+        if let Some(handle) = self.palmistry.take() {
+            tracing::info!("clean Handshake exit — sending Shutdown to the Palmistry watcher (§6.13.3)");
+            let outcome = handle.shutdown();
+            tracing::info!(?outcome, "palmistry watcher reaped on clean exit");
         }
     }
 

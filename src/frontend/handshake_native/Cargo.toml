@@ -51,8 +51,11 @@ single_binary = true
 crt_static = true
 bundled_fonts = ["Inter-Regular.ttf", "Inter-Bold.ttf"]
 installer = "installer/windows/handshake_native.wxs"
-# Two-binary install layout: native shell + the handshake_core backend (managed-postgres host).
-install_payload = ["handshake-native.exe", "handshake_core.exe"]
+# WP-KERNEL-012 MT-094 (AC-014-6): three-binary install layout — native shell + the handshake_core
+# backend (managed-postgres host) + the external Palmistry watcher (§6.13.3 spawned WITH Handshake at
+# startup). The installer ships palmistry.exe SIDE-BY-SIDE with handshake-native.exe so the launcher
+# resolves it via `current_exe()`-relative sibling lookup (no hardcoded path; GLOBAL-PORTABILITY).
+install_payload = ["handshake-native.exe", "handshake_core.exe", "palmistry.exe"]
 
 [package]
 name = "handshake-native"
@@ -309,6 +312,15 @@ sysinfo = "0.33"
 # callback signature. Use `crash_handler::CrashContext`. Single crash-context family (AC-012-6 / RISK-012-5).
 crash-handler = "0.7"
 minidumper = "0.10"
+# WP-KERNEL-012 MT-094 (§6.13.3 Palmistry launch + startup IPC handshake): `interprocess` is the
+# field-standard cross-platform local-socket IPC crate (Unix domain socket / Windows named pipe behind
+# one API). It is the SAME crate + version the `palmistry` watcher binds its MT-089 control socket with
+# (interprocess 2.4.2), so the launcher derives the IDENTICAL `GenericNamespaced` name and speaks the
+# byte-compatible newline-delimited JSON control protocol (HandshakeHello / Shutdown). It is one new
+# dependency family for THIS crate's standalone graph (handshake-native and palmistry are separate
+# workspaces with separate Cargo.lock files); pure-Rust, on Windows it uses the already-present
+# windows-sys family. Cargo.lock pins the resolved version.
+interprocess = "2"
 
 # MT-027 production screenshot: the live OS-window grab uses Win32 GDI `PrintWindow` (focus-safe — never
 # SetForegroundWindow/BringWindowToTop). `windows-sys` is already in the locked graph transitively; here

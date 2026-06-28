@@ -49,6 +49,13 @@ pub mod gpu_info;
 // NOT a worksurface pane (operator steer 2026-06-27). Pure projection — holds no own authority (§5.8.4).
 pub mod panel;
 pub mod panic_hook;
+// WP-KERNEL-012 MT-094 (§6.13.3 — Palmistry launched WITH Handshake at startup): the Handshake-side
+// LAUNCHER for the external Tier-3 watcher. Spawns the sibling `palmistry` process quietly (HBR-QUIET,
+// CREATE_NO_WINDOW), completes the bounded startup IPC handshake over the MT-089 control socket, sends
+// Shutdown on a clean exit, preserves the not-kill-on-job-close survives-parent-death inversion, and
+// degrades gracefully (the watcher is supplementary — never blocks/crashes startup). Wired into `main()`
+// BEFORE `eframe::run_native` (not `HandshakeApp::new`) so the kittest suite never spawns a palmistry child.
+pub mod palmistry_launch;
 pub mod recorder;
 pub mod resource_counters;
 // WP-KERNEL-012 MT-093 (§6.13.7 + §10.12.5): the Handshake-side READ seam for the freeze/crash records the
@@ -97,4 +104,13 @@ pub use panic_hook::{
 pub use survivor_forward::{
     read_default_survivor_records, read_survivor_records, PalmistrySurvivorKind,
     PalmistrySurvivorView,
+};
+
+// WP-KERNEL-012 MT-094 (§6.13.3) re-exports so `main()` + the app can
+// `use crate::diagnostics::{launch_palmistry_or_degrade, set_preinstalled_diag_session, ...}` without
+// reaching into the `palmistry_launch` submodule path.
+pub use palmistry_launch::{
+    control_socket_name, launch_palmistry, launch_palmistry_at, launch_palmistry_or_degrade,
+    resolve_palmistry_exe, set_preinstalled_diag_session, take_preinstalled_diag_session,
+    PalmistryHandle, ShutdownOutcome, ENV_PALMISTRY_EXE, SPAWN_NOT_KILL_ON_JOB_CLOSE,
 };
