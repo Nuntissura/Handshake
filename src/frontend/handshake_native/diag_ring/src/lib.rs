@@ -21,9 +21,21 @@
 //!
 //! See the `ring` and `schema` module docs for the seqlock protocol, memory ordering, and the
 //! cross-process backing-file pattern.
+//!
+//! # Also in this crate: the HBR-INT-009 three-tier EVIDENCE format (MT-095)
+//!
+//! [`three_tier_evidence`] is a SEPARATE concern from the runtime ring above: it is the
+//! build/test-time governance EVIDENCE record (`ThreeTierDiagnosticWiringRecord`) a WP/MT emits to
+//! prove how an observable behavior is wired across the three tiers
+//! (`FLIGHT_RECORDER`/`INTERNAL_DIAGNOSTICS`/`PALMISTRY`). It lives in THIS crate — not in either
+//! product binary — because it is the only crate both binaries already depend on, so any WP (and the
+//! WP-016 retrofit) can emit it without a new dependency edge. Unlike [`schema::DiagEvent`], this
+//! record is a JSON file (never enters the shared-memory ring) and carries governance identifiers, not
+//! the typed-allowlist POD telemetry; see the module docs for the privacy distinction.
 
 pub mod ring;
 pub mod schema;
+pub mod three_tier_evidence;
 
 // Public re-exports so downstream crates can `use handshake_diag_ring::{DiagRingWriter, ...}`.
 pub use ring::{
@@ -32,4 +44,8 @@ pub use ring::{
 };
 pub use schema::{
     DiagEvent, DiagEventCode, DiagPhase, DiagSeverity, DIAG_EVENT_SIZE,
+};
+pub use three_tier_evidence::{
+    format_rfc3339_utc, run_at_now, DiagTier, EmitError, ThreeTierDiagnosticWiringRecord, TierWiring,
+    ValidationError, WiringStatus, EVIDENCE_FILE_NAME,
 };

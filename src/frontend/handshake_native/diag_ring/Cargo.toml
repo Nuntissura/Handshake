@@ -33,6 +33,7 @@ description = "Shared-memory seqlock SPSC ring + typed-allowlist DiagEvent schem
 memmap2 = "0.9"
 bytemuck = { version = "1", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
-
-[dev-dependencies]
+# Promoted from a dev-dependency to a regular dependency for MT-095: the three_tier_evidence
+# emitter/loader (ThreeTierDiagnosticWiringRecord::emit / ::load) is LIBRARY API consumed by future
+# WP test runs, not test-only code, so it must serialize/parse JSON at the crate boundary.
 serde_json = "1"
