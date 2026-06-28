@@ -105,6 +105,13 @@ integration = []
 # screenshot proof explicitly with:
 #   cargo test --features wgpu_screenshots --test test_sidebar_panel sidebar_panel_screenshot
 wgpu_screenshots = []
+# WP-KERNEL-012 MT-096 (G2 end-to-end capstone, AC-016-7): gates the TEST-ONLY freeze/crash injection
+# seams (src/diagnostics/test_seams.rs). OFF by default so the shipped binary CANNOT reach the crash
+# trigger (process abort) — a source review + this gate prove the seam is never compiled into a release
+# build. The capstone's #[ignore]d live cross-process crash proof enables it explicitly with
+# `--features diag-test-seams`; the default `cargo test` never compiles the seam. The seam is ALSO
+# available under `cfg(test)` for the crate's own unit tests without enabling the feature.
+diag-test-seams = []
 
 [dependencies]
 egui = "0.33"

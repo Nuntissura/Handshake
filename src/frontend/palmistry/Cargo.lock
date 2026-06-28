@@ -382,6 +382,7 @@ dependencies = [
  "bytemuck",
  "memmap2",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

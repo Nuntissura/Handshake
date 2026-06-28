@@ -64,8 +64,14 @@ pub mod resource_counters;
 // honest empty-state MT-087 left. Reuse-via-FILE (the cross-process durable store) — handshake-native and
 // the `palmistry` crate share no dependency edge; the FR is kept as-is.
 pub mod survivor_forward;
-
-// MT-085 re-exports so the panel + the app can `use crate::diagnostics::{FrameTimer, FrameStats, ...}`.
+// WP-KERNEL-012 MT-096 (G2 end-to-end capstone): TEST-ONLY freeze/crash injection seams. Gated behind
+// `cfg(test)` (the crate's own unit tests) OR the `diag-test-seams` feature (the capstone's #[ignore]d
+// live cross-process crash proof, which links the lib with that feature). It is NEVER compiled into a
+// default/release build — the shipped binary cannot reach the crash trigger (AC-016-7). The whole module
+// is a thin, deterministic harness seam, NOT product behavior; the production freeze/crash paths
+// (heartbeat MT-084, panic hook MT-083, Palmistry MT-089+) are unchanged.
+#[cfg(any(test, feature = "diag-test-seams"))]
+pub mod test_seams;
 pub use frame_timing::{
     FrameStats, FrameTimer, FRAME_RING_CAPACITY, SLOW_FRAME_EMIT_DEBOUNCE, SLOW_FRAME_THRESHOLD,
 };
