@@ -93,7 +93,7 @@ impl PaneType {
 
     /// The TAB label for this surface — the React `TAB_LABEL_BY_ID` mapping (`app/src/App.tsx`).
     /// Deliberately distinct from [`PaneType::label`]: tabs use the SHORT React tab labels
-    /// (e.g. `Fonts`, `Journal`, `Atelier`) where the pane container uses the longer descriptive
+    /// (e.g. `Fonts`, `Journal`, `CKC`) where the pane container uses the longer descriptive
     /// label (`Font Manager`, `Loom Daily Journal`, `Atelier Editor`). MT-007's tab bar renders the
     /// tab label; the pane AccessKit container keeps using `label()`. Returns a `&'static str` so the
     /// non-placeholder variants are zero-allocation.
@@ -116,7 +116,7 @@ impl PaneType {
             PaneType::LoomDailyJournal => "Journal",
             PaneType::LoomBlock => "Loom Block",
             PaneType::LoomWikiPage => "Wiki Page",
-            PaneType::AtelierEditor => "Atelier",
+            PaneType::AtelierEditor => "CKC",
             PaneType::VisualDebugger => "Visual Debugger",
             PaneType::LoomSearchV2 => "Loom Search",
             PaneType::FindInFiles => "Find in Files",
@@ -233,7 +233,6 @@ impl Default for PaneRegistry {
 }
 
 impl PaneRegistry {
-
     /// Insert (or replace) a pane record and assign it a fresh, stable AccessKit node id from the
     /// monotonic counter. Re-inserting an existing `pane_id` keeps the already-assigned node id so
     /// a model that targeted the pane does not lose its handle across an in-place update.
@@ -689,7 +688,11 @@ mod tests {
             .iter()
             .map(|p| reg.accesskit_id(p).unwrap().0)
             .collect();
-        assert_eq!(ids, vec![100, 101, 102, 103], "ids follow the monotonic counter, not frame counters");
+        assert_eq!(
+            ids,
+            vec![100, 101, 102, 103],
+            "ids follow the monotonic counter, not frame counters"
+        );
 
         // Uniqueness.
         let mut sorted = ids.clone();
@@ -760,7 +763,10 @@ mod tests {
         );
         let json = serde_json::to_string(&rec).expect("serialize");
         // last_update must not appear in the serialized form.
-        assert!(!json.contains("last_update"), "last_update excluded from serde");
+        assert!(
+            !json.contains("last_update"),
+            "last_update excluded from serde"
+        );
         let back: PaneRecord = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(back.pane_id, rec.pane_id);
         assert_eq!(back.pane_type, rec.pane_type);
@@ -780,7 +786,11 @@ mod tests {
                 .build_accesskit_node(&pid, accesskit::Role::Group)
                 .expect("node built");
             assert_eq!(node_id, reg.accesskit_id(&pid).unwrap());
-            assert_eq!(node.author_id(), Some(id), "author_id equals pane id string");
+            assert_eq!(
+                node.author_id(),
+                Some(id),
+                "author_id equals pane id string"
+            );
             assert_eq!(node.role(), accesskit::Role::Group);
         }
     }
@@ -861,21 +871,39 @@ mod tests {
 
         let pid: PaneId = Arc::from(OUTGOING_LINKS_PANE_ID);
         let rec = reg.get(&pid).expect("loom.outgoing_links pane registered");
-        assert_eq!(rec.content_id.as_deref(), Some("DOC-active"), "active document bound as pane content");
+        assert_eq!(
+            rec.content_id.as_deref(),
+            Some("DOC-active"),
+            "active document bound as pane content"
+        );
         let node = reg.accesskit_id(&pid).expect("accesskit id assigned");
-        assert!(node.0 >= PaneRegistry::ACCESSKIT_ID_BASE, "pane id sits in the pane id space (>= 100)");
+        assert!(
+            node.0 >= PaneRegistry::ACCESSKIT_ID_BASE,
+            "pane id sits in the pane id space (>= 100)"
+        );
 
         // The pane's AccessKit node carries the stable pane id as its author_id (the swarm address).
         let (_nid, akn) = reg
             .build_accesskit_node(&pid, accesskit::Role::Group)
             .expect("node built");
-        assert_eq!(akn.author_id(), Some("loom.outgoing_links"), "author_id equals the stable pane id");
+        assert_eq!(
+            akn.author_id(),
+            Some("loom.outgoing_links"),
+            "author_id equals the stable pane id"
+        );
 
         // Re-register on a document change: the AccessKit id is stable across the in-place update.
         let before = reg.accesskit_id(&pid).unwrap();
         register_outgoing_links_pane(&mut reg, "project-1", Some("DOC-other".to_owned()));
-        assert_eq!(reg.accesskit_id(&pid).unwrap(), before, "AccessKit id stable across re-register");
-        assert_eq!(reg.get(&pid).unwrap().content_id.as_deref(), Some("DOC-other"));
+        assert_eq!(
+            reg.accesskit_id(&pid).unwrap(),
+            before,
+            "AccessKit id stable across re-register"
+        );
+        assert_eq!(
+            reg.get(&pid).unwrap().content_id.as_deref(),
+            Some("DOC-other")
+        );
     }
 
     /// WP-KERNEL-012 MT-063 (PT-005 / AC-007 pane-id half): the Relevant Memory pane registers under the
@@ -887,7 +915,8 @@ mod tests {
     #[test]
     fn registers_relevant_memory_pane_under_stable_id() {
         let mut reg = PaneRegistry::new();
-        let id = register_relevant_memory_pane(&mut reg, "project-1", Some("DOC-active".to_owned()));
+        let id =
+            register_relevant_memory_pane(&mut reg, "project-1", Some("DOC-active".to_owned()));
         assert_eq!(id.as_ref(), RELEVANT_MEMORY_PANE_ID);
         assert_eq!(RELEVANT_MEMORY_PANE_ID, "fems.relevant_memory");
 
@@ -899,7 +928,10 @@ mod tests {
             "active document bound as the pane's memory context"
         );
         let node = reg.accesskit_id(&pid).expect("accesskit id assigned");
-        assert!(node.0 >= PaneRegistry::ACCESSKIT_ID_BASE, "pane id sits in the pane id space (>= 100)");
+        assert!(
+            node.0 >= PaneRegistry::ACCESSKIT_ID_BASE,
+            "pane id sits in the pane id space (>= 100)"
+        );
 
         // The pane's AccessKit node carries the stable pane id as its author_id (the swarm address — the
         // pane-id half of the AC-007 stable-address claim).
@@ -922,7 +954,10 @@ mod tests {
             before,
             "AccessKit id stable across re-register (handle preserved)"
         );
-        assert_eq!(reg.get(&pid).unwrap().content_id.as_deref(), Some("DOC-other"));
+        assert_eq!(
+            reg.get(&pid).unwrap().content_id.as_deref(),
+            Some("DOC-other")
+        );
     }
 
     /// WP-KERNEL-012 MT-066 (AC-006 pane-id half): the Stage pane registers under the stable `stage.pane`
@@ -938,15 +973,26 @@ mod tests {
 
         let pid: PaneId = Arc::from(STAGE_PANE_ID);
         let rec = reg.get(&pid).expect("stage.pane registered");
-        assert_eq!(rec.content_id.as_deref(), Some("ART-active"), "active content bound to the pane");
+        assert_eq!(
+            rec.content_id.as_deref(),
+            Some("ART-active"),
+            "active content bound to the pane"
+        );
         let node = reg.accesskit_id(&pid).expect("accesskit id assigned");
-        assert!(node.0 >= PaneRegistry::ACCESSKIT_ID_BASE, "pane id sits in the pane id space (>= 100)");
+        assert!(
+            node.0 >= PaneRegistry::ACCESSKIT_ID_BASE,
+            "pane id sits in the pane id space (>= 100)"
+        );
 
         // The pane's AccessKit node carries the stable pane id as its author_id (the swarm address).
         let (_nid, akn) = reg
             .build_accesskit_node(&pid, accesskit::Role::Group)
             .expect("node built");
-        assert_eq!(akn.author_id(), Some("stage.pane"), "author_id equals the stable pane id");
+        assert_eq!(
+            akn.author_id(),
+            Some("stage.pane"),
+            "author_id equals the stable pane id"
+        );
 
         // Re-register on a content change: the AccessKit id is stable across the in-place update.
         let before = reg.accesskit_id(&pid).unwrap();
@@ -956,7 +1002,10 @@ mod tests {
             before,
             "AccessKit id stable across re-register (handle preserved)"
         );
-        assert_eq!(reg.get(&pid).unwrap().content_id.as_deref(), Some("ART-other"));
+        assert_eq!(
+            reg.get(&pid).unwrap().content_id.as_deref(),
+            Some("ART-other")
+        );
     }
 
     /// WP-KERNEL-012 MT-067 (AC-6 pane-id half): the daily journal pane registers under the stable
@@ -967,7 +1016,8 @@ mod tests {
     #[test]
     fn registers_daily_journal_pane_under_stable_id() {
         let mut reg = PaneRegistry::new();
-        let id = register_daily_journal_pane(&mut reg, "project-1", Some("DOC-2026-06-21".to_owned()));
+        let id =
+            register_daily_journal_pane(&mut reg, "project-1", Some("DOC-2026-06-21".to_owned()));
         assert_eq!(id.as_ref(), DAILY_JOURNAL_PANE_ID);
         assert_eq!(DAILY_JOURNAL_PANE_ID, "loom.daily_journal");
 
@@ -978,15 +1028,26 @@ mod tests {
             Some("DOC-2026-06-21"),
             "active daily-note document bound to the pane"
         );
-        assert_eq!(rec.pane_type, PaneType::LoomDailyJournal, "uses the existing LoomDailyJournal type");
+        assert_eq!(
+            rec.pane_type,
+            PaneType::LoomDailyJournal,
+            "uses the existing LoomDailyJournal type"
+        );
         let node = reg.accesskit_id(&pid).expect("accesskit id assigned");
-        assert!(node.0 >= PaneRegistry::ACCESSKIT_ID_BASE, "pane id sits in the pane id space (>= 100)");
+        assert!(
+            node.0 >= PaneRegistry::ACCESSKIT_ID_BASE,
+            "pane id sits in the pane id space (>= 100)"
+        );
 
         // The pane's AccessKit node carries the stable pane id as its author_id (the swarm address).
         let (_nid, akn) = reg
             .build_accesskit_node(&pid, accesskit::Role::Group)
             .expect("node built");
-        assert_eq!(akn.author_id(), Some("loom.daily_journal"), "author_id equals the stable pane id");
+        assert_eq!(
+            akn.author_id(),
+            Some("loom.daily_journal"),
+            "author_id equals the stable pane id"
+        );
 
         // Re-register on a date/note change: the AccessKit id is stable across the in-place update.
         let before = reg.accesskit_id(&pid).unwrap();
@@ -996,6 +1057,9 @@ mod tests {
             before,
             "AccessKit id stable across re-register (handle preserved)"
         );
-        assert_eq!(reg.get(&pid).unwrap().content_id.as_deref(), Some("DOC-2026-06-22"));
+        assert_eq!(
+            reg.get(&pid).unwrap().content_id.as_deref(),
+            Some("DOC-2026-06-22")
+        );
     }
 }

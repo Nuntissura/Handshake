@@ -190,7 +190,7 @@ const TAB_LABEL_BY_ID: Record<PaneTabId, string> = {
   "loom-daily-journal": "Journal",
   "loom-block": "Loom Block",
   "loom-wiki-page": "Wiki Page",
-  atelier: "Atelier",
+  atelier: "CKC",
   "visual-debugger": "Visual Debugger",
 };
 
@@ -219,7 +219,7 @@ const MODULE_DEFINITIONS: {
   },
   {
     id: "CKC",
-    label: "CKC",
+    label: "Atelier",
     dataId: "module-ckc",
     tabs: [
       "atelier",

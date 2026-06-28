@@ -1266,7 +1266,7 @@ mod tests {
         assert_eq!(PaneType::LoomDailyJournal.default_label(), "Journal");
         assert_eq!(PaneType::LoomBlock.default_label(), "Loom Block");
         assert_eq!(PaneType::LoomWikiPage.default_label(), "Wiki Page");
-        assert_eq!(PaneType::AtelierEditor.default_label(), "Atelier");
+        assert_eq!(PaneType::AtelierEditor.default_label(), "CKC");
         assert_eq!(PaneType::VisualDebugger.default_label(), "Visual Debugger");
         assert_eq!(
             PaneType::Placeholder("Custom".to_owned()).default_label(),

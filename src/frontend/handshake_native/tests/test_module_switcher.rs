@@ -3,7 +3,7 @@
 //! These tests drive the actual shell (not only the `module_switcher` module's own unit tests) to prove
 //! the C3 MODULE navigation behavior the MT-012 contract asks for:
 //!
-//! - the six module buttons (MAIN, CKC, INGEST, STAGE, LAB, STUDIO) render in the header as live
+//! - the six module buttons (MAIN, Atelier, INGEST, STAGE, LAB, STUDIO) render in the header as live
 //!   selectable `Role::Button` nodes, in MODULE_DEFINITIONS order (proof_target #3 / acceptance #1);
 //! - the active module button is `selected`, the others are not (proof_target #3 / acceptance #3);
 //! - clicking a non-active module button switches `active_module` AND rewrites the active pane's tab set
@@ -28,7 +28,9 @@ use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
-use handshake_native::layout_persistence::{LayoutError, LayoutPersistenceManager, LayoutTransport};
+use handshake_native::layout_persistence::{
+    LayoutError, LayoutPersistenceManager, LayoutTransport,
+};
 use handshake_native::module_switcher::{ModuleId, ModuleSwitcher, ModuleSwitcherColors};
 use handshake_native::pane_registry::PaneType;
 use handshake_native::project_tabs::ProjectItem;
@@ -114,7 +116,7 @@ fn switcher_paints_six_buttons_active_selected() {
     harness.run();
 
     // Six module buttons by label.
-    for label in ["MAIN", "CKC", "INGEST", "STAGE", "LAB", "STUDIO"] {
+    for label in ["MAIN", "Atelier", "INGEST", "STAGE", "LAB", "STUDIO"] {
         let _ = harness.get_by_label(label);
     }
 
@@ -129,7 +131,11 @@ fn switcher_paints_six_buttons_active_selected() {
                 ak.is_selected().unwrap_or(false),
             )
         })
-        .filter(|(id, _, _)| id.as_deref().map(|s| s.starts_with("module-")).unwrap_or(false))
+        .filter(|(id, _, _)| {
+            id.as_deref()
+                .map(|s| s.starts_with("module-"))
+                .unwrap_or(false)
+        })
         .collect();
 
     assert_eq!(nodes.len(), 6, "six module buttons painted: {nodes:?}");
@@ -155,14 +161,22 @@ fn switcher_paints_six_buttons_active_selected() {
 fn set_module_updates_active_pane_tabs() {
     let mut app = ok_app();
     // The seeded pane-a is the MAIN module with Workspace active. Make pane-a the active pane.
-    let pane_a: handshake_native::pane_registry::PaneId =
-        app.tab_bar_states().keys().min().cloned().expect("a seeded pane exists");
+    let pane_a: handshake_native::pane_registry::PaneId = app
+        .tab_bar_states()
+        .keys()
+        .min()
+        .cloned()
+        .expect("a seeded pane exists");
     assert_eq!(app.active_module(), ModuleId::Main, "starts on MAIN");
 
     // Switch to LAB.
     let changed = app.set_module(ModuleId::Lab);
     assert!(changed, "switching to a different module reports a change");
-    assert_eq!(app.active_module(), ModuleId::Lab, "active module is now LAB");
+    assert_eq!(
+        app.active_module(),
+        ModuleId::Lab,
+        "active module is now LAB"
+    );
 
     let bar = app
         .tab_bar_states()
@@ -190,7 +204,10 @@ fn set_module_updates_active_pane_tabs() {
     }
     // inference-lab appears exactly once (dedup), not duplicated by the default-tab prepend.
     assert_eq!(
-        bar.tabs.iter().filter(|t| t.pane_type == PaneType::InferenceLab).count(),
+        bar.tabs
+            .iter()
+            .filter(|t| t.pane_type == PaneType::InferenceLab)
+            .count(),
         1,
         "the module default tab is not duplicated"
     );
@@ -203,9 +220,15 @@ fn switching_to_active_module_is_a_noop() {
     let mut app = ok_app();
     let before: Value = serde_json::to_value(app.capture_layout_snapshot()).unwrap();
     let changed = app.set_module(ModuleId::Main); // already MAIN
-    assert!(!changed, "switching to the already-active module reports no change");
+    assert!(
+        !changed,
+        "switching to the already-active module reports no change"
+    );
     let after: Value = serde_json::to_value(app.capture_layout_snapshot()).unwrap();
-    assert_eq!(before, after, "no state change when re-selecting the active module");
+    assert_eq!(
+        before, after,
+        "no state change when re-selecting the active module"
+    );
 }
 
 // ── proof_target #3 + #4 / acceptance #1,#3,#4: live tree through the real shell ────────────────────
@@ -230,19 +253,30 @@ fn live_shell_has_six_module_buttons_with_stable_ids() {
         "module-lab",
         "module-studio",
     ] {
-        let btn = by_id(data_id)
-            .unwrap_or_else(|| panic!("{data_id} missing from live tree: {nodes:?}"));
+        let btn =
+            by_id(data_id).unwrap_or_else(|| panic!("{data_id} missing from live tree: {nodes:?}"));
         assert_eq!(btn.1, "Button", "{data_id} role is Button");
     }
+    assert_eq!(
+        by_id("module-ckc").unwrap().2.as_deref(),
+        Some("Atelier"),
+        "module-ckc keeps its stable id but now displays the Atelier shell label"
+    );
     // Default active module is MAIN.
     assert!(by_id("module-main").unwrap().3, "MAIN selected by default");
-    assert!(!by_id("module-lab").unwrap().3, "LAB not selected by default");
+    assert!(
+        !by_id("module-lab").unwrap().3,
+        "LAB not selected by default"
+    );
 
     let module_count = nodes
         .iter()
         .filter(|(a, _, _, _)| a.starts_with("module-"))
         .count();
-    assert_eq!(module_count, 6, "exactly six module buttons in the live tree");
+    assert_eq!(
+        module_count, 6,
+        "exactly six module buttons in the live tree"
+    );
 }
 
 /// Clicking the `LAB` module button in the REAL shell switches `active_module` to LAB and activates the
@@ -252,14 +286,28 @@ fn clicking_lab_button_switches_module_in_live_shell() {
     let mut harness =
         Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), ok_app());
     harness.run();
-    assert_eq!(harness.state().active_module(), ModuleId::Main, "starts on MAIN");
+    assert_eq!(
+        harness.state().active_module(),
+        ModuleId::Main,
+        "starts on MAIN"
+    );
 
     harness.get_by_label("LAB").click();
     harness.run();
 
-    assert_eq!(harness.state().active_module(), ModuleId::Lab, "click switched to LAB");
+    assert_eq!(
+        harness.state().active_module(),
+        ModuleId::Lab,
+        "click switched to LAB"
+    );
     // The active pane's active tab is now the LAB default (inference-lab).
-    let pane = harness.state().tab_bar_states().keys().min().cloned().unwrap();
+    let pane = harness
+        .state()
+        .tab_bar_states()
+        .keys()
+        .min()
+        .cloned()
+        .unwrap();
     let bar = harness.state().tab_bar_states().get(&pane).unwrap();
     assert_eq!(
         bar.active().map(|t| &t.pane_type),
@@ -271,7 +319,10 @@ fn clicking_lab_button_switches_module_in_live_shell() {
     let nodes = live_author_nodes(&harness);
     let by_id = |id: &str| nodes.iter().find(|(a, _, _, _)| a == id).cloned();
     assert!(by_id("module-lab").unwrap().3, "LAB selected after click");
-    assert!(!by_id("module-main").unwrap().3, "MAIN deselected after click");
+    assert!(
+        !by_id("module-main").unwrap().3,
+        "MAIN deselected after click"
+    );
 }
 
 // ── acceptance #6: module survives a project switch + serializes into the layout blob ───────────────
@@ -284,8 +335,7 @@ fn active_module_survives_project_switch_and_serializes() {
         ProjectItem::new("a", "Alpha"),
         ProjectItem::new("b", "Beta"),
     ]);
-    let mut harness =
-        Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), app);
+    let mut harness = Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), app);
     harness.run();
     harness.state_mut().switch_project("a");
     harness.run();

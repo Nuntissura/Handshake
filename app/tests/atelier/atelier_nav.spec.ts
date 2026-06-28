@@ -1,12 +1,12 @@
 import { expect, test } from "@playwright/test";
 
 // WP-KERNEL-005 front-end navigation proof: drive the real React app to the
-// CKC > Atelier panel and through every section, asserting each renders live
+// Atelier > CKC panel and through every section, asserting each renders live
 // data from the backend HTTP API. Targets the stable data-testid hooks the
 // AtelierPanel exposes. Headless; no desktop window.
 
 test.describe("Atelier panel navigation (WP-KERNEL-005)", () => {
-  test("navigates CKC > Atelier through all four sections with live data", async ({ page }) => {
+  test("navigates Atelier > CKC through all four sections with live data", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByTestId("main-window")).toBeVisible({ timeout: 30_000 });
 
@@ -18,7 +18,7 @@ test.describe("Atelier panel navigation (WP-KERNEL-005)", () => {
     await expect(ckc).toBeVisible();
     await ckc.click();
 
-    // CKC defaults to the Atelier tab; click it explicitly if present for safety.
+    // Atelier defaults to the CKC tab; click the stable atelier tab id explicitly if present for safety.
     const atelierTab = page.locator('[data-testid$=".tab.atelier"]').first();
     if (await atelierTab.isVisible().catch(() => false)) {
       await atelierTab.click();

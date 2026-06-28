@@ -291,8 +291,7 @@ impl PaneHeader {
         });
         // Build + show the header context menu on the strip's response. CLOSED by default (so the
         // MT-025 default snapshot only grows by the four header TARGET nodes, not menu items).
-        let menu = ContextMenu::new("pane")
-            .items(pane_header_context_items(locked, is_last_pane));
+        let menu = ContextMenu::new("pane").items(pane_header_context_items(locked, is_last_pane));
         if let Some(confirmed_id) = menu.show_on(&header_resp) {
             if let Some(action) = pane_header_action_for_id(confirmed_id) {
                 match action {
@@ -312,7 +311,11 @@ impl PaneHeader {
         if header_resp.has_focus()
             && ui.input(|i| i.key_pressed(egui::Key::F10) && i.modifiers.shift)
         {
-            crate::context_menu::request_open(ui.ctx(), header_resp.id, header_resp.rect.left_bottom());
+            crate::context_menu::request_open(
+                ui.ctx(),
+                header_resp.id,
+                header_resp.rect.left_bottom(),
+            );
         }
         if header_resp.clicked() {
             response.focus_requested = true;
@@ -352,16 +355,16 @@ impl PaneHeader {
     fn title_label(ui: &mut egui::Ui, pane_id: &str, title: &str, colors: PaneHeaderColors) {
         let id = pane_title_egui_id(pane_id);
         let font = egui::FontId::proportional(13.0);
-        let galley = ui.painter().layout_no_wrap(title.to_owned(), font, colors.title);
+        let galley = ui
+            .painter()
+            .layout_no_wrap(title.to_owned(), font, colors.title);
         // Clamp the title width to the available header width so a long title never pushes the lock
         // button off-strip (the lock is rendered right_to_left after this, so reserving less here keeps
         // it visible). The galley itself is laid out no-wrap; the allocation is what bounds the click box.
         let avail_w = ui.available_width();
         let alloc_w = galley.size().x.min((avail_w - 4.0).max(0.0));
-        let (rect, _) = ui.allocate_exact_size(
-            egui::vec2(alloc_w, galley.size().y),
-            egui::Sense::hover(),
-        );
+        let (rect, _) =
+            ui.allocate_exact_size(egui::vec2(alloc_w, galley.size().y), egui::Sense::hover());
         if ui.is_rect_visible(rect) {
             ui.painter().galley(rect.min, galley, colors.title);
         }
@@ -389,9 +392,15 @@ impl PaneHeader {
         let label = if locked { "Unlock" } else { "Lock" };
         let button_id = pane_lock_egui_id(pane_id);
 
-        let text_color = if locked { colors.locked_accent } else { colors.lock_text };
+        let text_color = if locked {
+            colors.locked_accent
+        } else {
+            colors.lock_text
+        };
         let font = egui::FontId::proportional(12.0);
-        let galley = ui.painter().layout_no_wrap(label.to_owned(), font, text_color);
+        let galley = ui
+            .painter()
+            .layout_no_wrap(label.to_owned(), font, text_color);
 
         let pad_x = 8.0;
         let pad_y = 2.0;
@@ -480,10 +489,10 @@ mod tests {
             "MAIN",
             "tab not in active module falls back to its home module label"
         );
-        // AtelierEditor's home module is CKC (it is the CKC default tab, not in MAIN).
+        // AtelierEditor's home module is the visible Atelier module (serialized internally as CKC).
         assert_eq!(
             module_label_for_tab(&PaneType::AtelierEditor, ModuleId::Main),
-            "CKC",
+            "Atelier",
         );
     }
 
@@ -524,9 +533,15 @@ mod tests {
         // accessibility::registry's collision test.
         let pane_base = crate::accessibility::PANE_NODE_ID_BASE;
         for (slot, id) in PANE_LOCK_SLOTS {
-            assert!((70..=73).contains(&id), "lock id {id} for {slot} in the 70..73 band");
+            assert!(
+                (70..=73).contains(&id),
+                "lock id {id} for {slot} in the 70..73 band"
+            );
             assert!(id < pane_base, "lock id {id} below pane base {pane_base}");
-            for fixed in [10_u64, 20, 21, 30, 31, 40, 41, 42, 43, 50, 51, 52, 53, 54, 55, 56, 60, 61, 62, 63, 64, 65, 66, 67] {
+            for fixed in [
+                10_u64, 20, 21, 30, 31, 40, 41, 42, 43, 50, 51, 52, 53, 54, 55, 56, 60, 61, 62, 63,
+                64, 65, 66, 67,
+            ] {
                 assert_ne!(id, fixed, "lock id {id} collides with fixed id {fixed}");
             }
         }
@@ -543,9 +558,15 @@ mod tests {
         // The four title ids are 74..=77: above the lock band (70..73), below the pane id base (100).
         let pane_base = crate::accessibility::PANE_NODE_ID_BASE;
         for (slot, id) in PANE_TITLE_SLOTS {
-            assert!((74..=77).contains(&id), "title id {id} for {slot} in the 74..77 band");
+            assert!(
+                (74..=77).contains(&id),
+                "title id {id} for {slot} in the 74..77 band"
+            );
             assert!(id < pane_base, "title id {id} below pane base {pane_base}");
-            for fixed in [10_u64, 20, 21, 30, 31, 40, 41, 42, 43, 50, 51, 52, 53, 54, 55, 56, 60, 61, 62, 63, 64, 65, 66, 67, 70, 71, 72, 73] {
+            for fixed in [
+                10_u64, 20, 21, 30, 31, 40, 41, 42, 43, 50, 51, 52, 53, 54, 55, 56, 60, 61, 62, 63,
+                64, 65, 66, 67, 70, 71, 72, 73,
+            ] {
                 assert_ne!(id, fixed, "title id {id} collides with fixed id {fixed}");
             }
         }
