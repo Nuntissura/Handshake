@@ -2,9 +2,9 @@
   "schema_id": "hsk.microtask_index@1",
   "schema_version": "microtask_index_v1",
   "wp_id": "WP-CKC-posekit-overhaul",
-  "updated_at_utc": "2026-06-28T15:29:06.058Z",
-  "active_mt_id": null,
-  "next_mt_id": "MT-004",
+  "updated_at_utc": "2026-06-28T15:39:03.402Z",
+  "active_mt_id": "MT-004",
+  "next_mt_id": "MT-005",
   "microtask_contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
   "policy": {
     "create_before_product_edit": true,
@@ -43,6 +43,14 @@
       "started_at_utc": "2026-06-28T15:20:55.051Z",
       "completed_at_utc": "2026-06-28T15:29:06.058Z",
       "parity_map_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003-parity-map.json"
+    },
+    {
+      "mt_id": "MT-004",
+      "status": "IN_PROGRESS",
+      "title": "Rename visible CKC module shell to Atelier and make CKC the default Atelier tab label",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-004.json",
+      "product_edit_allowed": true,
+      "started_at_utc": "2026-06-28T15:39:03.402Z"
     }
   ],
   "baseline": {

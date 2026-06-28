@@ -16,7 +16,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "base_wp_id": "WP-CKC-posekit-overhaul",
   "created_at_utc": "2026-06-28T12:26:14.447Z",
-  "updated_at_utc": "2026-06-28T15:29:06.058Z",
+  "updated_at_utc": "2026-06-28T15:39:03.402Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
     "packet_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.md",
@@ -174,16 +174,17 @@
     "enforcement_profile": "HOTFIX_ADHOC_MICROTASK_WITH_RECOVERY_POINTERS"
   },
   "microtasks": {
-    "active_id": null,
+    "active_id": "MT-004",
     "contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
     "index_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
-    "count": 3,
+    "count": 4,
     "declared_ids": [
       "MT-001",
       "MT-002",
-      "MT-003"
+      "MT-003",
+      "MT-004"
     ],
-    "next_id": "MT-004",
+    "next_id": "MT-005",
     "latest_completed_id": "MT-003",
     "latest_completed_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003.json"
   },

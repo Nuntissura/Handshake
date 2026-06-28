@@ -1,0 +1,202 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract"
+    ]
+  },
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-004",
+  "title": "Rename visible CKC module shell to Atelier and make CKC the default Atelier tab label",
+  "status": "IN_PROGRESS",
+  "created_at_utc": "2026-06-28T15:39:03.402Z",
+  "updated_at_utc": "2026-06-28T15:39:03.402Z",
+  "started_at_utc": "2026-06-28T15:39:03.402Z",
+  "product_edit_allowed": true,
+  "governance_edit_allowed": true,
+  "operator_request": "The current top-right CKC button should be the Atelier button. CKC should be a tabbed window/tool inside Atelier, because CKC and PoseKit are already native Handshake Atelier tools rather than a separate top-level app.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-004.json",
+    "microtask_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-004.md",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
+    "parity_map": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003-parity-map.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-004.md",
+    "status": "GENERATED_IN_SYNC",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-004.json",
+    "generated_at_utc": "2026-06-28T15:39:03.402Z",
+    "generator": "manual-kernel-builder-hotfix-projection"
+  },
+  "lifecycle": {
+    "status": "IN_PROGRESS",
+    "active": true,
+    "depends_on": [
+      "MT-003"
+    ],
+    "blocks": [
+      "MT-005"
+    ],
+    "validator_verdict": "PENDING",
+    "started_at_utc": "2026-06-28T15:39:03.402Z"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "primary_product_branch": "feat/WP-CKC-posekit-overhaul",
+    "parallel_active_worktree_do_not_touch": "../wtc-native-editors-v1",
+    "parallel_active_branch_do_not_touch": "feat/WP-KERNEL-012",
+    "gov_worktree": "../wt-gov-kernel",
+    "gov_branch": "gov_kernel",
+    "inherited_dirty_baseline": [
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/diagnostics/mod.rs",
+      "src/frontend/handshake_native/src/diagnostics/panel.rs",
+      "src/frontend/handshake_native/src/diagnostics/survivor_forward.rs",
+      "src/frontend/handshake_native/tests/test_survivor_forward.rs",
+      "src/frontend/palmistry/Cargo.lock",
+      "src/frontend/palmistry/Cargo.toml",
+      "src/frontend/palmistry/src/fr_forward.rs",
+      "src/frontend/palmistry/src/lib.rs",
+      "src/frontend/palmistry/src/main.rs",
+      "src/frontend/palmistry/src/survivor_store.rs",
+      "src/frontend/palmistry/tests/test_fr_forward.rs",
+      "src/frontend/palmistry/tests/test_survivor_store.rs"
+    ],
+    "recovery_rule": "If a no-context model resumes this MT, first run git status in ../wtc-ckc-posekit-overhaul and ignore inherited baseline dirt unless this MT explicitly lists the file below. Do not edit ../wtc-native-editors-v1. Do not rename internal CKC identifiers."
+  },
+  "scope": {
+    "summary": "Apply the smallest visible navigation correction: the top-right module button should read Atelier, while the default Atelier tab/work-surface should read CKC. The change is intentionally presentation-only.",
+    "type": "PRODUCT_UI_LABEL_POLISH",
+    "product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_worktree": "../wtc-native-editors-v1",
+    "product_edit_allowed": true,
+    "base_scope": [
+      "Change the visible top-right module button label from CKC to Atelier in the native Handshake shell.",
+      "Change the visible default Atelier tab label from Atelier to CKC where it represents the CKC character/media tool surface.",
+      "Apply the same visible label correction to the legacy React shell only if the React shell still has matching top-level module/tab label constants in the hotfix worktree.",
+      "Update focused tests that assert the old visible labels."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/module_switcher.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/pane_registry.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/pane_header.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_module_switcher.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_pane_header.rs",
+      "../wtc-ckc-posekit-overhaul/app/src/App.tsx",
+      "../wtc-ckc-posekit-overhaul/app/tests/atelier/atelier_nav.spec.ts"
+    ],
+    "forbidden_paths": [
+      "../wtc-native-editors-v1/**",
+      "../handshake_main/**",
+      "../wtc-ckc-posekit-overhaul/src/backend/**",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/diagnostics/**",
+      "../wtc-ckc-posekit-overhaul/src/frontend/palmistry/**"
+    ],
+    "must_preserve": [
+      "ModuleId::Ckc",
+      "ModuleId::Ckc.as_str() == \"CKC\"",
+      "ModuleId::parse(\"CKC\")",
+      "serialized activeModule/module value \"CKC\"",
+      "stable data/test id module-ckc",
+      "PaneType::AtelierEditor",
+      "native tab key atelier",
+      "React ModuleId union value \"CKC\"",
+      "React tab id \"atelier\"",
+      "backend /atelier routes",
+      "AtelierRef / CKC embed ref kinds and hsLink payloads",
+      "database, table, route, and receipt names"
+    ],
+    "non_goals": [
+      "Do not rebuild CKC or PoseKit behavior in this MT.",
+      "Do not change data storage, routes, API contracts, command names, receipt names, or serialized layout values.",
+      "Do not edit Facial, Leeseo, PoseKit advanced interaction, contact sheets, or ingest pipeline behavior.",
+      "Do not fix or stage unrelated inherited WP-KERNEL-012 diagnostic or Palmistry files."
+    ],
+    "acceptance_criteria": [
+      "A user sees Atelier as the top-level module button where CKC used to appear.",
+      "The default tab/work-surface under that Atelier module is labeled CKC.",
+      "Existing persisted layouts that store module CKC continue to load because internal IDs are unchanged.",
+      "Stable test IDs and AccessKit identifiers used by models remain stable unless they are visible-label-only expectations.",
+      "Focused native tests are updated and pass for the new labels.",
+      "React shell labels are updated if the matching label constants still exist; React internal IDs stay unchanged.",
+      "Actual staged product diff is limited to the MT-owned label/test files plus no inherited baseline dirt."
+    ],
+    "proof_targets": [
+      "Focused native module switcher label test shows the top-level visible button is Atelier and the stable id remains module-ckc.",
+      "Focused native pane header/tab test shows AtelierEditor belongs under the visible Atelier module while the default tab label reads CKC.",
+      "Search proof shows no accidental internal rename of ModuleId::Ckc, activeModule CKC, module-ckc, PaneType::AtelierEditor, or /atelier routes."
+    ]
+  },
+  "implementation_plan": [
+    "1. Update tests first so the previous CKC top-level label fails against current code.",
+    "2. Run the narrow native test target and confirm it fails for the expected visible-label mismatch.",
+    "3. Update visible label constants and nearby comments only.",
+    "4. Run rustfmt on the touched Rust files.",
+    "5. Run the focused native tests again until they pass.",
+    "6. If React label constants are touched, run the narrowest available React static/test command or record why it is not available.",
+    "7. Review git diff and stage only MT-owned files.",
+    "8. Update this MT closeout, mt_index, and packet state before final commit."
+  ],
+  "validation_commands": [
+    "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_module_switcher",
+    "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_pane_header",
+    "rg -n \"ModuleId::Ckc|module-ckc|activeModule: \\\"CKC\\\"|PaneType::AtelierEditor|/atelier\" src/frontend/handshake_native app/src app/tests",
+    "git diff -- src/frontend/handshake_native/src/module_switcher.rs src/frontend/handshake_native/src/pane_registry.rs src/frontend/handshake_native/src/pane_header.rs src/frontend/handshake_native/tests/test_module_switcher.rs src/frontend/handshake_native/tests/test_pane_header.rs app/src/App.tsx app/tests/atelier/atelier_nav.spec.ts"
+  ],
+  "risk_notes": [
+    {
+      "risk": "A model may rename internal CKC identifiers instead of visible labels.",
+      "failure_scenario": "Persisted layouts, CKC embeds, or tests that rely on module CKC break because the serialized ID changed to Atelier.",
+      "mitigation": "The MT explicitly preserves internal CKC IDs, routes, tab keys, and data IDs. Search proof must confirm they remain."
+    },
+    {
+      "risk": "The label fix collides with the active GUI rebuild worktree.",
+      "failure_scenario": "The implementation is applied to ../wtc-native-editors-v1 or stages inherited Palmistry/diagnostic work.",
+      "mitigation": "Implementation happens only in ../wtc-ckc-posekit-overhaul. Use path-limited staging and compare against the inherited dirty baseline."
+    },
+    {
+      "risk": "The UI becomes semantically inconsistent: top module Atelier, but tab still Atelier.",
+      "failure_scenario": "Operators and models still see CKC as missing or double-nested because both shell and tab use the same label.",
+      "mitigation": "Acceptance requires visible top module Atelier and default tab CKC together."
+    },
+    {
+      "risk": "React and native shells drift.",
+      "failure_scenario": "A no-context model opens the legacy React shell and sees the old CKC top-level label, while native says Atelier.",
+      "mitigation": "React matching constants are in scope for label-only correction if present."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad UI renames can silently mutate serialized IDs and break layout recovery.",
+      "A label-only MT can accidentally stage unrelated active-WP files because the source worktree was copied with inherited dirt.",
+      "Changing only native labels while leaving React labels stale may confuse later parity audits if the React shell remains a reference surface."
+    ],
+    "minimum_controls": [
+      "Tests must check visible labels and stable IDs separately.",
+      "Use path-limited staging and diff review before commit.",
+      "Record any skipped React verification explicitly."
+    ]
+  },
+  "closeout": {
+    "result": "IN_PROGRESS",
+    "product_code_changed": false,
+    "summary": "MT prepared and activated. Product implementation not yet completed."
+  }
+}
