@@ -1611,6 +1611,7 @@ dependencies = [
  "unicode-linebreak",
  "unicode-segmentation",
  "uuid",
+ "wgpu",
  "windows-sys 0.61.2",
 ]
 

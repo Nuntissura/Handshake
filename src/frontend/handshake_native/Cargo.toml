@@ -106,6 +106,11 @@ wgpu_screenshots = []
 [dependencies]
 egui = "0.33"
 eframe = { version = "0.33", default-features = false, features = ["wgpu", "accesskit", "persistence", "default_fonts"] }
+# eframe's `wgpu` feature enables wgpu/std but, with eframe default features disabled, it does not
+# enable any native platform backend. Dev builds used to mask this because egui_kittest[wgpu] pulls
+# wgpu/default. The production Windows GUI needs an explicit runtime backend so a plain `cargo build`
+# executable launches without first warming the target through tests.
+wgpu = { version = "27.0.1", default-features = false, features = ["dx12"] }
 egui_tiles = { version = "0.14", features = ["serde"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 # MT-027 transport: the out-of-process MCP server runs a localhost TCP listener and (on Windows) a
