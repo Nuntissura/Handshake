@@ -1,11 +1,11 @@
 {
   "schema": "handshake.build_rules@1",
   "name": "HANDSHAKE_BUILD_RULES",
-  "version": "1.5.0",
+  "version": "1.7.0",
   "status": "ACTIVE",
   "owner": "KERNEL_BUILDER",
-  "updated_at": "2026-06-18T00:00:00Z",
-  "purpose": "Authority registry for build-time and handoff-time gates that every Handshake product WP must demonstrate. Operationalizes interconnectivity, parallel agent + operator swarm safety, visual + operator-GUI verification, quiet/non-intrusive operation, and in-product ModelManual currency. Does NOT duplicate refinement, enrichment, Codex, AGENTS, or role-protocol authority; cite-only relationships to those surfaces.",
+  "updated_at": "2026-06-28T20:14:58.092Z",
+  "purpose": "Authority registry for build-time and handoff-time gates that every Handshake product WP must demonstrate. Operationalizes interconnectivity, parallel agent + operator swarm safety, Argus visual + operator-GUI verification, quiet/non-intrusive operation, in-product UserManual currency, and UserManual diagnostic linkage. Does NOT duplicate refinement, enrichment, Codex, AGENTS, or role-protocol authority; cite-only relationships to those surfaces.",
   "scope": {
     "trigger_phase": "build_time_and_handoff_time",
     "applies_to": "every WP that touches Handshake product code or product behavior under /src/, /app/, /tests/, or product runtime",
@@ -73,7 +73,7 @@
     {
       "id": "VIS",
       "name": "Visual Debug + Operator GUI Drive",
-      "intent": "Tests that pass without ever loading the operator surface are not evidence the operator or models can use the feature. Every observable WP drives the real GUI (or TraceProjection for non-UI work) and inspects the rendered result."
+      "intent": "Tests that pass without ever loading the operator surface are not evidence the operator or models can use the feature. Every observable WP drives the real GUI (or TraceProjection for non-UI work) and inspects the rendered result through Argus, the named headless/non-intrusive visual inspection and GUI steering path."
     },
     {
       "id": "QUIET",
@@ -82,8 +82,8 @@
     },
     {
       "id": "MAN",
-      "name": "In-Product ModelManual Connectivity",
-      "intent": "The swarm and the operator both must find wiring without chat history. Every wired surface is mirrored in the in-product ModelManual; manual drift = build-rule fail."
+      "name": "In-Product UserManual Connectivity",
+      "intent": "The swarm and the operator both must find wiring without chat history. Every changed Handshake behavior, tool, feature, primitive, workflow, model lane, diagnostic surface, storage/event contract, and operator/model navigation path is mirrored in the in-product internal UserManual; legacy ModelManual identifiers are aliases only; manual drift = build-rule fail."
     },
     {
       "id": "STOP",
@@ -527,8 +527,8 @@
           "automation_surface"
         ]
       },
-      "required_action": "Verification drives the running Operator Surface via Playwright/CDP or equivalent headless automation, captures a screenshot via a headless capture API, and inspects the rendered result. Unit tests and process exit codes do not satisfy this rule.",
-      "evidence_kind": "gui_drive_with_screenshot_capture",
+      "required_action": "Verification drives and inspects the running Operator Surface through Argus: stable author_id targeting, headless/non-intrusive list_widgets/click_widget/set_value/screenshot or egui_kittest/AccessKit evidence, and rendered/layout state compared against the expected UI. The legacy Tauri/WebView2/CDP path is not acceptable for the native app. Unit tests, process exit codes, and uninspected screenshots do not satisfy this rule.",
+      "evidence_kind": "argus_gui_drive_with_snapshot_or_screenshot_capture",
       "citations": [
         {
           "kind": "global",
@@ -541,6 +541,10 @@
         {
           "kind": "global",
           "anchor": "[GLOBAL-BUILD-026]"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-503D1"
         },
         {
           "kind": "external_reference",
@@ -645,19 +649,19 @@
       "pillar": "VIS",
       "status": "ACTIVE",
       "novelty": "NEW",
-      "trigger": "GUI surface lacks a capture or automation path",
+      "trigger": "GUI surface lacks an Argus capture, identification, steering, or observation path",
       "applicability": {
-        "predicate_text": "During verification, the validator discovers a UI/automation surface that cannot be captured or driven by headless automation",
+        "predicate_text": "During verification, the role discovers a UI/operator/diagnostic surface that Argus cannot see, identify with a stable target, steer safely, or re-observe after steering",
         "tags": [
           "verification_gap"
         ]
       },
-      "required_action": "Record as a blocking verification gap in WP OPEN_BLOCKERS with the exact missing surface; do not silently certify the work. Open a follow-up WP for the missing automation hook.",
-      "evidence_kind": "open_blocker_with_missing_surface_named",
+      "required_action": "Treat the missing Argus path as HBR-VIS technical debt. If the missing visibility/steering path blocks proof of the implemented surface, it is an allowed same-MT/WP scope increase: remediate the minimum stable author_id, snapshot state, steering hook, or headless capture path before claiming DONE/PASS. If the role cannot remediate within authority, record a blocking HBR-VIS gap with the exact surface, missing Argus capability, affected proof, and recommended remediation.",
+      "evidence_kind": "argus_gap_remediated_or_blocker_with_missing_surface_named",
       "citations": [
         {
           "kind": "codex",
-          "anchor": "CX-572"
+          "anchor": "CX-503D1"
         },
         {
           "kind": "external_reference",
@@ -810,16 +814,17 @@
       "pillar": "MAN",
       "status": "ACTIVE",
       "novelty": "NEW",
-      "trigger": "WP wires or modifies any model-callable command, tool, IPC channel, automation surface, operator-facing capability, or documented product feature",
+      "trigger": "WP wires or modifies any model-callable command, tool, IPC channel, automation surface, operator-facing capability, documented product feature, feature primitive, workflow, diagnostic surface, storage/event contract, model lane, or operator/model navigation path",
       "applicability": {
-        "predicate_text": "WP introduces, renames, removes, or changes the contract of any product surface a no-context model or operator must discover",
+        "predicate_text": "WP introduces, renames, removes, or changes the contract of any product surface, behavior, primitive, workflow, diagnostic surface, storage/event contract, or navigation path a no-context model or operator must discover",
         "tags": [
           "wired_surface_change",
-          "manual_update"
+          "user_manual_update",
+          "internal_user_manual"
         ]
       },
-      "required_action": "Update the in-product ModelManual in the same commit as the surface change. Bump MANUAL_VERSION. Add/remove/rename the entry in the relevant feature group and commandReference.",
-      "evidence_kind": "manual_diff_in_same_commit",
+      "required_action": "Update the in-product internal UserManual in the same commit as the surface change. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface. Bump MANUAL_VERSION when applicable. Add/remove/rename the entry in the relevant feature group and commandReference/navigation reference.",
+      "evidence_kind": "user_manual_diff_in_same_commit",
       "citations": [
         {
           "kind": "global",
@@ -832,11 +837,15 @@
         {
           "kind": "external_reference",
           "anchor": "CKC build_rules.md Internal Manual Rules"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-982"
         }
       ],
       "not_applicable_when": [
-        "WP wires or changes no model-callable or operator-facing surface",
-        "ModelManual artifact not yet implemented at WP creation time"
+        "WP wires or changes no Handshake product behavior, feature, primitive, workflow, tool, command, IPC, config, model lane, diagnostic surface, storage/event contract, operator-facing surface, model navigation path, or operator navigation path",
+        "UserManual artifact is not yet implemented at WP creation time; record DEFERRED-with-reason plus integration follow-up instead of silently skipping"
       ],
       "deferred_until": null
     },
@@ -845,15 +854,16 @@
       "pillar": "MAN",
       "status": "ACTIVE",
       "novelty": "NEW",
-      "trigger": "Any change to ModelManual content",
+      "trigger": "Any change to UserManual content",
       "applicability": {
-        "predicate_text": "WP modifies ModelManual artifact",
+        "predicate_text": "WP modifies the in-product internal UserManual artifact",
         "tags": [
           "manual_content",
-          "no_context_test"
+          "no_context_test",
+          "internal_user_manual"
         ]
       },
-      "required_action": "Manual content must let a no-context capable model operate Handshake (purpose, workflows, startup, commands, expected I/O, navigation, safety constraints, common failure modes, recovery steps) without reading repo files or chat history.",
+      "required_action": "UserManual content must let a no-context capable model and the operator use Handshake (purpose, workflows, startup, commands, expected I/O, navigation, safety constraints, common failure modes, recovery steps) without reading repo files or chat history.",
       "evidence_kind": "no_context_model_operation_test",
       "citations": [
         {
@@ -891,10 +901,14 @@
         {
           "kind": "global",
           "anchor": "[GLOBAL-BUILD-011]"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-982"
         }
       ],
       "not_applicable_when": [
-        "WP does not modify ModelManual content"
+        "WP does not modify UserManual content"
       ],
       "deferred_until": null
     },
@@ -903,24 +917,79 @@
       "pillar": "MAN",
       "status": "ACTIVE",
       "novelty": "NEW",
-      "trigger": "Any ModelManual entry that describes a wired code surface",
+      "trigger": "Any UserManual entry that describes a wired code surface",
       "applicability": {
-        "predicate_text": "Triggered for every manual entry that names a command, IPC channel, schema field, config key, CLI flag, or other code-defined surface",
+        "predicate_text": "Triggered for every UserManual entry that names a command, IPC channel, schema field, config key, CLI flag, route, backend navigation path, diagnostic surface, storage/event contract, or other code-defined surface",
         "tags": [
           "self_consistency",
-          "code_truth"
+          "code_truth",
+          "internal_user_manual"
         ]
       },
-      "required_action": "Manual entries must be code-truthful: a self-consistency test verifies each named surface exists at the named contract. Drift = build-rule fail.",
+      "required_action": "UserManual entries must be code-truthful: a self-consistency test verifies each named surface exists at the named contract. Drift = build-rule fail.",
       "evidence_kind": "manual_self_consistency_test",
       "citations": [
         {
           "kind": "external_reference",
           "anchor": "CKC build_rules.md Documentation Rules"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-982"
         }
       ],
       "not_applicable_when": [
         "Entries explicitly tagged as roadmap (not yet wired)"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-MAN-004",
+      "pillar": "MAN",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "Every implementation MT/WP that creates, changes, wires, exposes, deprecates, or removes a Handshake product behavior, tool, feature, primitive, workflow, model lane, command, IPC channel, config key, diagnostic surface, storage/event contract, operator navigation path, or model navigation path",
+      "applicability": {
+        "predicate_text": "Implementation changes anything future no-context models or the operator need to understand or use inside Handshake, including model orchestration, local/cloud/subagent lanes, backend navigation, diagnostics, storage/event authority, CRDT collaboration, visual/debug surfaces, or recovery workflows",
+        "tags": [
+          "internal_user_manual",
+          "operator_model_usability",
+          "feature_primitive_documentation",
+          "flight_recorder_linkage",
+          "palmistry_linkage",
+          "no_context_operation"
+        ]
+      },
+      "required_action": "Update the in-product internal UserManual in the same implementation change so future no-context models and the operator know the feature purpose, usage path, startup/invocation commands when applicable, expected inputs and outputs, affected tools/features/primitives, failure modes, recovery steps, and verification/diagnostic proof. The manual entry must link the behavior to Flight Recorder/EventLedger evidence and record the HBR-INT-009 diagnostic posture for Flight Recorder, internal_diagnostics, and Palmistry as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason. If internal_diagnostics or Palmistry are not present in the current worktree, record DEFERRED-with-reason plus integration follow-up; never silently skip the linkage. Legacy ModelManual identifiers are aliases only and MUST NOT create a parallel manual surface.",
+      "evidence_kind": "user_manual_diff_plus_self_consistency_and_diagnostic_linkage",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-982"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-981"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-INT-009"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-002]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-011]"
+        },
+        {
+          "kind": "global",
+          "anchor": "[GLOBAL-BUILD-012]"
+        }
+      ],
+      "not_applicable_when": [
+        "Change is pure repo-governance work and touches no Handshake product behavior, tool, feature, primitive, workflow, model lane, command, IPC channel, config key, diagnostic surface, storage/event contract, operator navigation path, or model navigation path"
       ],
       "deferred_until": null
     },
@@ -1147,6 +1216,16 @@
       "version": "1.5.0",
       "at_utc": "2026-06-27T00:00:00Z",
       "change": "Added HBR-INT-009 (OPERATOR directive 2026-06-27): the THREE-TIER DIAGNOSTIC WIRING mandate. Every observable runtime behavior MUST be wired across three tiers with the per-tier outcome (WIRED / NOT_APPLICABLE-with-reason / DEFERRED) recorded as build evidence: (1) Flight Recorder = the kept-as-is backend BUSINESS-EVENT ledger (no schema re-open); (2) INTERNAL_DIAGNOSTICS = the NEW Handshake-native INTERNAL self-diagnostics tool (panic/heartbeat/frame-time/resource + open diagnostic-event API) - the diagnostic role the FR was intended to fill but never did; (3) PALMISTRY = the NEW EXTERNAL out-of-process watcher that survives freezes/crashes. internal_diagnostics + Palmistry record no project/sensitive data and keep standard mechanism names (heartbeat/minidump/watchdog). Motivated by a live 2026-06-26 UI-thread freeze the in-process FR was blind to. internal_diagnostics + Palmistry are built by WP-KERNEL-012; WP-KERNEL-016 retrofits this rule onto all already-shipped work. Cites HBR-INT-001/007 + Codex CX-006-VIS + the planned CX-981 HARD block. Canonical authority; the 6 role protocols project this via their Diagnostics duty bullets."
+    },
+    {
+      "version": "1.6.0",
+      "at_utc": "2026-06-28T18:06:24.222Z",
+      "change": "Added HBR-MAN-004 (OPERATOR directive 2026-06-28): every implementation that changes Handshake product behavior, tools, features, primitives, workflows, model lanes, diagnostics, storage/event contracts, commands/IPCs/config, or operator/model navigation must update the in-product internal UserManual in the same change. UserManual entries must explain no-context usage and connect behavior to Flight Recorder/EventLedger plus HBR-INT-009 Flight Recorder/internal_diagnostics/Palmistry posture. Palmistry/internal_diagnostics absence in the current worktree is DEFERRED-with-reason plus follow-up, never silent skip. Updated MAN-family wording from legacy ModelManual to UserManual with ModelManual retained only as an alias."
+    },
+    {
+      "version": "1.7.0",
+      "at_utc": "2026-06-28T20:14:58.092Z",
+      "change": "Added Argus as the named HBR-VIS visual inspection and GUI steering path (OPERATOR directive 2026-06-28): UI/operator/diagnostic/frontend navigation/layout/style changes must be inspected through headless, non-intrusive Argus evidence before DONE/PASS. HBR-VIS-001 now requires Argus-compatible stable author_id targeting plus list_widgets/click_widget/set_value/screenshot or egui_kittest/AccessKit evidence. HBR-VIS-005 now treats any in-scope surface Argus cannot see, identify, steer, or re-observe as HBR-VIS technical debt and an allowed same-MT/WP scope increase when it blocks proof. Canonical protocol: .GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md; Codex anchor: CX-503D1."
     }
   ]
 }

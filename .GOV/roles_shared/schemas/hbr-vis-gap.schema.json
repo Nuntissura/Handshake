@@ -31,6 +31,10 @@
     },
     "gap_class": {
       "enum": [
+        "argus_cannot_see",
+        "argus_cannot_identify",
+        "argus_cannot_steer",
+        "argus_cannot_reobserve",
         "no_cdp_handle",
         "native_child_window",
         "opaque_canvas",

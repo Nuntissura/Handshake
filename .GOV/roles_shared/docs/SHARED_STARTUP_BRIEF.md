@@ -68,11 +68,21 @@ Read this as operational memory at startup. It shortens the path from repeated f
 
 - ACTION: BUILD_RULES_REGISTRY_AUTHORITY
 - TRIGGER: at startup, and before planning, authoring, implementing, or reviewing any WP that touches product code or product behavior (`src/`, `app/`, `tests/`, product runtime)
-- FAILURE_PATTERN: treating `HBR-*` build rules as optional, advisory, or already-satisfied; skipping the three-tier diagnostic consideration (HBR-INT-009) on observable-runtime-behavior WPs
-- DO: read and ACKNOWLEDGE `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json` AS AUTHORITATIVE at startup; treat every applicable `HBR-*` rule as a mandatory build-time/handoff-time gate that auto-emits `PACKET_ACCEPTANCE_MATRIX` rows (PROVED / NOT_APPLICABLE-with-reason / BLOCKED-with-cause). For any WP touching observable runtime behavior, evaluate HBR-INT-009 THREE-TIER diagnostics — Flight Recorder (kept-as-is business-event ledger), internal_diagnostics (native INTERNAL self-diagnostics), Palmistry (EXTERNAL out-of-process watcher) — and record each tier as WIRED / NOT_APPLICABLE-with-reason / DEFERRED-with-reason
+- FAILURE_PATTERN: treating `HBR-*` build rules as optional, advisory, or already-satisfied; skipping the three-tier diagnostic consideration (HBR-INT-009) on observable-runtime-behavior WPs; treating Argus visual proof as optional on UI/operator-surface work
+- DO: read and ACKNOWLEDGE `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json` AS AUTHORITATIVE at startup; treat every applicable `HBR-*` rule as a mandatory build-time/handoff-time gate that auto-emits `PACKET_ACCEPTANCE_MATRIX` rows (PROVED / NOT_APPLICABLE-with-reason / BLOCKED-with-cause). For any WP touching observable runtime behavior, evaluate HBR-INT-009 THREE-TIER diagnostics — Flight Recorder (kept-as-is business-event ledger), internal_diagnostics (native INTERNAL self-diagnostics), Palmistry (EXTERNAL out-of-process watcher) — and record each tier as WIRED / NOT_APPLICABLE-with-reason / DEFERRED-with-reason. For GUI/operator/diagnostic/frontend work, require Argus proof per HBR-VIS and `.GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md`
 - DO_NOT: close a WP to PASS while any required HBR row is PENDING/STEER/BLOCKED [CX-503B1]; silently skip a diagnostic tier; auto-create a `HANDSHAKE_BUILD_RULES.md` projection (JSON is authority, markdown is ON_DEMAND_ONLY)
 - VERIFY: startup output reflects build-rule acknowledgment, and the next product-code action either proves an applicable HBR row or records its NOT_APPLICABLE/DEFERRED reason
-- SOURCE: `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json` (HBR-INT-009 + all HBR-* pillars), CX-503B1, CX-006-VIS, CX-981
+- SOURCE: `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json` (HBR-INT-009 + HBR-VIS + all HBR-* pillars), `.GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md`, CX-503B1, CX-503D1, CX-006-VIS, CX-981
+
+### RAM-SHARED-ARGUS_VISUAL_INSPECTION-001
+
+- ACTION: ARGUS_VISUAL_INSPECTION
+- TRIGGER: before implementing, reviewing, validating, or closing any change that touches a GUI, operator surface, diagnostic surface, frontend navigation, layout, style, panel, tab, button, input, or visible state
+- FAILURE_PATTERN: claiming DONE/PASS from green tests, process exits, uninspected screenshots, foreground manual checks, or a surface that has no stable Argus target/steering path
+- DO: use Argus headlessly and non-intrusively; until the dedicated Rust-native Argus command exists, use the native MCP/AccessKit/egui_kittest path as the Argus-compatible path. Record stable `author_id` targets, action sequence, before/after observations, visual/layout/state evidence, and any gaps
+- DO_NOT: foreground Handshake, steal keyboard/mouse/focus, use OS cursor automation, rely on legacy Tauri/WebView2/CDP for the native app, or certify a frontend surface Argus cannot see/steer/re-observe
+- VERIFY: if Argus cannot see, identify, steer, or re-observe an in-scope surface, the MT/WP either remediates the missing hook as allowed same-scope proof work or records a blocking HBR-VIS gap with exact surface and remediation
+- SOURCE: `.GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md`, HBR-VIS-001, HBR-VIS-005, CX-503D1
 
 ### RAM-SHARED-STARTUP_TIMEOUT-001
 

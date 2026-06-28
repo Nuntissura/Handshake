@@ -82,8 +82,8 @@ function runCheck(root = repoRoot()) {
   const failures = [];
 
   const registry = JSON.parse(readText(root, REGISTRY_RELATIVE_PATH));
-  if (registry.version !== "1.3.0") {
-    failures.push(`${REGISTRY_RELATIVE_PATH} version expected 1.3.0, got ${registry.version || "<missing>"}`);
+  if (registry.version !== "1.7.0") {
+    failures.push(`${REGISTRY_RELATIVE_PATH} version expected 1.7.0, got ${registry.version || "<missing>"}`);
   }
   const activeRules = Array.isArray(registry.rules)
     ? registry.rules.filter((rule) => rule && rule.status === "ACTIVE")

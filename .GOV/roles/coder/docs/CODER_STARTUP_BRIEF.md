@@ -38,10 +38,10 @@ Use this brief after `just coder-startup`. It is operational memory for implemen
 - ACTION: PER_MT_VISUAL_CAPTURE
 - TRIGGER: per MT, when the MT touches the native egui shell or any operator-observable UI surface
 - FAILURE_PATTERN: handing off a UI-touching MT on green unit tests only, or using the LEGACY Tauri/WebView2/CDP path (`app/src-tauri/src/visual_debug.rs`, `Page.captureScreenshot`) which does not inspect the current native app
-- DO: per MT, capture-and-compare through the NATIVE path in `../wtc-native-editors-v1/src/frontend/handshake_native/` — MCP tools `src/mcp/tools.rs` (`list_widgets` / `click_widget` / `set_value` / `screenshot`), the `egui_kittest` (`0.33`, `wgpu`) `Harness` render harness, and `src/mcp/screenshot.rs`; compare the rendered/AccessKit result against the MT's expected UI state before requesting review
-- DO_NOT: use the Tauri CDP path; assume pixel screenshots work headless — `Harness::render()` readback can crash `0xc0000005` on headless-GPU, so run pixel screenshots on a real-GPU host and fall back to `list_widgets`/AccessKit-tree assertions on headless hosts
-- VERIFY: the MT review request carries a per-MT visual capture or AccessKit snapshot as HBR-VIS evidence
-- SOURCE: HANDSHAKE_BUILD_RULES.json HBR-VIS-001..005, native `src/mcp/tools.rs` + `src/mcp/screenshot.rs`, CX-006-VIS
+- DO: per MT, capture-and-compare through Argus. Until the dedicated Rust-native Argus command exists, the Argus-compatible path is the NATIVE path in `../wtc-native-editors-v1/src/frontend/handshake_native/` — MCP tools `src/mcp/tools.rs` (`list_widgets` / `click_widget` / `set_value` / `screenshot`), the `egui_kittest` (`0.33`, `wgpu`) `Harness` render harness, and `src/mcp/screenshot.rs`; compare the rendered/AccessKit result against the MT's expected UI state before requesting review
+- DO_NOT: use the Tauri CDP path; use foreground desktop automation; steal keyboard/mouse/focus; assume pixel screenshots work headless — `Harness::render()` readback can crash `0xc0000005` on headless-GPU, so run pixel screenshots on a real-GPU host and fall back to `list_widgets`/AccessKit-tree assertions on headless hosts
+- VERIFY: the MT review request carries Argus evidence: visual capture or AccessKit snapshot, target `author_id` values, action sequence when steering occurred, before/after observation, and any HBR-VIS gap/remediation
+- SOURCE: HANDSHAKE_BUILD_RULES.json HBR-VIS-001..005, `.GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md`, native `src/mcp/tools.rs` + `src/mcp/screenshot.rs`, CX-503D1, CX-006-VIS
 
 ### RAM-CODER-HANDOFF-001
 

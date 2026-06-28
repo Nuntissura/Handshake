@@ -48,10 +48,10 @@ Use this brief after `just validator-startup INTEGRATION_VALIDATOR`. It is opera
 - ACTION: WHOLE_WP_VISUAL_PASS
 - TRIGGER: before whole-WP PASS, when the WP touched the native egui shell or any operator-observable UI surface
 - FAILURE_PATTERN: passing a UI-touching WP on per-MT receipts and green tests alone, or expecting visual evidence from the LEGACY Tauri/WebView2/CDP path (`app/src-tauri/src/visual_debug.rs`, `Page.captureScreenshot`) which does not inspect the current native app
-- DO: run an independent whole-WP visual pass through the NATIVE path in `../wtc-native-editors-v1/src/frontend/handshake_native/` — MCP tools `src/mcp/tools.rs` (`list_widgets` / `click_widget` / `set_value` / `screenshot`), the `egui_kittest` (`0.33`, `wgpu`) `Harness` render harness, and `src/mcp/screenshot.rs`; inspect the rendered result across the WP's touched surfaces, not just per-MT green
-- DO_NOT: accept Tauri CDP evidence for the native app; assume pixel screenshots work headless — `Harness::render()` readback can crash `0xc0000005` on headless-GPU, so require pixel screenshots from a real-GPU host and accept `list_widgets`/AccessKit-tree assertions as the headless fallback; if a UI surface has no automation path, record an HBR-VIS-005 blocking verification gap rather than certifying
-- VERIFY: the verdict report records a whole-WP visual capture or AccessKit snapshot per touched UI surface as HBR-VIS evidence
-- SOURCE: HANDSHAKE_BUILD_RULES.json HBR-VIS-001..005, native `src/mcp/tools.rs` + `src/mcp/screenshot.rs`, CX-006-VIS
+- DO: run an independent whole-WP Argus pass. Until the dedicated Rust-native Argus command exists, the Argus-compatible path is the NATIVE path in `../wtc-native-editors-v1/src/frontend/handshake_native/` — MCP tools `src/mcp/tools.rs` (`list_widgets` / `click_widget` / `set_value` / `screenshot`), the `egui_kittest` (`0.33`, `wgpu`) `Harness` render harness, and `src/mcp/screenshot.rs`; inspect the rendered result across the WP's touched surfaces, not just per-MT green
+- DO_NOT: accept Tauri CDP evidence for the native app; accept foreground desktop automation as Argus; assume pixel screenshots work headless — `Harness::render()` readback can crash `0xc0000005` on headless-GPU, so require pixel screenshots from a real-GPU host and accept `list_widgets`/AccessKit-tree assertions as the headless fallback; if Argus cannot see, identify, steer, or re-observe a UI surface, require remediation or record an HBR-VIS-005 blocking verification gap rather than certifying
+- VERIFY: the verdict report records whole-WP Argus evidence per touched UI surface, including target `author_id` values, before/after state when steering occurred, and any HBR-VIS remediation or blocker
+- SOURCE: HANDSHAKE_BUILD_RULES.json HBR-VIS-001..005, `.GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md`, native `src/mcp/tools.rs` + `src/mcp/screenshot.rs`, CX-503D1, CX-006-VIS
 
 ### RAM-INTEGRATION_VALIDATOR-VERDICT-001
 

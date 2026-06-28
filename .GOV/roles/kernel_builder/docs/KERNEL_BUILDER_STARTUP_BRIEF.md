@@ -108,10 +108,10 @@ Use this brief after `just kernel-builder-startup`. It is operational memory for
 - ACTION: WHOLE_WP_VISUAL_PASS
 - TRIGGER: when a Kernel V1 WP touches the native egui shell or any operator-observable UI surface
 - FAILURE_PATTERN: certifying a UI-touching WP from unit tests / process exit codes alone, or reaching for the LEGACY Tauri/WebView2/CDP path (`app/src-tauri/src/visual_debug.rs`, `Page.captureScreenshot`) which does not inspect the current native app
-- DO: drive a whole-WP visual pass through the NATIVE path in `../wtc-native-editors-v1/src/frontend/handshake_native/` — the MCP tool surface `src/mcp/tools.rs` (`list_widgets` / `click_widget` / `set_value` / `screenshot`), the `egui_kittest` (`0.33`, `wgpu`) `Harness` render harness, and `src/mcp/screenshot.rs` capture; inspect the rendered result, not just green tests
-- DO_NOT: use the Tauri CDP path; assume pixel screenshots work on a headless host — `Harness::render()` readback can crash `0xc0000005` on headless-GPU, so run pixel screenshots on a real-GPU host and fall back to `list_widgets`/AccessKit-tree assertions on headless hosts
-- VERIFY: a whole-WP visual capture or AccessKit snapshot exists for each touched UI surface and is recorded as HBR-VIS evidence
-- SOURCE: HANDSHAKE_BUILD_RULES.json HBR-VIS-001..005, native `src/mcp/tools.rs` + `src/mcp/screenshot.rs`, CX-006-VIS
+- DO: drive a whole-WP visual pass through Argus. Until the dedicated Rust-native Argus command exists, the Argus-compatible path is the NATIVE path in `../wtc-native-editors-v1/src/frontend/handshake_native/` — the MCP tool surface `src/mcp/tools.rs` (`list_widgets` / `click_widget` / `set_value` / `screenshot`), the `egui_kittest` (`0.33`, `wgpu`) `Harness` render harness, and `src/mcp/screenshot.rs` capture; inspect the rendered result, not just green tests
+- DO_NOT: use the Tauri CDP path; use foreground desktop automation; assume pixel screenshots work on a headless host — `Harness::render()` readback can crash `0xc0000005` on headless-GPU, so run pixel screenshots on a real-GPU host and fall back to `list_widgets`/AccessKit-tree assertions on headless hosts
+- VERIFY: Argus evidence exists for each touched UI surface and records stable targets, layout/state observations, before/after state when steering occurred, and any HBR-VIS gap/remediation
+- SOURCE: HANDSHAKE_BUILD_RULES.json HBR-VIS-001..005, `.GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md`, native `src/mcp/tools.rs` + `src/mcp/screenshot.rs`, CX-503D1, CX-006-VIS
 
 ### RAM-KERNEL_BUILDER-MACHINE_ARTIFACTS-001
 

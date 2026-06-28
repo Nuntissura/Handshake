@@ -21,6 +21,16 @@
 
 ## Entries
 
+### 2026.06.28.01 / GOV-CHANGE-20260628-01
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Wired Argus as the named headless visual inspection and GUI steering protocol for Handshake frontend/operator work.
+- Contract impact: Codex now names Argus as the required visual inspection path before DONE/PASS for GUI, operator-surface, diagnostic-surface, frontend navigation, layout, style, panel, tab, button, input, or visible-state changes. HBR-VIS build rules now require Argus-compatible stable-target inspection/steering evidence and classify missing Argus see/identify/steer/reobserve support as HBR-VIS technical debt. Role protocols and startup briefs now route GUI proof through `.GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md`. HBR-VIS gap tooling can classify Argus capability gaps for parallel-agent-safe remediation or blocker recording.
+- Driver evidence: Operator directive on 2026-06-28 to make every model and role know Argus exists and must use it for visual inspection; Argus must be parallel-agent usable, headless, non-intrusive, and must not pop Handshake to the foreground or steal keyboard/mouse/focus. Operator also directed that if Argus cannot see or steer a frontend surface, that is technical debt and accepted scope expansion to remediate.
+- Files changed: `.GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md`, `.GOV/codex/Handshake_Codex_v1.4.md`, `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`, role protocols, role/shared startup briefs, `.GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md`, `.GOV/roles_shared/schemas/hbr-vis-gap.schema.json`, `.GOV/roles_shared/scripts/hbr-vis-gap-emit.mjs`, `.GOV/roles_shared/scripts/hbr-vis-gap-emit.test.mjs`, `.GOV/roles_shared/checks/role-protocol-hbr-linkage.mjs`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PARTIAL - PASS: `node --check .GOV/roles_shared/scripts/hbr-vis-gap-emit.mjs`; `node --test .GOV/roles_shared/scripts/hbr-vis-gap-emit.test.mjs`; JSON parse for `HANDSHAKE_BUILD_RULES.json` and `hbr-vis-gap.schema.json`; `node --check .GOV/roles_shared/checks/role-protocol-hbr-linkage.mjs`; `node .GOV/roles_shared/checks/repo-governance-board-check.mjs`; Argus coverage scan across Codex, roles, startup briefs, HBR-VIS registry, protocol, and gap tooling. `just gov-check` still exits 1 due existing broader kernel debt and active generated-ledger drift: packet truth/scope/checklist/HBR matrix issues in unrelated task packets, broad role-protocol HBR-linkage exact-string debt that predates this change, stale `BUILD_ORDER`/topology/public-surface generated projections, session/wp-comm/semantic-proof failures, and governance-structure stale residual-writer inventory. The Argus refactor-board row now passes board integrity, and no targeted Argus check failure remains.
+
 ### 2026.05.16.01 / GOV-CHANGE-20260516-01
 
 - Status: APPLIED

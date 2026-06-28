@@ -8,8 +8,12 @@ import { fileURLToPath } from "node:url";
 export const RECEIPT_KIND = "HBR_VIS_GAP";
 export const HBR_ID = "HBR-VIS-005";
 export const SCHEMA_VERSION = 1;
-export const REQUIRED_ACTION = "Open a follow-up WP for the missing automation hook before PASS closure.";
+export const REQUIRED_ACTION = "Remediate the missing Argus visibility/identification/steering/re-observation path in the same MT/WP when it blocks proof; otherwise record this HBR-VIS gap as a blocker with exact surface, missing Argus capability, affected proof, and recommended remediation before PASS closure.";
 export const GAP_CLASSES = Object.freeze([
+  "argus_cannot_see",
+  "argus_cannot_identify",
+  "argus_cannot_steer",
+  "argus_cannot_reobserve",
   "no_cdp_handle",
   "native_child_window",
   "opaque_canvas",

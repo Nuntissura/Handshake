@@ -15,6 +15,7 @@ import {
 
 const SCRIPT_PATH = fileURLToPath(new URL("./hbr-vis-gap-emit.mjs", import.meta.url));
 const EXPECTED_CANONICAL = "{\"emitted_at_utc\":\"2026-05-18T00:00:00Z\",\"evidence_pointer\":\"artifact://visual/diagnostics-canvas.png\",\"gap_class\":\"opaque_canvas\",\"hbr_id\":\"HBR-VIS-005\",\"proposed_followup_wp\":\"WP-KERNEL-004-VIS-GAP-FOLLOWUP-v1\",\"receipt_kind\":\"HBR_VIS_GAP\",\"receipt_uuid\":\"018f6d3a-1f00-7a2b-8c3d-123456789abc\",\"schema_version\":1,\"surface_name\":\"Diagnostics canvas controls\",\"surface_path\":\"app://diagnostics/canvas-controls\",\"wp_id\":\"WP-KERNEL-004-TEST\"}\n";
+const EXPECTED_REQUIRED_ACTION = "Remediate the missing Argus visibility/identification/steering/re-observation path in the same MT/WP when it blocks proof; otherwise record this HBR-VIS gap as a blocker with exact surface, missing Argus capability, affected proof, and recommended remediation before PASS closure.";
 
 function fixtureGap(overrides = {}) {
   return buildHbrVisGap({
@@ -108,6 +109,6 @@ test("CLI appends canonical receipt and structured packet OPEN_BLOCKERS entry", 
     evidence_pointer: "artifact://visual/diagnostics-canvas.png",
     proposed_followup_wp: "WP-KERNEL-004-VIS-GAP-FOLLOWUP-v1",
     created_at_utc: "2026-05-18T00:00:00Z",
-    required_action: "Open a follow-up WP for the missing automation hook before PASS closure.",
+    required_action: EXPECTED_REQUIRED_ACTION,
   });
 }));

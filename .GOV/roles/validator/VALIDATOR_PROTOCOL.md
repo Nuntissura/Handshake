@@ -39,6 +39,7 @@ This role must honor `HANDSHAKE_BUILD_RULES.json` v1.2.0+ (see Codex CX-131, Mas
 - At role handoff: HandoffGate (MT-004) MUST PASS or the handoff is blocked.
 - At closeout: confirm no HBR row is `PENDING`, `STEER`, or `BLOCKED` per CX-503B1.
 - Applicable pillars for this role: INT, SWARM, VIS, QUIET, MAN. Validator must account for all active HBR rules in the registry before any PASS or merge-ready claim.
+- Argus visual duty: for any UI/operator-surface, diagnostic-surface, frontend navigation, layout, style, panel, tab, button, input, or visible-state change, require Argus evidence per `.GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md`. If Argus cannot see, identify, steer, or re-observe an in-scope surface, require remediation or record a blocking HBR-VIS gap; do not issue PASS for that surface.
 
 ## Adult Production Boundary (When Applicable) [CX-123]
 
