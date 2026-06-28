@@ -91,8 +91,9 @@ pub struct AgentToolRow {
     pub surface: ManualSurface,
     /// A short human/model-readable action label.
     pub action_label: &'static str,
-    /// The REAL MCP swarm tool (one of `list_widgets` / `click_widget` / `set_value` / `screenshot` —
-    /// the four `mcp/tools.rs` methods). Never an invented `gui.*` name.
+    /// The real Argus/MCP swarm tool. Prefer canonical `argus.inspect` / `argus.click` /
+    /// `argus.set_value` / `argus.screenshot`; the primitive names remain compatibility aliases.
+    /// Never an invented `gui.*` name.
     pub mcp_tool: &'static str,
     /// A one-line description of how an agent drives this control via `mcp_tool`.
     pub description: &'static str,
@@ -160,7 +161,10 @@ impl ManualSection {
 
     /// All [`AgentToolRow`]s, or an empty slice when the section carries no steering reference.
     pub fn agent_rows(&self) -> &[AgentToolRow] {
-        self.agent_tools.as_ref().map(|r| r.rows.as_slice()).unwrap_or(&[])
+        self.agent_tools
+            .as_ref()
+            .map(|r| r.rows.as_slice())
+            .unwrap_or(&[])
     }
 }
 
@@ -170,7 +174,13 @@ impl ManualSection {
 pub fn manual_topic_author_id(section_id: &str, topic_heading: &str) -> String {
     let slug: String = topic_heading
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '-' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
         .collect();
     // Collapse runs of '-' and trim, so "Startup and Run" -> "startup-and-run".
     let mut collapsed = String::with_capacity(slug.len());
@@ -277,7 +287,11 @@ impl<'a> ManualPane<'a> {
         state: &'a mut ManualPaneState,
         palette: &'a HsPalette,
     ) -> Self {
-        Self { registry, state, palette }
+        Self {
+            registry,
+            state,
+            palette,
+        }
     }
 
     /// Render the pane. Emits the container AccessKit node, the search box (with the stable
@@ -329,8 +343,7 @@ impl<'a> ManualPane<'a> {
                         .max_height(360.0)
                         .show(ui, |ui| {
                             for section in self.registry.sections() {
-                                let any_match =
-                                    section.topics.iter().any(|t| t.matches(&q));
+                                let any_match = section.topics.iter().any(|t| t.matches(&q));
                                 if !any_match {
                                     continue;
                                 }
@@ -339,26 +352,20 @@ impl<'a> ManualPane<'a> {
                                     if !topic.matches(&q) {
                                         continue;
                                     }
-                                    let selected = self
-                                        .state
-                                        .selected
-                                        .as_ref()
-                                        .is_some_and(|(s, t)| {
+                                    let selected =
+                                        self.state.selected.as_ref().is_some_and(|(s, t)| {
                                             s == section.id && t == topic.heading
                                         });
                                     let resp = ui.selectable_label(selected, topic.heading);
-                                    let author =
-                                        manual_topic_author_id(section.id, topic.heading);
+                                    let author = manual_topic_author_id(section.id, topic.heading);
                                     crate::accessibility::emit_interactive_node(
                                         ui.ctx(),
                                         resp.id,
                                         &author,
                                     );
                                     if resp.clicked() {
-                                        self.state.selected = Some((
-                                            section.id.to_owned(),
-                                            topic.heading.to_owned(),
-                                        ));
+                                        self.state.selected =
+                                            Some((section.id.to_owned(), topic.heading.to_owned()));
                                     }
                                 }
                             }
@@ -394,7 +401,10 @@ impl<'a> ManualPane<'a> {
 
     /// The topic whose body to render: the explicitly selected one if it still matches, else the first
     /// topic matching the current query.
-    fn resolve_body_topic(&self, query_lower: &str) -> Option<(&'a ManualSection, &'a ManualTopic)> {
+    fn resolve_body_topic(
+        &self,
+        query_lower: &str,
+    ) -> Option<(&'a ManualSection, &'a ManualTopic)> {
         if let Some((sid, heading)) = &self.state.selected {
             if let Some(section) = self.registry.section(sid) {
                 if let Some(topic) = section.topic(heading) {
@@ -423,7 +433,10 @@ impl<'a> ManualPane<'a> {
         if !showing_reference {
             return;
         }
-        ui.colored_label(self.palette.text_subtle, "Agent Tool Reference (author_id -> MCP tool)");
+        ui.colored_label(
+            self.palette.text_subtle,
+            "Agent Tool Reference (author_id -> MCP tool)",
+        );
         for row in &reference.rows {
             ui.colored_label(
                 self.palette.text,
@@ -461,7 +474,11 @@ mod tests {
         let mut reg = ManualRegistry::new();
         reg.register_section(editors_manual_section());
         reg.register_section(editors_manual_section());
-        assert_eq!(reg.len(), 1, "double-register of the same section id is a no-op");
+        assert_eq!(
+            reg.len(),
+            1,
+            "double-register of the same section id is a no-op"
+        );
     }
 
     #[test]
@@ -470,12 +487,18 @@ mod tests {
         reg.register_section(editors_manual_section());
         // A keyword that lives in a topic BODY (not the heading) proves the body is indexed.
         let hits = reg.search_topics("command palette");
-        assert!(!hits.is_empty(), "a body keyword surfaces a topic via the registered search index");
+        assert!(
+            !hits.is_empty(),
+            "a body keyword surfaces a topic via the registered search index"
+        );
     }
 
     #[test]
     fn topic_matches_is_case_insensitive_substring() {
-        let t = ManualTopic { heading: "Purpose", body: "The Code editor mounts.".to_owned() };
+        let t = ManualTopic {
+            heading: "Purpose",
+            body: "The Code editor mounts.".to_owned(),
+        };
         assert!(t.matches("code"));
         assert!(t.matches("purpose"));
         assert!(!t.matches("excalidraw"));

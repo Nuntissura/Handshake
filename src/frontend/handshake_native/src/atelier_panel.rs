@@ -22,6 +22,19 @@ pub const ATELIER_TAB_INGEST_AUTHOR_ID: &str = "atelier-tab-ingest";
 pub const ATELIER_CONTENT_CKC_AUTHOR_ID: &str = "atelier-content-ckc";
 pub const ATELIER_CONTENT_POSEKIT_AUTHOR_ID: &str = "atelier-content-posekit";
 pub const ATELIER_CONTENT_INGEST_AUTHOR_ID: &str = "atelier-content-ingest";
+pub const ATELIER_POSE_YAW_MINUS_AUTHOR_ID: &str = "atelier-pose-yaw-minus";
+pub const ATELIER_POSE_YAW_PLUS_AUTHOR_ID: &str = "atelier-pose-yaw-plus";
+pub const ATELIER_POSE_RESET_AUTHOR_ID: &str = "atelier-pose-reset";
+pub const ATELIER_POSE_FACE_TOGGLE_AUTHOR_ID: &str = "atelier-pose-face-toggle";
+pub const ATELIER_POSE_BODY_TOGGLE_AUTHOR_ID: &str = "atelier-pose-body-toggle";
+pub const ATELIER_POSE_HANDS_TOGGLE_AUTHOR_ID: &str = "atelier-pose-hands-toggle";
+pub const ATELIER_POSE_YAW_SLIDER_AUTHOR_ID: &str = "atelier-pose-yaw-slider";
+pub const ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID: &str = "atelier-pose-pitch-slider";
+pub const ATELIER_POSE_ZOOM_SLIDER_AUTHOR_ID: &str = "atelier-pose-zoom-slider";
+pub const ATELIER_INGEST_PASS_AUTHOR_ID: &str = "atelier-ingest-pass";
+pub const ATELIER_INGEST_REJECT_AUTHOR_ID: &str = "atelier-ingest-reject";
+pub const ATELIER_INGEST_UNSURE_AUTHOR_ID: &str = "atelier-ingest-unsure";
+pub const ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID: &str = "atelier-ingest-batch-tags";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AtelierPanelTab {
@@ -269,25 +282,101 @@ impl AtelierPanel {
             return;
         };
         ui.horizontal(|ui| {
-            if ui.button("Yaw -15").clicked() {
+            let yaw_minus = ui.button("Yaw -15");
+            emit_node(
+                ui.ctx(),
+                yaw_minus.id,
+                accesskit::Role::Button,
+                ATELIER_POSE_YAW_MINUS_AUTHOR_ID,
+                "Yaw -15",
+                false,
+            );
+            if yaw_minus.clicked() {
                 state.pose_yaw = (state.pose_yaw - 15.0).max(-180.0);
             }
-            if ui.button("Yaw +15").clicked() {
+            let yaw_plus = ui.button("Yaw +15");
+            emit_node(
+                ui.ctx(),
+                yaw_plus.id,
+                accesskit::Role::Button,
+                ATELIER_POSE_YAW_PLUS_AUTHOR_ID,
+                "Yaw +15",
+                false,
+            );
+            if yaw_plus.clicked() {
                 state.pose_yaw = (state.pose_yaw + 15.0).min(180.0);
             }
-            if ui.button("Reset").clicked() {
+            let reset = ui.button("Reset");
+            emit_node(
+                ui.ctx(),
+                reset.id,
+                accesskit::Role::Button,
+                ATELIER_POSE_RESET_AUTHOR_ID,
+                "Reset pose",
+                false,
+            );
+            if reset.clicked() {
                 state.pose_yaw = 0.0;
                 state.pose_pitch = 0.0;
                 state.pose_zoom = 1.0;
             }
             ui.separator();
-            ui.checkbox(&mut state.pose_face, "Face");
-            ui.checkbox(&mut state.pose_body, "Body");
-            ui.checkbox(&mut state.pose_hands, "Hands");
+            let face = ui.checkbox(&mut state.pose_face, "Face");
+            emit_node(
+                ui.ctx(),
+                face.id,
+                accesskit::Role::CheckBox,
+                ATELIER_POSE_FACE_TOGGLE_AUTHOR_ID,
+                "Face markers",
+                state.pose_face,
+            );
+            let body = ui.checkbox(&mut state.pose_body, "Body");
+            emit_node(
+                ui.ctx(),
+                body.id,
+                accesskit::Role::CheckBox,
+                ATELIER_POSE_BODY_TOGGLE_AUTHOR_ID,
+                "Body markers",
+                state.pose_body,
+            );
+            let hands = ui.checkbox(&mut state.pose_hands, "Hands");
+            emit_node(
+                ui.ctx(),
+                hands.id,
+                accesskit::Role::CheckBox,
+                ATELIER_POSE_HANDS_TOGGLE_AUTHOR_ID,
+                "Hand markers",
+                state.pose_hands,
+            );
         });
-        ui.add(egui::Slider::new(&mut state.pose_yaw, -180.0..=180.0).text("Yaw"));
-        ui.add(egui::Slider::new(&mut state.pose_pitch, -45.0..=45.0).text("Pitch"));
-        ui.add(egui::Slider::new(&mut state.pose_zoom, 0.4..=2.2).text("Zoom"));
+        let yaw_slider = ui.add(egui::Slider::new(&mut state.pose_yaw, -180.0..=180.0).text("Yaw"));
+        emit_node(
+            ui.ctx(),
+            yaw_slider.id,
+            accesskit::Role::Slider,
+            ATELIER_POSE_YAW_SLIDER_AUTHOR_ID,
+            "Yaw",
+            false,
+        );
+        let pitch_slider =
+            ui.add(egui::Slider::new(&mut state.pose_pitch, -45.0..=45.0).text("Pitch"));
+        emit_node(
+            ui.ctx(),
+            pitch_slider.id,
+            accesskit::Role::Slider,
+            ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID,
+            "Pitch",
+            false,
+        );
+        let zoom_slider = ui.add(egui::Slider::new(&mut state.pose_zoom, 0.4..=2.2).text("Zoom"));
+        emit_node(
+            ui.ctx(),
+            zoom_slider.id,
+            accesskit::Role::Slider,
+            ATELIER_POSE_ZOOM_SLIDER_AUTHOR_ID,
+            "Zoom",
+            false,
+        );
         ui.separator();
         ui.columns(2, |cols| {
             draw_pose_view(
@@ -322,10 +411,21 @@ impl AtelierPanel {
                 IngestDecision::Unsure,
             ] {
                 let selected = state.ingest_decision == decision;
-                if ui
-                    .add(egui::Button::selectable(selected, decision.label()))
-                    .clicked()
-                {
+                let button = ui.add(egui::Button::selectable(selected, decision.label()));
+                let author_id = match decision {
+                    IngestDecision::Pass => ATELIER_INGEST_PASS_AUTHOR_ID,
+                    IngestDecision::Reject => ATELIER_INGEST_REJECT_AUTHOR_ID,
+                    IngestDecision::Unsure => ATELIER_INGEST_UNSURE_AUTHOR_ID,
+                };
+                emit_node(
+                    ui.ctx(),
+                    button.id,
+                    accesskit::Role::Button,
+                    author_id,
+                    decision.label(),
+                    selected,
+                );
+                if button.clicked() {
                     state.ingest_decision = decision;
                 }
             }
@@ -333,7 +433,15 @@ impl AtelierPanel {
         ui.add_space(6.0);
         ui.horizontal(|ui| {
             ui.label(egui::RichText::new("Batch tags").color(palette.text));
-            ui.text_edit_singleline(&mut state.ingest_tag_buffer);
+            let tags = ui.text_edit_singleline(&mut state.ingest_tag_buffer);
+            emit_node(
+                ui.ctx(),
+                tags.id,
+                accesskit::Role::TextInput,
+                ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID,
+                "Batch tags",
+                false,
+            );
         });
         ui.separator();
         egui::Grid::new("atelier-ingest-grid")
@@ -495,8 +603,14 @@ fn emit_node(
         if selected {
             node.set_selected(true);
         }
-        if matches!(role, accesskit::Role::Tab) {
+        if matches!(
+            role,
+            accesskit::Role::Tab | accesskit::Role::Button | accesskit::Role::CheckBox
+        ) {
             node.add_action(accesskit::Action::Click);
+        }
+        if matches!(role, accesskit::Role::TextInput | accesskit::Role::Slider) {
+            node.add_action(accesskit::Action::Focus);
         }
     });
 }

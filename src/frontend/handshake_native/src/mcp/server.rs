@@ -3,7 +3,7 @@
 //! [`SwarmMcpServer`] binds a localhost TCP listener (`127.0.0.1:0`, OS-picked ephemeral port) and, on
 //! Windows, a named pipe (`\\.\pipe\handshake_swarm_<pid>`). Each accepted connection reads
 //! newline-delimited JSON-RPC 2.0 requests and writes newline-delimited JSON responses, dispatching
-//! every request through the transport-agnostic [`crate::mcp::tools::dispatch_request`] — the SAME
+//! every request through the transport-agnostic Argus/MCP [`crate::mcp::tools::dispatch_request`] — the SAME
 //! function the in-process unit tests prove — so the steering semantics are identical across transports.
 //!
 //! ## Shared state the server reads/writes (thread-safe)
@@ -12,7 +12,7 @@
 //! shared with the app is behind `Arc<Mutex<_>>`:
 //!
 //! - `snapshot: Arc<Mutex<UiTreeSnapshot>>` — the latest UI-tree snapshot the egui frame loop publishes
-//!   each frame. `list_widgets` clones it; `click_widget`/`set_value` resolve their target against it.
+//!   each frame. `argus.inspect` clones it; `argus.click`/`argus.set_value` resolve their target against it.
 //! - `channel: Arc<Mutex<ActionChannel>>` — the bounded action queue. The server ENQUEUES resolved
 //!   actions; the egui frame loop DRAINS them via `drain_into_events` and feeds them to egui.
 //! - `token: SessionToken` — the per-session HMAC secret; checked on EVERY request before any tool runs.
@@ -48,7 +48,9 @@ use crate::mcp::binding::{self, McpBinding};
 use crate::mcp::leases::LeaseRegistry;
 use crate::mcp::screenshot::{capture_handshake_window, ScreenshotError, ScreenshotResult};
 use crate::mcp::session::{McpSession, SwarmSafetyState};
-use crate::mcp::tools::{McpRequest, McpResponse, SessionToken, ERR_INVALID_PARAMS, ERR_RATE_LIMITED};
+use crate::mcp::tools::{
+    McpRequest, McpResponse, SessionToken, ERR_INVALID_PARAMS, ERR_RATE_LIMITED, ERR_UNAUTHORIZED,
+};
 
 /// Max JSON-RPC requests one connection may issue per second before the server replies `-32003`
 /// (`Rate limited`). 100/sec is generous for multi-step steering yet bounds an adversarial flood.
@@ -108,10 +110,10 @@ impl SwarmMcpServer {
         Self::bind_with_safety(safety, capture).await
     }
 
-    /// Bind a server over an EXISTING [`SwarmSafetyState`] (MT-028). Use this when multiple per-token
-    /// servers must SHARE one lease registry + attribution log (e.g. the concurrent harness binds N
-    /// servers — one per agent token — that all contend on one registry and append to one log). The
-    /// single-token live shell uses [`Self::bind`], which builds a per-server safety state.
+    /// Bind a server over an EXISTING [`SwarmSafetyState`] (MT-028). Use this when multiple test servers
+    /// must SHARE one lease registry + attribution log while still contending on one state bundle. The
+    /// single-token live shell uses [`Self::bind`], and parallel live clients should send a top-level
+    /// `agent_label` so their receipts/action-log entries stay distinct under the shared binding token.
     pub async fn bind_with_safety(
         safety: SwarmSafetyState,
         capture: Arc<dyn Fn() -> Result<ScreenshotResult, ScreenshotError> + Send + Sync>,
@@ -162,8 +164,12 @@ impl SwarmMcpServer {
             pid: std::process::id(),
         };
         match binding::write_binding(&binding) {
-            Ok(path) => tracing::info!(path = %path.display(), tcp = %binding.tcp_addr, "mcp binding written"),
-            Err(e) => tracing::warn!(error = %e, "mcp binding file write failed (server still running)"),
+            Ok(path) => {
+                tracing::info!(path = %path.display(), tcp = %binding.tcp_addr, "mcp binding written")
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "mcp binding file write failed (server still running)")
+            }
         }
 
         Ok(Self {
@@ -175,14 +181,18 @@ impl SwarmMcpServer {
     }
 
     /// The production OS-window screenshot capture (focus-safe). Pass to [`Self::bind`] in the live app.
-    pub fn os_window_capture() -> Arc<dyn Fn() -> Result<ScreenshotResult, ScreenshotError> + Send + Sync> {
+    pub fn os_window_capture(
+    ) -> Arc<dyn Fn() -> Result<ScreenshotResult, ScreenshotError> + Send + Sync> {
         Arc::new(capture_handshake_window)
     }
 
     /// Spawn the Windows named-pipe accept loop. Returns the pipe name on success, `None` (TCP-only) on
     /// any bind failure (non-fatal — red-team: named-pipe exhaustion must not crash the server).
     #[cfg(target_os = "windows")]
-    fn spawn_named_pipe(state: &ServerState, shutdown_tx: &broadcast::Sender<()>) -> Option<String> {
+    fn spawn_named_pipe(
+        state: &ServerState,
+        shutdown_tx: &broadcast::Sender<()>,
+    ) -> Option<String> {
         use tokio::net::windows::named_pipe::ServerOptions;
 
         let pipe_name = format!(r"\\.\pipe\handshake_swarm_{}", std::process::id());
@@ -242,7 +252,10 @@ impl SwarmMcpServer {
 
     /// No named pipe on non-Windows builds (TCP-only).
     #[cfg(not(target_os = "windows"))]
-    fn spawn_named_pipe(_state: &ServerState, _shutdown_tx: &broadcast::Sender<()>) -> Option<String> {
+    fn spawn_named_pipe(
+        _state: &ServerState,
+        _shutdown_tx: &broadcast::Sender<()>,
+    ) -> Option<String> {
         None
     }
 
@@ -308,8 +321,8 @@ where
     let mut reader = BufReader::new(read_half);
     let mut limiter = RateLimiter::new(MAX_REQUESTS_PER_SEC);
 
-    // MT-028: one McpSession PER CONNECTION, so its agent_id (derived from the session token) is stable
-    // for every request on this connection and the shared lease registry + attribution log are reused.
+    // MT-028/MT-007: one McpSession PER CONNECTION, with a stable default agent_id from the session
+    // token. A request-level agent_label can split attribution for parallel clients sharing that token.
     let session = state.safety.session();
 
     let mut line = String::new();
@@ -339,7 +352,12 @@ where
 /// now AWAITS the per-widget lease (yielding the tokio worker instead of blocking it); the parse + rate
 /// limit path stays synchronous. Rate-limit and envelope-parse failures map to well-formed JSON-RPC
 /// errors. Tests `await` it on a current-thread runtime.
-async fn handle_line(line: &str, state: &ServerState, session: &McpSession, limiter: &mut RateLimiter) -> serde_json::Value {
+async fn handle_line(
+    line: &str,
+    state: &ServerState,
+    session: &McpSession,
+    limiter: &mut RateLimiter,
+) -> serde_json::Value {
     // Rate limit BEFORE parsing/dispatch so a flood cannot even reach the auth/tool path.
     if !limiter.allow() {
         return serde_json::json!({
@@ -372,7 +390,20 @@ async fn handle_line(line: &str, state: &ServerState, session: &McpSession, limi
         }
     };
 
-    dispatch_with_session(&request, session, state).await.to_json()
+    // Auth-gate at the transport boundary before reading the live UI snapshot. The lower dispatch path
+    // repeats this check as defense-in-depth for in-process callers; this early gate prevents
+    // unauthorized wire traffic from touching snapshot, leases, logs, or the action channel.
+    if !state.safety.token.matches(&request.session_token) {
+        return serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": request.id,
+            "error": { "code": ERR_UNAUTHORIZED, "message": "Unauthorized" },
+        });
+    }
+
+    dispatch_with_session(&request, session, state)
+        .await
+        .to_json()
 }
 
 /// Dispatch one request through `session` so MT-028 leasing + attribution are applied, taking each
@@ -390,7 +421,11 @@ async fn handle_line(line: &str, state: &ServerState, session: &McpSession, limi
 ///
 /// The per-CONNECTION `session` is built once when the connection is accepted (so its `agent_id` is
 /// stable for the connection's whole lifetime) and reused for every request on that connection.
-async fn dispatch_with_session(request: &McpRequest, session: &McpSession, state: &ServerState) -> McpResponse {
+async fn dispatch_with_session(
+    request: &McpRequest,
+    session: &McpSession,
+    state: &ServerState,
+) -> McpResponse {
     let snapshot = state
         .safety
         .snapshot
@@ -405,7 +440,11 @@ async fn dispatch_with_session(request: &McpRequest, session: &McpSession, state
 
 /// Read one `\n`-terminated line into `buf`, but error out (rather than buffer unboundedly) once the
 /// pending line exceeds `max_bytes` (red-team: unbounded-line OOM). Returns bytes read (0 on EOF).
-async fn read_line_bounded<R>(reader: &mut R, buf: &mut String, max_bytes: usize) -> std::io::Result<usize>
+async fn read_line_bounded<R>(
+    reader: &mut R,
+    buf: &mut String,
+    max_bytes: usize,
+) -> std::io::Result<usize>
 where
     R: AsyncBufReadExt + Unpin,
 {
@@ -416,6 +455,12 @@ where
             break; // EOF
         }
         if let Some(pos) = available.iter().position(|&b| b == b'\n') {
+            if bytes.len() + pos + 1 > max_bytes {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "request line exceeds max length",
+                ));
+            }
             bytes.extend_from_slice(&available[..=pos]);
             reader.consume(pos + 1);
             break;
@@ -509,7 +554,11 @@ mod tests {
             bounds: None,
             children: vec![button],
         };
-        UiTreeSnapshot { root, captured_at_utc: "0Z".to_owned(), widget_count: 2 }
+        UiTreeSnapshot {
+            root,
+            captured_at_utc: "0Z".to_owned(),
+            widget_count: 2,
+        }
     }
 
     fn test_state(token: &str) -> ServerState {
@@ -520,9 +569,7 @@ mod tests {
         );
         ServerState {
             safety,
-            capture: Arc::new(|| {
-                Ok(crate::mcp::screenshot::screenshot_from_png(b"foobar", 4, 3))
-            }),
+            capture: Arc::new(|| Ok(crate::mcp::screenshot::screenshot_from_png(b"foobar", 4, 3))),
         }
     }
 
@@ -549,6 +596,33 @@ mod tests {
         assert!(resp.get("result").is_none());
     }
 
+    #[test]
+    fn handle_line_rejects_bad_token_before_snapshot_lock() {
+        let state = test_state("secret-token-1234567890");
+        let snapshot_guard = state.safety.snapshot.lock().unwrap();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let state_for_thread = state.clone();
+
+        let handle = std::thread::spawn(move || {
+            let session = state_for_thread.safety.session();
+            let mut limiter = RateLimiter::new(MAX_REQUESTS_PER_SEC);
+            let line = r#"{"jsonrpc":"2.0","id":22,"method":"argus.inspect","params":{},"session_token":"WRONG"}"#;
+            let rt = tokio::runtime::Runtime::new().expect("test runtime");
+            let resp = rt.block_on(handle_line(line, &state_for_thread, &session, &mut limiter));
+            tx.send(resp).expect("send response");
+        });
+
+        let resp = rx
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .expect("unauthorized request must return without waiting for snapshot lock");
+        drop(snapshot_guard);
+        handle.join().expect("unauthorized request thread exits");
+
+        assert_eq!(resp["error"]["code"], ERR_UNAUTHORIZED);
+        assert_eq!(resp["error"]["message"], "Unauthorized");
+        assert!(resp.get("result").is_none());
+    }
+
     #[tokio::test]
     async fn handle_line_click_enqueues_into_shared_channel_and_attributes() {
         let state = test_state("secret-token-1234567890");
@@ -559,7 +633,8 @@ mod tests {
         assert_eq!(resp["result"]["queued"], true);
         // MAJOR #2 / AC#2: the success result carries the acting agent_id over the wire shape.
         assert_eq!(
-            resp["result"]["agent_id"], session.agent_id(),
+            resp["result"]["agent_id"],
+            session.agent_id(),
             "the click result is stamped with the acting agent_id"
         );
         assert_eq!(
@@ -569,7 +644,11 @@ mod tests {
         );
         // MT-028: the click is attributed in the shared log with this connection's agent_id.
         let entries = state.safety.log().drain_log();
-        assert_eq!(entries.len(), 1, "the click is recorded in the attribution log");
+        assert_eq!(
+            entries.len(),
+            1,
+            "the click is recorded in the attribution log"
+        );
         assert_eq!(entries[0].agent_id, session.agent_id());
         assert_eq!(entries[0].target_key, "btn");
     }
@@ -581,6 +660,24 @@ mod tests {
         let mut limiter = RateLimiter::new(MAX_REQUESTS_PER_SEC);
         let resp = handle_line("not json at all", &state, &session, &mut limiter).await;
         assert_eq!(resp["error"]["code"], -32602);
+    }
+
+    #[tokio::test]
+    async fn read_line_bounded_rejects_oversized_line_even_when_newline_is_buffered() {
+        let mut input = vec![b'a'; MAX_LINE_BYTES + 1];
+        input.push(b'\n');
+        let mut reader = BufReader::new(input.as_slice());
+        let mut buf = String::new();
+
+        let err = read_line_bounded(&mut reader, &mut buf, MAX_LINE_BYTES)
+            .await
+            .expect_err("oversized line must be rejected before accepting buffered newline");
+
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
+        assert!(
+            buf.is_empty(),
+            "rejected oversized request must not be returned to dispatch"
+        );
     }
 
     #[test]
@@ -595,6 +692,9 @@ mod tests {
         // The bucket starts full at capacity (5) and barely refills within a tight loop, so far fewer
         // than 20 are allowed.
         assert!(allowed <= 6, "burst was rate-limited; allowed {allowed}");
-        assert!(allowed >= 5, "the initial full bucket is honored; allowed {allowed}");
+        assert!(
+            allowed >= 5,
+            "the initial full bucket is honored; allowed {allowed}"
+        );
     }
 }

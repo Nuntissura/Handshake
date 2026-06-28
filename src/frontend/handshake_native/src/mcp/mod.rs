@@ -6,11 +6,14 @@
 //! 1. an **action channel** ([`action`]) that turns a model's `author_id`-addressed request
 //!    (`click` / `focus` / `set_value` / `select` / `scroll`) into a real `accesskit::ActionRequest`
 //!    bound to the widget's STABLE `NodeId`, and
-//! 2. an **MCP-style tool surface** ([`tools`]) — `list_widgets`, `click_widget`, `set_value`,
-//!    `screenshot` — dispatched through a JSON-RPC 2.0 subset so an external/in-process agent speaks
-//!    the same protocol Claude Code and other MCP clients already use, and
-//! 3. a **screenshot adapter** ([`screenshot`]) that captures a focus-safe PNG of the window, and
-//! 4. an **out-of-process transport** ([`server`]) — a localhost TCP listener AND a Windows named pipe,
+//! 2. an **Argus facade** ([`argus`]) exposing the product-facing methods `argus.inspect`,
+//!    `argus.click`, `argus.set_value`, and `argus.screenshot` for model visual inspection and
+//!    steering,
+//! 3. an **MCP-style tool surface** ([`tools`]) that routes those Argus methods onto the older
+//!    compatibility primitives `list_widgets`, `click_widget`, `set_value`, and `screenshot`,
+//!    dispatched through a JSON-RPC 2.0 subset so external/in-process agents share one protocol, and
+//! 4. a **screenshot adapter** ([`screenshot`]) that captures a focus-safe PNG of the window, and
+//! 5. an **out-of-process transport** ([`server`]) — a localhost TCP listener AND a Windows named pipe,
 //!    both gated by the per-session HMAC [`SessionToken`], persisting an [`McpBinding`] discovery file —
 //!    that newline-frames JSON-RPC and dispatches every request through [`tools::dispatch_request`].
 //!
@@ -23,8 +26,8 @@
 //! consumes an already-parsed [`McpRequest`] and returns an [`McpResponse`], touching no socket — so the
 //! exact steering semantics proven by the in-process unit tests are what the socket/pipe transport
 //! exposes byte-for-byte. The over-the-wire integration test BINDS the real TCP listener, CONNECTS a
-//! client over the socket, and proves an HMAC-authed `list_widgets` + `click_widget` round-trips and
-//! steers the running shell.
+//! client over the socket, and proves HMAC-authed Argus inspection + steering round-trips and steers
+//! the running shell.
 //!
 //! ## Screenshot: two sources
 //!
@@ -46,6 +49,7 @@
 //! honoring the contract's INTENT (set a text widget's value by stable id) over its mistaken mechanic.
 
 pub mod action;
+pub mod argus;
 pub mod attribution;
 pub mod binding;
 pub mod layout_guard;
@@ -59,15 +63,25 @@ pub use action::{
     build_action_request, resolve_target, ActionChannel, ActionError, ActionOutcome, UiAction,
     DEFAULT_ACTION_CAPACITY, MAX_ACTIONS_PER_BURST,
 };
-pub use attribution::{agent_id_for_token, ActionLog, AttributedAction, ACTION_LOG_CAPACITY, AGENT_ID_HEX_LEN};
-pub use binding::{binding_path, remove_binding, write_binding, BindingError, McpBinding, BINDING_FILE_NAME};
+pub use argus::{
+    primitive_method as argus_primitive_method, route as argus_route, ArgusRoute, ARGUS_CLICK,
+    ARGUS_INSPECT, ARGUS_SCREENSHOT, ARGUS_SET_VALUE,
+};
+pub use attribution::{
+    agent_id_for_token, ActionLog, AttributedAction, ACTION_LOG_CAPACITY, AGENT_ID_HEX_LEN,
+};
+pub use binding::{
+    binding_path, remove_binding, write_binding, BindingError, McpBinding, BINDING_FILE_NAME,
+};
 pub use layout_guard::LayoutGuard;
 pub use leases::{LeaseError, LeaseGuard, LeaseKind, LeaseRegistry, DEFAULT_LEASE_TIMEOUT};
-pub use screenshot::{capture_handshake_window, ScreenshotError, ScreenshotResult, HANDSHAKE_WINDOW_TITLE};
+pub use screenshot::{
+    capture_handshake_window, ScreenshotError, ScreenshotResult, HANDSHAKE_WINDOW_TITLE,
+};
 pub use server::{SwarmMcpServer, MAX_LINE_BYTES, MAX_REQUESTS_PER_SEC};
 pub use session::{McpSession, SwarmSafetyState, SNAPSHOT_RESOURCE};
 pub use tools::{
-    dispatch_request, McpError, McpRequest, McpResponse, McpToolError, SessionToken, ERR_ACTION_QUEUE_FULL,
-    ERR_INVALID_PARAMS, ERR_LEASE_TIMEOUT, ERR_METHOD_NOT_FOUND, ERR_RATE_LIMITED, ERR_TOOL_FAILED,
-    ERR_UNAUTHORIZED,
+    dispatch_request, McpError, McpRequest, McpResponse, McpToolError, SessionToken,
+    ERR_ACTION_QUEUE_FULL, ERR_INVALID_PARAMS, ERR_LEASE_TIMEOUT, ERR_METHOD_NOT_FOUND,
+    ERR_RATE_LIMITED, ERR_TOOL_FAILED, ERR_UNAUTHORIZED,
 };

@@ -7,8 +7,15 @@ use egui_kittest::Harness;
 
 use handshake_native::atelier_panel::{
     AtelierPanel, ATELIER_CONTENT_CKC_AUTHOR_ID, ATELIER_CONTENT_INGEST_AUTHOR_ID,
-    ATELIER_CONTENT_POSEKIT_AUTHOR_ID, ATELIER_PANEL_AUTHOR_ID, ATELIER_TABLIST_AUTHOR_ID,
-    ATELIER_TAB_CKC_AUTHOR_ID, ATELIER_TAB_INGEST_AUTHOR_ID, ATELIER_TAB_POSEKIT_AUTHOR_ID,
+    ATELIER_CONTENT_POSEKIT_AUTHOR_ID, ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID,
+    ATELIER_INGEST_PASS_AUTHOR_ID, ATELIER_INGEST_REJECT_AUTHOR_ID,
+    ATELIER_INGEST_UNSURE_AUTHOR_ID, ATELIER_PANEL_AUTHOR_ID, ATELIER_POSE_BODY_TOGGLE_AUTHOR_ID,
+    ATELIER_POSE_FACE_TOGGLE_AUTHOR_ID, ATELIER_POSE_HANDS_TOGGLE_AUTHOR_ID,
+    ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID, ATELIER_POSE_RESET_AUTHOR_ID,
+    ATELIER_POSE_YAW_MINUS_AUTHOR_ID, ATELIER_POSE_YAW_PLUS_AUTHOR_ID,
+    ATELIER_POSE_YAW_SLIDER_AUTHOR_ID, ATELIER_POSE_ZOOM_SLIDER_AUTHOR_ID,
+    ATELIER_TABLIST_AUTHOR_ID, ATELIER_TAB_CKC_AUTHOR_ID, ATELIER_TAB_INGEST_AUTHOR_ID,
+    ATELIER_TAB_POSEKIT_AUTHOR_ID,
 };
 use handshake_native::atelier_side_panel::{item_author_id, AtelierSidePanel, PANEL_AUTHOR_ID};
 use handshake_native::backend_client::{AtelierBatchRow, AtelierItemRow};
@@ -110,4 +117,61 @@ fn atelier_internal_tabs_switch_visible_content_regions() {
         ids.contains(ATELIER_CONTENT_INGEST_AUTHOR_ID),
         "Ingest content region should be visible after clicking the Ingest tab"
     );
+}
+
+#[test]
+fn posekit_and_ingest_controls_are_model_addressable() {
+    let mut harness = build_panel_harness();
+    harness.run();
+
+    harness
+        .get_by(|node| node.author_id() == Some(ATELIER_TAB_POSEKIT_AUTHOR_ID))
+        .click();
+    harness.run();
+    for expected in [
+        ATELIER_POSE_YAW_MINUS_AUTHOR_ID,
+        ATELIER_POSE_YAW_PLUS_AUTHOR_ID,
+        ATELIER_POSE_RESET_AUTHOR_ID,
+        ATELIER_POSE_FACE_TOGGLE_AUTHOR_ID,
+        ATELIER_POSE_BODY_TOGGLE_AUTHOR_ID,
+        ATELIER_POSE_HANDS_TOGGLE_AUTHOR_ID,
+        ATELIER_POSE_YAW_SLIDER_AUTHOR_ID,
+        ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID,
+        ATELIER_POSE_ZOOM_SLIDER_AUTHOR_ID,
+    ] {
+        let node = harness.get_by(|node| node.author_id() == Some(expected));
+        assert!(
+            node.accesskit_node()
+                .data()
+                .supports_action(egui::accesskit::Action::Click)
+                || node
+                    .accesskit_node()
+                    .data()
+                    .supports_action(egui::accesskit::Action::Focus),
+            "Posekit control {expected} must be steerable by Argus/MCP"
+        );
+    }
+
+    harness
+        .get_by(|node| node.author_id() == Some(ATELIER_TAB_INGEST_AUTHOR_ID))
+        .click();
+    harness.run();
+    for expected in [
+        ATELIER_INGEST_PASS_AUTHOR_ID,
+        ATELIER_INGEST_REJECT_AUTHOR_ID,
+        ATELIER_INGEST_UNSURE_AUTHOR_ID,
+        ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID,
+    ] {
+        let node = harness.get_by(|node| node.author_id() == Some(expected));
+        assert!(
+            node.accesskit_node()
+                .data()
+                .supports_action(egui::accesskit::Action::Click)
+                || node
+                    .accesskit_node()
+                    .data()
+                    .supports_action(egui::accesskit::Action::Focus),
+            "Ingest control {expected} must be steerable by Argus/MCP"
+        );
+    }
 }

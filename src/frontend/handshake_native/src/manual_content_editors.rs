@@ -26,9 +26,10 @@
 //!     `daily-journal-calendar-event-chip` / `daily-journal-activity-strip` ([`crate::graph::daily_journal_panel`]);
 //!   * Locus — `outgoing.panel` / `outgoing.section.resolved` / `outgoing.section.unresolved`
 //!     ([`crate::rich_editor::wikilinks::outgoing_links_panel`]) — the locus-ref chip lives inline.
-//! - Every documented `mcp_tool` is one of the FOUR REAL [`crate::mcp::tools`] methods:
-//!   `list_widgets` / `click_widget` / `set_value` / `screenshot`. The contract's invented
-//!   `gui.invoke_action` / `gui.read_state` are NOT used.
+//! - Every documented `mcp_tool` prefers the canonical Argus methods:
+//!   `argus.inspect` / `argus.click` / `argus.set_value` / `argus.screenshot`. The compatibility
+//!   primitives `list_widgets` / `click_widget` / `set_value` / `screenshot` remain valid aliases.
+//!   The contract's invented `gui.invoke_action` / `gui.read_state` are NOT used.
 //!
 //! ## Honest interop-edge gap note (RISK-007)
 //!
@@ -111,6 +112,10 @@ pub fn editors_manual_section() -> ManualSection {
         heading: "Argus Visual Inspection",
         body: argus_visual_inspection_body(),
     });
+    topics.push(ManualTopic {
+        heading: "Atelier Tools",
+        body: atelier_tools_body(),
+    });
     // The interop topic (its own addressable topic). AC-005/MC-007 assert all four edge names + an
     // author_id + mcp_tool appear in this topic's body.
     topics.push(ManualTopic {
@@ -146,9 +151,9 @@ that share ONE selection, ONE clipboard, ONE command bus, and ONE undo scope —
 substrate built on command_registry.rs + event_bus.rs. The panes are: the VS-Code-class CODE editor, the \
 Obsidian/Notion-class RICH-TEXT editor, the Loom GRAPH view, the CANVAS board, and the knowledge surfaces \
 (folder tree / backlinks / outgoing links / collections). Every pane is addressable by a stable AccessKit \
-author_id and steerable by the MCP swarm tools. A swarm agent discovers controls with list_widgets, drives \
-a button with click_widget{target:<author_id>}, types into a field with set_value{target,value}, and sees \
-the pixels with screenshot — no screen-scraping and no keyboard simulation."
+author_id and steerable by Argus. A swarm agent discovers controls with argus.inspect, drives a button \
+with argus.click{target:<author_id>}, types into a field with argus.set_value{target,value}, and sees \
+the pixels with argus.screenshot — no screen-scraping and no keyboard simulation."
         .to_owned()
 }
 
@@ -178,9 +183,10 @@ native frontend from the crate directory src/frontend/handshake_native with:\n\
 \n\
 The cargo package is 'handshake-native' and the binary target is also 'handshake-native' (verified \
 against src/frontend/handshake_native/Cargo.toml [[bin]] name). For a swarm/headless session the MCP \
-steering surface (mcp/server.rs) speaks the JSON-RPC tools list_widgets / click_widget / set_value / \
-screenshot over the per-session token written into the binding file. To open the manual itself, surface \
-the manual-pane and type a keyword into manual-search."
+steering surface (mcp/server.rs) speaks the JSON-RPC Argus tools argus.inspect / argus.click / \
+argus.set_value / argus.screenshot over the per-session token written into the binding file. The older \
+list_widgets / click_widget / set_value / screenshot names remain compatibility aliases. To open the \
+manual itself, surface the manual-pane and type a keyword into manual-search."
         .to_owned()
 }
 
@@ -198,7 +204,7 @@ client. Nothing the editors emit bypasses handshake_core."
 
 fn navigation_paths_body() -> String {
     "Keyboard + AccessKit navigation between panes: Tab/Shift+Tab moves focus across the live AccessKit \
-tree; an agent moves focus with click_widget (Focus is a declared action on every control). The command \
+tree; an agent moves focus with argus.click (Focus is a declared action on every control). The command \
 palette (Ctrl+Shift+P) is command_palette.rs + command_registry.rs — its container is \
 command-palette.dialog, its input is command-palette.search, its list is command-palette.list. The \
 quick-switcher (quick-switcher.dialog / quick-switcher.search) jumps between open docs/blocks/symbols. \
@@ -222,22 +228,65 @@ fems-propose-confirm), never an editor-direct commit."
 }
 
 fn argus_visual_inspection_body() -> String {
-    "Argus is the named Rust-native visual inspection capability for Handshake. Models and operators use \
-Argus to inspect panels, tabs, buttons, labels, bounds, disabled state, stable author_id values, and \
-screenshots before claiming GUI or behavior work is complete. Argus is not an external foreground \
-automation habit; it is built on the native AccessKit tree and the MCP tools already wired into the shell: \
-list_widgets for structured GUI state, screenshot for pixels, and click_widget / set_value for attributed \
-agent actions.\n\
+    "Argus is the named Rust-native native Handshake visual inspection/control surface. Models and \
+operators use Argus to inspect panels, tabs, buttons, labels, bounds, disabled state, stable author_id \
+values, and screenshots before claiming GUI or behavior work is complete. Argus is not an external \
+foreground automation habit; it is built on the native AccessKit tree and the MCP tools already wired \
+into the shell. The product-facing method names are argus.inspect, argus.click, argus.set_value, and \
+argus.screenshot. The compatibility primitives remain list_widgets, click_widget, set_value, and \
+screenshot.\n\
 \n\
-Use Argus first for GUI validation. Start with list_widgets, assert the exact stable author_id values, \
-then use screenshot only as the visual companion for layout, overlap, readability, and rendered pixels. \
-For parallel agents, share Argus snapshot reads and use the existing MCP lease/receipt path for mutations \
-instead of coordinating through screen coordinates or hidden chat context.\n\
+Use Argus first for GUI validation. The required loop is: inspect widgets -> use stable ids/author ids \
+-> click/set value -> inspect again -> take screenshot/snapshot evidence. Start with argus.inspect, \
+assert the exact stable author_id values, then use argus.screenshot as the visual companion for layout, \
+overlap, readability, and rendered pixels. For parallel agents, include a top-level agent_label such as \
+codex-a or worker-3, share Argus snapshot reads, and use the existing MCP lease/receipt path for \
+mutations instead of coordinating through screen coordinates or hidden chat context.\n\
 \n\
 Argus must be quiet. It must not bring Handshake to the foreground, must not steal keyboard focus, must \
-not steal mouse input, must not move the cursor, and must not require the operator to activate the window. \
-If Argus cannot inspect a surface, report not inspected and keep the verdict unclaimed until a \
-non-intrusive proof path exists."
+not steal mouse input, must not move the cursor, must not bring the app foreground, and must not steal \
+mouse, keyboard, or focus. If Argus cannot inspect a surface, report not inspected and keep the verdict \
+unclaimed until a non-intrusive proof path exists. If Argus cannot see or steer a GUI surface, that is \
+technical debt and accepted scope for remediation in the active WP.\n\
+\n\
+Verification proof for this surface is Argus evidence, not a foreground manual look: run argus.inspect, \
+drive argus.click or argus.set_value, re-run argus.inspect, and pair that structured tree with \
+argus.screenshot when layout/readability/pixels matter. The current native proof commands are the \
+focused Argus MCP tests and TCP steer-loop tests in the handshake-native crate; their successful path \
+returns Argus metadata plus agent_id/agent_label receipts and appends mutating calls to the MCP \
+ActionLog.\n\
+\n\
+Flight Recorder/EventLedger linkage posture: Argus MT-007 writes native MCP ActionLog entries for \
+mutating requests, but durable Flight Recorder/EventLedger mirroring is DEFERRED-with-reason because \
+this MT establishes the native visual/control facade and does not add persistent event writes. Do not \
+claim EventLedger persistence for Argus until a follow-up diagnostics MT wires it. HBR-INT-009 posture: \
+Tier 1 Flight Recorder is DEFERRED-with-reason as above; Tier 2 internal_diagnostics is \
+DEFERRED-with-reason until Argus health/error/action events are exposed as native diagnostic events; \
+Tier 3 Palmistry is DEFERRED-with-reason until the external watcher ingests Argus action/screenshot \
+health. Current recovery is to use typed JSON-RPC errors, the MCP ActionLog, the binding file, and the \
+Argus inspect/steer/screenshot loop."
+        .to_owned()
+}
+
+fn atelier_tools_body() -> String {
+    "Atelier is the main filling panel for the CKC/Posekit/Ingest tool family. The visible top-level \
+module button is module-ckc and displays Atelier. It opens atelier-main-panel, not a four-window grid. \
+Inside that panel, Castkit Codex is atelier-tab-ckc, Posekit is atelier-tab-posekit, and Ingest is \
+atelier-tab-ingest. Use Argus to inspect the panel, click a tab, then re-inspect the active content \
+region before claiming the workflow works.\n\
+\n\
+CKC starts from atelier-content-ckc and keeps the character/media intake and drag-source workflow. \
+Posekit starts from atelier-content-posekit and exposes model-addressable controls for the current \
+placeholder split-view workflow: atelier-pose-yaw-minus, atelier-pose-yaw-plus, atelier-pose-reset, \
+atelier-pose-face-toggle, atelier-pose-body-toggle, atelier-pose-hands-toggle, \
+atelier-pose-yaw-slider, atelier-pose-pitch-slider, and atelier-pose-zoom-slider. Ingest starts from \
+atelier-content-ingest and exposes review controls atelier-ingest-pass, atelier-ingest-reject, \
+atelier-ingest-unsure, and atelier-ingest-batch-tags.\n\
+\n\
+For models, the expected navigation path is module-ckc -> atelier-main-panel -> one of \
+atelier-tab-ckc / atelier-tab-posekit / atelier-tab-ingest -> the active content region. If a control \
+needed for CKC, Posekit, or Ingest cannot be found by stable author_id through Argus, treat that as a \
+product gap to remediate before claiming visual or behavioral completion."
         .to_owned()
 }
 
@@ -272,27 +321,31 @@ AccessKit surface an agent drives TODAY; the backend route that completes the cr
 gated (EndpointMissing) in the current handshake_core build — an HONEST typed blocker, not a silent no-op.\n\
 \n\
 - FEMS (Pillar 12, typed memory): the relevant-memory-panel renders the retrieval capsule \
-(relevant-memory-list); an agent reads it with list_widgets and screenshot. A review-gated memory-write \
-proposal is opened at fems-propose-dialog and confirmed at fems-propose-confirm (click_widget). Cross-edge \
+(relevant-memory-list); an agent reads it with argus.inspect and argus.screenshot. A review-gated memory-write \
+proposal is opened at fems-propose-dialog and confirmed at fems-propose-confirm (argus.click). Cross-edge \
 read is gated until the FEMS pack route exists.\n\
 - Stage (Pillar 17): content is routed to the stage-pane (stage-routed-content); the agent embeds a \
-capture back with stage-capture-embed-back (click_widget). The embed-back backend route is gated.\n\
+capture back with stage-capture-embed-back (argus.click). The embed-back backend route is gated.\n\
 - Calendar (Pillar 2): the daily-journal-panel binds a daily note to a CalendarEvent \
 (daily-journal-date-header, daily-journal-calendar-event-chip) and shows a read-only activity strip \
 (daily-journal-activity-strip). The ActivitySpan correlation route is gated.\n\
 - Locus (Pillar 6): a locus:// WP/MT reference renders as an inline locus-ref chip in the rich editor, and \
 the outgoing-links pane (outgoing.panel) lists resolved (outgoing.section.resolved) and unresolved \
 (outgoing.section.unresolved) references. The Locus read route is gated. An agent drives all of these with \
-click_widget / list_widgets."
+argus.click / argus.inspect."
         .to_owned()
 }
 
 fn agent_tool_reference_body() -> String {
     "The agent-vision / steering index pairs every addressable editor/knowledge/FEMS/interop action with \
-the REAL MCP swarm tool that drives it. The four tools are: list_widgets (discover the live AccessKit \
-tree), click_widget{target:<author_id>} (activate a button/toggle/row), set_value{target,value} (type \
-into a text field), and screenshot (capture the pixels). Read the structured rows in the pane below; each \
-row is author_id -> mcp_tool for a real, live-registered control."
+the real native Argus/MCP swarm tool that drives it. Use the Argus methods first: argus.inspect \
+(discover the live AccessKit tree), argus.click{target:<author_id>} (activate a button/toggle/row), \
+argus.set_value{target,value} (type into a text field), and argus.screenshot (capture the pixels). \
+The compatibility primitives list_widgets, click_widget, set_value, and screenshot still work for older \
+clients. Read the structured rows in the pane below; each row is author_id -> mcp_tool for a real, \
+live-registered control. When multiple models share the live binding token, each request should include \
+agent_label, for example agent_label:'codex-a', so receipts and the action log distinguish parallel \
+agents without treating the label as authorization."
         .to_owned()
 }
 
@@ -304,7 +357,7 @@ row is author_id -> mcp_tool for a real, live-registered control."
 /// Build the full `author_id -> MCP tool` steering reference. Covers shell chrome, code-editor actions,
 /// rich-text actions, graph actions, canvas actions, collection actions, FEMS, and the four interop edges
 /// (Stage / Calendar / Locus / FEMS). Every `author_id` is a LIVE registered id (the id-audit asserts no
-/// orphan); every `mcp_tool` is a real `mcp/tools.rs` method.
+/// orphan); every `mcp_tool` is a real Argus/MCP method.
 pub fn agent_tool_rows() -> Vec<AgentToolRow> {
     let mut rows: Vec<AgentToolRow> = Vec::new();
 
@@ -318,36 +371,37 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         author_id: PALETTE_SEARCH_AUTHOR_ID,
         surface: ManualSurface::Code,
         action_label: "Type a command into the palette",
-        mcp_tool: "set_value",
+        mcp_tool: "argus.set_value",
         description:
-            "set_value{target:'command-palette.search', value:'<command>'} filters the palette.",
+            "argus.set_value{target:'command-palette.search', value:'<command>'} filters the palette.",
     });
     rows.push(AgentToolRow {
         author_id: PALETTE_LIST_AUTHOR_ID,
         surface: ManualSurface::Code,
         action_label: "Read palette results",
-        mcp_tool: "list_widgets",
-        description: "list_widgets reveals the command-palette.list rows for the agent to click.",
+        mcp_tool: "argus.inspect",
+        description: "argus.inspect reveals the command-palette.list rows for the agent to click.",
     });
     rows.push(AgentToolRow {
         author_id: "manual-search",
         surface: ManualSurface::Knowledge,
         action_label: "Search the manual",
-        mcp_tool: "set_value",
-        description: "set_value{target:'manual-search', value:'<keyword>'} filters manual topics.",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'manual-search', value:'<keyword>'} filters manual topics.",
     });
 
     // ── Code editor: every CODE_ACTION_CATALOG entry as editor.code.<action> ─────────────────────────
     // Both momentary Buttons and ToggleButtons are ACTIVATED by a click (a toggle carries its toggled
-    // state separately), so every code action is driven by click_widget{target:<author_id>}.
+    // state separately), so every code action is driven by argus.click{target:<author_id>}.
     for entry in CODE_ACTION_CATALOG {
         let author_id: &'static str = code_author_id_static(entry.action_id);
         rows.push(AgentToolRow {
             author_id,
             surface: ManualSurface::Code,
             action_label: entry.label,
-            mcp_tool: "click_widget",
-            description: "click_widget{target:<author_id>} activates this code-editor action.",
+            mcp_tool: "argus.click",
+            description: "argus.click{target:<author_id>} activates this code-editor action.",
         });
     }
 
@@ -358,8 +412,8 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             author_id,
             surface: ManualSurface::RichText,
             action_label: entry.label,
-            mcp_tool: "click_widget",
-            description: "click_widget{target:<author_id>} activates this rich-text editor action.",
+            mcp_tool: "argus.click",
+            description: "argus.click{target:<author_id>} activates this rich-text editor action.",
         });
     }
 
@@ -369,8 +423,8 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             author_id: entry.author_id,
             surface: ManualSurface::Graph,
             action_label: entry.label,
-            mcp_tool: "click_widget",
-            description: "click_widget{target:<author_id>} drives this Loom graph control.",
+            mcp_tool: "argus.click",
+            description: "argus.click{target:<author_id>} drives this Loom graph control.",
         });
     }
 
@@ -380,8 +434,8 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             author_id: entry.author_id,
             surface: ManualSurface::Canvas,
             action_label: entry.label,
-            mcp_tool: "click_widget",
-            description: "click_widget{target:<author_id>} drives this canvas-board control.",
+            mcp_tool: "argus.click",
+            description: "argus.click{target:<author_id>} drives this canvas-board control.",
         });
     }
 
@@ -391,8 +445,8 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             author_id: entry.author_id,
             surface: ManualSurface::Knowledge,
             action_label: entry.label,
-            mcp_tool: "click_widget",
-            description: "click_widget{target:<author_id>} drives this block-collection control.",
+            mcp_tool: "argus.click",
+            description: "argus.click{target:<author_id>} drives this block-collection control.",
         });
     }
 
@@ -401,32 +455,33 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         author_id: crate::fems::RELEVANT_MEMORY_PANEL_AUTHOR_ID,
         surface: ManualSurface::Fems,
         action_label: "Read the FEMS retrieval capsule",
-        mcp_tool: "list_widgets",
+        mcp_tool: "argus.inspect",
         description:
-            "list_widgets surfaces the relevant-memory-panel + its items for the agent to read.",
+            "argus.inspect surfaces the relevant-memory-panel + its items for the agent to read.",
     });
     rows.push(AgentToolRow {
         author_id: crate::fems::RELEVANT_MEMORY_LIST_AUTHOR_ID,
         surface: ManualSurface::Fems,
         action_label: "Enumerate memory items",
-        mcp_tool: "list_widgets",
+        mcp_tool: "argus.inspect",
         description:
-            "list_widgets reveals the relevant-memory-list rows (provenance-first capsule items).",
+            "argus.inspect reveals the relevant-memory-list rows (provenance-first capsule items).",
     });
     rows.push(AgentToolRow {
         author_id: crate::fems::FEMS_PROPOSE_DIALOG_AUTHOR_ID,
         surface: ManualSurface::Fems,
         action_label: "Open a review-gated memory-write proposal",
-        mcp_tool: "click_widget",
-        description: "click_widget{target:'fems-propose-dialog'} opens the proposal (never a direct commit).",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'fems-propose-dialog'} opens the proposal (never a direct commit).",
     });
     rows.push(AgentToolRow {
         author_id: crate::fems::FEMS_PROPOSE_CONFIRM_AUTHOR_ID,
         surface: ManualSurface::Fems,
         action_label: "Confirm the memory-write proposal",
-        mcp_tool: "click_widget",
+        mcp_tool: "argus.click",
         description:
-            "click_widget{target:'fems-propose-confirm'} submits the review-gated proposal.",
+            "argus.click{target:'fems-propose-confirm'} submits the review-gated proposal.",
     });
 
     // ── Stage interop edge (Pillar 17) ───────────────────────────────────────────────────────────────
@@ -434,23 +489,23 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         author_id: crate::stage_pane::STAGE_PANE_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Stage edge: the Stage pane container",
-        mcp_tool: "list_widgets",
+        mcp_tool: "argus.inspect",
         description:
-            "list_widgets surfaces the stage-pane; an agent reads what was routed to Stage.",
+            "argus.inspect surfaces the stage-pane; an agent reads what was routed to Stage.",
     });
     rows.push(AgentToolRow {
         author_id: crate::stage_pane::STAGE_ROUTED_CONTENT_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Stage edge: routed content region",
-        mcp_tool: "screenshot",
-        description: "screenshot captures the stage-routed-content region for vision.",
+        mcp_tool: "argus.screenshot",
+        description: "argus.screenshot captures the stage-routed-content region for vision.",
     });
     rows.push(AgentToolRow {
         author_id: crate::stage_pane::STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Stage edge: embed a capture back into notes",
-        mcp_tool: "click_widget",
-        description: "click_widget{target:'stage-capture-embed-back'} embeds the Stage capture back (route gated).",
+        mcp_tool: "argus.click",
+        description: "argus.click{target:'stage-capture-embed-back'} embeds the Stage capture back (route gated).",
     });
 
     // ── Calendar interop edge (Pillar 2) ─────────────────────────────────────────────────────────────
@@ -458,31 +513,31 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         author_id: crate::graph::daily_journal_panel::DAILY_JOURNAL_PANEL_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Calendar edge: the daily-journal panel",
-        mcp_tool: "list_widgets",
+        mcp_tool: "argus.inspect",
         description:
-            "list_widgets surfaces the daily-journal-panel (daily-note <-> CalendarEvent binding).",
+            "argus.inspect surfaces the daily-journal-panel (daily-note <-> CalendarEvent binding).",
     });
     rows.push(AgentToolRow {
         author_id: crate::graph::daily_journal_panel::DAILY_JOURNAL_DATE_HEADER_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Calendar edge: the daily-note date header",
-        mcp_tool: "click_widget",
-        description: "click_widget{target:'daily-journal-date-header'} opens the bound date.",
+        mcp_tool: "argus.click",
+        description: "argus.click{target:'daily-journal-date-header'} opens the bound date.",
     });
     rows.push(AgentToolRow {
         author_id: crate::graph::daily_journal_panel::DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Calendar edge: a bound CalendarEvent chip",
-        mcp_tool: "click_widget",
+        mcp_tool: "argus.click",
         description:
-            "click_widget{target:'daily-journal-calendar-event-chip'} opens the bound event.",
+            "argus.click{target:'daily-journal-calendar-event-chip'} opens the bound event.",
     });
     rows.push(AgentToolRow {
         author_id: crate::graph::daily_journal_panel::DAILY_JOURNAL_ACTIVITY_STRIP_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Calendar edge: read-only ActivitySpan strip",
-        mcp_tool: "list_widgets",
-        description: "list_widgets surfaces the daily-journal-activity-strip (read-only correlation; route gated).",
+        mcp_tool: "argus.inspect",
+        description: "argus.inspect surfaces the daily-journal-activity-strip (read-only correlation; route gated).",
     });
 
     // ── Locus interop edge (Pillar 6) ────────────────────────────────────────────────────────────────
@@ -490,26 +545,26 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         author_id: crate::rich_editor::wikilinks::outgoing_links_panel::PANEL_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Locus edge: the outgoing-links pane",
-        mcp_tool: "list_widgets",
+        mcp_tool: "argus.inspect",
         description:
-            "list_widgets surfaces the outgoing.panel listing locus:// and wikilink references.",
+            "argus.inspect surfaces the outgoing.panel listing locus:// and wikilink references.",
     });
     rows.push(AgentToolRow {
         author_id: crate::rich_editor::wikilinks::outgoing_links_panel::RESOLVED_SECTION_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Locus edge: resolved references section",
-        mcp_tool: "list_widgets",
+        mcp_tool: "argus.inspect",
         description:
-            "list_widgets reveals outgoing.section.resolved rows (each navigable by click_widget).",
+            "argus.inspect reveals outgoing.section.resolved rows (each navigable by argus.click).",
     });
     rows.push(AgentToolRow {
         author_id:
             crate::rich_editor::wikilinks::outgoing_links_panel::UNRESOLVED_SECTION_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Locus edge: unresolved (dangling) references section",
-        mcp_tool: "list_widgets",
+        mcp_tool: "argus.inspect",
         description:
-            "list_widgets reveals outgoing.section.unresolved rows (Locus read route gated).",
+            "argus.inspect reveals outgoing.section.unresolved rows (Locus read route gated).",
     });
 
     rows
@@ -603,6 +658,42 @@ mod tests {
         for entry in rich_action_catalog() {
             let id = rich_author_id_static(entry.action_id);
             assert!(id.starts_with("editor.rich."), "{id}");
+        }
+    }
+
+    #[test]
+    fn argus_visual_inspection_topic_documents_native_model_flow() {
+        let section = editors_manual_section();
+        let topic = section
+            .topic("Argus Visual Inspection")
+            .expect("Argus Visual Inspection topic must exist");
+        let body = topic.body.as_str();
+
+        for required in [
+            "native Handshake visual inspection/control surface",
+            "argus.inspect",
+            "argus.click",
+            "argus.set_value",
+            "argus.screenshot",
+            "agent_label",
+            "inspect widgets -> use stable ids/author ids -> click/set value -> inspect again -> take screenshot/snapshot evidence",
+            "must not bring the app foreground",
+            "must not steal mouse, keyboard, or focus",
+            "technical debt",
+            "accepted scope for remediation in the active WP",
+            "Verification proof for this surface is Argus evidence",
+            "Argus metadata plus agent_id/agent_label receipts",
+            "MCP ActionLog",
+            "Flight Recorder/EventLedger linkage posture",
+            "DEFERRED-with-reason",
+            "Tier 2 internal_diagnostics",
+            "Tier 3 Palmistry",
+            "Do not claim EventLedger persistence for Argus",
+        ] {
+            assert!(
+                body.contains(required),
+                "Argus manual topic must document: {required}"
+            );
         }
     }
 }

@@ -29,9 +29,12 @@ use std::path::{Path, PathBuf};
 use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
 
+use handshake_native::accessibility::{collect_ui_tree_snapshot, UiTreeSnapshot};
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::atelier_panel::{
-    ATELIER_CONTENT_CKC_AUTHOR_ID, ATELIER_PANEL_AUTHOR_ID, ATELIER_TAB_CKC_AUTHOR_ID,
+    ATELIER_CONTENT_CKC_AUTHOR_ID, ATELIER_CONTENT_INGEST_AUTHOR_ID,
+    ATELIER_CONTENT_POSEKIT_AUTHOR_ID, ATELIER_PANEL_AUTHOR_ID, ATELIER_TAB_CKC_AUTHOR_ID,
+    ATELIER_TAB_INGEST_AUTHOR_ID, ATELIER_TAB_POSEKIT_AUTHOR_ID,
 };
 use handshake_native::atelier_side_panel::{
     item_author_id, AtelierSidePanel, PANEL_AUTHOR_ID, REFRESH_AUTHOR_ID,
@@ -39,6 +42,9 @@ use handshake_native::atelier_side_panel::{
 use handshake_native::backend_client::{AtelierBatchRow, AtelierItemRow, HealthInfo};
 use handshake_native::interop::{
     AtelierItemKind, AtelierRef, DragPayload, InteractionBus, CMD_ROUTE_TO_STAGE,
+};
+use handshake_native::mcp::{
+    dispatch_request, ActionChannel, McpRequest, ScreenshotError, SessionToken,
 };
 use handshake_native::module_switcher::ModuleId;
 use handshake_native::rich_editor::renderer::rich_editor_widget::{
@@ -571,6 +577,70 @@ fn live_shell() -> HandshakeApp {
     app
 }
 
+fn live_shell_snapshot() -> UiTreeSnapshot {
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let mut app = live_shell();
+    let input = egui::RawInput {
+        screen_rect: Some(egui::Rect::from_min_size(
+            egui::Pos2::ZERO,
+            egui::vec2(1280.0, 800.0),
+        )),
+        ..Default::default()
+    };
+    let _ = ctx.run(input.clone(), |ctx| app.ui(ctx));
+    let output = ctx.run(input, |ctx| app.ui(ctx));
+    let update = output
+        .platform_output
+        .accesskit_update
+        .expect("AccessKit update produced for live Atelier shell");
+    collect_ui_tree_snapshot(&update)
+}
+
+fn mcp_token() -> SessionToken {
+    SessionToken::from_hex("mt006-atelier-proof-token")
+}
+
+fn mcp_req(method: &str, target: &str) -> McpRequest {
+    McpRequest {
+        id: serde_json::json!(1),
+        method: method.to_owned(),
+        params: serde_json::json!({ "target": target }),
+        session_token: "mt006-atelier-proof-token".to_owned(),
+        agent_label: None,
+    }
+}
+
+fn steer_tab_with_mcp(harness: &mut Harness<'_, HandshakeApp>, target_author_id: &str) {
+    let snapshot = live_shell_snapshot();
+    assert!(
+        snapshot.find_by_author_id(target_author_id).is_some(),
+        "MCP proof snapshot contains target tab {target_author_id}"
+    );
+    let mut channel = ActionChannel::new();
+    let response = dispatch_request(
+        &mcp_req("click_widget", target_author_id),
+        &mcp_token(),
+        &snapshot,
+        &mut channel,
+        || {
+            Err(ScreenshotError(
+                "not used in MT-006 tab steering proof".to_owned(),
+            ))
+        },
+    );
+    let json = response.to_json();
+    assert_eq!(
+        json["result"]["queued"], true,
+        "MCP click_widget queued tab click for {target_author_id}; got {json}"
+    );
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+}
+
 #[test]
 fn ac6_atelier_side_panel_mounted_in_live_shell() {
     // Render the REAL shell for two frames; the central Atelier pane must contribute its main panel,
@@ -609,6 +679,29 @@ fn ac6_atelier_side_panel_mounted_in_live_shell() {
         );
     }
     println!("AC-6 live: the central Atelier pane exposes CKC intake rows in the real HandshakeApp shell");
+}
+
+#[test]
+fn ac6_posekit_and_ingest_tabs_switch_in_live_shell() {
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), live_shell());
+    harness.run();
+    harness.run();
+
+    steer_tab_with_mcp(&mut harness, ATELIER_TAB_POSEKIT_AUTHOR_ID);
+    let ids = author_ids(&harness);
+    assert!(
+        ids.contains(ATELIER_CONTENT_POSEKIT_AUTHOR_ID),
+        "AC-6 live: Posekit content appears after clicking the live-shell Posekit tab ({ids:?})"
+    );
+
+    steer_tab_with_mcp(&mut harness, ATELIER_TAB_INGEST_AUTHOR_ID);
+    let ids = author_ids(&harness);
+    assert!(
+        ids.contains(ATELIER_CONTENT_INGEST_AUTHOR_ID),
+        "AC-6 live: Ingest content appears after clicking the live-shell Ingest tab ({ids:?})"
+    );
 }
 
 #[test]

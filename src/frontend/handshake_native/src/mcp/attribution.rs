@@ -5,7 +5,7 @@
 //! [`ActionLog`] is the bounded, ordered, thread-safe ring buffer the per-connection
 //! [`crate::mcp::session::McpSession`] appends to and a diagnostic tool drains.
 //!
-//! ## `agent_id`: a deterministic per-session label, NOT a security identity
+//! ## `agent_id`: a deterministic attribution label, NOT a security identity
 //!
 //! `agent_id` is the first [`AGENT_ID_HEX_LEN`] hex chars of `SHA-256(session_token_bytes)`. It is a
 //! short, stable, deterministic handle for one MCP session — two requests on the same connection share
@@ -15,6 +15,11 @@
 //! [`crate::mcp::leases::LeaseRegistry`] is the gate) and NOT a security identity (a local agent that
 //! read another's token could reproduce its `agent_id`; the binding-file permissions from MT-027 are
 //! what protect the token).
+//!
+//! MT-007 extends the label model for the live one-token binding topology: an authenticated request may
+//! carry `agent_label` (for example `codex-a` or `worker-3`). The effective `agent_id` is then derived
+//! from `session_token + agent_label`, so parallel clients using the same binding token remain
+//! distinguishable in receipts and responses without making the label an auth credential.
 //!
 //! ## Why a `std::sync::Mutex` ring buffer (not async)
 //!
@@ -56,6 +61,16 @@ pub fn agent_id_for_token(token: &str) -> String {
     out
 }
 
+/// Derive an attribution id for an authenticated request carrying an optional model/operator label.
+/// Same token + same label is stable; same token + different labels produces distinct ids for parallel
+/// model work over the live one-token binding file.
+pub fn agent_id_for_token_and_label(token: &str, label: Option<&str>) -> String {
+    match label {
+        Some(label) if !label.is_empty() => agent_id_for_token(&format!("{token}:{label}")),
+        _ => agent_id_for_token(token),
+    }
+}
+
 /// One attributed, dispatched action — the unit the [`ActionLog`] records for post-hoc audit. Carries
 /// who (`agent_id`), what (`op_name`), against which widget (`target_key` + `node_id`), and when
 /// (`dispatched_at_utc`), plus the monotonic `seq` for incremental draining.
@@ -66,6 +81,9 @@ pub struct AttributedAction {
     pub seq: u64,
     /// The short deterministic per-session id (see [`agent_id_for_token`]).
     pub agent_id: String,
+    /// Optional authenticated client-supplied label used to distinguish parallel model workers sharing
+    /// one binding token. It is attribution metadata only, not an auth credential.
+    pub agent_label: Option<String>,
     /// The tool / operation name (`"click_widget"`, `"set_value"`, `"list_widgets"`, …).
     pub op_name: String,
     /// The stable widget `author_id` the action targeted (empty for non-targeted ops like
@@ -102,13 +120,21 @@ impl ActionLog {
     /// Append an attributed action, stamping the next monotonic `seq` and `dispatched_at_utc`. Evicts the
     /// oldest entry if the buffer is at [`ACTION_LOG_CAPACITY`]. Returns the assigned seq. Never blocks on
     /// an await; recovers a poisoned lock so one panicking reader cannot wedge the log.
-    pub fn record(&self, agent_id: &str, op_name: &str, target_key: &str, node_id: u64) -> u64 {
+    pub fn record(
+        &self,
+        agent_id: &str,
+        agent_label: Option<&str>,
+        op_name: &str,
+        target_key: &str,
+        node_id: u64,
+    ) -> u64 {
         let mut state = self.inner.lock().unwrap_or_else(|p| p.into_inner());
         let seq = state.next_seq + 1;
         state.next_seq = seq;
         let entry = AttributedAction {
             seq,
             agent_id: agent_id.to_owned(),
+            agent_label: agent_label.map(str::to_owned),
             op_name: op_name.to_owned(),
             target_key: target_key.to_owned(),
             node_id,
@@ -143,7 +169,11 @@ impl ActionLog {
 
     /// Number of entries currently retained (after eviction). Useful for assertions and diagnostics.
     pub fn len(&self) -> usize {
-        self.inner.lock().unwrap_or_else(|p| p.into_inner()).entries.len()
+        self.inner
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .entries
+            .len()
     }
 
     /// True when no entries are retained.
@@ -186,15 +216,33 @@ mod tests {
     }
 
     #[test]
+    fn same_token_with_different_agent_labels_gets_distinct_ids() {
+        let a = agent_id_for_token_and_label("shared-token", Some("codex-a"));
+        let b = agent_id_for_token_and_label("shared-token", Some("codex-b"));
+        let unlabeled = agent_id_for_token_and_label("shared-token", None);
+        assert_ne!(a, b, "parallel labels split attribution");
+        assert_ne!(
+            a, unlabeled,
+            "labeled and unlabeled attribution do not collapse"
+        );
+        assert_eq!(
+            a,
+            agent_id_for_token_and_label("shared-token", Some("codex-a")),
+            "same label is stable"
+        );
+    }
+
+    #[test]
     fn record_stamps_monotonic_seq_and_fields() {
         let log = ActionLog::new();
-        let s1 = log.record("aaaaaaaa", "click_widget", "btn", 10);
-        let s2 = log.record("bbbbbbbb", "set_value", "field", 11);
+        let s1 = log.record("aaaaaaaa", Some("agent-a"), "click_widget", "btn", 10);
+        let s2 = log.record("bbbbbbbb", None, "set_value", "field", 11);
         assert_eq!(s1, 1);
         assert_eq!(s2, 2);
         let entries = log.drain_log();
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].agent_id, "aaaaaaaa");
+        assert_eq!(entries[0].agent_label.as_deref(), Some("agent-a"));
         assert_eq!(entries[0].op_name, "click_widget");
         assert_eq!(entries[0].target_key, "btn");
         assert_eq!(entries[0].node_id, 10);
@@ -204,9 +252,9 @@ mod tests {
     #[test]
     fn drain_since_returns_only_newer_entries() {
         let log = ActionLog::new();
-        log.record("a", "click_widget", "x", 1);
-        let after = log.record("a", "click_widget", "y", 2);
-        log.record("a", "click_widget", "z", 3);
+        log.record("a", None, "click_widget", "x", 1);
+        let after = log.record("a", None, "click_widget", "y", 2);
+        log.record("a", None, "click_widget", "z", 3);
         let newer = log.drain_since(after);
         assert_eq!(newer.len(), 1, "only the entry with seq > `after`");
         assert_eq!(newer[0].target_key, "z");
@@ -217,12 +265,15 @@ mod tests {
         let log = ActionLog::new();
         // Append capacity + 5 entries; len caps at capacity, seq keeps climbing past it.
         for _ in 0..(ACTION_LOG_CAPACITY + 5) {
-            log.record("a", "click_widget", "x", 1);
+            log.record("a", None, "click_widget", "x", 1);
         }
         assert_eq!(log.len(), ACTION_LOG_CAPACITY, "len capped at capacity");
         let entries = log.drain_log();
         // Oldest retained seq is 6 (1..=5 were evicted); newest is capacity+5.
         assert_eq!(entries.first().unwrap().seq, 6);
-        assert_eq!(entries.last().unwrap().seq, (ACTION_LOG_CAPACITY + 5) as u64);
+        assert_eq!(
+            entries.last().unwrap().seq,
+            (ACTION_LOG_CAPACITY + 5) as u64
+        );
     }
 }

@@ -67,8 +67,12 @@ use handshake_native::quick_links::QUICK_LINKS_AUTHOR_ID;
 use handshake_native::quick_switcher::{
     SWITCHER_CLOSE_AUTHOR_ID, SWITCHER_DIALOG_AUTHOR_ID, SWITCHER_SEARCH_AUTHOR_ID,
 };
-use handshake_native::search_rail::{RAIL_CLEAR_AUTHOR_ID, RAIL_INPUT_AUTHOR_ID, RAIL_LOOM_AUTHOR_ID};
-use handshake_native::settings_dialog::{SECTION_HEADER_AUTHOR_ID_PREFIX, SETTINGS_DIALOG_AUTHOR_ID};
+use handshake_native::search_rail::{
+    RAIL_CLEAR_AUTHOR_ID, RAIL_INPUT_AUTHOR_ID, RAIL_LOOM_AUTHOR_ID,
+};
+use handshake_native::settings_dialog::{
+    SECTION_HEADER_AUTHOR_ID_PREFIX, SETTINGS_DIALOG_AUTHOR_ID,
+};
 use handshake_native::split_layout::{DIVIDER_H_AUTHOR_ID, DIVIDER_V_AUTHOR_ID};
 use handshake_native::stash_shelf::DRAWER_AFFORDANCE_AUTHOR_ID;
 use handshake_native::tab_bar::{tab_author_id, tabbar_author_id};
@@ -173,13 +177,20 @@ fn shell_harness_sized<'a>(w: f32, h: f32) -> Harness<'a, HandshakeApp> {
 /// an optional pre-frame mutation (e.g. open the palette), and return the live `TreeUpdate`. Sizing the
 /// `screen_rect` makes egui resolve layout so the snapshot carries real bounds (a bare default ctx
 /// leaves many bounds unresolved). This is the same emission path the UIA adapter receives.
-fn live_tree_update_sized(w: f32, h: f32, mutate: impl FnOnce(&mut HandshakeApp)) -> accesskit::TreeUpdate {
+fn live_tree_update_sized(
+    w: f32,
+    h: f32,
+    mutate: impl FnOnce(&mut HandshakeApp),
+) -> accesskit::TreeUpdate {
     let ctx = egui::Context::default();
     ctx.enable_accesskit();
     let mut app = ok_app();
     mutate(&mut app);
     let input = egui::RawInput {
-        screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(w, h))),
+        screen_rect: Some(egui::Rect::from_min_size(
+            egui::Pos2::ZERO,
+            egui::vec2(w, h),
+        )),
         ..Default::default()
     };
     // Two frames: overlays (palette/switcher) and resize-dependent layout settle on the second pass,
@@ -206,6 +217,7 @@ fn req(method: &str, params: serde_json::Value) -> McpRequest {
         method: method.to_owned(),
         params,
         session_token: "mt029-proof-secret".to_owned(),
+        agent_label: None,
     }
 }
 
@@ -268,7 +280,9 @@ fn is_overlay_framework_container(node: &UiTreeNode, interactive_role_strs: &[St
 fn assert_ids_present(snapshot: &UiTreeSnapshot, ids: &[String]) -> Result<usize, String> {
     for id in ids {
         if snapshot.find_by_author_id(id).is_none() {
-            return Err(format!("expected author_id '{id}' missing from the live tree"));
+            return Err(format!(
+                "expected author_id '{id}' missing from the live tree"
+            ));
         }
     }
     Ok(ids.len())
@@ -301,7 +315,9 @@ fn assert_interactive_invariant(snapshot: &UiTreeSnapshot, surface: &str) -> Res
         }
     }
     if interactive_checked == 0 {
-        return Err(format!("[{surface}] no interactive widgets in the snapshot"));
+        return Err(format!(
+            "[{surface}] no interactive widgets in the snapshot"
+        ));
     }
     Ok(interactive_checked)
 }
@@ -347,7 +363,9 @@ fn assert_overlay_interactive_invariant(
         }
     }
     if interactive_checked == 0 {
-        return Err(format!("[{surface}] no interactive controls in the overlay snapshot"));
+        return Err(format!(
+            "[{surface}] no interactive controls in the overlay snapshot"
+        ));
     }
     if framework_skipped == 0 {
         return Err(format!(
@@ -360,7 +378,11 @@ fn assert_overlay_interactive_invariant(
 }
 
 /// Write the scenario's AccessKit-tree JSON to the artifact dir; return the path string for the report.
-fn write_tree_json(dir: &std::path::Path, scenario: &str, snapshot: &UiTreeSnapshot) -> Option<String> {
+fn write_tree_json(
+    dir: &std::path::Path,
+    scenario: &str,
+    snapshot: &UiTreeSnapshot,
+) -> Option<String> {
     let path = dir.join(format!("{scenario}_tree.json"));
     match std::fs::write(&path, snapshot.to_json()) {
         Ok(()) => Some(path.to_string_lossy().into_owned()),
@@ -444,7 +466,10 @@ fn visual_interaction_proof_harness() {
     assert!(
         fails.is_empty(),
         "MT-029 harness has failing scenarios: {:?}",
-        fails.iter().map(|s| (s.id.as_str(), s.reason.as_deref())).collect::<Vec<_>>()
+        fails
+            .iter()
+            .map(|s| (s.id.as_str(), s.reason.as_deref()))
+            .collect::<Vec<_>>()
     );
     assert_eq!(
         report.overall_status,
@@ -533,7 +558,10 @@ fn scenario_tab_move(dir: &std::path::Path) -> ScenarioResult {
     if !tab.actions.iter().any(|a| a == "Click") {
         return ScenarioResult::fail(
             id,
-            format!("{target} exposes no Click action; actions={:?}", tab.actions),
+            format!(
+                "{target} exposes no Click action; actions={:?}",
+                tab.actions
+            ),
         );
     }
 
@@ -549,7 +577,10 @@ fn scenario_tab_move(dir: &std::path::Path) -> ScenarioResult {
         || Err(ScreenshotError("not used".to_owned())),
     );
     if response.to_json()["result"]["queued"] != true {
-        return ScenarioResult::fail(id, format!("click_widget not queued: {}", response.to_json()));
+        return ScenarioResult::fail(
+            id,
+            format!("click_widget not queued: {}", response.to_json()),
+        );
     }
     for event in channel.drain_into_events() {
         harness.event(event);
@@ -563,7 +594,11 @@ fn scenario_tab_move(dir: &std::path::Path) -> ScenarioResult {
         return ScenarioResult::fail(id, format!("{target} vanished after click"));
     }
 
-    let mut r = ScenarioResult::pass(id, 1, format!("Click on {target} queued + driven via MCP action channel"));
+    let mut r = ScenarioResult::pass(
+        id,
+        1,
+        format!("Click on {target} queued + driven via MCP action channel"),
+    );
     if let Some(p) = snap_path {
         r = r.with_snapshot_path(p);
     }
@@ -580,7 +615,10 @@ fn scenario_dark_theme(dir: &std::path::Path) -> ScenarioResult {
     if harness.state().current_theme() != HsTheme::Dark {
         return ScenarioResult::fail(
             id,
-            format!("fresh shell theme is {:?}, expected Dark", harness.state().current_theme()),
+            format!(
+                "fresh shell theme is {:?}, expected Dark",
+                harness.state().current_theme()
+            ),
         );
     }
     let toggle = match snapshot.find_by_author_id(THEME_TOGGLE_AUTHOR_ID) {
@@ -588,12 +626,19 @@ fn scenario_dark_theme(dir: &std::path::Path) -> ScenarioResult {
         None => return ScenarioResult::fail(id, "theme-toggle missing".to_owned()),
     };
     if !toggle.actions.iter().any(|a| a == "Click") {
-        return ScenarioResult::fail(id, format!("theme-toggle not clickable: {:?}", toggle.actions));
+        return ScenarioResult::fail(
+            id,
+            format!("theme-toggle not clickable: {:?}", toggle.actions),
+        );
     }
     // Sanity: drive one frame so the harness is exercised (the toggle label reflects the active theme).
     let _ = harness.get_by_label("Handshake");
 
-    let mut r = ScenarioResult::pass(id, 1, "fresh shell is Dark; theme toggle present + clickable");
+    let mut r = ScenarioResult::pass(
+        id,
+        1,
+        "fresh shell is Dark; theme toggle present + clickable",
+    );
     if let Some(p) = snap_path {
         r = r.with_snapshot_path(p);
     }
@@ -612,7 +657,10 @@ fn scenario_light_theme(dir: &std::path::Path) -> ScenarioResult {
 
     let before = harness.state().current_theme();
     let response = dispatch_request(
-        &req("click_widget", serde_json::json!({ "target": THEME_TOGGLE_AUTHOR_ID })),
+        &req(
+            "click_widget",
+            serde_json::json!({ "target": THEME_TOGGLE_AUTHOR_ID }),
+        ),
         &token(),
         &snapshot,
         &mut channel,
@@ -634,7 +682,11 @@ fn scenario_light_theme(dir: &std::path::Path) -> ScenarioResult {
         );
     }
 
-    let mut r = ScenarioResult::pass(id, 1, format!("steer click flipped theme {before:?} -> {after:?}"));
+    let mut r = ScenarioResult::pass(
+        id,
+        1,
+        format!("steer click flipped theme {before:?} -> {after:?}"),
+    );
     if let Some(p) = snap_path {
         r = r.with_snapshot_path(p);
     }
@@ -678,7 +730,13 @@ fn scenario_overlay(
         }
     };
     if dialog.role != "Dialog" {
-        return ScenarioResult::fail(id, format!("{dialog_author_id} role is {:?}, expected Dialog", dialog.role));
+        return ScenarioResult::fail(
+            id,
+            format!(
+                "{dialog_author_id} role is {:?}, expected Dialog",
+                dialog.role
+            ),
+        );
     }
 
     // The overlay's search field is a REAL node looked up by its registry author_id and confirmed to be
@@ -688,7 +746,10 @@ fn scenario_overlay(
             if field.role != "TextInput" {
                 return ScenarioResult::fail(
                     id,
-                    format!("{search_author_id} role is {:?}, expected TextInput", field.role),
+                    format!(
+                        "{search_author_id} role is {:?}, expected TextInput",
+                        field.role
+                    ),
                 );
             }
         }
@@ -726,7 +787,8 @@ fn scenario_viewport_matrix(dir: &std::path::Path) -> ScenarioResult {
             return ScenarioResult::fail(id, format!("at {w}x{h}: {e}"));
         }
         // No always-on surface with a resolved-but-zero-size bound, and panes within viewport.
-        let mut bound_surfaces: Vec<String> = SEEDED_PANE_IDS.iter().map(|p| p.to_string()).collect();
+        let mut bound_surfaces: Vec<String> =
+            SEEDED_PANE_IDS.iter().map(|p| p.to_string()).collect();
         bound_surfaces.push(DIVIDER_H_AUTHOR_ID.to_owned());
         bound_surfaces.push(DIVIDER_V_AUTHOR_ID.to_owned());
         for surface in &bound_surfaces {
@@ -785,16 +847,17 @@ fn scenario_accessibility_invariant(dir: &std::path::Path) -> ScenarioResult {
     // (a) Every interactive node carries an author_id — run the MT-025 gate (panics on a violation).
     let inspected = match std::panic::catch_unwind(|| assert_no_unnamed_interactive(&update)) {
         Ok(n) => n,
-        Err(_) => {
-            return ScenarioResult::fail(
-                id,
-                "an interactive node lacks a stable author_id (assert_no_unnamed_interactive panicked)"
-                    .to_owned(),
-            )
-        }
+        Err(_) => return ScenarioResult::fail(
+            id,
+            "an interactive node lacks a stable author_id (assert_no_unnamed_interactive panicked)"
+                .to_owned(),
+        ),
     };
     if inspected == 0 {
-        return ScenarioResult::fail(id, "the gate inspected zero interactive nodes (empty tree?)".to_owned());
+        return ScenarioResult::fail(
+            id,
+            "the gate inspected zero interactive nodes (empty tree?)".to_owned(),
+        );
     }
 
     // (b) Registry collision-free.
@@ -802,10 +865,16 @@ fn scenario_accessibility_invariant(dir: &std::path::Path) -> ScenarioResult {
     let mut author_ids = std::collections::HashSet::new();
     for ident in DECLARED_IDENTITIES {
         if !node_ids.insert(ident.node_id) {
-            return ScenarioResult::fail(id, format!("duplicate NodeId {} in registry", ident.node_id));
+            return ScenarioResult::fail(
+                id,
+                format!("duplicate NodeId {} in registry", ident.node_id),
+            );
         }
         if !author_ids.insert(ident.author_id) {
-            return ScenarioResult::fail(id, format!("duplicate author_id '{}' in registry", ident.author_id));
+            return ScenarioResult::fail(
+                id,
+                format!("duplicate author_id '{}' in registry", ident.author_id),
+            );
         }
     }
 
@@ -831,11 +900,17 @@ fn scenario_accessibility_invariant(dir: &std::path::Path) -> ScenarioResult {
         /// (independent of role), so a role reclassification cannot drop them from the invariant.
         required_author_ids: Vec<String>,
     }
-    let settings_section_ids: Vec<String> =
-        ["appearance", "keybindings", "swarm", "terminal", "layout", "about"]
-            .iter()
-            .map(|s| format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}{s}"))
-            .collect();
+    let settings_section_ids: Vec<String> = [
+        "appearance",
+        "keybindings",
+        "swarm",
+        "terminal",
+        "layout",
+        "about",
+    ]
+    .iter()
+    .map(|s| format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}{s}"))
+    .collect();
     let overlays: [OverlayCase; 3] = [
         OverlayCase {
             label: "command-palette",
@@ -894,10 +969,11 @@ fn scenario_accessibility_invariant(dir: &std::path::Path) -> ScenarioResult {
         // (see `is_overlay_framework_container` for why that exclusion cannot swallow a product
         // control). Every other real-interactive node must be named + actioned, so an unnamed clickable
         // product control with an unlisted role can no longer hide on an overlay frame.
-        let (checked, skipped) = match assert_overlay_interactive_invariant(&overlay_snapshot, label) {
-            Ok(pair) => pair,
-            Err(e) => return ScenarioResult::fail(id, e),
-        };
+        let (checked, skipped) =
+            match assert_overlay_interactive_invariant(&overlay_snapshot, label) {
+                Ok(pair) => pair,
+                Err(e) => return ScenarioResult::fail(id, e),
+            };
         overlay_checked_total += checked;
         overlay_framework_skipped_total += skipped;
         overlay_summaries.push(format!("{label}={checked}(fw_skip={skipped})"));
@@ -947,13 +1023,54 @@ fn scenario_frames_render_on_a_gpu_host() {
     // (scenario id, pre-render mutation over the real shell, width, height).
     type RenderScenario = (&'static str, Box<dyn Fn(&mut HandshakeApp)>, f32, f32);
     let scenarios: Vec<RenderScenario> = vec![
-        ("split-h", Box::new(|_app: &mut HandshakeApp| {}), 1280.0, 800.0),
-        ("split-v", Box::new(|_app: &mut HandshakeApp| {}), 800.0, 1200.0),
-        ("tab-move", Box::new(|_app: &mut HandshakeApp| {}), 1280.0, 800.0),
-        ("dark-theme", Box::new(|_app: &mut HandshakeApp| {}), 1280.0, 800.0),
-        ("light-theme", Box::new(|app: &mut HandshakeApp| { app.open_settings(); }), 1280.0, 800.0),
-        ("cmd-palette", Box::new(|app: &mut HandshakeApp| { app.open_command_palette(); }), 1280.0, 800.0),
-        ("quick-switcher", Box::new(|app: &mut HandshakeApp| { app.open_quick_switcher(); }), 1280.0, 800.0),
+        (
+            "split-h",
+            Box::new(|_app: &mut HandshakeApp| {}),
+            1280.0,
+            800.0,
+        ),
+        (
+            "split-v",
+            Box::new(|_app: &mut HandshakeApp| {}),
+            800.0,
+            1200.0,
+        ),
+        (
+            "tab-move",
+            Box::new(|_app: &mut HandshakeApp| {}),
+            1280.0,
+            800.0,
+        ),
+        (
+            "dark-theme",
+            Box::new(|_app: &mut HandshakeApp| {}),
+            1280.0,
+            800.0,
+        ),
+        (
+            "light-theme",
+            Box::new(|app: &mut HandshakeApp| {
+                app.open_settings();
+            }),
+            1280.0,
+            800.0,
+        ),
+        (
+            "cmd-palette",
+            Box::new(|app: &mut HandshakeApp| {
+                app.open_command_palette();
+            }),
+            1280.0,
+            800.0,
+        ),
+        (
+            "quick-switcher",
+            Box::new(|app: &mut HandshakeApp| {
+                app.open_quick_switcher();
+            }),
+            1280.0,
+            800.0,
+        ),
     ];
 
     for (id, mutate, w, h) in scenarios {
@@ -970,11 +1087,24 @@ fn scenario_frames_render_on_a_gpu_host() {
         let (width, height) = (image.width(), image.height());
         let mut png: Vec<u8> = Vec::new();
         image::codecs::png::PngEncoder::new(&mut png)
-            .write_image(image.as_raw(), width, height, image::ExtendedColorType::Rgba8)
+            .write_image(
+                image.as_raw(),
+                width,
+                height,
+                image::ExtendedColorType::Rgba8,
+            )
             .expect("PNG encode");
-        assert!(png.len() > 1024, "{id} frame PNG must be non-blank (> 1024 bytes); got {}", png.len());
+        assert!(
+            png.len() > 1024,
+            "{id} frame PNG must be non-blank (> 1024 bytes); got {}",
+            png.len()
+        );
         let path = dir.join(format!("{id}_frame.png"));
         std::fs::write(&path, &png).expect("write frame PNG");
-        println!("GPU frame written: {} ({} bytes, {width}x{height})", path.display(), png.len());
+        println!(
+            "GPU frame written: {} ({} bytes, {width}x{height})",
+            path.display(),
+            png.len()
+        );
     }
 }

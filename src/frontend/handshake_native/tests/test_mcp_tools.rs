@@ -22,11 +22,11 @@ use egui_kittest::Harness;
 use handshake_native::accessibility::{collect_ui_tree_snapshot, UiTreeSnapshot};
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
-use handshake_native::theme::HsTheme;
 use handshake_native::mcp::{
     dispatch_request, ActionChannel, McpRequest, ScreenshotError, ScreenshotResult, SessionToken,
     ERR_UNAUTHORIZED,
 };
+use handshake_native::theme::HsTheme;
 
 const THEME_TOGGLE_AUTHOR_ID: &str = "shell.chrome.theme-toggle";
 const RAIL_INPUT_AUTHOR_ID: &str = "bottom-rail.input";
@@ -70,6 +70,7 @@ fn req(method: &str, params: serde_json::Value, token: &str) -> McpRequest {
         method: method.to_owned(),
         params,
         session_token: token.to_owned(),
+        agent_label: None,
     }
 }
 
@@ -77,16 +78,25 @@ fn req(method: &str, params: serde_json::Value, token: &str) -> McpRequest {
 /// harness produced to an offscreen RGBA image (focus-safe: no OS window, no SetForegroundWindow),
 /// encodes it to PNG via the `image` crate that `egui_kittest[wgpu]` already provides, and wraps it in
 /// the transport-ready `ScreenshotResult`.
-fn capture_from_harness(harness: &mut Harness<'_, HandshakeApp>) -> Result<ScreenshotResult, ScreenshotError> {
+fn capture_from_harness(
+    harness: &mut Harness<'_, HandshakeApp>,
+) -> Result<ScreenshotResult, ScreenshotError> {
     use image::ImageEncoder;
 
     let image = harness.render().map_err(ScreenshotError)?;
     let (width, height) = (image.width(), image.height());
     let mut png_bytes: Vec<u8> = Vec::new();
     image::codecs::png::PngEncoder::new(&mut png_bytes)
-        .write_image(image.as_raw(), width, height, image::ExtendedColorType::Rgba8)
+        .write_image(
+            image.as_raw(),
+            width,
+            height,
+            image::ExtendedColorType::Rgba8,
+        )
         .map_err(|e| ScreenshotError(format!("PNG encode failed: {e}")))?;
-    Ok(handshake_native::mcp::screenshot::screenshot_from_png(&png_bytes, width, height))
+    Ok(handshake_native::mcp::screenshot::screenshot_from_png(
+        &png_bytes, width, height,
+    ))
 }
 
 /// AC: `list_widgets` over the dispatch returns a valid MT-026 UI-tree JSON (root node, widget_count
@@ -107,8 +117,13 @@ fn test_mcp_list_widgets() {
     let json = response.to_json();
     let result = &json["result"];
 
-    let widget_count = result["widget_count"].as_u64().expect("widget_count present");
-    assert!(widget_count > 0, "live shell has widgets; got {widget_count}");
+    let widget_count = result["widget_count"]
+        .as_u64()
+        .expect("widget_count present");
+    assert!(
+        widget_count > 0,
+        "live shell has widgets; got {widget_count}"
+    );
     assert!(result["root"]["role"].is_string(), "root has a role");
 
     // At least one nested child with a non-empty id.
@@ -144,7 +159,11 @@ fn test_mcp_click_widget() {
 
     // ACT: dispatch a click on the theme toggle by its stable author_id through the MCP tool.
     let response = dispatch_request(
-        &req("click_widget", serde_json::json!({ "target": THEME_TOGGLE_AUTHOR_ID }), "session-secret"),
+        &req(
+            "click_widget",
+            serde_json::json!({ "target": THEME_TOGGLE_AUTHOR_ID }),
+            "session-secret",
+        ),
         &token,
         &snapshot,
         &mut channel,
@@ -160,7 +179,11 @@ fn test_mcp_click_widget() {
     harness.run();
 
     let after = harness.state().current_theme();
-    assert_eq!(after, HsTheme::Light, "click flipped the theme (handler ran)");
+    assert_eq!(
+        after,
+        HsTheme::Light,
+        "click flipped the theme (handler ran)"
+    );
     assert_ne!(before, after, "click_widget changed observable UI state");
 
     println!(
@@ -188,7 +211,10 @@ fn test_mcp_set_value() {
 
     // Before: the rail input value is empty.
     let before_value = harness_node_value(&harness, rail_node_id).unwrap_or_default();
-    assert!(before_value.is_empty(), "rail input starts empty; got {before_value:?}");
+    assert!(
+        before_value.is_empty(),
+        "rail input starts empty; got {before_value:?}"
+    );
 
     // ACT: set_value through the MCP tool (Focus + characters).
     let response = dispatch_request(
@@ -202,7 +228,11 @@ fn test_mcp_set_value() {
         &mut channel,
         || Err(ScreenshotError("not used".to_owned())),
     );
-    assert_eq!(response.to_json()["result"]["queued"], true, "set_value queued");
+    assert_eq!(
+        response.to_json()["result"]["queued"],
+        true,
+        "set_value queued"
+    );
     // Focus is the egui-real action for a text input (MT-026 DEVIATION: egui has no SetValue).
     assert_eq!(response.to_json()["result"]["action"], "Focus");
 
@@ -216,7 +246,10 @@ fn test_mcp_set_value() {
 
     let after_value = harness_node_value(&harness, rail_node_id).unwrap_or_default();
 
-    assert_eq!(after_value, "hello swarm", "set_value changed the TextInput value");
+    assert_eq!(
+        after_value, "hello swarm",
+        "set_value changed the TextInput value"
+    );
 
     println!(
         "PASS test_mcp_set_value: rail input value before={before_value:?} after={after_value:?} (set via set_value on '{RAIL_INPUT_AUTHOR_ID}')"
@@ -243,22 +276,37 @@ fn test_mcp_screenshot() {
     let json = response.to_json();
     let result = &json["result"];
 
-    let png_base64 = result["png_base64"].as_str().expect("png_base64 is a string");
+    let png_base64 = result["png_base64"]
+        .as_str()
+        .expect("png_base64 is a string");
     let width = result["width"].as_u64().expect("width present");
     let height = result["height"].as_u64().expect("height present");
-    let captured_at = result["captured_at_utc"].as_str().expect("captured_at_utc present");
+    let captured_at = result["captured_at_utc"]
+        .as_str()
+        .expect("captured_at_utc present");
 
     assert!(!png_base64.is_empty(), "png_base64 is non-empty");
     assert!(width > 0, "width > 0; got {width}");
     assert!(height > 0, "height > 0; got {height}");
-    assert!(captured_at.ends_with('Z'), "captured_at_utc looks ISO-ish: {captured_at}");
+    assert!(
+        captured_at.ends_with('Z'),
+        "captured_at_utc looks ISO-ish: {captured_at}"
+    );
 
     // Decode the base64 and confirm the bytes are a valid PNG via image::load_from_memory.
     let bytes = decode_base64(png_base64).expect("png_base64 decodes");
     assert_eq!(&bytes[..8], b"\x89PNG\r\n\x1a\n", "PNG magic bytes present");
     let decoded = image::load_from_memory(&bytes).expect("bytes are a valid PNG image");
-    assert_eq!(decoded.width(), width as u32, "decoded width matches reported width");
-    assert_eq!(decoded.height(), height as u32, "decoded height matches reported height");
+    assert_eq!(
+        decoded.width(),
+        width as u32,
+        "decoded width matches reported width"
+    );
+    assert_eq!(
+        decoded.height(),
+        height as u32,
+        "decoded height matches reported height"
+    );
 
     println!(
         "PASS test_mcp_screenshot: png_base64.len()={}, width={width}, height={height}, captured_at_utc={captured_at}, image::load_from_memory OK ({}x{})",
@@ -283,11 +331,17 @@ fn test_mcp_auth_reject() {
         &mut channel,
         || Err(ScreenshotError("not used".to_owned())),
     );
-    assert!(response.is_error_code(ERR_UNAUTHORIZED), "unauthorized request rejected");
+    assert!(
+        response.is_error_code(ERR_UNAUTHORIZED),
+        "unauthorized request rejected"
+    );
     let json = response.to_json();
     assert_eq!(json["error"]["code"], -32001);
     assert_eq!(json["error"]["message"], "Unauthorized");
-    assert!(json.get("result").is_none(), "no result leaked to an unauthorized caller");
+    assert!(
+        json.get("result").is_none(),
+        "no result leaked to an unauthorized caller"
+    );
 
     println!(
         "PASS test_mcp_auth_reject: unauthorized response = {{\"error\":{{\"code\":{},\"message\":{:?}}}}}",
@@ -300,7 +354,10 @@ fn test_mcp_auth_reject() {
 /// last frame, so this reflects state mutated by prior harness steps (e.g. a typed rail value). We
 /// address by `NodeId` (fixed for the rail input) so the readback does not depend on author_id being
 /// exposed on the consumer node.
-fn harness_node_value(harness: &Harness<'_, HandshakeApp>, target: accesskit::NodeId) -> Option<String> {
+fn harness_node_value(
+    harness: &Harness<'_, HandshakeApp>,
+    target: accesskit::NodeId,
+) -> Option<String> {
     let root = harness.kittest_state().root();
     // Iterative DFS over the consumer tree for the node with the matching id; return its value.
     let mut stack = vec![root];
@@ -368,13 +425,18 @@ use tokio::net::TcpStream;
 
 /// Send one JSON-RPC request line and read one JSON-RPC response line over a TCP connection.
 async fn rpc_roundtrip(addr: &str, request: serde_json::Value) -> serde_json::Value {
-    let stream = TcpStream::connect(addr).await.expect("connect to mcp server");
+    let stream = TcpStream::connect(addr)
+        .await
+        .expect("connect to mcp server");
     let (read_half, mut write_half) = tokio::io::split(stream);
     let mut reader = BufReader::new(read_half);
 
     let mut line = serde_json::to_string(&request).unwrap();
     line.push('\n');
-    write_half.write_all(line.as_bytes()).await.expect("write request");
+    write_half
+        .write_all(line.as_bytes())
+        .await
+        .expect("write request");
     write_half.flush().await.expect("flush");
 
     let mut resp = String::new();
@@ -389,7 +451,11 @@ async fn bind_server_with_shared_state(
     channel: Arc<Mutex<ActionChannel>>,
 ) -> SwarmMcpServer {
     let capture: Arc<dyn Fn() -> Result<ScreenshotResult, ScreenshotError> + Send + Sync> =
-        Arc::new(|| Ok(handshake_native::mcp::screenshot::screenshot_from_png(b"foobar", 4, 3)));
+        Arc::new(|| {
+            Ok(handshake_native::mcp::screenshot::screenshot_from_png(
+                b"foobar", 4, 3,
+            ))
+        });
     SwarmMcpServer::bind(token, snapshot, channel, capture)
         .await
         .expect("bind tcp server")
@@ -515,7 +581,8 @@ fn test_mcp_wire_click_steers_running_shell() {
 
     let rt = wire_runtime();
     rt.block_on(async {
-        let mut server = bind_server_with_shared_state(token, snapshot.clone(), channel.clone()).await;
+        let mut server =
+            bind_server_with_shared_state(token, snapshot.clone(), channel.clone()).await;
         let addr = server.tcp_addr().to_owned();
 
         let resp = rpc_roundtrip(
@@ -537,14 +604,21 @@ fn test_mcp_wire_click_steers_running_shell() {
         let mut chan = channel.lock().unwrap();
         chan.drain_into_events()
     };
-    assert!(!events.is_empty(), "the wire click landed in the shared channel the shell drains");
+    assert!(
+        !events.is_empty(),
+        "the wire click landed in the shared channel the shell drains"
+    );
     for event in events {
         harness.event(event);
     }
     harness.run();
 
     let after = harness.state().current_theme();
-    assert_eq!(after, HsTheme::Light, "the OVER-THE-WIRE click steered the running shell (theme flipped)");
+    assert_eq!(
+        after,
+        HsTheme::Light,
+        "the OVER-THE-WIRE click steered the running shell (theme flipped)"
+    );
     println!(
         "PASS test_mcp_wire_click_steers_running_shell: theme {before:?} -> {after:?} via TCP click_widget on '{THEME_TOGGLE_AUTHOR_ID}'"
     );
@@ -569,7 +643,8 @@ fn test_mcp_wire_unauthorized_rejected() {
 
     let rt = wire_runtime();
     rt.block_on(async {
-        let mut server = bind_server_with_shared_state(token, snapshot.clone(), channel.clone()).await;
+        let mut server =
+            bind_server_with_shared_state(token, snapshot.clone(), channel.clone()).await;
         let addr = server.tcp_addr().to_owned();
 
         let resp = rpc_roundtrip(
@@ -582,10 +657,14 @@ fn test_mcp_wire_unauthorized_rejected() {
         .await;
         assert_eq!(resp["error"]["code"], -32001, "wire unauthorized -> -32001");
         assert_eq!(resp["error"]["message"], "Unauthorized");
-        assert!(resp.get("result").is_none(), "no result leaked over the wire to an unauthorized caller");
+        assert!(
+            resp.get("result").is_none(),
+            "no result leaked over the wire to an unauthorized caller"
+        );
         println!(
             "PASS test_mcp_wire_unauthorized_rejected: over-socket reject = code {} message {:?}",
-            resp["error"]["code"], resp["error"]["message"].as_str().unwrap()
+            resp["error"]["code"],
+            resp["error"]["message"].as_str().unwrap()
         );
         server.shutdown();
     });
