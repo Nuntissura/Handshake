@@ -1,0 +1,275 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract"
+    ]
+  },
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-007",
+  "title": "Implement native Argus MCP facade for headless visual inspection and steering",
+  "status": "READY_FOR_VALIDATION",
+  "created_at_utc": "2026-06-28T21:24:05.577Z",
+  "updated_at_utc": "2026-06-28T23:26:05.618Z",
+  "started_at_utc": "2026-06-28T21:24:05.577Z",
+  "product_edit_allowed": true,
+  "governance_edit_allowed": true,
+  "operator_request": "Create the Argus microtask and start implementing Argus as the named native visual inspection and GUI steering tool. It must be Rust-native, headless, non-intrusive, parallel-agent usable, and must never pop Handshake forward or steal keyboard/mouse/focus.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-007.json",
+    "microtask_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-007.md",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
+    "argus_protocol": ".GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-007.md",
+    "status": "HAND_AUTHORED_IN_SYNC",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-007.json",
+    "generated_at_utc": "2026-06-28T21:24:05.577Z",
+    "generator": "manual-kernel-builder-hotfix-projection"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
+    "depends_on": [],
+    "blocks": [
+      "MT-006 visual proof closeout"
+    ],
+    "validator_verdict": "PENDING",
+    "started_at_utc": "2026-06-28T21:24:05.577Z"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "primary_product_branch": "feat/WP-CKC-posekit-overhaul",
+    "parallel_active_worktree_do_not_touch": "../wtc-native-editors-v1",
+    "parallel_active_branch_do_not_touch": "feat/WP-KERNEL-012",
+    "recovery_rule": "If a no-context model resumes this MT, do not launch a foreground Handshake window. First inspect this contract, then inspect the native MCP files under src/frontend/handshake_native/src/mcp. Implement Argus as a named facade over the existing native AccessKit/MCP path, preserving the generic MCP tools. Use focused tests before product edits and do not touch inherited diagnostics/Palmistry work."
+  },
+  "scope": {
+    "summary": "Add the first product-native Argus surface by naming and exposing Argus operations over the existing native MCP/AccessKit inspection and steering stack.",
+    "type": "PRODUCT_DIAGNOSTIC_TOOLING",
+    "product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_worktree": "../wtc-native-editors-v1",
+    "product_edit_allowed": true,
+    "base_scope": [
+      "Add a Rust-native `mcp::argus` facade that defines the canonical Argus method namespace and maps it to existing MCP primitives.",
+      "Expose model-callable Argus methods for inspect/list, click, set_value, and screenshot without removing the existing generic MCP methods.",
+      "Ensure Argus read operations use the existing shared snapshot lease and mutating operations use the existing per-target exclusive lease and attribution path.",
+      "Ensure Argus screenshot uses the existing focus-safe screenshot closure/path and does not call foreground, keyboard, mouse, or z-order APIs.",
+      "Return or preserve enough metadata for a model to recognize that the response came through Argus and what underlying primitive was used.",
+      "Add focused Rust tests that fail before implementation and pass after implementation for Argus method dispatch, session attribution/leases, and screenshot compatibility."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/mcp/argus.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/mcp/mod.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/mcp/tools.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/mcp/session.rs"
+    ],
+    "forbidden_paths": [
+      "../wtc-native-editors-v1/**",
+      "../handshake_main/**",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/diagnostics/**",
+      "../wtc-ckc-posekit-overhaul/src/frontend/palmistry/**",
+      "../wtc-ckc-posekit-overhaul/src/backend/**"
+    ],
+    "must_preserve": [
+      "Existing MCP methods: list_widgets, click_widget, set_value, screenshot",
+      "SessionToken authentication and constant-time validation",
+      "McpSession lease registry and attributed action log",
+      "Focus-safe screenshot capture behavior",
+      "Headless egui_kittest/AccessKit verification path",
+      "No foreground-window, keyboard-injection, OS mouse, SetForegroundWindow, BringWindowToTop, or z-order APIs"
+    ],
+    "acceptance_criteria": [
+      "Argus has a named Rust module or public API under the native MCP stack.",
+      "A model can call Argus inspect/list through JSON-RPC and receive the same UI tree snapshot shape as list_widgets, plus Argus-identifying metadata or method routing evidence.",
+      "A model can call Argus click and Argus set_value against stable author_id targets and the calls enqueue through the existing ActionChannel.",
+      "Argus mutating calls are leased and attributed the same way as click_widget/set_value, including agent_id stamping and action-log records.",
+      "Argus screenshot dispatches through the existing screenshot adapter/closure and returns VisualCaptureResult-compatible JSON.",
+      "Unknown/unauthorized Argus requests fail with typed JSON-RPC errors and do not take leases, log actions, or enqueue actions.",
+      "Focused tests prove the Argus aliases/facade are headless and do not require launching or foregrounding Handshake.",
+      "This MT does not claim full Argus visual-workbench parity; it only establishes the named native product surface that future MTs can extend.",
+      "The internal UserManual names the Argus MCP methods and the required inspect -> steer -> re-inspect -> screenshot evidence loop."
+    ],
+    "proof_targets": [
+      "Failing test first for Argus inspect/list method routing.",
+      "Failing test first for Argus click session attribution/lease behavior.",
+      "Failing test first for Argus screenshot result compatibility.",
+      "Focused cargo test over the native MCP unit tests after implementation.",
+      "No new foreground-window or keyboard/mouse API usage introduced by diff review."
+    ]
+  },
+  "implementation_plan": [
+    "1. Add failing focused tests in the native MCP tool/session test modules for `argus.inspect`, `argus.click`, and `argus.screenshot`.",
+    "2. Add `src/mcp/argus.rs` with canonical Argus method constants and normalization from Argus method names to existing MCP primitives.",
+    "3. Update `mcp::tools::dispatch_request` to route Argus methods through the existing primitive handlers while preserving the response shape and adding minimal Argus metadata where safe.",
+    "4. Update `McpSession::decide` so Argus read/mutate methods take the same shared/exclusive leases as their primitive equivalents.",
+    "5. Re-export the Argus facade from `mcp::mod`.",
+    "6. Run focused native MCP tests and record results in this MT."
+  ],
+  "validation_commands": [
+    "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml mcp::tools::tests::argus --lib",
+    "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml mcp::session::tests::argus --lib",
+    "rg -n \"SetForegroundWindow|BringWindowToTop|SetFocus|SendInput|mouse_event|keybd_event\" src/frontend/handshake_native/src/mcp"
+  ],
+  "execution": {
+    "commands_planned": [],
+    "commands_run": [
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml argus --lib",
+        "workdir": "../wtc-ckc-posekit-overhaul",
+        "result": "RED_FAIL_EXPECTED",
+        "exit_code": 1,
+        "evidence": "4 Argus tests failed before implementation because argus.* methods returned unknown-method/null result paths."
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml argus --lib",
+        "workdir": "../wtc-ckc-posekit-overhaul",
+        "result": "PASS",
+        "exit_code": 0,
+        "evidence": "6 passed, 0 failed: argus method map, argus.inspect, argus.click, argus.set_value, argus.screenshot, and argus click session lease/attribution."
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml mcp::tools::tests --lib",
+        "workdir": "../wtc-ckc-posekit-overhaul",
+        "result": "PASS",
+        "exit_code": 0,
+        "evidence": "15 passed, 0 failed."
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml mcp::session::tests --lib",
+        "workdir": "../wtc-ckc-posekit-overhaul",
+        "result": "PASS",
+        "exit_code": 0,
+        "evidence": "5 passed, 0 failed."
+      },
+      {
+        "command": "rg -n \"SetForegroundWindow|BringWindowToTop|SetFocus|SendInput|mouse_event|keybd_event\" src/frontend/handshake_native/src/mcp",
+        "workdir": "../wtc-ckc-posekit-overhaul",
+        "result": "PASS_WITH_COMMENT_MATCHES",
+        "exit_code": 0,
+        "evidence": "Matches are comments in mcp::screenshot and mcp::mod documenting that those APIs are not called; no new foreground/input call site was introduced."
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml argus --lib -- --nocapture",
+        "workdir": "../wtc-ckc-posekit-overhaul",
+        "result": "PASS",
+        "evidence": "7 passed, 0 failed; Argus facade, routing metadata, session attribution/lease, and manual topic."
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_uia_steer_proof argus_ -- --nocapture --test-threads=1",
+        "workdir": "../wtc-ckc-posekit-overhaul",
+        "result": "PASS",
+        "evidence": "5 passed, 0 failed; TCP Argus inspect/click/set_value/screenshot, negative paths, lease timeout, parallel attribution."
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_manual_pane_editors agent_tool_reference_rows_are_complete_and_use_real_tools -- --nocapture",
+        "workdir": "../wtc-ckc-posekit-overhaul",
+        "result": "PASS",
+        "evidence": "1 passed, 0 failed; structured manual rows use real Argus tools."
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml manual_content_editors::tests::argus_visual_inspection_topic_documents_native_model_flow --lib -- --nocapture",
+        "workdir": "../wtc-ckc-posekit-overhaul",
+        "result": "PASS",
+        "evidence": "1 passed, 0 failed; Argus topic includes method loop, agent_label, ActionLog, EventLedger/diagnostics posture."
+      },
+      {
+        "command": "rg -n \"SetForegroundWindow|BringWindowToTop|SetFocus|SendInput|mouse_event|keybd_event\" src/frontend/handshake_native/src/mcp src/frontend/handshake_native/tests/test_uia_steer_proof.rs src/frontend/handshake_native/src/manual_content_editors.rs",
+        "workdir": "../wtc-ckc-posekit-overhaul",
+        "result": "PASS",
+        "evidence": "PASS_WITH_COMMENT_MATCHES: matches are comments documenting forbidden APIs, no call sites."
+      }
+    ],
+    "product_files_changed": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/mcp/argus.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/mcp/mod.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/mcp/tools.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/mcp/session.rs"
+    ]
+  },
+  "verification": {
+    "results": [
+      {
+        "status": "PASS",
+        "summary": "First native Argus MCP facade is implemented in product code and covered by focused headless tests."
+      },
+      {
+        "status": "PENDING",
+        "summary": "No product commit has been made because the product worktree had pre-existing dirty changes in the same MCP files; stage hunks path-limited if committing this MT."
+      },
+      {
+        "status": "PENDING",
+        "summary": "Wire-level TCP/named-pipe Argus alias tests are recommended as the next hardening slice; direct dispatch and session safety are covered here."
+      },
+      {
+        "status": "PASS_IMPLEMENTER_FOCUSED",
+        "summary": "Transport/security reviewer PASS: one production token plus agent_label distinguishes parallel clients; unauthorized/unknown/malformed/lease timeout paths do not enqueue/log/retain leases."
+      },
+      {
+        "status": "PASS_IMPLEMENTER_FOCUSED",
+        "summary": "Manual/spec reviewer PASS after remediation: internal UserManual includes Argus verification proof, MCP ActionLog, Flight Recorder/EventLedger posture, internal_diagnostics and Palmistry DEFERRED-with-reason."
+      }
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "security/auth and unauthorized-path behavior",
+      "lease/attribution behavior for parallel agents",
+      "non-intrusive foreground/focus/input safety",
+      "wire transport coverage",
+      "internal UserManual discoverability"
+    ]
+  },
+  "manual_requirement": "Update the in-product internal UserManual in the same implementation change so models and operators know Argus exists, which methods to call, and that missing Argus visibility/steerability is technical debt.",
+  "risk_notes": [
+    {
+      "risk": "Argus becomes a rename-only wrapper and models still cannot tell what path was used.",
+      "failure_scenario": "A no-context model sees generic MCP responses and cannot cite Argus evidence.",
+      "mitigation": "Expose canonical Argus method names and include Argus routing evidence in tests; add metadata only where it does not break existing clients."
+    },
+    {
+      "risk": "Adding Argus bypasses the existing lease/attribution path.",
+      "failure_scenario": "Parallel agents can race on the same target using Argus aliases while generic MCP calls are protected.",
+      "mitigation": "Route Argus methods through the same `McpSession::decide` classification and add tests proving agent_id/action-log behavior."
+    },
+    {
+      "risk": "Visual capture accidentally uses foreground desktop automation.",
+      "failure_scenario": "Argus fixes inspection by popping Handshake forward or moving the operator mouse.",
+      "mitigation": "Reuse `screenshot` closure/capture only; run grep for known foreground/input APIs and keep screenshot proof headless."
+    }
+  ],
+  "handoff": {
+    "status": "READY_FOR_VALIDATION",
+    "summary": "Implemented: Rust-native Argus MCP facade with canonical argus.* methods, metadata stamping, same-token agent_label attribution, quiet/headless wire tests, and internal UserManual diagnostics posture. Awaiting validator."
+  },
+  "red_team": {
+    "required": true,
+    "risks": [
+      "Alias methods can create security drift if auth checks are duplicated instead of reused.",
+      "Argus can be over-scoped into a full UI workbench before the first native command surface is stable.",
+      "A renamed method can miss the shared lease path and undermine parallel-agent safety."
+    ],
+    "minimum_controls": [
+      "Reuse `dispatch_request` auth gate and existing `McpSession` safety state.",
+      "Keep MT-007 to named facade and proof tests only.",
+      "Test both direct dispatch and session dispatch paths."
+    ]
+  },
+  "adversarial_review": {
+    "latest_status": "PASS_AFTER_REMEDIATION",
+    "reviewed_at_utc": "2026-06-28T23:26:05.618Z",
+    "summary": "Initial reviews found same-token attribution and manual diagnostics gaps; both remediated and re-reviewed PASS."
+  }
+}

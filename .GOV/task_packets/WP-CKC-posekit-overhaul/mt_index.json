@@ -2,9 +2,9 @@
   "schema_id": "hsk.microtask_index@1",
   "schema_version": "microtask_index_v1",
   "wp_id": "WP-CKC-posekit-overhaul",
-  "updated_at_utc": "2026-06-28T16:02:40.053Z",
-  "active_mt_id": null,
-  "next_mt_id": "MT-005",
+  "updated_at_utc": "2026-06-28T23:26:05.618Z",
+  "active_mt_id": "MT-009",
+  "next_mt_id": "MT-025",
   "microtask_contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
   "policy": {
     "create_before_product_edit": true,
@@ -53,6 +53,167 @@
       "started_at_utc": "2026-06-28T15:39:03.402Z",
       "completed_at_utc": "2026-06-28T16:02:40.053Z",
       "product_commit": "e2f0d557"
+    },
+    {
+      "mt_id": "MT-005",
+      "status": "COMPLETED",
+      "title": "Make native GUI cargo build launch deterministic without test-feature unification",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-005.json",
+      "product_edit_allowed": true,
+      "started_at_utc": "2026-06-28T16:49:48.833Z",
+      "completed_at_utc": "2026-06-28T16:56:35.333Z"
+    },
+    {
+      "mt_id": "MT-006",
+      "status": "READY_FOR_VALIDATION",
+      "title": "Promote Atelier to the main filling panel with CKC, Posekit, and Ingest sibling tabs",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-006.json",
+      "product_edit_allowed": true,
+      "started_at_utc": "2026-06-28T16:56:35.333Z"
+    },
+    {
+      "mt_id": "MT-007",
+      "status": "READY_FOR_VALIDATION",
+      "title": "Implement native Argus MCP facade for headless visual inspection and steering",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-007.json",
+      "product_edit_allowed": true,
+      "started_at_utc": "2026-06-28T21:24:05.577Z"
+    },
+    {
+      "mt_id": "MT-008",
+      "status": "READY_FOR_VALIDATION",
+      "title": "Harden Argus wire transport, protocol references, and manual coverage",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-008.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null
+    },
+    {
+      "mt_id": "MT-009",
+      "status": "PENDING",
+      "title": "Restore CKC character and avatar database core parity",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-009.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null
+    },
+    {
+      "mt_id": "MT-010",
+      "status": "PENDING",
+      "title": "Restore CKC linked images, folders, albums, and media notes",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-010.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null
+    },
+    {
+      "mt_id": "MT-011",
+      "status": "PENDING",
+      "title": "Restore CKC fuzzy, vector, combination search and rich tags",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-011.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null
+    },
+    {
+      "mt_id": "MT-012",
+      "status": "PENDING",
+      "title": "Restore CKC story panels and native moodboard integration",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-012.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null
+    },
+    {
+      "mt_id": "MT-013",
+      "status": "PENDING",
+      "title": "Restore CKC book-style visual layout and work-surface behavior",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-013.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null
+    },
+    {
+      "mt_id": "MT-014",
+      "status": "PENDING",
+      "title": "Restore Posekit 3D-to-OpenPose split-view generation",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-014.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null
+    },
+    {
+      "mt_id": "MT-015",
+      "status": "PENDING",
+      "title": "Restore Posekit marker editing, zoom/lens controls, and failure containment",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-015.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null
+    },
+    {
+      "mt_id": "MT-016",
+      "status": "PENDING",
+      "title": "Link CKC sheet versions to ComfyUI renders and OpenPose artifacts",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-016.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null
+    },
+    {
+      "mt_id": "MT-017",
+      "status": "PENDING",
+      "title": "Build CKC/Ingest dataset mining review pipeline",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-017.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null
+    },
+    {
+      "mt_id": "MT-018",
+      "status": "PENDING",
+      "title": "Add native contact sheet generator for image mining and LoRA review",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-018.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null
+    },
+    {
+      "mt_id": "MT-019",
+      "status": "PENDING",
+      "title": "Integrate Facial Rust app capabilities into native Handshake Ingest",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-019.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null
+    },
+    {
+      "mt_id": "MT-020",
+      "status": "PENDING",
+      "title": "Integrate prompt feedback kernel and Leeseo wishlist into Handshake workflows",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-020.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null
+    },
+    {
+      "mt_id": "MT-021",
+      "status": "PENDING",
+      "title": "Create full internal UserManual coverage for Atelier, CKC, Posekit, Ingest, Facial, Argus, and prompt feedback",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-021.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null
+    },
+    {
+      "mt_id": "MT-022",
+      "status": "PENDING",
+      "title": "Make all Atelier tool surfaces parallel-agent safe and Argus steerable",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-022.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null
+    },
+    {
+      "mt_id": "MT-023",
+      "status": "PENDING",
+      "title": "Run Argus-driven visual and behavioral overhaul pass for Atelier tools",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-023.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null
+    },
+    {
+      "mt_id": "MT-024",
+      "status": "PENDING",
+      "title": "Retire or contain legacy non-Rust CKC/Posekit surfaces after native parity",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-024.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null
     }
   ],
   "baseline": {

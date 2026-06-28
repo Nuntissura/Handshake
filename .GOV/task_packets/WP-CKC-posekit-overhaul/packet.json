@@ -16,7 +16,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "base_wp_id": "WP-CKC-posekit-overhaul",
   "created_at_utc": "2026-06-28T12:26:14.447Z",
-  "updated_at_utc": "2026-06-28T16:02:40.053Z",
+  "updated_at_utc": "2026-06-28T23:26:05.618Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
     "packet_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.md",
@@ -71,6 +71,10 @@
       "allowed": true,
       "constraint": "Parallel subagents may inspect or implement independent MTs only after the MT owns a non-overlapping file set or explicit merge plan.",
       "state_recovery": "Subagents must write results back to MT contracts or WP communications, not to chat-only memory."
+    },
+    "last_state_update": {
+      "updated_at_utc": "2026-06-28T23:26:05.618Z",
+      "summary": "MT-006, MT-007, and MT-008 are implemented and READY_FOR_VALIDATION; next direct implementation item is MT-009."
     }
   },
   "source_control": {
@@ -116,7 +120,7 @@
   },
   "scope": {
     "base_scope": "Overhaul CastKit Codex and PoseKit inside Handshake Atelier as native, interconnected Handshake features, starting with non-Rust language reduction before visual and behavioral parity work.",
-    "current_phase": "Inventory and reduce non-Rust CKC/PoseKit/Atelier surfaces where Handshake-native Rust equivalents are appropriate.",
+    "current_phase": "Recoverable MT backlog and active implementation for native Atelier/CKC/Posekit/Ingest/Argus overhaul.",
     "later_phase": "Visual and behavioral overhaul to mirror the original proven test app inside Handshake while preserving Handshake's native interconnected model.",
     "in_scope": [
       "Atelier CKC/PoseKit native Rust backend and native UI surfaces",
@@ -174,19 +178,41 @@
     "enforcement_profile": "HOTFIX_ADHOC_MICROTASK_WITH_RECOVERY_POINTERS"
   },
   "microtasks": {
-    "active_id": null,
+    "active_id": "MT-009",
     "contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
     "index_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
-    "count": 4,
+    "count": 24,
     "declared_ids": [
       "MT-001",
       "MT-002",
       "MT-003",
-      "MT-004"
+      "MT-004",
+      "MT-005",
+      "MT-006",
+      "MT-007",
+      "MT-008",
+      "MT-009",
+      "MT-010",
+      "MT-011",
+      "MT-012",
+      "MT-013",
+      "MT-014",
+      "MT-015",
+      "MT-016",
+      "MT-017",
+      "MT-018",
+      "MT-019",
+      "MT-020",
+      "MT-021",
+      "MT-022",
+      "MT-023",
+      "MT-024"
     ],
-    "next_id": "MT-005",
-    "latest_completed_id": "MT-004",
-    "latest_completed_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-004.json"
+    "next_id": "MT-025",
+    "latest_completed_id": "MT-005",
+    "latest_completed_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-005.json",
+    "latest_ready_for_validation_id": "MT-008",
+    "latest_ready_for_validation_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-008.json"
   },
   "research_basis": {
     "sources_checked": [

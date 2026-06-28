@@ -527,7 +527,7 @@
           "automation_surface"
         ]
       },
-      "required_action": "Verification drives and inspects the running Operator Surface through Argus: stable author_id targeting, headless/non-intrusive list_widgets/click_widget/set_value/screenshot or egui_kittest/AccessKit evidence, and rendered/layout state compared against the expected UI. The legacy Tauri/WebView2/CDP path is not acceptable for the native app. Unit tests, process exit codes, and uninspected screenshots do not satisfy this rule.",
+      "required_action": "Verification drives and inspects the running Operator Surface through Argus: stable author_id targeting, headless/non-intrusive argus.inspect/argus.click/argus.set_value/argus.screenshot or egui_kittest/AccessKit evidence, rendered/layout state compared against the expected UI, and request-level agent_label when parallel clients share one binding token. Legacy primitive names list_widgets/click_widget/set_value/screenshot are compatibility aliases only. The legacy Tauri/WebView2/CDP path is not acceptable for the native app. Unit tests, process exit codes, and uninspected screenshots do not satisfy this rule.",
       "evidence_kind": "argus_gui_drive_with_snapshot_or_screenshot_capture",
       "citations": [
         {
@@ -1225,7 +1225,7 @@
     {
       "version": "1.7.0",
       "at_utc": "2026-06-28T20:14:58.092Z",
-      "change": "Added Argus as the named HBR-VIS visual inspection and GUI steering path (OPERATOR directive 2026-06-28): UI/operator/diagnostic/frontend navigation/layout/style changes must be inspected through headless, non-intrusive Argus evidence before DONE/PASS. HBR-VIS-001 now requires Argus-compatible stable author_id targeting plus list_widgets/click_widget/set_value/screenshot or egui_kittest/AccessKit evidence. HBR-VIS-005 now treats any in-scope surface Argus cannot see, identify, steer, or re-observe as HBR-VIS technical debt and an allowed same-MT/WP scope increase when it blocks proof. Canonical protocol: .GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md; Codex anchor: CX-503D1."
+      "change": "Added Argus as the named HBR-VIS visual inspection and GUI steering path (OPERATOR directive 2026-06-28), then updated it after MT-007 introduced the native Rust Argus MCP facade: UI/operator/diagnostic/frontend navigation/layout/style changes must be inspected through headless, non-intrusive Argus evidence before DONE/PASS. HBR-VIS-001 now requires stable author_id targeting plus argus.inspect/argus.click/argus.set_value/argus.screenshot or egui_kittest/AccessKit evidence, with list_widgets/click_widget/set_value/screenshot retained only as compatibility aliases. HBR-VIS-005 treats any in-scope surface Argus cannot see, identify, steer, or re-observe as HBR-VIS technical debt and an allowed same-MT/WP scope increase when it blocks proof. Canonical protocol: .GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md; Codex anchor: CX-503D1."
     }
   ]
 }

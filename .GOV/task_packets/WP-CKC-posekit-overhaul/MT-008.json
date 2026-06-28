@@ -1,0 +1,170 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-008",
+  "title": "Harden Argus wire transport, protocol references, and manual coverage",
+  "status": "READY_FOR_VALIDATION",
+  "created_at_utc": "2026-06-28T21:53:53.761Z",
+  "updated_at_utc": "2026-06-28T23:26:05.618Z",
+  "product_edit_allowed": true,
+  "operator_request": "Argus must be the named native eyes for every model, headless and non-intrusive, documented in the internal manual and usable by parallel agents.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-008.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
+    "argus_protocol": ".GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-008.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-008.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
+    "depends_on": [
+      "MT-007"
+    ],
+    "validator_verdict": "PENDING",
+    "started_at_utc": "2026-06-28T23:26:05.618Z"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "recovery_rule": "Resume by inspecting MT-007 diff first. Add only the missing Argus wire/protocol/manual hardening; do not relaunch Handshake in foreground."
+  },
+  "scope": {
+    "summary": "Prove Argus aliases over the real MCP wire path, document the methods in the internal UserManual, and keep the Argus protocol as the visual proof requirement for GUI work.",
+    "base_scope": [
+      "Add TCP/named-pipe-level tests for argus.inspect, argus.click, argus.set_value, argus.screenshot, and unauthorized argus.* calls.",
+      "Document argus.inspect, argus.click, argus.set_value, and argus.screenshot in the internal UserManual.",
+      "Document the inspect -> select stable author_id -> steer -> re-inspect -> screenshot/snapshot evidence loop.",
+      "Ensure Argus protocol references state that inability to see or steer a GUI surface is technical debt and allowed same-WP remediation scope.",
+      "Keep Argus quiet: no foreground pop, focus steal, keyboard hijack, or OS mouse movement."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/mcp/**",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_mcp_tools.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_swarm_concurrency.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_manual_pane_editors.rs",
+      ".GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md"
+    ],
+    "acceptance_criteria": [
+      "Wire-level Argus calls return the same result shapes as the native MCP primitives plus Argus metadata.",
+      "Unauthorized Argus calls fail before reading snapshots, taking leases, logging actions, or enqueueing actions.",
+      "Manual coverage names Argus methods and non-intrusive constraints.",
+      "Protocol coverage requires Argus visual inspection for GUI claims."
+    ],
+    "verification": [
+      "Focused cargo tests for Argus unit and wire paths.",
+      "Manual-content tests for Argus topic strings.",
+      "Code search proving no foreground/input-stealing APIs were introduced."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "wire/API compatibility",
+      "security/auth",
+      "parallel-agent attribution",
+      "non-intrusive operation",
+      "manual/protocol discoverability"
+    ]
+  },
+  "manual_requirement": "Required in this MT.",
+  "handoff": {
+    "status": "READY_FOR_VALIDATION",
+    "summary": "Implemented: Argus wire/protocol/manual hardening. TCP and Windows named-pipe Argus coverage pass; unauthorized wire auth now returns before snapshot lock; protocol/startup/HBR references name argus.* as canonical. Awaiting validator."
+  },
+  "started_at_utc": "2026-06-28T23:26:05.618Z",
+  "execution": {
+    "product_files_changed": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/mcp/server.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_uia_steer_proof.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      ".GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md",
+      ".GOV/roles/coder/docs/CODER_STARTUP_BRIEF.md",
+      ".GOV/roles_shared/docs/SHARED_STARTUP_BRIEF.md",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+    ],
+    "commands_run": [
+      {
+        "command": "node -e \"JSON.parse(require('fs').readFileSync('.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json','utf8')); console.log('HANDSHAKE_BUILD_RULES.json parse ok')\"",
+        "workdir": "../wtc-ckc-posekit-overhaul",
+        "result": "PASS",
+        "evidence": "HANDSHAKE_BUILD_RULES.json parse ok."
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml mcp::server::tests::handle_line_rejects_bad_token_before_snapshot_lock --lib -- --nocapture",
+        "workdir": "../wtc-ckc-posekit-overhaul",
+        "result": "PASS",
+        "evidence": "1 passed, 0 failed; wrong-token argus.inspect returns before waiting for snapshot lock."
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml mcp::server::tests::handle_line_rejects_bad_token_over_wire_shape --lib -- --nocapture",
+        "workdir": "../wtc-ckc-posekit-overhaul",
+        "result": "PASS",
+        "evidence": "1 passed, 0 failed; bad token wire shape remains -32001 Unauthorized."
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml mcp::server::tests::read_line_bounded_rejects_oversized_line_even_when_newline_is_buffered --lib -- --nocapture",
+        "workdir": "../wtc-ckc-posekit-overhaul",
+        "result": "PASS",
+        "evidence": "1 passed, 0 failed; oversized buffered newline rejected before dispatch."
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_uia_steer_proof steer_over_windows_named_pipe -- --nocapture --exact --test-threads=1",
+        "workdir": "../wtc-ckc-posekit-overhaul",
+        "result": "PASS",
+        "evidence": "1 passed, 0 failed on Windows; named pipe drives argus.inspect, unauthorized argus.click, argus.click, argus.set_value, and argus.screenshot."
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_uia_steer_proof argus_ -- --nocapture --test-threads=1",
+        "workdir": "../wtc-ckc-posekit-overhaul",
+        "result": "PASS",
+        "evidence": "5 passed, 0 failed; serial TCP Argus wire proof."
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml argus --lib -- --nocapture",
+        "workdir": "../wtc-ckc-posekit-overhaul",
+        "result": "PASS",
+        "evidence": "7 passed, 0 failed; Argus facade/manual lib coverage."
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_manual_pane_editors agent_tool_reference_rows_are_complete_and_use_real_tools -- --nocapture",
+        "workdir": "../wtc-ckc-posekit-overhaul",
+        "result": "PASS",
+        "evidence": "1 passed, 0 failed; structured manual rows use real tools."
+      },
+      {
+        "command": "rg -n \"Until a dedicated|dedicated Rust-native Argus command exists|Argus-compatible path\" .GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md .GOV/roles/coder/docs/CODER_STARTUP_BRIEF.md .GOV/roles_shared/docs/SHARED_STARTUP_BRIEF.md .GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+        "workdir": "../wtc-ckc-posekit-overhaul",
+        "result": "PASS",
+        "evidence": "PASS: no stale future/placeholder Argus wording in touched authority surfaces."
+      },
+      {
+        "command": "rg -n \"SetForegroundWindow|BringWindowToTop|SetFocus|SendInput|mouse_event|keybd_event\" src/frontend/handshake_native/src/mcp src/frontend/handshake_native/tests/test_uia_steer_proof.rs src/frontend/handshake_native/src/manual_content_editors.rs .GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md .GOV/roles/coder/docs/CODER_STARTUP_BRIEF.md .GOV/roles_shared/docs/SHARED_STARTUP_BRIEF.md .GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+        "workdir": "../wtc-ckc-posekit-overhaul",
+        "result": "PASS",
+        "evidence": "PASS_WITH_COMMENT_MATCHES: matches are comments documenting forbidden APIs, no call sites."
+      }
+    ]
+  },
+  "verification": {
+    "results": [
+      {
+        "status": "PASS_IMPLEMENTER_FOCUSED",
+        "summary": "MT-008 post-review PASS after remediation: unauthorized wire requests return before snapshot lock; named-pipe Argus methods are covered; protocol/startup/HBR references use canonical argus.* methods."
+      }
+    ]
+  },
+  "adversarial_review": {
+    "latest_status": "PASS_AFTER_REMEDIATION",
+    "reviewed_at_utc": "2026-06-28T23:26:05.618Z",
+    "reviewer": "subagent:019f1083-5ff7-7063-b28d-0a4f8fd7de09",
+    "summary": "Initial FAIL on auth-before-snapshot and named-pipe Argus coverage; both remediated and re-reviewed PASS."
+  }
+}
