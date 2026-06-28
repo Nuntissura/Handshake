@@ -56,6 +56,14 @@ interprocess = "2"
 # SAME 0.6 crate. Single crash-context family preserved (AC-012-6 / RISK-012-5).
 minidumper = "0.10"
 minidump-writer = "0.12"
+# `crash-handler` 0.7.0: the CLIENT-side OS-exception installer. Palmistry is normally the SERVER, but
+# the binary also hosts a HEADLESS `--crash-client-probe` seam (MT-092 hardening) that runs the REAL
+# client install (crash_handler::CrashHandler::attach + simulate_exception) in a SEPARATE process so an
+# end-to-end test can cross a REAL process boundary into the `--crash-server-probe` server (proving the
+# §6.13.6 out-of-process invariant across processes, not just same-process threads). It depends on the
+# SAME crash-context 0.6 family the runtime stack pins (verified `cargo tree -i crash-context`), so no
+# duplicate family is introduced (AC-012-6 / RISK-012-5). Pin "0.7".
+crash-handler = "0.7"
 # Control-message + survivor-record JSON (newline-delimited framing over the local socket).
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -84,11 +92,10 @@ windows-sys = { version = "0.61", features = [
 # dumps; it never reads them). It pulls its own crash-context transitively but resolves to the SAME 0.6
 # family the runtime stack uses (no duplicate — proven by `cargo tree -d`, AC-012-6).
 minidump = "0.26"
-# WP-KERNEL-012 MT-092: `crash-handler` (0.7.0) is the CLIENT-side crash installer; here it is a TEST-ONLY
-# dep so the AC-012-1 out-of-process-minidump proof can drive a REAL crash via `simulate_exception` (the
-# crash-handler test seam — a real captured context WITHOUT killing the test process) against Palmistry's
-# server role. Same 0.7 line + same crash-context 0.6 family as the handshake-native client (no duplicate).
-crash-handler = "0.7"
+# WP-KERNEL-012 MT-092: `crash-handler` is the CLIENT-side crash installer the AC-012-1 out-of-process
+# proof drives via `simulate_exception` (a real captured context WITHOUT killing the test process). It is
+# now a RUNTIME dep (the binary's `--crash-client-probe` seam uses it), so it is NOT redeclared here — the
+# runtime dep is in scope for both `src/` and `tests/`. Same 0.7 line + crash-context 0.6 family (no dup).
 # The lifecycle proofs spawn a real DUMMY parent process and hard-kill it; serde_json reads the
 # survivor/state JSON Palmistry writes. (No new family — serde_json is already a runtime dep.)
 serde_json = "1"

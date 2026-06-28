@@ -413,4 +413,86 @@ mod tests {
         assert_eq!(back, rec, "round-trips through the local JSON");
         let _ = std::fs::remove_dir_all(&dir);
     }
+
+    /// The SHIPPED `CrashServerHandler` drives a REAL minidumper round-trip end-to-end (MT-092 hardening,
+    /// must-fix #2). The previous suite only exercised INLINE reimplementations of the handler (struct `H`
+    /// in tests/test_crash_capture.rs, `SelfTestHandler` in handshake-native), so the production handler's
+    /// `create_minidump_file` / `on_minidump_created` / `on_message` (the 8-byte LE thread-id decode) and
+    /// the `captured` + `faulting_thread_id` latches were never run at runtime. This constructs the REAL
+    /// handler, runs `minidumper::Server::run` on it, connects a REAL crash-handler client, sends the typed
+    /// thread-id message through the real `on_message`, fires a SIMULATED exception (a real captured
+    /// context WITHOUT killing the test process), and asserts the shipped handler latched both a captured
+    /// minidump AND the faulting thread id. (This is the in-crate, same-process complement to the
+    /// cross-PROCESS binary proof in tests/test_crash_capture.rs::cross_process_*.)
+    #[test]
+    fn shipped_handler_captures_dump_and_thread_id_via_real_roundtrip() {
+        let pid = std::process::id();
+        let nanos = std::time::SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        // A short AF_UNIX filesystem-socket path under the OS temp dir (fits the 108-byte sun_path).
+        let socket = std::env::temp_dir()
+            .join(format!("hsk-shipped-{pid}-{nanos}.sock"))
+            .to_string_lossy()
+            .into_owned();
+        let _ = std::fs::remove_file(&socket); // clear a stale socket from a prior run
+        let dump_path = std::env::temp_dir().join(format!("hsk-shipped-{pid}-{nanos}.dmp"));
+
+        // Construct the SHIPPED handler and grab its real latches.
+        let handler = CrashServerHandler::new(dump_path.clone());
+        let captured = handler.captured_flag();
+        let thread_id = handler.faulting_thread_id_handle();
+
+        let shutdown = Arc::new(AtomicBool::new(false));
+        let mut server = minidumper::Server::with_name(minidumper::SocketName::path(&socket))
+            .expect("bind crash server");
+        let server_shutdown = Arc::clone(&shutdown);
+        let server_loop = std::thread::spawn(move || {
+            // The SHIPPED handler is moved in here — `Server::run` calls its real trait methods.
+            let _ = server.run(Box::new(handler), &server_shutdown, Some(Duration::from_secs(5)));
+        });
+
+        // A REAL crash-handler client connects and reports the faulting thread id through the real
+        // on_message path, then requests the out-of-process dump.
+        let client = Arc::new(
+            minidumper::Client::with_name(minidumper::SocketName::path(&socket))
+                .expect("client connect"),
+        );
+        // A distinctive non-zero thread id so we can prove the 8-byte LE decode in on_message ran (not a
+        // default 0). The value is arbitrary — it is the WIRE proof, not the real OS thread id.
+        const PROBE_TID: u64 = 0x00C0_FFEE_1234_5678;
+        let client_cb = Arc::clone(&client);
+        #[allow(unsafe_code)]
+        let attached = crash_handler::CrashHandler::attach(unsafe {
+            crash_handler::make_crash_event(move |cc: &crash_handler::CrashContext| {
+                let _ = client_cb.send_message(MSG_KIND_FAULTING_THREAD_ID, PROBE_TID.to_le_bytes());
+                crash_handler::CrashEventResult::Handled(client_cb.request_dump(cc).is_ok())
+            })
+        })
+        .expect("attach crash handler");
+
+        // FIRE a REAL simulated exception (real captured context) WITHOUT crashing the test process.
+        let _ = attached.simulate_exception(None);
+        let _ = server_loop.join();
+        drop(attached);
+
+        // The SHIPPED handler latched a captured minidump (create_minidump_file + on_minidump_created ran)
+        // and decoded the typed thread id through its real on_message (the 8-byte LE path).
+        assert!(
+            captured.load(Ordering::SeqCst),
+            "the shipped CrashServerHandler must latch `captured` after writing the dump"
+        );
+        assert_eq!(
+            thread_id.load(Ordering::SeqCst),
+            PROBE_TID,
+            "the shipped handler's on_message must decode the typed 8-byte LE faulting thread id"
+        );
+        assert!(dump_path.exists(), "the shipped handler must write the dump to its local path");
+        let bytes = std::fs::read(&dump_path).expect("read dump");
+        assert!(bytes.len() > 1024, "a real minidump is non-trivial, got {} bytes", bytes.len());
+
+        let _ = std::fs::remove_file(&dump_path);
+        let _ = std::fs::remove_file(&socket);
+    }
 }

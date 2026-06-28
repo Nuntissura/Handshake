@@ -33,7 +33,8 @@ mod hung_window_probe;
 mod lifecycle;
 mod ring_reader;
 
-use std::path::Path;
+use std::io::Write as _;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -69,6 +70,16 @@ const CONTROL_ERROR_BACKOFF: Duration = Duration::from_millis(50);
 const CONTROL_ERROR_CEILING: u32 = 64;
 
 fn main() {
+    // MT-092 hardening (the cross-process proof seams): handle the headless `--crash-server-probe` /
+    // `--crash-client-probe` flags BEFORE the normal watcher config parse (which rejects unknown args).
+    // These run the REAL production `CrashServerHandler` (server) and the REAL crash-handler client
+    // install (client) in SEPARATE processes, so an end-to-end test crosses a REAL process boundary and
+    // exercises the SHIPPED server handler — not a same-process thread + an inline reimplementation. They
+    // never open a window and exit deterministically (HBR-QUIET).
+    if let Some(code) = handle_probe_flags() {
+        std::process::exit(code);
+    }
+
     // Palmistry's own logging, separate from Handshake's. RUST_LOG / PALMISTRY_LOG controllable; quiet
     // by default so a spawned sibling does not spam. Never opens a window (HBR-QUIET).
     let _ = tracing_subscriber::fmt()
@@ -107,6 +118,190 @@ fn main() {
             eprintln!("palmistry: startup error: {err}");
             std::process::exit(EXIT_CONFIG_ERROR);
         }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------
+// MT-092 hardening — the CROSS-PROCESS crash proof seams (the §6.13.6 out-of-process invariant proven
+// across a REAL process boundary, against the SHIPPED `CrashServerHandler`).
+// ----------------------------------------------------------------------------------------------------
+//
+// The original AC-012-1 proof ran a `minidumper::Server` and its `minidumper::Client` + the crash on the
+// SAME process (different threads), so `minidump-writer` dumped the test process's own memory from another
+// THREAD — never another PROCESS. That asserts the dump is real (validated by the reader) but NOT the
+// cross-PROCESS boundary that is the entire point of §6.13.6 / RISK-012-1. It also ran an INLINE
+// reimplementation of the server handler, leaving the production `CrashServerHandler` untested at runtime.
+//
+// These two flags fix both: `--crash-server-probe` runs the REAL production `CrashServerHandler` through
+// `minidumper::Server::run` and, on a captured dump, writes the REAL RICH `CrashRecord`
+// (`CrashRecord::with_minidump` + `persist_crash_record`, naming the thread id captured by the handler's
+// own `on_message`). `--crash-client-probe`, run as a SEPARATE process, installs the REAL crash-handler
+// client, reports the faulting thread id, and fires `simulate_exception` so the server dumps a DIFFERENT
+// process's memory across a real OS boundary. The integration test
+// (`tests/test_crash_capture.rs::cross_process_*`) spawns both and asserts a validated minidump + the
+// `detection=CrashContextMinidump` record written by the shipped handler.
+
+/// Dispatch the headless crash-proof probe flags. Returns `Some(exit_code)` when a probe flag was handled
+/// (the caller exits with it) or `None` to fall through to the normal watcher launch. Only the FIRST
+/// recognized probe flag is acted on; ordinary watcher args (`--parent-pid`, env-driven launch) are left
+/// for `PalmistryConfig::parse_from_process`.
+fn handle_probe_flags() -> Option<i32> {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    match args.first().map(String::as_str) {
+        // `--crash-server-probe <socket> <dump_path> <record_path>`: run the REAL CrashServerHandler.
+        Some("--crash-server-probe") => Some(run_crash_server_probe(&args[1..])),
+        // `--crash-client-probe <socket>`: connect + fire a simulated exception (SEPARATE process).
+        Some("--crash-client-probe") => Some(run_crash_client_probe(&args[1..])),
+        _ => None,
+    }
+}
+
+/// SERVER PROBE (the SHIPPED handler under a real process boundary). Binds a `minidumper::Server` on
+/// `args[0]` (socket), runs the REAL [`CrashServerHandler`] (writing the dump to `args[1]`), and on a
+/// captured dump persists the REAL RICH [`CrashRecord`] to `args[2]` — exactly the production
+/// `with_minidump` + `persist`-shaped record, naming the faulting thread id the handler's own `on_message`
+/// captured. Exits 0 once a dump is captured + the record is written, 1 on any failure. Used by the
+/// cross-process test; never opens a window.
+fn run_crash_server_probe(args: &[String]) -> i32 {
+    let (socket, dump_path, record_path) = match args {
+        [s, d, r] => (s.clone(), PathBuf::from(d), PathBuf::from(r)),
+        _ => {
+            eprintln!(
+                "palmistry --crash-server-probe needs <socket> <dump_path> <record_path>; got {args:?}"
+            );
+            return EXIT_CONFIG_ERROR;
+        }
+    };
+
+    // Construct the SHIPPED handler (not an inline copy) so the test exercises the real
+    // create_minidump_file / on_minidump_created / on_message + captured/thread-id latches.
+    let handler = CrashServerHandler::new(dump_path.clone());
+    let captured = handler.captured_flag();
+    let thread_id = handler.faulting_thread_id_handle();
+    let write_error = handler.write_error_handle();
+
+    let mut server = match default_crash_server(&socket) {
+        Ok(s) => s,
+        Err(err) => {
+            eprintln!("crash-server-probe: bind failed on '{socket}': {err}");
+            return 1;
+        }
+    };
+    // Signal readiness on stdout so the test parent can launch the client only after the bind succeeds
+    // (avoids a connect race). A single line; the test reads it before spawning the client probe.
+    println!("CRASH_SERVER_PROBE_READY");
+    let _ = std::io::stdout().flush();
+
+    // minidumper's `shutdown` flag STOPS the loop when `true`; start it `false` so the server keeps
+    // accepting until the handler returns `LoopAction::Exit` (after the first dump). (The inverted polarity
+    // is the production bug this probe exists to catch — see the `crash_shutdown` flag in `run_watcher`.)
+    let shutdown = Arc::new(AtomicBool::new(false));
+    if let Err(err) = server.run(Box::new(handler), &shutdown, Some(CRASH_SERVER_STALE_TIMEOUT)) {
+        eprintln!("crash-server-probe: server loop error: {err}");
+        return 1;
+    }
+
+    if !captured.load(Ordering::SeqCst) {
+        let err = write_error
+            .lock()
+            .ok()
+            .and_then(|s| s.clone())
+            .unwrap_or_else(|| "no dump captured (client never requested one)".to_string());
+        eprintln!("crash-server-probe: no minidump captured: {err}");
+        return 1;
+    }
+
+    // Write the REAL RICH crash record naming the dump + the faulting thread id the SHIPPED handler's
+    // on_message captured. This is the production `with_minidump` shape (detection=CrashContextMinidump).
+    let faulting_thread_id = thread_id.load(Ordering::SeqCst);
+    let record = CrashRecord::with_minidump(
+        "crash-server-probe",
+        std::process::id(),
+        faulting_thread_id,
+        dump_path.clone(),
+        None,
+        &[],
+    );
+    let json = match serde_json::to_string_pretty(&record) {
+        Ok(j) => j,
+        Err(err) => {
+            eprintln!("crash-server-probe: record serialize failed: {err}");
+            return 1;
+        }
+    };
+    if let Err(err) = std::fs::write(&record_path, json) {
+        eprintln!("crash-server-probe: record write failed: {err}");
+        return 1;
+    }
+    0
+}
+
+/// CLIENT PROBE (a SEPARATE process from the server). Connects a `minidumper::Client` to `args[0]`
+/// (socket), installs the REAL crash-handler, reports the faulting thread id (typed 8-byte LE u64, never
+/// text), and fires `simulate_exception` so the SERVER process dumps THIS process's memory across a real
+/// OS boundary. Mirrors the production handshake-native client callback exactly. Exits 0 when the dump
+/// request was handled, 1 otherwise. Never opens a window.
+fn run_crash_client_probe(args: &[String]) -> i32 {
+    let socket = match args {
+        [s] => s.clone(),
+        _ => {
+            eprintln!("palmistry --crash-client-probe needs <socket>; got {args:?}");
+            return EXIT_CONFIG_ERROR;
+        }
+    };
+    // Bounded connect-retry: across a REAL process boundary the server's AF_UNIX listen() backlog can
+    // briefly race the client's first connect (Windows returns WSAECONNREFUSED 10061 in that window), so
+    // retry with a short backoff until connected or the bounded deadline elapses. This is the field-
+    // standard cross-process rendezvous hardening the MT-094 launcher will also need; it never busy-spins
+    // (it sleeps between attempts) and is bounded (it gives up + reports rather than hanging).
+    let connect_deadline = std::time::Instant::now() + Duration::from_secs(10);
+    let client = loop {
+        match minidumper::Client::with_name(minidumper::SocketName::path(&socket)) {
+            Ok(c) => break Arc::new(c),
+            Err(err) => {
+                if std::time::Instant::now() >= connect_deadline {
+                    eprintln!("crash-client-probe: connect failed on '{socket}': {err}");
+                    return 1;
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            }
+        }
+    };
+    let client_cb = Arc::clone(&client);
+    #[allow(unsafe_code)]
+    let handler = match crash_handler::CrashHandler::attach(unsafe {
+        crash_handler::make_crash_event(move |cc: &crash_handler::CrashContext| {
+            // Report the faulting thread id FIRST (so the server's on_message can name it in the RICH
+            // record), then request the OUT-OF-PROCESS dump — the EXACT production client shape.
+            #[cfg(windows)]
+            let tid: u64 = cc.thread_id as u64;
+            #[cfg(not(windows))]
+            let tid: u64 = 0;
+            let _ = client_cb.send_message(
+                crash_capture::MSG_KIND_FAULTING_THREAD_ID,
+                tid.to_le_bytes(),
+            );
+            crash_handler::CrashEventResult::Handled(client_cb.request_dump(cc).is_ok())
+        })
+    }) {
+        Ok(h) => h,
+        Err(err) => {
+            eprintln!("crash-client-probe: attach failed: {err}");
+            return 1;
+        }
+    };
+    // FIRE a REAL simulated exception (a real captured context) WITHOUT killing this process. The callback
+    // signals the SERVER process, which writes the dump out-of-process across the boundary.
+    let handled = matches!(
+        handler.simulate_exception(None),
+        crash_handler::CrashEventResult::Handled(true)
+    );
+    drop(handler);
+    if handled {
+        0
+    } else {
+        eprintln!("crash-client-probe: the simulated exception was not handled (dump request failed)");
+        1
     }
 }
 
@@ -479,7 +674,14 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
     let crash_thread_id = crash_handler.faulting_thread_id_handle();
     let crash_write_error = crash_handler.write_error_handle();
     let crash_socket = crash_socket_path(&config.control_socket);
-    let crash_run = Arc::clone(&run);
+    // The minidumper `Server::run` `shutdown` flag uses INVERTED polarity from our `run` flag: minidumper
+    // STOPS when its flag is `true`, whereas our `run` is `true` while the watcher is ALIVE. Passing `run`
+    // directly would make the crash server return IMMEDIATELY at startup (the CrashContext-driven RICH
+    // minidump path would silently never fire). So the crash server gets its OWN dedicated flag,
+    // `crash_shutdown`, that starts `false` (keep running) and is flipped to `true` at teardown once the
+    // lifecycle has ended — the correct minidumper polarity (§6.13.6 / RISK-012-1).
+    let crash_shutdown = Arc::new(AtomicBool::new(false));
+    let crash_server_shutdown = Arc::clone(&crash_shutdown);
     let crash_handle = match (options.crash_server_factory)(&crash_socket) {
         Ok(mut server) => {
             tracing::info!(
@@ -488,12 +690,13 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
                 "crash minidumper server bound (§6.13.6 out-of-process dump writer armed)"
             );
             Some(std::thread::spawn(move || {
-                // `minidumper::Server::run` blocks accepting + serving the client until a dump is
-                // written (handler returns LoopAction::Exit) or `crash_run` is cleared. A stale-timeout
-                // reaps a silent (crashed/exited) client connection so the loop never blocks forever.
+                // `minidumper::Server::run` blocks accepting + serving the client until a dump is written
+                // (handler returns LoopAction::Exit) or `crash_server_shutdown` is SET (true). A
+                // stale-timeout reaps a silent (crashed/exited) client connection so the loop never blocks
+                // forever.
                 if let Err(err) = server.run(
                     Box::new(crash_handler),
-                    &crash_run,
+                    &crash_server_shutdown,
                     Some(CRASH_SERVER_STALE_TIMEOUT),
                 ) {
                     tracing::warn!(%err, "crash minidumper server loop ended with an error");
@@ -633,9 +836,13 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
     // detach the control thread (its blocking accept may outlive us harmlessly — the process is exiting).
     let _ = watch_handle.join();
     let _ = freeze_handle.join();
-    // The crash server thread observes `run` cleared (or already exited after writing a dump). Detach it
-    // (its blocking accept may briefly outlive us harmlessly — the process is exiting).
-    drop(crash_handle);
+    // SIGNAL the crash server to stop (its flag is INVERTED vs `run`: minidumper stops when its flag is
+    // `true`), then join it (bounded). The server loop re-checks the flag every ~10ms, so it returns
+    // promptly. If it already exited after writing a dump, the flag is moot and the join is immediate.
+    crash_shutdown.store(true, Ordering::SeqCst);
+    if let Some(handle) = crash_handle {
+        let _ = handle.join();
+    }
     drop(control_handle); // detached; the process exit closes the socket.
     drop(ring_reader); // unmap the diag ring; the watcher no longer needs Handshake's published state.
 
