@@ -16,10 +16,11 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-004",
   "title": "Rename visible CKC module shell to Atelier and make CKC the default Atelier tab label",
-  "status": "IN_PROGRESS",
+  "status": "COMPLETED",
   "created_at_utc": "2026-06-28T15:39:03.402Z",
-  "updated_at_utc": "2026-06-28T15:39:03.402Z",
+  "updated_at_utc": "2026-06-28T16:02:40.053Z",
   "started_at_utc": "2026-06-28T15:39:03.402Z",
+  "completed_at_utc": "2026-06-28T16:02:40.053Z",
   "product_edit_allowed": true,
   "governance_edit_allowed": true,
   "operator_request": "The current top-right CKC button should be the Atelier button. CKC should be a tabbed window/tool inside Atelier, because CKC and PoseKit are already native Handshake Atelier tools rather than a separate top-level app.",
@@ -38,8 +39,8 @@
     "generator": "manual-kernel-builder-hotfix-projection"
   },
   "lifecycle": {
-    "status": "IN_PROGRESS",
-    "active": true,
+    "status": "COMPLETED",
+    "active": false,
     "depends_on": [
       "MT-003"
     ],
@@ -47,7 +48,8 @@
       "MT-005"
     ],
     "validator_verdict": "PENDING",
-    "started_at_utc": "2026-06-28T15:39:03.402Z"
+    "started_at_utc": "2026-06-28T15:39:03.402Z",
+    "completed_at_utc": "2026-06-28T16:02:40.053Z"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -89,6 +91,7 @@
       "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/module_switcher.rs",
       "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/pane_registry.rs",
       "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/pane_header.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/tab_bar.rs",
       "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_module_switcher.rs",
       "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_pane_header.rs",
       "../wtc-ckc-posekit-overhaul/app/src/App.tsx",
@@ -149,9 +152,56 @@
   "validation_commands": [
     "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_module_switcher",
     "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_pane_header",
+    "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --lib module_switcher::tests::definitions_match_react -- --exact",
+    "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --lib tab_bar::tests::default_label_matches_react_tab_label_map -- --exact",
+    "pnpm --dir app install --frozen-lockfile",
+    "pnpm --dir app run build",
     "rg -n \"ModuleId::Ckc|module-ckc|activeModule: \\\"CKC\\\"|PaneType::AtelierEditor|/atelier\" src/frontend/handshake_native app/src app/tests",
     "git diff -- src/frontend/handshake_native/src/module_switcher.rs src/frontend/handshake_native/src/pane_registry.rs src/frontend/handshake_native/src/pane_header.rs src/frontend/handshake_native/tests/test_module_switcher.rs src/frontend/handshake_native/tests/test_pane_header.rs app/src/App.tsx app/tests/atelier/atelier_nav.spec.ts"
   ],
+  "execution": {
+    "red_test": {
+      "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --lib module_switcher::tests::definitions_match_react -- --exact",
+      "result": "FAILED as expected before product-label edit: implementation emitted label CKC while expected label was Atelier for id CKC/dataId module-ckc."
+    },
+    "commands_run": [
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --lib module_switcher::tests::definitions_match_react -- --exact",
+      "rustfmt --edition 2021 src/frontend/handshake_native/src/module_switcher.rs src/frontend/handshake_native/src/pane_registry.rs src/frontend/handshake_native/src/pane_header.rs src/frontend/handshake_native/tests/test_module_switcher.rs src/frontend/handshake_native/tests/test_pane_header.rs",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --lib module_switcher::tests::definitions_match_react -- --exact",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --lib tab_bar::tests::default_label_matches_react_tab_label_map -- --exact",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_module_switcher",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_pane_header",
+      "rg -n -e 'AtelierEditor\\.default_label\\(\\), \"Atelier\"' -e 'atelier: \"Atelier\"' -e 'label: \"CKC\"' -e '\"label\": \"CKC\"' src/frontend/handshake_native app/src app/tests",
+      "rg -n -e 'ModuleId::Ckc' -e 'ModuleId::Ckc => \"CKC\"' -e '\"CKC\" => Some\\(ModuleId::Ckc\\)' -e 'module-ckc' -e 'activeModule: \"CKC\"' -e 'module: \"CKC\"' -e 'PaneType::AtelierEditor' -e '/atelier' src/frontend/handshake_native app/src app/tests | Measure-Object -Line",
+      "git diff --check -- src/frontend/handshake_native/src/module_switcher.rs src/frontend/handshake_native/src/pane_registry.rs src/frontend/handshake_native/src/pane_header.rs src/frontend/handshake_native/src/tab_bar.rs src/frontend/handshake_native/tests/test_module_switcher.rs src/frontend/handshake_native/tests/test_pane_header.rs app/src/App.tsx app/tests/atelier/atelier_nav.spec.ts",
+      "pnpm --dir app install --frozen-lockfile",
+      "pnpm --dir app run build"
+    ],
+    "product_files_changed": [
+      "../wtc-ckc-posekit-overhaul/app/src/App.tsx",
+      "../wtc-ckc-posekit-overhaul/app/tests/atelier/atelier_nav.spec.ts",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/module_switcher.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/pane_header.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/pane_registry.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/tab_bar.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_module_switcher.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_pane_header.rs"
+    ],
+    "product_commit": "e2f0d557",
+    "product_branch_pushed": "origin/feat/WP-CKC-posekit-overhaul"
+  },
+  "verification": {
+    "results": [
+      "Red proof: module_switcher::tests::definitions_match_react failed before implementation because label stayed CKC while expected label was Atelier.",
+      "Green proof: module_switcher::tests::definitions_match_react passed: 1 passed, 0 failed.",
+      "Tab label proof: tab_bar::tests::default_label_matches_react_tab_label_map passed: 1 passed, 0 failed.",
+      "Focused native module switcher integration passed: 6 passed, 0 failed.",
+      "Focused native pane header integration passed: 9 passed, 0 failed.",
+      "Stale-label search found no remaining touched-surface patterns for atelier: \"Atelier\", label: \"CKC\", or AtelierEditor.default_label() == \"Atelier\".",
+      "Preservation search found stable internal markers still present, including ModuleId::Ckc, module-ckc, activeModule/module CKC, PaneType::AtelierEditor, and /atelier routes.",
+      "React verification passed: pnpm --dir app run build completed successfully after pnpm --dir app install --frozen-lockfile. Vite emitted existing chunk-size warnings only."
+    ]
+  },
   "risk_notes": [
     {
       "risk": "A model may rename internal CKC identifiers instead of visible labels.",
@@ -195,8 +245,10 @@
     ]
   },
   "closeout": {
-    "result": "IN_PROGRESS",
-    "product_code_changed": false,
-    "summary": "MT prepared and activated. Product implementation not yet completed."
+    "result": "COMPLETED",
+    "product_code_changed": true,
+    "product_commit": "e2f0d557",
+    "summary": "Visible shell labels corrected. The top-level CKC module now displays as Atelier, the default AtelierEditor tab label now displays as CKC, React label constants match, and internal CKC IDs/routes/stable test IDs remain unchanged.",
+    "next_recommended_mt": "MT-005"
   }
 }
