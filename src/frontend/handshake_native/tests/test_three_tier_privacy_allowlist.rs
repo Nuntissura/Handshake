@@ -51,8 +51,14 @@ fn assert_no_local_artifact_dir() {
 }
 
 fn temp_dir(label: &str) -> PathBuf {
-    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
-    std::env::temp_dir().join(format!("hsk-mt096-priv-{label}-{}-{nanos}", std::process::id()))
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    std::env::temp_dir().join(format!(
+        "hsk-mt096-priv-{label}-{}-{nanos}",
+        std::process::id()
+    ))
 }
 
 struct DirGuard(PathBuf);
@@ -83,11 +89,26 @@ fn is_allowlisted_telemetry_string(s: &str) -> bool {
     if s.contains("://") {
         return false;
     }
-    // A LOCAL path (has a path separator) is allowed even if it contains spaces (e.g. a Windows path under
-    // a "Handshake Worktrees" dir). It must not be a URL (checked above).
+    // A LOCAL path is allowed only when it is under the expected artifact/temp evidence roots. A bare
+    // slash-containing string is not enough; otherwise `C:/private document body.txt` would evade the
+    // free-text guard just by looking path-shaped.
     let looks_like_path = s.contains('/') || s.contains('\\');
     if looks_like_path {
-        return true;
+        let normalized = s.replace('\\', "/").to_ascii_lowercase();
+        let allowed_root = normalized.contains("/handshake_artifacts/")
+            || normalized.contains("/handshake-test/")
+            || normalized.contains("/hsk-mt096-priv-")
+            || normalized.contains("/appdata/local/temp/")
+            || normalized.contains("/tmp/");
+        if !allowed_root {
+            return false;
+        }
+        let basename = normalized.rsplit('/').next().unwrap_or("");
+        return !basename.is_empty()
+            && !basename.chars().any(char::is_whitespace)
+            && basename
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | '@' | '+'));
     }
     // Otherwise it must be a TOKEN: a space-free run of the typed-vocabulary charset (alphanumerics + the
     // punctuation used by session ids, schema versions `hsk.x@0.1`, wire markers `a:b:c`, ISO timestamps
@@ -112,20 +133,67 @@ fn assert_no_free_text(value: &Value, ctx: &str) {
     }
 }
 
-/// Assert every KEY in the top-level object of `value` is in `allowed` (so no `content`/`text`/`note`
+fn assert_allowed_keys_recursive(value: &Value, allowed: &HashSet<&str>, ctx: &str) {
+    match value {
+        Value::Object(map) => {
+            for (key, nested) in map {
+                assert!(
+                    allowed.contains(key.as_str()),
+                    "AC-016-4: {ctx} carried a non-allowlisted key '{key}' (a typed-allowlist record may \
+                     only carry its known typed fields — a free-text field is forbidden)"
+                );
+                assert_allowed_keys_recursive(nested, allowed, ctx);
+            }
+        }
+        Value::Array(items) => items
+            .iter()
+            .for_each(|nested| assert_allowed_keys_recursive(nested, allowed, ctx)),
+        _ => {}
+    }
+}
+
+/// Assert every object KEY in `value` is in `allowed` (so no `content`/`text`/`note`
 /// field can exist) AND no string value is free text.
 fn assert_keys_and_values(value: &Value, allowed: &HashSet<&str>, ctx: &str) {
-    let obj = value
+    value
         .as_object()
         .unwrap_or_else(|| panic!("{ctx}: expected a JSON object"));
-    for key in obj.keys() {
-        assert!(
-            allowed.contains(key.as_str()),
-            "AC-016-4: {ctx} carried a non-allowlisted key '{key}' (a typed-allowlist record may only \
-             carry its known typed fields — a free-text field is forbidden)"
-        );
-    }
+    assert_allowed_keys_recursive(value, allowed, ctx);
     assert_no_free_text(value, ctx);
+}
+
+fn survivor_record_allowed_keys() -> HashSet<&'static str> {
+    [
+        "schema_version",
+        "kind",
+        "session_id",
+        "process_id",
+        "event_code",
+        "stale_ms",
+        "last_heartbeat_counter",
+        "last_heartbeat_ts_nanos",
+        "last_event_count",
+        "probe_result",
+        "probe",
+        "crash_detection",
+        "faulting_thread_id",
+        "exit_code",
+        "minidump_path",
+        "captured_at_unix_ms",
+        "forwarded",
+        "detection",
+        // Palmistry lifecycle survivor records share the `palmistry-survivor-*` artifact family but
+        // carry only lifecycle facts, not freeze/crash survivor-store fields.
+        "parent_pid",
+        "abnormal_parent_exit",
+        "parent_exit_code",
+        "shutdown_received",
+        "exit_reason",
+        "recorded_at_unix_ms",
+        "reason",
+    ]
+    .into_iter()
+    .collect()
 }
 
 // ── AC-016-4: scan the ring records (the strongest guarantee — pure POD integers, no string at all) ─────
@@ -191,34 +259,16 @@ fn survivor_store_records_are_typed_allowlist_system_wide() {
 
     let freeze = r#"{"schema_version":"hsk.palmistry.survivor@0.1","kind":"Freeze","session_id":"019eb067-947f-7603-856d-03e2d1047692","process_id":4242,"event_code":7,"stale_ms":6000,"last_heartbeat_counter":42,"last_heartbeat_ts_nanos":123456,"last_event_count":3,"probe":"NotResponding","crash_detection":null,"faulting_thread_id":null,"exit_code":null,"minidump_path":null,"captured_at_unix_ms":1717000000000,"forwarded":true}"#;
     let crash = r#"{"schema_version":"hsk.palmistry.survivor@0.1","kind":"Crash","session_id":"mt096-crash-sess","process_id":7,"event_code":8,"stale_ms":0,"last_heartbeat_counter":9,"last_heartbeat_ts_nanos":99,"last_event_count":1,"probe":"NotApplicable","crash_detection":{"detection":"PostMortemNoContext"},"faulting_thread_id":0,"exit_code":3221225477,"minidump_path":"C:/Handshake_Artifacts/handshake-test/palmistry-crash-mt096.dmp","captured_at_unix_ms":1717000000001,"forwarded":false}"#;
+    let lifecycle = r#"{"session_id":"mt096-live-107128-1782677507809688500","parent_pid":107128,"abnormal_parent_exit":false,"parent_exit_code":null,"shutdown_received":true,"exit_reason":{"reason":"CleanShutdown"},"recorded_at_unix_ms":1717000000002}"#;
     std::fs::write(dir.join("survivor-freeze-a.json"), freeze).unwrap();
     std::fs::write(dir.join("survivor-crash-b.json"), crash).unwrap();
+    std::fs::write(dir.join("palmistry-survivor-lifecycle.json"), lifecycle).unwrap();
 
-    // The survivor-record key allowlist (mirrors survivor_store::SurvivorRecord::allowlisted_keys + the
-    // `#[serde(tag = ...)]` tag keys). A record may carry ONLY these keys.
-    let allowed: HashSet<&str> = [
-        "schema_version",
-        "kind",
-        "session_id",
-        "process_id",
-        "event_code",
-        "stale_ms",
-        "last_heartbeat_counter",
-        "last_heartbeat_ts_nanos",
-        "last_event_count",
-        "probe",
-        "crash_detection",
-        "faulting_thread_id",
-        "exit_code",
-        "minidump_path",
-        "captured_at_unix_ms",
-        "forwarded",
-        "detection",
-    ]
-    .into_iter()
-    .collect();
+    // The survivor-record key allowlist covers the richer survivor-store freeze/crash schema and the
+    // lifecycle `palmistry-survivor-*` schema Palmistry writes next to the ring.
+    let allowed = survivor_record_allowed_keys();
 
-    for (label, raw) in [("freeze", freeze), ("crash", crash)] {
+    for (label, raw) in [("freeze", freeze), ("crash", crash), ("lifecycle", lifecycle)] {
         let value: Value = serde_json::from_str(raw).unwrap();
         assert_keys_and_values(&value, &allowed, &format!("survivor {label} record"));
     }
@@ -273,8 +323,14 @@ fn crash_record_metadata_is_typed_allowlist_no_dump_bytes() {
 
     // The minidump_path is a LOCAL path reference, not the bytes and not a URL.
     let path = value["minidump_path"].as_str().unwrap();
-    assert!(!path.contains("://"), "the minidump path is LOCAL, never a URL (§6.13.8)");
-    assert!(path.ends_with(".dmp"), "the minidump path names the dump FILE, not its bytes");
+    assert!(
+        !path.contains("://"),
+        "the minidump path is LOCAL, never a URL (§6.13.8)"
+    );
+    assert!(
+        path.ends_with(".dmp"),
+        "the minidump path names the dump FILE, not its bytes"
+    );
 
     assert_no_local_artifact_dir();
 }
@@ -307,7 +363,10 @@ fn fr_forward_body_is_typed_allowlist() {
     .collect();
     let value: Value = serde_json::from_str(body).unwrap();
     assert_keys_and_values(&value, &allowed, "FR-forward body");
-    assert!(value.get("message").is_none(), "no free-text 'message' field");
+    assert!(
+        value.get("message").is_none(),
+        "no free-text 'message' field"
+    );
     assert!(value.get("text").is_none(), "no free-text 'text' field");
 
     assert_no_local_artifact_dir();
@@ -320,30 +379,80 @@ fn scanner_rejects_planted_free_text_and_urls() {
     // A guard on the guard: prove the scanner is not a tautology — it must FAIL on a planted free-text
     // value, a URL, and a non-allowlisted key. If any of these passed, the system-wide scan would be
     // worthless.
-    assert!(!is_allowlisted_telemetry_string("the user's secret document body"), "free prose must fail");
-    assert!(!is_allowlisted_telemetry_string("https://evil.example/upload"), "a URL must fail");
-    assert!(is_allowlisted_telemetry_string("hsk.palmistry.survivor@0.1"), "a schema version must pass");
-    assert!(is_allowlisted_telemetry_string("019eb067-947f-7603-856d-03e2d1047692"), "a uuid must pass");
-    assert!(is_allowlisted_telemetry_string("C:/Handshake_Artifacts/x.dmp"), "a local path must pass");
     assert!(
-        is_allowlisted_telemetry_string("D:/Projects/Handshake Worktrees/x.dmp"),
-        "a local path WITH a space (a real worktree path) must pass"
+        !is_allowlisted_telemetry_string("the user's secret document body"),
+        "free prose must fail"
     );
-    assert!(is_allowlisted_telemetry_string("Freeze"), "an enum tag must pass");
-    assert!(is_allowlisted_telemetry_string("2026-06-28T00:00:00Z"), "an ISO timestamp must pass");
+    assert!(
+        !is_allowlisted_telemetry_string("https://evil.example/upload"),
+        "a URL must fail"
+    );
+    assert!(
+        !is_allowlisted_telemetry_string("C:/private/customer note.txt"),
+        "an arbitrary local-looking path outside the telemetry artifact roots must fail"
+    );
+    assert!(
+        !is_allowlisted_telemetry_string("C:/Users/Ilja/AppData/Local/Temp/customer note.txt"),
+        "an allowed temp root must not make a free-text basename pass"
+    );
+    assert!(
+        is_allowlisted_telemetry_string("hsk.palmistry.survivor@0.1"),
+        "a schema version must pass"
+    );
+    assert!(
+        is_allowlisted_telemetry_string("019eb067-947f-7603-856d-03e2d1047692"),
+        "a uuid must pass"
+    );
+    assert!(
+        is_allowlisted_telemetry_string("C:/Handshake_Artifacts/x.dmp"),
+        "a local path must pass"
+    );
+    assert!(
+        is_allowlisted_telemetry_string(
+            "D:/Projects/Handshake Worktrees/Handshake_Artifacts/x.dmp"
+        ),
+        "an artifact-root local path WITH a space must pass"
+    );
+    assert!(
+        is_allowlisted_telemetry_string("Freeze"),
+        "an enum tag must pass"
+    );
+    assert!(
+        is_allowlisted_telemetry_string("2026-06-28T00:00:00Z"),
+        "an ISO timestamp must pass"
+    );
 
-    // The recursive object scanner must catch a planted free-text VALUE and a planted URL.
-    let leaky = serde_json::json!({"session_id":"ok-token","note":"this is the user's private note"});
+    // The recursive object scanner must catch planted free-text/URL VALUES and the key scanner must catch
+    // token-valued unexpected KEYS. The latter prevents a fake "everything is a token" bypass where the
+    // value looks safe but the field itself is unapproved telemetry shape drift.
+    let leaky =
+        serde_json::json!({"session_id":"ok-token","note":"this is the user's private note"});
     let caught = std::panic::catch_unwind(|| {
         assert_no_free_text(&leaky, "planted-leak");
     });
-    assert!(caught.is_err(), "the scanner MUST catch a planted free-text value");
+    assert!(
+        caught.is_err(),
+        "the scanner MUST catch a planted free-text value"
+    );
 
     let leaky_url = serde_json::json!({"minidump_path":"https://evil.example/dump"});
     let caught_url = std::panic::catch_unwind(|| {
         assert_no_free_text(&leaky_url, "planted-url");
     });
     assert!(caught_url.is_err(), "the scanner MUST catch a planted URL");
+
+    let unexpected_key = serde_json::json!({
+        "session_id": "ok-token",
+        "secret_note": "ok-token"
+    });
+    let allowed: HashSet<&str> = ["session_id"].into_iter().collect();
+    let caught_key = std::panic::catch_unwind(|| {
+        assert_keys_and_values(&unexpected_key, &allowed, "planted-token-key");
+    });
+    assert!(
+        caught_key.is_err(),
+        "the scanner MUST catch a planted token-valued unexpected key"
+    );
 
     assert_no_local_artifact_dir();
 }
@@ -358,11 +467,37 @@ fn any_real_emitted_survivor_records_are_typed_allowlist() {
     // guaranteed) — the representative scans above carry the AC; this strengthens it when present.
     let root = external_artifact_dir("wp-kernel-012-mt-096");
     let mut scanned = 0usize;
+    let mut raw_scanned = 0usize;
+    let allowed = survivor_record_allowed_keys();
     if let Ok(entries) = std::fs::read_dir(&root) {
         for entry in entries.flatten() {
             let p = entry.path();
             if !p.is_dir() {
                 continue;
+            }
+            if let Ok(files) = std::fs::read_dir(&p) {
+                for file in files.flatten() {
+                    let path = file.path();
+                    let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+                        continue;
+                    };
+                    let is_survivor_artifact =
+                        name.starts_with("palmistry-survivor-") || name.starts_with("survivor-");
+                    if !is_survivor_artifact
+                        || path.extension().and_then(|e| e.to_str()) != Some("json")
+                    {
+                        continue;
+                    }
+                    let bytes = std::fs::read(&path).expect("read real emitted survivor JSON");
+                    let value: Value = serde_json::from_slice(&bytes)
+                        .expect("real emitted survivor JSON must parse");
+                    assert_keys_and_values(
+                        &value,
+                        &allowed,
+                        &format!("real emitted survivor {}", path.display()),
+                    );
+                    raw_scanned += 1;
+                }
             }
             for view in read_survivor_records(&p) {
                 assert!(
@@ -380,6 +515,9 @@ fn any_real_emitted_survivor_records_are_typed_allowlist() {
             }
         }
     }
-    println!("MT-096 privacy: scanned {scanned} real emitted survivor record(s) under {}", root.display());
+    println!(
+        "MT-096 privacy: scanned {raw_scanned} raw / {scanned} projected real emitted survivor record(s) under {}",
+        root.display()
+    );
     assert_no_local_artifact_dir();
 }

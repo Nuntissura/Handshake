@@ -37,7 +37,7 @@
 //! an explicit binary (the dev tree builds the two crates into different target dirs, so they are not
 //! side-by-side there).
 
-use std::io::{self, BufRead, BufReader, Write};
+use std::io::{self, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::{mpsc, Mutex};
@@ -87,6 +87,12 @@ const CONNECT_RETRY_INTERVAL: Duration = Duration::from_millis(25);
 /// MUST be >= [`HANDSHAKE_CONNECT_DEADLINE`] so a slow-but-succeeding connect is not pre-empted. If this
 /// elapses, startup continues degraded — Handshake never hangs on the watcher (AC-014-5).
 const HANDSHAKE_OVERALL_DEADLINE: Duration = Duration::from_secs(4);
+/// Bound for the post-connect `Ack` line. Windows named-pipe local sockets do not support read
+/// timeouts, so the implementation uses nonblocking polling with this deadline.
+const HANDSHAKE_ACK_READ_DEADLINE: Duration = Duration::from_millis(900);
+/// Poll interval for nonblocking control-socket reads. Small enough to keep startup responsive, large
+/// enough to avoid a busy spin if Palmistry accepts the socket but never replies.
+const CONTROL_READ_POLL_INTERVAL: Duration = Duration::from_millis(10);
 /// Bounded wait for Palmistry to exit after an explicit `Shutdown` on a CLEAN app exit. A clean shutdown
 /// is prompt (Palmistry's lifecycle breaks immediately when the parent is still alive); the generous
 /// bound only covers scheduling jitter before the kill backstop.
@@ -177,6 +183,65 @@ fn connect_control(socket_name: &str, deadline: Duration) -> io::Result<LocalStr
     }
 }
 
+fn read_control_line_bounded(
+    stream: &mut LocalStream,
+    deadline: Duration,
+    context: &str,
+) -> io::Result<String> {
+    fn read_loop(
+        stream: &mut LocalStream,
+        deadline: Duration,
+        context: &str,
+    ) -> io::Result<String> {
+        let start = Instant::now();
+        let mut bytes = Vec::with_capacity(64);
+        let mut buf = [0u8; 128];
+        loop {
+            match stream.read(&mut buf) {
+                Ok(0) => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::UnexpectedEof,
+                        format!("{context}: peer closed before a newline-delimited reply"),
+                    ));
+                }
+                Ok(n) => {
+                    bytes.extend_from_slice(&buf[..n]);
+                    if let Some(pos) = bytes.iter().position(|b| *b == b'\n') {
+                        bytes.truncate(pos + 1);
+                        return String::from_utf8(bytes)
+                            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err));
+                    }
+                    if bytes.len() > 16 * 1024 {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            format!("{context}: reply exceeded 16KiB before newline"),
+                        ));
+                    }
+                }
+                Err(err) if err.kind() == io::ErrorKind::WouldBlock => {
+                    if start.elapsed() >= deadline {
+                        return Err(io::Error::new(
+                            io::ErrorKind::TimedOut,
+                            format!("{context}: no newline-delimited reply within {deadline:?}"),
+                        ));
+                    }
+                    std::thread::sleep(CONTROL_READ_POLL_INTERVAL);
+                }
+                Err(err) => return Err(err),
+            }
+        }
+    }
+
+    stream.set_nonblocking(true)?;
+    let result = read_loop(stream, deadline, context);
+    let reset = stream.set_nonblocking(false);
+    match (result, reset) {
+        (Ok(line), Ok(())) => Ok(line),
+        (Ok(_), Err(err)) => Err(err),
+        (Err(err), _) => Err(err),
+    }
+}
+
 /// The full startup handshake, run on the worker thread: connect (bounded), send `HandshakeHello`, read
 /// the `Ack`. Returns the LIVE buffered connection on success so the SAME connection carries the later
 /// `Shutdown` (Palmistry's `serve_connection` reads multiple messages on one accepted connection).
@@ -195,14 +260,11 @@ fn perform_handshake(
             session_id,
         },
     )?;
-    let mut line = String::new();
-    let n = reader.read_line(&mut line)?;
-    if n == 0 {
-        return Err(io::Error::new(
-            io::ErrorKind::UnexpectedEof,
-            "palmistry closed the control connection before acking the startup handshake",
-        ));
-    }
+    let line = read_control_line_bounded(
+        reader.get_mut(),
+        HANDSHAKE_ACK_READ_DEADLINE,
+        "palmistry startup handshake",
+    )?;
     let reply: LauncherControlReply =
         serde_json::from_str(line.trim_end_matches(['\n', '\r'])).map_err(io::Error::other)?;
     match reply {
@@ -285,7 +347,8 @@ impl PalmistryHandle {
                      wait/kill"
                 );
             }
-        } else if let Ok(mut stream) = connect_control(&self.socket_name, SHUTDOWN_CONNECT_DEADLINE) {
+        } else if let Ok(mut stream) = connect_control(&self.socket_name, SHUTDOWN_CONNECT_DEADLINE)
+        {
             // No live connection (handshake was unconfirmed): best-effort reconnect to send Shutdown.
             let _ = write_message(&mut stream, &LauncherControlMessage::Shutdown);
         }
@@ -305,7 +368,7 @@ impl PalmistryHandle {
                     "palmistry did not exit within the bounded shutdown window; killing (backstop)"
                 );
                 let _ = self.child.kill();
-                let _ = self.child.wait();
+                let _ = wait_for_exit(&mut self.child, Duration::from_secs(1));
                 ShutdownOutcome::Killed
             }
         }
@@ -463,7 +526,7 @@ pub fn launch_palmistry_at(
         // orphans with no handle to reap it and, when this still-alive parent later exits without a
         // Shutdown, the watcher records a FALSE abnormal-parent-exit. Reap, then propagate the error.
         let _ = child.kill();
-        let _ = child.wait();
+        let _ = wait_for_exit(&mut child, Duration::from_secs(1));
         return Err(spawn_err);
     }
 

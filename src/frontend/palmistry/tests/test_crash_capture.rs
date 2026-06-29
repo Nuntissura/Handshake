@@ -20,11 +20,11 @@
 //! The `minidump` reader is the test-only VALIDATOR (it never runs in the watcher). The artifact-hygiene
 //! guard ([`assert_no_local_artifact_dir`]) fails the test if a repo-local artifact dir appears.
 
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use handshake_diag_ring::ring::DEFAULT_CAPACITY;
@@ -138,34 +138,111 @@ fn wait_for_exit(child: &mut Child, timeout: Duration) -> Option<i32> {
     }
 }
 
+fn read_control_line_bounded(
+    stream: &mut interprocess::local_socket::Stream,
+    timeout: Duration,
+) -> std::io::Result<String> {
+    use interprocess::local_socket::traits::Stream as _;
+
+    fn read_loop(
+        stream: &mut interprocess::local_socket::Stream,
+        timeout: Duration,
+    ) -> std::io::Result<String> {
+        let start = Instant::now();
+        let mut bytes = Vec::with_capacity(64);
+        let mut buf = [0u8; 128];
+        loop {
+            match stream.read(&mut buf) {
+                Ok(0) => {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::UnexpectedEof,
+                        "control socket closed before newline reply",
+                    ));
+                }
+                Ok(n) => {
+                    bytes.extend_from_slice(&buf[..n]);
+                    if let Some(pos) = bytes.iter().position(|b| *b == b'\n') {
+                        bytes.truncate(pos + 1);
+                        return String::from_utf8(bytes).map_err(|err| {
+                            std::io::Error::new(std::io::ErrorKind::InvalidData, err)
+                        });
+                    }
+                    if bytes.len() > 16 * 1024 {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            "control reply exceeded 16KiB before newline",
+                        ));
+                    }
+                }
+                Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {
+                    if start.elapsed() >= timeout {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::TimedOut,
+                            format!("no control reply within {timeout:?}"),
+                        ));
+                    }
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                Err(err) => return Err(err),
+            }
+        }
+    }
+
+    stream.set_nonblocking(true)?;
+    let result = read_loop(stream, timeout);
+    let reset = stream.set_nonblocking(false);
+    match (result, reset) {
+        (Ok(line), Ok(())) => Ok(line),
+        (Ok(_), Err(err)) => Err(err),
+        (Err(err), _) => Err(err),
+    }
+}
+
 /// Send one newline-delimited JSON control message to the watcher (retrying the connect).
-fn send_control(socket: &str, message_json: &str, connect_timeout: Duration) -> std::io::Result<String> {
+fn send_control(
+    socket: &str,
+    message_json: &str,
+    connect_timeout: Duration,
+) -> std::io::Result<String> {
     use interprocess::local_socket::traits::Stream as _;
     use interprocess::local_socket::{GenericNamespaced, Stream, ToNsName};
 
     let name = socket.to_ns_name::<GenericNamespaced>()?;
     let deadline = Instant::now() + connect_timeout;
-    let conn = loop {
-        match Stream::connect(name.clone()) {
-            Ok(c) => break c,
-            Err(e) => {
-                if Instant::now() >= deadline {
-                    return Err(e);
-                }
+    let mut last_err = None;
+    while Instant::now() < deadline {
+        let mut conn = match Stream::connect(name.clone()) {
+            Ok(conn) => conn,
+            Err(err) => {
+                last_err = Some(err);
                 std::thread::sleep(Duration::from_millis(25));
+                continue;
             }
+        };
+        if let Err(err) = conn.write_all(message_json.as_bytes()) {
+            last_err = Some(err);
+            std::thread::sleep(Duration::from_millis(25));
+            continue;
         }
-    };
-    let mut reader = BufReader::new(conn);
-    {
-        let w = reader.get_mut();
-        w.write_all(message_json.as_bytes())?;
-        w.write_all(b"\n")?;
-        w.flush()?;
+        if let Err(err) = conn.write_all(b"\n") {
+            last_err = Some(err);
+            std::thread::sleep(Duration::from_millis(25));
+            continue;
+        }
+        if let Err(err) = conn.flush() {
+            last_err = Some(err);
+            std::thread::sleep(Duration::from_millis(25));
+            continue;
+        }
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        return read_control_line_bounded(&mut conn, remaining).map(|line| line.trim_end().to_string());
     }
-    let mut line = String::new();
-    reader.read_line(&mut line)?;
-    Ok(line.trim_end().to_string())
+    Err(last_err.unwrap_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::TimedOut,
+            format!("no control reply within {connect_timeout:?}"),
+        )
+    }))
 }
 
 fn safe_token(session_id: &str) -> String {
@@ -217,7 +294,71 @@ fn read_json(path: &Path, timeout: Duration) -> Option<serde_json::Value> {
 
 fn kill_child(child: &mut Child) {
     let _ = child.kill();
-    let _ = child.wait();
+    let _ = wait_for_exit(child, Duration::from_secs(2));
+}
+
+fn stderr_after_exit(child: &mut Child) -> String {
+    if !matches!(child.try_wait(), Ok(Some(_))) {
+        return "<stderr unavailable: child still running after bounded kill/reap>".to_owned();
+    }
+    let mut stderr = String::new();
+    if let Some(mut se) = child.stderr.take() {
+        let _ = se.read_to_string(&mut stderr);
+    }
+    stderr
+}
+
+struct ChildGuard {
+    child: Child,
+}
+
+impl ChildGuard {
+    fn new(child: Child) -> Self {
+        Self { child }
+    }
+
+    fn id(&self) -> u32 {
+        self.child.id()
+    }
+
+    fn child_mut(&mut self) -> &mut Child {
+        &mut self.child
+    }
+}
+
+impl Drop for ChildGuard {
+    fn drop(&mut self) {
+        kill_child(&mut self.child);
+    }
+}
+
+fn wait_for_line_contains<R: Read + Send + 'static>(
+    reader: R,
+    needle: &'static str,
+    timeout: Duration,
+) -> bool {
+    let (tx, rx) = mpsc::channel();
+    let _ = std::thread::Builder::new()
+        .name("bounded-ready-line-reader".to_string())
+        .spawn(move || {
+            let mut reader = BufReader::new(reader);
+            let mut line = String::new();
+            loop {
+                line.clear();
+                match reader.read_line(&mut line) {
+                    Ok(0) | Err(_) => {
+                        let _ = tx.send(false);
+                        break;
+                    }
+                    Ok(_) if line.contains(needle) => {
+                        let _ = tx.send(true);
+                        break;
+                    }
+                    Ok(_) => {}
+                }
+            }
+        });
+    rx.recv_timeout(timeout).unwrap_or(false)
 }
 
 // ===================================================================================================
@@ -252,7 +393,10 @@ fn out_of_process_minidump_is_written_by_the_server_and_validates() {
     }
     impl minidumper::ServerHandler for H {
         fn create_minidump_file(&self) -> Result<(std::fs::File, PathBuf), std::io::Error> {
-            Ok((std::fs::File::create(&self.dump_path)?, self.dump_path.clone()))
+            Ok((
+                std::fs::File::create(&self.dump_path)?,
+                self.dump_path.clone(),
+            ))
         }
         fn on_minidump_created(
             &self,
@@ -286,12 +430,17 @@ fn out_of_process_minidump_is_written_by_the_server_and_validates() {
     };
     let server_shutdown = Arc::clone(&shutdown);
     let server_loop = std::thread::spawn(move || {
-        let _ = server.run(Box::new(handler), &server_shutdown, Some(Duration::from_secs(5)));
+        let _ = server.run(
+            Box::new(handler),
+            &server_shutdown,
+            Some(Duration::from_secs(5)),
+        );
     });
 
     // The CLIENT installs a crash-handler whose callback requests the OUT-OF-PROCESS dump.
     let client = Arc::new(
-        minidumper::Client::with_name(minidumper::SocketName::path(&socket)).expect("client connect"),
+        minidumper::Client::with_name(minidumper::SocketName::path(&socket))
+            .expect("client connect"),
     );
     let client_cb = Arc::clone(&client);
     #[allow(unsafe_code)]
@@ -313,9 +462,17 @@ fn out_of_process_minidump_is_written_by_the_server_and_validates() {
         "the SERVER must have written the minidump out-of-process (server error: {:?})",
         srv_err.lock().ok().and_then(|s| s.clone())
     );
-    assert!(dump_path.exists(), "a real minidump file must exist on disk: {}", dump_path.display());
+    assert!(
+        dump_path.exists(),
+        "a real minidump file must exist on disk: {}",
+        dump_path.display()
+    );
     let dump_bytes = std::fs::read(&dump_path).expect("read minidump");
-    assert!(dump_bytes.len() > 1024, "a real minidump is non-trivial, got {} bytes", dump_bytes.len());
+    assert!(
+        dump_bytes.len() > 1024,
+        "a real minidump is non-trivial, got {} bytes",
+        dump_bytes.len()
+    );
 
     // VALIDATE the dump by parsing it back with the `minidump` reader crate (AC-012-1): it must be a
     // well-formed minidump with at least the thread list + module list streams.
@@ -324,7 +481,10 @@ fn out_of_process_minidump_is_written_by_the_server_and_validates() {
     let threads = dump
         .get_stream::<minidump::MinidumpThreadList>()
         .expect("the minidump must carry a thread list (the crashing thread)");
-    assert!(!threads.threads.is_empty(), "the dump must contain at least one thread");
+    assert!(
+        !threads.threads.is_empty(),
+        "the dump must contain at least one thread"
+    );
     let modules = dump
         .get_stream::<minidump::MinidumpModuleList>()
         .expect("the minidump must carry a module list (loaded modules)");
@@ -351,7 +511,7 @@ fn out_of_process_minidump_is_written_by_the_server_and_validates() {
 // ===================================================================================================
 
 #[test]
-#[ignore = "cross-process minidumper-IPC probe: the --crash-client-probe child is waited on by an UNBOUNDED Command::output() and can deadlock under this headless/sandboxed harness; run with --ignored on a real interactive host. The crash-RECORD path is proven by the bounded tests below."]
+#[ignore = "cross-process minidumper-IPC probe: bounded child processes, but still an opt-in real-host minidumper IPC proof; run with --ignored on a real interactive host. The crash-RECORD path is proven by the bounded tests below."]
 fn cross_process_out_of_process_minidump_via_shipped_handler() {
     assert_no_local_artifact_dir();
 
@@ -371,38 +531,32 @@ fn cross_process_out_of_process_minidump_via_shipped_handler() {
 
     // 1) Spawn the SERVER process (the REAL CrashServerHandler). It prints CRASH_SERVER_PROBE_READY once
     //    its socket is bound, so the client only connects after the bind (no connect race).
-    let mut server = Command::new(palmistry_bin())
-        .args([
-            "--crash-server-probe",
-            &socket,
-            &dump_path.to_string_lossy(),
-            &record_path.to_string_lossy(),
-        ])
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("spawn palmistry --crash-server-probe");
+    let mut server = ChildGuard::new(
+        Command::new(palmistry_bin())
+            .args([
+                "--crash-server-probe",
+                &socket,
+                &dump_path.to_string_lossy(),
+                &record_path.to_string_lossy(),
+            ])
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("spawn palmistry --crash-server-probe"),
+    );
 
     // Wait for the server's readiness line (bounded) before launching the client.
-    let server_stdout = server.stdout.take().expect("server stdout piped");
-    let mut ready = false;
-    let mut reader = BufReader::new(server_stdout);
-    let ready_deadline = Instant::now() + Duration::from_secs(20);
-    let mut line = String::new();
-    while Instant::now() < ready_deadline {
-        line.clear();
-        match reader.read_line(&mut line) {
-            Ok(0) => break, // server exited before signalling ready
-            Ok(_) => {
-                if line.contains("CRASH_SERVER_PROBE_READY") {
-                    ready = true;
-                    break;
-                }
-            }
-            Err(_) => break,
-        }
-    }
+    let server_stdout = server
+        .child_mut()
+        .stdout
+        .take()
+        .expect("server stdout piped");
+    let ready = wait_for_line_contains(
+        server_stdout,
+        "CRASH_SERVER_PROBE_READY",
+        Duration::from_secs(20),
+    );
     assert!(
         ready,
         "the server-probe process must signal CRASH_SERVER_PROBE_READY before the client connects"
@@ -411,30 +565,26 @@ fn cross_process_out_of_process_minidump_via_shipped_handler() {
     // 2) Spawn the CLIENT in a SEPARATE process: it connects, installs the real crash-handler, reports the
     //    thread id, and fires a simulated exception so the SERVER dumps THIS DIFFERENT process across the
     //    real OS boundary.
-    let client_status = Command::new(palmistry_bin())
-        .args(["--crash-client-probe", &socket])
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .output()
-        .expect("run palmistry --crash-client-probe");
+    let mut client = ChildGuard::new(
+        Command::new(palmistry_bin())
+            .args(["--crash-client-probe", &socket])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("spawn palmistry --crash-client-probe"),
+    );
+    let client_code = wait_for_exit(client.child_mut(), Duration::from_secs(20));
     assert!(
-        client_status.status.success(),
-        "the client-probe process must request the out-of-process dump successfully (exit {:?}); \
-         stderr={}",
-        client_status.status.code(),
-        String::from_utf8_lossy(&client_status.stderr)
+        client_code == Some(0),
+        "the client-probe process must request the out-of-process dump successfully (exit {client_code:?})"
     );
 
     // 3) The server process exits 0 once it captured the dump + wrote the rich record.
-    let server_code = wait_for_exit(&mut server, Duration::from_secs(20));
+    let server_code = wait_for_exit(server.child_mut(), Duration::from_secs(20));
     if server_code != Some(0) {
-        let mut err = String::new();
-        if let Some(mut se) = server.stderr.take() {
-            use std::io::Read as _;
-            let _ = se.read_to_string(&mut err);
-        }
-        kill_child(&mut server);
+        kill_child(server.child_mut());
+        let err = stderr_after_exit(server.child_mut());
         panic!("the server-probe must exit 0 after capturing the dump; got {server_code:?}; stderr={err}");
     }
 
@@ -456,7 +606,10 @@ fn cross_process_out_of_process_minidump_via_shipped_handler() {
     let threads = dump
         .get_stream::<minidump::MinidumpThreadList>()
         .expect("the minidump must carry a thread list (the crashing thread)");
-    assert!(!threads.threads.is_empty(), "the dump must contain at least one thread");
+    assert!(
+        !threads.threads.is_empty(),
+        "the dump must contain at least one thread"
+    );
     let modules = dump
         .get_stream::<minidump::MinidumpModuleList>()
         .expect("the minidump must carry a module list (loaded modules)");
@@ -506,17 +659,44 @@ fn clean_shutdown_writes_no_crash_record_or_minidump() {
         .parent()
         .unwrap()
         .join(format!("palmistry-survivor-{}.json", safe_token(&tag)));
-    let _surv_guard = FileGuard(surv);
+    let _surv_guard = FileGuard(surv.clone());
 
-    let mut parent = spawn_dummy_parent();
-    let mut watcher = spawn_palmistry(parent.id(), &tag, &ring_path, &socket);
+    let mut parent = ChildGuard::new(spawn_dummy_parent());
+    let mut watcher = ChildGuard::new(spawn_palmistry(parent.id(), &tag, &ring_path, &socket));
 
     // Let it arm, then send a clean Shutdown (no kill, no crash context).
     std::thread::sleep(Duration::from_millis(600));
-    let ack = send_control(&socket, r#"{"type":"Shutdown"}"#, Duration::from_secs(3))
-        .expect("shutdown ack");
-    assert!(ack.contains("Ack"), "expected Ack to Shutdown, got: {ack}");
-    let code = wait_for_exit(&mut watcher, Duration::from_secs(5));
+    let code = match send_control(&socket, r#"{"type":"Shutdown"}"#, Duration::from_secs(10)) {
+        Ok(ack) => {
+            assert!(ack.contains("Ack"), "expected Ack to Shutdown, got: {ack}");
+            wait_for_exit(watcher.child_mut(), Duration::from_secs(5))
+        }
+        Err(err) => {
+            let code = wait_for_exit(watcher.child_mut(), Duration::from_secs(2));
+            if code == Some(0) {
+                let survivor =
+                    read_json(&surv, Duration::from_secs(2)).expect("clean lifecycle survivor record");
+                assert_eq!(
+                    survivor["shutdown_received"],
+                    serde_json::Value::Bool(true),
+                    "lost-ack fallback requires proof Palmistry received Shutdown: {survivor}"
+                );
+                assert_eq!(
+                    survivor["abnormal_parent_exit"],
+                    serde_json::Value::Bool(false),
+                    "lost-ack fallback requires a clean, non-crash lifecycle: {survivor}"
+                );
+                code
+            } else {
+                if code.is_none() {
+                    let _ = watcher.child_mut().kill();
+                    let _ = wait_for_exit(watcher.child_mut(), Duration::from_secs(2));
+                }
+                let stderr = stderr_after_exit(watcher.child_mut());
+                panic!("shutdown ack failed: {err}; watcher_exit_code={code:?}; stderr={stderr}");
+            }
+        }
+    };
     assert_eq!(code, Some(0), "clean Shutdown must exit 0");
 
     // Give the watcher a moment to flush any (incorrect) artifact, then assert NONE exists.
@@ -532,8 +712,8 @@ fn clean_shutdown_writes_no_crash_record_or_minidump() {
         dmp_path.display()
     );
 
-    kill_child(&mut parent);
-    kill_child(&mut watcher);
+    kill_child(parent.child_mut());
+    kill_child(watcher.child_mut());
 }
 
 // ===================================================================================================
@@ -559,18 +739,21 @@ fn unexpected_parent_exit_records_a_post_mortem_crash() {
         .join(format!("palmistry-survivor-{}.json", safe_token(&tag)));
     let _surv_guard = FileGuard(surv);
 
-    let mut parent = spawn_dummy_parent();
+    let mut parent = ChildGuard::new(spawn_dummy_parent());
     let parent_pid = parent.id();
-    let mut watcher = spawn_palmistry(parent_pid, &tag, &ring_path, &socket);
+    let mut watcher = ChildGuard::new(spawn_palmistry(parent_pid, &tag, &ring_path, &socket));
 
     // Let the watcher arm its parent handle, then HARD-KILL the parent (no Shutdown first).
     std::thread::sleep(Duration::from_millis(700));
-    parent.kill().expect("hard-kill dummy parent");
-    parent.wait().expect("reap dummy parent");
+    kill_child(parent.child_mut());
 
     // After the bounded post-death finalize the watcher exits on its own (no Shutdown sent).
-    let code = wait_for_exit(&mut watcher, Duration::from_secs(6));
-    assert_eq!(code, Some(0), "watcher should exit cleanly after the post-death finalize");
+    let code = wait_for_exit(watcher.child_mut(), Duration::from_secs(6));
+    assert_eq!(
+        code,
+        Some(0),
+        "watcher should exit cleanly after the post-death finalize"
+    );
 
     // AC-012-3: a typed post-mortem crash record was written (best-effort; no minidump post-mortem).
     let rec = read_json(&rec_path, Duration::from_secs(3))
@@ -593,11 +776,18 @@ fn unexpected_parent_exit_records_a_post_mortem_crash() {
         "AC-012-3: no minidump is possible post-mortem without a CrashContext: {rec}"
     );
     // The crash event code is the shared DiagEventCode::CrashDetected (=8).
-    assert_eq!(rec["crash_event_code"].as_u64(), Some(8), "crash_event_code must be CrashDetected(8)");
+    assert_eq!(
+        rec["crash_event_code"].as_u64(),
+        Some(8),
+        "crash_event_code must be CrashDetected(8)"
+    );
     // No minidump file on the floor path.
-    assert!(!dmp_path.exists(), "no minidump on the post-mortem floor path");
+    assert!(
+        !dmp_path.exists(),
+        "no minidump on the post-mortem floor path"
+    );
 
-    kill_child(&mut watcher);
+    kill_child(watcher.child_mut());
 }
 
 // ===================================================================================================
@@ -621,12 +811,11 @@ fn crash_record_is_typed_allowlist_and_local_only() {
         .join(format!("palmistry-survivor-{}.json", safe_token(&tag)));
     let _surv_guard = FileGuard(surv);
 
-    let mut parent = spawn_dummy_parent();
-    let mut watcher = spawn_palmistry(parent.id(), &tag, &ring_path, &socket);
+    let mut parent = ChildGuard::new(spawn_dummy_parent());
+    let mut watcher = ChildGuard::new(spawn_palmistry(parent.id(), &tag, &ring_path, &socket));
     std::thread::sleep(Duration::from_millis(700));
-    parent.kill().expect("hard-kill");
-    parent.wait().expect("reap");
-    let _ = wait_for_exit(&mut watcher, Duration::from_secs(6));
+    kill_child(parent.child_mut());
+    let _ = wait_for_exit(watcher.child_mut(), Duration::from_secs(6));
 
     let rec = read_json(&rec_path, Duration::from_secs(3)).expect("crash record written");
     let obj = rec.as_object().expect("record is a JSON object");
@@ -664,7 +853,7 @@ fn crash_record_is_typed_allowlist_and_local_only() {
         "AC-012-5 LOCAL-ONLY: the minidump path must be a local filesystem path, never a URL: {rec}"
     );
 
-    kill_child(&mut watcher);
+    kill_child(watcher.child_mut());
 }
 
 // ===================================================================================================
@@ -704,5 +893,8 @@ fn no_network_egress_in_crash_capture_source() {
         );
     }
     // It DOES write to the local filesystem (std::fs) — the local-only durable evidence path.
-    assert!(src.contains("std::fs::write"), "the crash record must be written to the local filesystem");
+    assert!(
+        src.contains("std::fs::write"),
+        "the crash record must be written to the local filesystem"
+    );
 }

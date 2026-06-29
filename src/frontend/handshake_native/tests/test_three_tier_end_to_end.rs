@@ -3,7 +3,7 @@
 //!
 //! This is the WP's INTEGRATION gate: it WIRES the tiers built in MT-081..095 and proves them as a WHOLE,
 //! it does NOT re-implement any tier. It runs the four §6.13 incident scenarios and asserts each on the
-//! real runtime, then emits a proof manifest + a Diagnostics-Panel screenshot.
+//! real runtime, then emits a proof manifest + a Diagnostics-Panel proof.
 //!
 //! # The two-crate split (why this is the handshake-native HALF)
 //!
@@ -15,14 +15,16 @@
 //!   path — the SAME `eframe::App::update` loop the shipped binary runs — and proves: the Tier-2 writer
 //!   publishes an ADVANCING-then-STALE heartbeat into the REAL MT-081 ring that a ZERO-COOPERATION reader
 //!   observes (the FREEZE write-side, SCENARIO 1); the app stays RESPONSIVE with the backend DOWN (the
-//!   2026-06-26 freeze does NOT recur, SCENARIO 3); the Diagnostics Panel renders live (SCENARIO 5
-//!   screenshot); and it emits the whole-WP proof manifest.
+//!   2026-06-26 freeze does NOT recur, SCENARIO 3); the Diagnostics Panel renders live and is asserted
+//!   through AccessKit by default (SCENARIO 5; PNG gated behind `wgpu_screenshots`); and it emits the
+//!   whole-WP proof manifest.
 //! - `palmistry/tests/test_end_to_end_support.rs` drives the REAL `palmistry` types (ring reader MT-090,
 //!   double-signal freeze detector MT-091, crash record MT-092, durable survivor store + FR forwarder
 //!   MT-093, lifecycle MT-089) against a ring written EXACTLY as Handshake writes it, proving the Tier-3
 //!   READ -> DETECT -> SURVIVE -> RECORD half (capture + survive + record for FREEZE and CRASH).
 //!
-//! Together the halves prove the whole system end-to-end on real binaries, no tier mocked.
+//! Together the default halves prove the deterministic ring-contract integration. The real spawned
+//! palmistry.exe freeze/crash capture remains an explicit real-host gate and is not labeled PASS here.
 //!
 //! # Honest gating (AC-016-6) + bounded tests (packet `palmistry_test_bound_policy`)
 //!
@@ -39,11 +41,11 @@ use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 
 use handshake_diag_ring::{
-    DiagRingReader, DiagTier, Heartbeat, ThreeTierDiagnosticWiringRecord, TierWiring,
+    DiagEventCode, DiagRingReader, DiagTier, Heartbeat, ThreeTierDiagnosticWiringRecord, TierWiring,
 };
 use handshake_native::app::HandshakeApp;
 use handshake_native::backend_client::BACKEND_CONNECT_TIMEOUT;
-use handshake_native::diagnostics::{self, DIAGNOSTICS_PANEL_AUTHOR_ID};
+use handshake_native::diagnostics::{self, BUFFER_CAP, DIAGNOSTICS_PANEL_AUTHOR_ID};
 
 // ── artifact root + hygiene (CX-212E / the SCREENSHOT-TEST-ARTIFACT rule) ───────────────────────────────
 
@@ -53,7 +55,7 @@ const MT096_ARTIFACT_SUBDIR: &str = "wp-kernel-012-mt-096";
 /// The crate-relative EXTERNAL artifacts root (CX-212E), disk-agnostic: the crate sits at
 /// `<repo>/src/frontend/handshake_native`, so four `..` reach `<repo>/..` where `Handshake_Artifacts` is a
 /// sibling of the repo worktree (the SAME convention `test_code_editor_panel.rs` / `test_keymap.rs` use).
-/// The manifest, screenshot, and three-tier evidence land HERE — never repo-local.
+/// The manifest, optional screenshot, and three-tier evidence land HERE — never repo-local.
 fn external_artifact_dir(subdir: &str) -> PathBuf {
     Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
 }
@@ -81,7 +83,8 @@ fn assert_no_local_artifact_dir() {
 /// the live ring regardless of which test constructs an app — the freeze scenario reads it back. `None`
 /// only if no app ever installed a ring (impossible once any app is built in this binary).
 fn live_ring_path() -> &'static std::sync::Mutex<Option<PathBuf>> {
-    static LIVE: std::sync::OnceLock<std::sync::Mutex<Option<PathBuf>>> = std::sync::OnceLock::new();
+    static LIVE: std::sync::OnceLock<std::sync::Mutex<Option<PathBuf>>> =
+        std::sync::OnceLock::new();
     LIVE.get_or_init(|| std::sync::Mutex::new(None))
 }
 
@@ -99,7 +102,10 @@ fn memoize_ring_from(harness: &Harness<'_, HandshakeApp>) {
 
 /// The memoized live ring path (the global recorder's installed ring), if any app installed one.
 fn memoized_ring_path() -> Option<PathBuf> {
-    live_ring_path().lock().unwrap_or_else(|p| p.into_inner()).clone()
+    live_ring_path()
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .clone()
 }
 
 /// SERIALIZE every test that constructs + STEPS a `HandshakeApp`. Each app writes the MT-084 heartbeat
@@ -145,8 +151,9 @@ fn scenario1_freeze_real_app_heartbeat_goes_stale_zero_cooperation() {
     // The zero-cooperation RING observability: a SEPARATE reader maps the live ring Handshake wrote and
     // observes the heartbeat. If no ring was installed (a degenerate headless install failure), the
     // in-process oracle above still proves the write-side; the ring read is the integration touchpoint.
-    let ring_path = memoized_ring_path()
-        .expect("the live HandshakeApp must have installed an MT-081 ring (Tier-2 -> Palmistry visible)");
+    let ring_path = memoized_ring_path().expect(
+        "the live HandshakeApp must have installed an MT-081 ring (Tier-2 -> Palmistry visible)",
+    );
     let reader = DiagRingReader::open(&ring_path)
         .expect("a zero-cooperation reader maps the SAME backing file Handshake wrote");
 
@@ -162,9 +169,13 @@ fn scenario1_freeze_real_app_heartbeat_goes_stale_zero_cooperation() {
     // FREEZE: stop stepping the frame loop. The heartbeat counter now stops advancing — the exact stale
     // signal Palmistry's detector confirms. Read twice across a real gap WITHOUT stepping: the counter
     // does NOT move (the writer is "frozen"). The ring stays mapped + readable (zero cooperation).
-    let frozen_at = reader.read_heartbeat().expect("heartbeat readable at the freeze instant");
+    let frozen_at = reader
+        .read_heartbeat()
+        .expect("heartbeat readable at the freeze instant");
     std::thread::sleep(Duration::from_millis(120));
-    let still_frozen = reader.read_heartbeat().expect("the stale heartbeat stays readable zero-coop");
+    let still_frozen = reader
+        .read_heartbeat()
+        .expect("the stale heartbeat stays readable zero-coop");
     assert_eq!(
         frozen_at.counter, still_frozen.counter,
         "AC-016-1: with the frame loop stalled the heartbeat counter STOPS advancing — the stale signal \
@@ -197,6 +208,13 @@ fn wait_for_heartbeat(reader: &DiagRingReader) -> Option<Heartbeat> {
     reader.read_heartbeat()
 }
 
+fn count_backend_unreachable_events() -> usize {
+    diagnostics::snapshot_last_n(BUFFER_CAP)
+        .iter()
+        .filter(|e| e.event_code == DiagEventCode::BackendUnreachable.as_u16())
+        .count()
+}
+
 // ── SCENARIO 3 (BACKEND-DOWN re-prove, MT-088 at the integrated level): real app stays RESPONSIVE ───────
 
 /// SCENARIO 3. Drive the REAL `HandshakeApp` with the backend DOWN (a genuinely connection-refusing dead
@@ -212,6 +230,7 @@ fn scenario3_backend_down_real_app_stays_responsive() {
     let mut harness: Harness<HandshakeApp> =
         Harness::builder().build_eframe(|cc| HandshakeApp::new(cc));
     memoize_ring_from(&harness);
+    let unreachable_before = count_backend_unreachable_events();
     harness
         .state_mut()
         .set_backend_unreachable_for_test(DEAD_BACKEND_URL);
@@ -223,9 +242,40 @@ fn scenario3_backend_down_real_app_stays_responsive() {
          ({BACKEND_CONNECT_TIMEOUT:?}) — a blocked frame would take at least the connect timeout"
     );
 
+    let mut worst_frame = Duration::ZERO;
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while !harness.state().backend_is_down() && Instant::now() < deadline {
+        let t0 = Instant::now();
+        harness.step();
+        let dt = t0.elapsed();
+        worst_frame = worst_frame.max(dt);
+        assert!(
+            dt < frame_budget,
+            "AC-016-3: backend-down detection frame took {dt:?} — a responsive frame must complete well under the connect \
+             timeout ({frame_budget:?}); a frame near/above it means a UI-thread backend call is blocking \
+             the frame loop (the 2026-06-26 freeze)"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    assert!(
+        harness.state().backend_is_down(),
+        "AC-016-3: the real app must enter the degraded backend-down state against {DEAD_BACKEND_URL}"
+    );
+    let unreachable_after = count_backend_unreachable_events();
+    assert_eq!(
+        unreachable_after - unreachable_before,
+        1,
+        "AC-016-3: exactly one typed BackendUnreachable event must be recorded on the down edge"
+    );
+
+    let indicator = harness.state().status_bar_health_text();
+    assert!(
+        indicator.contains("Disconnected"),
+        "AC-016-3: the status bar must show the finite degraded backend state, got {indicator:?}"
+    );
+
     let counter_before = harness.state().frame_counter();
     let n: u64 = 30;
-    let mut worst_frame = Duration::ZERO;
     for i in 0..n {
         let t0 = Instant::now();
         harness.step();
@@ -233,9 +283,8 @@ fn scenario3_backend_down_real_app_stays_responsive() {
         worst_frame = worst_frame.max(dt);
         assert!(
             dt < frame_budget,
-            "AC-016-3: frame {i} took {dt:?} — a responsive frame must complete well under the connect \
-             timeout ({frame_budget:?}); a frame near/above it means a UI-thread backend call is blocking \
-             the frame loop (the 2026-06-26 freeze)"
+            "AC-016-3: steady degraded frame {i} took {dt:?} — a responsive frame must complete well under \
+             the connect timeout ({frame_budget:?})"
         );
     }
     let counter_after = harness.state().frame_counter();
@@ -249,7 +298,7 @@ fn scenario3_backend_down_real_app_stays_responsive() {
     assert_no_local_artifact_dir();
 }
 
-// ── SCENARIO 5 (PROOF MANIFEST + whole-WP three-tier evidence + Diagnostics-Panel screenshot) ──────────
+// ── SCENARIO 5 (PROOF MANIFEST + whole-WP three-tier evidence + Diagnostics-Panel proof) ───────────────
 
 /// One scenario's verdict line in the proof manifest.
 #[derive(serde::Serialize)]
@@ -262,7 +311,7 @@ struct ScenarioVerdict {
 
 /// The MT-096 end-to-end PROOF MANIFEST (AC-016-5). Lists each scenario verdict, the whole-WP
 /// `ThreeTierDiagnosticWiringRecord` (MT-095 format, all three tiers accounted), the artifacts produced,
-/// and the HONEST `NEEDS_MANAGED_RESOURCE_PROOF` gating (AC-016-6). Emitted to the external root.
+/// and the HONEST open gates. Emitted to the external root.
 #[derive(serde::Serialize)]
 struct ProofManifest {
     schema_version: &'static str,
@@ -271,16 +320,15 @@ struct ProofManifest {
     generated_at: String,
     scenarios: Vec<ScenarioVerdict>,
     three_tier_wiring: ThreeTierDiagnosticWiringRecord,
-    needs_managed_resource_proof: Vec<&'static str>,
+    open_gates: Vec<&'static str>,
     artifacts: Vec<String>,
     screenshot: Option<String>,
 }
 
 /// SCENARIO 5. Emit the whole-WP three-tier evidence record + the end-to-end proof manifest to the
-/// EXTERNAL root, and save a wgpu screenshot of the live Diagnostics Panel (Settings -> Diagnostics)
-/// showing the live heartbeat/frame/resource state. Visually inspected per GLOBAL-INSPECT (the handoff
-/// records the inspection); absent a GPU adapter the AccessKit real-panel proof stands and the PNG is an
-/// honest non-fatal GPU-host item.
+/// EXTERNAL root, and prove the live Diagnostics Panel (Settings -> Diagnostics) shows heartbeat/frame/
+/// resource state. Default runs assert the panel through AccessKit and record the PNG as an open gate;
+/// `wgpu_screenshots` runs also save a PNG for visual inspection.
 #[test]
 fn scenario5_proof_manifest_and_diagnostics_panel_screenshot() {
     let _drive = app_drive_lock(); // serializes the app + the single wgpu device.
@@ -290,16 +338,32 @@ fn scenario5_proof_manifest_and_diagnostics_panel_screenshot() {
     // (1) The whole-WP three-tier wiring record (MT-095 format) — all three tiers accounted with the
     // honest FR-forward gating. Emitted as the canonical evidence file too.
     let wiring = whole_wp_three_tier_record();
-    wiring.validate().expect("the whole-WP three-tier record is well-formed HBR-INT-009 evidence");
+    wiring
+        .validate()
+        .expect("the whole-WP three-tier record is well-formed HBR-INT-009 evidence");
     let evidence_path = wiring
         .emit(&out_dir)
         .expect("emit the whole-WP three-tier evidence file to the external root");
 
-    // (2) The Diagnostics-Panel screenshot (live heartbeat/frame/resource). Reuses the MT-087 surfacing
-    // path on the REAL app. On a GPU host this saves a PNG; absent an adapter it is an honest GPU-host note.
+    // (2) The Diagnostics-Panel proof (live heartbeat/frame/resource). Reuses the MT-087 surfacing path
+    // on the REAL app. Default runs are AccessKit-only; the optional feature saves a PNG.
     let screenshot = capture_diagnostics_panel_screenshot(&out_dir);
 
     // (3) The end-to-end proof manifest naming each scenario verdict + artifacts + honest gating.
+    let mut open_gates = vec![
+        "FR-forward LIVE round-trip (MT-093 §6.13.7): needs a managed PostgreSQL/backend on \
+         127.0.0.1:37501; gated requires_pg; the kept-as-is route returns a typed blocker (AC-016-6).",
+        "LIVE cross-process real palmistry.exe freeze/crash CAPTURE: still required for AC-016-1/2; \
+         run a freshly built binary via HANDSHAKE_PALMISTRY_EXE and the ignored real-host proof, then \
+         update this manifest from the emitted artifact paths.",
+    ];
+    if screenshot.is_none() {
+        open_gates.push(
+            "Diagnostics Panel PNG: default proof is AccessKit-only to avoid the Windows wgpu concurrency \
+             hazard; run with --features wgpu_screenshots for a fresh PNG and visually inspect it.",
+        );
+    }
+
     let manifest = ProofManifest {
         schema_version: "hsk.mt096.end_to_end_proof_manifest@0.1",
         wp_id: "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -309,19 +373,19 @@ fn scenario5_proof_manifest_and_diagnostics_panel_screenshot() {
             ScenarioVerdict {
                 id: "AC-016-1",
                 name: "FREEZE end-to-end",
-                verdict: "PASS",
-                proof: "scenario1_freeze_real_app_heartbeat_goes_stale_zero_cooperation (write-side, real \
-                        app, zero-coop stale ring) + palmistry test_end_to_end_support \
-                        freeze_end_to_end_detect_survive_record_on_real_ring (Tier-3 detect+survive+record)",
+                verdict: "NEEDS_REAL_HOST_PROOF",
+                proof: "default tests prove the real-app write-side heartbeat becomes stale on the live ring \
+                        and the Palmistry detector/store half records freeze on a real ring; the spawned \
+                        palmistry.exe freeze-capture run is still a required real-host proof and is not \
+                        counted as PASS here",
             },
             ScenarioVerdict {
                 id: "AC-016-2",
                 name: "CRASH end-to-end",
-                verdict: "PASS",
-                proof: "palmistry test_end_to_end_support \
-                        crash_end_to_end_floor_record_survive_and_clean_shutdown_gate (floor crash record + \
-                        survive + clean-shutdown-no-crash gate); rich out-of-process minidump proven by \
-                        MT-092 cross_process_* (run --ignored on a real host)",
+                verdict: "NEEDS_REAL_HOST_PROOF",
+                proof: "default tests prove the post-mortem floor crash record and clean-shutdown-no-crash \
+                        gate; a real spawned app crash with out-of-process minidump capture/validation is \
+                        still a required real-host proof and is not counted as PASS here",
             },
             ScenarioVerdict {
                 id: "AC-016-3",
@@ -333,9 +397,11 @@ fn scenario5_proof_manifest_and_diagnostics_panel_screenshot() {
             ScenarioVerdict {
                 id: "AC-016-4",
                 name: "TYPED-ALLOWLIST system-wide",
-                verdict: "PASS",
-                proof: "test_three_tier_privacy_allowlist (ring/survivor/crash/forward artifacts) + \
-                        palmistry tier3_artifacts_are_typed_allowlist_only",
+                verdict: "REPRESENTATIVE_PASS_NEEDS_EMITTED_ARTIFACT_SCAN",
+                proof: "test_three_tier_privacy_allowlist scans ring records plus representative \
+                        survivor/crash/forward telemetry and opportunistically scans emitted survivors; \
+                        full PASS requires mandatory nonzero emitted freeze/crash/forward artifact paths \
+                        from the real-host capstone",
             },
             ScenarioVerdict {
                 id: "AC-016-6",
@@ -346,27 +412,29 @@ fn scenario5_proof_manifest_and_diagnostics_panel_screenshot() {
             },
         ],
         three_tier_wiring: wiring,
-        needs_managed_resource_proof: vec![
-            "FR-forward LIVE round-trip (MT-093 §6.13.7): needs a managed PostgreSQL/backend on \
-             127.0.0.1:37501; gated requires_pg; the kept-as-is route returns a typed blocker (AC-016-6).",
-            "LIVE cross-process real palmistry.exe spawn + freeze/crash CAPTURE: #[ignore]d (the known IPC \
-             hazard); run `cargo build -p palmistry` then `cargo test ... -- --include-ignored` on a real \
-             GUI host.",
-        ],
+        open_gates,
         artifacts: vec![
             path_display(&evidence_path),
-            screenshot.clone().unwrap_or_else(|| "(screenshot: no GPU adapter — GPU-host item)".to_string()),
+            screenshot
+                .clone()
+                .unwrap_or_else(default_screenshot_artifact_status),
         ],
         screenshot: screenshot.clone(),
     };
 
     let manifest_path = out_dir.join("three_tier_end_to_end_proof_manifest.json");
     let json = serde_json::to_string_pretty(&manifest).expect("serialize the proof manifest");
-    std::fs::write(&manifest_path, format!("{json}\n")).expect("write the proof manifest externally");
-    assert!(manifest_path.exists(), "the proof manifest was written to the external root");
+    std::fs::write(&manifest_path, format!("{json}\n"))
+        .expect("write the proof manifest externally");
+    assert!(
+        manifest_path.exists(),
+        "the proof manifest was written to the external root"
+    );
     println!(
         "MT-096 proof manifest: {}",
-        std::fs::canonicalize(&manifest_path).unwrap_or(manifest_path.clone()).display()
+        std::fs::canonicalize(&manifest_path)
+            .unwrap_or(manifest_path.clone())
+            .display()
     );
     if let Some(shot) = &screenshot {
         println!("MT-096 Diagnostics-Panel screenshot: {shot}");
@@ -398,28 +466,32 @@ fn whole_wp_three_tier_record() -> ThreeTierDiagnosticWiringRecord {
             TierWiring::wired(
                 DiagTier::InternalDiagnostics,
                 "MT-096 scenario1 (real-app heartbeat -> stale ring, zero-coop) + scenario3 (backend-down \
-                 responsive, 2026-06-26 re-prove) + scenario5 (live Diagnostics Panel screenshot); MT-084/088/087",
+                 responsive, 2026-06-26 re-prove) + scenario5 (live Diagnostics Panel AccessKit proof; \
+                 PNG screenshot gated behind wgpu_screenshots); MT-084/088/087",
             ),
             // Tier 3: Palmistry proven end-to-end on the real ring (detect+survive+record freeze & crash).
             TierWiring::wired(
                 DiagTier::Palmistry,
                 "palmistry test_end_to_end_support: freeze detect+survive+record + crash floor record + \
-                 clean-shutdown gate on a REAL ring; MT-089/090/091/092/093/094; MT-092 cross_process_* live",
+                 clean-shutdown gate on a REAL ring; MT-089/090/091/092/093/094; real-host \
+                 cross-process minidump capture remains an ignored gate",
             ),
         ],
     )
 }
 
-/// Drive the live app, surface Settings -> Diagnostics (the MT-087 path), and save a wgpu screenshot of
-/// the live panel to `out_dir`. Returns the saved absolute path, or `None` when no GPU adapter is present
-/// (an honest non-fatal GPU-host item; the AccessKit real-panel assertion below still proves the panel).
-fn capture_diagnostics_panel_screenshot(out_dir: &Path) -> Option<String> {
-    let mut harness: Harness<HandshakeApp> = Harness::builder()
-        .with_size(egui::vec2(900.0, 800.0))
-        .wgpu()
-        .build_eframe(|cc| HandshakeApp::new(cc));
-    memoize_ring_from(&harness);
+#[cfg(feature = "wgpu_screenshots")]
+fn default_screenshot_artifact_status() -> String {
+    "(screenshot: render unavailable/no GPU adapter; AccessKit panel proof passed)".to_string()
+}
 
+#[cfg(not(feature = "wgpu_screenshots"))]
+fn default_screenshot_artifact_status() -> String {
+    "(screenshot: PNG gated behind --features wgpu_screenshots; AccessKit panel proof passed)"
+        .to_string()
+}
+
+fn drive_diagnostics_panel(harness: &mut Harness<HandshakeApp>) {
     // Surface the Diagnostics section the same deterministic way MT-087 does: run a few live frames so the
     // heartbeat/frame/resource state is real, open Settings, and filter to the Diagnostics section.
     harness.run_steps(4);
@@ -428,7 +500,9 @@ fn capture_diagnostics_panel_screenshot(out_dir: &Path) -> Option<String> {
     let search = harness.get_by_label("Search settings");
     search.focus();
     harness.step();
-    harness.get_by_label("Search settings").type_text("diagnostics");
+    harness
+        .get_by_label("Search settings")
+        .type_text("diagnostics");
     harness.run_steps(3);
 
     // The REAL diagnostics panel container must be present in the live tree (not a placeholder).
@@ -441,16 +515,67 @@ fn capture_diagnostics_panel_screenshot(out_dir: &Path) -> Option<String> {
         "AC-016-5: the live Diagnostics Panel ('{DIAGNOSTICS_PANEL_AUTHOR_ID}') must render before the \
          screenshot"
     );
+}
+
+struct NoopSettingsTransport;
+
+impl handshake_native::workspace_settings::SettingsTransport for NoopSettingsTransport {
+    fn load(
+        &self,
+        _workspace_id: &str,
+    ) -> Result<
+        Option<serde_json::Value>,
+        handshake_native::workspace_settings::SettingsTransportError,
+    > {
+        Ok(None)
+    }
+
+    fn save(
+        &self,
+        _workspace_id: &str,
+        _settings_state: serde_json::Value,
+    ) -> Result<(), handshake_native::workspace_settings::SettingsTransportError> {
+        Ok(())
+    }
+}
+
+fn install_noop_settings_transport(harness: &mut Harness<HandshakeApp>) {
+    harness
+        .state_mut()
+        .set_settings_transport(std::sync::Arc::new(NoopSettingsTransport));
+}
+
+/// Drive the live app, surface Settings -> Diagnostics (the MT-087 path), and, when explicitly enabled,
+/// save a wgpu screenshot of the live panel to `out_dir`. The default MT-096 run stays AccessKit-only so
+/// it does not add another real-GPU test binary to the known Windows wgpu concurrency hazard.
+#[cfg(feature = "wgpu_screenshots")]
+fn capture_diagnostics_panel_screenshot(out_dir: &Path) -> Option<String> {
+    let mut harness: Harness<HandshakeApp> = Harness::builder()
+        .with_size(egui::vec2(900.0, 800.0))
+        .wgpu()
+        .build_eframe(|cc| HandshakeApp::new(cc));
+    memoize_ring_from(&harness);
+    install_noop_settings_transport(&mut harness);
+    drive_diagnostics_panel(&mut harness);
 
     match harness.render() {
         Ok(image) => {
             let (w, h) = (image.width(), image.height());
-            assert!(w > 0 && h > 0, "the rendered Diagnostics-Panel image is non-empty");
+            assert!(
+                w > 0 && h > 0,
+                "the rendered Diagnostics-Panel image is non-empty"
+            );
             let png_path = out_dir.join("MT-096-diagnostics-panel-live.png");
             let saved = image.save(&png_path).is_ok();
-            assert!(saved, "AC-016-5: the Diagnostics-Panel screenshot PNG saved to the external root");
+            assert!(
+                saved,
+                "AC-016-5: the Diagnostics-Panel screenshot PNG saved to the external root"
+            );
             let abs = std::fs::canonicalize(&png_path).unwrap_or(png_path);
-            println!("PT-016-D Diagnostics-Panel screenshot: {w}x{h} -> {}", abs.display());
+            println!(
+                "PT-016-D Diagnostics-Panel screenshot: {w}x{h} -> {}",
+                abs.display()
+            );
             Some(abs.display().to_string())
         }
         Err(e) => {
@@ -461,6 +586,21 @@ fn capture_diagnostics_panel_screenshot(out_dir: &Path) -> Option<String> {
             None
         }
     }
+}
+
+#[cfg(not(feature = "wgpu_screenshots"))]
+fn capture_diagnostics_panel_screenshot(_out_dir: &Path) -> Option<String> {
+    let mut harness: Harness<HandshakeApp> = Harness::builder()
+        .with_size(egui::vec2(900.0, 800.0))
+        .build_eframe(|cc| HandshakeApp::new(cc));
+    memoize_ring_from(&harness);
+    install_noop_settings_transport(&mut harness);
+    drive_diagnostics_panel(&mut harness);
+    println!(
+        "MT-096 Diagnostics-Panel PNG gated: rerun with --features wgpu_screenshots for the real-GPU \
+         screenshot; default proof asserted the live AccessKit panel only."
+    );
+    None
 }
 
 // ── AC-016-7 (source review): the freeze/crash injection seams are feature-gated + not shipped ─────────
@@ -486,7 +626,11 @@ fn freeze_crash_injection_seams_are_feature_gated_not_shipped() {
     // The production entrypoints must NOT reference the crash trigger or the seam module.
     for (label, src) in [("main.rs", main_src), ("app.rs", app_src)] {
         let code = strip_line_comments(src);
-        for banned in ["test_seams", "force_crash_abort", "maybe_force_crash_from_env"] {
+        for banned in [
+            "test_seams",
+            "force_crash_abort",
+            "maybe_force_crash_from_env",
+        ] {
             assert!(
                 !code.contains(banned),
                 "AC-016-7: production {label} must not reference the test-only seam '{banned}' \
@@ -506,22 +650,12 @@ fn freeze_crash_injection_seams_are_feature_gated_not_shipped() {
 
 // ── #[ignore]d LIVE cross-process: launch the REAL palmistry.exe against the capstone ring ─────────────
 
-/// Resolve a built `palmistry` binary for the LIVE proof: the `HANDSHAKE_PALMISTRY_EXE` override first
-/// (what the build pipeline / coder sets), then the conventional external build-output dirs Palmistry's
-/// `.cargo/config` targets (the same resolution `test_palmistry_launch.rs` uses).
+/// Resolve a built `palmistry` binary for the LIVE proof. MT-096 requires an explicit
+/// `HANDSHAKE_PALMISTRY_EXE` so the real-host capstone cannot accidentally run a stale artifact from a
+/// prior external target dir.
 fn find_palmistry_binary() -> Option<PathBuf> {
     if let Some(raw) = std::env::var_os(diagnostics::ENV_PALMISTRY_EXE) {
         let p = PathBuf::from(raw);
-        if p.is_file() {
-            return Some(p);
-        }
-    }
-    let bin = if cfg!(windows) { "palmistry.exe" } else { "palmistry" };
-    for base in [
-        "../../../../Handshake_Artifacts/palmistry-target/debug",
-        "../../../../Handshake_Artifacts/palmistry-target/release",
-    ] {
-        let p = Path::new(base).join(bin);
         if p.is_file() {
             return Some(p);
         }
@@ -537,9 +671,9 @@ fn find_palmistry_binary() -> Option<PathBuf> {
 /// Every wait is hard-bounded; run with `cargo build -p palmistry` then `cargo test ... -- --include-ignored`.
 #[test]
 #[ignore = "LIVE cross-process: needs a built palmistry binary + spawns a child (the known IPC hazard). \
-            #[ignore]d so a default `cargo test` never spawns palmistry. Build `-p palmistry` then run \
-            with `-- --include-ignored` on a real host; reaching here with no binary is a HARD FAIL, never \
-            a silent skip."]
+            #[ignore]d so a default `cargo test` never spawns palmistry. Build palmistry, set \
+            HANDSHAKE_PALMISTRY_EXE to that fresh binary, then run with `-- --include-ignored` on a real \
+            host; reaching here with no binary is a HARD FAIL, never a silent skip."]
 fn live_real_palmistry_launched_with_handshake_on_capstone_ring() {
     use handshake_diag_ring::{DiagRingWriter, DEFAULT_CAPACITY};
     use handshake_native::diagnostics::{
@@ -551,8 +685,8 @@ fn live_real_palmistry_launched_with_handshake_on_capstone_ring() {
     let exe = find_palmistry_binary().unwrap_or_else(|| {
         panic!(
             "MT-096 LIVE proof requires a built palmistry binary; build `cargo build -p palmistry` or set \
-             {} (this test is #[ignore]d — reaching here means it was explicitly invoked, so a missing \
-             binary is a hard failure, never a silent skip).",
+             {} to the freshly built binary (this test is #[ignore]d — reaching here means it was \
+             explicitly invoked, so a missing binary is a hard failure, never a silent skip).",
             diagnostics::ENV_PALMISTRY_EXE
         )
     });
@@ -562,10 +696,14 @@ fn live_real_palmistry_launched_with_handshake_on_capstone_ring() {
     let session_id = format!(
         "mt096-live-{}-{}",
         std::process::id(),
-        SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0)
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0)
     );
     let ring_path = dir.join(format!("ring-{session_id}.ring"));
-    let writer = DiagRingWriter::create(&ring_path, DEFAULT_CAPACITY).expect("create capstone ring");
+    let writer =
+        DiagRingWriter::create(&ring_path, DEFAULT_CAPACITY).expect("create capstone ring");
     let now_nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos() as u64)
@@ -580,7 +718,10 @@ fn live_real_palmistry_launched_with_handshake_on_capstone_ring() {
 
     let mut handle = launch_palmistry_at(&exe, &session, &ring_path, &control_socket)
         .expect("MT-096 LIVE: launching the real palmistry binary must succeed (spawn ok)");
-    assert!(handle.child_id() > 0, "a real palmistry.exe child must have spawned");
+    assert!(
+        handle.child_id() > 0,
+        "a real palmistry.exe child must have spawned"
+    );
     assert!(
         handle.handshake_acked(),
         "MT-096 LIVE: the launched-with-Handshake startup IPC must ACK over the MT-089 control socket"
@@ -597,12 +738,18 @@ fn live_real_palmistry_launched_with_handshake_on_capstone_ring() {
     let outcome = handle.request_shutdown_and_wait(Duration::from_secs(10));
     match outcome {
         ShutdownOutcome::ExitedCleanly(status) => {
-            assert!(status.success(), "a clean Shutdown must make palmistry exit success (got {status:?})")
+            assert!(
+                status.success(),
+                "a clean Shutdown must make palmistry exit success (got {status:?})"
+            )
         }
         other => panic!("MT-096 LIVE: palmistry must exit cleanly on Shutdown, got {other:?}"),
     }
     let crash_json = dir.join(format!("palmistry-crash-{session_id}.json"));
-    assert!(!crash_json.exists(), "a clean shutdown must write NO crash record");
+    assert!(
+        !crash_json.exists(),
+        "a clean shutdown must write NO crash record"
+    );
 
     drop(writer);
     let _ = std::fs::remove_file(&ring_path);
@@ -612,7 +759,10 @@ fn live_real_palmistry_launched_with_handshake_on_capstone_ring() {
 // ── helpers ────────────────────────────────────────────────────────────────────────────────────────────
 
 fn path_display(p: &Path) -> String {
-    std::fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf()).display().to_string()
+    std::fs::canonicalize(p)
+        .unwrap_or_else(|_| p.to_path_buf())
+        .display()
+        .to_string()
 }
 
 /// Strip `//` line comments so a source-review scan checks CODE, not the doc comments that legitimately
