@@ -46,11 +46,13 @@ pub mod model_lease;
 pub mod model_manual_merge;
 pub mod moodboards;
 pub mod pose;
+pub mod refs;
 pub mod relationships;
 pub mod scripts;
 pub mod search;
 pub mod settings;
 pub mod sheet;
+pub mod sheet_templates;
 pub mod source_evidence;
 pub mod sourcing;
 pub mod state_probe;
@@ -79,6 +81,10 @@ pub use self::media::{
     MediaSourceProvenanceRefs, NewMediaAsset, NewMediaSidecarRelation,
     SetMediaSourceProvenanceRefs,
 };
+pub use self::refs::{
+    character_ref, parse_character_ref, parse_sheet_version_ref, sheet_version_ref,
+    validate_character_ref, validate_sheet_version_ref,
+};
 pub use self::relationships::{
     CharacterRelationship, CharacterRelationshipGraph, CharacterRelationshipGraphEdge,
     CharacterRelationshipGraphNode, NewCharacterRelationship, UpdateCharacterRelationship,
@@ -86,9 +92,15 @@ pub use self::relationships::{
 pub use self::sheet::{
     BulkSheetFieldEditResult, NewSheetVersion, ParsedSheetFieldType, ParsedSheetTemplate,
     SheetBlockInstance, SheetBlockInstanceField, SheetBlockSchema, SheetFieldEdit,
-    SheetFieldEditRequest, SheetFieldEditResult, SheetFieldSelector, SheetTemplateAst,
-    SheetTemplateField, SheetTemplateSection, SheetUnmappedLine, SheetVersion,
+    SheetFieldEditRequest, SheetFieldEditResult, SheetFieldSelector, SheetFieldSuggestion,
+    SheetTemplateAst, SheetTemplateField, SheetTemplateSection, SheetUnmappedLine, SheetVersion,
     SheetVersionRevertRequest, SheetVersionRevertResult,
+};
+pub use self::sheet_templates::{
+    BuiltInSafeSubset, BuiltInSheetTemplate, CHARACTER_SHEET_V2_FILE_NAME,
+    CHARACTER_SHEET_V2_TEMPLATE_ID, CHARACTER_SHEET_V2_TEMPLATE_VERSION, DEFAULT_SHEET_TOOL,
+    LLM_SAFE_SUBSET_V2_FILE_NAME, builtin_character_sheet_template, builtin_safe_subset,
+    default_character_sheet_text, text_hash,
 };
 
 /// Errors surfaced by the atelier domain.
@@ -121,23 +133,23 @@ pub mod event_family {
     use super::action_receipt::action_receipt_event_family;
     use super::collections::collections_event_family;
     use super::comfy::comfy_event_family;
+    use super::command_corpus::command_log_event_family;
+    use super::command_corpus::diagnostics_event_family;
+    use super::dcc_flight_recorder::dcc_flight_recorder_event_family;
     use super::documents::documents_event_family;
     use super::exports::export_event_family;
     use super::filesystem_health::filesystem_health_event_family;
     use super::intake::intake_event_family;
     use super::links::links_event_family;
+    use super::model_manual_merge::model_manual_merge_event_family;
     use super::moodboards::moodboard_event_family;
     use super::pose::pose_event_family;
     use super::relationships::relationships_event_family;
     use super::scripts::scripts_event_family;
     use super::search::search_event_family;
+    use super::settings::model_workflow_event_family;
     use super::settings::settings_event_family;
     use super::source_evidence::source_evidence_event_family;
-    use super::command_corpus::diagnostics_event_family;
-    use super::command_corpus::command_log_event_family;
-    use super::dcc_flight_recorder::dcc_flight_recorder_event_family;
-    use super::model_manual_merge::model_manual_merge_event_family;
-    use super::settings::model_workflow_event_family;
     use super::state_probe::diagnostics_projection_event_family;
     use super::state_probe::state_probe_event_family;
     use super::stealth_window::stealth_ref_event_family;
@@ -145,6 +157,7 @@ pub mod event_family {
 
     pub const CHARACTER_CREATED: &str = "atelier.character.created";
     pub const SHEET_VERSION_APPENDED: &str = "atelier.sheet.version_appended";
+    pub const SHEET_VERSION_CONFLICT: &str = "atelier.sheet.version_conflict";
     pub const SHEET_TEMPLATE_PARSED: &str = "atelier.sheet.template_parsed";
     pub const SHEET_FIELD_EDITS_APPLIED: &str = "atelier.sheet.field_edits_applied";
     pub const SHEET_FIELD_EDIT_REJECTED: &str = "atelier.sheet.field_edit_rejected";
@@ -165,6 +178,7 @@ pub mod event_family {
     pub const ALL: &[&str] = &[
         CHARACTER_CREATED,
         SHEET_VERSION_APPENDED,
+        SHEET_VERSION_CONFLICT,
         SHEET_TEMPLATE_PARSED,
         SHEET_FIELD_EDITS_APPLIED,
         SHEET_FIELD_EDIT_REJECTED,

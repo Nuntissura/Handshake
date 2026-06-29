@@ -34,7 +34,7 @@ use handshake_core::atelier::stealth_window::{
 };
 use handshake_core::atelier::{
     AtelierStore, MediaSidecarRelationKind, NewCharacter, NewMediaAsset, NewMediaSidecarRelation,
-    NewSheetVersion,
+    NewSheetVersion, character_ref, event_family,
 };
 use handshake_core::capabilities::CapabilityRegistry;
 use handshake_core::diagnostics::{DiagFilter, Diagnostic, DiagnosticsStore, ProblemGroup};
@@ -275,8 +275,8 @@ impl LlmClient for NoopLlmClient {
 
 async fn test_app_state_from_database_url() -> Option<AppState> {
     if std::env::var("POSTGRES_TEST_URL").is_err() {
-        let Some(url) = database_url() else {
-            eprintln!("SKIP atelier api state: DATABASE_URL not set");
+        let Some(url) = atelier_pg_support::database_url().await else {
+            eprintln!("SKIP atelier api state: no DATABASE_URL and managed PostgreSQL unavailable");
             return None;
         };
         std::env::set_var("POSTGRES_TEST_URL", url);
@@ -334,6 +334,377 @@ fn governed_resolver() -> String {
 
 fn assert_uuid_v7(id: Uuid, label: &str) {
     assert_eq!(id.get_version_num(), 7, "{label} must be UUID v7");
+}
+
+#[tokio::test]
+async fn atelier_character_sheet_api_round_trips_refs_and_conflicts()
+-> Result<(), Box<dyn std::error::Error>> {
+    let Some(state) = test_app_state_from_database_url().await else {
+        return Ok(());
+    };
+    let pool = state.postgres_pool.clone();
+    let (base_url, server) = start_atelier_api_server(state).await?;
+    let client = reqwest::Client::new();
+    let actor = format!("mt009-agent-{}", Uuid::new_v4());
+    let public_id = format!("mt009-char-{}", Uuid::new_v4());
+
+    let created = client
+        .post(format!("{base_url}/atelier/characters"))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "public_id": public_id,
+            "display_name": "MT-009 Character Sheet API",
+        }))
+        .send()
+        .await?;
+    assert_eq!(created.status(), reqwest::StatusCode::CREATED);
+    let character: serde_json::Value = created.json().await?;
+    let character_internal_id = character["internal_id"]
+        .as_str()
+        .expect("character internal_id");
+    let expected_character_ref = format!("atelier://character/{character_internal_id}");
+    assert_eq!(
+        character["character_ref"].as_str(),
+        Some(expected_character_ref.as_str())
+    );
+
+    let duplicate = client
+        .post(format!("{base_url}/atelier/characters"))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "public_id": public_id,
+            "display_name": "Duplicate MT-009 Character",
+        }))
+        .send()
+        .await?;
+    assert_eq!(
+        duplicate.status(),
+        reqwest::StatusCode::CONFLICT,
+        "duplicate public_id must be a typed 409, not an infra 500"
+    );
+    let duplicate_body: serde_json::Value = duplicate.json().await?;
+    assert_eq!(duplicate_body["error"].as_str(), Some("conflict"));
+
+    let first = client
+        .post(format!(
+            "{base_url}/atelier/characters/{character_internal_id}/sheet-versions"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "raw_text": "name: MT-009\nrole: route proof",
+            "expected_parent_version_id": null,
+            "tool": "argus",
+        }))
+        .send()
+        .await?;
+    assert_eq!(first.status(), reqwest::StatusCode::CREATED);
+    let first: serde_json::Value = first.json().await?;
+    let first_version_id = first["version_id"].as_str().expect("version id");
+    let expected_first_sheet_ref =
+        format!("atelier://sheet/{character_internal_id}/{first_version_id}");
+    assert_eq!(first["seq"], 1);
+    assert_eq!(first["author"].as_str(), Some(actor.as_str()));
+    assert_eq!(
+        first["sheet_version_ref"].as_str(),
+        Some(expected_first_sheet_ref.as_str())
+    );
+
+    let second = client
+        .post(format!(
+            "{base_url}/atelier/characters/{character_internal_id}/sheet-versions"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "raw_text": "name: MT-009\nrole: updated route proof",
+            "expected_parent_version_id": first_version_id,
+            "tool": "argus",
+        }))
+        .send()
+        .await?;
+    assert_eq!(second.status(), reqwest::StatusCode::CREATED);
+    let second: serde_json::Value = second.json().await?;
+    assert_eq!(second["parent_version_id"].as_str(), Some(first_version_id));
+    assert_eq!(second["seq"], 2);
+    let second_version_id = second["version_id"].as_str().expect("second version id");
+    let expected_second_sheet_ref =
+        format!("atelier://sheet/{character_internal_id}/{second_version_id}");
+    assert_eq!(
+        second["sheet_version_ref"].as_str(),
+        Some(expected_second_sheet_ref.as_str())
+    );
+
+    let stale = client
+        .post(format!(
+            "{base_url}/atelier/characters/{character_internal_id}/sheet-versions"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "raw_text": "name: stale write",
+            "expected_parent_version_id": first_version_id,
+            "tool": "argus",
+        }))
+        .send()
+        .await?;
+    assert_eq!(
+        stale.status(),
+        reqwest::StatusCode::CONFLICT,
+        "stale expected_parent_version_id must not append over a newer head"
+    );
+    let stale_body: serde_json::Value = stale.json().await?;
+    assert_eq!(stale_body["error"].as_str(), Some("stale_sheet_version"));
+    assert_eq!(
+        stale_body["character_ref"].as_str(),
+        Some(expected_character_ref.as_str())
+    );
+    assert_eq!(
+        stale_body["expected_parent_version_id"].as_str(),
+        Some(first_version_id)
+    );
+    assert_eq!(
+        stale_body["expected_parent_sheet_version_ref"].as_str(),
+        Some(expected_first_sheet_ref.as_str())
+    );
+    assert_eq!(
+        stale_body["expected_sheet_version_ref"].as_str(),
+        Some(expected_first_sheet_ref.as_str())
+    );
+    assert_eq!(
+        stale_body["current_head_version_id"].as_str(),
+        Some(second_version_id)
+    );
+    assert_eq!(
+        stale_body["current_head_sheet_version_ref"].as_str(),
+        Some(expected_second_sheet_ref.as_str())
+    );
+    assert_eq!(
+        stale_body["current_parent_version_id"].as_str(),
+        Some(second_version_id)
+    );
+    assert_eq!(
+        stale_body["current_sheet_version_ref"].as_str(),
+        Some(expected_second_sheet_ref.as_str())
+    );
+
+    let conflict_event_count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM atelier_event
+         WHERE event_family = $1 AND aggregate_id = $2
+           AND payload->>'reason_code' = 'stale_sheet_version'
+           AND payload->>'current_head_sheet_version_ref' = $3",
+    )
+    .bind(event_family::SHEET_VERSION_CONFLICT)
+    .bind(format!(
+        "{}:conflict",
+        character_ref(Uuid::parse_str(character_internal_id)?)
+    ))
+    .bind(&expected_second_sheet_ref)
+    .fetch_one(&pool)
+    .await?;
+    assert_eq!(
+        conflict_event_count, 1,
+        "stale sheet writes must leave a durable conflict event"
+    );
+
+    let history = client
+        .get(format!(
+            "{base_url}/atelier/characters/{character_internal_id}/sheet-versions"
+        ))
+        .send()
+        .await?;
+    assert_eq!(history.status(), reqwest::StatusCode::OK);
+    let history: Vec<serde_json::Value> = history.json().await?;
+    assert_eq!(history.len(), 2);
+
+    let missing_character_id = Uuid::new_v4();
+    let missing_history = client
+        .get(format!(
+            "{base_url}/atelier/characters/{missing_character_id}/sheet-versions"
+        ))
+        .send()
+        .await?;
+    assert_eq!(
+        missing_history.status(),
+        reqwest::StatusCode::NOT_FOUND,
+        "unknown character history must not look like a valid empty sheet"
+    );
+
+    server.abort();
+    Ok(())
+}
+
+#[tokio::test]
+async fn atelier_ckc_bundled_template_import_export_and_field_suggestions()
+-> Result<(), Box<dyn std::error::Error>> {
+    let Some(state) = test_app_state_from_database_url().await else {
+        return Ok(());
+    };
+    let (base_url, server) = start_atelier_api_server(state).await?;
+    let client = reqwest::Client::new();
+    let actor = format!("mt009-template-agent-{}", Uuid::new_v4());
+    let public_id = format!("mt009-template-char-{}", Uuid::new_v4());
+    let display_name = "MT-009 Template Proof";
+
+    let template = client
+        .get(format!("{base_url}/atelier/sheet-templates/default"))
+        .send()
+        .await?;
+    assert_eq!(
+        template.status(),
+        reqwest::StatusCode::OK,
+        "CKC must expose the built-in v2.00 character sheet template"
+    );
+    let template: serde_json::Value = template.json().await?;
+    assert_eq!(template["template_version"].as_str(), Some("v2.00"));
+    assert_eq!(
+        template["file_name"].as_str(),
+        Some("CHARACTER_SHEET__v2.00.txt")
+    );
+    assert!(template["field_count"].as_i64().unwrap_or_default() > 100);
+    let raw_template = template["raw_text"].as_str().expect("template raw text");
+    assert!(raw_template.contains("CHARACTER SHEET"));
+    assert!(raw_template.contains("CHAR-ID-001 — Character_ID: <string>"));
+    assert!(raw_template.contains("CHAR-ID-002 — Name: <string>"));
+
+    let safe_subset = client
+        .get(format!(
+            "{base_url}/atelier/sheet-templates/default/safe-subset"
+        ))
+        .send()
+        .await?;
+    assert_eq!(
+        safe_subset.status(),
+        reqwest::StatusCode::OK,
+        "CKC must expose the original LLM-safe short field subset"
+    );
+    let safe_subset: serde_json::Value = safe_subset.json().await?;
+    assert_eq!(safe_subset["template_version"].as_str(), Some("v2.00"));
+    assert_eq!(
+        safe_subset["file_name"].as_str(),
+        Some("LLM_SAFE_SUBSET__v2.00.json")
+    );
+    assert!(
+        safe_subset["field_ids"]
+            .as_array()
+            .expect("safe subset field ids")
+            .iter()
+            .any(|value| value.as_str() == Some("CHAR-ID-006"))
+    );
+
+    let created = client
+        .post(format!("{base_url}/atelier/characters"))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "public_id": public_id,
+            "display_name": display_name,
+            "create_default_sheet": true,
+        }))
+        .send()
+        .await?;
+    assert_eq!(created.status(), reqwest::StatusCode::CREATED);
+    let character: serde_json::Value = created.json().await?;
+    let character_internal_id = character["internal_id"]
+        .as_str()
+        .expect("character internal_id");
+
+    let history = client
+        .get(format!(
+            "{base_url}/atelier/characters/{character_internal_id}/sheet-versions"
+        ))
+        .send()
+        .await?;
+    assert_eq!(history.status(), reqwest::StatusCode::OK);
+    let history: Vec<serde_json::Value> = history.json().await?;
+    assert_eq!(
+        history.len(),
+        1,
+        "create_default_sheet=true must create the first v2.00 sheet version"
+    );
+    let first_version_id = history[0]["version_id"].as_str().expect("first version id");
+    let first_raw = history[0]["raw_text"].as_str().expect("first raw text");
+    assert!(first_raw.contains(&format!("CHAR-ID-001 — Character_ID: {public_id}")));
+    assert!(first_raw.contains(&format!("CHAR-ID-002 — Name: {display_name}")));
+
+    let txt_export = client
+        .get(format!(
+            "{base_url}/atelier/sheet-versions/{first_version_id}/export?format=txt"
+        ))
+        .send()
+        .await?;
+    assert_eq!(txt_export.status(), reqwest::StatusCode::OK);
+    let txt_export: serde_json::Value = txt_export.json().await?;
+    assert_eq!(txt_export["format"].as_str(), Some("txt"));
+    assert_eq!(txt_export["content"].as_str(), Some(first_raw));
+    assert!(
+        txt_export["file_name"]
+            .as_str()
+            .expect("export file name")
+            .ends_with(".txt")
+    );
+
+    let imported_raw = first_raw.replace(
+        "CHAR-ID-006 — Primary_Role: <string>",
+        "CHAR-ID-006 — Primary_Role: proof-primary-role",
+    );
+    let imported = client
+        .post(format!(
+            "{base_url}/atelier/characters/{character_internal_id}/sheet-versions/import"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "raw_text": imported_raw,
+            "expected_parent_version_id": first_version_id,
+            "tool": "ckc-template-import-test",
+        }))
+        .send()
+        .await?;
+    assert_eq!(
+        imported.status(),
+        reqwest::StatusCode::CREATED,
+        "CKC import must append a guarded sheet version, not mutate the current one"
+    );
+    let imported: serde_json::Value = imported.json().await?;
+    let imported_version_id = imported["version_id"]
+        .as_str()
+        .expect("imported version id");
+    assert_eq!(
+        imported["parent_version_id"].as_str(),
+        Some(first_version_id)
+    );
+    assert_eq!(imported["seq"].as_i64(), Some(2));
+
+    let json_export = client
+        .get(format!(
+            "{base_url}/atelier/sheet-versions/{imported_version_id}/export?format=json"
+        ))
+        .send()
+        .await?;
+    assert_eq!(json_export.status(), reqwest::StatusCode::OK);
+    let json_export: serde_json::Value = json_export.json().await?;
+    assert_eq!(json_export["format"].as_str(), Some("json"));
+    assert!(
+        json_export["content"]
+            .as_str()
+            .expect("json export content")
+            .contains("proof-primary-role")
+    );
+
+    let suggestions = client
+        .get(format!(
+            "{base_url}/atelier/sheet-field-suggestions?field_id=CHAR-ID-006&limit=5"
+        ))
+        .send()
+        .await?;
+    assert_eq!(suggestions.status(), reqwest::StatusCode::OK);
+    let suggestions: Vec<serde_json::Value> = suggestions.json().await?;
+    assert!(
+        suggestions
+            .iter()
+            .any(|row| row["field_id"].as_str() == Some("CHAR-ID-006")
+                && row["value"].as_str() == Some("proof-primary-role")),
+        "CKC should remember prior input values per field for future sheet suggestions"
+    );
+
+    server.abort();
+    Ok(())
 }
 
 #[test]

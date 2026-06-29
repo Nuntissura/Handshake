@@ -26,10 +26,10 @@
 
 use std::path::{Path, PathBuf};
 
-use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
+use egui_kittest::kittest::NodeT;
 
-use handshake_native::accessibility::{collect_ui_tree_snapshot, UiTreeSnapshot};
+use handshake_native::accessibility::{UiTreeSnapshot, collect_ui_tree_snapshot};
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::atelier_panel::{
     ATELIER_CONTENT_CKC_AUTHOR_ID, ATELIER_CONTENT_INGEST_AUTHOR_ID,
@@ -37,20 +37,20 @@ use handshake_native::atelier_panel::{
     ATELIER_TAB_INGEST_AUTHOR_ID, ATELIER_TAB_POSEKIT_AUTHOR_ID,
 };
 use handshake_native::atelier_side_panel::{
-    item_author_id, AtelierSidePanel, PANEL_AUTHOR_ID, REFRESH_AUTHOR_ID,
+    AtelierSidePanel, PANEL_AUTHOR_ID, REFRESH_AUTHOR_ID, item_author_id,
 };
 use handshake_native::backend_client::{AtelierBatchRow, AtelierItemRow, HealthInfo};
 use handshake_native::interop::{
-    AtelierItemKind, AtelierRef, DragPayload, InteractionBus, CMD_ROUTE_TO_STAGE,
+    AtelierItemKind, AtelierRef, CMD_ROUTE_TO_STAGE, DragPayload, InteractionBus,
 };
 use handshake_native::mcp::{
-    dispatch_request, ActionChannel, McpRequest, ScreenshotError, SessionToken,
+    ActionChannel, McpRequest, ScreenshotError, SessionToken, dispatch_request,
 };
 use handshake_native::module_switcher::ModuleId;
 use handshake_native::rich_editor::renderer::rich_editor_widget::{
     RichEditorState, RichEditorWidget,
 };
-use handshake_native::stage_pane::{StageContent, StagePane, STAGE_PANE_AUTHOR_ID};
+use handshake_native::stage_pane::{STAGE_PANE_AUTHOR_ID, StageContent, StagePane};
 use handshake_native::theme::HsTheme;
 
 /// The crate-relative path to the EXTERNAL artifacts root (CX-212E), disk-agnostic. Used by the
@@ -155,6 +155,26 @@ fn ac1_drag_payload_serde_round_trips() {
     );
 }
 
+#[test]
+fn mt009_character_sheet_ref_round_trips_as_hs_link() {
+    let payload = DragPayload::AtelierRef(AtelierRef::character_sheet_version(
+        "018f7848-1111-7000-9000-000000000001",
+        "018f7848-1111-7000-9000-000000000101",
+        "Mira Demo sheet v1",
+    ));
+    let json = serde_json::to_string(&payload).expect("serialize");
+    let back: DragPayload = serde_json::from_str(&json).expect("deserialize");
+    assert_eq!(payload, back, "MT-009: sheet refs round-trip");
+    let link = back.to_hs_link().expect("sheet ref becomes hsLink");
+    assert_eq!(link.ref_kind, "character_sheet");
+    assert_eq!(
+        link.ref_value,
+        "atelier://sheet/018f7848-1111-7000-9000-000000000001/018f7848-1111-7000-9000-000000000101"
+    );
+    assert_eq!(link.label, "Mira Demo sheet v1");
+    assert!(link.resolved);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 // AC-1 (kittest): drag from the atelier panel + drop on the rich-text editor inserts an hsLink embed.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -214,7 +234,9 @@ fn ac1_drop_atelier_ref_on_editor_inserts_hs_link_embed() {
         !egui::DragAndDrop::has_payload_of_type::<DragPayload>(&harness.ctx),
         "AC-1: the drop payload must be taken on release"
     );
-    println!("AC-1: AtelierRef dropped on editor inserted an hsLink embed (media:item-aaa); 1 atom present");
+    println!(
+        "AC-1: AtelierRef dropped on editor inserted an hsLink embed (media:item-aaa); 1 atom present"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -356,7 +378,9 @@ fn ac3_resolved_atelier_ref_places_on_canvas_unresolved_is_no_op() {
         Some("blk-resolved"),
         "AC-3: a resolved atelier item places its loom block id (the MT-026 placement body), not the item id"
     );
-    println!("AC-3: unresolved atelier drop = no-op; resolved atelier drop placed loom block 'blk-resolved'");
+    println!(
+        "AC-3: unresolved atelier drop = no-op; resolved atelier drop placed loom block 'blk-resolved'"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -387,9 +411,11 @@ fn ac4_route_to_stage_displays_routed_selection() {
     harness.run();
 
     // Before routing: the Stage pane shows the empty prompt; its Region value summarizes "nothing routed".
-    assert!(stage_value(&harness)
-        .unwrap_or_default()
-        .contains("nothing routed"));
+    assert!(
+        stage_value(&harness)
+            .unwrap_or_default()
+            .contains("nothing routed")
+    );
 
     // The context-menu path: register the command, stage a selection, dispatch — exactly as the shell
     // does on a right-click "Route to Stage" of a rich-text selection.
@@ -532,7 +558,9 @@ fn ac6_accesskit_nodes_present() {
         }
     }
     assert!(saw_region, "AC-6: the Region node was inspected");
-    println!("AC-6: atelier-side-panel(List), atelier-item-item-aaa(ListItem+draggable), stage-pane(Region) present");
+    println!(
+        "AC-6: atelier-side-panel(List), atelier-item-item-aaa(ListItem+draggable), stage-pane(Region) present"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -678,7 +706,9 @@ fn ac6_atelier_side_panel_mounted_in_live_shell() {
             "AC-6 live: Atelier is a full central panel, not the old 2x2 split; unexpected {retired_split_pane} in {ids:?}"
         );
     }
-    println!("AC-6 live: the central Atelier pane exposes CKC intake rows in the real HandshakeApp shell");
+    println!(
+        "AC-6 live: the central Atelier pane exposes CKC intake rows in the real HandshakeApp shell"
+    );
 }
 
 #[test]
@@ -770,8 +800,8 @@ fn ac4_route_to_stage_in_live_shell_shows_stage_pane() {
 #[test]
 fn ac4_explorer_context_menu_route_to_stage_item_routes_document() {
     use handshake_native::context_menu_surfaces::{
-        explorer_action_for_id, explorer_context_items, explorer_ids, ExplorerMenuAction,
-        ExplorerRowKind,
+        ExplorerMenuAction, ExplorerRowKind, explorer_action_for_id, explorer_context_items,
+        explorer_ids,
     };
 
     // The "Route to Stage" item is present + enabled on a Document row and maps to the RouteToStage action
@@ -805,7 +835,9 @@ fn ac4_explorer_context_menu_route_to_stage_item_routes_document() {
             None
         );
     }
-    println!("AC-4: explorer-row 'Route to Stage' item is the named dispatch surface (Document-only, enabled)");
+    println!(
+        "AC-4: explorer-row 'Route to Stage' item is the named dispatch surface (Document-only, enabled)"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -867,7 +899,7 @@ fn no_local_artifact_dir_in_default_suite() {
 
 #[test]
 fn atelier_client_builds_verified_routes() {
-    use handshake_native::backend_client::AtelierClient;
+    use handshake_native::backend_client::{AtelierClient, HSK_HEADER_ACTOR_ID};
     let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
     let c = AtelierClient::new("http://127.0.0.1:37501", rt.handle().clone());
     assert_eq!(
@@ -885,8 +917,105 @@ fn atelier_client_builds_verified_routes() {
         "http://127.0.0.1:37501/atelier/intake/batches/batch-7/items",
         "AC-5: the verified per-batch items route"
     );
+    assert_eq!(
+        c.characters_request().url,
+        "http://127.0.0.1:37501/atelier/characters",
+        "MT-009: the verified character list route"
+    );
+    assert_eq!(
+        c.default_sheet_template_request().url,
+        "http://127.0.0.1:37501/atelier/sheet-templates/default",
+        "MT-009: the verified built-in CKC template route"
+    );
+    assert_eq!(
+        c.safe_sheet_subset_request().url,
+        "http://127.0.0.1:37501/atelier/sheet-templates/default/safe-subset",
+        "MT-009: the verified CKC safe-subset route"
+    );
+    assert_eq!(
+        c.create_character_request("mira", "Mira").body.unwrap()["public_id"],
+        "mira",
+        "MT-009: create-character body carries public_id"
+    );
+    assert_eq!(
+        c.create_character_with_default_sheet_request("mira", "Mira")
+            .body
+            .unwrap()["create_default_sheet"],
+        true,
+        "MT-009: template-first create can ask the backend to append the default v2.00 sheet"
+    );
+    let create_actor = c.create_character_actor_request("mira", "Mira", "agent-a");
+    assert_eq!(
+        create_actor.headers,
+        vec![(HSK_HEADER_ACTOR_ID.to_owned(), "agent-a".to_owned())],
+        "MT-009: create-character POST carries backend actor attribution"
+    );
+    assert_eq!(
+        c.character_request("char-7").url,
+        "http://127.0.0.1:37501/atelier/characters/char-7",
+        "MT-009: the verified single-character route"
+    );
+    assert_eq!(
+        c.sheet_versions_request("char-7").url,
+        "http://127.0.0.1:37501/atelier/characters/char-7/sheet-versions",
+        "MT-009: the verified character sheet history route"
+    );
+    let append =
+        c.append_sheet_version_request("char-7", "name: Mira", Some("sheet-6"), Some("argus"));
+    assert_eq!(
+        append.url, "http://127.0.0.1:37501/atelier/characters/char-7/sheet-versions",
+        "MT-009: append sheet version route"
+    );
+    assert_eq!(
+        append.body.as_ref().unwrap()["expected_parent_version_id"],
+        "sheet-6",
+        "MT-009: append body carries expected parent guard"
+    );
+    let append_actor = c.append_sheet_version_actor_request(
+        "char-7",
+        "name: Mira",
+        Some("sheet-6"),
+        Some("argus"),
+        "agent-a",
+    );
+    assert_eq!(
+        append_actor.headers,
+        vec![(HSK_HEADER_ACTOR_ID.to_owned(), "agent-a".to_owned())],
+        "MT-009: append sheet version POST carries backend actor attribution"
+    );
+    let import_actor = c.import_sheet_version_actor_request(
+        "char-7",
+        "CHAR-ID-001 — Character_ID: mira",
+        Some("sheet-6"),
+        Some("ckc-import"),
+        "agent-a",
+    );
+    assert_eq!(
+        import_actor.url, "http://127.0.0.1:37501/atelier/characters/char-7/sheet-versions/import",
+        "MT-009: import is a semantic guarded append route"
+    );
+    assert_eq!(
+        import_actor.headers,
+        vec![(HSK_HEADER_ACTOR_ID.to_owned(), "agent-a".to_owned())],
+        "MT-009: import carries backend actor attribution"
+    );
+    assert_eq!(
+        c.sheet_version_request("sheet-7").url,
+        "http://127.0.0.1:37501/atelier/sheet-versions/sheet-7",
+        "MT-009: the verified single sheet-version route"
+    );
+    assert_eq!(
+        c.export_sheet_version_request("sheet-7", "json").url,
+        "http://127.0.0.1:37501/atelier/sheet-versions/sheet-7/export?format=json",
+        "MT-009: the verified sheet export route"
+    );
+    assert_eq!(
+        c.field_suggestions_request("CHAR-ID-006", 5).url,
+        "http://127.0.0.1:37501/atelier/sheet-field-suggestions?field_id=CHAR-ID-006&limit=5",
+        "MT-009: the verified field suggestion route"
+    );
     println!(
-        "AC-5: AtelierClient builds the verified /atelier routes (batches, command-corpus, items)"
+        "AC-5/MT-009: AtelierClient builds verified /atelier routes for intake and CKC sheets"
     );
 }
 

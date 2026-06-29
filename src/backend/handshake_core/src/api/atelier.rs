@@ -17,8 +17,9 @@
 
 use axum::{
     Json, Router,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},
+    response::{IntoResponse, Response},
     routing::{get, post},
 };
 use chrono::{DateTime, Utc};
@@ -35,9 +36,12 @@ use crate::atelier::search::{
 };
 use crate::atelier::stealth_window::ResolvedContentRef;
 use crate::atelier::{
-    AtelierStore, BulkOperationReceipt, ClipboardImageImportRequest, DeletionArchiveRequest,
+    AtelierError, AtelierStore, BulkOperationReceipt, CHARACTER_SHEET_V2_TEMPLATE_VERSION,
+    Character, ClipboardImageImportRequest, DEFAULT_SHEET_TOOL, DeletionArchiveRequest,
     DeletionImpactPreview, DeletionImpactPreviewRequest, DeletionRestoreRequest, DeletionTargetRef,
-    ImageImportRecord, UrlImageImportRequest,
+    ImageImportRecord, NewCharacter, NewSheetVersion, SheetVersion, UrlImageImportRequest,
+    builtin_character_sheet_template, builtin_safe_subset, character_ref,
+    default_character_sheet_text, sheet_version_ref, text_hash,
 };
 
 const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
@@ -45,6 +49,42 @@ const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
 pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/atelier/overview", get(overview))
+        .route(
+            "/atelier/characters",
+            get(list_characters).post(create_character),
+        )
+        .route(
+            "/atelier/characters/:character_internal_id",
+            get(get_character),
+        )
+        .route(
+            "/atelier/characters/:character_internal_id/sheet-versions",
+            get(list_sheet_versions).post(append_sheet_version),
+        )
+        .route(
+            "/atelier/characters/:character_internal_id/sheet-versions/import",
+            post(import_sheet_version),
+        )
+        .route(
+            "/atelier/sheet-versions/:version_id",
+            get(get_sheet_version),
+        )
+        .route(
+            "/atelier/sheet-versions/:version_id/export",
+            get(export_sheet_version),
+        )
+        .route(
+            "/atelier/sheet-templates/default",
+            get(get_default_sheet_template),
+        )
+        .route(
+            "/atelier/sheet-templates/default/safe-subset",
+            get(get_default_sheet_template_safe_subset),
+        )
+        .route(
+            "/atelier/sheet-field-suggestions",
+            get(list_sheet_field_suggestions),
+        )
         .route(
             "/atelier/intake/batches",
             get(list_intake_batches).post(create_intake_batch),
@@ -193,6 +233,13 @@ fn atelier_error(err: crate::atelier::AtelierError) -> (StatusCode, Json<ErrorRe
                 }),
             )
         }
+        AtelierError::Conflict(detail) => {
+            tracing::warn!(target: "handshake_core::atelier", %detail, "conflict");
+            (
+                StatusCode::CONFLICT,
+                Json(ErrorResponse { error: "conflict" }),
+            )
+        }
         other => internal_error(other),
     }
 }
@@ -256,6 +303,413 @@ async fn overview(
         tables,
         event_families,
     }))
+}
+
+#[derive(Debug, Serialize)]
+struct CharacterResponse {
+    internal_id: Uuid,
+    public_id: String,
+    display_name: String,
+    character_ref: String,
+    created_at_utc: DateTime<Utc>,
+    updated_at_utc: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CreateCharacterRequest {
+    public_id: String,
+    display_name: String,
+    create_default_sheet: Option<bool>,
+}
+
+#[derive(Debug, Serialize)]
+struct SheetVersionResponse {
+    version_id: Uuid,
+    character_internal_id: Uuid,
+    parent_version_id: Option<Uuid>,
+    seq: i64,
+    raw_text: String,
+    author: String,
+    tool: Option<String>,
+    character_ref: String,
+    sheet_version_ref: String,
+    created_at_utc: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize)]
+struct SheetVersionConflictResponse {
+    error: &'static str,
+    character_internal_id: Uuid,
+    character_ref: String,
+    expected_parent_version_id: Option<Uuid>,
+    expected_parent_sheet_version_ref: Option<String>,
+    expected_sheet_version_ref: Option<String>,
+    current_head_version_id: Option<Uuid>,
+    current_head_sheet_version_ref: Option<String>,
+    current_parent_version_id: Option<Uuid>,
+    current_sheet_version_ref: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AppendSheetVersionRequest {
+    raw_text: String,
+    expected_parent_version_id: Option<Uuid>,
+    tool: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SheetVersionExportQuery {
+    format: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct SheetVersionExportResponse {
+    version_id: Uuid,
+    character_internal_id: Uuid,
+    format: String,
+    file_name: String,
+    content_hash: String,
+    content: String,
+    character_ref: String,
+    sheet_version_ref: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct SheetFieldSuggestionsQuery {
+    field_id: String,
+    limit: Option<i64>,
+}
+
+fn character_response(character: Character) -> CharacterResponse {
+    CharacterResponse {
+        internal_id: character.internal_id,
+        public_id: character.public_id,
+        display_name: character.display_name,
+        character_ref: character_ref(character.internal_id),
+        created_at_utc: character.created_at_utc,
+        updated_at_utc: character.updated_at_utc,
+    }
+}
+
+fn sheet_version_response(version: SheetVersion) -> SheetVersionResponse {
+    SheetVersionResponse {
+        version_id: version.version_id,
+        character_internal_id: version.character_internal_id,
+        parent_version_id: version.parent_version_id,
+        seq: version.seq,
+        raw_text: version.raw_text,
+        author: version.author,
+        tool: version.tool,
+        character_ref: character_ref(version.character_internal_id),
+        sheet_version_ref: sheet_version_ref(version.character_internal_id, version.version_id),
+        created_at_utc: version.created_at_utc,
+    }
+}
+
+fn sheet_version_conflict_response(
+    character_internal_id: Uuid,
+    expected_parent_version_id: Option<Uuid>,
+    current: Option<SheetVersion>,
+) -> SheetVersionConflictResponse {
+    let current_parent_version_id = current.as_ref().map(|version| version.version_id);
+    SheetVersionConflictResponse {
+        error: "stale_sheet_version",
+        character_internal_id,
+        character_ref: character_ref(character_internal_id),
+        expected_parent_version_id,
+        expected_parent_sheet_version_ref: expected_parent_version_id
+            .map(|version_id| sheet_version_ref(character_internal_id, version_id)),
+        expected_sheet_version_ref: expected_parent_version_id
+            .map(|version_id| sheet_version_ref(character_internal_id, version_id)),
+        current_head_version_id: current_parent_version_id,
+        current_head_sheet_version_ref: current_parent_version_id
+            .map(|version_id| sheet_version_ref(character_internal_id, version_id)),
+        current_parent_version_id,
+        current_sheet_version_ref: current_parent_version_id
+            .map(|version_id| sheet_version_ref(character_internal_id, version_id)),
+    }
+}
+
+/// GET /atelier/characters — stable CKC character list for model/operator selection.
+async fn list_characters(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<CharacterResponse>>, (StatusCode, Json<ErrorResponse>)> {
+    let store = atelier_store(&state);
+    let rows = store
+        .list_characters(LIST_CAP)
+        .await
+        .map_err(atelier_error)?;
+    Ok(Json(rows.into_iter().map(character_response).collect()))
+}
+
+/// POST /atelier/characters — create a CKC character identity.
+async fn create_character(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<CreateCharacterRequest>,
+) -> Result<(StatusCode, Json<CharacterResponse>), (StatusCode, Json<ErrorResponse>)> {
+    let actor = calling_actor(&headers)?;
+    let store = atelier_store(&state);
+    let public_id = payload.public_id;
+    let display_name = payload.display_name;
+    let character = store
+        .create_character(&NewCharacter {
+            public_id: public_id.clone(),
+            display_name: display_name.clone(),
+        })
+        .await
+        .map_err(atelier_error)?;
+    if payload.create_default_sheet.unwrap_or(false) {
+        let raw_text = default_character_sheet_text(&public_id, &display_name);
+        store
+            .append_sheet_version_if_current(
+                &NewSheetVersion {
+                    character_internal_id: character.internal_id,
+                    raw_text,
+                    author: actor.clone(),
+                    tool: Some(DEFAULT_SHEET_TOOL.to_owned()),
+                },
+                None,
+            )
+            .await
+            .map_err(atelier_error)?;
+    }
+    tracing::info!(
+        target: "handshake_core::atelier",
+        route = "/atelier/characters",
+        status = "created",
+        actor = %actor,
+        character_internal_id = %character.internal_id,
+        public_id = %character.public_id,
+        "create CKC character"
+    );
+    Ok((StatusCode::CREATED, Json(character_response(character))))
+}
+
+/// GET /atelier/characters/:character_internal_id — read one CKC character identity.
+async fn get_character(
+    State(state): State<AppState>,
+    Path(character_internal_id): Path<Uuid>,
+) -> Result<Json<CharacterResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let store = atelier_store(&state);
+    let character = store
+        .get_character_by_internal_id(character_internal_id)
+        .await
+        .map_err(atelier_error)?;
+    Ok(Json(character_response(character)))
+}
+
+/// GET /atelier/characters/:character_internal_id/sheet-versions — append-only version history.
+async fn list_sheet_versions(
+    State(state): State<AppState>,
+    Path(character_internal_id): Path<Uuid>,
+) -> Result<Json<Vec<SheetVersionResponse>>, (StatusCode, Json<ErrorResponse>)> {
+    let store = atelier_store(&state);
+    store
+        .get_character_by_internal_id(character_internal_id)
+        .await
+        .map_err(atelier_error)?;
+    let versions = store
+        .sheet_version_history(character_internal_id)
+        .await
+        .map_err(atelier_error)?;
+    Ok(Json(
+        versions.into_iter().map(sheet_version_response).collect(),
+    ))
+}
+
+/// POST /atelier/characters/:character_internal_id/sheet-versions — append a guarded sheet edit.
+async fn append_sheet_version(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(character_internal_id): Path<Uuid>,
+    Json(payload): Json<AppendSheetVersionRequest>,
+) -> Result<Response, (StatusCode, Json<ErrorResponse>)> {
+    append_sheet_version_for_character(
+        &state,
+        &headers,
+        character_internal_id,
+        payload,
+        "/atelier/characters/:character_internal_id/sheet-versions",
+    )
+    .await
+}
+
+/// POST /atelier/characters/:character_internal_id/sheet-versions/import — import raw sheet text.
+async fn import_sheet_version(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(character_internal_id): Path<Uuid>,
+    Json(payload): Json<AppendSheetVersionRequest>,
+) -> Result<Response, (StatusCode, Json<ErrorResponse>)> {
+    append_sheet_version_for_character(
+        &state,
+        &headers,
+        character_internal_id,
+        payload,
+        "/atelier/characters/:character_internal_id/sheet-versions/import",
+    )
+    .await
+}
+
+async fn append_sheet_version_for_character(
+    state: &AppState,
+    headers: &HeaderMap,
+    character_internal_id: Uuid,
+    payload: AppendSheetVersionRequest,
+    route: &'static str,
+) -> Result<Response, (StatusCode, Json<ErrorResponse>)> {
+    let actor = calling_actor(headers)?;
+    let store = atelier_store(state);
+    store
+        .get_character_by_internal_id(character_internal_id)
+        .await
+        .map_err(atelier_error)?;
+    let expected_parent_version_id = payload.expected_parent_version_id;
+    let version = match store
+        .append_sheet_version_if_current(
+            &NewSheetVersion {
+                character_internal_id,
+                raw_text: payload.raw_text,
+                author: actor.clone(),
+                tool: payload.tool,
+            },
+            expected_parent_version_id,
+        )
+        .await
+    {
+        Ok(version) => version,
+        Err(AtelierError::Conflict(detail)) => {
+            tracing::warn!(
+                target: "handshake_core::atelier",
+                %detail,
+                character_internal_id = %character_internal_id,
+                "stale CKC sheet version write"
+            );
+            let current = store
+                .latest_sheet_version(character_internal_id)
+                .await
+                .map_err(atelier_error)?;
+            let response = sheet_version_conflict_response(
+                character_internal_id,
+                expected_parent_version_id,
+                current,
+            );
+            return Ok((StatusCode::CONFLICT, Json(response)).into_response());
+        }
+        Err(err) => return Err(atelier_error(err)),
+    };
+    tracing::info!(
+        target: "handshake_core::atelier",
+        route = route,
+        status = "created",
+        actor = %actor,
+        character_internal_id = %character_internal_id,
+        version_id = %version.version_id,
+        seq = version.seq,
+        "append CKC sheet version"
+    );
+    Ok((StatusCode::CREATED, Json(sheet_version_response(version))).into_response())
+}
+
+/// GET /atelier/sheet-versions/:version_id — read one stable CKC sheet/version ref.
+async fn get_sheet_version(
+    State(state): State<AppState>,
+    Path(version_id): Path<Uuid>,
+) -> Result<Json<SheetVersionResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let store = atelier_store(&state);
+    let version = store
+        .get_sheet_version(version_id)
+        .await
+        .map_err(atelier_error)?;
+    Ok(Json(sheet_version_response(version)))
+}
+
+/// GET /atelier/sheet-versions/:version_id/export?format=txt|json — deterministic CKC sheet export.
+async fn export_sheet_version(
+    State(state): State<AppState>,
+    Path(version_id): Path<Uuid>,
+    Query(query): Query<SheetVersionExportQuery>,
+) -> Result<Json<SheetVersionExportResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let store = atelier_store(&state);
+    let version = store
+        .get_sheet_version(version_id)
+        .await
+        .map_err(atelier_error)?;
+    let format = query
+        .format
+        .as_deref()
+        .unwrap_or("txt")
+        .trim()
+        .to_ascii_lowercase();
+    let (file_ext, content) = match format.as_str() {
+        "txt" | "text" => ("txt", version.raw_text.clone()),
+        "json" => {
+            let content = serde_json::to_string_pretty(&serde_json::json!({
+                "template_version": CHARACTER_SHEET_V2_TEMPLATE_VERSION,
+                "version_id": version.version_id,
+                "character_internal_id": version.character_internal_id,
+                "parent_version_id": version.parent_version_id,
+                "seq": version.seq,
+                "author": &version.author,
+                "tool": &version.tool,
+                "character_ref": character_ref(version.character_internal_id),
+                "sheet_version_ref": sheet_version_ref(
+                    version.character_internal_id,
+                    version.version_id,
+                ),
+                "raw_text": &version.raw_text,
+                "created_at_utc": version.created_at_utc,
+            }))
+            .map_err(|err| {
+                internal_error(format!("serialize CKC sheet export JSON failed: {err}"))
+            })?;
+            ("json", content)
+        }
+        _ => {
+            return Err(atelier_error(AtelierError::Validation(format!(
+                "unsupported CKC sheet export format={format}"
+            ))));
+        }
+    };
+    let content_hash = text_hash(&content);
+    Ok(Json(SheetVersionExportResponse {
+        version_id: version.version_id,
+        character_internal_id: version.character_internal_id,
+        format: file_ext.to_owned(),
+        file_name: format!("ckc-sheet-{}.{}", version.version_id, file_ext),
+        content_hash,
+        content,
+        character_ref: character_ref(version.character_internal_id),
+        sheet_version_ref: sheet_version_ref(version.character_internal_id, version.version_id),
+    }))
+}
+
+/// GET /atelier/sheet-templates/default — bundled CKC v2.00 template metadata + raw text.
+async fn get_default_sheet_template()
+-> Result<Json<crate::atelier::BuiltInSheetTemplate>, (StatusCode, Json<ErrorResponse>)> {
+    builtin_character_sheet_template()
+        .map(Json)
+        .map_err(atelier_error)
+}
+
+/// GET /atelier/sheet-templates/default/safe-subset — original LLM-safe v2.00 field whitelist.
+async fn get_default_sheet_template_safe_subset()
+-> Result<Json<crate::atelier::BuiltInSafeSubset>, (StatusCode, Json<ErrorResponse>)> {
+    builtin_safe_subset().map(Json).map_err(atelier_error)
+}
+
+/// GET /atelier/sheet-field-suggestions?field_id=... — prior values for one CKC Field ID.
+async fn list_sheet_field_suggestions(
+    State(state): State<AppState>,
+    Query(query): Query<SheetFieldSuggestionsQuery>,
+) -> Result<Json<Vec<crate::atelier::SheetFieldSuggestion>>, (StatusCode, Json<ErrorResponse>)> {
+    let store = atelier_store(&state);
+    store
+        .sheet_field_suggestions(&query.field_id, query.limit.unwrap_or(20))
+        .await
+        .map(Json)
+        .map_err(atelier_error)
 }
 
 #[derive(Debug, Serialize)]

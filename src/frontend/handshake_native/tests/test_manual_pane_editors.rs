@@ -22,21 +22,21 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use egui_kittest::kittest::Queryable;
 use egui_kittest::Harness;
+use egui_kittest::kittest::Queryable;
 
 use handshake_native::accessibility::editor_action_registry::{
-    rich_action_catalog, CODE_ACTION_CATALOG,
+    CODE_ACTION_CATALOG, rich_action_catalog,
 };
 use handshake_native::accessibility::{
     CANVAS_CONTROL_CATALOG, COLLECTION_CONTROL_CATALOG, DECLARED_IDENTITIES, GRAPH_CONTROL_CATALOG,
     PALETTE_AUTHOR_IDS,
 };
 use handshake_native::manual_content_editors::{
-    agent_tool_rows, editors_manual_section, INTEROP_EDGES, REQUIRED_HEADINGS,
+    INTEROP_EDGES, REQUIRED_HEADINGS, agent_tool_rows, editors_manual_section,
 };
 use handshake_native::manual_pane::{
-    ManualPane, ManualPaneState, ManualRegistry, ManualSurface, MANUAL_SEARCH_AUTHOR_ID,
+    MANUAL_SEARCH_AUTHOR_ID, ManualPane, ManualPaneState, ManualRegistry, ManualSurface,
 };
 use handshake_native::theme::HsPalette;
 
@@ -170,6 +170,42 @@ fn live_author_id_set() -> HashSet<String> {
             .to_owned(),
     );
 
+    // Atelier fixed ids, sourced from the live panel constants.
+    for id in [
+        handshake_native::atelier_panel::ATELIER_PANEL_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_TABLIST_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_TAB_CKC_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_TAB_POSEKIT_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_TAB_INGEST_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CONTENT_CKC_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CONTENT_POSEKIT_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CONTENT_INGEST_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_CHARACTER_LIST_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SELECTED_CHARACTER_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_CHARACTER_CREATE_NAME_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_CHARACTER_CREATE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_CHARACTER_REF_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SHEET_VERSION_REF_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SHEET_SAVE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_TYPED_REF_KIND_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_YAW_MINUS_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_YAW_PLUS_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_RESET_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_FACE_TOGGLE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_BODY_TOGGLE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_HANDS_TOGGLE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_YAW_SLIDER_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_ZOOM_SLIDER_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_PASS_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_REJECT_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_UNSURE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID,
+    ] {
+        set.insert(id.to_owned());
+    }
+
     // Manual pane's own search box id (documented as a Knowledge surface row).
     set.insert(MANUAL_SEARCH_AUTHOR_ID.to_owned());
 
@@ -247,6 +283,24 @@ fn manual_documents_atelier_tabs_and_argus_control_ids() {
         "atelier-tab-ckc",
         "atelier-tab-posekit",
         "atelier-tab-ingest",
+        "atelier-ckc-character-list",
+        "atelier-ckc-sheet-editor",
+        "atelier-ckc-sheet-save-version",
+        "atelier-ckc-sheet-version-ref",
+        "character_sheet",
+        "x-hsk-actor-id",
+        "expected_parent_version_id",
+        "stale_sheet_version",
+        "current_head_sheet_version_ref",
+        "re-inspect the panel",
+        "/atelier/characters",
+        "/atelier/sheet-templates/default",
+        "CHARACTER_SHEET__v2.00.txt",
+        "LLM_SAFE_SUBSET__v2.00.json",
+        "/sheet-versions/import",
+        "/export?format=txt|json",
+        "/atelier/sheet-field-suggestions",
+        "Field ID",
         "atelier-pose-yaw-minus",
         "atelier-pose-reset",
         "atelier-ingest-pass",

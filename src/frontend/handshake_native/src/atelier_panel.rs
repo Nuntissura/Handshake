@@ -9,10 +9,16 @@ use std::sync::{Arc, Mutex};
 use egui::accesskit;
 
 use crate::atelier_side_panel::AtelierSidePanel;
+use crate::backend_client::{
+    ATELIER_CKC_ACTOR_ID, AtelierCharacterRow, AtelierCkcAppendCell, AtelierCkcCell,
+    AtelierCkcCharacterSheetRow, AtelierCkcCreateCell, AtelierClient, AtelierSheetVersionRow,
+};
 use crate::editor_pane_factories::SharedPalette;
 use crate::graph::canvas_board::{CanvasEvent, LoomCanvasBoard};
+use crate::interop::{AtelierItemKind, AtelierRef};
 use crate::pane_registry::{PaneFactory, PaneRenderContext, PaneType};
 use crate::theme::HsPalette;
+use uuid::Uuid;
 
 pub const ATELIER_PANEL_AUTHOR_ID: &str = "atelier-main-panel";
 pub const ATELIER_TABLIST_AUTHOR_ID: &str = "atelier-tab-list";
@@ -22,6 +28,15 @@ pub const ATELIER_TAB_INGEST_AUTHOR_ID: &str = "atelier-tab-ingest";
 pub const ATELIER_CONTENT_CKC_AUTHOR_ID: &str = "atelier-content-ckc";
 pub const ATELIER_CONTENT_POSEKIT_AUTHOR_ID: &str = "atelier-content-posekit";
 pub const ATELIER_CONTENT_INGEST_AUTHOR_ID: &str = "atelier-content-ingest";
+pub const ATELIER_CKC_CHARACTER_LIST_AUTHOR_ID: &str = "atelier-ckc-character-list";
+pub const ATELIER_CKC_SELECTED_CHARACTER_AUTHOR_ID: &str = "atelier-ckc-selected-character";
+pub const ATELIER_CKC_CHARACTER_CREATE_NAME_AUTHOR_ID: &str = "atelier-ckc-character-create-name";
+pub const ATELIER_CKC_CHARACTER_CREATE_AUTHOR_ID: &str = "atelier-ckc-character-create";
+pub const ATELIER_CKC_CHARACTER_REF_AUTHOR_ID: &str = "atelier-ckc-character-ref";
+pub const ATELIER_CKC_SHEET_VERSION_REF_AUTHOR_ID: &str = "atelier-ckc-sheet-version-ref";
+pub const ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID: &str = "atelier-ckc-sheet-editor";
+pub const ATELIER_CKC_SHEET_SAVE_AUTHOR_ID: &str = "atelier-ckc-sheet-save-version";
+pub const ATELIER_CKC_TYPED_REF_KIND_AUTHOR_ID: &str = "atelier-ckc-typed-ref-kind";
 pub const ATELIER_POSE_YAW_MINUS_AUTHOR_ID: &str = "atelier-pose-yaw-minus";
 pub const ATELIER_POSE_YAW_PLUS_AUTHOR_ID: &str = "atelier-pose-yaw-plus";
 pub const ATELIER_POSE_RESET_AUTHOR_ID: &str = "atelier-pose-reset";
@@ -71,9 +86,133 @@ impl AtelierPanelTab {
     }
 }
 
+#[derive(Debug, Clone)]
+struct CkcCharacterRecord {
+    public_id: String,
+    display_name: String,
+    character_internal_id: String,
+    character_ref: String,
+    sheet_version_id: Option<String>,
+    parent_sheet_version_id: Option<String>,
+    sheet_seq: i64,
+    sheet_editor_text: String,
+    sheet_version_ref: Option<String>,
+}
+
+impl CkcCharacterRecord {
+    fn character_ref(&self) -> String {
+        if self.character_ref.is_empty() {
+            format!("atelier://character/{}", self.character_internal_id)
+        } else {
+            self.character_ref.clone()
+        }
+    }
+
+    fn sheet_version_ref(&self) -> Option<String> {
+        self.sheet_version_ref.clone().or_else(|| {
+            self.sheet_version_id.as_ref().map(|version_id| {
+                format!(
+                    "atelier://sheet/{}/{}",
+                    self.character_internal_id, version_id
+                )
+            })
+        })
+    }
+
+    fn sheet_atelier_ref(&self) -> Option<AtelierRef> {
+        self.sheet_version_id.as_ref().map(|sheet_version_id| {
+            AtelierRef::character_sheet_version(
+                &self.character_internal_id,
+                sheet_version_id,
+                format!("{} sheet v{}", self.display_name, self.sheet_seq),
+            )
+        })
+    }
+
+    fn from_backend(row: AtelierCkcCharacterSheetRow) -> Self {
+        let AtelierCkcCharacterSheetRow {
+            character,
+            latest_sheet,
+        } = row;
+        let (
+            sheet_version_id,
+            parent_sheet_version_id,
+            sheet_seq,
+            sheet_editor_text,
+            sheet_version_ref,
+        ) = latest_sheet
+            .map(
+                |AtelierSheetVersionRow {
+                     version_id,
+                     parent_version_id,
+                     seq,
+                     raw_text,
+                     sheet_version_ref,
+                     ..
+                 }| {
+                    (
+                        Some(version_id),
+                        parent_version_id,
+                        seq,
+                        raw_text,
+                        Some(sheet_version_ref),
+                    )
+                },
+            )
+            .unwrap_or_else(|| (None, None, 0, String::new(), None));
+        Self {
+            public_id: character.public_id,
+            display_name: character.display_name,
+            character_internal_id: character.internal_id,
+            character_ref: character.character_ref,
+            sheet_version_id,
+            parent_sheet_version_id,
+            sheet_seq,
+            sheet_editor_text,
+            sheet_version_ref,
+        }
+    }
+
+    fn from_created_character(character: AtelierCharacterRow) -> Self {
+        Self {
+            public_id: character.public_id,
+            display_name: character.display_name.clone(),
+            character_internal_id: character.internal_id,
+            character_ref: character.character_ref,
+            sheet_version_id: None,
+            parent_sheet_version_id: None,
+            sheet_seq: 0,
+            sheet_editor_text: format!(
+                "name: {}\nrole: reusable character/avatar\npipelines: ComfyUI, Unreal, Blender\nnotes: ",
+                character.display_name
+            ),
+            sheet_version_ref: None,
+        }
+    }
+
+    fn apply_sheet_version(&mut self, sheet: AtelierSheetVersionRow) {
+        self.character_internal_id = sheet.character_internal_id;
+        self.character_ref = sheet.character_ref;
+        self.parent_sheet_version_id = sheet.parent_version_id;
+        self.sheet_version_id = Some(sheet.version_id);
+        self.sheet_seq = sheet.seq;
+        self.sheet_editor_text = sheet.raw_text;
+        self.sheet_version_ref = Some(sheet.sheet_version_ref);
+    }
+}
+
 #[derive(Debug)]
 struct AtelierPanelState {
     active_tab: AtelierPanelTab,
+    ckc_characters: Vec<CkcCharacterRecord>,
+    ckc_selected_index: usize,
+    ckc_new_display_name: String,
+    ckc_backend_loaded: bool,
+    ckc_load_requested: bool,
+    ckc_loading: bool,
+    ckc_create_pending: bool,
+    ckc_append_pending: bool,
+    ckc_error: Option<String>,
     pose_yaw: f32,
     pose_pitch: f32,
     pose_zoom: f32,
@@ -88,6 +227,15 @@ impl Default for AtelierPanelState {
     fn default() -> Self {
         Self {
             active_tab: AtelierPanelTab::CastkitCodex,
+            ckc_characters: seeded_ckc_characters(),
+            ckc_selected_index: 0,
+            ckc_new_display_name: "New character".to_owned(),
+            ckc_backend_loaded: false,
+            ckc_load_requested: false,
+            ckc_loading: false,
+            ckc_create_pending: false,
+            ckc_append_pending: false,
+            ckc_error: None,
             pose_yaw: 0.0,
             pose_pitch: 0.0,
             pose_zoom: 1.0,
@@ -98,6 +246,63 @@ impl Default for AtelierPanelState {
             ingest_tag_buffer: "event, outfit, source".to_owned(),
         }
     }
+}
+
+fn seeded_ckc_characters() -> Vec<CkcCharacterRecord> {
+    vec![
+        CkcCharacterRecord {
+            public_id: "mira-demo".to_owned(),
+            display_name: "Mira Demo".to_owned(),
+            character_internal_id: "018f7848-1111-7000-9000-000000000001".to_owned(),
+            character_ref: "atelier://character/018f7848-1111-7000-9000-000000000001".to_owned(),
+            sheet_version_id: Some("018f7848-1111-7000-9000-000000000101".to_owned()),
+            parent_sheet_version_id: None,
+            sheet_seq: 1,
+            sheet_editor_text: "name: Mira Demo\nrole: reusable character/avatar\npipelines: ComfyUI, Unreal, Blender\nnotes: seed CKC sheet for Argus and model workflow proof".to_owned(),
+            sheet_version_ref: Some(
+                "atelier://sheet/018f7848-1111-7000-9000-000000000001/018f7848-1111-7000-9000-000000000101".to_owned(),
+            ),
+        },
+        CkcCharacterRecord {
+            public_id: "aria-demo".to_owned(),
+            display_name: "Aria Demo".to_owned(),
+            character_internal_id: "018f7848-1111-7000-9000-000000000002".to_owned(),
+            character_ref: "atelier://character/018f7848-1111-7000-9000-000000000002".to_owned(),
+            sheet_version_id: Some("018f7848-1111-7000-9000-000000000201".to_owned()),
+            parent_sheet_version_id: None,
+            sheet_seq: 1,
+            sheet_editor_text: "name: Aria Demo\nrole: production avatar reference\npipelines: CKC albums, Posekit, ComfyUI\nnotes: second selectable sheet proves CKC is a database surface".to_owned(),
+            sheet_version_ref: Some(
+                "atelier://sheet/018f7848-1111-7000-9000-000000000002/018f7848-1111-7000-9000-000000000201".to_owned(),
+            ),
+        },
+    ]
+}
+
+fn slugify_public_id(label: &str, fallback_index: usize) -> String {
+    let mut out = String::new();
+    let mut last_dash = false;
+    for ch in label.chars().flat_map(char::to_lowercase) {
+        if ch.is_ascii_alphanumeric() {
+            out.push(ch);
+            last_dash = false;
+        } else if !last_dash && !out.is_empty() {
+            out.push('-');
+            last_dash = true;
+        }
+    }
+    while out.ends_with('-') {
+        out.pop();
+    }
+    if out.is_empty() {
+        format!("ckc-character-{fallback_index}")
+    } else {
+        out
+    }
+}
+
+fn ckc_character_row_author_id(character_internal_id: &str) -> String {
+    format!("atelier-ckc-character-{character_internal_id}")
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -122,6 +327,10 @@ pub struct AtelierPanel {
     side_panel: Arc<Mutex<AtelierSidePanel>>,
     canvas_board: Arc<Mutex<LoomCanvasBoard>>,
     canvas_events: Arc<Mutex<Vec<CanvasEvent>>>,
+    ckc_client: Option<AtelierClient>,
+    ckc_cell: AtelierCkcCell,
+    ckc_create_cell: AtelierCkcCreateCell,
+    ckc_append_cell: AtelierCkcAppendCell,
 }
 
 impl AtelierPanel {
@@ -130,11 +339,24 @@ impl AtelierPanel {
         canvas_board: Arc<Mutex<LoomCanvasBoard>>,
         canvas_events: Arc<Mutex<Vec<CanvasEvent>>>,
     ) -> Self {
+        Self::with_client(side_panel, canvas_board, canvas_events, None)
+    }
+
+    pub fn with_client(
+        side_panel: Arc<Mutex<AtelierSidePanel>>,
+        canvas_board: Arc<Mutex<LoomCanvasBoard>>,
+        canvas_events: Arc<Mutex<Vec<CanvasEvent>>>,
+        ckc_client: Option<AtelierClient>,
+    ) -> Self {
         Self {
             state: Mutex::new(AtelierPanelState::default()),
             side_panel,
             canvas_board,
             canvas_events,
+            ckc_client,
+            ckc_cell: Arc::new(Mutex::new(None)),
+            ckc_create_cell: Arc::new(Mutex::new(None)),
+            ckc_append_cell: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -245,17 +467,399 @@ impl AtelierPanel {
         );
     }
 
+    fn ensure_ckc_load_requested(&self) {
+        let Some(client) = self.ckc_client.as_ref() else {
+            return;
+        };
+        let should_request = {
+            let Ok(mut state) = self.state.lock() else {
+                return;
+            };
+            if state.ckc_load_requested {
+                false
+            } else {
+                state.ckc_load_requested = true;
+                state.ckc_loading = true;
+                state.ckc_error = None;
+                true
+            }
+        };
+        if should_request {
+            client.fetch_ckc(self.ckc_cell.clone());
+        }
+    }
+
+    fn drain_ckc_backend(&self) {
+        let load_result = self.ckc_cell.lock().ok().and_then(|mut slot| slot.take());
+        if let Some(result) = load_result {
+            if let Ok(mut state) = self.state.lock() {
+                state.ckc_loading = false;
+                match result {
+                    Ok(data) => {
+                        let selected_id = state
+                            .ckc_characters
+                            .get(state.ckc_selected_index)
+                            .map(|row| row.character_internal_id.clone());
+                        state.ckc_characters = data
+                            .characters
+                            .into_iter()
+                            .map(CkcCharacterRecord::from_backend)
+                            .collect();
+                        state.ckc_selected_index = selected_id
+                            .and_then(|id| {
+                                state
+                                    .ckc_characters
+                                    .iter()
+                                    .position(|row| row.character_internal_id == id)
+                            })
+                            .unwrap_or(0);
+                        state.ckc_backend_loaded = true;
+                        state.ckc_error = None;
+                    }
+                    Err(err) => {
+                        state.ckc_backend_loaded = false;
+                        state.ckc_error = Some(err);
+                    }
+                }
+            }
+        }
+
+        let create_result = self
+            .ckc_create_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        let mut refresh_after_create = false;
+        if let Some(result) = create_result {
+            if let Ok(mut state) = self.state.lock() {
+                state.ckc_create_pending = false;
+                match result {
+                    Ok(character) => {
+                        let record = CkcCharacterRecord::from_created_character(character);
+                        let selected_id = record.character_internal_id.clone();
+                        if let Some(existing) = state
+                            .ckc_characters
+                            .iter_mut()
+                            .find(|row| row.character_internal_id == selected_id)
+                        {
+                            *existing = record;
+                        } else {
+                            state.ckc_characters.push(record);
+                        }
+                        state.ckc_selected_index = state
+                            .ckc_characters
+                            .iter()
+                            .position(|row| row.character_internal_id == selected_id)
+                            .unwrap_or(0);
+                        state.ckc_new_display_name = "New character".to_owned();
+                        state.ckc_backend_loaded = true;
+                        state.ckc_loading = self.ckc_client.is_some();
+                        state.ckc_error = None;
+                        refresh_after_create = self.ckc_client.is_some();
+                    }
+                    Err(err) => {
+                        state.ckc_error = Some(err);
+                    }
+                }
+            }
+        }
+        if refresh_after_create {
+            if let Some(client) = self.ckc_client.as_ref() {
+                client.fetch_ckc(self.ckc_cell.clone());
+            }
+        }
+
+        let append_result = self
+            .ckc_append_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        if let Some(result) = append_result {
+            if let Ok(mut state) = self.state.lock() {
+                state.ckc_append_pending = false;
+                match result {
+                    Ok(sheet) => {
+                        let character_internal_id = sheet.character_internal_id.clone();
+                        if let Some(row) = state
+                            .ckc_characters
+                            .iter_mut()
+                            .find(|row| row.character_internal_id == character_internal_id)
+                        {
+                            row.apply_sheet_version(sheet);
+                        }
+                        state.ckc_error = None;
+                    }
+                    Err(err) => {
+                        state.ckc_error = Some(err);
+                    }
+                }
+            }
+        }
+    }
+
     fn show_ckc(&self, ui: &mut egui::Ui, palette: &HsPalette) {
+        self.ensure_ckc_load_requested();
+        self.drain_ckc_backend();
+        let Ok(mut state) = self.state.lock() else {
+            return;
+        };
+        if self.ckc_client.is_none() && state.ckc_characters.is_empty() {
+            state.ckc_characters = seeded_ckc_characters();
+            state.ckc_selected_index = 0;
+        }
         ui.horizontal(|ui| {
-            let left_w = (ui.available_width() * 0.36).clamp(220.0, 360.0);
+            let left_w = (ui.available_width() * 0.34).clamp(240.0, 380.0);
             ui.vertical(|ui| {
                 ui.set_width(left_w);
+                ui.heading(egui::RichText::new("Characters").color(palette.text));
+                if state.ckc_loading {
+                    ui.label(egui::RichText::new("Loading CKC database...").color(palette.text_subtle));
+                }
+                if let Some(error) = &state.ckc_error {
+                    ui.label(egui::RichText::new(format!("CKC backend: {error}")).color(palette.error_text));
+                }
+                let list_response = ui
+                    .vertical(|ui| {
+                        let mut pending_selection = None;
+                        for (idx, character) in state.ckc_characters.iter().enumerate() {
+                            let selected = state.ckc_selected_index == idx;
+                            let row = ui.add(egui::Button::selectable(
+                                selected,
+                                if character.sheet_seq > 0 {
+                                    format!("{}  v{}", character.display_name, character.sheet_seq)
+                                } else {
+                                    format!("{}  no sheet", character.display_name)
+                                },
+                            ));
+                            emit_node(
+                                ui.ctx(),
+                                row.id,
+                                accesskit::Role::Button,
+                                &ckc_character_row_author_id(&character.character_internal_id),
+                                &format!(
+                                    "{} sheet version {}",
+                                    character.display_name, character.sheet_seq
+                                ),
+                                selected,
+                            );
+                            if row.clicked() {
+                                pending_selection = Some(idx);
+                            }
+                        }
+                        if let Some(idx) = pending_selection {
+                            state.ckc_selected_index = idx;
+                        }
+                    })
+                    .response;
+                emit_node(
+                    ui.ctx(),
+                    list_response.id,
+                    accesskit::Role::List,
+                    ATELIER_CKC_CHARACTER_LIST_AUTHOR_ID,
+                    "CKC character database",
+                    false,
+                );
+                ui.separator();
+                ui.horizontal(|ui| {
+                    let create_name = ui.text_edit_singleline(&mut state.ckc_new_display_name);
+                    emit_node(
+                        ui.ctx(),
+                        create_name.id,
+                        accesskit::Role::TextInput,
+                        ATELIER_CKC_CHARACTER_CREATE_NAME_AUTHOR_ID,
+                        "New character display name",
+                        false,
+                    );
+                    let create = ui.button("Create");
+                    emit_node(
+                        ui.ctx(),
+                        create.id,
+                        accesskit::Role::Button,
+                        ATELIER_CKC_CHARACTER_CREATE_AUTHOR_ID,
+                        "Create CKC character",
+                        state.ckc_create_pending,
+                    );
+                    if create.clicked() {
+                        let display_name = state.ckc_new_display_name.trim().to_owned();
+                        if !display_name.is_empty() {
+                            let next = state.ckc_characters.len() + 1;
+                            let public_id = slugify_public_id(&display_name, next);
+                            if let Some(client) = self.ckc_client.as_ref() {
+                                if !state.ckc_create_pending {
+                                    state.ckc_create_pending = true;
+                                    state.ckc_error = None;
+                                    client.create_ckc_character(
+                                        &public_id,
+                                        &display_name,
+                                        ATELIER_CKC_ACTOR_ID,
+                                        self.ckc_create_cell.clone(),
+                                    );
+                                }
+                            } else {
+                                let character_internal_id = Uuid::new_v4().to_string();
+                                state.ckc_characters.push(CkcCharacterRecord {
+                                    public_id,
+                                    display_name: display_name.clone(),
+                                    character_internal_id: character_internal_id.clone(),
+                                    character_ref: format!("atelier://character/{character_internal_id}"),
+                                    sheet_version_id: None,
+                                    parent_sheet_version_id: None,
+                                    sheet_seq: 0,
+                                    sheet_editor_text: format!(
+                                        "name: {display_name}\nrole: reusable character/avatar\npipelines: ComfyUI, Unreal, Blender\nnotes: "
+                                    ),
+                                    sheet_version_ref: None,
+                                });
+                                state.ckc_selected_index = state.ckc_characters.len() - 1;
+                                state.ckc_new_display_name = "New character".to_owned();
+                            }
+                        }
+                    }
+                });
+                ui.separator();
                 if let Ok(mut side_panel) = self.side_panel.lock() {
                     side_panel.show(ui, palette);
                 }
             });
             ui.separator();
             ui.vertical(|ui| {
+                let append_pending = state.ckc_append_pending;
+                let mut pending_append_request: Option<(String, String, Option<String>)> = None;
+                let selected_index = state
+                    .ckc_selected_index
+                    .min(state.ckc_characters.len().saturating_sub(1));
+                state.ckc_selected_index = selected_index;
+                if let Some(character) = state.ckc_characters.get_mut(selected_index) {
+                    let selected_response = ui
+                        .vertical(|ui| {
+                            ui.heading(
+                                egui::RichText::new(&character.display_name).color(palette.text),
+                            );
+                            ui.label(format!("public_id: {}", character.public_id));
+                            if character.sheet_seq > 0 {
+                                ui.label(format!("sheet seq: {}", character.sheet_seq));
+                            } else {
+                                ui.label("sheet seq: no sheet version yet");
+                            }
+                            if let Some(parent) = &character.parent_sheet_version_id {
+                                ui.label(format!("parent_version_id: {parent}"));
+                            }
+                        })
+                        .response;
+                    emit_node(
+                        ui.ctx(),
+                        selected_response.id,
+                        accesskit::Role::Group,
+                        ATELIER_CKC_SELECTED_CHARACTER_AUTHOR_ID,
+                        &format!(
+                            "{} current sheet version {}",
+                            character.display_name, character.sheet_seq
+                        ),
+                        true,
+                    );
+                    ui.add_space(4.0);
+                    let character_ref = character.character_ref();
+                    let character_ref_response = ui.label(format!("character_ref: {character_ref}"));
+                    emit_node(
+                        ui.ctx(),
+                        character_ref_response.id,
+                        accesskit::Role::Label,
+                        ATELIER_CKC_CHARACTER_REF_AUTHOR_ID,
+                        &character_ref,
+                        false,
+                    );
+                    let sheet_ref = character.sheet_atelier_ref();
+                    if let Some(sheet_ref) = &sheet_ref {
+                        debug_assert_eq!(sheet_ref.item_kind, AtelierItemKind::CharacterSheet);
+                    }
+                    let ref_kind = sheet_ref
+                        .as_ref()
+                        .map(|sheet_ref| sheet_ref.ref_kind())
+                        .unwrap_or("character_sheet");
+                    let ref_kind_response = ui.label(format!("hsLink refKind: {ref_kind}"));
+                    emit_node(
+                        ui.ctx(),
+                        ref_kind_response.id,
+                        accesskit::Role::Label,
+                        ATELIER_CKC_TYPED_REF_KIND_AUTHOR_ID,
+                        ref_kind,
+                        false,
+                    );
+                    let sheet_version_ref = character
+                        .sheet_version_ref()
+                        .unwrap_or_else(|| "pending-first-sheet-version".to_owned());
+                    let sheet_ref_response = ui.label(format!("sheet_version_ref: {sheet_version_ref}"));
+                    emit_node(
+                        ui.ctx(),
+                        sheet_ref_response.id,
+                        accesskit::Role::Label,
+                        ATELIER_CKC_SHEET_VERSION_REF_AUTHOR_ID,
+                        &sheet_version_ref,
+                        false,
+                    );
+                    ui.add_space(8.0);
+                    let editor = ui.add(
+                        egui::TextEdit::multiline(&mut character.sheet_editor_text)
+                            .desired_rows(11)
+                            .lock_focus(true),
+                    );
+                    emit_node(
+                        ui.ctx(),
+                        editor.id,
+                        accesskit::Role::TextInput,
+                        ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID,
+                        "CKC character sheet editor",
+                        false,
+                    );
+                    let save = ui.button("Append sheet version");
+                    emit_node(
+                        ui.ctx(),
+                        save.id,
+                        accesskit::Role::Button,
+                        ATELIER_CKC_SHEET_SAVE_AUTHOR_ID,
+                        "Append CKC sheet version",
+                        append_pending,
+                    );
+                    if save.clicked() {
+                        if self.ckc_client.is_some() {
+                            if !append_pending {
+                                pending_append_request = Some((
+                                    character.character_internal_id.clone(),
+                                    character.sheet_editor_text.clone(),
+                                    character.sheet_version_id.clone(),
+                                ));
+                            }
+                        } else {
+                            character.parent_sheet_version_id = character.sheet_version_id.clone();
+                            let next_sheet_version_id = Uuid::new_v4().to_string();
+                            character.sheet_version_id = Some(next_sheet_version_id.clone());
+                            character.sheet_seq += 1;
+                            character.sheet_version_ref = Some(format!(
+                                "atelier://sheet/{}/{}",
+                                character.character_internal_id, next_sheet_version_id
+                            ));
+                        }
+                    }
+                } else {
+                    ui.label(egui::RichText::new("No CKC characters yet").color(palette.text_subtle));
+                }
+                if let Some((character_internal_id, raw_text, expected_parent_version_id)) =
+                    pending_append_request
+                {
+                    if let Some(client) = self.ckc_client.as_ref() {
+                        state.ckc_append_pending = true;
+                        state.ckc_error = None;
+                        client.append_ckc_sheet_version(
+                            &character_internal_id,
+                            &raw_text,
+                            expected_parent_version_id.as_deref(),
+                            Some("handshake-native-atelier"),
+                            ATELIER_CKC_ACTOR_ID,
+                            self.ckc_append_cell.clone(),
+                        );
+                    }
+                }
+                ui.separator();
                 ui.heading(egui::RichText::new("Moodboard").color(palette.text));
                 ui.add_space(4.0);
                 let mut event = None;
@@ -474,8 +1078,34 @@ impl AtelierPanelPaneMount {
         palette: SharedPalette,
         canvas_events: Arc<Mutex<Vec<CanvasEvent>>>,
     ) -> Self {
+        Self::with_optional_client(side_panel, canvas_board, palette, canvas_events, None)
+    }
+
+    pub fn with_client(
+        side_panel: Arc<Mutex<AtelierSidePanel>>,
+        canvas_board: Arc<Mutex<LoomCanvasBoard>>,
+        palette: SharedPalette,
+        canvas_events: Arc<Mutex<Vec<CanvasEvent>>>,
+        ckc_client: AtelierClient,
+    ) -> Self {
+        Self::with_optional_client(
+            side_panel,
+            canvas_board,
+            palette,
+            canvas_events,
+            Some(ckc_client),
+        )
+    }
+
+    fn with_optional_client(
+        side_panel: Arc<Mutex<AtelierSidePanel>>,
+        canvas_board: Arc<Mutex<LoomCanvasBoard>>,
+        palette: SharedPalette,
+        canvas_events: Arc<Mutex<Vec<CanvasEvent>>>,
+        ckc_client: Option<AtelierClient>,
+    ) -> Self {
         Self {
-            panel: AtelierPanel::new(side_panel, canvas_board, canvas_events),
+            panel: AtelierPanel::with_client(side_panel, canvas_board, canvas_events, ckc_client),
             palette,
         }
     }

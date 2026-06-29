@@ -10,7 +10,8 @@ use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 use super::{
-    event_family, reject_legacy_runtime_ref, AtelierResult, AtelierStore, BulkOperationReceipt,
+    AtelierResult, AtelierStore, BulkOperationReceipt, character_ref, event_family,
+    reject_legacy_runtime_ref, sheet_version_ref,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -31,6 +32,17 @@ pub struct NewSheetVersion {
     pub raw_text: String,
     pub author: String,
     pub tool: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SheetFieldSuggestion {
+    pub field_id: String,
+    pub value: String,
+    pub occurrences: i64,
+    pub latest_version_id: Uuid,
+    pub latest_character_internal_id: Uuid,
+    pub latest_sheet_version_ref: String,
+    pub latest_character_ref: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -925,7 +937,7 @@ struct FieldTypeInference {
     editable_roles: Vec<String>,
 }
 
-fn sha256_hex(text: &str) -> String {
+pub(crate) fn sha256_hex(text: &str) -> String {
     format!("{:x}", Sha256::digest(text.as_bytes()))
 }
 
@@ -1056,6 +1068,29 @@ fn split_field_line(line: &str) -> Option<(String, String, String)> {
     } else {
         None
     }
+}
+
+fn field_value_for_suggestion(raw_text: &str, target_field_id: &str) -> Option<String> {
+    for line in raw_text.lines().map(str::trim) {
+        let Some((field_id, _, value)) = split_field_line(line) else {
+            continue;
+        };
+        if field_id.eq_ignore_ascii_case(target_field_id) {
+            return normalize_field_suggestion_value(&value);
+        }
+    }
+    None
+}
+
+fn normalize_field_suggestion_value(value: &str) -> Option<String> {
+    let value = value.trim();
+    if value.is_empty() || value.len() > 500 {
+        return None;
+    }
+    if value.starts_with('<') && value.ends_with('>') {
+        return None;
+    }
+    Some(value.to_owned())
 }
 
 fn validate_template_descriptor(
@@ -1549,7 +1584,7 @@ fn parse_field_type(descriptor: &str) -> FieldTypeInference {
     }
 }
 
-fn parse_sheet_template_ast(
+pub(crate) fn parse_sheet_template_ast(
     raw_text: &str,
     template_id: &str,
     source_path: Option<&str>,
@@ -1759,9 +1794,61 @@ impl AtelierStore {
         .await
     }
 
+    async fn record_sheet_version_conflict(
+        &self,
+        new: &NewSheetVersion,
+        expected_parent_version_id: Option<Uuid>,
+        current_parent_version_id: Option<Uuid>,
+    ) -> AtelierResult<()> {
+        self.record_event(
+            event_family::SHEET_VERSION_CONFLICT,
+            "atelier_sheet_version",
+            &format!("{}:conflict", character_ref(new.character_internal_id)),
+            serde_json::json!({
+                "reason_code": "stale_sheet_version",
+                "character_internal_id": new.character_internal_id,
+                "character_ref": character_ref(new.character_internal_id),
+                "expected_parent_version_id": expected_parent_version_id,
+                "expected_parent_sheet_version_ref": expected_parent_version_id
+                    .map(|id| sheet_version_ref(new.character_internal_id, id)),
+                "expected_sheet_version_ref": expected_parent_version_id
+                    .map(|id| sheet_version_ref(new.character_internal_id, id)),
+                "current_head_version_id": current_parent_version_id,
+                "current_head_sheet_version_ref": current_parent_version_id
+                    .map(|id| sheet_version_ref(new.character_internal_id, id)),
+                "current_parent_version_id": current_parent_version_id,
+                "current_sheet_version_ref": current_parent_version_id
+                    .map(|id| sheet_version_ref(new.character_internal_id, id)),
+                "author": &new.author,
+                "tool": &new.tool,
+            }),
+        )
+        .await
+    }
+
     /// Append a new sheet version. Computes the next sequence number and links
     /// to the previous head as parent; never overwrites an existing version.
     pub async fn append_sheet_version(&self, new: &NewSheetVersion) -> AtelierResult<SheetVersion> {
+        self.append_sheet_version_with_guard(new, None).await
+    }
+
+    /// Append a new sheet version only if the caller's selected base version is
+    /// still the current head. `expected_parent_version_id = None` means the
+    /// caller expects this to be the first sheet version for the character.
+    pub async fn append_sheet_version_if_current(
+        &self,
+        new: &NewSheetVersion,
+        expected_parent_version_id: Option<Uuid>,
+    ) -> AtelierResult<SheetVersion> {
+        self.append_sheet_version_with_guard(new, Some(expected_parent_version_id))
+            .await
+    }
+
+    async fn append_sheet_version_with_guard(
+        &self,
+        new: &NewSheetVersion,
+        expected_parent_version_id: Option<Option<Uuid>>,
+    ) -> AtelierResult<SheetVersion> {
         let mut tx = self.pool().begin().await?;
         let seq_lock_key = format!("atelier_sheet_version_seq:{}", new.character_internal_id);
         sqlx::query(
@@ -1784,6 +1871,21 @@ impl AtelierStore {
         .bind(new.character_internal_id)
         .fetch_optional(&mut *tx)
         .await?;
+        if let Some(expected_parent_version_id) = expected_parent_version_id {
+            if parent_version_id != expected_parent_version_id {
+                tx.rollback().await?;
+                self.record_sheet_version_conflict(
+                    new,
+                    expected_parent_version_id,
+                    parent_version_id,
+                )
+                .await?;
+                return Err(super::AtelierError::Conflict(format!(
+                    "stale_sheet_version: expected parent {:?}, current head {:?}",
+                    expected_parent_version_id, parent_version_id
+                )));
+            }
+        }
 
         let row = sqlx::query(
             r#"INSERT INTO atelier_sheet_version
@@ -1822,6 +1924,23 @@ impl AtelierStore {
         Ok(version)
     }
 
+    /// Fetch one sheet version by id.
+    pub async fn get_sheet_version(&self, version_id: Uuid) -> AtelierResult<SheetVersion> {
+        let row = sqlx::query(
+            r#"SELECT version_id, character_internal_id, parent_version_id, seq,
+                      raw_text, author, tool, created_at_utc
+               FROM atelier_sheet_version
+               WHERE version_id = $1"#,
+        )
+        .bind(version_id)
+        .fetch_optional(self.pool())
+        .await?
+        .ok_or_else(|| {
+            super::AtelierError::NotFound(format!("sheet version version_id={version_id}"))
+        })?;
+        Ok(version_from_row(&row))
+    }
+
     /// The current (highest-seq) sheet version for a character, if any.
     pub async fn latest_sheet_version(
         &self,
@@ -1856,6 +1975,58 @@ impl AtelierStore {
         .fetch_all(self.pool())
         .await?;
         Ok(rows.iter().map(version_from_row).collect())
+    }
+
+    /// Recent distinct values for one parsed Field ID. This mirrors original
+    /// CKC field memory: suggestions are exact-field scoped, never auto-filled,
+    /// and ignore template placeholder descriptors such as `<string>`.
+    pub async fn sheet_field_suggestions(
+        &self,
+        field_id: &str,
+        limit: i64,
+    ) -> AtelierResult<Vec<SheetFieldSuggestion>> {
+        let field_id = field_id.trim();
+        if field_id.is_empty() {
+            return Err(super::AtelierError::Validation(
+                "field_id must not be empty".to_string(),
+            ));
+        }
+        let limit = limit.clamp(1, 50) as usize;
+        let rows = sqlx::query(
+            r#"SELECT version_id, character_internal_id, raw_text
+               FROM atelier_sheet_version
+               ORDER BY created_at_utc DESC, seq DESC
+               LIMIT 2000"#,
+        )
+        .fetch_all(self.pool())
+        .await?;
+
+        let mut suggestions = Vec::<SheetFieldSuggestion>::new();
+        let mut value_index = HashMap::<String, usize>::new();
+        for row in rows {
+            let raw_text: String = row.get("raw_text");
+            let Some(value) = field_value_for_suggestion(&raw_text, field_id) else {
+                continue;
+            };
+            if let Some(index) = value_index.get(&value).copied() {
+                suggestions[index].occurrences += 1;
+                continue;
+            }
+            let version_id: Uuid = row.get("version_id");
+            let character_internal_id: Uuid = row.get("character_internal_id");
+            value_index.insert(value.clone(), suggestions.len());
+            suggestions.push(SheetFieldSuggestion {
+                field_id: field_id.to_string(),
+                value,
+                occurrences: 1,
+                latest_version_id: version_id,
+                latest_character_internal_id: character_internal_id,
+                latest_sheet_version_ref: sheet_version_ref(character_internal_id, version_id),
+                latest_character_ref: character_ref(character_internal_id),
+            });
+        }
+        suggestions.truncate(limit);
+        Ok(suggestions)
     }
 
     /// Parse one append-only sheet version into a typed template AST snapshot.

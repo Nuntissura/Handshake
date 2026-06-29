@@ -1,0 +1,981 @@
+CHARACTER SHEET — (v2.00)
+
+World-agnostic. Story-agnostic.
+Supports explicit adult NSFW, romance, intimacy, fade-to-black, AU, roleplay, and SFW by configuration.
+Descriptors MUST always stay on the same line as their ID.
+
+DATA QUALITY RULES
+CHAR-DQR-001 — Descriptor_Standard: <rule> (If typed as <descriptor>, value MUST be 2–12 plain words; no metaphors; no paragraphs.)
+CHAR-DQR-002 — List_Standard: <rule> (Lists MUST be atomic; each item SHOULD be 1 short clause.)
+CHAR-DQR-003 — Enum_Standard: <rule> (Enum fields MUST use exactly one listed value; else "unknown".)
+CHAR-DQR-004 — Optionality_Standard: <rule> (If unknown, omit optional fields; do NOT invent.)
+CHAR-DQR-005 — Blocks_Standard: <rule> (Block lists MUST repeat defined block schema; extra keys not allowed.)
+CHAR-DQR-006 — Score_10_Standard: <rule> (If typed as <score_10>, value MUST be "x/10" where x MUST be an integer 0..10.)
+
+IDENTITY
+CHAR-ID-001 — Character_ID: <string>
+CHAR-ID-002 — Name: <string>
+CHAR-ID-002A — Real_Name: <string | unset>
+CHAR-ID-002B — Stage_Name: <string | unset>
+CHAR-ID-002C — Nickname(s): <list | optional>
+CHAR-ID-002D — Term_of_Endearment (Koosnaam): <list | optional>
+CHAR-ID-003 — Age: <integer | adult>
+CHAR-ID-004 — Fictional_Status: <fictional | original | composite>
+CHAR-ID-005 — Affiliation / Group: <string | none>
+CHAR-ID-006 — Primary_Role: <string>
+CHAR-ID-007 — Secondary_Roles: <list | optional>
+
+TEMPORAL TRACKING (OPTIONAL)
+CHAR-TIME-001 — Time_Model: <normal | immortal | time-traveler | cryosleep | reincarnated | other:<string> | unknown>
+CHAR-TIME-002 — Chronological_Age_Years: <integer | optional>
+CHAR-TIME-003 — Biological_Age_Years: <integer | optional>
+CHAR-TIME-004 — Apparent_Age_Years: <integer | optional>
+CHAR-TIME-005 — Age_Presentation: <adult-coded | ambiguous | unknown>
+CHAR-TIME-006 — Time_Anomaly_Tags: <list | optional>
+CHAR-TIME-007 — Time_Anomaly_Notes: <paragraph | optional>
+
+WORK & OCCUPATION
+CHAR-WRK-001 — Official_Occupation_Title: <string | optional>
+CHAR-WRK-002 — Official_Employer_Org: <string | optional>
+CHAR-WRK-003 — Occupation_Domain: <string | optional>
+CHAR-WRK-004 — Employment_Status: <employed | self-employed | student | unemployed | retired | unknown>
+CHAR-WRK-005 — Income_Mode: <salary | hourly | contract | tips | mixed | unknown | optional>
+CHAR-WRK-006 — Side_Hustles_Model: <disabled | enabled>
+CHAR-WRK-007 — Side_Hustles: <list of Hustle_Block | optional>
+
+Hustle_Block
+HUS-BLK-001 — Hustle_Name: <string>
+HUS-BLK-002 — Hustle_Type: <creative | service | online | trading | gig | other:<string> | unknown>
+HUS-BLK-003 — Time_Commitment: <score_10 | optional>
+HUS-BLK-004 — Visibility: <hidden | subtle | public | unknown>
+HUS-BLK-005 — Motivation: <list | optional>
+HUS-BLK-006 — Notes: <descriptor | optional>
+
+ORIGINS & LEGAL / CULTURAL IDENTITY
+CHAR-ORG-001 — Birthplace: <string | optional> (city/region/country)
+CHAR-ORG-002 — Raised_In: <list | optional>
+CHAR-ORG-003 — Ethnic_Background: <list | optional>
+CHAR-ORG-004 — Ancestry_Notes: <descriptor | optional>
+CHAR-ORG-005 — Citizen_Of: <list | optional>
+CHAR-ORG-006 — Residency_Status: <citizen | permanent_resident | temporary_resident | undocumented | unknown | optional>
+CHAR-ORG-007 — Current_Base: <string | optional>
+CHAR-ORG-008 — Cultural_Affiliations: <list | optional>
+
+ARCHETYPAL / SYMBOLIC TAGS (OPTIONAL)
+CHAR-ARCHE-001 — Animal_Comparison_Model: <disabled | enabled>
+CHAR-ARCHE-002 — Animal_Comparisons: <list of Animal_Comparison_Block | optional>
+CHAR-ARCHE-010 — Zodiac_Model: <disabled | enabled>
+CHAR-ARCHE-011 — Zodiac_Systems: <list of Zodiac_Block | optional>
+
+Animal_Comparison_Block
+ANM-BLK-001 — Animal: <string>
+ANM-BLK-002 — Match_Strength: <weak | medium | strong | iconic | unknown>
+ANM-BLK-003 — Aspect: <appearance | movement | vibe | behavior | mixed | unknown>
+ANM-BLK-004 — Why: <descriptor | optional>
+
+Zodiac_Block
+ZOD-BLK-001 — System: <western | chinese | vedic | mayan | other:<string> | unknown>
+ZOD-BLK-002 — Sign_Label: <string>
+ZOD-BLK-003 — Element_Modifier: <string | optional>
+ZOD-BLK-004 — Rising_Moon_Notes: <list | optional>
+ZOD-BLK-005 — Relevance: <cosmetic | personality-hook | plot-hook | unknown>
+
+BELIEF & RELIGION (OPTIONAL)
+CHAR-BEL-001 — Religion_Model: <disabled | enabled>
+CHAR-BEL-002 — Religion_Affiliation: <string | none | unknown>
+CHAR-BEL-003 — Denomination_Sect: <string | optional>
+CHAR-BEL-004 — Practice_Level: <nonpracticing | casual | observant | devout | unknown>
+CHAR-BEL-005 — Spirituality_Style: <traditional | mystical | secular | syncretic | skeptical | unknown>
+CHAR-BEL-006 — Religious_Constraints: <list | optional>
+CHAR-BEL-007 — Public_vs_Private_Faith: <private | balanced | public | unknown>
+
+LANGUAGE PROFILE (BLOCKS)
+CHAR-LANG-001 — Languages_Model: <disabled | enabled>
+CHAR-LANG-002 — Languages: <list of Language_Block | optional>
+
+Language_Block
+LAN-BLK-001 — Language: <string>
+LAN-BLK-002 — Proficiency_Speaking: <score_10 | optional>
+LAN-BLK-003 — Proficiency_Listening: <score_10 | optional>
+LAN-BLK-004 — Proficiency_Reading: <score_10 | optional>
+LAN-BLK-005 — Proficiency_Writing: <score_10 | optional>
+LAN-BLK-006 — Accent_Dialect: <string | optional>
+LAN-BLK-007 — Code_Switching_Tendency: <low | medium | high | unknown | optional>
+LAN-BLK-008 — Voice_Tells_When_Stressed: <list | optional>
+
+AUDIENCE & FOLLOWING (OPTIONAL)
+CHAR-AUD-001 — Audience_Model: <disabled | enabled>
+CHAR-AUD-002 — Public_Figure_Type: <none | celebrity | influencer | religious-leader | political | other:<string> | unknown>
+CHAR-AUD-003 — Fandom_Name_Primary: <string | optional>
+CHAR-AUD-004 — Fandom_Names_Alt: <list | optional>
+CHAR-AUD-005 — Follower_Group_Name: <string | optional>
+CHAR-AUD-006 — Audience_Size_Estimate: <string | optional>
+CHAR-AUD-007 — Audience_Loyalty: <score_10 | optional>
+CHAR-AUD-008 — Audience_Tone: <supportive | intense | volatile | mixed | unknown>
+CHAR-AUD-009 — Audience_Interaction_Mode: <distant | occasional | frequent | parasocial-heavy | unknown>
+
+FAMILY & KIN (BLOCKS)
+CHAR-FAM-001 — Family_Model: <disabled | enabled>
+CHAR-FAM-002 — Parent_Names_And_Ethnicity: <list of Parent_Min_Block | optional>
+CHAR-FAM-003 — Siblings: <list of Sibling_Block | optional>
+CHAR-FAM-004 — Notable_Family_Members: <list of Family_Member_Block | optional>
+
+Parent_Min_Block
+PFM-BLK-001 — Parent_Label: <mother | father | guardian | adoptive_parent | unknown>
+PFM-BLK-002 — Parent_Name: <string | unknown>
+PFM-BLK-003 — Parent_Character_ID: <string | unset | unknown>
+PFM-BLK-004 — Parent_Ethnic_Background: <list | optional>
+
+Sibling_Block
+SIB-BLK-001 — Sibling_Name: <string | unknown>
+SIB-BLK-002 — Sibling_Character_ID: <string | unset | unknown>
+SIB-BLK-003 — Sibling_Type: <older | younger | twin | unknown>
+SIB-BLK-004 — Relationship_Quality: <close | complicated | distant | hostile | unknown>
+SIB-BLK-005 — Notability_Tag: <none | plot-relevant | famous | dangerous | missing | deceased | unknown>
+SIB-BLK-006 — Notes: <descriptor | optional>
+
+Family_Member_Block
+FMB-BLK-001 — Relation: <grandparent | aunt_uncle | cousin | in-law | step-family | other | unknown>
+FMB-BLK-002 — Name: <string | unknown>
+FMB-BLK-003 — Character_ID: <string | unset | unknown>
+FMB-BLK-004 — Relationship_Quality: <close | complicated | distant | hostile | unknown>
+FMB-BLK-005 — Why_Notable: <descriptor | optional>
+FMB-BLK-006 — Visibility_In_Life: <present | occasional | absent | unknown>
+
+SOCIAL GRAPH (BLOCKS)
+CHAR-SOCG-001 — Social_Graph_Model: <disabled | enabled>
+CHAR-SOCG-002 — Allies: <list of Social_Link_Block | optional>
+CHAR-SOCG-003 — Rivals: <list of Social_Link_Block | optional>
+CHAR-SOCG-004 — Enemies: <list of Social_Link_Block | optional>
+CHAR-SOCG-005 — Mentors: <list of Social_Link_Block | optional>
+CHAR-SOCG-006 — Dependents: <list of Social_Link_Block | optional>
+CHAR-SOCG-010 — Social_Link_ID_Rule: <rule> (If target has a sheet, Target_Character_ID MUST equal that sheet’s CHAR-ID-001; else use "unset" or "unknown".)
+
+Social_Link_Block
+SLK-BLK-001 — Target_Name: <string | unknown>
+SLK-BLK-002 — Target_Character_ID: <string | unset | unknown>
+SLK-BLK-003 — Link_Type: <ally | rival | enemy | mentor | dependent | other:<string> | unknown>
+SLK-BLK-004 — Intensity: <score_10 | optional>
+SLK-BLK-005 — Contact_Frequency: <daily | weekly | monthly | rare | none | unknown>
+SLK-BLK-006 — Conflict_Source: <descriptor | optional>
+SLK-BLK-007 — Leverage: <list | optional>
+SLK-BLK-008 — Public_Visibility: <hidden | subtle | obvious | unknown>
+SLK-BLK-009 — Notes: <descriptor | optional>
+
+BACKGROUND & CONTEXT
+CHAR-BKG-001 — Origin_Summary: <paragraph>
+CHAR-BKG-002 — Upbringing_Context: <paragraph | optional>
+CHAR-BKG-003 — Formative_Events: <list | optional>
+CHAR-BKG-004 — Education_Training: <paragraph | optional>
+CHAR-BKG-005 — Career_Path_Summary: <paragraph | optional>
+CHAR-BKG-006 — Current_Life_Context: <paragraph>
+CHAR-BKG-007 — Current_Constraints: <list | optional>
+CHAR-BKG-008 — Core_Values: <list | optional>
+CHAR-BKG-009 — Short_Term_Goals: <list | optional>
+CHAR-BKG-010 — Long_Term_Goals: <list | optional>
+CHAR-BKG-011 — Secrets_Contradictions: <list | optional>
+CHAR-BKG-012 — Stress_Coping_Methods: <list | optional>
+
+PHYSICAL PROFILE
+CHAR-PHY-001 — Build: <slim | athletic | curvy | muscular | stocky | mixed | other:<descriptor> | unknown>
+CHAR-PHY-002 — Primary_Visual_Anchors: <list of Visual_Anchor_Block | optional>
+CHAR-PHY-003 — Movement_Quality: <graceful | sharp | heavy | bouncy | controlled | restless | other:<descriptor> | unknown>
+CHAR-PHY-004 — Clothing_Tension_Points: <list | optional>
+CHAR-PHY-005 — Stamina_Profile: <low | medium | high | exceptional | unknown>
+CHAR-PHY-006 — Physical_Durability: <low | medium | high | unknown>
+
+Visual_Anchor_Block
+VAN-BLK-001 — Anchor_Label: <string>
+VAN-BLK-002 — Category: <face | hair | body | style | motion | other>
+VAN-BLK-003 — Prominence: <subtle | noticeable | defining | unknown>
+VAN-BLK-004 — Stability: <stable | changes-often | scene-dependent | unknown>
+VAN-BLK-005 — Notes: <descriptor | optional>
+
+DEXTERITY & COORDINATION
+CHAR-DEX-001 — Handedness: <right | left | ambidextrous | unknown>
+CHAR-DEX-002 — Manual_Dexterity: <clumsy | average | handy | precise | unknown>
+CHAR-DEX-003 — Fine_Motor_Control: <low | medium | high | unknown>
+CHAR-DEX-004 — Gross_Motor_Coordination: <low | medium | high | unknown>
+CHAR-DEX-005 — Balance_Stability: <low | medium | high | unknown>
+CHAR-DEX-006 — Spatial_Awareness: <low | medium | high | unknown>
+CHAR-DEX-007 — Tool_Competence: <low | medium | high | unknown>
+CHAR-DEX-008 — Typical_Accidents: <list | optional>
+CHAR-DEX-009 — Signature_Competence_Tells: <list | optional>
+
+HEALTH & DISABILITY (OPTIONAL)
+CHAR-HLT-001 — Health_Model: <disabled | enabled>
+CHAR-HLT-002 — Conditions: <list of Condition_Block | optional>
+CHAR-HLT-003 — Meds_And_Aids: <list of Support_Block | optional>
+CHAR-HLT-004 — Accessibility_Needs: <list | optional>
+CHAR-HLT-005 — Pain_Fatigue_Baseline: <score_10 | optional>
+
+Condition_Block
+HLT-BLK-001 — Condition_Label: <string>
+HLT-BLK-002 — Category: <chronic | acute | disability | neurodivergence | mental-health | other | unknown>
+HLT-BLK-003 — Visibility: <invisible | sometimes-visible | visible | unknown>
+HLT-BLK-004 — Severity: <score_10 | optional>
+HLT-BLK-005 — Onset: <childhood | teen | adult | recent | unknown>
+HLT-BLK-006 — Limitations: <list | optional>
+HLT-BLK-007 — Triggers: <list | optional>
+HLT-BLK-008 — Mitigations: <list | optional>
+
+Support_Block
+SUP-BLK-001 — Support_Label: <string>
+SUP-BLK-002 — Frequency: <daily | situational | rare | unknown>
+SUP-BLK-003 — Effect: <descriptor | optional>
+
+KINEMATICS & GAIT (IMAGE/ANIMATION)
+CHAR-KIN-001 — Walk_Style: <glide | strut | bounce | sway | stomp | slink | athletic | clumsy | mixed | unknown>
+CHAR-KIN-002 — Step_Cadence: <slow | medium | fast | variable | unknown>
+CHAR-KIN-003 — Hip_Sway_Amplitude: <none | subtle | moderate | pronounced | unknown>
+CHAR-KIN-004 — Hip_Tilt_During_Walk: <neutral | left-dominant | right-dominant | variable | unknown>
+CHAR-KIN-005 — Pelvic_Tilt_Resting: <anterior | neutral | posterior | unknown>
+CHAR-KIN-006 — Hip_Posterior_Projection: <minimal | moderate | prominent | unknown>
+CHAR-KIN-007 — Shoulder_Swing: <none | subtle | moderate | pronounced | unknown>
+CHAR-KIN-008 — Posture_Default: <upright | relaxed | slouched | arched | mixed | unknown>
+CHAR-KIN-009 — Signature_Walk_Tells: <list | optional>
+
+SENSORY PRIORITY (OPTIONAL)
+CHAR-SENS-001 — Primary_Sensory_Input: <visual | auditory | kinesthetic | olfactory | mixed | unknown>
+CHAR-SENS-002 — Secondary_Sensory_Input: <visual | auditory | kinesthetic | olfactory | none | unknown>
+CHAR-SENS-003 — Sensory_Attention_Mode: <macro | detail | threat-scan | aesthetic | social-read | unknown>
+CHAR-SENS-004 — First_Noticed_In_Room: <light | smell | sound | people | exits | objects | unknown>
+
+APPEARANCE DETAILS
+CHAR-APP-001 — Skin_Type: <oily | dry | combo | normal | sensitive | mixed | unknown>
+CHAR-APP-002 — Skin_Undertone: <cool | warm | neutral | olive | mixed | unknown>
+CHAR-APP-003 — Skin_Finish_Under_Lights: <matte | satin | glossy | varies | unknown>
+CHAR-APP-004 — Distinguishing_Features: <list of Feature_Block | optional>
+CHAR-APP-005 — Eye_Color: <string | unknown>
+CHAR-APP-006 — Hair_Color_Natural: <string | unknown>
+CHAR-APP-007 — Hair_Color_Current: <string | unknown>
+CHAR-APP-008 — Hair_Style_Default: <descriptor | optional>
+CHAR-APP-009 — Body_Hair_Distribution: <list | optional>
+CHAR-APP-010 — Grooming_General: <descriptor | optional>
+CHAR-APP-011 — Belly_Button_Type: <innie | outie | shallow | deep | unknown>
+CHAR-APP-012 — Belly_Button_Piercing: <none | present | unknown>
+
+Feature_Block
+FT-BLK-001 — Feature_Type: <face | skin | teeth | posture | voice | scent | other>
+FT-BLK-002 — Feature_Label: <string>
+FT-BLK-003 — Location: <string | optional>
+FT-BLK-004 — Prominence: <subtle | noticeable | defining | unknown>
+FT-BLK-005 — ImageGen_Use: <include | avoid | optional | unknown>
+FT-BLK-006 — Notes: <descriptor | optional>
+
+HAIR STYLING (PREFERENCES)
+CHAR-HAIR-001 — Preferred_Hair_Do_Default: <descriptor | optional>
+CHAR-HAIR-002 — Preferred_Hair_Do_Up: <descriptor | optional>
+CHAR-HAIR-003 — Preferred_Hair_Do_Down: <descriptor | optional>
+CHAR-HAIR-004 — Bangs_Preference: <none | wispy | blunt | curtain | side-swept | unknown>
+CHAR-HAIR-005 — Part_Preference: <center | side | variable | unknown>
+CHAR-HAIR-006 — Styling_Tools_Habit: <none | occasional | frequent | daily | unknown>
+CHAR-HAIR-007 — Hair_Accessories: <list | optional>
+
+FACE PROFILE (IMAGE-GEN READY)
+CHAR-FACE-001 — Face_Profile_Model: <disabled | enabled>
+CHAR-FACE-002 — Face_Profile: <Face_Profile_Block | optional>
+CHAR-EYE-001 — Eye_Profile: <Eye_Profile_Block | optional>
+CHAR-NOSE-001 — Nose_Profile: <Nose_Profile_Block | optional>
+CHAR-MOUTH-001 — Mouth_Profile: <Mouth_Profile_Block | optional>
+
+Face_Profile_Block
+FCE-BLK-001 — Face_Shape: <oval | heart | round | square | diamond | long | mixed | unknown>
+FCE-BLK-002 — Forehead_Height: <low | medium | high | unknown>
+FCE-BLK-003 — Forehead_Width: <narrow | medium | wide | unknown>
+FCE-BLK-004 — Cheekbones: <subtle | defined | sharp | unknown>
+FCE-BLK-005 — Jawline: <soft | defined | sharp | unknown>
+FCE-BLK-006 — Chin: <small | medium | prominent | unknown>
+FCE-BLK-007 — Chin_Shape: <rounded | pointed | squared | cleft | unknown>
+FCE-BLK-008 — Symmetry: <high | medium | low | unknown>
+FCE-BLK-009 — Resting_Expression: <descriptor | optional>
+FCE-BLK-010 — Distinct_Face_Anchors: <list | optional>
+
+Eye_Profile_Block
+EYE-BLK-001 — Eye_Shape: <almond | round | hooded | monolid | downturned | upturned | mixed | unknown>
+EYE-BLK-002 — Eye_Size: <small | medium | large | unknown>
+EYE-BLK-003 — Canthal_Tilt: <negative | neutral | positive | unknown>
+EYE-BLK-004 — Iris_Notes: <descriptor | optional>
+EYE-BLK-005 — Sclera_Clarity: <clear | veined | unknown>
+EYE-BLK-006 — Lashes: <short | medium | long | enhanced | unknown>
+EYE-BLK-007 — Brows_Thickness: <thin | medium | thick | unknown>
+EYE-BLK-008 — Brows_Shape: <straight | arched | soft-angled | rounded | unknown>
+
+Nose_Profile_Block
+NOS-BLK-001 — Bridge_Height: <low | medium | high | unknown>
+NOS-BLK-002 — Nose_Length: <short | medium | long | unknown>
+NOS-BLK-003 — Tip_Shape: <upturned | straight | downturned | defined | bulbous | unknown>
+NOS-BLK-004 — Nostrils: <narrow | medium | wide | unknown>
+
+Mouth_Profile_Block
+MTH-BLK-001 — Lip_Fullness: <thin | medium | full | unknown>
+MTH-BLK-002 — Cupid_Bow: <defined | soft | flat | unknown>
+MTH-BLK-003 — Smile_Type: <subtle | wide | asymmetrical | dimpled | unknown>
+MTH-BLK-004 — Teeth_Notes: <descriptor | optional>
+
+MARKS MODEL (FRECKLES / MOLES / SCARS / ETC.)
+CHAR-MARK-001 — Marks_Model: <disabled | enabled>
+CHAR-MARK-002 — Marks: <list of Mark_Block | optional>
+
+Mark_Block
+MRK-BLK-001 — Mark_Type: <freckle_cluster | mole | scar | birthmark | stretchmark | tattoo | other>
+MRK-BLK-002 — Location: <string>
+MRK-BLK-003 — Size_mm: <integer | optional>
+MRK-BLK-004 — Color: <string | optional>
+MRK-BLK-005 — Texture: <flat | raised | indented | mixed | unknown>
+MRK-BLK-006 — Prominence: <subtle | noticeable | defining | unknown>
+MRK-BLK-007 — Visibility_Under_Light: <low | medium | high | unknown>
+MRK-BLK-008 — Meaning_Story: <string | optional>
+
+BODY MEASUREMENTS (ATOMIC)
+CHAR-MEAS-001 — Height_cm: <integer | optional>
+CHAR-MEAS-002 — Weight_kg: <integer | optional>
+CHAR-MEAS-003 — Shoulder_Width_cm: <integer | optional>
+CHAR-MEAS-004 — Chest_Circumference_cm: <integer | optional>
+CHAR-MEAS-005 — Waist_Circumference_cm: <integer | optional>
+CHAR-MEAS-006 — Hip_Circumference_cm: <integer | optional>
+CHAR-MEAS-007 — Inseam_cm: <integer | optional>
+CHAR-MEAS-008 — Neck_Circumference_cm: <integer | optional>
+CHAR-MEAS-009 — Thigh_Circumference_cm: <integer | optional>
+CHAR-MEAS-010 — Calf_Circumference_cm: <integer | optional>
+CHAR-MEAS-011 — Hand_Size: <small | average | large | unknown>
+CHAR-MEAS-012 — Shoe_Size_EU: <integer | optional>
+CHAR-MEAS-013 — Proportions_Notes: <list of Proportion_Block | optional>
+
+Proportion_Block
+PRP-BLK-001 — Region: <torso | legs | arms | shoulders | hips | chest | waist | other>
+PRP-BLK-002 — Read: <short | average | long | narrow | wide | pronounced | subtle | mixed | unknown>
+PRP-BLK-003 — Degree: <low | medium | high | unknown>
+PRP-BLK-004 — Notes: <descriptor | optional>
+
+BODY SHAPE DETAILS (IMAGE-GEN READY)
+CHAR-SHP-001 — Ass_Shape: <round | heart | square | A-shape | V-shape | other:<descriptor> | unknown>
+CHAR-SHP-002 — Ass_Firmness: <soft | medium | firm | unknown>
+CHAR-SHP-003 — Leg_Length_Ratio: <short | average | long | unknown>
+CHAR-SHP-004 — Leg_Silhouette: <slim | athletic | muscular | thick | mixed | unknown>
+CHAR-SHP-005 — Calf_Shape: <straight | tapered | defined | unknown>
+CHAR-SHP-006 — Hip_Waist_Ratio_Read: <straight | subtle | pronounced | unknown>
+
+CHEST / BREAST DETAILS (OPTIONAL)
+CHAR-BRS-001 — Breast_Model: <disabled | enabled>
+CHAR-BRS-002 — Breast_Size_Descriptor: <small | medium | large | very_large | unknown>
+CHAR-BRS-003 — Breast_Shape: <round | teardrop | bell | side-set | east-west | other:<descriptor> | unknown>
+CHAR-BRS-004 — Breast_Placement: <close-set | average | wide-set | unknown>
+CHAR-BRS-005 — Breast_Firmness: <soft | medium | firm | unknown>
+CHAR-BRS-006 — Nipple_Areola_Read: <subtle | average | prominent | unknown>
+
+BREAST DYNAMICS (MOTION)
+CHAR-BRD-001 — Breast_Motion_Model: <disabled | enabled>
+CHAR-BRD-002 — Breast_Bounce_Amplitude: <low | medium | high | unknown>
+CHAR-BRD-003 — Breast_Bounce_Damping: <tight | moderate | loose | unknown>
+CHAR-BRD-004 — Breast_Motion_Triggers: <list | optional>
+CHAR-BRD-005 — Support_Default: <unsupported | light | supportive | heavy-support | unknown>
+
+COSMETICS & NAILS (PREFERENCES)
+CHAR-COS-001 — Lipstick_Use: <none | occasional | frequent | daily | unknown>
+CHAR-COS-002 — Lipstick_Color_Palette: <list | optional>
+CHAR-COS-003 — Lipstick_Finish: <matte | satin | glossy | stain | mixed | unknown>
+CHAR-COS-004 — Nail_Length: <short | medium | long | very_long | unknown>
+CHAR-COS-005 — Nail_Shape: <round | oval | almond | square | coffin | stiletto | mixed | unknown>
+CHAR-COS-006 — Nail_Color_Palette: <list | optional>
+
+STYLE & WARDROBE (GLOBAL DEFAULTS)
+CHAR-STY-001 — Primary_Style_Keywords: <list>
+CHAR-STY-002 — Default_Outfit: <descriptor>
+CHAR-STY-003 — Color_Palette_Bias: <list | optional>
+CHAR-STY-004 — Fit_Silhouette_Bias: <tight | fitted | tailored | loose | oversized | mixed | unknown>
+CHAR-STY-005 — Signature_Pieces: <list | optional>
+CHAR-STY-006 — Accessory_Signatures: <list | optional>
+CHAR-STY-007 — Footwear_Default: <descriptor | optional>
+CHAR-STY-008 — Outerwear_Default: <descriptor | optional>
+CHAR-STY-009 — Underwear_Preferences: <list | optional>
+CHAR-STY-010 — Grooming_Hair_Makeup_Tendencies: <descriptor | optional>
+CHAR-STY-011 — Clothing_Removal_Pattern: <slow | practical | chaotic | staged | unknown>
+CHAR-STY-020 — “Armor”_Outfit: <descriptor | optional>
+CHAR-STY-021 — Signature_Look_By_Context: <list | optional>
+CHAR-STY-022 — Jewelry_Trinket_Meanings: <list | optional>
+
+WARDROBE LAYER MODEL (OPTIONAL)
+CHAR-LAY-001 — Wardrobe_Layer_Model: <disabled | enabled>
+CHAR-LAY-002 — Wardrobe_Layers_Default: <list of Layer_Block | optional>
+
+Layer_Block
+LAY-BLK-001 — Layer_Name: <outerwear | top | bottom | underwear | accessories | footwear | other>
+LAY-BLK-002 — Typical_Items: <list>
+LAY-BLK-003 — Fabrics_Textures: <list | optional>
+LAY-BLK-004 — Colors: <list | optional>
+LAY-BLK-005 — Fit_Silhouette: <descriptor | optional>
+LAY-BLK-006 — Fasteners_Removal_Ease: <easy | moderate | difficult | varies | unknown>
+LAY-BLK-007 — Sentimental_Items: <list | optional>
+LAY-BLK-008 — Situation_Overrides: <list | optional>
+
+SPECIAL ITEMS (BLOCKS)
+CHAR-ITEM-001 — Special_Items: <list of Item_Block | optional>
+
+Item_Block
+ITM-BLK-001 — Item_Name: <string>
+ITM-BLK-002 — Category: <jewelry | keepsake | tool | accessory | document | other>
+ITM-BLK-003 — Material: <string | optional>
+ITM-BLK-004 — Color: <string | optional>
+ITM-BLK-005 — Wear_Carry_Location: <string | optional>
+ITM-BLK-006 — Visibility: <hidden | subtle | obvious | unknown>
+ITM-BLK-007 — Condition: <new | worn | damaged | pristine | unknown>
+ITM-BLK-008 — Meaning_Story: <string | optional>
+ITM-BLK-009 — Loss_Impact: <low | medium | high | unknown>
+
+SCENT PROFILE (BLOCKS)
+CHAR-SCNT-001 — Baseline_Scent: <descriptor>
+CHAR-SCNT-002 — Fragrance_Use: <none | occasional | daily | unknown> + <notes | optional>
+CHAR-SCNT-003 — Scent_Intensity: <low | medium | high | unknown>
+CHAR-SCNT-004 — Heat_Sweat_Scent_Shift: <descriptor | optional>
+CHAR-SCNT-005 — Scent_Notes: <list of Scent_Note_Block | optional>
+CHAR-SCNT-006 — Memory_Scent_Association: <list | optional>
+
+Scent_Note_Block
+SCN-BLK-001 — Note: <string>
+SCN-BLK-002 — Source: <skin | hair | fragrance | fabric | environment | other>
+SCN-BLK-003 — Intensity: <low | medium | high | unknown>
+SCN-BLK-004 — Persistence: <short | medium | long | unknown>
+SCN-BLK-005 — Context: <daily | after-shower | work | night-out | heat | unknown>
+SCN-BLK-006 — Association: <string | optional>
+
+TACTILE SIGNATURE (OPTIONAL, NON-EXPLICIT)
+CHAR-TAC-001 — Tactile_Model: <disabled | enabled>
+CHAR-TAC-002 — Tactile_Surfaces: <list of Tactile_Surface_Block | optional>
+CHAR-TAC-003 — Tactile_Mention_Rule: <rule> (When describing the character physically, the generator MUST emit one tactile line for every surface where Mention_Priority is "high" or "always".)
+
+Tactile_Surface_Block
+TSC-BLK-001 — Surface_Label: <skin | hair | lips | hands | mouth | throat | other:<string> | unknown>
+TSC-BLK-002 — Touch_Preset: <silky | velvety | satin | plush | smooth | textured | rough | powdery | slippery | sticky | dry | clammy | unknown>
+TSC-BLK-003 — Intensity: <subtle | noticeable | defining | unknown>
+TSC-BLK-004 — Mention_Priority: <low | medium | high | always | unknown>
+TSC-BLK-005 — Feel_To_Others_1L: <descriptor | optional>
+TSC-BLK-006 — Feel_To_Self_1L: <descriptor | optional>
+
+VISUAL PROMPT ANCHORS (IMAGE-GEN READY)
+CHAR-VIS-001 — Prompt_Anchors: <list | optional>
+CHAR-VIS-002 — Negative_Anchors: <list | optional>
+CHAR-VIS-003 — Lighting_Best: <list | optional>
+CHAR-VIS-004 — Camera_Lens_Look: <list | optional>
+
+PREFERENCES & AVERSIONS
+CHAR-PREF-001 — Likes: <list>
+CHAR-PREF-002 — Dislikes: <list>
+CHAR-PREF-003 — Food_Favorites: <list | optional>
+CHAR-PREF-004 — Food_Dislikes_Allergies: <list | optional>
+CHAR-PREF-005 — Drinks_Preferences: <list | optional>
+CHAR-PREF-006 — Pets: <none | has_pets | unknown> + <list | optional>
+CHAR-PREF-007 — Favorite_Color: <string | optional>
+CHAR-PREF-008 — Comforts_Soothers: <list | optional>
+CHAR-PREF-009 — Irritants_Annoyances: <list | optional>
+CHAR-PREF-010 — Stress_Triggers: <list | optional>
+CHAR-PREF-020 — Music_Mood_Anchors: <list | optional>
+
+PERSONALITY & PSYCHOLOGY (CORE)
+CHAR-PSY-001 — Baseline_Temperament: <descriptor>
+CHAR-PSY-002 — Core_Drives: <list of Drive_Block | optional>
+CHAR-PSY-003 — Self_Awareness_Level: <low | medium | high | unknown>
+CHAR-PSY-004 — Motivational_Driver: <descriptor>
+CHAR-PSY-005 — Privacy_vs_Performance_Index: <private | balanced | performative | unknown>
+CHAR-PSY-006 — Innocence_as_Weapon: <disabled | situational | habitual | unknown>
+
+Drive_Block
+DRV-BLK-001 — Drive_Name: <string>
+DRV-BLK-002 — Rank: <primary | secondary | tertiary | optional>
+DRV-BLK-003 — Intensity: <score_10 | optional>
+DRV-BLK-004 — Expression_Pattern: <list | optional>
+DRV-BLK-005 — Drive_Conflicts_With: <list | optional>
+DRV-BLK-006 — Satisfied_By: <list | optional>
+DRV-BLK-007 — Threatened_By: <list | optional>
+
+PSYCHOLOGY DEPTH (ATOMIC KNOBS)
+CHAR-PSY-010 — Big5_Model: <disabled | enabled>
+CHAR-PSY-010A — Big_5_Openness: <score_10 | optional>
+CHAR-PSY-010B — Big_5_Conscientiousness: <score_10 | optional>
+CHAR-PSY-010C — Big_5_Extraversion: <score_10 | optional>
+CHAR-PSY-010D — Big_5_Agreeableness: <score_10 | optional>
+CHAR-PSY-010E — Big_5_Neuroticism: <score_10 | optional>
+CHAR-PSY-010F — Big5_Summary_1L: <string | optional>
+CHAR-PSY-010G — Big5_Behavior_Translation_1L: <string | optional>
+CHAR-PSY-011 — Attachment_Style: <secure | anxious | avoidant | fearful-avoidant | unknown | optional>
+CHAR-PSY-012 — Emotion_Regulation_Style: <suppresses | expresses | intellectualizes | volatile | balanced | unknown>
+CHAR-PSY-013 — Defense_Mechanisms: <list | optional>
+CHAR-PSY-014 — Validation_Seeking_Mode: <none | praise | attention | status | usefulness | mixed | unknown>
+CHAR-PSY-015 — Control_Need_Level: <score_10 | optional>
+CHAR-PSY-016 — Impulsivity_Level: <score_10 | optional>
+CHAR-PSY-017 — Empathy_Profile: <cognitive_low|med|high + affective_low|med|high | optional>
+CHAR-PSY-018 — Self_Esteem_Baseline: <score_10 | optional>
+CHAR-PSY-019 — Shame_Triggers: <list | optional>
+CHAR-PSY-020 — Pride_Triggers: <list | optional>
+CHAR-PSY-021 — Cognitive_Distortions: <list | optional>
+CHAR-PSY-022 — Conflict_Escalation_Triggers: <list | optional>
+CHAR-PSY-023 — Deescalation_Tools: <list | optional>
+CHAR-PSY-024 — Self_Justification_Story: <string | optional>
+CHAR-PSY-025 — Vulnerability_Window: <list | optional>
+CHAR-PSY-026 — Intimacy_Anxieties: <list | optional>
+
+CHAR-PSY-030 — MBTI_Model: <disabled | enabled>
+CHAR-PSY-031 — MBTI_Type: <INTJ | INTP | ENTJ | ENTP | INFJ | INFP | ENFJ | ENFP | ISTJ | ISFJ | ESTJ | ESFJ | ISTP | ISFP | ESTP | ESFP | unknown>
+CHAR-PSY-032 — MBTI_Description_1L: <string | optional>
+CHAR-PSY-033 — MBTI_Behavior_Translation_1L: <string | optional>
+
+INTERNAL MODES (BEHAVIOR SWITCHES) (BLOCKS)
+CHAR-PART-001 — Modes_Model: <disabled | enabled>
+CHAR-PART-002 — Modes: <list of Mode_Block | optional>
+
+Mode_Block
+PRT-BLK-001 — Mode_Name: <string>
+PRT-BLK-002 — Mode_Function: <protector | pleaser | achiever | rebel | caretaker | critic | other>
+PRT-BLK-003 — Mode_Objective: <string | optional>
+PRT-BLK-004 — Mode_Triggers: <list | optional>
+PRT-BLK-005 — Observable_Tells: <list | optional>
+PRT-BLK-006 — Side_Effects_Costs: <list | optional>
+PRT-BLK-007 — Calming_Inputs: <list | optional>
+PRT-BLK-008 — Activation_Conditions: <list | optional>
+
+TRIGGERS MAP (PUSH / PULL INPUTS) (BLOCKS)
+CHAR-BTN-001 — Triggers_Model: <disabled | enabled>
+CHAR-BTN-002 — Triggers: <list of Trigger_Block | optional>
+
+Trigger_Block
+BTN-BLK-001 — Trigger_Name: <string>
+BTN-BLK-002 — Trigger_Type: <push | pull>
+BTN-BLK-003 — Stimulus: <string>
+BTN-BLK-004 — Channel: <words | attention | status | surprise | touch | other>
+BTN-BLK-005 — Immediate_Reaction: <descriptor>
+BTN-BLK-006 — Aftereffect: <descriptor | optional>
+BTN-BLK-007 — Escalation_Risk: <score_10 | optional>
+BTN-BLK-008 — Observable_Tells: <list | optional>
+
+ROMANCE & RELATIONSHIP DYNAMICS
+CHAR-ROM-001 — Romance_Focus: <none | casual | dating | committed | marriage-minded | situational | unknown>
+CHAR-ROM-002 — Relationship_Objective: <string | optional>
+CHAR-ROM-003 — Commitment_Threshold: <score_10 | optional>
+CHAR-ROM-004 — Pursuit_Style: <initiator | responder | tester | avoidant | mixed | unknown>
+CHAR-ROM-005 — Conflict_Style: <argues | withdraws | negotiates | jokes | escalates | mixed | unknown>
+CHAR-ROM-006 — Repair_Style: <apology | gifts | touch | acts | time | avoids | mixed | unknown>
+CHAR-ROM-007 — Trust_Builders: <list | optional>
+CHAR-ROM-008 — Trust_Breakers: <list | optional>
+CHAR-ROM-009 — Dealbreakers: <list | optional>
+CHAR-ROM-010 — What_They_Need_To_Hear: <list | optional>
+CHAR-ROM-011 — What_They_Need_To_See: <list | optional>
+CHAR-ROM-012 — Public_vs_Private_Romance: <private | balanced | public | unknown>
+
+RELATIONSHIP STATUS (ROMANTIC)
+CHAR-REL-001 — Romantic_Status: <single | dating | exclusive | engaged | married | separated | divorced | widowed | poly | situationship | unknown>
+CHAR-REL-002 — Partner_Label: <string | optional>
+CHAR-REL-003 — Relationship_Stability: <stable | unstable | secret | on-off | unknown | optional>
+
+MOTTO & ARC CONTROL
+CHAR-ARC-001 — Life_Motto: <string | optional>
+CHAR-ARC-002 — Personal_Commandment: <string | optional>
+CHAR-ARC-003 — Core_Want: <string | optional>
+CHAR-ARC-004 — Core_Need: <string | optional>
+CHAR-ARC-005 — Greatest_Fear: <string | optional>
+CHAR-ARC-006 — Shame_Source: <string | optional>
+CHAR-ARC-007 — Pride_Source: <string | optional>
+CHAR-ARC-008 — Line_They_Wont_Cross: <string | optional>
+CHAR-ARC-009 — Stress_Regression_Mode: <descriptor | optional>
+CHAR-ARC-010 — Growth_Vector: <list | optional>
+
+LIFESTYLE & HOME (LOW BLOAT, HIGH REUSE)
+CHAR-LIFE-001 — Daily_Rituals: <list | optional>
+CHAR-LIFE-002 — Sleep_Routine: <descriptor | optional>
+CHAR-LIFE-003 — Home_Aesthetic: <descriptor | optional>
+CHAR-LIFE-004 — Orderliness_Level: <messy | lived-in | tidy | obsessive | unknown>
+CHAR-LIFE-005 — Vices: <list | optional>
+CHAR-LIFE-006 — Money_Style: <spender | saver | balanced | impulsive | unknown>
+
+FLAWS, HABITS, GOSSIP
+CHAR-FLAW-001 — Character_Flaws: <list | optional>
+CHAR-FLAW-002 — Bad_Habits: <list | optional>
+CHAR-FLAW-003 — Toxic_Patterns: <list | optional>
+CHAR-GOS-001 — Gossip_Rumors: <list | optional>
+CHAR-REP-001 — Scandal_Controversy_Log: <list | optional> (event + consequence + who knows)
+
+SCENE PERFORMANCE PROFILE (REUSABLE SCRIPT KNOBS)
+CHAR-SCN-001 — Camera_Awareness_Level: <none | implicit | explicit | unknown>
+CHAR-SCN-002 — Pose_Holding_Tolerance: <low | medium | high | unknown>
+CHAR-SCN-003 — Movement_Style: <lazy | rhythmic | aggressive | showy | mixed | unknown>
+CHAR-SCN-004 — Eye_Contact_Profile: <avoidant | intermittent | constant | unknown>
+CHAR-SCN-005 — Voice_Profile: <quiet | breathy | neutral | loud | theatrical | unknown>
+CHAR-SCN-006 — Touch_Intensity_Preference: <light | medium | firm | variable | unknown>
+CHAR-SCN-007 — Pace_Preference: <slow | mixed | fast | unknown>
+CHAR-SCN-008 — Prop_Comfort: <none | situational | frequent | unknown> + <list | optional>
+CHAR-SCN-009 — Mirror_Comfort: <low | medium | high | unknown>
+CHAR-SCN-010 — Aftermath_Tone: <cuddly | distant | playful | reflective | mixed | unknown>
+
+EXTERNAL PERCEPTION & SOCIAL SIGNALS
+CHAR-SOC-001 — First_Impression: <descriptor>
+CHAR-SOC-002 — Reputation_Summary: <paragraph | optional>
+CHAR-SOC-003 — Perceived_Strengths: <list | optional>
+CHAR-SOC-004 — Perceived_Flaws: <list | optional>
+CHAR-SOC-005 — Common_Misreadings: <list | optional>
+CHAR-SOC-006 — Social_Positioning: <descriptor | optional>
+CHAR-SOC-007 — Boundary_Signals: <list | optional>
+CHAR-SOC-020 — Social_Class_Read: <descriptor | optional>
+CHAR-SOC-021 — Status_Anxiety_Level: <score_10 | optional>
+
+OBJECTIFICATION & PERFORMANCE (OPTIONAL)
+CHAR-OBJ-001 — Objectification_Model: <disabled | enabled>
+CHAR-OBJ-002 — Display_Priority: <score_10 | optional>
+CHAR-OBJ-003 — Camera_Awareness: <none | implicit | explicit | unknown>
+CHAR-OBJ-004 — Preferred_Display_Angles: <list | optional>
+CHAR-OBJ-005 — Movement_Bias: <still | motion | mixed | pose-holds | active-performer | unknown>
+CHAR-OBJ-006 — Audience_Signaling: <enabled | disabled | unknown>
+
+OBJECTIFICATION & PERFORMANCE (DEPTH)
+CHAR-OBJ-010 — Performance_Model: <disabled | enabled>
+CHAR-OBJ-011 — Performance_Personas: <list of Performance_Persona_Block | optional>
+CHAR-OBJ-012 — Pose_Library: <list of Pose_Block | optional>
+CHAR-OBJ-013 — Camera_Behavior: <Camera_Behavior_Block | optional>
+CHAR-OBJ-014 — Audience_Feedback_Loop: <Feedback_Loop_Block | optional>
+CHAR-OBJ-015 — Self_Objectification_Level: <score_10 | optional>
+CHAR-OBJ-016 — “Performance_Off”_Tell: <descriptor | optional>
+
+OBJECTIFICATION MECHANICS (BLOCKS)
+CHAR-OBJ-020 — Objectification_Mechanics_Model: <disabled | enabled>
+CHAR-OBJ-021 — Objectification_Vectors: <list of Objectification_Vector_Block | optional>
+CHAR-OBJ-022 — Objectification_Contexts: <list of Objectification_Context_Block | optional>
+CHAR-OBJ-023 — Objectification_Why: <list of Objectification_Why_Block | optional>
+
+Performance_Persona_Block
+PPS-BLK-001 — Persona_Name: <string>
+PPS-BLK-002 — Activation_Triggers: <list | optional>
+PPS-BLK-003 — Default_Expression_Set: <list | optional>
+PPS-BLK-004 — Movement_Style: <descriptor | optional>
+PPS-BLK-005 — Voice_Style: <descriptor | optional>
+PPS-BLK-006 — Wardrobe_Link: <descriptor | optional>
+PPS-BLK-007 — Makeup_Hair_Link: <descriptor | optional>
+PPS-BLK-008 — Weaknesses: <list | optional>
+
+Pose_Block
+POS-BLK-001 — Pose_Name: <string>
+POS-BLK-002 — Purpose: <display | tease | dominance | vulnerability | glamour | other>
+POS-BLK-003 — Best_Angles: <list | optional>
+POS-BLK-004 — Hold_Tolerance: <short | medium | long | unknown>
+POS-BLK-005 — Difficulty: <easy | moderate | hard | unknown>
+POS-BLK-006 — Notes: <descriptor | optional>
+
+Camera_Behavior_Block
+CAM-BLK-001 — Lens_Comfort: <low | medium | high | unknown>
+CAM-BLK-002 — Gaze_Targeting: <lens | partner | mirror | audience | mixed | unknown>
+CAM-BLK-003 — Pose_Transition_Style: <smooth | snappy | lazy | deliberate | unknown>
+CAM-BLK-004 — Angle_Seeking_Behavior: <passive | active | director-led | unknown>
+CAM-BLK-005 — Microexpression_Control: <low | medium | high | unknown>
+
+Feedback_Loop_Block
+FDB-BLK-001 — Reads_Reactions: <low | medium | high | unknown>
+FDB-BLK-002 — Reinforcement_Type: <praise | attention | status | envy | money | mixed | unknown>
+FDB-BLK-003 — Escalation_When_Praised: <score_10 | optional>
+FDB-BLK-004 — Collapse_When_Ignored: <score_10 | optional>
+FDB-BLK-005 — Recovery_Methods: <list | optional>
+
+Objectification_Vector_Block
+OBJV-BLK-001 — Vector: <body | face | voice | outfit | status | role | movement | other:<string> | unknown>
+OBJV-BLK-002 — Focus_Target: <string | optional>
+OBJV-BLK-003 — Intensity: <score_10 | optional>
+OBJV-BLK-004 — Control_Level: <self-directed | shared | imposed | unknown>
+OBJV-BLK-005 — Payoff: <list | optional>
+OBJV-BLK-006 — Cost: <list | optional>
+
+Objectification_Context_Block
+OBJC-BLK-001 — Context: <stage | camera | workplace | public | private | online | other:<string> | unknown>
+OBJC-BLK-002 — Audience: <fans | strangers | peers | authority | partner | mixed | unknown>
+OBJC-BLK-003 — Typical_Trigger: <list | optional>
+OBJC-BLK-004 — Typical_Response: <descriptor | optional>
+OBJC-BLK-005 — Aftermath: <descriptor | optional>
+OBJC-BLK-006 — Risk_Level: <score_10 | optional>
+
+Objectification_Why_Block
+OBJW-BLK-001 — Driver: <validation | money | status | power | rebellion | coping | identity | duty | other:<string> | unknown>
+OBJW-BLK-002 — Consciousness: <aware | partly-aware | unaware | performative | unknown>
+OBJW-BLK-003 — Origin: <descriptor | optional>
+OBJW-BLK-004 — Reinforcement_Loop: <descriptor | optional>
+
+INTIMATE ANATOMY (OPTIONAL, ADULT)
+CHAR-INTA-001 — Intimate_Anatomy_Model: <disabled | enabled>
+CHAR-INTA-002 — Pubic_Hair_Grooming: <shaved | trimmed | natural | styled | variable | unknown>
+CHAR-INTA-003 — Pubic_Hair_Style_Notes: <descriptor | optional>
+CHAR-INTA-010 — Vulva_Profile: <Vulva_Block | optional>
+CHAR-INTA-011 — Penis_Profile: <Penis_Block | optional>
+
+Vulva_Block
+VUL-BLK-001 — Labia_Prominence: <minimal | moderate | prominent | unknown>
+VUL-BLK-002 — Labia_Asymmetry: <none | mild | notable | unknown>
+VUL-BLK-003 — Labia_Size: <small | medium | large | unknown>
+VUL-BLK-004 — Clitoral_Hood_Read: <subtle | average | prominent | unknown>
+VUL-BLK-005 — Aesthetic_Notes: <descriptor | optional>
+
+Penis_Block
+PEN-BLK-001 — Length_cm_Erect: <number | optional>
+PEN-BLK-002 — Girth_cm_Erect: <number | optional>
+PEN-BLK-003 — Circumcision_Status: <circumcised | uncircumcised | unknown>
+PEN-BLK-004 — Aesthetic_Notes: <descriptor | optional>
+
+SEXUALITY & EXPLICIT CONTENT MODULE (ADULT, OPTIONAL)
+CHAR-SEX-001 — Sex_Model: <disabled | enabled>
+CHAR-SEX-002 — Sex_Profile: <Sex_Profile_Block | optional>
+CHAR-SEX-003 — Sex_Acts: <list of Sex_Act_Block | optional>
+CHAR-SEX-004 — Sex_Limits: <Sex_Limits_Block | optional>
+
+Sex_Profile_Block
+SEX-BLK-001 — Role_Mode: <giver | receiver | switch | context-dependent | unknown>
+SEX-BLK-002 — Power_Dynamics: <list | optional>
+SEX-BLK-003 — Pace_Tempo_Preference: <slow | mixed | fast | escalating | unknown>
+SEX-BLK-004 — Touch_Preferences: <list | optional>
+SEX-BLK-005 — Erogenous_Zones_Primary: <list | optional>
+SEX-BLK-006 — Erogenous_Zones_Secondary: <list | optional>
+SEX-BLK-007 — Arousal_Triggers_Sensory: <list | optional>
+SEX-BLK-008 — Arousal_Triggers_Contextual: <list | optional>
+SEX-BLK-009 — Arousal_Triggers_Verbal: <list | optional>
+SEX-BLK-010 — Fantasies_Core: <list | optional>
+SEX-BLK-011 — Kinks_Fetishes: <list | optional>
+SEX-BLK-012 — Favorite_Positions_Giving: <list | optional>
+SEX-BLK-013 — Favorite_Positions_Receiving: <list | optional>
+SEX-BLK-014 — Vocalization_Profile: <quiet | moderate | loud | performs | variable | unknown>
+SEX-BLK-015 — Dirty_Talk_Style: <none | minimal | frequent | scripted | variable | unknown>
+SEX-BLK-016 — Dirty_Talk_Topics: <list | optional>
+SEX-BLK-017 — Orgasm_Cues: <list | optional>
+SEX-BLK-018 — Orgasm_Pattern: <single | multiple | delayed | variable | unknown>
+SEX-BLK-019 — Aftercare_Preferences: <list | optional>
+SEX-BLK-020 — Sexual_Endurance_Level: <low | medium | high | exceptional | unknown>
+SEX-BLK-021 — Recovery_Time: <short | moderate | long | unknown>
+SEX-BLK-022 — Repeat_Rounds_Typical: <0 | 1 | 2 | 3+ | unknown>
+SEX-BLK-030 — Sexual_Expertise_Level: <novice | experienced | skilled | expert | unknown>
+SEX-BLK-031 — Sexual_Expertise_Tags: <list | optional>
+SEX-BLK-032 — Squirt_Frequency: <never | rare | sometimes | often | unknown>
+SEX-BLK-033 — Squirt_Intensity: <low | medium | high | unknown>
+
+Sex_Act_Block
+SXA-BLK-001 — Act_Label: <string>
+SXA-BLK-002 — Preference_Polarity: <loves | likes | neutral | dislikes | hates | unknown>
+SXA-BLK-002A — Preference_Strength: <score_10 | optional>
+SXA-BLK-003 — Prerequisites: <list | optional>
+SXA-BLK-004 — Intensity_Preference: <low | medium | high | unknown>
+SXA-BLK-005 — Trigger_Phrases: <list | optional>
+SXA-BLK-006 — No_Go_Conditions: <list | optional>
+
+Sex_Limits_Block
+SXL-BLK-001 — Hard_Limits: <list | optional>
+SXL-BLK-002 — Soft_Limits: <list | optional>
+SXL-BLK-003 — Consent_Style: <explicit | implicit | negotiated | variable | unknown>
+SXL-BLK-004 — Safety_Preferences: <list | optional>
+
+ORAL — GIVING PROFILE (OPTIONAL)
+
+ORA-GIV-001 — Willingness_To_Give: <always | often | sometimes | rarely | never>
+ORA-GIV-002 — Preferred_Recipient: <female | male | either | unknown>
+ORA-GIV-003 — Mouth_Skill_Level: <beginner | intermediate | expert | unknown>
+ORA-GIV-004 — Tongue_Pressure_Level: <light | medium | firm | variable>
+ORA-GIV-005 — Tongue_Movement_Pattern: <stroking | flicking | sucking | exploring | other>
+ORA-GIV-006 — Suction_Strength: <gentle | moderate | strong>
+ORA-GIV-007 — Kiss_Tempo: <slow | medium | fast | variable>
+ORA-GIV-008 — Hand_And_Finger_Use_Level: <absent | light | moderate | active>
+ORA-GIV-009 — Gentle_Nibbling_Enabled: <true | false>
+ORA-GIV-010 — Stroking_And_Sliding_Enabled: <true | false>
+ORA-GIV-011 — Pinching_Or_Popping_Enabled: <true | false>
+ORA-GIV-012 — Playfulness_Tone: <very_playful | moderately_playful | serious_sensual>
+ORA-GIV-013 — Other_Desires_Notes: <freeform | optional>
+ORA-GIV-014 — Gives_Anal_Contact: <yes | no>
+ORA-GIV-015 — Anal_Methods_Given: <none | fingers | tongue | toys | combination>
+ORA-GIV-016 — Perineum_Stim_Intensity: <low | medium | high>
+ORA-GIV-017 — Internal_Target_Given: <none | g-spot | prostate | both>
+ORA-GIV-018 — Pace_Control_Given: <giver_led | responsive | recipient_led>
+ORA-GIV-019 — Duration_Tolerance_Given: <short | moderate | long | variable>
+ORA-GIV-020 — Pressure_Adjustment_Responsiveness: <low | medium | high>
+ORA-GIV-021 — Gag_Reflex_Management: <avoids | tolerates | uses>
+ORA-GIV-022 — Saliva_Usage_Level: <minimal | moderate | heavy>
+ORA-GIV-023 — Verbalization_While_Giving: <silent | minimal | vocal>
+ORA-GIV-024 — Eye_Contact_Usage: <avoids | occasional | sustained>
+ORA-GIV-025 — Finish_Preference_Given: <mouth | external | avoids | unspecified>
+
+
+ORAL — RECEIVING PROFILE (OPTIONAL)
+
+ORA-REC-001 — Willingness_To_Receive: <always | often | sometimes | rarely | never>
+ORA-REC-002 — Preferred_Giver: <female | male | either | unknown>
+ORA-REC-003 — Body_Awareness_Level: <high | medium | low | variable>
+ORA-REC-004 — Lip_Relaxation_State: <very_loose | loose | moderately_tense | firm | stiff>
+ORA-REC-005 — Throat_Openness_Level: <wide | moderate | slightly_closed>
+ORA-REC-006 — Swallowing_Response_Frequency: <frequent | occasional | infrequent | unknown>
+ORA-REC-007 — Breathing_Pattern_During: <deep_steady | shallow_quick | variable | held_breath>
+ORA-REC-008 — Playfulness_Preference: <very_playful | playful_subdued | serious_sensual | other>
+ORA-REC-009 — Anal_Opening_Preference: <wide_open | slightly_closed | avoid | unknown>
+ORA-REC-010 — Anal_Licking_Response: <enjoys | avoids | unknown>
+ORA-REC-011 — Anal_Fingering_Response: <enjoys | avoids | unknown>
+ORA-REC-012 — Anal_Toy_Preference: <specific_only | neutral | avoids>
+ORA-REC-013 — Other_Desires_Notes: <freeform | optional>
+ORA-REC-014 — Target_Anatomy: <clitoris | labia | vagina | g-spot | penis | glans | shaft | testicles | prostate>
+ORA-REC-015 — Target_Sensitivity_Level: <low | medium | high>
+ORA-REC-016 — Target_Focus_Preference: <tip | partial | full | variable>
+ORA-REC-017 — Target_Rhythm_Preference: <fast | moderate | slow | variable>
+ORA-REC-018 — Target_Pain_Threshold: <low | medium | high>
+ORA-REC-019 — Target_External_Touch_Integration: <hands_and_body | hands_only | mouth_only | none>
+ORA-REC-020 — Preferred_Pace_Control: <giver_led | responsive | self_led>
+ORA-REC-021 — Duration_Preference: <short | moderate | long | variable>
+ORA-REC-022 — Sensitivity_Change_Over_Time: <stable | increases | decreases>
+ORA-REC-023 — Saliva_Preference: <minimal | moderate | heavy>
+ORA-REC-024 — Verbal_Feedback_Response: <encourages | neutral | dislikes>
+ORA-REC-025 — Eye_Contact_Preference: <avoids | occasional | sustained>
+ORA-REC-026 — Finish_Preference: <mouth | external | avoids | unspecified>
+
+
+
+GENITAL_PERCEPTION_PROFILE (PART-SPECIFIC; NO TARGET SELECTOR)
+RULE: Fill ONLY the part blocks that apply. Each block stands for how that specific anatomical part is perceived by other characters / the reader.
+
+MONS_PUBIS_PERCEPTION
+GEN-MON-001 — Visual_Profile: <toned | soft | padded | other>
+GEN-MON-002 — Texture_Perception: <smooth | textured | soft | firm | other>
+GEN-MON-003 — Temperature_Perception: <cool | neutral | warm | hot>
+GEN-MON-004 — Sensitivity_Perception: <high | moderate | low>
+GEN-MON-005 — Emotional_Response_Elicited: <excited | intrigued | calm | other>
+
+LABIA_MAJORA_PERCEPTION
+GEN-LMA-001 — Visual_Profile: <toned | fleshy | other>
+GEN-LMA-002 — Texture_Perception: <smooth | textured | soft | firm | other>
+GEN-LMA-003 — Moisture_Perception: <dry | slightly_moist | moist | wet>
+GEN-LMA-004 — Sensitivity_Perception: <high | moderate | low>
+GEN-LMA-005 — Compliance_Perception: <resistant | yielding | eager | variable>
+
+LABIA_MINORA_PERCEPTION
+GEN-LMI-001 — Visual_Profile: <compact | pronounced | other>
+GEN-LMI-002 — Texture_Perception: <smooth | textured | soft | firm | other>
+GEN-LMI-003 — Moisture_Perception: <dry | slightly_moist | moist | wet>
+GEN-LMI-004 — Sensitivity_Perception: <high | moderate | low>
+GEN-LMI-005 — Friction_Perception: <low | medium | high>
+
+CLITORAL_HOOD_PERCEPTION
+GEN-CHD-001 — Texture_Perception: <smooth | textured | soft | firm | other>
+GEN-CHD-002 — Sensitivity_Perception: <high | moderate | low>
+GEN-CHD-003 — Response_Speed_To_Contact: <slow | moderate | fast | immediate>
+GEN-CHD-004 — Swelling_Excited: <none | subtle | noticeable | pronounced>
+GEN-CHD-005 — Touch_Intensity_Invited: <gentle | firm | playful | mixed>
+
+CLITORAL_GLANS_PERCEPTION
+GEN-CGL-001 — Texture_Perception: <smooth | bumpy | firm | sensitive | other>
+GEN-CGL-002 — Sensitivity_Perception: <high | moderate | low>
+GEN-CGL-003 — Pressure_Tolerance_Perception: <low | medium | high | variable>
+GEN-CGL-004 — Pulsation_Perception: <none | subtle | pronounced>
+GEN-CGL-005 — Response_Speed_To_Contact: <slow | moderate | fast | immediate>
+
+VAGINAL_OPENING_PERCEPTION
+GEN-VOP-001 — Moisture_Perception: <dry | slightly_moist | moist | wet>
+GEN-VOP-002 — Elasticity_Perception: <low | medium | high>
+GEN-VOP-003 — Friction_Perception: <low | medium | high>
+GEN-VOP-004 — Tightness_Perception: <tight | moderate | relaxed | variable>
+GEN-VOP-005 — Discharge_Level_Normal: <none | minimal | moderate | noticeable>
+GEN-VOP-006 — Discharge_Level_Excited: <none | light | moderate | heavy>
+
+VAGINAL_CANAL_PERCEPTION (INTERNAL)
+GEN-VCA-001 — Internal_Feeling_Perception: <soft | warm | responsive | other>
+GEN-VCA-002 — Tightness_Perception: <tight | moderate | relaxed | variable>
+GEN-VCA-003 — Elasticity_Perception: <low | medium | high>
+GEN-VCA-004 — Friction_Perception: <low | medium | high>
+GEN-VCA-005 — Compliance_Perception: <resistant | yielding | eager | variable>
+GEN-VCA-006 — Pulsation_Perception: <none | subtle | pronounced>
+
+G_SPOT_PERCEPTION (INTERNAL)
+GEN-GSP-001 — Texture_Perception: <smooth | bumpy | ridged | other>
+GEN-GSP-002 — Sensitivity_Perception: <high | moderate | low>
+GEN-GSP-003 — Response_Speed_To_Contact: <slow | moderate | fast | immediate>
+GEN-GSP-004 — Pressure_Tolerance_Perception: <low | medium | high | variable>
+GEN-GSP-005 — Change_Under_Stimulation: <minimal | noticeable | pronounced>
+
+PENILE_TIP_PERCEPTION
+GEN-PTP-001 — Texture_Perception: <smooth | sensitive | firm | other>
+GEN-PTP-002 — Sensitivity_Perception: <high | moderate | low>
+GEN-PTP-003 — Moisture_Perception: <dry | slightly_moist | moist | wet>
+GEN-PTP-004 — Pressure_Tolerance_Perception: <low | medium | high | variable>
+GEN-PTP-005 — Response_Speed_To_Contact: <slow | moderate | fast | immediate>
+
+GLANS_PERCEPTION
+GEN-GLA-001 — Texture_Perception: <smooth | ridged | firm | sensitive | other>
+GEN-GLA-002 — Sensitivity_Perception: <high | moderate | low>
+GEN-GLA-003 — Friction_Perception: <low | medium | high>
+GEN-GLA-004 — Pulsation_Perception: <none | subtle | pronounced>
+GEN-GLA-005 — Swelling_Excited: <none | subtle | noticeable | pronounced>
+
+FRENULUM_PERCEPTION
+GEN-FRN-001 — Sensitivity_Perception: <high | moderate | low>
+GEN-FRN-002 — Pressure_Tolerance_Perception: <low | medium | high | variable>
+GEN-FRN-003 — Response_Speed_To_Contact: <slow | moderate | fast | immediate>
+GEN-FRN-004 — Texture_Perception: <smooth | firm | sensitive | other>
+GEN-FRN-005 — Touch_Intensity_Invited: <gentle | firm | playful | mixed>
+
+SHAFT_PERCEPTION
+GEN-SHF-001 — Texture_Perception: <smooth | textured | firm | other>
+GEN-SHF-002 — Firmness_Perception: <soft | semi_firm | firm | very_firm | variable>
+GEN-SHF-003 — Elasticity_Perception: <low | medium | high>
+GEN-SHF-004 — Friction_Perception: <low | medium | high>
+GEN-SHF-005 — Compliance_Perception: <resistant | yielding | eager | variable>
+
+TESTICLES_PERCEPTION
+GEN-TES-001 — Texture_Perception: <smooth | soft | firm | sensitive | other>
+GEN-TES-002 — Sensitivity_Perception: <high | moderate | low>
+GEN-TES-003 — Temperature_Perception: <cool | neutral | warm | hot>
+GEN-TES-004 — Pressure_Tolerance_Perception: <low | medium | high | variable>
+GEN-TES-005 — Emotional_Response_Elicited: <excited | intrigued | calm | other>
+
+PROSTATE_PERCEPTION (INTERNAL)
+GEN-PRO-001 — Response_Speed_To_Contact: <slow | moderate | fast | immediate>
+GEN-PRO-002 — Sensitivity_Perception: <high | moderate | low>
+GEN-PRO-003 — Pressure_Tolerance_Perception: <low | medium | high | variable>
+GEN-PRO-004 — Pulsation_Perception: <none | subtle | pronounced>
+GEN-PRO-005 — Change_Under_Stimulation: <minimal | noticeable | pronounced>
+
+PERINEUM_PERCEPTION
+GEN-PER-001 — Texture_Perception: <smooth | textured | soft | firm | other>
+GEN-PER-002 — Sensitivity_Perception: <high | moderate | low>
+GEN-PER-003 — Temperature_Perception: <cool | neutral | warm | hot>
+GEN-PER-004 — Response_Speed_To_Contact: <slow | moderate | fast | immediate>
+GEN-PER-005 — Touch_Intensity_Invited: <gentle | firm | playful | mixed>
+
+EROGENOUS ZONE SENSITIVITY (BLOCKS)
+CHAR-EZS-001 — Erogenous_Sensitivity_Model: <disabled | enabled>
+CHAR-EZS-002 — Erogenous_Zones: <list of Erogenous_Zone_Block | optional>
+
+Erogenous_Zone_Block
+EZN-BLK-001 — Zone_Label: <string>
+EZN-BLK-002 — Sensitivity_Level: <low | medium | high | hair-trigger | unknown>
+EZN-BLK-003 — Preferred_Stimulation_Modes: <list | optional>
+EZN-BLK-004 — Overstimulation_Threshold: <low | medium | high | unknown>
+EZN-BLK-005 — After_Sensitivity: <numb | sore | more-sensitive | neutral | unknown>
+EZN-BLK-006 — Notes: <descriptor | optional>
+
+ROLEPLAY & IDENTITY LAYERING
+CHAR-RP-001 — Roleplay_Interest_Level: <none | casual | enthusiastic | core | unknown>
+CHAR-RP-002 — Roleplay_Context: <romance | narrative | mixed | unknown>
+CHAR-RP-003 — Roleplay_Initiation_Pattern: <reactive | proactive | negotiated | unknown>
+CHAR-RP-004 — Roleplay_Identity_Type: <temporary | recurring | persistent | unknown>
+CHAR-RP-005 — Roleplay_Identity_Count: <single | multiple | unknown>
+CHAR-RP-006 — Identity_Switch_Fluidity: <rigid | contextual | fluid | unknown>
+CHAR-RP-007 — Roleplay_Alias_List: <list | abstract>
+CHAR-RP-008 — Alias_Dominance: <primary | equal | secondary | unknown>
+CHAR-RP-009 — Alias_Persistence_After_Play: <drops immediately | fades | lingers | unknown>
+CHAR-RP-010 — Identity_Inversion_Mode: <disabled | situational | active | unknown>
+CHAR-RP-011 — Canon_Personality_Override: <never | partial | full | unknown>
+CHAR-RP-012 — Alias_Behavior_Divergence: <low | medium | high | unknown>
+CHAR-RP-013 — Roleplay_Exit_Strictness: <loose | defined | hard-stop | unknown>
+CHAR-RP-014 — Roleplay_Activation_Triggers: <list | abstract>
+
+IDENTITY PROFILE BLOCKS (REAL/STAGE/ALIAS OVERRIDES)
+CHAR-IDP-001 — Identity_Profile_Mode: <single | split_real_stage | multi | unknown>
+CHAR-IDP-002 — Identity_Profile_Blocks: <list of Identity_Profile_Block | optional>
+
+Identity_Profile_Block
+IDP-BLK-001 — Identity_Label: <real | stage | alias:<string>>
+IDP-BLK-002 — Persona_Summary: <descriptor>
+IDP-BLK-003 — Public_Facing_Behavior: <descriptor | optional>
+IDP-BLK-004 — Private_Behavior: <descriptor | optional>
+IDP-BLK-010 — Likes_Override: <list | optional>
+IDP-BLK-011 — Dislikes_Override: <list | optional>
+IDP-BLK-020 — Clothing_Tendencies: <list | optional>
+IDP-BLK-021 — Default_Outfit: <descriptor | optional>
+IDP-BLK-022 — Outerwear_Default: <descriptor | optional>
+IDP-BLK-023 — Underwear_Preferences: <list | optional>
+IDP-BLK-024 — Wardrobe_Layers: <list of Layer_Block | optional>
+IDP-BLK-025 — Special_Items_Override: <list of Item_Block | optional>
+IDP-BLK-030 — Scent_Override: <descriptor | optional>
+IDP-BLK-031 — Scent_Notes_Override: <list of S

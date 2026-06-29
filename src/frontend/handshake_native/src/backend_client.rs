@@ -62,9 +62,7 @@ pub fn build_backend_client() -> reqwest::Client {
 /// should clone this rather than calling `reqwest::Client::new()` so they share the single pool and its
 /// backend-down timeouts ([`build_backend_client`]).
 pub fn shared_http_client() -> reqwest::Client {
-    SHARED_HTTP_CLIENT
-        .get_or_init(build_backend_client)
-        .clone()
+    SHARED_HTTP_CLIENT.get_or_init(build_backend_client).clone()
 }
 /// Health probe (CONTROL-2). Kept as a full URL for the existing MT-002 health wiring.
 pub const HEALTH_URL: &str = "http://127.0.0.1:37501/health";
@@ -93,15 +91,26 @@ pub async fn fetch_health(url: &str) -> Result<HealthInfo, AppError> {
         .await
         .map_err(|e| AppError::Http(e.to_string()))?;
     if !resp.status().is_success() {
-        return Err(AppError::Http(format!("non-success status {}", resp.status())));
+        return Err(AppError::Http(format!(
+            "non-success status {}",
+            resp.status()
+        )));
     }
     let v: serde_json::Value = resp
         .json()
         .await
         .map_err(|e| AppError::Parse(e.to_string()))?;
     Ok(HealthInfo {
-        status: v.get("status").and_then(|x| x.as_str()).unwrap_or("unknown").to_string(),
-        db_status: v.get("db_status").and_then(|x| x.as_str()).unwrap_or("unknown").to_string(),
+        status: v
+            .get("status")
+            .and_then(|x| x.as_str())
+            .unwrap_or("unknown")
+            .to_string(),
+        db_status: v
+            .get("db_status")
+            .and_then(|x| x.as_str())
+            .unwrap_or("unknown")
+            .to_string(),
         migration_version: v.get("migration_version").and_then(|x| x.as_i64()),
     })
 }
@@ -153,7 +162,10 @@ impl WorkbenchLayoutClient {
     }
 
     fn layout_url(&self, workspace_id: &str) -> String {
-        format!("{}/workspaces/{}/workbench/layout", self.base_url, workspace_id)
+        format!(
+            "{}/workspaces/{}/workbench/layout",
+            self.base_url, workspace_id
+        )
     }
 }
 
@@ -202,6 +214,16 @@ pub struct GetRequestSpec {
     pub query: Vec<(String, String)>,
 }
 
+/// A request spec for endpoints that require backend actor attribution headers.
+/// Kept separate from [`RequestSpec`] to avoid widening every older route builder.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ActorRequestSpec {
+    pub method: HttpMethod,
+    pub url: String,
+    pub body: Option<serde_json::Value>,
+    pub headers: Vec<(String, String)>,
+}
+
 /// One-slot delivery cell for an off-thread Loom-block rename result (MT-020 explorer-row rename).
 /// The spawned tokio task writes the PATCH outcome here; the egui UI thread drains it next frame
 /// (the same `Arc<Mutex<Option<Result<..>>>>` pattern the settings save/load cells use). `Ok(title)`
@@ -243,7 +265,10 @@ impl LoomBlockClient {
     }
 
     fn block_url(&self, workspace_id: &str, block_id: &str) -> String {
-        format!("{}/workspaces/{}/loom/blocks/{}", self.base_url, workspace_id, block_id)
+        format!(
+            "{}/workspaces/{}/loom/blocks/{}",
+            self.base_url, workspace_id, block_id
+        )
     }
 
     /// PATCH a single Loom-block FLAG (`pinned` or `favorite`) off the UI thread, delivering the result
@@ -293,7 +318,12 @@ impl LoomBlockClient {
     }
 
     /// Pure request builder for [`rename_block`](Self::rename_block): the `(PATCH, url, body)` it sends.
-    pub fn rename_request(&self, workspace_id: &str, block_id: &str, new_title: &str) -> RequestSpec {
+    pub fn rename_request(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+        new_title: &str,
+    ) -> RequestSpec {
         RequestSpec {
             method: HttpMethod::Patch,
             url: self.block_url(workspace_id, block_id),
@@ -345,7 +375,10 @@ async fn patch_block_title(
         .await
         .map_err(|e| AppError::Http(e.to_string()))?;
     if !resp.status().is_success() {
-        return Err(AppError::Http(format!("PATCH block non-success status {}", resp.status())));
+        return Err(AppError::Http(format!(
+            "PATCH block non-success status {}",
+            resp.status()
+        )));
     }
     let v: serde_json::Value = resp
         .json()
@@ -425,13 +458,7 @@ impl SourceControlClient {
 
     /// `POST /source-control/{stage|unstage}` with `{repo_path, paths:[path]}`, off the UI thread.
     /// `op` is `"stage"` or `"unstage"` — the SAME path segment the verified backend route uses.
-    pub fn stage_paths(
-        &self,
-        op: ScmWriteOp,
-        repo_path: &str,
-        path: &str,
-        cell: ScmReceiptCell,
-    ) {
+    pub fn stage_paths(&self, op: ScmWriteOp, repo_path: &str, path: &str, cell: ScmReceiptCell) {
         let spec = self.stage_request(op, repo_path, path);
         self.spawn_receipt(spec.url, spec.body.unwrap_or_default(), cell);
     }
@@ -715,7 +742,10 @@ async fn post_expect_success(
         .await
         .map_err(|e| AppError::Http(e.to_string()))?;
     if !resp.status().is_success() {
-        return Err(AppError::Http(format!("POST non-success status {}", resp.status())));
+        return Err(AppError::Http(format!(
+            "POST non-success status {}",
+            resp.status()
+        )));
     }
     Ok(())
 }
@@ -734,7 +764,10 @@ async fn patch_expect_success(
         .await
         .map_err(|e| AppError::Http(e.to_string()))?;
     if !resp.status().is_success() {
-        return Err(AppError::Http(format!("PATCH non-success status {}", resp.status())));
+        return Err(AppError::Http(format!(
+            "PATCH non-success status {}",
+            resp.status()
+        )));
     }
     Ok(())
 }
@@ -748,7 +781,10 @@ async fn delete_expect_success(client: &reqwest::Client, url: &str) -> Result<()
         .await
         .map_err(|e| AppError::Http(e.to_string()))?;
     if !resp.status().is_success() {
-        return Err(AppError::Http(format!("DELETE non-success status {}", resp.status())));
+        return Err(AppError::Http(format!(
+            "DELETE non-success status {}",
+            resp.status()
+        )));
     }
     Ok(())
 }
@@ -803,9 +839,14 @@ async fn get_json(
         .await
         .map_err(|e| AppError::Http(e.to_string()))?;
     if !resp.status().is_success() {
-        return Err(AppError::Http(format!("GET non-success status {}", resp.status())));
+        return Err(AppError::Http(format!(
+            "GET non-success status {}",
+            resp.status()
+        )));
     }
-    resp.json().await.map_err(|e| AppError::Parse(e.to_string()))
+    resp.json()
+        .await
+        .map_err(|e| AppError::Parse(e.to_string()))
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -900,7 +941,10 @@ impl DrawerDataClient {
     }
 
     fn views_all_url(&self, workspace_id: &str) -> String {
-        format!("{}/workspaces/{}/loom/views/all", self.base_url, workspace_id)
+        format!(
+            "{}/workspaces/{}/loom/views/all",
+            self.base_url, workspace_id
+        )
     }
 
     fn journal_url(&self, workspace_id: &str, journal_date: &str) -> String {
@@ -953,13 +997,21 @@ impl DrawerDataClient {
         let client = self.client.clone();
         self.runtime.spawn(async move {
             let result = fetch_daily_journal(&client, &spec.url).await;
-            deliver_drawer(&cell, DrawerDataKind::Agenda, result.map_err(|e| e.to_string()));
+            deliver_drawer(
+                &cell,
+                DrawerDataKind::Agenda,
+                result.map_err(|e| e.to_string()),
+            );
         });
     }
 }
 
 /// Write a drawer fetch result into a [`DrawerDataCell`].
-fn deliver_drawer(cell: &DrawerDataCell, kind: DrawerDataKind, result: Result<DrawerCardData, String>) {
+fn deliver_drawer(
+    cell: &DrawerDataCell,
+    kind: DrawerDataKind,
+    result: Result<DrawerCardData, String>,
+) {
     if let Ok(mut slot) = cell.lock() {
         *slot = Some((kind, result));
     }
@@ -984,14 +1036,20 @@ async fn fetch_view_count(
     } else {
         format!("{count} items")
     };
-    Ok(DrawerCardData { badge_count: count, subtitle })
+    Ok(DrawerCardData {
+        badge_count: count,
+        subtitle,
+    })
 }
 
 /// `PUT {url}` (no body) and read today's daily-journal block (the verified `open_daily_journal`
 /// response is a single `LoomBlock`). Badge = 1 if the block has a non-empty `title`, else 0; subtitle
 /// is the title (or a "No agenda today" fallback). A non-success status or parse failure is an
 /// [`AppError`], never a panic.
-async fn fetch_daily_journal(client: &reqwest::Client, url: &str) -> Result<DrawerCardData, AppError> {
+async fn fetch_daily_journal(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<DrawerCardData, AppError> {
     let resp = client
         .put(url)
         .timeout(Duration::from_secs(5))
@@ -999,7 +1057,10 @@ async fn fetch_daily_journal(client: &reqwest::Client, url: &str) -> Result<Draw
         .await
         .map_err(|e| AppError::Http(e.to_string()))?;
     if !resp.status().is_success() {
-        return Err(AppError::Http(format!("PUT journal non-success status {}", resp.status())));
+        return Err(AppError::Http(format!(
+            "PUT journal non-success status {}",
+            resp.status()
+        )));
     }
     let v: serde_json::Value = resp
         .json()
@@ -1010,8 +1071,14 @@ async fn fetch_daily_journal(client: &reqwest::Client, url: &str) -> Result<Draw
         .and_then(|x| x.as_str())
         .filter(|s| !s.trim().is_empty());
     match title {
-        Some(t) => Ok(DrawerCardData { badge_count: 1, subtitle: t.to_owned() }),
-        None => Ok(DrawerCardData { badge_count: 0, subtitle: "No agenda today".to_owned() }),
+        Some(t) => Ok(DrawerCardData {
+            badge_count: 1,
+            subtitle: t.to_owned(),
+        }),
+        None => Ok(DrawerCardData {
+            badge_count: 0,
+            subtitle: "No agenda today".to_owned(),
+        }),
     }
 }
 
@@ -1157,7 +1224,10 @@ impl DrawerActionClient {
     }
 
     fn block_url(&self, workspace_id: &str, block_id: &str) -> String {
-        format!("{}/workspaces/{}/loom/blocks/{}", self.base_url, workspace_id, block_id)
+        format!(
+            "{}/workspaces/{}/loom/blocks/{}",
+            self.base_url, workspace_id, block_id
+        )
     }
 
     fn edges_url(&self, workspace_id: &str) -> String {
@@ -1173,7 +1243,12 @@ impl DrawerActionClient {
     /// Pure request builder for [`pin_to_top`](Self::pin_to_top): `PUT /loom/blocks/:id/pin-order` with
     /// `{ "pin_order": <ordinal> }`. The field is `pin_order` (VERIFIED `SetPinOrderRequest`), NOT the
     /// contract's `ordinal`. Bring-to-top sends ordinal 0.
-    pub fn pin_order_request(&self, workspace_id: &str, block_id: &str, ordinal: i32) -> RequestSpec {
+    pub fn pin_order_request(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+        ordinal: i32,
+    ) -> RequestSpec {
         RequestSpec {
             method: HttpMethod::Put,
             url: self.pin_order_url(workspace_id, block_id),
@@ -1325,7 +1400,10 @@ async fn put_expect_success(
         .await
         .map_err(|e| AppError::Http(e.to_string()))?;
     if !resp.status().is_success() {
-        return Err(AppError::Http(format!("PUT non-success status {}", resp.status())));
+        return Err(AppError::Http(format!(
+            "PUT non-success status {}",
+            resp.status()
+        )));
     }
     Ok(())
 }
@@ -1396,11 +1474,17 @@ impl LoomGraphClient {
     }
 
     fn views_all_url(&self, workspace_id: &str) -> String {
-        format!("{}/workspaces/{}/loom/views/all", self.base_url, workspace_id)
+        format!(
+            "{}/workspaces/{}/loom/views/all",
+            self.base_url, workspace_id
+        )
     }
 
     fn graph_search_url(&self, workspace_id: &str) -> String {
-        format!("{}/workspaces/{}/loom/graph-search", self.base_url, workspace_id)
+        format!(
+            "{}/workspaces/{}/loom/graph-search",
+            self.base_url, workspace_id
+        )
     }
 
     /// Pure request builder for the GLOBAL graph fetch: `GET /loom/views/all` (no query). Split out so a
@@ -1537,14 +1621,20 @@ fn block_to_node(block: &serde_json::Value) -> Option<GraphNode> {
 /// `GET {url}` and parse the verified `LoomViewResponse::All { blocks }` into a node-only graph (the
 /// global enumeration carries no edge payload). A missing/empty `blocks` array yields an EMPTY graph
 /// (0 nodes), never an error (AC7). A non-success status or parse failure is an [`AppError`] (AC8).
-async fn fetch_global_graph(client: &reqwest::Client, url: &str) -> Result<LoomGraphData, AppError> {
+async fn fetch_global_graph(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<LoomGraphData, AppError> {
     let v = get_json(client, url, &[]).await?;
     let nodes = v
         .get("blocks")
         .and_then(|b| b.as_array())
         .map(|arr| arr.iter().filter_map(block_to_node).collect())
         .unwrap_or_default();
-    Ok(LoomGraphData { nodes, edges: vec![] })
+    Ok(LoomGraphData {
+        nodes,
+        edges: vec![],
+    })
 }
 
 /// `GET {url}?{query}` and parse the verified `Vec<LoomGraphSearchResult>` into the focused block's
@@ -1589,7 +1679,10 @@ async fn fetch_local_graph(
     }
     // Ensure the focus block is present as the star centre.
     if !seen.contains(focus_block_id) {
-        nodes.insert(0, GraphNode::new(focus_block_id.to_owned(), focus_block_id.to_owned(), "note"));
+        nodes.insert(
+            0,
+            GraphNode::new(focus_block_id.to_owned(), focus_block_id.to_owned(), "note"),
+        );
         seen.insert(focus_block_id.to_owned());
     }
     // Star edges from the focus to each neighbour (the neighbourhood is the focus's local graph).
@@ -1714,7 +1807,10 @@ impl CanvasBoardClient {
     }
 
     fn block_url(&self, workspace_id: &str, block_id: &str) -> String {
-        format!("{}/workspaces/{}/loom/blocks/{}", self.base_url, workspace_id, block_id)
+        format!(
+            "{}/workspaces/{}/loom/blocks/{}",
+            self.base_url, workspace_id, block_id
+        )
     }
 
     /// Pure request builder for `GET .../canvas-boards/:block_id` (getCanvasBoard).
@@ -1765,7 +1861,10 @@ impl CanvasBoardClient {
     ) -> RequestSpec {
         RequestSpec {
             method: HttpMethod::Post,
-            url: format!("{}/placements", self.board_url(workspace_id, canvas_block_id)),
+            url: format!(
+                "{}/placements",
+                self.board_url(workspace_id, canvas_block_id)
+            ),
             body: Some(serde_json::json!({
                 "placed_block_id": placed_block_id,
                 "x": x, "y": y, "w": w, "h": h,
@@ -1894,7 +1993,10 @@ impl CanvasBoardClient {
     ) -> RequestSpec {
         RequestSpec {
             method: HttpMethod::Post,
-            url: format!("{}/visual-edges", self.board_url(workspace_id, canvas_block_id)),
+            url: format!(
+                "{}/visual-edges",
+                self.board_url(workspace_id, canvas_block_id)
+            ),
             body: Some(serde_json::json!({
                 "from_placement_id": from_placement_id,
                 "to_placement_id": to_placement_id,
@@ -1930,7 +2032,9 @@ impl CanvasBoardClient {
         let client = self.client.clone();
         let id = placed_block_id.to_owned();
         self.runtime.spawn(async move {
-            let result = fetch_live_block(&client, &spec.url).await.map_err(|e| e.to_string());
+            let result = fetch_live_block(&client, &spec.url)
+                .await
+                .map_err(|e| e.to_string());
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some((id, result));
             }
@@ -1956,7 +2060,10 @@ impl CanvasBoardClient {
 pub const LOOM_CANVAS_BOARD_SCHEMA_ID: &str = "hsk.loom_canvas_board@1";
 
 /// Send one canvas mutation by method, treating any 2xx as success (the board re-fetches for the body).
-async fn send_canvas_mutation(client: &reqwest::Client, spec: &RequestSpec) -> Result<(), AppError> {
+async fn send_canvas_mutation(
+    client: &reqwest::Client,
+    spec: &RequestSpec,
+) -> Result<(), AppError> {
     let empty = serde_json::json!({});
     let body = spec.body.as_ref().unwrap_or(&empty);
     match spec.method {
@@ -1971,7 +2078,10 @@ async fn send_canvas_mutation(client: &reqwest::Client, spec: &RequestSpec) -> R
 /// `GET {url}` and parse the verified `LoomCanvasBoardView` into a [`CanvasBoardData`]. Placements
 /// arrive WITHOUT live titles (the host resolves each via `getLoomBlock` after this returns — reference,
 /// not copy). A missing/empty board yields an EMPTY projection (0 placements), never an error (AC10).
-async fn fetch_canvas_board(client: &reqwest::Client, url: &str) -> Result<CanvasBoardData, AppError> {
+async fn fetch_canvas_board(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<CanvasBoardData, AppError> {
     let v = get_json(client, url, &[]).await?;
     let placements = v
         .get("placements")
@@ -1984,10 +2094,25 @@ async fn fetch_canvas_board(client: &reqwest::Client, url: &str) -> Result<Canva
         .map(|arr| arr.iter().filter_map(visual_edge_from_json).collect())
         .unwrap_or_default();
     let board_state = v.get("board").and_then(|b| b.get("board_state"));
-    let pan_x = board_state.and_then(|s| s.get("pan_x")).and_then(|x| x.as_f64()).unwrap_or(0.0) as f32;
-    let pan_y = board_state.and_then(|s| s.get("pan_y")).and_then(|x| x.as_f64()).unwrap_or(0.0) as f32;
-    let zoom = board_state.and_then(|s| s.get("zoom")).and_then(|x| x.as_f64()).unwrap_or(1.0) as f32;
-    Ok(CanvasBoardData { placements, visual_edges, pan_x, pan_y, zoom })
+    let pan_x = board_state
+        .and_then(|s| s.get("pan_x"))
+        .and_then(|x| x.as_f64())
+        .unwrap_or(0.0) as f32;
+    let pan_y = board_state
+        .and_then(|s| s.get("pan_y"))
+        .and_then(|x| x.as_f64())
+        .unwrap_or(0.0) as f32;
+    let zoom = board_state
+        .and_then(|s| s.get("zoom"))
+        .and_then(|x| x.as_f64())
+        .unwrap_or(1.0) as f32;
+    Ok(CanvasBoardData {
+        placements,
+        visual_edges,
+        pan_x,
+        pan_y,
+        zoom,
+    })
 }
 
 /// Parse one verified `LoomCanvasPlacement` JSON object into a [`CanvasPlacementCard`] (no live title
@@ -1995,14 +2120,20 @@ async fn fetch_canvas_board(client: &reqwest::Client, url: &str) -> Result<Canva
 /// skipped, not faked).
 fn placement_from_json(p: &serde_json::Value) -> Option<CanvasPlacementCard> {
     let placement_id = p.get("placement_id").and_then(|x| x.as_str())?.to_owned();
-    let placed_block_id = p.get("placed_block_id").and_then(|x| x.as_str())?.to_owned();
+    let placed_block_id = p
+        .get("placed_block_id")
+        .and_then(|x| x.as_str())?
+        .to_owned();
     let x = p.get("x").and_then(|x| x.as_f64()).unwrap_or(0.0) as f32;
     let y = p.get("y").and_then(|x| x.as_f64()).unwrap_or(0.0) as f32;
     let w = p.get("w").and_then(|x| x.as_f64()).unwrap_or(200.0) as f32;
     let h = p.get("h").and_then(|x| x.as_f64()).unwrap_or(120.0) as f32;
     let mut card = CanvasPlacementCard::new(placement_id, placed_block_id, x, y, w, h);
     card.z_index = p.get("z_index").and_then(|x| x.as_i64()).unwrap_or(0) as i32;
-    card.group_id = p.get("group_id").and_then(|x| x.as_str()).map(ToOwned::to_owned);
+    card.group_id = p
+        .get("group_id")
+        .and_then(|x| x.as_str())
+        .map(ToOwned::to_owned);
     Some(card)
 }
 
@@ -2011,8 +2142,14 @@ fn placement_from_json(p: &serde_json::Value) -> Option<CanvasPlacementCard> {
 fn visual_edge_from_json(e: &serde_json::Value) -> Option<VisualEdge> {
     Some(VisualEdge {
         visual_edge_id: e.get("visual_edge_id").and_then(|x| x.as_str())?.to_owned(),
-        from_placement_id: e.get("from_placement_id").and_then(|x| x.as_str())?.to_owned(),
-        to_placement_id: e.get("to_placement_id").and_then(|x| x.as_str())?.to_owned(),
+        from_placement_id: e
+            .get("from_placement_id")
+            .and_then(|x| x.as_str())?
+            .to_owned(),
+        to_placement_id: e
+            .get("to_placement_id")
+            .and_then(|x| x.as_str())?
+            .to_owned(),
     })
 }
 
@@ -2021,10 +2158,7 @@ fn visual_edge_from_json(e: &serde_json::Value) -> Option<VisualEdge> {
 /// "note"; `content_hash` is the backend-computed canonical-JSON hash when present (MT-032, READ-only —
 /// `Option<String>`, honestly `None` when the backend omits it). A 404 (the block was deleted) is an
 /// [`AppError`] so the host shows "(stale reference)" — never a fabricated title.
-async fn fetch_live_block(
-    client: &reqwest::Client,
-    url: &str,
-) -> Result<LiveBlock, AppError> {
+async fn fetch_live_block(client: &reqwest::Client, url: &str) -> Result<LiveBlock, AppError> {
     let v = get_json(client, url, &[]).await?;
     let title = v
         .get("title")
@@ -2113,7 +2247,10 @@ impl LoomFolderClient {
     }
 
     fn folder_url(&self, workspace_id: &str, folder_id: &str) -> String {
-        format!("{}/workspaces/{}/loom/folders/{}", self.base_url, workspace_id, folder_id)
+        format!(
+            "{}/workspaces/{}/loom/folders/{}",
+            self.base_url, workspace_id, folder_id
+        )
     }
 
     fn folder_blocks_url(&self, workspace_id: &str, folder_id: &str) -> String {
@@ -2135,7 +2272,11 @@ impl LoomFolderClient {
     }
 
     /// Pure request builder for the child-block fetch: `GET /loom/folders/{id}/blocks?limit=100`.
-    pub fn list_folder_blocks_request(&self, workspace_id: &str, folder_id: &str) -> GetRequestSpec {
+    pub fn list_folder_blocks_request(
+        &self,
+        workspace_id: &str,
+        folder_id: &str,
+    ) -> GetRequestSpec {
         GetRequestSpec {
             method: HttpMethod::Get,
             url: self.folder_blocks_url(workspace_id, folder_id),
@@ -2171,7 +2312,12 @@ impl LoomFolderClient {
     /// Fetch one folder's child blocks off the UI thread, delivering the parsed leaves into `cell` (the
     /// AC2 lazy child load on expand). The host sets the node's `loading=true` before calling (so the
     /// spinner animates ONLY during this genuine in-flight fetch) and clears it on delivery.
-    pub fn fetch_folder_blocks(&self, workspace_id: &str, folder_id: &str, cell: FolderChildrenCell) {
+    pub fn fetch_folder_blocks(
+        &self,
+        workspace_id: &str,
+        folder_id: &str,
+        cell: FolderChildrenCell,
+    ) {
         let spec = self.list_folder_blocks_request(workspace_id, folder_id);
         let client = self.client.clone();
         self.runtime.spawn(async move {
@@ -2186,7 +2332,13 @@ impl LoomFolderClient {
     /// the single-`color`-key merge-patch from [`recolor_request`](Self::recolor_request). `Ok(())` on a
     /// 2xx; `Err(msg)` on failure. The host updates the node swatch optimistically and reconciles on the
     /// delivered result.
-    pub fn recolor_folder(&self, workspace_id: &str, folder_id: &str, hex: &str, cell: ScmReceiptCell) {
+    pub fn recolor_folder(
+        &self,
+        workspace_id: &str,
+        folder_id: &str,
+        hex: &str,
+        cell: ScmReceiptCell,
+    ) {
         let spec = self.recolor_request(workspace_id, folder_id, hex);
         let body = spec.body.unwrap_or_default();
         let client = self.client.clone();
@@ -2244,7 +2396,10 @@ fn block_to_leaf(block: &serde_json::Value) -> Option<LeafBlock> {
 /// `GET {url}` and parse the verified `Vec<LoomFolder>` into [`FolderRow`]s. A missing/empty array
 /// yields an EMPTY list (0 folders -> the "No folders" empty state, AC7), never an error. A non-success
 /// status or parse failure is an [`AppError`] (the AC8 error banner).
-async fn fetch_folder_rows(client: &reqwest::Client, url: &str) -> Result<Vec<FolderRow>, AppError> {
+async fn fetch_folder_rows(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Vec<FolderRow>, AppError> {
     let v = get_json(client, url, &[]).await?;
     let rows = v
         .as_array()
@@ -2348,7 +2503,10 @@ impl LoomTagClient {
     }
 
     fn tag_url(&self, workspace_id: &str, tag_block_id: &str) -> String {
-        format!("{}/workspaces/{}/loom/tags/{}", self.base_url, workspace_id, tag_block_id)
+        format!(
+            "{}/workspaces/{}/loom/tags/{}",
+            self.base_url, workspace_id, tag_block_id
+        )
     }
 
     fn tag_blocks_url(&self, workspace_id: &str, tag_block_id: &str) -> String {
@@ -2467,7 +2625,11 @@ impl LoomTagClient {
             if let Ok(mut slot) = cell.lock() {
                 // The member-list route carries no hub title; deliver an empty title so the host keeps
                 // its existing title and replaces only the members.
-                *slot = Some(result.map(|m| (String::new(), m)).map_err(|e| e.to_string()));
+                *slot = Some(
+                    result
+                        .map(|m| (String::new(), m))
+                        .map_err(|e| e.to_string()),
+                );
             }
         });
     }
@@ -2726,11 +2888,17 @@ impl LoomSidebarClient {
     }
 
     fn view_url(&self, workspace_id: &str, view_type: &str) -> String {
-        format!("{}/workspaces/{}/loom/views/{}", self.base_url, workspace_id, view_type)
+        format!(
+            "{}/workspaces/{}/loom/views/{}",
+            self.base_url, workspace_id, view_type
+        )
     }
 
     fn block_url(&self, workspace_id: &str, block_id: &str) -> String {
-        format!("{}/workspaces/{}/loom/blocks/{}", self.base_url, workspace_id, block_id)
+        format!(
+            "{}/workspaces/{}/loom/blocks/{}",
+            self.base_url, workspace_id, block_id
+        )
     }
 
     fn pin_order_url(&self, workspace_id: &str, block_id: &str) -> String {
@@ -3070,6 +3238,10 @@ pub const CODE_NAV_ACTOR_KIND: &str = "system";
 pub const DOC_ACTOR_ID: &str = "handshake-native-editor";
 pub const DOC_ACTOR_KIND: &str = "operator";
 
+/// Stable actor id for native Atelier/CKC writes. Backend CKC routes require
+/// `x-hsk-actor-id` so parallel agents and operators can attribute mutations.
+pub const ATELIER_CKC_ACTOR_ID: &str = "handshake-native-atelier-ckc";
+
 /// `GET {url}?{query}` against the code-nav API with the four required backend-nav identity headers
 /// attached, returning the parsed JSON body. `run_id` is folded into the per-request run ids so each
 /// editor nav action is individually traceable (it never reaches the wrong field — the headers are
@@ -3091,8 +3263,14 @@ pub async fn code_nav_get(
         .query(query)
         .header(HSK_HEADER_ACTOR_ID, CODE_NAV_ACTOR_ID)
         .header(HSK_HEADER_ACTOR_KIND, CODE_NAV_ACTOR_KIND)
-        .header(HSK_HEADER_KERNEL_TASK_RUN_ID, format!("native-editor-{run_id}"))
-        .header(HSK_HEADER_SESSION_RUN_ID, format!("native-editor-session-{run_id}"))
+        .header(
+            HSK_HEADER_KERNEL_TASK_RUN_ID,
+            format!("native-editor-{run_id}"),
+        )
+        .header(
+            HSK_HEADER_SESSION_RUN_ID,
+            format!("native-editor-session-{run_id}"),
+        )
         .timeout(Duration::from_secs(5))
         .send()
         .await
@@ -3103,7 +3281,9 @@ pub async fn code_nav_get(
             resp.status()
         )));
     }
-    resp.json().await.map_err(|e| AppError::Parse(e.to_string()))
+    resp.json()
+        .await
+        .map_err(|e| AppError::Parse(e.to_string()))
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -3444,7 +3624,10 @@ mod wiki_client_tests {
             spec.url,
             "http://test.local:1234/workspaces/ws1/loom/wiki/proj-001/overlays"
         );
-        assert_eq!(spec.body, Some(serde_json::json!({ "annotation": "NEW CONTENT" })));
+        assert_eq!(
+            spec.body,
+            Some(serde_json::json!({ "annotation": "NEW CONTENT" }))
+        );
     }
 
     /// The optional anchor is included only when non-empty (a true merge — never sends `anchor:""`).
@@ -3456,7 +3639,10 @@ mod wiki_client_tests {
             Some(serde_json::json!({ "annotation": "note", "anchor": "block-7" }))
         );
         let spec_empty = client().add_overlay_request("ws1", "proj-001", "note", Some(""));
-        assert_eq!(spec_empty.body, Some(serde_json::json!({ "annotation": "note" })));
+        assert_eq!(
+            spec_empty.body,
+            Some(serde_json::json!({ "annotation": "note" }))
+        );
     }
 
     /// AC1 parse: the verified `ServedWikiPage` shape parses totally into [`WikiProjection`], including the
@@ -3587,7 +3773,10 @@ impl BlockViewClient {
     }
 
     fn definitions_url(&self, workspace_id: &str) -> String {
-        format!("{}/workspaces/{}/loom/views/definitions", self.base_url, workspace_id)
+        format!(
+            "{}/workspaces/{}/loom/views/definitions",
+            self.base_url, workspace_id
+        )
     }
 
     fn definition_url(&self, workspace_id: &str, view_block_id: &str) -> String {
@@ -3595,7 +3784,10 @@ impl BlockViewClient {
     }
 
     fn block_url(&self, workspace_id: &str, block_id: &str) -> String {
-        format!("{}/workspaces/{}/loom/blocks/{}", self.base_url, workspace_id, block_id)
+        format!(
+            "{}/workspaces/{}/loom/blocks/{}",
+            self.base_url, workspace_id, block_id
+        )
     }
 
     /// Pure request builder for `GET .../views/definitions/:block_id` (getBlockView).
@@ -3619,7 +3811,10 @@ impl BlockViewClient {
     ) -> RequestSpec {
         RequestSpec {
             method: HttpMethod::Post,
-            url: format!("{}/results", self.definition_url(workspace_id, view_block_id)),
+            url: format!(
+                "{}/results",
+                self.definition_url(workspace_id, view_block_id)
+            ),
             body: Some(serde_json::json!({ "limit": limit, "offset": offset })),
         }
     }
@@ -3684,7 +3879,9 @@ impl BlockViewClient {
         let client = self.client.clone();
         let id = view_block_id.to_owned();
         self.runtime.spawn(async move {
-            let result = fetch_block_view(&client, &spec.url, &id).await.map_err(|e| e.to_string());
+            let result = fetch_block_view(&client, &spec.url, &id)
+                .await
+                .map_err(|e| e.to_string());
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some(result);
             }
@@ -3720,7 +3917,9 @@ impl BlockViewClient {
     pub fn dispatch(&self, spec: RequestSpec, echo_id: String, cell: BlockViewOpCell) {
         let client = self.client.clone();
         self.runtime.spawn(async move {
-            let result = send_block_view_mutation(&client, &spec).await.map(|_| echo_id);
+            let result = send_block_view_mutation(&client, &spec)
+                .await
+                .map(|_| echo_id);
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some(result.map_err(|e| e.to_string()));
             }
@@ -3791,7 +3990,10 @@ fn definition_to_json(def: &BlockViewDefinition) -> serde_json::Value {
         );
     }
     if let Some(ct) = &q.content_type {
-        query.insert("content_type".to_owned(), serde_json::Value::String(ct.clone()));
+        query.insert(
+            "content_type".to_owned(),
+            serde_json::Value::String(ct.clone()),
+        );
     }
     if let Some(mime) = &q.mime {
         query.insert("mime".to_owned(), serde_json::Value::String(mime.clone()));
@@ -3800,7 +4002,10 @@ fn definition_to_json(def: &BlockViewDefinition) -> serde_json::Value {
         query.insert(
             "tag_ids".to_owned(),
             serde_json::Value::Array(
-                q.tag_ids.iter().map(|t| serde_json::Value::String(t.clone())).collect(),
+                q.tag_ids
+                    .iter()
+                    .map(|t| serde_json::Value::String(t.clone()))
+                    .collect(),
             ),
         );
     }
@@ -3808,12 +4013,18 @@ fn definition_to_json(def: &BlockViewDefinition) -> serde_json::Value {
         query.insert(
             "mention_ids".to_owned(),
             serde_json::Value::Array(
-                q.mention_ids.iter().map(|m| serde_json::Value::String(m.clone())).collect(),
+                q.mention_ids
+                    .iter()
+                    .map(|m| serde_json::Value::String(m.clone()))
+                    .collect(),
             ),
         );
     }
     let mut obj = serde_json::Map::new();
-    obj.insert("kind".to_owned(), serde_json::Value::String(def.kind.as_str().to_owned()));
+    obj.insert(
+        "kind".to_owned(),
+        serde_json::Value::String(def.kind.as_str().to_owned()),
+    );
     if !query.is_empty() {
         obj.insert("query".to_owned(), serde_json::Value::Object(query));
     }
@@ -3821,7 +4032,10 @@ fn definition_to_json(def: &BlockViewDefinition) -> serde_json::Value {
         obj.insert(
             "columns".to_owned(),
             serde_json::Value::Array(
-                def.columns.iter().map(|f| serde_json::Value::String(f.as_str().to_owned())).collect(),
+                def.columns
+                    .iter()
+                    .map(|f| serde_json::Value::String(f.as_str().to_owned()))
+                    .collect(),
             ),
         );
     }
@@ -3879,7 +4093,12 @@ pub fn definition_from_json(v: &serde_json::Value) -> BlockViewDefinition {
     let columns = v
         .get("columns")
         .and_then(|c| c.as_array())
-        .map(|arr| arr.iter().filter_map(|x| x.as_str()).filter_map(BlockViewField::parse_str).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|x| x.as_str())
+                .filter_map(BlockViewField::parse_str)
+                .collect()
+        })
         .unwrap_or_default();
     let sort = v.get("sort").and_then(|s| {
         let field = BlockViewField::parse_str(s.get("field").and_then(|x| x.as_str())?)?;
@@ -3894,8 +4113,18 @@ pub fn definition_from_json(v: &serde_json::Value) -> BlockViewDefinition {
         .get("calendar_date_field")
         .and_then(|x| x.as_str())
         .and_then(BlockViewField::parse_str);
-    let query = v.get("query").map(parse_block_view_query).unwrap_or_default();
-    BlockViewDefinition { kind, query, columns, group_by, sort, calendar_date_field }
+    let query = v
+        .get("query")
+        .map(parse_block_view_query)
+        .unwrap_or_default();
+    BlockViewDefinition {
+        kind,
+        query,
+        columns,
+        group_by,
+        sort,
+        calendar_date_field,
+    }
 }
 
 /// Parse the FULL VERIFIED `BlockViewQuery` JSON into the native projection. The backend stores
@@ -3913,14 +4142,24 @@ fn parse_block_view_query(v: &serde_json::Value) -> BlockViewQuery {
     let string_array = |key: &str| {
         v.get(key)
             .and_then(|x| x.as_array())
-            .map(|arr| arr.iter().filter_map(|x| x.as_str().map(ToOwned::to_owned)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|x| x.as_str().map(ToOwned::to_owned))
+                    .collect()
+            })
             .unwrap_or_default()
     };
     BlockViewQuery {
         date_from: slice_date("date_from"),
         date_to: slice_date("date_to"),
-        content_type: v.get("content_type").and_then(|x| x.as_str()).map(ToOwned::to_owned),
-        mime: v.get("mime").and_then(|x| x.as_str()).map(ToOwned::to_owned),
+        content_type: v
+            .get("content_type")
+            .and_then(|x| x.as_str())
+            .map(ToOwned::to_owned),
+        mime: v
+            .get("mime")
+            .and_then(|x| x.as_str())
+            .map(ToOwned::to_owned),
         tag_ids: string_array("tag_ids"),
         mention_ids: string_array("mention_ids"),
     }
@@ -3941,12 +4180,33 @@ pub fn loom_block_row_from_json(b: &serde_json::Value) -> Option<LoomBlockRow> {
             .unwrap_or(0)
     };
     Some(LoomBlockRow {
-        title: b.get("title").and_then(|x| x.as_str()).map(ToOwned::to_owned),
-        original_filename: b.get("original_filename").and_then(|x| x.as_str()).map(ToOwned::to_owned),
-        content_type: b.get("content_type").and_then(|x| x.as_str()).unwrap_or("note").to_owned(),
-        journal_date: b.get("journal_date").and_then(|x| x.as_str()).map(ToOwned::to_owned),
-        created_at: b.get("created_at").and_then(|x| x.as_str()).unwrap_or("").to_owned(),
-        updated_at: b.get("updated_at").and_then(|x| x.as_str()).unwrap_or("").to_owned(),
+        title: b
+            .get("title")
+            .and_then(|x| x.as_str())
+            .map(ToOwned::to_owned),
+        original_filename: b
+            .get("original_filename")
+            .and_then(|x| x.as_str())
+            .map(ToOwned::to_owned),
+        content_type: b
+            .get("content_type")
+            .and_then(|x| x.as_str())
+            .unwrap_or("note")
+            .to_owned(),
+        journal_date: b
+            .get("journal_date")
+            .and_then(|x| x.as_str())
+            .map(ToOwned::to_owned),
+        created_at: b
+            .get("created_at")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_owned(),
+        updated_at: b
+            .get("updated_at")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_owned(),
         pinned: b.get("pinned").and_then(|x| x.as_bool()).unwrap_or(false),
         favorite: b.get("favorite").and_then(|x| x.as_bool()).unwrap_or(false),
         backlink_count: count("backlink_count"),
@@ -3982,10 +4242,17 @@ pub fn results_from_json(v: &serde_json::Value) -> BlockViewResults {
         })
         .unwrap_or_default();
     BlockViewResults {
-        kind_str: v.get("kind").and_then(|x| x.as_str()).unwrap_or("table").to_owned(),
+        kind_str: v
+            .get("kind")
+            .and_then(|x| x.as_str())
+            .unwrap_or("table")
+            .to_owned(),
         blocks,
         groups,
-        total_returned: v.get("total_returned").and_then(|x| x.as_u64()).unwrap_or(0) as u32,
+        total_returned: v
+            .get("total_returned")
+            .and_then(|x| x.as_u64())
+            .unwrap_or(0) as u32,
     }
 }
 
@@ -4007,7 +4274,10 @@ async fn fetch_block_view(
         .and_then(|x| x.as_str())
         .unwrap_or(requested_id)
         .to_owned();
-    Ok(BlockViewRecordData { view_block_id, definition })
+    Ok(BlockViewRecordData {
+        view_block_id,
+        definition,
+    })
 }
 
 /// `POST {url}` (body `{limit,offset}`) and parse the verified `BlockViewResults` (RISK-1: POST not GET).
@@ -4031,7 +4301,9 @@ async fn post_create_block_view(
         .get("block")
         .and_then(|b| b.get("block_id"))
         .and_then(|x| x.as_str())
-        .ok_or_else(|| AppError::Parse("createBlockView response missing block.block_id".to_owned()))?
+        .ok_or_else(|| {
+            AppError::Parse("createBlockView response missing block.block_id".to_owned())
+        })?
         .to_owned();
     Ok(id)
 }
@@ -4047,7 +4319,9 @@ async fn send_block_view_mutation(
     match spec.method {
         HttpMethod::Post => post_expect_success(client, &spec.url, body).await,
         HttpMethod::Patch => patch_expect_success(client, &spec.url, body).await,
-        _ => Err(AppError::Http("block-view mutation must be POST or PATCH".to_owned())),
+        _ => Err(AppError::Http(
+            "block-view mutation must be POST or PATCH".to_owned(),
+        )),
     }
 }
 
@@ -4066,9 +4340,14 @@ async fn post_json(
         .await
         .map_err(|e| AppError::Http(e.to_string()))?;
     if !resp.status().is_success() {
-        return Err(AppError::Http(format!("POST non-success status {}", resp.status())));
+        return Err(AppError::Http(format!(
+            "POST non-success status {}",
+            resp.status()
+        )));
     }
-    resp.json().await.map_err(|e| AppError::Parse(e.to_string()))
+    resp.json()
+        .await
+        .map_err(|e| AppError::Parse(e.to_string()))
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -4113,7 +4392,10 @@ impl LoomSearchBlock {
     /// The display title: the block's own `title`, or the `block_id` as a fallback (the React parity
     /// reference renders `hit.block.title ?? hit.block.block_id`).
     pub fn display_title(&self) -> &str {
-        self.title.as_deref().filter(|t| !t.is_empty()).unwrap_or(&self.block_id)
+        self.title
+            .as_deref()
+            .filter(|t| !t.is_empty())
+            .unwrap_or(&self.block_id)
     }
 }
 
@@ -4215,11 +4497,17 @@ impl LoomSearchV2Client {
     }
 
     fn search_url(&self, workspace_id: &str) -> String {
-        format!("{}/workspaces/{}/loom/search-v2", self.base_url, workspace_id)
+        format!(
+            "{}/workspaces/{}/loom/search-v2",
+            self.base_url, workspace_id
+        )
     }
 
     fn views_definitions_url(&self, workspace_id: &str) -> String {
-        format!("{}/workspaces/{}/loom/views/definitions", self.base_url, workspace_id)
+        format!(
+            "{}/workspaces/{}/loom/views/definitions",
+            self.base_url, workspace_id
+        )
     }
 
     /// Pure request builder for `POST .../loom/search-v2`. The VERIFIED body is the snake_case
@@ -4371,7 +4659,8 @@ pub type GraphSearchCell = Arc<Mutex<Option<Result<(Vec<LoomGraphSearchHit>, Str
 /// One-slot delivery cell for an off-thread bookmark op: `Ok((bookmark_state_blob, status?))` carries
 /// the saved/loaded `bookmark_state` blob (re-parsed by the panel) and an optional status string;
 /// `Err(msg)` the failure.
-pub type BookmarkStateCell = Arc<Mutex<Option<Result<(serde_json::Value, Option<String>), String>>>>;
+pub type BookmarkStateCell =
+    Arc<Mutex<Option<Result<(serde_json::Value, Option<String>), String>>>>;
 
 /// The match options the search transport forwards as query params (a copy of the panel's toggles, kept
 /// here so backend_client does not depend on the find_in_files module).
@@ -4409,11 +4698,17 @@ impl WorkspaceSearchClient {
     }
 
     fn graph_search_url(&self, workspace_id: &str) -> String {
-        format!("{}/workspaces/{}/loom/graph-search", self.base_url, workspace_id)
+        format!(
+            "{}/workspaces/{}/loom/graph-search",
+            self.base_url, workspace_id
+        )
     }
 
     fn bookmarks_url(&self, workspace_id: &str) -> String {
-        format!("{}/workspaces/{}/search-bookmarks", self.base_url, workspace_id)
+        format!(
+            "{}/workspaces/{}/search-bookmarks",
+            self.base_url, workspace_id
+        )
     }
 
     /// Build the query params for ONE search page (the VERIFIED `LoomSearchQueryParams` names; note the
@@ -4438,7 +4733,11 @@ impl WorkspaceSearchClient {
         if let Some(sk) = source_kind {
             params.push(("source_kinds".to_owned(), sk.to_owned()));
         }
-        let tags: Vec<&str> = tag_filter.split(',').map(str::trim).filter(|s| !s.is_empty()).collect();
+        let tags: Vec<&str> = tag_filter
+            .split(',')
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .collect();
         if !tags.is_empty() {
             params.push(("tag_ids".to_owned(), tags.join(",")));
         }
@@ -4543,7 +4842,11 @@ impl WorkspaceSearchClient {
 
     /// Build the bookmark-save request (`PUT /search-bookmarks` with `{bookmark_state: <blob>}`). Split
     /// out so a unit test asserts the EXACT wrapper without a backend.
-    pub fn save_bookmarks_request(&self, workspace_id: &str, bookmark_state: serde_json::Value) -> RequestSpec {
+    pub fn save_bookmarks_request(
+        &self,
+        workspace_id: &str,
+        bookmark_state: serde_json::Value,
+    ) -> RequestSpec {
         RequestSpec {
             method: HttpMethod::Put,
             url: self.bookmarks_url(workspace_id),
@@ -4598,9 +4901,14 @@ async fn put_json(
         .await
         .map_err(|e| AppError::Http(e.to_string()))?;
     if !resp.status().is_success() {
-        return Err(AppError::Http(format!("PUT non-success status {}", resp.status())));
+        return Err(AppError::Http(format!(
+            "PUT non-success status {}",
+            resp.status()
+        )));
     }
-    resp.json().await.map_err(|e| AppError::Parse(e.to_string()))
+    resp.json()
+        .await
+        .map_err(|e| AppError::Parse(e.to_string()))
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -4661,7 +4969,10 @@ pub fn fold_apply_outcomes(
     match failure {
         // RISK-1/MC-1: a partial failure preserves the receipts already collected.
         Some(error) => crate::find_in_files::ReplaceDelivery::AppliedPartial { receipts, error },
-        None => crate::find_in_files::ReplaceDelivery::Applied { receipts, plan_count },
+        None => crate::find_in_files::ReplaceDelivery::Applied {
+            receipts,
+            plan_count,
+        },
     }
 }
 
@@ -4789,7 +5100,11 @@ impl RichDocClient {
             let mut outcomes: Vec<(String, DocSaveOutcome)> = Vec::with_capacity(plans.len());
             for plan in &plans {
                 let outcome = this
-                    .save_document(&plan.document_id, &plan.content_json_after, plan.expected_version)
+                    .save_document(
+                        &plan.document_id,
+                        &plan.content_json_after,
+                        plan.expected_version,
+                    )
                     .await;
                 let is_terminal = !matches!(outcome, DocSaveOutcome::Saved(_));
                 outcomes.push((plan.document_id.clone(), outcome));
@@ -4827,7 +5142,11 @@ impl RichDocClient {
                 .unwrap_or(document_id)
                 .to_owned(),
             doc_version: doc.get("doc_version").and_then(|x| x.as_u64()).unwrap_or(0),
-            title: doc.get("title").and_then(|x| x.as_str()).unwrap_or("").to_owned(),
+            title: doc
+                .get("title")
+                .and_then(|x| x.as_str())
+                .unwrap_or("")
+                .to_owned(),
             content_json: doc
                 .get("content_json")
                 .cloned()
@@ -4866,11 +5185,15 @@ impl RichDocClient {
             crdt_snapshot_id: None,
             promotion_receipt_event_id: None,
         };
-        match self.consolidated().save_document(&headers, document_id, &body).await {
+        match self
+            .consolidated()
+            .save_document(&headers, document_id, &body)
+            .await
+        {
             Ok(saved) => DocSaveOutcome::Saved(saved.save_receipt_event_id.unwrap_or_default()),
-            Err(crate::backend::knowledge_documents::KnowledgeDocumentsError::SaveConflict { .. }) => {
-                DocSaveOutcome::Conflict
-            }
+            Err(crate::backend::knowledge_documents::KnowledgeDocumentsError::SaveConflict {
+                ..
+            }) => DocSaveOutcome::Conflict,
             Err(e) => DocSaveOutcome::Failed(e.to_string()),
         }
     }
@@ -4917,6 +5240,81 @@ pub struct AtelierItemRow {
     pub lane: String,
 }
 
+/// One CKC character row from `GET /atelier/characters`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCharacterRow {
+    pub internal_id: String,
+    pub public_id: String,
+    pub display_name: String,
+    pub character_ref: String,
+}
+
+/// One append-only CKC sheet version row from the character sheet-version routes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierSheetVersionRow {
+    pub version_id: String,
+    pub character_internal_id: String,
+    pub parent_version_id: Option<String>,
+    pub seq: i64,
+    pub raw_text: String,
+    pub author: String,
+    pub tool: Option<String>,
+    pub character_ref: String,
+    pub sheet_version_ref: String,
+}
+
+/// One CKC character plus its current/latest sheet version, as the native panel needs it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCkcCharacterSheetRow {
+    pub character: AtelierCharacterRow,
+    pub latest_sheet: Option<AtelierSheetVersionRow>,
+}
+
+/// CKC character database projection loaded for the native Castkit Codex tab.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCkcData {
+    pub characters: Vec<AtelierCkcCharacterSheetRow>,
+}
+
+/// Bundled CKC character sheet template metadata + raw text from the backend.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierSheetTemplateRow {
+    pub template_id: String,
+    pub template_version: String,
+    pub file_name: String,
+    pub template_hash: String,
+    pub field_count: usize,
+    pub section_count: usize,
+    pub raw_text: String,
+}
+
+/// Original CKC LLM-safe v2.00 subset whitelist.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierSafeSubsetRow {
+    pub template_id: String,
+    pub template_version: String,
+    pub file_name: String,
+    pub field_ids: Vec<String>,
+}
+
+/// One prior saved value for a CKC Field ID.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierSheetFieldSuggestionRow {
+    pub field_id: String,
+    pub value: String,
+    pub occurrences: i64,
+}
+
+/// Deterministic CKC sheet export payload.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierSheetExportRow {
+    pub version_id: String,
+    pub format: String,
+    pub file_name: String,
+    pub content_hash: String,
+    pub content: String,
+}
+
 /// One command-corpus entry row (the verified subset of `CommandCorpusEntryResponse`). `action_id` is the
 /// row label; `owner` + `execution_class` are muted detail.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -4942,6 +5340,15 @@ pub type AtelierSidePanelCell = Arc<Mutex<Option<Result<AtelierSidePanelData, St
 /// One-slot delivery cell for an off-thread per-batch items load, keyed by the batch id so a stale
 /// response for a previously-expanded batch is discardable.
 pub type AtelierItemsCell = Arc<Mutex<Option<(String, Result<Vec<AtelierItemRow>, String>)>>>;
+
+/// One-slot delivery cell for off-thread CKC character/sheet loads.
+pub type AtelierCkcCell = Arc<Mutex<Option<Result<AtelierCkcData, String>>>>;
+
+/// One-slot delivery cell for off-thread CKC character creation.
+pub type AtelierCkcCreateCell = Arc<Mutex<Option<Result<AtelierCharacterRow, String>>>>;
+
+/// One-slot delivery cell for off-thread CKC sheet-version appends.
+pub type AtelierCkcAppendCell = Arc<Mutex<Option<Result<AtelierSheetVersionRow, String>>>>;
 
 /// REST client for the VERIFIED atelier read surface the MT-033 AtelierSidePanel consumes.
 #[derive(Clone)]
@@ -4988,8 +5395,253 @@ impl AtelierClient {
     pub fn items_request(&self, batch_id: &str) -> GetRequestSpec {
         GetRequestSpec {
             method: HttpMethod::Get,
-            url: format!("{}/atelier/intake/batches/{}/items", self.base_url, batch_id),
+            url: format!(
+                "{}/atelier/intake/batches/{}/items",
+                self.base_url, batch_id
+            ),
             query: vec![],
+        }
+    }
+
+    /// Pure request builder for `GET /atelier/characters`.
+    pub fn characters_request(&self) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/characters", self.base_url),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for `GET /atelier/sheet-templates/default`.
+    pub fn default_sheet_template_request(&self) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/sheet-templates/default", self.base_url),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for `GET /atelier/sheet-templates/default/safe-subset`.
+    pub fn safe_sheet_subset_request(&self) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!(
+                "{}/atelier/sheet-templates/default/safe-subset",
+                self.base_url
+            ),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for `POST /atelier/characters`.
+    pub fn create_character_request(&self, public_id: &str, display_name: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/characters", self.base_url),
+            body: Some(serde_json::json!({
+                "public_id": public_id,
+                "display_name": display_name,
+            })),
+        }
+    }
+
+    /// Pure request builder for template-first CKC character creation.
+    pub fn create_character_with_default_sheet_request(
+        &self,
+        public_id: &str,
+        display_name: &str,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/characters", self.base_url),
+            body: Some(serde_json::json!({
+                "public_id": public_id,
+                "display_name": display_name,
+                "create_default_sheet": true,
+            })),
+        }
+    }
+
+    /// Pure actor-attributed request builder for `POST /atelier/characters`.
+    pub fn create_character_actor_request(
+        &self,
+        public_id: &str,
+        display_name: &str,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.create_character_request(public_id, display_name);
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure actor-attributed request builder for template-first CKC character creation.
+    pub fn create_character_with_default_sheet_actor_request(
+        &self,
+        public_id: &str,
+        display_name: &str,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.create_character_with_default_sheet_request(public_id, display_name);
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for `GET /atelier/characters/{id}`.
+    pub fn character_request(&self, character_internal_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!(
+                "{}/atelier/characters/{}",
+                self.base_url, character_internal_id
+            ),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for `GET /atelier/characters/{id}/sheet-versions`.
+    pub fn sheet_versions_request(&self, character_internal_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!(
+                "{}/atelier/characters/{}/sheet-versions",
+                self.base_url, character_internal_id
+            ),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for append-only CKC sheet edits. The expected parent
+    /// id is the optimistic-concurrency guard; `None` means first version.
+    pub fn append_sheet_version_request(
+        &self,
+        character_internal_id: &str,
+        raw_text: &str,
+        expected_parent_version_id: Option<&str>,
+        tool: Option<&str>,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/characters/{}/sheet-versions",
+                self.base_url, character_internal_id
+            ),
+            body: Some(serde_json::json!({
+                "raw_text": raw_text,
+                "expected_parent_version_id": expected_parent_version_id,
+                "tool": tool,
+            })),
+        }
+    }
+
+    /// Pure actor-attributed request builder for guarded CKC sheet appends.
+    pub fn append_sheet_version_actor_request(
+        &self,
+        character_internal_id: &str,
+        raw_text: &str,
+        expected_parent_version_id: Option<&str>,
+        tool: Option<&str>,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.append_sheet_version_request(
+            character_internal_id,
+            raw_text,
+            expected_parent_version_id,
+            tool,
+        );
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for import as a semantic guarded append.
+    pub fn import_sheet_version_request(
+        &self,
+        character_internal_id: &str,
+        raw_text: &str,
+        expected_parent_version_id: Option<&str>,
+        tool: Option<&str>,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/characters/{}/sheet-versions/import",
+                self.base_url, character_internal_id
+            ),
+            body: Some(serde_json::json!({
+                "raw_text": raw_text,
+                "expected_parent_version_id": expected_parent_version_id,
+                "tool": tool,
+            })),
+        }
+    }
+
+    /// Pure actor-attributed request builder for CKC sheet import.
+    pub fn import_sheet_version_actor_request(
+        &self,
+        character_internal_id: &str,
+        raw_text: &str,
+        expected_parent_version_id: Option<&str>,
+        tool: Option<&str>,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.import_sheet_version_request(
+            character_internal_id,
+            raw_text,
+            expected_parent_version_id,
+            tool,
+        );
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for `GET /atelier/sheet-versions/{version_id}`.
+    pub fn sheet_version_request(&self, version_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/sheet-versions/{}", self.base_url, version_id),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for deterministic CKC sheet export.
+    pub fn export_sheet_version_request(&self, version_id: &str, format: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!(
+                "{}/atelier/sheet-versions/{}/export?format={}",
+                self.base_url, version_id, format
+            ),
+            query: vec![("format".to_owned(), format.to_owned())],
+        }
+    }
+
+    /// Pure request builder for prior values attached to one CKC Field ID.
+    pub fn field_suggestions_request(&self, field_id: &str, limit: usize) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!(
+                "{}/atelier/sheet-field-suggestions?field_id={}&limit={}",
+                self.base_url, field_id, limit
+            ),
+            query: vec![
+                ("field_id".to_owned(), field_id.to_owned()),
+                ("limit".to_owned(), limit.to_string()),
+            ],
         }
     }
 
@@ -5016,9 +5668,86 @@ impl AtelierClient {
         let client = self.client.clone();
         let id = batch_id.to_owned();
         self.runtime.spawn(async move {
-            let result = fetch_atelier_items(&client, &url).await.map_err(|e| e.to_string());
+            let result = fetch_atelier_items(&client, &url)
+                .await
+                .map_err(|e| e.to_string());
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some((id, result));
+            }
+        });
+    }
+
+    /// Load CKC characters plus each character's latest sheet version off the UI thread.
+    pub fn fetch_ckc(&self, cell: AtelierCkcCell) {
+        let characters_url = self.characters_request().url;
+        let base_url = self.base_url.clone();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = load_atelier_ckc(&client, &characters_url, &base_url).await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
+
+    /// Create a CKC character with backend actor attribution.
+    pub fn create_ckc_character(
+        &self,
+        public_id: &str,
+        display_name: &str,
+        actor_id: &str,
+        cell: AtelierCkcCreateCell,
+    ) {
+        let spec = self.create_character_with_default_sheet_actor_request(
+            public_id,
+            display_name,
+            actor_id,
+        );
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_character_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing character row in create response".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Append a guarded CKC sheet version with backend actor attribution.
+    pub fn append_ckc_sheet_version(
+        &self,
+        character_internal_id: &str,
+        raw_text: &str,
+        expected_parent_version_id: Option<&str>,
+        tool: Option<&str>,
+        actor_id: &str,
+        cell: AtelierCkcAppendCell,
+    ) {
+        let spec = self.append_sheet_version_actor_request(
+            character_internal_id,
+            raw_text,
+            expected_parent_version_id,
+            tool,
+            actor_id,
+        );
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_sheet_version_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing sheet version row in append response".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
             }
         });
     }
@@ -5037,7 +5766,10 @@ async fn load_atelier_side_panel(
 
 /// `GET {url}` and parse the `Vec<IntakeBatchResponse>` into [`AtelierBatchRow`]s. A row missing a
 /// `batch_id` is skipped (defensive — never a panic, never a fabricated id).
-async fn fetch_atelier_batches(client: &reqwest::Client, url: &str) -> Result<Vec<AtelierBatchRow>, AppError> {
+async fn fetch_atelier_batches(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Vec<AtelierBatchRow>, AppError> {
     let v = get_json(client, url, &[]).await?;
     let arr = v.as_array().cloned().unwrap_or_default();
     let rows = arr
@@ -5054,7 +5786,11 @@ async fn fetch_atelier_batches(client: &reqwest::Client, url: &str) -> Result<Ve
                     .and_then(|x| x.as_str())
                     .unwrap_or("(unnamed batch)")
                     .to_owned(),
-                status: row.get("status").and_then(|x| x.as_str()).unwrap_or("").to_owned(),
+                status: row
+                    .get("status")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("")
+                    .to_owned(),
             })
         })
         .collect();
@@ -5062,21 +5798,32 @@ async fn fetch_atelier_batches(client: &reqwest::Client, url: &str) -> Result<Ve
 }
 
 /// `GET {url}` and parse the `Vec<CommandCorpusEntryResponse>` into [`AtelierCorpusRow`]s.
-async fn fetch_atelier_corpus(client: &reqwest::Client, url: &str) -> Result<Vec<AtelierCorpusRow>, AppError> {
+async fn fetch_atelier_corpus(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Vec<AtelierCorpusRow>, AppError> {
     let v = get_json(client, url, &[]).await?;
     let arr = v.as_array().cloned().unwrap_or_default();
     let rows = arr
         .iter()
         .filter_map(|row| {
             let entry_id = row.get("entry_id").and_then(|x| x.as_str())?.to_owned();
-            let action_id = row.get("action_id").and_then(|x| x.as_str()).unwrap_or("").to_owned();
+            let action_id = row
+                .get("action_id")
+                .and_then(|x| x.as_str())
+                .unwrap_or("")
+                .to_owned();
             if entry_id.is_empty() {
                 return None;
             }
             Some(AtelierCorpusRow {
                 entry_id,
                 action_id,
-                owner: row.get("owner").and_then(|x| x.as_str()).unwrap_or("").to_owned(),
+                owner: row
+                    .get("owner")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("")
+                    .to_owned(),
                 execution_class: row
                     .get("execution_class")
                     .and_then(|x| x.as_str())
@@ -5089,9 +5836,16 @@ async fn fetch_atelier_corpus(client: &reqwest::Client, url: &str) -> Result<Vec
 }
 
 /// `GET {url}` and parse the `IntakeBatchItemsResponse.items[]` into [`AtelierItemRow`]s.
-async fn fetch_atelier_items(client: &reqwest::Client, url: &str) -> Result<Vec<AtelierItemRow>, AppError> {
+async fn fetch_atelier_items(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Vec<AtelierItemRow>, AppError> {
     let v = get_json(client, url, &[]).await?;
-    let items = v.get("items").and_then(|x| x.as_array()).cloned().unwrap_or_default();
+    let items = v
+        .get("items")
+        .and_then(|x| x.as_array())
+        .cloned()
+        .unwrap_or_default();
     let rows = items
         .iter()
         .filter_map(|row| {
@@ -5106,12 +5860,175 @@ async fn fetch_atelier_items(client: &reqwest::Client, url: &str) -> Result<Vec<
                     .and_then(|x| x.as_str())
                     .unwrap_or("(unnamed item)")
                     .to_owned(),
-                source_path: row.get("source_path").and_then(|x| x.as_str()).unwrap_or("").to_owned(),
-                lane: row.get("lane").and_then(|x| x.as_str()).unwrap_or("").to_owned(),
+                source_path: row
+                    .get("source_path")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("")
+                    .to_owned(),
+                lane: row
+                    .get("lane")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("")
+                    .to_owned(),
             })
         })
         .collect();
     Ok(rows)
+}
+
+async fn post_json_with_actor(
+    client: &reqwest::Client,
+    spec: &ActorRequestSpec,
+) -> Result<serde_json::Value, AppError> {
+    let body = spec
+        .body
+        .as_ref()
+        .ok_or_else(|| AppError::Parse("actor POST request missing JSON body".to_owned()))?;
+    let mut request = client
+        .post(&spec.url)
+        .timeout(Duration::from_secs(5))
+        .json(body);
+    for (name, value) in &spec.headers {
+        request = request.header(name.as_str(), value.as_str());
+    }
+    let resp = request
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        let detail = serde_json::from_str::<serde_json::Value>(&text)
+            .ok()
+            .and_then(|value| {
+                value
+                    .get("error")
+                    .and_then(|error| error.as_str())
+                    .map(ToOwned::to_owned)
+            })
+            .filter(|value| !value.is_empty())
+            .unwrap_or(text);
+        return Err(AppError::Http(format!(
+            "POST non-success status {status}: {detail}"
+        )));
+    }
+    resp.json()
+        .await
+        .map_err(|e| AppError::Parse(e.to_string()))
+}
+
+async fn load_atelier_ckc(
+    client: &reqwest::Client,
+    characters_url: &str,
+    base_url: &str,
+) -> Result<AtelierCkcData, AppError> {
+    let characters = fetch_atelier_characters(client, characters_url).await?;
+    let mut rows = Vec::with_capacity(characters.len());
+    for character in characters {
+        let sheet_url = format!(
+            "{}/atelier/characters/{}/sheet-versions",
+            base_url, character.internal_id
+        );
+        let latest_sheet = fetch_atelier_sheet_versions(client, &sheet_url)
+            .await?
+            .into_iter()
+            .max_by_key(|row| row.seq);
+        rows.push(AtelierCkcCharacterSheetRow {
+            character,
+            latest_sheet,
+        });
+    }
+    Ok(AtelierCkcData { characters: rows })
+}
+
+async fn fetch_atelier_characters(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Vec<AtelierCharacterRow>, AppError> {
+    let value = get_json(client, url, &[]).await?;
+    let arr = value.as_array().cloned().unwrap_or_default();
+    Ok(arr.iter().filter_map(parse_atelier_character_row).collect())
+}
+
+async fn fetch_atelier_sheet_versions(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Vec<AtelierSheetVersionRow>, AppError> {
+    let value = get_json(client, url, &[]).await?;
+    let arr = value.as_array().cloned().unwrap_or_default();
+    Ok(arr
+        .iter()
+        .filter_map(parse_atelier_sheet_version_row)
+        .collect())
+}
+
+fn parse_atelier_character_row(row: &serde_json::Value) -> Option<AtelierCharacterRow> {
+    let internal_id = row.get("internal_id").and_then(|x| x.as_str())?.to_owned();
+    if internal_id.is_empty() {
+        return None;
+    }
+    Some(AtelierCharacterRow {
+        internal_id,
+        public_id: row
+            .get("public_id")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_owned(),
+        display_name: row
+            .get("display_name")
+            .and_then(|x| x.as_str())
+            .unwrap_or("(unnamed character)")
+            .to_owned(),
+        character_ref: row
+            .get("character_ref")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_owned(),
+    })
+}
+
+fn parse_atelier_sheet_version_row(row: &serde_json::Value) -> Option<AtelierSheetVersionRow> {
+    let version_id = row.get("version_id").and_then(|x| x.as_str())?.to_owned();
+    let character_internal_id = row
+        .get("character_internal_id")
+        .and_then(|x| x.as_str())?
+        .to_owned();
+    if version_id.is_empty() || character_internal_id.is_empty() {
+        return None;
+    }
+    Some(AtelierSheetVersionRow {
+        version_id,
+        character_internal_id,
+        parent_version_id: row
+            .get("parent_version_id")
+            .and_then(|x| x.as_str())
+            .map(ToOwned::to_owned),
+        seq: row.get("seq").and_then(|x| x.as_i64()).unwrap_or(0),
+        raw_text: row
+            .get("raw_text")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_owned(),
+        author: row
+            .get("author")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_owned(),
+        tool: row
+            .get("tool")
+            .and_then(|x| x.as_str())
+            .map(ToOwned::to_owned),
+        character_ref: row
+            .get("character_ref")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_owned(),
+        sheet_version_ref: row
+            .get("sheet_version_ref")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_owned(),
+    })
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -5220,8 +6137,14 @@ mod tests {
         let c = CanvasClient::new(BASE, rt.handle().clone());
         let spec = c.set_z_index_request("ws1", "p9", 1_000_000);
         assert_eq!(spec.method, HttpMethod::Patch);
-        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/canvas-placements/p9");
-        assert_eq!(spec.body.unwrap(), serde_json::json!({ "z_index": 1_000_000 }));
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws1/loom/canvas-placements/p9"
+        );
+        assert_eq!(
+            spec.body.unwrap(),
+            serde_json::json!({ "z_index": 1_000_000 })
+        );
     }
 
     #[test]
@@ -5230,7 +6153,10 @@ mod tests {
         let c = CanvasClient::new(BASE, rt.handle().clone());
         let spec = c.remove_placement_request("ws1", "p9");
         assert_eq!(spec.method, HttpMethod::Delete);
-        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/canvas-placements/p9");
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws1/loom/canvas-placements/p9"
+        );
         assert!(spec.body.is_none());
     }
 
@@ -5240,7 +6166,10 @@ mod tests {
         let c = CanvasClient::new(BASE, rt.handle().clone());
         let spec = c.remove_visual_edge_request("ws1", "ve7");
         assert_eq!(spec.method, HttpMethod::Delete);
-        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/canvas-visual-edges/ve7");
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws1/loom/canvas-visual-edges/ve7"
+        );
         assert!(spec.body.is_none());
     }
 
@@ -5252,7 +6181,10 @@ mod tests {
         let c = LoomBlockClient::new(BASE, rt.handle().clone());
         let spec = c.set_flag_request("ws1", "b3", LoomBlockFlag::Pinned, true);
         assert_eq!(spec.method, HttpMethod::Patch);
-        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/blocks/b3");
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws1/loom/blocks/b3"
+        );
         let body = spec.body.unwrap();
         // AC#73: the serialized body contains the `pinned` flag, and ONLY that flag (not favorite).
         assert_eq!(body, serde_json::json!({ "pinned": true }));
@@ -5274,8 +6206,14 @@ mod tests {
         let rt = rt();
         let c = LoomBlockClient::new(BASE, rt.handle().clone());
         let spec = c.rename_request("ws1", "b3", "New Title");
-        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/blocks/b3");
-        assert_eq!(spec.body.unwrap(), serde_json::json!({ "title": "New Title" }));
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws1/loom/blocks/b3"
+        );
+        assert_eq!(
+            spec.body.unwrap(),
+            serde_json::json!({ "title": "New Title" })
+        );
     }
 
     // ── MT-023 DrawerDataClient: verified view-count + daily-journal requests ────────────────────────
@@ -5287,9 +6225,15 @@ mod tests {
         let spec = c.count_request("ws1", DrawerDataKind::Notes);
         assert_eq!(spec.method, HttpMethod::Get);
         // VERIFIED endpoint: /loom/views/all (NOT the contract's stale /loom/views/table).
-        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/views/all");
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws1/loom/views/all"
+        );
         // VERIFIED content_type: note (the contract's `list` does not exist as a content_type).
-        assert_eq!(spec.query, vec![("content_type".to_owned(), "note".to_owned())]);
+        assert_eq!(
+            spec.query,
+            vec![("content_type".to_owned(), "note".to_owned())]
+        );
     }
 
     #[test]
@@ -5299,8 +6243,14 @@ mod tests {
         let spec = c.count_request("ws1", DrawerDataKind::Lists);
         // The contract's "Lists" maps to saved block-collection views → content_type=view_def (the
         // real, countable surface; `list` is not a valid LoomBlockContentType — disclosed deviation).
-        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/views/all");
-        assert_eq!(spec.query, vec![("content_type".to_owned(), "view_def".to_owned())]);
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws1/loom/views/all"
+        );
+        assert_eq!(
+            spec.query,
+            vec![("content_type".to_owned(), "view_def".to_owned())]
+        );
     }
 
     #[test]
@@ -5310,7 +6260,10 @@ mod tests {
         let spec = c.journal_request("ws1", "2026-06-20");
         // VERIFIED endpoint: PUT /loom/journals/{date} (open_daily_journal, get-or-create, no body).
         assert_eq!(spec.method, HttpMethod::Put);
-        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/journals/2026-06-20");
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws1/loom/journals/2026-06-20"
+        );
         assert!(spec.body.is_none());
     }
 
@@ -5356,7 +6309,8 @@ mod tests {
                     .lines()
                     .find_map(|l| {
                         let l = l.to_ascii_lowercase();
-                        l.strip_prefix("content-length:").map(|v| v.trim().parse::<usize>().ok())
+                        l.strip_prefix("content-length:")
+                            .map(|v| v.trim().parse::<usize>().ok())
                     })
                     .flatten()
                     .unwrap_or(0);
@@ -5382,8 +6336,7 @@ mod tests {
             .enable_all()
             .build()
             .expect("build multi-thread runtime");
-        let listener =
-            std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
         let port = listener.local_addr().unwrap().port();
         let base = format!("http://127.0.0.1:{port}");
 
@@ -5395,8 +6348,12 @@ mod tests {
         // Capture the request the spawned task sends on the wire.
         let captured = capture_one_request(listener);
         assert_eq!(captured.request_line, "POST /source-control/stage HTTP/1.1");
-        let body: serde_json::Value = serde_json::from_str(captured.body.trim()).expect("json body");
-        assert_eq!(body, serde_json::json!({ "repo_path": "/repo", "paths": ["src/x.rs"] }));
+        let body: serde_json::Value =
+            serde_json::from_str(captured.body.trim()).expect("json body");
+        assert_eq!(
+            body,
+            serde_json::json!({ "repo_path": "/repo", "paths": ["src/x.rs"] })
+        );
 
         // The delivery cell receives Ok(()) after the 200 — proving the full round-trip is consumed.
         rt.block_on(async {
@@ -5433,7 +6390,8 @@ mod tests {
                     .lines()
                     .find_map(|l| {
                         let l = l.to_ascii_lowercase();
-                        l.strip_prefix("content-length:").map(|v| v.trim().parse::<usize>().ok())
+                        l.strip_prefix("content-length:")
+                            .map(|v| v.trim().parse::<usize>().ok())
                     })
                     .flatten()
                     .unwrap_or(0);
@@ -5492,7 +6450,13 @@ mod tests {
         let delivered = cell.lock().unwrap().take().expect("drawer count delivered");
         assert_eq!(
             delivered,
-            (DrawerDataKind::Notes, Ok(DrawerCardData { badge_count: 2, subtitle: "2 items".to_owned() })),
+            (
+                DrawerDataKind::Notes,
+                Ok(DrawerCardData {
+                    badge_count: 2,
+                    subtitle: "2 items".to_owned()
+                })
+            ),
             "blocks.len() parsed as the badge count from the verified response shape"
         );
     }
@@ -5506,7 +6470,10 @@ mod tests {
         let spec = c.pin_order_request("ws1", "b3", 0);
         assert_eq!(spec.method, HttpMethod::Put);
         // VERIFIED endpoint: /pin-order (MT-183 set_loom_block_pin_order).
-        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/blocks/b3/pin-order");
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws1/loom/blocks/b3/pin-order"
+        );
         // VERIFIED body field: pin_order (NOT the contract's `ordinal`).
         assert_eq!(spec.body.unwrap(), serde_json::json!({ "pin_order": 0 }));
     }
@@ -5517,7 +6484,10 @@ mod tests {
         let c = DrawerActionClient::new(BASE, rt.handle().clone());
         let spec = c.discard_request("ws1", "b3");
         assert_eq!(spec.method, HttpMethod::Delete);
-        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/blocks/b3");
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws1/loom/blocks/b3"
+        );
         assert!(spec.body.is_none(), "DELETE carries no body");
     }
 
@@ -5556,7 +6526,10 @@ mod tests {
         assert_eq!(body["severity"], serde_json::json!("info"));
         assert_eq!(body["job_id"], serde_json::json!("job-9"));
         // The stashed block id is carried in the VERIFIED evidence_refs.artifact_hashes map.
-        assert_eq!(body["evidence_refs"]["artifact_hashes"]["b3"], serde_json::json!("b3"));
+        assert_eq!(
+            body["evidence_refs"]["artifact_hashes"]["b3"],
+            serde_json::json!("b3")
+        );
     }
 
     #[test]
@@ -5565,7 +6538,10 @@ mod tests {
         let c = DrawerActionClient::new(BASE, rt.handle().clone());
         let spec = c.attach_evidence_request("ws1", "b3", "My Note", None);
         let body = spec.body.unwrap();
-        assert!(body.get("job_id").is_none(), "no job_id key when there is no active job");
+        assert!(
+            body.get("job_id").is_none(),
+            "no job_id key when there is no active job"
+        );
     }
 
     #[test]
@@ -5587,7 +6563,10 @@ mod tests {
         client.discard("ws1", "b3", cell.clone());
 
         let captured = capture_one_request(listener);
-        assert_eq!(captured.request_line, "DELETE /workspaces/ws1/loom/blocks/b3 HTTP/1.1");
+        assert_eq!(
+            captured.request_line,
+            "DELETE /workspaces/ws1/loom/blocks/b3 HTTP/1.1"
+        );
 
         rt.block_on(async {
             for _ in 0..50 {
@@ -5597,7 +6576,11 @@ mod tests {
                 tokio::time::sleep(std::time::Duration::from_millis(10)).await;
             }
         });
-        assert_eq!(cell.lock().unwrap().take(), Some(Ok(())), "discard round-trip delivered Ok(())");
+        assert_eq!(
+            cell.lock().unwrap().take(),
+            Some(Ok(())),
+            "discard round-trip delivered Ok(())"
+        );
     }
 
     #[test]
@@ -5617,11 +6600,18 @@ mod tests {
         client.stow("ws1", "b3", cell.clone());
 
         let captured = capture_one_request(listener);
-        assert_eq!(captured.request_line, "POST /workspaces/ws1/loom/edges HTTP/1.1");
-        let body: serde_json::Value = serde_json::from_str(captured.body.trim()).expect("json body");
+        assert_eq!(
+            captured.request_line,
+            "POST /workspaces/ws1/loom/edges HTTP/1.1"
+        );
+        let body: serde_json::Value =
+            serde_json::from_str(captured.body.trim()).expect("json body");
         assert_eq!(body["source_block_id"], serde_json::json!("b3"));
         assert_eq!(body["edge_type"], serde_json::json!("tag"));
-        assert_eq!(body["target_block_id"], serde_json::json!(STASH_TAG_HUB_BLOCK_ID));
+        assert_eq!(
+            body["target_block_id"],
+            serde_json::json!(STASH_TAG_HUB_BLOCK_ID)
+        );
 
         rt.block_on(async {
             for _ in 0..50 {
@@ -5631,7 +6621,11 @@ mod tests {
                 tokio::time::sleep(std::time::Duration::from_millis(10)).await;
             }
         });
-        assert_eq!(cell.lock().unwrap().take(), Some(Ok(())), "stow round-trip delivered Ok(())");
+        assert_eq!(
+            cell.lock().unwrap().take(),
+            Some(Ok(())),
+            "stow round-trip delivered Ok(())"
+        );
     }
 
     #[test]
@@ -5665,7 +6659,13 @@ mod tests {
         let delivered = cell.lock().unwrap().take().expect("drawer count delivered");
         assert_eq!(
             delivered,
-            (DrawerDataKind::Lists, Ok(DrawerCardData { badge_count: 0, subtitle: "0 items".to_owned() })),
+            (
+                DrawerDataKind::Lists,
+                Ok(DrawerCardData {
+                    badge_count: 0,
+                    subtitle: "0 items".to_owned()
+                })
+            ),
             "missing blocks field defaults to 0 (CONTROL-023-D), never an error"
         );
     }
@@ -5678,7 +6678,10 @@ mod tests {
         let c = LoomGraphClient::new(BASE, rt.handle().clone());
         let spec = c.global_request("ws-7");
         assert_eq!(spec.method, HttpMethod::Get);
-        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws-7/loom/views/all");
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws-7/loom/views/all"
+        );
         assert!(spec.query.is_empty(), "global enumeration carries no query");
     }
 
@@ -5688,7 +6691,10 @@ mod tests {
         let c = LoomGraphClient::new(BASE, rt.handle().clone());
         let spec = c.local_request("ws-7", "My Note");
         assert_eq!(spec.method, HttpMethod::Get);
-        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws-7/loom/graph-search");
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws-7/loom/graph-search"
+        );
         // The focused block's TITLE is the graph-search `q` (the backend 400s on an empty q), plus the
         // verified backlink_depth + limit caps.
         assert_eq!(
@@ -5711,7 +6717,10 @@ mod tests {
 
         // A valid in-range depth is carried verbatim on the SAME graph-search URL (NO new endpoint).
         let spec = c.local_request_with_depth("ws-7", "My Note", 4);
-        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws-7/loom/graph-search");
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws-7/loom/graph-search"
+        );
         assert_eq!(
             spec.query,
             vec![
@@ -5725,12 +6734,22 @@ mod tests {
         // An abusive over-range depth clamps DOWN to MAX (never reaches the backend as an abusive
         // traversal); a zero/under-range depth clamps UP to MIN.
         let too_deep = c.local_request_with_depth("ws-7", "T", 99);
-        assert_eq!(too_deep.query[1], ("backlink_depth".to_owned(), MAX_BACKLINK_DEPTH.to_string()));
+        assert_eq!(
+            too_deep.query[1],
+            ("backlink_depth".to_owned(), MAX_BACKLINK_DEPTH.to_string())
+        );
         let too_shallow = c.local_request_with_depth("ws-7", "T", 0);
-        assert_eq!(too_shallow.query[1], ("backlink_depth".to_owned(), MIN_BACKLINK_DEPTH.to_string()));
+        assert_eq!(
+            too_shallow.query[1],
+            ("backlink_depth".to_owned(), MIN_BACKLINK_DEPTH.to_string())
+        );
 
         // The non-depth `local_request` still equals the default-depth path (one builder, no drift).
-        assert_eq!(c.local_request("ws-7", "X").query, c.local_request_with_depth("ws-7", "X", DEFAULT_BACKLINK_DEPTH).query);
+        assert_eq!(
+            c.local_request("ws-7", "X").query,
+            c.local_request_with_depth("ws-7", "X", DEFAULT_BACKLINK_DEPTH)
+                .query
+        );
     }
 
     /// WP-KERNEL-012 MT-080 (AC-080-2 / MT-061): the canvas resize + clear-group request builders PATCH the
@@ -5747,19 +6766,34 @@ mod tests {
 
         let resize = c.resize_request("ws-7", "p-9", 320.0, 180.0);
         assert_eq!(resize.method, HttpMethod::Patch);
-        assert_eq!(resize.url, "http://test.local:1234/workspaces/ws-7/loom/canvas-placements/p-9");
-        assert_eq!(resize.body, Some(serde_json::json!({ "w": 320.0, "h": 180.0 })));
+        assert_eq!(
+            resize.url,
+            "http://test.local:1234/workspaces/ws-7/loom/canvas-placements/p-9"
+        );
+        assert_eq!(
+            resize.body,
+            Some(serde_json::json!({ "w": 320.0, "h": 180.0 }))
+        );
 
         let clear = c.clear_group_request("ws-7", "p-9");
         assert_eq!(clear.method, HttpMethod::Patch);
-        assert_eq!(clear.url, "http://test.local:1234/workspaces/ws-7/loom/canvas-placements/p-9");
+        assert_eq!(
+            clear.url,
+            "http://test.local:1234/workspaces/ws-7/loom/canvas-placements/p-9"
+        );
         // The backend clears the group ONLY on `clear_group: true`; `{"group_id": null}` is a no-op.
         assert_eq!(clear.body, Some(serde_json::json!({ "clear_group": true })));
 
         // The assign (Some group) arm reuses the existing verified group_request (same URL + verb).
         let assign = c.group_request("ws-7", "p-9", "section-2");
-        assert_eq!(assign.url, resize.url, "assign-section reuses the same placement PATCH URL");
-        assert_eq!(assign.body, Some(serde_json::json!({ "group_id": "section-2" })));
+        assert_eq!(
+            assign.url, resize.url,
+            "assign-section reuses the same placement PATCH URL"
+        );
+        assert_eq!(
+            assign.body,
+            Some(serde_json::json!({ "group_id": "section-2" }))
+        );
     }
 
     /// End-to-end: the REAL `fetch_global` spawn path hits a live capture server and parses the verified
@@ -5800,12 +6834,20 @@ mod tests {
                 tokio::time::sleep(std::time::Duration::from_millis(10)).await;
             }
         });
-        let data = cell.lock().unwrap().take().expect("graph delivered").expect("parse ok");
+        let data = cell
+            .lock()
+            .unwrap()
+            .take()
+            .expect("graph delivered")
+            .expect("parse ok");
         assert_eq!(data.nodes.len(), 3, "3 seeded blocks -> 3 nodes");
         assert_eq!(data.nodes[0].block_id, "b1");
         assert_eq!(data.nodes[0].content_type, "note");
         // A null title falls back to the block id (never label-less).
-        assert_eq!(data.nodes[2].title, "b3", "null title falls back to block_id");
+        assert_eq!(
+            data.nodes[2].title, "b3",
+            "null title falls back to block_id"
+        );
         assert!(data.edges.is_empty(), "global enumeration has no edges");
     }
 
@@ -5845,7 +6887,10 @@ mod tests {
             }
         });
         let delivered = cell.lock().unwrap().take().expect("graph delivered");
-        assert!(delivered.is_err(), "AC8: a 5xx must deliver Err (got {delivered:?}), never a fake graph");
+        assert!(
+            delivered.is_err(),
+            "AC8: a 5xx must deliver Err (got {delivered:?}), never a fake graph"
+        );
     }
 
     // ── LoomTagClient: add-tag candidate parser (verified /loom/search response shape) ────────────────
@@ -5907,14 +6952,27 @@ mod tests {
     #[test]
     fn apply_fold_preserves_first_receipt_on_second_doc_conflict() {
         let outcomes = vec![
-            ("KRD-1".to_owned(), DocSaveOutcome::Saved("evt-1".to_owned())),
+            (
+                "KRD-1".to_owned(),
+                DocSaveOutcome::Saved("evt-1".to_owned()),
+            ),
             ("KRD-2".to_owned(), DocSaveOutcome::Conflict),
         ];
         match fold_apply_outcomes(&outcomes, 2) {
             crate::find_in_files::ReplaceDelivery::AppliedPartial { receipts, error } => {
-                assert_eq!(receipts, vec!["evt-1".to_owned()], "first receipt must survive the conflict");
-                assert!(error.contains("KRD-2"), "error names the conflicting doc: {error}");
-                assert!(error.contains("conflict"), "error states the version conflict: {error}");
+                assert_eq!(
+                    receipts,
+                    vec!["evt-1".to_owned()],
+                    "first receipt must survive the conflict"
+                );
+                assert!(
+                    error.contains("KRD-2"),
+                    "error names the conflicting doc: {error}"
+                );
+                assert!(
+                    error.contains("conflict"),
+                    "error states the version conflict: {error}"
+                );
             }
             other => panic!("expected AppliedPartial preserving the first receipt, got {other:?}"),
         }
@@ -5924,13 +6982,22 @@ mod tests {
     #[test]
     fn apply_fold_preserves_first_receipt_on_second_doc_failure() {
         let outcomes = vec![
-            ("KRD-1".to_owned(), DocSaveOutcome::Saved("evt-1".to_owned())),
-            ("KRD-2".to_owned(), DocSaveOutcome::Failed("status 500".to_owned())),
+            (
+                "KRD-1".to_owned(),
+                DocSaveOutcome::Saved("evt-1".to_owned()),
+            ),
+            (
+                "KRD-2".to_owned(),
+                DocSaveOutcome::Failed("status 500".to_owned()),
+            ),
         ];
         match fold_apply_outcomes(&outcomes, 2) {
             crate::find_in_files::ReplaceDelivery::AppliedPartial { receipts, error } => {
                 assert_eq!(receipts, vec!["evt-1".to_owned()]);
-                assert!(error.contains("status 500"), "error carries the failure detail: {error}");
+                assert!(
+                    error.contains("status 500"),
+                    "error carries the failure detail: {error}"
+                );
             }
             other => panic!("expected AppliedPartial, got {other:?}"),
         }
@@ -5940,11 +7007,20 @@ mod tests {
     #[test]
     fn apply_fold_all_success_yields_applied_with_all_receipts() {
         let outcomes = vec![
-            ("KRD-1".to_owned(), DocSaveOutcome::Saved("evt-1".to_owned())),
-            ("KRD-2".to_owned(), DocSaveOutcome::Saved("evt-2".to_owned())),
+            (
+                "KRD-1".to_owned(),
+                DocSaveOutcome::Saved("evt-1".to_owned()),
+            ),
+            (
+                "KRD-2".to_owned(),
+                DocSaveOutcome::Saved("evt-2".to_owned()),
+            ),
         ];
         match fold_apply_outcomes(&outcomes, 2) {
-            crate::find_in_files::ReplaceDelivery::Applied { receipts, plan_count } => {
+            crate::find_in_files::ReplaceDelivery::Applied {
+                receipts,
+                plan_count,
+            } => {
                 assert_eq!(receipts, vec!["evt-1".to_owned(), "evt-2".to_owned()]);
                 assert_eq!(plan_count, 2);
             }

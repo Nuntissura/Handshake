@@ -39,7 +39,7 @@
 //! activity-span route, and the Locus read route return a typed `EndpointMissing`/gated empty-state).
 //! The manual states this as a typed blocker rather than fabricating live cross-edge behavior.
 
-use crate::accessibility::editor_action_registry::{rich_action_catalog, CODE_ACTION_CATALOG};
+use crate::accessibility::editor_action_registry::{CODE_ACTION_CATALOG, rich_action_catalog};
 use crate::accessibility::{
     CANVAS_CONTROL_CATALOG, COLLECTION_CONTROL_CATALOG, GRAPH_CONTROL_CATALOG,
 };
@@ -275,7 +275,38 @@ Inside that panel, Castkit Codex is atelier-tab-ckc, Posekit is atelier-tab-pose
 atelier-tab-ingest. Use Argus to inspect the panel, click a tab, then re-inspect the active content \
 region before claiming the workflow works.\n\
 \n\
-CKC starts from atelier-content-ckc and keeps the character/media intake and drag-source workflow. \
+CKC starts from atelier-content-ckc and is the character/avatar database surface. Inspect \
+atelier-ckc-character-list to select a character, use atelier-ckc-character-create-name and \
+atelier-ckc-character-create to create a new character shell, edit the current sheet in \
+atelier-ckc-sheet-editor, and use atelier-ckc-sheet-save-version to append a new sheet version rather \
+than overwriting the previous version. The current selection is atelier-ckc-selected-character. \
+Downstream tools should reuse the visible typed refs instead of copying sheet text: \
+atelier-ckc-character-ref exposes atelier://character/{character_internal_id}, \
+atelier-ckc-sheet-version-ref exposes atelier://sheet/{character_internal_id}/{sheet_version_id}, and \
+atelier-ckc-typed-ref-kind exposes the hsLink refKind character_sheet. The matching backend routes are \
+GET/POST /atelier/characters, GET /atelier/characters/{character_internal_id}, GET/POST \
+/atelier/characters/{character_internal_id}/sheet-versions, POST \
+/atelier/characters/{character_internal_id}/sheet-versions/import, GET \
+/atelier/sheet-versions/{version_id}, GET /atelier/sheet-versions/{version_id}/export?format=txt|json, \
+GET /atelier/sheet-templates/default, GET /atelier/sheet-templates/default/safe-subset, and GET \
+/atelier/sheet-field-suggestions?field_id=CHAR-ID-006&limit=20; \
+POST writes require x-hsk-actor-id so parallel agents are attributable. New CKC characters created from \
+the native panel request the built-in CHARACTER_SHEET__v2.00.txt template and create the first append-only \
+sheet version with CHAR-ID-001 set to public_id and CHAR-ID-002 set to display_name. The short/SFW-safe \
+sheet surface is LLM_SAFE_SUBSET__v2.00.json: a curated Field ID whitelist for the same v2.00 template, \
+not a separate replacement sheet. Import uses the /sheet-versions/import route and appends the supplied \
+raw sheet text as a new version. Export returns deterministic txt or json content plus content_hash and \
+sheet refs; it does not open a foreground file dialog. Field suggestions remember prior non-empty values \
+per exact Field ID, ignore template placeholders such as <string>, and never auto-fill or rewrite input. \
+Sheet appends use \
+expected_parent_version_id as the stale-head guard for parallel agents. A stale append returns \
+error=stale_sheet_version plus character_ref, expected_parent_version_id, \
+expected_parent_sheet_version_ref, current_head_version_id, and current_head_sheet_version_ref; reload \
+the current head before retrying. After Argus edits or clicks CKC controls, drain the queued action, \
+re-inspect the panel, and verify the editor text or visible sheet_version_ref changed before claiming \
+the UI was steered.\n\
+\n\
+CKC also keeps the character/media intake and drag-source workflow. \
 Posekit starts from atelier-content-posekit and exposes model-addressable controls for the current \
 placeholder split-view workflow: atelier-pose-yaw-minus, atelier-pose-yaw-plus, atelier-pose-reset, \
 atelier-pose-face-toggle, atelier-pose-body-toggle, atelier-pose-hands-toggle, \
@@ -389,6 +420,52 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         mcp_tool: "argus.set_value",
         description:
             "argus.set_value{target:'manual-search', value:'<keyword>'} filters manual topics.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_CHARACTER_LIST_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Inspect CKC character database",
+        mcp_tool: "argus.inspect",
+        description: "argus.inspect surfaces the CKC character list and selected sheet version.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_CHARACTER_CREATE_NAME_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Type a new CKC character name",
+        mcp_tool: "argus.set_value",
+        description: "argus.set_value{target:'atelier-ckc-character-create-name', value:'<name>'}.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_CHARACTER_CREATE_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Create a CKC character",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-character-create'} creates/selects a character shell.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Edit the selected CKC sheet",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-sheet-editor', value:'<sheet text>'} edits the sheet buffer.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SHEET_SAVE_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Append a CKC sheet version",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-sheet-save-version'} appends a new version, preserving the previous one.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SHEET_VERSION_REF_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Read the CKC sheet-version ref",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads atelier://sheet/{character_internal_id}/{sheet_version_id}.",
     });
 
     // ── Code editor: every CODE_ACTION_CATALOG entry as editor.code.<action> ─────────────────────────
