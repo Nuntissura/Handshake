@@ -93,17 +93,10 @@ use super::editor_view::{
 use super::formatting::{self, FormatOutcome};
 // MT-051 line-edit buffer transforms: the dispatch arms for ToggleComment / DuplicateLine / MoveLine /
 // DeleteLine / Indent / Dedent / InsertTab call into this module (pure TextBuffer + CursorSet transforms).
-use super::line_ops;
-use super::lsp_client::{LspClient, PublishedDiagnostics};
-use super::signature_help::{
-    active_parameter_from_commas, render_signature_popup, SignatureHelpState,
-};
-use super::rename::{
-    self, PreviewAction, RenameApplyReport, RenameState, WorkspaceEditPreview,
-};
-use super::code_actions::{self, AppliedAction, CodeActionController, MenuAction};
-use super::find_replace::{FindEngine, FindQuery, Match};
 use super::breakpoints::{BreakpointAction, BreakpointEvent, BreakpointSet};
+use super::code_actions::{self, AppliedAction, CodeActionController, MenuAction};
+use super::cursor::MoveDir;
+use super::find_replace::{FindEngine, FindQuery, Match};
 use super::folding::{FoldProvider, FoldSet};
 use super::gutter::{
     DiagnosticSeverity, Gutter, GutterConfig, GutterGeometry, GutterMarker, GutterMarkerKind,
@@ -112,11 +105,16 @@ use super::gutter::{
 use super::highlight::{HighlightScope, HighlightSpan, Highlighter, LanguageRegistry};
 use super::jump_history::{JumpEntry, JumpHistory};
 use super::keymap::{CodeEditorAction, KeyChord, Keymap};
-use super::navigation::{next_diagnostic, prev_diagnostic, BufferPosition};
 use super::keymap_settings::{keymap_settings_path, KeymapSettings};
+use super::line_ops;
+use super::lsp_client::{LspClient, PublishedDiagnostics};
 use super::minimap::Minimap;
+use super::navigation::{next_diagnostic, prev_diagnostic, BufferPosition};
 use super::outline::{OutlineItem, OutlineProvider};
-use super::cursor::MoveDir;
+use super::rename::{self, PreviewAction, RenameApplyReport, RenameState, WorkspaceEditPreview};
+use super::signature_help::{
+    active_parameter_from_commas, render_signature_popup, SignatureHelpState,
+};
 // MT-054 editor-chrome decorations: bracket match / pair-colorize + indent-guide geometry, and the
 // word-wrap VisualRow layout math. Pure over the buffer; the panel paint path consumes them.
 use super::render_decorations::{
@@ -152,6 +150,7 @@ pub const CODE_EDITOR_FIND_PREV_AUTHOR_ID: &str = "code_editor_find_prev";
 /// dispatches to fold/unfold by id. Only the foldable regions inside the painted window are surfaced
 /// (capped — RISK-001) so a 1000-fold file does not emit 1000 nodes per frame.
 pub const CODE_EDITOR_FOLD_AUTHOR_PREFIX: &str = "code_editor_fold_";
+pub const CODE_EDITOR_FOLD_TARGET_AUTHOR_PREFIX: &str = "code_editor_fold_target_";
 
 /// MT-006 navigation-aid author_ids (AC-003/004/005). The minimap node is `code_editor_minimap`
 /// (`Role::ScrollBar` — clicking scrolls; the role exists in accesskit 0.21.1, no fallback needed); the
@@ -162,6 +161,13 @@ pub const CODE_EDITOR_FOLD_AUTHOR_PREFIX: &str = "code_editor_fold_";
 pub const CODE_EDITOR_MINIMAP_AUTHOR_ID: &str = "code_editor_minimap";
 pub const CODE_EDITOR_OUTLINE_AUTHOR_ID: &str = "code_editor_outline";
 pub const CODE_EDITOR_GOTO_LINE_AUTHOR_ID: &str = "code_editor_goto_line";
+pub const CODE_EDITOR_TOGGLE_OUTLINE_AUTHOR_ID: &str = "code_editor_toggle_outline";
+pub const CODE_EDITOR_TOGGLE_MINIMAP_AUTHOR_ID: &str = "code_editor_toggle_minimap";
+pub const CODE_EDITOR_TOGGLE_NOTE_REFS_AUTHOR_ID: &str = "code_editor_toggle_note_refs";
+pub const CODE_EDITOR_VISIBLE_WRAP_TOGGLE_AUTHOR_ID: &str = "code_editor_toggle_wrap";
+pub const CODE_EDITOR_KEYBINDINGS_AUTHOR_ID: &str = "code_editor_keybindings";
+pub const CODE_EDITOR_CONTEXT_SURFACE_AUTHOR_ID: &str = "code_editor_context_surface";
+pub const CODE_EDITOR_OUTLINE_ROW_AUTHOR_PREFIX: &str = "code_editor_outline_row_";
 
 /// MT-053 in-file Go-to-Symbol palette author_ids (AC-003 / AC-005 / MC-005). The palette list
 /// container is `code_editor_symbol_palette` (`Role::List`); the search input is
@@ -198,6 +204,7 @@ pub const MAX_ACCESSKIT_SYMBOL_ROWS: usize = 128;
 /// NOT exist in accesskit 0.21.1 — `Role::Label` is the field-correct static-text role).
 pub const CODE_EDITOR_GUTTER_AUTHOR_ID: &str = "code_editor_gutter";
 pub const CODE_EDITOR_BREAKPOINT_AUTHOR_PREFIX: &str = "code_editor_breakpoint_";
+pub const CODE_EDITOR_BREAKPOINT_TARGET_AUTHOR_PREFIX: &str = "code_editor_breakpoint_target_";
 pub const CODE_EDITOR_DIAGNOSTIC_AUTHOR_PREFIX: &str = "code_editor_diagnostic_";
 
 /// Max foldable-region AccessKit nodes emitted per frame (RISK-001 / RISK-004 analog of the cursor
@@ -297,7 +304,8 @@ const PANEL_FIND_PREV_NODE_ID: u64 = 283;
 /// specifies explicit RGBA the contract names: a translucent YELLOW over every match and translucent
 /// ORANGE over the current match (AC-005). They are intentionally distinct from the cornflower-blue
 /// selection tint so a match never reads as a selection.
-const MATCH_HIGHLIGHT_COLOR: egui::Color32 = egui::Color32::from_rgba_premultiplied(180, 160, 0, 110);
+const MATCH_HIGHLIGHT_COLOR: egui::Color32 =
+    egui::Color32::from_rgba_premultiplied(180, 160, 0, 110);
 const CURRENT_MATCH_HIGHLIGHT_COLOR: egui::Color32 =
     egui::Color32::from_rgba_premultiplied(200, 120, 0, 150);
 
@@ -696,7 +704,6 @@ pub struct CodeEditorPanel {
     last_gutter_geometry: Mutex<Option<GutterGeometry>>,
 
     // ── MT-008 code intelligence (LSP + Handshake code-nav fallback) ──────────────────────────────
-
     /// MT-008 completion popup state. `None` when no completion is showing; `Some` while the popup is
     /// open. The render path draws the popup + emits its AccessKit nodes from this; the input handler
     /// (Arrow/Enter/Escape) and the result-delivery drain mutate it. Behind a `Mutex` for the same
@@ -747,8 +754,7 @@ pub struct CodeEditorPanel {
     /// the LSP client, so [`drain_lsp_diagnostics`](Self::drain_lsp_diagnostics) can incrementally drain
     /// it each frame and route notifications to the gutter (AC-008). `None` until the first drain takes
     /// the receiver from a configured client.
-    lsp_diagnostics_rx:
-        Mutex<Option<tokio::sync::mpsc::UnboundedReceiver<PublishedDiagnostics>>>,
+    lsp_diagnostics_rx: Mutex<Option<tokio::sync::mpsc::UnboundedReceiver<PublishedDiagnostics>>>,
     /// MT-008 the app's tokio runtime handle, injected by the host (the same per-component injection
     /// pattern `BackendClient`/`ProjectTree`/`QuickSwitcher` use — see [`set_runtime`](Self::set_runtime)).
     /// The LIVE render/input loop reads it to drive the off-thread completion/hover triggers from
@@ -765,7 +771,6 @@ pub struct CodeEditorPanel {
     completion_request: std::sync::atomic::AtomicBool,
 
     // ── MT-047 signature help (parameter hints) ───────────────────────────────────────────────────
-
     /// MT-047 the live signature-help popup state. `None` when no popup is open; `Some` while showing.
     /// The render path draws the popup + emits its AccessKit node from this; the input handler (trigger
     /// characters / Ctrl+Shift+Space / dismissal) and the off-thread result drain mutate it. Behind a
@@ -790,7 +795,6 @@ pub struct CodeEditorPanel {
     signature_fallback_cache: SignatureFallbackCache,
 
     // ── MT-048 Rename Symbol (F2) ─────────────────────────────────────────────────────────────────
-
     /// MT-048 the rename state machine phase (Idle / Editing the inline input / Previewing the multi-file
     /// WorkspaceEdit / Error). The render path draws the input/preview/banner from this; the F2 keymap, the
     /// context-menu entry, and the off-thread rename result drain mutate it. Behind a `Mutex` for the same
@@ -804,7 +808,6 @@ pub struct CodeEditorPanel {
     rename_result: RenameResultCell,
 
     // ── MT-049 Code actions / quick fixes (the lightbulb) ─────────────────────────────────────────
-
     /// MT-049 the quick-fix controller: owns the code-action request lifecycle, the action-list + menu
     /// state, the gutter-lightbulb decision, and the apply call (which DELEGATES to the MT-048 apply path).
     /// The cursor-rest trigger + Ctrl+. + the context-menu 'Quick Fix...' entry feed it; the render path
@@ -843,7 +846,6 @@ pub struct CodeEditorPanel {
     last_quickfix_cross_file: Mutex<Option<Result<RenameApplyReport, String>>>,
 
     // ── MT-050 Format Document / Format Selection ─────────────────────────────────────────────────
-
     /// MT-050 one-shot Alt+Shift+F (or EDIT-menu / context-menu 'Format Document') arm: set by the keymap
     /// dispatch / menu entry, drained by the per-frame pump which fires the `textDocument/formatting`
     /// request off-thread and applies the returned TextEdits as one undo step. Atomic so the `&self`
@@ -868,7 +870,6 @@ pub struct CodeEditorPanel {
     pending_format_undo: Mutex<Option<(String, String)>>,
 
     // ── MT-051 line-edit buffer transforms ────────────────────────────────────────────────────────
-
     /// MT-051 the queued single-undo snapshot `(description, before_text, after_text)` for a just-applied
     /// line transform (ToggleComment / DuplicateLine / MoveLine / DeleteLine / Indent / Dedent / InsertTab).
     /// Each `line_ops` transform snapshots the whole buffer before + after and queues ONE entry here; the
@@ -902,8 +903,13 @@ pub struct CodeEditorPanel {
     /// frame (an O(buffer) copy that scales with file size). The cache recomputes only when the buffer
     /// version bumps (an edit) or the user override changes, so an idle frame is a cheap version+override
     /// compare. `None` until the first resolve.
-    resolved_language_cache:
-        Mutex<Option<(u64, Option<super::language_mode::LanguageId>, super::language_mode::LanguageDetection)>>,
+    resolved_language_cache: Mutex<
+        Option<(
+            u64,
+            Option<super::language_mode::LanguageId>,
+            super::language_mode::LanguageDetection,
+        )>,
+    >,
     /// MT-071 the document's active line-ending style (LF / CRLF). Seeded from the buffer on build
     /// ([`Eol::detect`](super::file_meta::Eol::detect)); the status-bar EOL segment + its "Convert to
     /// LF/CRLF" actions read + set it. Behind a `Mutex` for the same `Sync` reason as the buffer.
@@ -918,7 +924,6 @@ pub struct CodeEditorPanel {
     render_whitespace: std::sync::atomic::AtomicBool,
 
     // ── MT-054 editor chrome: word wrap + bracket match/colorize + indent guides ──────────────────
-
     /// MT-054 the word-wrap configuration (Alt+Z). `enabled == false` by default (the MT-002 baseline
     /// 1:1 render — RISK-006 / MC-006). The `show` path consumes the Alt+Z shortcut to flip `enabled`,
     /// refreshes `viewport_width_px` each frame from the live editor-area width, and drives BOTH the
@@ -936,7 +941,6 @@ pub struct CodeEditorPanel {
     wrap_row_index: Mutex<Option<WrapRowIndex>>,
 
     // ── MT-010 Monaco-parity keymap (the SINGLE key dispatch authority) ───────────────────────────
-
     /// MT-010 the active keymap: the VS Code default binding table merged with any operator overrides
     /// loaded from `~/.handshake/keymap.json`. The SINGLE source of truth for "what does this key do" —
     /// `process_keymap` resolves every editor key event through this table and dispatches the resolved
@@ -984,7 +988,6 @@ pub struct CodeEditorPanel {
     editor_action_wiring: Mutex<Option<EditorActionWiring>>,
 
     // ── MT-034 code->notes cross-references (the NoteRefsPanel side surface) ───────────────────────────
-
     /// MT-034: whether the "Notes referencing this symbol" panel is shown in the right sidebar
     /// (RISK-001 / MC-001 — hideable so the center editor keeps a usable width, like the outline/minimap).
     /// Default OFF (it loads only on a symbol dwell; an empty panel adds nothing but width until then —
@@ -1151,7 +1154,10 @@ impl GotoLineState {
     /// behavior of seeding the input with the current line.
     fn for_cursor_line(cursor_line: usize) -> Self {
         let one_based = cursor_line.saturating_add(1);
-        let mut s = Self { input: one_based.to_string(), parsed: None };
+        let mut s = Self {
+            input: one_based.to_string(),
+            parsed: None,
+        };
         s.reparse(usize::MAX); // clamp computed against the live buffer at submit; seed parsed now.
         s
     }
@@ -1260,7 +1266,10 @@ impl CodeEditorPanel {
         let mut highlighter = registry.highlighter_for_extension(extension);
         // Capture the language id from the highlighter (it carries the stable family id), so the fold
         // provider selects the right foldable-node set without re-deriving it every frame (MT-005).
-        let language_id = highlighter.as_ref().map(|hl| hl.language_id()).unwrap_or("");
+        let language_id = highlighter
+            .as_ref()
+            .map(|hl| hl.language_id())
+            .unwrap_or("");
         let buffer = TextBuffer::new(text);
         // Compute the initial fold regions from the first parse tree (when the language is known), so a
         // freshly opened document is foldable on frame 1 (regions start UNfolded — the user/agent folds
@@ -1464,7 +1473,10 @@ impl CodeEditorPanel {
     /// owned [`TextBuffer`] rather than a borrow because the buffer now lives behind a `Mutex` (MT-003:
     /// edits made it interior-mutable). Tests/later MTs read line counts / text through it.
     pub fn buffer(&self) -> TextBuffer {
-        self.buffer.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.buffer
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Run `f` against the locked buffer without cloning (the internal read path used by the render
@@ -1478,7 +1490,10 @@ impl CodeEditorPanel {
 
     /// A snapshot of the current cursor set (for tests / later MTs / the overlay). Cheap `Vec` clone.
     pub fn cursors(&self) -> CursorSet {
-        self.cursor_set.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.cursor_set
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// MT-031 (E5 melt-together): the PRIMARY selection as `(start, end, text)` BYTE range + its text,
@@ -1507,7 +1522,10 @@ impl CodeEditorPanel {
 
     /// Number of cursors currently active (>= 1 always).
     pub fn cursor_count(&self) -> usize {
-        self.cursor_set.lock().unwrap_or_else(|e| e.into_inner()).len()
+        self.cursor_set
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .len()
     }
 
     /// Replace the whole cursor set with one caret at `byte_offset` (a plain, non-Alt click). Clamped
@@ -1681,7 +1699,10 @@ impl CodeEditorPanel {
     /// MT-076: the current IME composition (preedit) text, or empty when no composition is active. Read
     /// by the render overlay and by tests asserting the cancel/commit clears it.
     pub fn preedit(&self) -> String {
-        self.preedit.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.preedit
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// MT-076: replace the IME preedit overlay text (internal; the input path + `handle_ime_event` drive
@@ -1799,13 +1820,19 @@ impl CodeEditorPanel {
     /// True when the find bar is open (a frame would paint match highlights). The render loop and tests
     /// read this; `find_state().is_some()` is the native analog of Monaco's `findWidgetVisible`.
     pub fn is_find_open(&self) -> bool {
-        self.find_state.lock().unwrap_or_else(|e| e.into_inner()).is_some()
+        self.find_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_some()
     }
 
     /// A snapshot clone of the current find state (for tests + the overlay). `None` when the bar is
     /// closed.
     pub fn find_state(&self) -> Option<FindState> {
-        self.find_state.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.find_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Advance to the next match (wrapping at the end), and scroll the viewport to it. No-op when the
@@ -1878,7 +1905,9 @@ impl CodeEditorPanel {
     pub fn replace_current(&self) -> bool {
         let (target, replacement) = {
             let guard = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
-            let Some(state) = guard.as_ref() else { return false };
+            let Some(state) = guard.as_ref() else {
+                return false;
+            };
             match state.current() {
                 Some(m) => (m.clone(), state.replace_text.clone()),
                 None => return false,
@@ -1902,7 +1931,9 @@ impl CodeEditorPanel {
     pub fn replace_all(&self) -> usize {
         let (matches, replacement) = {
             let guard = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
-            let Some(state) = guard.as_ref() else { return 0 };
+            let Some(state) = guard.as_ref() else {
+                return 0;
+            };
             (state.matches.clone(), state.replace_text.clone())
         };
         if matches.is_empty() {
@@ -1930,8 +1961,11 @@ impl CodeEditorPanel {
         state.matches = FindEngine::search(&state.query, &buffer);
         state.error = FindEngine::compile_error(&state.query).unwrap_or_default();
         state.last_searched = state.query.pattern.clone();
-        state.last_toggles =
-            (state.query.case_sensitive, state.query.whole_word, state.query.is_regex);
+        state.last_toggles = (
+            state.query.case_sensitive,
+            state.query.whole_word,
+            state.query.is_regex,
+        );
         if state.matches.is_empty() {
             state.current_match = 0;
         } else if state.current_match >= state.matches.len() {
@@ -1966,18 +2000,29 @@ impl CodeEditorPanel {
     fn ensure_highlight_cache(&self) {
         let version = self.buffer_version.load(Ordering::Relaxed);
         {
-            let cache = self.highlight_cache.lock().unwrap_or_else(|e| e.into_inner());
+            let cache = self
+                .highlight_cache
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             if matches!(cache.as_ref(), Some((_, v)) if *v == version) {
                 return; // cache hit: no re-parse this frame (MT-002 step 3).
             }
         }
         // Miss: parse once, under the highlighter lock, then store the spans at this version.
         let bytes = self.with_buffer(|b| b.to_bytes());
-        let spans = match self.highlighter.lock().unwrap_or_else(|e| e.into_inner()).as_mut() {
+        let spans = match self
+            .highlighter
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_mut()
+        {
             Some(hl) => hl.highlight(&bytes),
             None => Vec::new(),
         };
-        *self.highlight_cache.lock().unwrap_or_else(|e| e.into_inner()) = Some((spans, version));
+        *self
+            .highlight_cache
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some((spans, version));
     }
 
     /// Recompute the fold regions iff the buffer version moved since they were last computed (MT-005
@@ -2016,7 +2061,10 @@ impl CodeEditorPanel {
     /// (MT-007) / later MTs. Recomputes the regions first if the buffer version moved.
     pub fn fold_set(&self) -> FoldSet {
         self.ensure_fold_regions();
-        self.fold_set.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.fold_set
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Toggle the fold whose region starts on buffer line `start_line`. Returns `true` when a region
@@ -2128,7 +2176,10 @@ impl CodeEditorPanel {
     /// tests / the outline panel / later MTs (in-file symbol jump — MT-053).
     pub fn outline_items(&self) -> Vec<OutlineItem> {
         self.ensure_outline();
-        self.outline_items.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.outline_items
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Whether the outline side panel is currently shown.
@@ -2217,24 +2268,35 @@ impl CodeEditorPanel {
     /// 1-based line (VS Code behavior). Idempotent: re-opening re-seeds from the current cursor line.
     pub fn open_goto_line(&self) {
         let cursor_line = self.primary_cursor_line();
-        *self.goto_line_state.lock().unwrap_or_else(|e| e.into_inner()) =
-            Some(GotoLineState::for_cursor_line(cursor_line));
+        *self
+            .goto_line_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(GotoLineState::for_cursor_line(cursor_line));
     }
 
     /// Close the go-to-line palette (Escape / after a successful jump / clicking away). A no-op when
     /// already closed.
     pub fn close_goto_line(&self) {
-        *self.goto_line_state.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        *self
+            .goto_line_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
     }
 
     /// True while the go-to-line palette is open.
     pub fn is_goto_line_open(&self) -> bool {
-        self.goto_line_state.lock().unwrap_or_else(|e| e.into_inner()).is_some()
+        self.goto_line_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_some()
     }
 
     /// A snapshot of the go-to-line palette state, or `None` when closed.
     pub fn goto_line_state(&self) -> Option<GotoLineState> {
-        self.goto_line_state.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.goto_line_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Set the go-to-line input text (the modal's TextEdit pushes the edited value here each frame), and
@@ -2242,7 +2304,10 @@ impl CodeEditorPanel {
     /// closed.
     pub fn set_goto_line_input(&self, input: impl Into<String>) {
         let len_lines = self.with_buffer(|b| b.len_lines());
-        let mut guard = self.goto_line_state.lock().unwrap_or_else(|e| e.into_inner());
+        let mut guard = self
+            .goto_line_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         if let Some(state) = guard.as_mut() {
             state.input = input.into();
             state.reparse(len_lines);
@@ -2256,7 +2321,10 @@ impl CodeEditorPanel {
     pub fn submit_goto_line(&self) -> bool {
         let len_lines = self.with_buffer(|b| b.len_lines());
         let target = {
-            let mut guard = self.goto_line_state.lock().unwrap_or_else(|e| e.into_inner());
+            let mut guard = self
+                .goto_line_state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             match guard.as_mut() {
                 Some(state) => state.reparse(len_lines),
                 None => None,
@@ -2362,7 +2430,10 @@ impl CodeEditorPanel {
     /// on a successful confirm.
     pub fn confirm_symbol_palette(&self) -> bool {
         let action = {
-            let mut palette = self.symbol_palette.lock().unwrap_or_else(|e| e.into_inner());
+            let mut palette = self
+                .symbol_palette
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             palette.confirm()
         };
         match action {
@@ -2517,7 +2588,10 @@ impl CodeEditorPanel {
         if target_path == current_path {
             // Same file: move the caret here (live + kittest-provable).
             self.navigate_to_line(entry.position.line);
-            *self.pending_cross_file_jump.lock().unwrap_or_else(|e| e.into_inner()) = None;
+            *self
+                .pending_cross_file_jump
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = None;
         } else {
             // Different file: the host opens it (follow-on host-mount MT). Park the intent; do NOT move
             // the caret in the current (wrong) file. RISK-005: graceful, no panic, history cursor already
@@ -2528,7 +2602,10 @@ impl CodeEditorPanel {
                 line = entry.position.line,
                 "MT-052 navigate: cross-file jump target parked for the host to open"
             );
-            *self.pending_cross_file_jump.lock().unwrap_or_else(|e| e.into_inner()) = Some(entry);
+            *self
+                .pending_cross_file_jump
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = Some(entry);
         }
     }
 
@@ -2580,22 +2657,34 @@ impl CodeEditorPanel {
     /// push (an LSP pushes diagnostics frequently). Diagnostics live in INDEPENDENT state, so a push
     /// only swaps this list — no re-highlight, no re-fold, no re-outline.
     pub fn push_diagnostics(&self, markers: Vec<GutterMarker>) {
-        *self.diagnostic_markers.lock().unwrap_or_else(|e| e.into_inner()) = markers;
+        *self
+            .diagnostic_markers
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = markers;
     }
 
     /// A snapshot of the current diagnostic markers (for tests / the gutter / MT-008).
     pub fn diagnostic_markers(&self) -> Vec<GutterMarker> {
-        self.diagnostic_markers.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.diagnostic_markers
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// A snapshot clone of the breakpoint set (for tests / the gutter / a future DAP client).
     pub fn breakpoint_set(&self) -> BreakpointSet {
-        self.breakpoint_set.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.breakpoint_set
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// True when buffer `line` carries a breakpoint.
     pub fn is_breakpoint_set(&self, line: usize) -> bool {
-        self.breakpoint_set.lock().unwrap_or_else(|e| e.into_inner()).contains(line)
+        self.breakpoint_set
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .contains(line)
     }
 
     /// Toggle the breakpoint on buffer `line` (the gutter breakpoint click + a future keymap call this).
@@ -2609,10 +2698,18 @@ impl CodeEditorPanel {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .toggle(line);
-        let file_path = self.file_path.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        let file_path = self
+            .file_path
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         // RISK-003 / MC-003: non-blocking publish; `.ok()` discards the Err when the receiver is gone.
         self.breakpoint_sender
-            .send(BreakpointEvent { file_path, line, action })
+            .send(BreakpointEvent {
+                file_path,
+                line,
+                action,
+            })
             .ok();
         action
     }
@@ -2623,7 +2720,10 @@ impl CodeEditorPanel {
     /// inside the panel so publishes are queued rather than dropped; after the receiver is taken and
     /// later dropped, publishes become a benign no-op (RISK-003).
     pub fn subscribe_breakpoints(&self) -> Option<mpsc::Receiver<BreakpointEvent>> {
-        self.breakpoint_receiver.lock().unwrap_or_else(|e| e.into_inner()).take()
+        self.breakpoint_receiver
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
     }
 
     /// Set the path of the file this panel edits (carried on every published `BreakpointEvent`).
@@ -2633,7 +2733,10 @@ impl CodeEditorPanel {
 
     /// The path of the file this panel edits (empty for an in-memory buffer).
     pub fn file_path(&self) -> String {
-        self.file_path.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.file_path
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// MT-047: the `file://` URI of the document for LSP requests (`textDocument/signatureHelp`), or
@@ -2662,7 +2765,10 @@ impl CodeEditorPanel {
     /// signature-help request only needs to land inside the call. Never panics (clamps to the line).
     fn lsp_position_at(&self, byte_offset: usize) -> lsp_types::Position {
         let (line, col) = self.with_buffer(|b| byte_to_line_col(byte_offset.min(b.len_bytes()), b));
-        lsp_types::Position { line: line as u32, character: col as u32 }
+        lsp_types::Position {
+            line: line as u32,
+            character: col as u32,
+        }
     }
 
     /// Reset the gutter's per-file state when a new file is loaded into this panel (RISK-004): clears
@@ -2680,7 +2786,10 @@ impl CodeEditorPanel {
 
     /// Clear every breakpoint (a full-file reset surface for a same-panel document swap).
     pub fn clear_breakpoints(&self) {
-        *self.breakpoint_set.lock().unwrap_or_else(|e| e.into_inner()) = BreakpointSet::new();
+        *self
+            .breakpoint_set
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = BreakpointSet::new();
     }
 
     /// A snapshot of the gutter feature flags.
@@ -2704,7 +2813,10 @@ impl CodeEditorPanel {
         if self.instance.is_empty() {
             format!("{CODE_EDITOR_BREAKPOINT_AUTHOR_PREFIX}{line}")
         } else {
-            format!("{CODE_EDITOR_BREAKPOINT_AUTHOR_PREFIX}{line}#{}", self.instance)
+            format!(
+                "{CODE_EDITOR_BREAKPOINT_AUTHOR_PREFIX}{line}#{}",
+                self.instance
+            )
         }
     }
 
@@ -2714,21 +2826,30 @@ impl CodeEditorPanel {
         if self.instance.is_empty() {
             format!("{CODE_EDITOR_DIAGNOSTIC_AUTHOR_PREFIX}{line}")
         } else {
-            format!("{CODE_EDITOR_DIAGNOSTIC_AUTHOR_PREFIX}{line}#{}", self.instance)
+            format!(
+                "{CODE_EDITOR_DIAGNOSTIC_AUTHOR_PREFIX}{line}#{}",
+                self.instance
+            )
         }
     }
 
     /// The screen rect the gutter strip occupied on the most recent frame, or `None` before the first
     /// render. The basis for the AC-003/AC-005 gutter layout + click tests.
     pub fn last_gutter_rect(&self) -> Option<egui::Rect> {
-        *self.last_gutter_rect.lock().unwrap_or_else(|e| e.into_inner())
+        *self
+            .last_gutter_rect
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
     }
 
     /// The buffer line of each PAINTED gutter row on the most recent frame, in painted order. The
     /// deterministic basis for the AC-004 (all 10 lines painted) + AC-006 (a folded body line is no
     /// longer painted) gutter tests.
     pub fn gutter_rows_for_test(&self) -> Vec<usize> {
-        self.last_gutter_rows.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.last_gutter_rows
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// The current `buffer_version` counter, for the AC-007 perf-gate test that asserts
@@ -2754,7 +2875,10 @@ impl CodeEditorPanel {
 
     /// The active workspace id (empty when unbound).
     pub fn workspace_id(&self) -> String {
-        self.workspace_id.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.workspace_id
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Replace the LSP client (e.g. install a configured language server, or a mock LSP in a test). The
@@ -2780,12 +2904,19 @@ impl CodeEditorPanel {
     /// A clone of the injected runtime handle, or `None` when the host has not injected one (the live
     /// code-intelligence loop short-circuits to a no-op in that case).
     fn runtime_handle(&self) -> Option<tokio::runtime::Handle> {
-        self.runtime.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.runtime
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// The primary cursor's head byte offset (the live-loop hover-dwell / completion-prefix anchor).
     fn primary_cursor_offset(&self) -> usize {
-        self.cursor_set.lock().unwrap_or_else(|e| e.into_inner()).primary().head
+        self.cursor_set
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .primary()
+            .head
     }
 
     /// The identifier word the primary caret currently sits in/just-after (the hover target + the
@@ -2867,12 +2998,18 @@ impl CodeEditorPanel {
     /// A snapshot of the completion popup state (`None` when no popup is showing). For tests + the
     /// input handler.
     pub fn completion_state(&self) -> Option<CompletionState> {
-        self.completion_state.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.completion_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// True while the completion popup is showing.
     pub fn is_completion_open(&self) -> bool {
-        self.completion_state.lock().unwrap_or_else(|e| e.into_inner()).is_some()
+        self.completion_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_some()
     }
 
     /// Open the completion popup with `items` anchored at the primary cursor's pixel (the deterministic
@@ -2885,25 +3022,40 @@ impl CodeEditorPanel {
         let anchor = self
             .cursor_screen_pos()
             .unwrap_or_else(|| egui::pos2(40.0, 40.0));
-        *self.completion_state.lock().unwrap_or_else(|e| e.into_inner()) =
-            Some(CompletionState::new(items, anchor));
+        *self
+            .completion_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(CompletionState::new(items, anchor));
     }
 
     /// Close the completion popup (Escape / after accept / no items).
     pub fn close_completion(&self) {
-        *self.completion_state.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        *self
+            .completion_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
     }
 
     /// Move the completion selection down (ArrowDown). A no-op when closed.
     pub fn completion_select_next(&self) {
-        if let Some(state) = self.completion_state.lock().unwrap_or_else(|e| e.into_inner()).as_mut() {
+        if let Some(state) = self
+            .completion_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_mut()
+        {
             state.select_next();
         }
     }
 
     /// Move the completion selection up (ArrowUp). A no-op when closed.
     pub fn completion_select_prev(&self) {
-        if let Some(state) = self.completion_state.lock().unwrap_or_else(|e| e.into_inner()).as_mut() {
+        if let Some(state) = self
+            .completion_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_mut()
+        {
             state.select_prev();
         }
     }
@@ -2913,8 +3065,13 @@ impl CodeEditorPanel {
     /// keymap + the popup click both funnel through.
     pub fn accept_completion(&self) -> bool {
         let insert = {
-            let guard = self.completion_state.lock().unwrap_or_else(|e| e.into_inner());
-            guard.as_ref().and_then(|s| s.selected().map(|i| i.insert_text.clone()))
+            let guard = self
+                .completion_state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            guard
+                .as_ref()
+                .and_then(|s| s.selected().map(|i| i.insert_text.clone()))
         };
         match insert {
             Some(text) => {
@@ -2929,8 +3086,13 @@ impl CodeEditorPanel {
     /// Accept the completion item at `index` (a click on a specific row). Inserts + closes.
     pub fn accept_completion_index(&self, index: usize) -> bool {
         let insert = {
-            let guard = self.completion_state.lock().unwrap_or_else(|e| e.into_inner());
-            guard.as_ref().and_then(|s| s.items.get(index).map(|i| i.insert_text.clone()))
+            let guard = self
+                .completion_state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            guard
+                .as_ref()
+                .and_then(|s| s.items.get(index).map(|i| i.insert_text.clone()))
         };
         match insert {
             Some(text) => {
@@ -2944,12 +3106,18 @@ impl CodeEditorPanel {
 
     /// A snapshot of the hover tooltip state (`None` when no tooltip is showing).
     pub fn hover_state(&self) -> Option<HoverState> {
-        self.hover_state.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.hover_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// True while the hover tooltip is showing.
     pub fn is_hover_open(&self) -> bool {
-        self.hover_state.lock().unwrap_or_else(|e| e.into_inner()).is_some()
+        self.hover_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_some()
     }
 
     /// Open the hover tooltip with `state` (the deterministic path the dwell trigger + tests use).
@@ -2967,31 +3135,50 @@ impl CodeEditorPanel {
     /// A snapshot of the signature-help popup state (`None` when no popup is showing). The deterministic
     /// observation point for the kittest/unit proofs.
     pub fn signature_help_state(&self) -> Option<SignatureHelpState> {
-        self.signature_help_state.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.signature_help_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// True while the signature-help popup is showing.
     pub fn is_signature_help_open(&self) -> bool {
-        self.signature_help_state.lock().unwrap_or_else(|e| e.into_inner()).is_some()
+        self.signature_help_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_some()
     }
 
     /// Open the signature-help popup with `state` (the deterministic path the trigger spawn delivers
     /// into + the tests drive directly).
     pub fn open_signature_help(&self, state: SignatureHelpState) {
-        *self.signature_help_state.lock().unwrap_or_else(|e| e.into_inner()) = Some(state);
+        *self
+            .signature_help_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(state);
     }
 
     /// Close the signature-help popup (`)`/Escape/cursor leaving the call/focus loss) and clear the
     /// fallback cache so a fresh call site re-resolves (RISK-002).
     pub fn close_signature_help(&self) {
-        *self.signature_help_state.lock().unwrap_or_else(|e| e.into_inner()) = None;
-        *self.signature_fallback_cache.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        *self
+            .signature_help_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
+        *self
+            .signature_fallback_cache
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
     }
 
     /// Cycle the active overload to the NEXT signature (Down arrow while the popup is open). No-op when
     /// the popup is closed / there is only one signature.
     pub fn signature_help_next(&self) {
-        if let Some(state) = self.signature_help_state.lock().unwrap_or_else(|e| e.into_inner()).as_mut()
+        if let Some(state) = self
+            .signature_help_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_mut()
         {
             state.select_next_signature();
         }
@@ -2999,7 +3186,11 @@ impl CodeEditorPanel {
 
     /// Cycle the active overload to the PREVIOUS signature (Up arrow while the popup is open).
     pub fn signature_help_prev(&self) {
-        if let Some(state) = self.signature_help_state.lock().unwrap_or_else(|e| e.into_inner()).as_mut()
+        if let Some(state) = self
+            .signature_help_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_mut()
         {
             state.select_prev_signature();
         }
@@ -3018,15 +3209,16 @@ impl CodeEditorPanel {
     /// respected so a `(` inside a string is not treated as a call. This anchors the popup to a call
     /// site (the `anchor_byte`) and is the basis for dismissal (the cursor leaving the call).
     pub fn active_call_open_paren(&self, cursor_byte: usize) -> Option<usize> {
-        let prefix = self.with_buffer(|b| b.byte_slice_to_string(0..cursor_byte.min(b.len_bytes())));
+        let prefix =
+            self.with_buffer(|b| b.byte_slice_to_string(0..cursor_byte.min(b.len_bytes())));
         find_enclosing_open_paren(&prefix)
     }
 
     /// The identifier token immediately to the LEFT of `open_paren_byte` (the call target), or an empty
     /// string when there is none. Used to resolve the fallback signature via the code-nav client.
     fn call_target_identifier(&self, open_paren_byte: usize) -> String {
-        let prefix = self
-            .with_buffer(|b| b.byte_slice_to_string(0..open_paren_byte.min(b.len_bytes())));
+        let prefix =
+            self.with_buffer(|b| b.byte_slice_to_string(0..open_paren_byte.min(b.len_bytes())));
         identifier_before(&prefix)
     }
 
@@ -3135,10 +3327,18 @@ impl CodeEditorPanel {
     /// The screen pixel of the primary cursor's head on the most recent frame, anchored below the
     /// caret (for the completion popup / hover tooltip). `None` before the first render / off-screen.
     pub fn cursor_screen_pos(&self) -> Option<egui::Pos2> {
-        let glyph_width = (*self.glyph_width_px.lock().unwrap_or_else(|e| e.into_inner()))?;
+        let glyph_width = (*self
+            .glyph_width_px
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()))?;
         let (line, col) = {
             let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
-            let head = self.cursor_set.lock().unwrap_or_else(|e| e.into_inner()).primary().head;
+            let head = self
+                .cursor_set
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .primary()
+                .head;
             byte_to_line_col(head, &buffer)
         };
         let pos = self.screen_pos_for_line_col(line, col, glyph_width)?;
@@ -3150,7 +3350,10 @@ impl CodeEditorPanel {
 
     /// A snapshot of the rename state (the deterministic observation point for the kittest/unit proofs).
     pub fn rename_state(&self) -> RenameState {
-        self.rename_state.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.rename_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// True while the inline rename input is open (Editing phase).
@@ -3224,9 +3427,12 @@ impl CodeEditorPanel {
         let (original, draft, ident_range) = {
             let guard = self.rename_state.lock().unwrap_or_else(|e| e.into_inner());
             match &*guard {
-                RenameState::Editing { original, draft, ident_range, .. } => {
-                    (original.clone(), draft.clone(), ident_range.clone())
-                }
+                RenameState::Editing {
+                    original,
+                    draft,
+                    ident_range,
+                    ..
+                } => (original.clone(), draft.clone(), ident_range.clone()),
                 _ => return, // not editing -> nothing to confirm.
             }
         };
@@ -3369,8 +3575,9 @@ impl CodeEditorPanel {
                 Some(report)
             }
             Err(e) => {
-                *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()) =
-                    RenameState::Error { message: e.to_string() };
+                *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()) = RenameState::Error {
+                    message: e.to_string(),
+                };
                 None
             }
         }
@@ -3380,17 +3587,24 @@ impl CodeEditorPanel {
     /// `Ok(preview)` becomes `Previewing` (or stays Idle on an empty no-op preview with a trace); an
     /// `Err(message)` becomes `Error`. A no-op when no result is pending.
     fn drain_rename_result(&self) {
-        let pending = self.rename_result.lock().unwrap_or_else(|e| e.into_inner()).take();
+        let pending = self
+            .rename_result
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take();
         if let Some(result) = pending {
             match result {
                 Ok(preview) if preview.is_empty() => {
                     // No changes (the server declined / nothing to rename): return to Idle silently.
-                    *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()) = RenameState::Idle;
+                    *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()) =
+                        RenameState::Idle;
                     tracing::debug!("code editor: rename produced no changes");
                 }
                 Ok(preview) => {
                     *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()) =
-                        RenameState::Previewing { workspace_edit: preview };
+                        RenameState::Previewing {
+                            workspace_edit: preview,
+                        };
                 }
                 Err(message) => {
                     *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()) =
@@ -3405,7 +3619,10 @@ impl CodeEditorPanel {
     /// True when the quick-fix popup menu is currently open (the deterministic observation point for the
     /// AC-005 interaction proof).
     pub fn is_quickfix_menu_open(&self) -> bool {
-        self.code_action_controller.lock().unwrap_or_else(|e| e.into_inner()).is_menu_open()
+        self.code_action_controller
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_menu_open()
     }
 
     /// True when line `line` carries at least one available code action (drives the gutter lightbulb —
@@ -3420,7 +3637,10 @@ impl CodeEditorPanel {
     /// The titles of the actions currently in the quick-fix list (the deterministic observation point for
     /// the AC-001/AC-004 proofs). Empty when idle / no actions.
     pub fn quickfix_action_titles(&self) -> Vec<String> {
-        let guard = self.code_action_controller.lock().unwrap_or_else(|e| e.into_inner());
+        let guard = self
+            .code_action_controller
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         match guard.state() {
             Some(s) => s.actions.iter().map(|a| a.title.clone()).collect(),
             None => Vec::new(),
@@ -3444,18 +3664,27 @@ impl CodeEditorPanel {
 
     /// Close the quick-fix menu (Escape / apply / focus loss).
     pub fn close_quickfix_menu(&self) {
-        self.code_action_controller.lock().unwrap_or_else(|e| e.into_inner()).close_menu();
+        self.code_action_controller
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .close_menu();
     }
 
     /// Clear the quick-fix controller to idle (no lightbulb, no menu).
     pub fn clear_quickfix(&self) {
-        self.code_action_controller.lock().unwrap_or_else(|e| e.into_inner()).clear();
+        self.code_action_controller
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
     }
 
     /// Set the quick-fix cursor-rest debounce threshold (a kittest sets it to ZERO so the rest crossing
     /// fires on the first settled frame — the same deterministic-dwell hook the MT-034 note-refs path uses).
     pub fn set_quickfix_rest_threshold(&self, threshold: std::time::Duration) {
-        *self.code_action_rest_threshold.lock().unwrap_or_else(|e| e.into_inner()) = threshold;
+        *self
+            .code_action_rest_threshold
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = threshold;
     }
 
     /// Whether the Ctrl+. quick-fix request is currently armed (not yet consumed by the pump). The
@@ -3479,7 +3708,10 @@ impl CodeEditorPanel {
     /// store: each diagnostic marker on `line` becomes an `lsp_types::Diagnostic` covering the whole line
     /// (the gutter store is line-granular — the same line-level shape MT-007 records).
     fn lsp_diagnostics_on_line(&self, line: usize) -> Vec<lsp_types::Diagnostic> {
-        let markers = self.diagnostic_markers.lock().unwrap_or_else(|e| e.into_inner());
+        let markers = self
+            .diagnostic_markers
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         markers
             .iter()
             .filter(|m| m.line == line && matches!(m.kind, GutterMarkerKind::Diagnostic(_)))
@@ -3518,8 +3750,14 @@ impl CodeEditorPanel {
             (0u32, end.saturating_sub(start) as u32)
         });
         lsp_types::Range {
-            start: lsp_types::Position { line: line as u32, character: start_char },
-            end: lsp_types::Position { line: line as u32, character: end_char },
+            start: lsp_types::Position {
+                line: line as u32,
+                character: start_char,
+            },
+            end: lsp_types::Position {
+                line: line as u32,
+                character: end_char,
+            },
         }
     }
 
@@ -3529,7 +3767,12 @@ impl CodeEditorPanel {
     /// lighting the bulb (the passive cursor-rest path). The egui thread never blocks (HBR-QUIET): the LSP
     /// request runs on the injected runtime. When no LSP is attached the request returns an empty action
     /// list (graceful — AC-006), which still lands so the Ctrl+. degraded menu can show "No quick fixes".
-    pub fn trigger_quick_fix(&self, runtime: &tokio::runtime::Handle, line: usize, open_menu: bool) {
+    pub fn trigger_quick_fix(
+        &self,
+        runtime: &tokio::runtime::Handle,
+        line: usize,
+        open_menu: bool,
+    ) {
         let version = self.buffer_version.load(Ordering::Relaxed);
         // Mark the request in flight so the debounce guard does not fire a second one (RISK-001 / MC-001).
         self.code_action_controller
@@ -3582,14 +3825,22 @@ impl CodeEditorPanel {
     /// injected runtime (a headless harness drives the deterministic `set_quickfix_actions` path instead).
     fn pump_code_actions(&self) {
         // (1) Install the result receiver on the controller once (one consumer per channel).
-        if let Some(rx) = self.code_action_rx.lock().unwrap_or_else(|e| e.into_inner()).take() {
+        if let Some(rx) = self
+            .code_action_rx
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
+        {
             self.code_action_controller
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
                 .set_result_receiver(rx);
         }
         // (2) Drain any delivered result into the controller state (lights the bulb / opens the menu).
-        self.code_action_controller.lock().unwrap_or_else(|e| e.into_inner()).poll_results();
+        self.code_action_controller
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .poll_results();
 
         let Some(runtime) = self.runtime_handle() else {
             // No runtime: the off-thread request path is unavailable. Consume any Ctrl+. arm so it does not
@@ -3609,15 +3860,27 @@ impl CodeEditorPanel {
         // (4) Passive cursor-rest trigger: only on a diagnostic line, only once the caret has rested past
         // the debounce window, and only when a request is not already in flight for this line (RISK-001 /
         // MC-001 — no per-idle-frame server flood; cancel/restart the dwell on a line change).
-        let threshold = *self.code_action_rest_threshold.lock().unwrap_or_else(|e| e.into_inner());
+        let threshold = *self
+            .code_action_rest_threshold
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let now = std::time::Instant::now();
-        let mut rest = self.code_action_rest.lock().unwrap_or_else(|e| e.into_inner());
+        let mut rest = self
+            .code_action_rest
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let on_diagnostic_line = self.line_has_diagnostic(cursor_line);
         if !on_diagnostic_line {
             // Off a diagnostic line: reset the dwell and clear any stale actions for a now-irrelevant line.
             *rest = None;
-            let mut controller = self.code_action_controller.lock().unwrap_or_else(|e| e.into_inner());
-            if controller.active_line().map(|l| l != cursor_line).unwrap_or(false)
+            let mut controller = self
+                .code_action_controller
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            if controller
+                .active_line()
+                .map(|l| l != cursor_line)
+                .unwrap_or(false)
                 && !controller.is_menu_open()
             {
                 controller.clear();
@@ -3636,10 +3899,13 @@ impl CodeEditorPanel {
             // Fire ONCE per rest: clear the dwell so the next frame does not re-fire, and skip when a
             // request for this line is already in flight or actions are already loaded (RISK-001).
             let already = {
-                let controller =
-                    self.code_action_controller.lock().unwrap_or_else(|e| e.into_inner());
+                let controller = self
+                    .code_action_controller
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner());
                 controller.request_in_flight()
-                    || controller.active_line() == Some(cursor_line) && controller.has_actions_on_line(cursor_line)
+                    || controller.active_line() == Some(cursor_line)
+                        && controller.has_actions_on_line(cursor_line)
             };
             *rest = Some((cursor_line, now)); // keep the line anchored so a re-rest does not immediately re-fire.
             if !already {
@@ -3666,10 +3932,20 @@ impl CodeEditorPanel {
         // install the result back into the panel + re-highlight (AC-002). Holding the controller + buffer
         // locks across the MT-048 apply is safe (no egui calls inside).
         let outcome = {
-            let mut controller =
-                self.code_action_controller.lock().unwrap_or_else(|e| e.into_inner());
-            let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner()).clone();
-            let mut cursors = self.cursor_set.lock().unwrap_or_else(|e| e.into_inner()).clone();
+            let mut controller = self
+                .code_action_controller
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            let mut buffer = self
+                .buffer
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .clone();
+            let mut cursors = self
+                .cursor_set
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .clone();
             match controller.apply_selected(&mut buffer, &mut cursors, &self_uri, live_version) {
                 Ok(applied) => Some((applied, buffer.to_string())),
                 Err(code_actions::CodeActionError::StaleBuffer) => {
@@ -3782,15 +4058,14 @@ impl CodeEditorPanel {
     /// no file path. Reuses the MT-047/048 `lsp_uri` mapping; falls back to a `file:///<path>` form so a
     /// test with a bare relative path still yields a URI the request can carry.
     pub fn format_uri(&self) -> Option<String> {
-        self.lsp_uri()
-            .or_else(|| {
-                let path = self.file_path();
-                if path.trim().is_empty() {
-                    None
-                } else {
-                    Some(format!("file:///{}", path.trim_start_matches('/')))
-                }
-            })
+        self.lsp_uri().or_else(|| {
+            let path = self.file_path();
+            if path.trim().is_empty() {
+                None
+            } else {
+                Some(format!("file:///{}", path.trim_start_matches('/')))
+            }
+        })
     }
 
     /// MT-050: the primary selection as a `(start, end)` BYTE range. A collapsed caret yields
@@ -3826,7 +4101,10 @@ impl CodeEditorPanel {
     /// Queryable by a swarm agent + the unit tests to prove the error path surfaces a toast (not a panic /
     /// a blocking dialog).
     pub fn last_format_toast(&self) -> Option<String> {
-        self.last_format_toast.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.last_format_toast
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// TEST/dispatch hook: whether the Format Document request is currently armed (drained by the pump).
@@ -3843,7 +4121,10 @@ impl CodeEditorPanel {
     pub fn request_format_document(&self) {
         if !self.formatter_available() {
             // The disabled keymap path: a no-op + a (queryable) toast, no panic, no frame block (AC-003).
-            *self.last_format_toast.lock().unwrap_or_else(|e| e.into_inner()) =
+            *self
+                .last_format_toast
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) =
                 Some(formatting::NO_FORMATTER_TOOLTIP.to_owned());
             return;
         }
@@ -3856,7 +4137,10 @@ impl CodeEditorPanel {
     pub fn request_format_selection(&self) {
         let lsp = self.lsp_client();
         if !formatting::range_formatter_available(&lsp, &self.language_id()) {
-            *self.last_format_toast.lock().unwrap_or_else(|e| e.into_inner()) =
+            *self
+                .last_format_toast
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) =
                 Some(formatting::NO_FORMATTER_TOOLTIP.to_owned());
             return;
         }
@@ -3877,7 +4161,8 @@ impl CodeEditorPanel {
         let Some(runtime) = self.runtime_handle() else {
             // No runtime: clear any arm so it does not linger (the synthetic apply path still works).
             self.format_document_request.store(false, Ordering::Relaxed);
-            self.format_selection_request.store(false, Ordering::Relaxed);
+            self.format_selection_request
+                .store(false, Ordering::Relaxed);
             return;
         };
 
@@ -3898,7 +4183,10 @@ impl CodeEditorPanel {
             runtime.spawn(async move {
                 let outcome = match lsp_client.format_document(&uri, options).await {
                     Ok(edits) => formatting::resolve_format_outcome(&before, &edits),
-                    Err(e) => (None, FormatOutcome::LspError(format!("Formatting failed: {e}"))),
+                    Err(e) => (
+                        None,
+                        FormatOutcome::LspError(format!("Formatting failed: {e}")),
+                    ),
                 };
                 if let Ok(mut slot) = cell.lock() {
                     *slot = Some((before, outcome.0, outcome.1));
@@ -3915,7 +4203,10 @@ impl CodeEditorPanel {
             runtime.spawn(async move {
                 let outcome = match lsp_client.format_range(&uri, range, options).await {
                     Ok(edits) => formatting::resolve_format_outcome(&before, &edits),
-                    Err(e) => (None, FormatOutcome::LspError(format!("Formatting failed: {e}"))),
+                    Err(e) => (
+                        None,
+                        FormatOutcome::LspError(format!("Formatting failed: {e}")),
+                    ),
                 };
                 if let Ok(mut slot) = cell.lock() {
                     *slot = Some((before, outcome.0, outcome.1));
@@ -3929,8 +4220,14 @@ impl CodeEditorPanel {
     /// RISK-006) and the single undo entry is recorded through the host bus (AC-001). On `LspError` /
     /// `NoFormatter` the toast surface is set (AC-006). `NoChange` is silent. A no-op when nothing pending.
     fn drain_format_result(&self) {
-        let pending = self.format_result.lock().unwrap_or_else(|e| e.into_inner()).take();
-        let Some((before, formatted, outcome)) = pending else { return };
+        let pending = self
+            .format_result
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take();
+        let Some((before, formatted, outcome)) = pending else {
+            return;
+        };
         match &outcome {
             FormatOutcome::Applied { edit_count } => {
                 if let Some(after) = formatted {
@@ -3939,7 +4236,9 @@ impl CodeEditorPanel {
                         // entry (before -> after) so a single Ctrl+Z reverts the WHOLE format (AC-001).
                         self.set_text(&after);
                         self.record_format_undo(&before, &after);
-                        tracing::debug!("code editor: formatted document, {edit_count} edits (single undo)");
+                        tracing::debug!(
+                            "code editor: formatted document, {edit_count} edits (single undo)"
+                        );
                     }
                 }
             }
@@ -3947,13 +4246,19 @@ impl CodeEditorPanel {
                 tracing::debug!("code editor: format produced no changes (already formatted)");
             }
             FormatOutcome::NoFormatter => {
-                *self.last_format_toast.lock().unwrap_or_else(|e| e.into_inner()) =
+                *self
+                    .last_format_toast
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) =
                     Some(formatting::NO_FORMATTER_TOOLTIP.to_owned());
             }
             FormatOutcome::LspError(msg) => {
                 // A non-blocking toast (NOT a frame-blocking dialog — AC-006 / MC-006). Surfaced + logged.
                 tracing::warn!("code editor: format failed: {msg}");
-                *self.last_format_toast.lock().unwrap_or_else(|e| e.into_inner()) = Some(msg.clone());
+                *self
+                    .last_format_toast
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) = Some(msg.clone());
             }
         }
     }
@@ -3967,15 +4272,20 @@ impl CodeEditorPanel {
     /// LATEST format's snapshot is kept (a second format before the drain supersedes the first — the
     /// host applies them in order, so the newest before/after pair is the correct single entry to push).
     fn record_format_undo(&self, before: &str, after: &str) {
-        *self.pending_format_undo.lock().unwrap_or_else(|e| e.into_inner()) =
-            Some((before.to_owned(), after.to_owned()));
+        *self
+            .pending_format_undo
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some((before.to_owned(), after.to_owned()));
     }
 
     /// MT-050: take the queued format undo snapshot (before, after) the factory render pushes onto the
     /// shared unified-undo bus. `None` when no format applied since the last drain. The factory drains this
     /// each frame so the single undo entry is recorded at the SAME boundary every code edit's undo is.
     pub fn take_pending_format_undo(&self) -> Option<(String, String)> {
-        self.pending_format_undo.lock().unwrap_or_else(|e| e.into_inner()).take()
+        self.pending_format_undo
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
     }
 
     // ── MT-051 line-edit buffer transforms — settings + dispatch + single-undo ─────────────────────────
@@ -3984,7 +4294,8 @@ impl CodeEditorPanel {
     /// line-edit transforms use them instead of a hardcoded 4 (MC-006 — RISK-006). The host plumbs these
     /// from the editor-settings layer; `tab_size` is clamped to >= 1 (a 0-width indent unit is invalid).
     pub fn set_indent_settings(&self, tab_size: usize, insert_spaces: bool) {
-        self.tab_size.store(tab_size.max(1) as u64, Ordering::Relaxed);
+        self.tab_size
+            .store(tab_size.max(1) as u64, Ordering::Relaxed);
         self.insert_spaces.store(insert_spaces, Ordering::Relaxed);
     }
 
@@ -4042,7 +4353,10 @@ impl CodeEditorPanel {
         }
         // ONE whole-buffer replace = one undo step. Queue the before/after snapshot so the factory render
         // records it as a SINGLE unified-undo entry (the MT-035/051 single-undo bus boundary).
-        *self.pending_line_op_undo.lock().unwrap_or_else(|e| e.into_inner()) =
+        *self
+            .pending_line_op_undo
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) =
             Some(("Convert Line Endings", before, after.clone()));
         self.set_text(&after);
         true
@@ -4061,13 +4375,12 @@ impl CodeEditorPanel {
     /// new encoding on the doc model. Returns `Ok(())` on success, or `Err(message)` when there is no
     /// file path or the bytes cannot be read — a TYPED outcome the segment surfaces (never a silent
     /// no-op, never a backend rewrite). The undo records as one whole-buffer entry like any reload.
-    pub fn reopen_with_encoding(
-        &self,
-        encoding: super::file_meta::Encoding,
-    ) -> Result<(), String> {
+    pub fn reopen_with_encoding(&self, encoding: super::file_meta::Encoding) -> Result<(), String> {
         let path = self.file_path();
         if path.trim().is_empty() {
-            return Err("Reopen with Encoding needs a saved file (this buffer is in-memory)".to_owned());
+            return Err(
+                "Reopen with Encoding needs a saved file (this buffer is in-memory)".to_owned(),
+            );
         }
         let bytes = std::fs::read(&path)
             .map_err(|e| format!("Reopen with Encoding: cannot read {path}: {e}"))?;
@@ -4087,7 +4400,10 @@ impl CodeEditorPanel {
 
     /// MT-071: the per-document user language override, or `None` while auto-detecting.
     pub fn language_override(&self) -> Option<super::language_mode::LanguageId> {
-        self.language_override.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.language_override
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// MT-071: set (or clear with `None`) the per-document user language override — the highest-precedence
@@ -4097,7 +4413,10 @@ impl CodeEditorPanel {
     /// the status-bar segment + the resolver honor the user's choice — the contract's "override sticks per
     /// document".)
     pub fn set_language_override(&self, lang: Option<super::language_mode::LanguageId>) {
-        *self.language_override.lock().unwrap_or_else(|e| e.into_inner()) = lang;
+        *self
+            .language_override
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = lang;
     }
 
     /// MT-071: resolve the document's language with the strict precedence `UserOverride > Shebang >
@@ -4112,7 +4431,10 @@ impl CodeEditorPanel {
         // override)` — both inputs that can change the resolved language.
         let version = self.buffer_version.load(Ordering::Relaxed);
         {
-            let cache = self.resolved_language_cache.lock().unwrap_or_else(|e| e.into_inner());
+            let cache = self
+                .resolved_language_cache
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             if let Some((cached_version, cached_override, detection)) = cache.as_ref() {
                 if *cached_version == version && *cached_override == override_id {
                     return detection.clone();
@@ -4120,8 +4442,10 @@ impl CodeEditorPanel {
             }
         }
         let detection = self.compute_resolved_language(override_id.clone());
-        *self.resolved_language_cache.lock().unwrap_or_else(|e| e.into_inner()) =
-            Some((version, override_id, detection.clone()));
+        *self
+            .resolved_language_cache
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some((version, override_id, detection.clone()));
         detection
     }
 
@@ -4149,7 +4473,11 @@ impl CodeEditorPanel {
         } else {
             path
         };
-        let path_opt = if synthesized.is_empty() { None } else { Some(synthesized.as_str()) };
+        let path_opt = if synthesized.is_empty() {
+            None
+        } else {
+            Some(synthesized.as_str())
+        };
         super::language_mode::detect_language(
             override_id.as_ref(),
             path_opt,
@@ -4185,7 +4513,10 @@ impl CodeEditorPanel {
 
     /// MT-054: whether word wrap is currently enabled (Alt+Z toggles it). Persisted on the panel state.
     pub fn is_wrap_enabled(&self) -> bool {
-        self.wrap_config.lock().unwrap_or_else(|e| e.into_inner()).enabled
+        self.wrap_config
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .enabled
     }
 
     /// MT-054: flip word wrap on/off and return the NEW enabled state. The single mutation point both
@@ -4200,14 +4531,20 @@ impl CodeEditorPanel {
 
     /// MT-054: explicitly set the wrap-enabled state (host / settings / a test). Persisted on the panel.
     pub fn set_wrap_enabled(&self, enabled: bool) {
-        self.wrap_config.lock().unwrap_or_else(|e| e.into_inner()).enabled = enabled;
+        self.wrap_config
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .enabled = enabled;
     }
 
     /// MT-054: set a fixed wrap COLUMN (`wordWrapColumn`), or `None` to wrap at the viewport edge
     /// (`wordWrap: on`). The host plumbs this from the editor-settings layer; tests use it to force a
     /// deterministic wrap width without a real viewport.
     pub fn set_wrap_column(&self, wrap_column: Option<usize>) {
-        self.wrap_config.lock().unwrap_or_else(|e| e.into_inner()).wrap_column = wrap_column;
+        self.wrap_config
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .wrap_column = wrap_column;
     }
 
     /// MT-054: the stable AccessKit author_id for this panel's word-wrap toggle node, with the instance
@@ -4273,8 +4610,10 @@ impl CodeEditorPanel {
             // The transform reported a change but the text is identical (defensive): nothing to undo.
             return false;
         }
-        *self.pending_line_op_undo.lock().unwrap_or_else(|e| e.into_inner()) =
-            Some((description, before, after));
+        *self
+            .pending_line_op_undo
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some((description, before, after));
         // A line transform replaces whole rows (move/delete/duplicate/comment) WITHOUT feeding tree-sitter
         // an `InputEdit`, so the highlighter's cached incremental tree would describe byte offsets past the
         // new buffer and panic on re-highlight. Reset the highlighter to a clean FULL parse before
@@ -4293,7 +4632,8 @@ impl CodeEditorPanel {
     /// (plain text, no highlighting). Cheap: the grammar load is a pointer copy + a query compile, done only
     /// on an explicit edit, never per frame.
     fn reset_highlighter(&self) {
-        let fresh = LanguageRegistry::with_bundled_languages().highlighter_for_extension(&self.extension);
+        let fresh =
+            LanguageRegistry::with_bundled_languages().highlighter_for_extension(&self.extension);
         *self.highlighter.lock().unwrap_or_else(|e| e.into_inner()) = fresh;
     }
 
@@ -4301,14 +4641,21 @@ impl CodeEditorPanel {
     /// render pushes onto the shared unified-undo bus as ONE entry. `None` when no transform applied since
     /// the last drain.
     pub fn take_pending_line_op_undo(&self) -> Option<(&'static str, String, String)> {
-        self.pending_line_op_undo.lock().unwrap_or_else(|e| e.into_inner()).take()
+        self.pending_line_op_undo
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
     }
 
     /// MT-049: the screen position to anchor the quick-fix lightbulb / menu for `line` — the start of the
     /// line in the gutter strip's lightbulb column (next to the MT-007 diagnostic glyphs). `None` before
     /// the first frame / when the line is off-screen.
     fn quickfix_line_screen_pos(&self, line: usize) -> Option<egui::Pos2> {
-        let glyph_width = (*self.glyph_width_px.lock().unwrap_or_else(|e| e.into_inner())).unwrap_or(8.0);
+        let glyph_width = (*self
+            .glyph_width_px
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()))
+        .unwrap_or(8.0);
         self.screen_pos_for_line_col(line, 0, glyph_width)
     }
 
@@ -4325,8 +4672,7 @@ impl CodeEditorPanel {
     /// Returns the number of markers pushed. A diagnostics push does NOT bump `buffer_version` (the
     /// MT-007 perf invariant).
     pub fn push_staleness_markers(&self, symbols: &[CodeSymbolNavProjection]) -> usize {
-        let markers: Vec<GutterMarker> =
-            symbols.iter().filter_map(staleness_marker_for).collect();
+        let markers: Vec<GutterMarker> = symbols.iter().filter_map(staleness_marker_for).collect();
         let count = markers.len();
         self.push_diagnostics(markers);
         count
@@ -4345,10 +4691,18 @@ impl CodeEditorPanel {
         };
         // The receiver lives on the panel between frames so we drain it incrementally. Store it here.
         if let Some(rx) = receiver {
-            *self.lsp_diagnostics_rx.lock().unwrap_or_else(|e| e.into_inner()) = Some(rx);
+            *self
+                .lsp_diagnostics_rx
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = Some(rx);
         }
         let mut latest: Option<PublishedDiagnostics> = None;
-        if let Some(rx) = self.lsp_diagnostics_rx.lock().unwrap_or_else(|e| e.into_inner()).as_mut() {
+        if let Some(rx) = self
+            .lsp_diagnostics_rx
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_mut()
+        {
             // Drain to the most recent notification for this document (LSP replaces the whole set).
             while let Ok(published) = rx.try_recv() {
                 latest = Some(published);
@@ -4363,14 +4717,20 @@ impl CodeEditorPanel {
 
     /// Mark a buffer edit happened now (the completion-debounce clock — implementation note 2).
     pub fn mark_edit_now(&self) {
-        *self.last_edit_instant.lock().unwrap_or_else(|e| e.into_inner()) =
-            Some(std::time::Instant::now());
+        *self
+            .last_edit_instant
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(std::time::Instant::now());
     }
 
     /// True when the completion debounce window ([`COMPLETION_DEBOUNCE_MS`]) has elapsed since the last
     /// edit (or no edit has happened) — i.e. it is safe to fire a completion request (RISK-002).
     pub fn completion_debounce_elapsed(&self) -> bool {
-        match *self.last_edit_instant.lock().unwrap_or_else(|e| e.into_inner()) {
+        match *self
+            .last_edit_instant
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+        {
             Some(at) => at.elapsed() >= std::time::Duration::from_millis(COMPLETION_DEBOUNCE_MS),
             None => true,
         }
@@ -4390,10 +4750,17 @@ impl CodeEditorPanel {
             .cursor_screen_pos()
             .unwrap_or_else(|| egui::pos2(40.0, 40.0));
         // Cache hit: deliver immediately (no spawn).
-        if let Some(cached) = self.code_nav_cache.lock().unwrap_or_else(|e| e.into_inner()).get(prefix)
+        if let Some(cached) = self
+            .code_nav_cache
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(prefix)
         {
             let items = Self::completions_from_symbols(&cached);
-            *self.completion_result.lock().unwrap_or_else(|e| e.into_inner()) = Some((anchor, items));
+            *self
+                .completion_result
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = Some((anchor, items));
             return;
         }
         let client = self.code_nav_client.clone();
@@ -4479,11 +4846,21 @@ impl CodeEditorPanel {
     /// known line). Targets the breakpoint sub-column (left of the gutter) so the click lands on the
     /// breakpoint area, not the line-number or diagnostic column.
     pub fn gutter_breakpoint_pos_for_line(&self, line: usize) -> Option<egui::Pos2> {
-        let rows = self.last_gutter_rows.lock().unwrap_or_else(|e| e.into_inner());
-        let geometry = (*self.last_gutter_geometry.lock().unwrap_or_else(|e| e.into_inner()))?;
-        let rect = (*self.last_gutter_rect.lock().unwrap_or_else(|e| e.into_inner()))?;
+        let rows = self
+            .last_gutter_rows
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let geometry = (*self
+            .last_gutter_geometry
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()))?;
+        let rect = (*self
+            .last_gutter_rect
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()))?;
         let row_idx = rows.iter().position(|&l| l == line)?;
-        let y = geometry.origin.y + row_idx as f32 * geometry.line_height + geometry.line_height * 0.5;
+        let y =
+            geometry.origin.y + row_idx as f32 * geometry.line_height + geometry.line_height * 0.5;
         // Click in the breakpoint sub-column (a little right of the strip's left edge).
         let x = rect.left() + 12.0;
         Some(egui::pos2(x, y))
@@ -4493,12 +4870,22 @@ impl CodeEditorPanel {
     /// frame (the fold triangle is left-of-number; this returns its center x), or `None` if the line was
     /// not painted. The basis for the AC-006 gutter fold-click test.
     pub fn gutter_fold_pos_for_line(&self, line: usize) -> Option<egui::Pos2> {
-        let rows = self.last_gutter_rows.lock().unwrap_or_else(|e| e.into_inner());
-        let geometry = (*self.last_gutter_geometry.lock().unwrap_or_else(|e| e.into_inner()))?;
-        let rect = (*self.last_gutter_rect.lock().unwrap_or_else(|e| e.into_inner()))?;
+        let rows = self
+            .last_gutter_rows
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let geometry = (*self
+            .last_gutter_geometry
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()))?;
+        let rect = (*self
+            .last_gutter_rect
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()))?;
         let config = *self.gutter_config.lock().unwrap_or_else(|e| e.into_inner());
         let row_idx = rows.iter().position(|&l| l == line)?;
-        let y = geometry.origin.y + row_idx as f32 * geometry.line_height + geometry.line_height * 0.5;
+        let y =
+            geometry.origin.y + row_idx as f32 * geometry.line_height + geometry.line_height * 0.5;
         // The fold column sits after the breakpoint column. Mirror `gutter::Gutter::render`'s anchors.
         let breakpoint_w = if config.show_breakpoints { 16.0 } else { 0.0 };
         let x = rect.left() + 4.0 + breakpoint_w + 7.0; // center of the 14px fold column
@@ -4525,14 +4912,20 @@ impl CodeEditorPanel {
     /// computes the exact pixel to click) + the AC-003 three-panel layout test (which asserts the
     /// minimap's right placement + ~80px width).
     pub fn last_minimap_rect(&self) -> Option<egui::Rect> {
-        *self.last_minimap_rect.lock().unwrap_or_else(|e| e.into_inner())
+        *self
+            .last_minimap_rect
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
     }
 
     /// The screen rect the outline panel occupied on the most recent frame, or `None` before the first
     /// render / while it is hidden. The basis for the AC-003 three-panel layout test (left placement +
     /// width vs the minimap).
     pub fn last_outline_rect(&self) -> Option<egui::Rect> {
-        *self.last_outline_rect.lock().unwrap_or_else(|e| e.into_inner())
+        *self
+            .last_outline_rect
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
     }
 
     /// The cached minimap per-row colors for this frame, recomputing the O(spans) pass ONLY on a cache
@@ -4549,7 +4942,10 @@ impl CodeEditorPanel {
     ) -> Vec<egui::Color32> {
         let key = (version, painted_rows, dark_mode);
         {
-            let cache = self.minimap_row_cache.lock().unwrap_or_else(|e| e.into_inner());
+            let cache = self
+                .minimap_row_cache
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             if let Some((colors, v, rows, dm)) = cache.as_ref() {
                 if (*v, *rows, *dm) == key && colors.len() == painted_rows {
                     return colors.clone(); // cache hit: no span fetch / no O(spans) re-walk this frame.
@@ -4559,13 +4955,19 @@ impl CodeEditorPanel {
         // Miss (edit / resize / theme flip): fetch the cached highlight spans (no extra parse — the
         // highlight cache is already current) and run the single O(spans) color pass, then cache it.
         let colors = {
-            let span_cache = self.highlight_cache.lock().unwrap_or_else(|e| e.into_inner());
+            let span_cache = self
+                .highlight_cache
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             let empty: Vec<HighlightSpan> = Vec::new();
             let spans = span_cache.as_ref().map(|(s, _)| s).unwrap_or(&empty);
             let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
             Minimap::compute_row_colors(&buffer, spans, painted_rows, ratio, dark_mode)
         };
-        *self.minimap_row_cache.lock().unwrap_or_else(|e| e.into_inner()) =
+        *self
+            .minimap_row_cache
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) =
             Some((colors.clone(), version, painted_rows, dark_mode));
         colors
     }
@@ -4592,8 +4994,10 @@ impl CodeEditorPanel {
     /// One-shot: the request is consumed (and cleared) on the next frame so the user can scroll freely
     /// afterward. The seam later MTs' go-to-line / scroll-to-symbol actions build on.
     pub fn scroll_to_offset_px(&self, offset_px: f32) {
-        *self.pending_scroll_offset.lock().unwrap_or_else(|e| e.into_inner()) =
-            Some(offset_px.max(0.0));
+        *self
+            .pending_scroll_offset
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(offset_px.max(0.0));
     }
 
     /// Request that the next `show` scrolls so `line` is at the top of the viewport, using the cached
@@ -4693,7 +5097,10 @@ impl CodeEditorPanel {
         // owns the keyboard (the same focus-precedence guard `process_keymap` uses) so Alt+Z does not
         // fight the rename surface. The toggle is the SINGLE `toggle_wrap` mutation point the AccessKit
         // node also routes through (AC-005), and it is render-only (no buffer mutation — AC-007).
-        if matches!(*self.rename_state.lock().unwrap_or_else(|e| e.into_inner()), RenameState::Idle) {
+        if matches!(
+            *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()),
+            RenameState::Idle
+        ) {
             let wrap_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::ALT, egui::Key::Z);
             if ui.input_mut(|i| i.consume_shortcut(&wrap_shortcut)) {
                 self.toggle_wrap();
@@ -4756,28 +5163,42 @@ impl CodeEditorPanel {
         // so it claims its strip; the side panels + center editor divide the remaining rect.
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 4.0;
-            if ui
+            let outline_resp = ui
                 .selectable_label(show_outline, "\u{2261} Outline")
-                .on_hover_text("Toggle the outline panel")
-                .clicked()
-            {
+                .on_hover_text("Toggle the outline panel");
+            crate::accessibility::emit_interactive_node(
+                ui.ctx(),
+                outline_resp.id,
+                &self.suffixed(CODE_EDITOR_TOGGLE_OUTLINE_AUTHOR_ID),
+            );
+            if outline_resp.clicked() {
                 self.toggle_outline();
             }
-            if ui
+            let minimap_resp = ui
                 .selectable_label(show_minimap, "\u{25A4} Minimap")
-                .on_hover_text("Toggle the minimap")
-                .clicked()
-            {
+                .on_hover_text("Toggle the minimap");
+            crate::accessibility::emit_interactive_node(
+                ui.ctx(),
+                minimap_resp.id,
+                &self.suffixed(CODE_EDITOR_TOGGLE_MINIMAP_AUTHOR_ID),
+            );
+            if minimap_resp.clicked() {
                 self.toggle_minimap();
             }
             // MT-034: toggle the "Notes referencing this symbol" panel (the code->notes cross-ref
             // surface). When shown, dwelling on a symbol loads the notes that mention it (RISK-001 —
             // hideable so the center editor keeps a usable width).
-            if ui
+            let note_refs_resp = ui
                 .selectable_label(self.is_note_refs_shown(), "\u{1F4DD} Note refs")
-                .on_hover_text("Toggle the panel listing notes that reference the focused code symbol")
-                .clicked()
-            {
+                .on_hover_text(
+                    "Toggle the panel listing notes that reference the focused code symbol",
+                );
+            crate::accessibility::emit_interactive_node(
+                ui.ctx(),
+                note_refs_resp.id,
+                &self.suffixed(CODE_EDITOR_TOGGLE_NOTE_REFS_AUTHOR_ID),
+            );
+            if note_refs_resp.clicked() {
                 self.toggle_note_refs();
             }
             // MT-054: the word-wrap toggle (Alt+Z). A visible selectable label that reflects + flips the
@@ -4785,11 +5206,15 @@ impl CodeEditorPanel {
             // AccessKit node route through (AC-005). The AccessKit node itself (Role::Button, Toggled
             // property, author_id `editor-wrap-toggle`) is emitted inside the container scope below so it
             // is a container descendant a swarm agent can flip by id.
-            if ui
+            let wrap_resp = ui
                 .selectable_label(self.is_wrap_enabled(), "\u{21B5} Wrap")
-                .on_hover_text("Toggle word wrap (Alt+Z)")
-                .clicked()
-            {
+                .on_hover_text("Toggle word wrap (Alt+Z)");
+            crate::accessibility::emit_interactive_node(
+                ui.ctx(),
+                wrap_resp.id,
+                &self.suffixed(CODE_EDITOR_VISIBLE_WRAP_TOGGLE_AUTHOR_ID),
+            );
+            if wrap_resp.clicked() {
                 self.toggle_wrap();
             }
             // MT-010 'Configure keybindings' affordance: materializes ~/.handshake/keymap.json (creating
@@ -4802,11 +5227,15 @@ impl CodeEditorPanel {
                 .as_ref()
                 .map(|p| p.display().to_string())
                 .unwrap_or_else(|| "<home dir unavailable>".to_owned());
-            if ui
+            let keybindings_resp = ui
                 .button("\u{2328} Keybindings")
-                .on_hover_text(format!("Configure editor keybindings: {keymap_path_label}"))
-                .clicked()
-            {
+                .on_hover_text(format!("Configure editor keybindings: {keymap_path_label}"));
+            crate::accessibility::emit_interactive_node(
+                ui.ctx(),
+                keybindings_resp.id,
+                &self.suffixed(CODE_EDITOR_KEYBINDINGS_AUTHOR_ID),
+            );
+            if keybindings_resp.clicked() {
                 self.ensure_keymap_file_exists();
             }
         });
@@ -4825,10 +5254,15 @@ impl CodeEditorPanel {
                 .show_inside(ui, |ui| {
                     self.render_outline_panel(ui, &syntax);
                 });
-            *self.last_outline_rect.lock().unwrap_or_else(|e| e.into_inner()) =
-                Some(resp.response.rect);
+            *self
+                .last_outline_rect
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = Some(resp.response.rect);
         } else {
-            *self.last_outline_rect.lock().unwrap_or_else(|e| e.into_inner()) = None;
+            *self
+                .last_outline_rect
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = None;
         }
 
         // MT-034 NOTE-REFS side panel (right). Rendered BEFORE the minimap so the two right-edge panels
@@ -4872,7 +5306,10 @@ impl CodeEditorPanel {
                     self.render_minimap_panel(ui, visible_buffer_range, total_lines);
                 });
         } else {
-            *self.last_minimap_rect.lock().unwrap_or_else(|e| e.into_inner()) = None;
+            *self
+                .last_minimap_rect
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = None;
         }
 
         // OUTER container scope (the CENTER editor area). egui gives every child `Ui` its own AccessKit
@@ -4936,7 +5373,10 @@ impl CodeEditorPanel {
                     });
                 });
             let gutter_rect = gutter_resp.response.rect;
-            *self.last_gutter_rect.lock().unwrap_or_else(|e| e.into_inner()) = Some(gutter_rect);
+            *self
+                .last_gutter_rect
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = Some(gutter_rect);
 
             // MT-053: render the STICKY-SCROLL band as a pinned top strip of the CENTER editor area
             // BEFORE the scroll area, RESERVING vertical space equal to `headers.len() * line_height` so
@@ -5022,45 +5462,40 @@ impl CodeEditorPanel {
                 // maps each visible row back to a buffer line via the FoldSet (MT step 4/6). Under wrap
                 // (MT-054) the range is in VISUAL-row space and `render_wrapped_rows` maps each visual row
                 // back to its logical buffer line + byte fragment.
-                scroll_area.show_rows(
-                    ui,
-                    line_height,
-                    scroll_row_count,
-                    |ui, row_range| {
-                        // Record egui's actual painted window before painting.
-                        painted_range = row_range.clone();
-                        if wrap_enabled {
-                            // MT-054 PERF CAP: materialize ONLY the painted visual-row window's logical
-                            // lines (O(window)), translated from the cached index — not the whole doc.
-                            let (window_rows, window_start, lines_touched) =
-                                self.wrap_rows_for_window(row_range.clone(), &wrap_cfg, glyph_width);
-                            frame_lines_wrapped = lines_touched;
-                            self.render_wrapped_rows(
-                                ui,
-                                &window_rows,
-                                window_start,
-                                &syntax,
-                                total_lines,
-                                text_id,
-                                &text_author,
-                                line_height,
-                                glyph_width,
-                            );
-                        } else {
-                            self.render_rows(
-                                ui,
-                                row_range,
-                                &syntax,
-                                total_lines,
-                                visible_lines,
-                                text_id,
-                                &text_author,
-                                line_height,
-                                glyph_width,
-                            );
-                        }
-                    },
-                );
+                scroll_area.show_rows(ui, line_height, scroll_row_count, |ui, row_range| {
+                    // Record egui's actual painted window before painting.
+                    painted_range = row_range.clone();
+                    if wrap_enabled {
+                        // MT-054 PERF CAP: materialize ONLY the painted visual-row window's logical
+                        // lines (O(window)), translated from the cached index — not the whole doc.
+                        let (window_rows, window_start, lines_touched) =
+                            self.wrap_rows_for_window(row_range.clone(), &wrap_cfg, glyph_width);
+                        frame_lines_wrapped = lines_touched;
+                        self.render_wrapped_rows(
+                            ui,
+                            &window_rows,
+                            window_start,
+                            &syntax,
+                            total_lines,
+                            text_id,
+                            &text_author,
+                            line_height,
+                            glyph_width,
+                        );
+                    } else {
+                        self.render_rows(
+                            ui,
+                            row_range,
+                            &syntax,
+                            total_lines,
+                            visible_lines,
+                            text_id,
+                            &text_author,
+                            line_height,
+                            glyph_width,
+                        );
+                    }
+                });
 
                 // MT-003: process multi-cursor input AFTER the rows painted this frame, so the captured
                 // row geometry is available to map a pointer position (Alt+Click / box drag) to a
@@ -5077,21 +5512,24 @@ impl CodeEditorPanel {
                     frame_lines_wrapped,
                 };
                 *self.perf.lock().unwrap_or_else(|e| e.into_inner()) = stats;
-                *self.last_visible_range.lock().unwrap_or_else(|e| e.into_inner()) =
-                    painted_range.clone();
+                *self
+                    .last_visible_range
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) = painted_range.clone();
 
                 // Emit the ScrollView node onto THIS scroll scope's Ui id (AC-004). It is a child of
                 // the container scope and the parent of the text scope.
                 let author = scroll_author.clone();
-                ui.ctx().accesskit_node_builder(scroll_node_id, move |node| {
-                    node.set_role(accesskit::Role::ScrollView);
-                    node.set_author_id(author.clone());
-                    node.set_label("Code editor scroll area".to_owned());
-                    node.set_value(format!(
-                        "{} of {} lines rendered",
-                        stats.frame_lines_rendered, stats.buffer_len_lines
-                    ));
-                });
+                ui.ctx()
+                    .accesskit_node_builder(scroll_node_id, move |node| {
+                        node.set_role(accesskit::Role::ScrollView);
+                        node.set_author_id(author.clone());
+                        node.set_label("Code editor scroll area".to_owned());
+                        node.set_value(format!(
+                            "{} of {} lines rendered",
+                            stats.frame_lines_rendered, stats.buffer_len_lines
+                        ));
+                    });
             });
 
             // MT-007: paint the gutter strip content NOW — after the scroll area painted its rows, so
@@ -5124,11 +5562,12 @@ impl CodeEditorPanel {
             // Emit the container node onto this scope's Ui id from INSIDE the scope, so it is the
             // node that parents the nested scroll-area scope (AC-005: GenericContainer + author_id).
             let author = container_author.clone();
-            ui.ctx().accesskit_node_builder(container_node_id, move |node| {
-                node.set_role(accesskit::Role::GenericContainer);
-                node.set_author_id(author.clone());
-                node.set_label("Code editor".to_owned());
-            });
+            ui.ctx()
+                .accesskit_node_builder(container_node_id, move |node| {
+                    node.set_role(accesskit::Role::GenericContainer);
+                    node.set_author_id(author.clone());
+                    node.set_label("Code editor".to_owned());
+                });
         });
 
         // MT-006: render the go-to-line palette as a centered modal overlay (Ctrl+G). A no-op (and no
@@ -5184,24 +5623,37 @@ impl CodeEditorPanel {
     fn render_code_intelligence(&self, ui: &egui::Ui) {
         // Drain delivered completion items into the popup state (HBR-QUIET — the spawn delivered them
         // off-thread; here we just swap them in on the UI thread).
-        if let Some((anchor, items)) =
-            self.completion_result.lock().unwrap_or_else(|e| e.into_inner()).take()
+        if let Some((anchor, items)) = self
+            .completion_result
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
         {
             if items.is_empty() {
                 self.close_completion();
             } else {
-                *self.completion_state.lock().unwrap_or_else(|e| e.into_inner()) =
-                    Some(CompletionState::new(items, anchor));
+                *self
+                    .completion_state
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) = Some(CompletionState::new(items, anchor));
             }
         }
         // Drain a delivered hover result.
-        if let Some((_anchor, hover)) =
-            self.hover_result.lock().unwrap_or_else(|e| e.into_inner()).take()
+        if let Some((_anchor, hover)) = self
+            .hover_result
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
         {
             self.open_hover(hover);
         }
         // Drain a delivered go-to-definition target (F12): jump the caret + scroll to the def line.
-        if let Some(line) = self.goto_def_result.lock().unwrap_or_else(|e| e.into_inner()).take() {
+        if let Some(line) = self
+            .goto_def_result
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
+        {
             // MT-052 jump-history record site #2 (goto-definition): record the PRE-jump caret location so
             // Navigate Back returns to the call site, BEFORE the caret jumps to the definition line.
             self.record_jump_origin();
@@ -5209,14 +5661,22 @@ impl CodeEditorPanel {
         }
         // Drain a delivered references result (Shift+F12): park it for the observable accessor. No
         // rendered references panel in MT-010 scope (follow-on MT — see handoff BLOCKER).
-        if let Some(refs) = self.references_result.lock().unwrap_or_else(|e| e.into_inner()).take() {
+        if let Some(refs) = self
+            .references_result
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
+        {
             tracing::debug!(
                 total = refs.total(),
                 callers = refs.callers.len(),
                 callees = refs.callees.len(),
                 "code editor: ShowReferences result delivered"
             );
-            *self.last_references.lock().unwrap_or_else(|e| e.into_inner()) = Some(refs);
+            *self
+                .last_references
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = Some(refs);
         }
 
         // Render the completion popup (a no-op when closed). The panel owns the state; the popup is a
@@ -5248,8 +5708,11 @@ impl CodeEditorPanel {
         // MT-047: drain a delivered signature-help result into the popup state. A delivered result that
         // anchors to a call site the cursor has since left is dropped (the cursor-exit check) so a stale
         // popup does not linger.
-        if let Some(state) =
-            self.signature_help_result.lock().unwrap_or_else(|e| e.into_inner()).take()
+        if let Some(state) = self
+            .signature_help_result
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
         {
             // Only show it if the cursor is still inside the same call (RISK-002 — the anchor must still
             // enclose the caret). Otherwise the call ended while the request was in flight; drop it.
@@ -5290,7 +5753,10 @@ impl CodeEditorPanel {
     fn render_quickfix_menu(&self, ui: &egui::Ui) {
         // Snapshot the state so the controller lock is not held across the render closures.
         let state = {
-            let guard = self.code_action_controller.lock().unwrap_or_else(|e| e.into_inner());
+            let guard = self
+                .code_action_controller
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             match guard.state() {
                 Some(s) if s.menu_open => s.clone(),
                 _ => return, // menu closed -> nothing to render (AC-005/AC-006: no node when closed).
@@ -5313,10 +5779,16 @@ impl CodeEditorPanel {
             )
         });
         if up {
-            self.code_action_controller.lock().unwrap_or_else(|e| e.into_inner()).select_prev();
+            self.code_action_controller
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .select_prev();
         }
         if down {
-            self.code_action_controller.lock().unwrap_or_else(|e| e.into_inner()).select_next();
+            self.code_action_controller
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .select_next();
         }
 
         match menu_action {
@@ -5352,8 +5824,11 @@ impl CodeEditorPanel {
             RenameState::Editing { ident_range, .. } => {
                 // Anchor the input at the identifier's screen position (the start of the identifier).
                 let (line, col) = self.with_buffer(|b| byte_to_line_col(ident_range.start, b));
-                let glyph_width = (*self.glyph_width_px.lock().unwrap_or_else(|e| e.into_inner()))
-                    .unwrap_or(8.0);
+                let glyph_width = (*self
+                    .glyph_width_px
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()))
+                .unwrap_or(8.0);
                 let anchor = self
                     .screen_pos_for_line_col(line, col, glyph_width)
                     .unwrap_or(egui::pos2(20.0, 20.0));
@@ -5425,7 +5900,9 @@ impl CodeEditorPanel {
         let (original, draft) = {
             let guard = self.rename_state.lock().unwrap_or_else(|e| e.into_inner());
             match &*guard {
-                RenameState::Editing { original, draft, .. } => (original.clone(), draft.clone()),
+                RenameState::Editing {
+                    original, draft, ..
+                } => (original.clone(), draft.clone()),
                 _ => return,
             }
         };
@@ -5446,8 +5923,9 @@ impl CodeEditorPanel {
             &occurrences,
             true,
         );
-        *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()) =
-            RenameState::Previewing { workspace_edit: preview };
+        *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()) = RenameState::Previewing {
+            workspace_edit: preview,
+        };
     }
 
     /// MT-048: the editor body context menu with the code-pane 'Rename Symbol' entry. A secondary-click
@@ -5464,6 +5942,12 @@ impl CodeEditorPanel {
             ui.id().with(("code-editor-ctx-menu", &self.instance)),
             egui::Sense::click(),
         );
+        let context_author = self.suffixed(CODE_EDITOR_CONTEXT_SURFACE_AUTHOR_ID);
+        ui.ctx().accesskit_node_builder(resp.id, move |node| {
+            node.set_role(accesskit::Role::GenericContainer);
+            node.set_author_id(context_author.clone());
+            node.set_label("Code editor context surface".to_owned());
+        });
         resp.context_menu(|ui| {
             if ui.button("Rename Symbol").clicked() {
                 self.begin_rename_at_cursor();
@@ -5486,7 +5970,8 @@ impl CodeEditorPanel {
         } else {
             format!(
                 "{}#{}",
-                rename::CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID, self.instance
+                rename::CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID,
+                self.instance
             )
         };
         let node_id = if self.instance.is_empty() {
@@ -5496,7 +5981,8 @@ impl CodeEditorPanel {
         } else {
             egui::Id::new(format!(
                 "{}#{}",
-                rename::CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID, self.instance
+                rename::CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID,
+                self.instance
             ))
         };
         ui.ctx().accesskit_node_builder(node_id, move |node| {
@@ -5521,14 +6007,17 @@ impl CodeEditorPanel {
         } else {
             egui::Id::new(format!(
                 "{}#{}",
-                code_actions::CODE_EDITOR_CTX_QUICK_FIX_AUTHOR_ID, self.instance
+                code_actions::CODE_EDITOR_CTX_QUICK_FIX_AUTHOR_ID,
+                self.instance
             ))
         };
         ui.ctx().accesskit_node_builder(qf_node_id, move |node| {
             node.set_role(accesskit::Role::MenuItem);
             node.set_author_id(qf_author.clone());
             node.set_label("Quick Fix".to_owned());
-            node.set_value("Show code actions / quick fixes for the current line (Ctrl+.)".to_owned());
+            node.set_value(
+                "Show code actions / quick fixes for the current line (Ctrl+.)".to_owned(),
+            );
             node.add_action(accesskit::Action::Click);
         });
     }
@@ -5539,64 +6028,83 @@ impl CodeEditorPanel {
     /// (fold-aware) to scroll the editor + move the caret to the symbol's line. The list scrolls
     /// (an outline can be long — MT step "use ScrollArea for the outline").
     fn render_outline_panel(&self, ui: &mut egui::Ui, syntax: &HsSyntaxTokens) {
-        ui.scope_builder(egui::UiBuilder::new().id_salt(self.outline_panel_scope_id()), |ui| {
-            let outline_node_id = ui.unique_id();
-            ui.label(egui::RichText::new("OUTLINE").color(syntax.comment).small());
-            ui.separator();
+        ui.scope_builder(
+            egui::UiBuilder::new().id_salt(self.outline_panel_scope_id()),
+            |ui| {
+                let outline_node_id = ui.unique_id();
+                ui.label(egui::RichText::new("OUTLINE").color(syntax.comment).small());
+                ui.separator();
 
-            let items = self.outline_items();
-            let mut navigate_to: Option<usize> = None;
-            egui::ScrollArea::vertical()
-                .id_salt(("code-editor-outline-scroll", self.outline_panel_scope_id()))
-                .auto_shrink([false, false])
-                .show(ui, |ui| {
-                    if items.is_empty() {
-                        ui.label(
-                            egui::RichText::new("No symbols").italics().color(syntax.comment),
-                        );
-                    }
-                    for (idx, item) in items.iter().enumerate() {
-                        // Indent the row by the outline depth (MT step 2). A leading kind tag + the name.
-                        let label = format!(
-                            "{}{} {}",
-                            "  ".repeat(item.indent),
-                            item.kind.label(),
-                            item.name
-                        );
-                        let resp = ui.add(
-                            egui::Label::new(egui::RichText::new(label).monospace())
-                                .sense(egui::Sense::click()),
-                        );
-                        if resp.clicked() {
-                            navigate_to = Some(item.line);
+                let items = self.outline_items();
+                let mut navigate_to: Option<usize> = None;
+                egui::ScrollArea::vertical()
+                    .id_salt(("code-editor-outline-scroll", self.outline_panel_scope_id()))
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        if items.is_empty() {
+                            ui.label(
+                                egui::RichText::new("No symbols")
+                                    .italics()
+                                    .color(syntax.comment),
+                            );
                         }
-                        resp.on_hover_text(format!("Go to line {} ({})", item.line + 1, item.kind.label()));
-                        // Stable per-row egui id so the row is individually addressable; the row index is
-                        // unique per frame (outline order is deterministic). (The container Tree node is
-                        // the AC-004 addressable surface; individual rows live in egui's hashed id space,
-                        // the same dynamic-row pattern the shell tree/list containers use.)
-                        let _ = idx;
-                    }
-                });
+                        for (idx, item) in items.iter().enumerate() {
+                            // Indent the row by the outline depth (MT step 2). A leading kind tag + the name.
+                            let label = format!(
+                                "{}{} {}",
+                                "  ".repeat(item.indent),
+                                item.kind.label(),
+                                item.name
+                            );
+                            let resp = ui.add(
+                                egui::Label::new(egui::RichText::new(label).monospace())
+                                    .sense(egui::Sense::click()),
+                            );
+                            let row_author = self
+                                .suffixed(&format!("{CODE_EDITOR_OUTLINE_ROW_AUTHOR_PREFIX}{idx}"));
+                            let row_label = format!("{} {}", item.kind.label(), item.name);
+                            ui.ctx().accesskit_node_builder(resp.id, move |node| {
+                                node.set_role(accesskit::Role::TreeItem);
+                                node.set_author_id(row_author.clone());
+                                node.set_label(row_label.clone());
+                                node.add_action(accesskit::Action::Click);
+                            });
+                            if resp.clicked() {
+                                navigate_to = Some(item.line);
+                            }
+                            resp.on_hover_text(format!(
+                                "Go to line {} ({})",
+                                item.line + 1,
+                                item.kind.label()
+                            ));
+                            // Stable per-row egui id so the row is individually addressable; the row index is
+                            // unique per frame (outline order is deterministic). (The container Tree node is
+                            // the AC-004 addressable surface; individual rows live in egui's hashed id space,
+                            // the same dynamic-row pattern the shell tree/list containers use.)
+                            let _ = idx;
+                        }
+                    });
 
-            // Emit the outline Tree node onto this scope's Ui id (AC-004 / HBR-SWARM).
-            let author = self.outline_author_id();
-            let count = items.len();
-            ui.ctx().accesskit_node_builder(outline_node_id, move |node| {
-                node.set_role(accesskit::Role::Tree);
-                node.set_author_id(author.clone());
-                node.set_label("Code editor outline".to_owned());
-                node.set_value(format!("{count} symbols"));
-            });
+                // Emit the outline Tree node onto this scope's Ui id (AC-004 / HBR-SWARM).
+                let author = self.outline_author_id();
+                let count = items.len();
+                ui.ctx()
+                    .accesskit_node_builder(outline_node_id, move |node| {
+                        node.set_role(accesskit::Role::Tree);
+                        node.set_author_id(author.clone());
+                        node.set_label("Code editor outline".to_owned());
+                        node.set_value(format!("{count} symbols"));
+                    });
 
-            // Navigate AFTER the borrow on `items` is released (fold-aware scroll + caret move).
-            if let Some(line) = navigate_to {
-                // MT-052 jump-history record site #3 (outline / in-file symbol jump): record the pre-jump
-                // caret location so Navigate Back returns here, before the caret moves to the symbol line.
-                self.record_jump_origin();
-                self.navigate_to_line(line);
-            }
-        });
+                // Navigate AFTER the borrow on `items` is released (fold-aware scroll + caret move).
+                if let Some(line) = navigate_to {
+                    // MT-052 jump-history record site #3 (outline / in-file symbol jump): record the pre-jump
+                    // caret location so Navigate Back returns here, before the caret moves to the symbol line.
+                    self.record_jump_origin();
+                    self.navigate_to_line(line);
+                }
+            },
+        );
     }
 
     /// Render the MT-006 minimap in the right side panel, with the AccessKit `Role::ScrollBar` node
@@ -5609,46 +6117,54 @@ impl CodeEditorPanel {
         visible_buffer_range: std::ops::Range<usize>,
         total_lines: usize,
     ) {
-        ui.scope_builder(egui::UiBuilder::new().id_salt(self.minimap_panel_scope_id()), |ui| {
-            let minimap_node_id = ui.unique_id();
+        ui.scope_builder(
+            egui::UiBuilder::new().id_salt(self.minimap_panel_scope_id()),
+            |ui| {
+                // Resolve this frame's minimap row layout (how many rows, at what compression). The
+                // O(spans) color computation is CACHED keyed by (buffer_version, painted_rows, dark_mode)
+                // so it runs only on an edit / resize / theme flip — the per-frame render is O(painted_rows)
+                // (MT-002 frame-budget protection on a 100k-line file).
+                let panel_height = ui.available_height().max(1.0);
+                let ratio = Minimap::compression_ratio(total_lines, panel_height);
+                let painted_rows = total_lines.div_ceil(ratio).max(1);
+                let dark_mode = ui.visuals().dark_mode;
+                let version = self.buffer_version.load(Ordering::Relaxed);
+                let row_colors = self.minimap_row_colors(painted_rows, ratio, dark_mode, version);
 
-            // Resolve this frame's minimap row layout (how many rows, at what compression). The
-            // O(spans) color computation is CACHED keyed by (buffer_version, painted_rows, dark_mode)
-            // so it runs only on an edit / resize / theme flip — the per-frame render is O(painted_rows)
-            // (MT-002 frame-budget protection on a 100k-line file).
-            let panel_height = ui.available_height().max(1.0);
-            let ratio = Minimap::compression_ratio(total_lines, panel_height);
-            let painted_rows = total_lines.div_ceil(ratio).max(1);
-            let dark_mode = ui.visuals().dark_mode;
-            let version = self.buffer_version.load(Ordering::Relaxed);
-            let row_colors = self.minimap_row_colors(painted_rows, ratio, dark_mode, version);
+                let response =
+                    self.minimap
+                        .render(ui, &row_colors, visible_buffer_range.clone(), total_lines);
+                // Store the minimap's TRUE content rect (exactly the configured width) for the AC-006
+                // midpoint-click geometry + AC-003 width assertion — the enclosing SidePanel adds frame
+                // margins around this, so the panel's outer rect is wider.
+                *self
+                    .last_minimap_rect
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) = Some(response.content_rect);
+                // A minimap click is a scroll-to request, routed through the fold-aware mapping (MT
+                // positioning note) so a click lands on the correct row even with folds active.
+                if let Some(line) = response.clicked_buffer_line {
+                    let visible_line = self.buffer_line_to_visible_line(line);
+                    self.scroll_to_line(visible_line);
+                }
 
-            let response = self
-                .minimap
-                .render(ui, &row_colors, visible_buffer_range.clone(), total_lines);
-            // Store the minimap's TRUE content rect (exactly the configured width) for the AC-006
-            // midpoint-click geometry + AC-003 width assertion — the enclosing SidePanel adds frame
-            // margins around this, so the panel's outer rect is wider.
-            *self.last_minimap_rect.lock().unwrap_or_else(|e| e.into_inner()) =
-                Some(response.content_rect);
-            // A minimap click is a scroll-to request, routed through the fold-aware mapping (MT
-            // positioning note) so a click lands on the correct row even with folds active.
-            if let Some(line) = response.clicked_buffer_line {
-                let visible_line = self.buffer_line_to_visible_line(line);
-                self.scroll_to_line(visible_line);
-            }
-
-            // Emit the minimap ScrollBar node (AC-004 / HBR-SWARM). It MUST carry an author_id — a
-            // ScrollBar is an INTERACTIVE role the MT-025 accessibility gate flags if unnamed.
-            let author = self.minimap_author_id();
-            let value = format!("lines {}-{} of {total_lines}", visible_buffer_range.start, visible_buffer_range.end);
-            ui.ctx().accesskit_node_builder(minimap_node_id, move |node| {
-                node.set_role(accesskit::Role::ScrollBar);
-                node.set_author_id(author.clone());
-                node.set_label("Code editor minimap".to_owned());
-                node.set_value(value.clone());
-            });
-        });
+                // Emit the minimap ScrollBar node onto the REAL click/drag response id (AC-004 /
+                // HBR-SWARM). It MUST carry an author_id — a
+                // ScrollBar is an INTERACTIVE role the MT-025 accessibility gate flags if unnamed.
+                let author = self.minimap_author_id();
+                let value = format!(
+                    "lines {}-{} of {total_lines}",
+                    visible_buffer_range.start, visible_buffer_range.end
+                );
+                ui.ctx()
+                    .accesskit_node_builder(response.response_id, move |node| {
+                        node.set_role(accesskit::Role::ScrollBar);
+                        node.set_author_id(author.clone());
+                        node.set_label("Code editor minimap".to_owned());
+                        node.set_value(value.clone());
+                    });
+            },
+        );
     }
 
     /// Render the MT-006 go-to-line palette as a small centered modal `egui::Window` (Ctrl+G). The
@@ -5770,8 +6286,15 @@ impl CodeEditorPanel {
         }
         // Snapshot the current query + filtered rows + selection for this frame's render.
         let (mut query, results, selected) = {
-            let palette = self.symbol_palette.lock().unwrap_or_else(|e| e.into_inner());
-            (palette.query().to_owned(), palette.results().to_vec(), palette.selected_index())
+            let palette = self
+                .symbol_palette
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            (
+                palette.query().to_owned(),
+                palette.results().to_vec(),
+                palette.selected_index(),
+            )
         };
         let mut query_changed = false;
         let mut confirm_index: Option<usize> = None;
@@ -5779,7 +6302,10 @@ impl CodeEditorPanel {
         let window_id = if self.instance.is_empty() {
             egui::Id::new("code_editor_symbol_palette_window")
         } else {
-            egui::Id::new(format!("code_editor_symbol_palette_window#{}", self.instance))
+            egui::Id::new(format!(
+                "code_editor_symbol_palette_window#{}",
+                self.instance
+            ))
         };
 
         let dialog_node_id = if self.instance.is_empty() {
@@ -5823,11 +6349,12 @@ impl CodeEditorPanel {
                 // Name the search node (Role::TextInput) so a swarm agent can address it.
                 {
                     let author = search_author.clone();
-                    ui.ctx().accesskit_node_builder(search_node_id, move |node| {
-                        node.set_role(accesskit::Role::TextInput);
-                        node.set_author_id(author.clone());
-                        node.set_label("Code editor symbol palette search".to_owned());
-                    });
+                    ui.ctx()
+                        .accesskit_node_builder(search_node_id, move |node| {
+                            node.set_role(accesskit::Role::TextInput);
+                            node.set_author_id(author.clone());
+                            node.set_label("Code editor symbol palette search".to_owned());
+                        });
                 }
 
                 ui.separator();
@@ -5900,12 +6427,13 @@ impl CodeEditorPanel {
         // does not need the interactive-gate author_id, but we set one for symmetry + discoverability.
         {
             let author = format!("{}_dialog", self.symbol_palette_author_id());
-            ui.ctx().accesskit_node_builder(dialog_node_id, move |node| {
-                node.set_role(accesskit::Role::Dialog);
-                node.set_author_id(author.clone());
-                node.set_modal();
-                node.set_label("Go to symbol in file".to_owned());
-            });
+            ui.ctx()
+                .accesskit_node_builder(dialog_node_id, move |node| {
+                    node.set_role(accesskit::Role::Dialog);
+                    node.set_author_id(author.clone());
+                    node.set_modal();
+                    node.set_label("Go to symbol in file".to_owned());
+                });
         }
 
         // Push the edited query back into the owned state (re-filters) so the next frame + a confirm see
@@ -5916,7 +6444,10 @@ impl CodeEditorPanel {
         // A row click confirms that exact row: set the selection to it, then confirm.
         if let Some(idx) = confirm_index {
             {
-                let mut palette = self.symbol_palette.lock().unwrap_or_else(|e| e.into_inner());
+                let mut palette = self
+                    .symbol_palette
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner());
                 // Re-derive the selection to the clicked row by stepping (clamped) — simplest correct path
                 // without exposing a set_selected.
                 let cur = palette.selected_index();
@@ -5950,7 +6481,8 @@ impl CodeEditorPanel {
         let fold_set = self.fold_set();
         let headers = {
             let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
-            self.sticky_scroll.compute(viewport_top, &fold_set.regions, &buffer)
+            self.sticky_scroll
+                .compute(viewport_top, &fold_set.regions, &buffer)
         };
         if headers.is_empty() {
             return;
@@ -5984,7 +6516,9 @@ impl CodeEditorPanel {
                     let resp = ui
                         .add(
                             egui::Label::new(
-                                egui::RichText::new(text).monospace().color(header_text_color),
+                                egui::RichText::new(text)
+                                    .monospace()
+                                    .color(header_text_color),
                             )
                             .sense(egui::Sense::click()),
                         )
@@ -6017,12 +6551,13 @@ impl CodeEditorPanel {
                 };
                 let author = self.sticky_scroll_author_id();
                 let count = headers.len();
-                ui.ctx().accesskit_node_builder(container_node_id, move |node| {
-                    node.set_role(accesskit::Role::GenericContainer);
-                    node.set_author_id(author.clone());
-                    node.set_label("Code editor sticky scroll".to_owned());
-                    node.set_value(format!("{count} pinned headers"));
-                });
+                ui.ctx()
+                    .accesskit_node_builder(container_node_id, move |node| {
+                        node.set_role(accesskit::Role::GenericContainer);
+                        node.set_author_id(author.clone());
+                        node.set_label("Code editor sticky scroll".to_owned());
+                        node.set_value(format!("{count} pinned headers"));
+                    });
             });
 
         // Apply a header click AFTER the panel closure (fold-aware scroll, the same path JumpTo uses).
@@ -6142,13 +6677,21 @@ impl CodeEditorPanel {
                     query_changed = true;
                 }
 
-                if ui.button("\u{2191}").on_hover_text("Previous match").clicked() {
+                if ui
+                    .button("\u{2191}")
+                    .on_hover_text("Previous match")
+                    .clicked()
+                {
                     self.prev_match();
                 }
                 if ui.button("\u{2193}").on_hover_text("Next match").clicked() {
                     self.next_match();
                 }
-                ui.label(self.find_state().map(|s| s.counter_label()).unwrap_or_default());
+                ui.label(
+                    self.find_state()
+                        .map(|s| s.counter_label())
+                        .unwrap_or_default(),
+                );
                 if ui.button("\u{2715}").on_hover_text("Close (Esc)").clicked() {
                     close_requested = true;
                 }
@@ -6279,7 +6822,10 @@ impl CodeEditorPanel {
     /// `show_rows` adds item spacing itself, and the rows zero item-spacing, so this is the right
     /// row-height argument.
     fn line_height(&self, ui: &egui::Ui) -> f32 {
-        let mut cached = self.line_height_px.lock().unwrap_or_else(|e| e.into_inner());
+        let mut cached = self
+            .line_height_px
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         if let Some(h) = *cached {
             return h;
         }
@@ -6294,7 +6840,10 @@ impl CodeEditorPanel {
     /// implementation note 4). All monospace glyphs share one advance, so the space ' ' is
     /// representative. Falls back to half the line height if a font measurement is unavailable.
     fn glyph_width(&self, ui: &egui::Ui) -> f32 {
-        let mut cached = self.glyph_width_px.lock().unwrap_or_else(|e| e.into_inner());
+        let mut cached = self
+            .glyph_width_px
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         if let Some(w) = *cached {
             return w;
         }
@@ -6327,7 +6876,10 @@ impl CodeEditorPanel {
             let text_node_id = ui.unique_id();
             // WP-KERNEL-012 MT-080: record the LIVE text-node egui id so `consume_swarm_text_actions` reads
             // swarm SetValue/ReplaceSelectedText requests at the EXACT node the tree emitted (AC-080-6).
-            *self.live_text_node_id.lock().unwrap_or_else(|e| e.into_inner()) = Some(text_node_id);
+            *self
+                .live_text_node_id
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = Some(text_node_id);
             ui.style_mut().spacing.item_spacing.y = 0.0;
 
             // Capture the screen-space TOP-LEFT of the painted text rows BEFORE painting (the cursor
@@ -6453,7 +7005,11 @@ impl CodeEditorPanel {
             // composition state (reuses the existing editable text node — no new tree). When idle the value
             // is the unchanged line count.
             let author = text_author.to_owned();
-            let preedit = self.preedit.lock().unwrap_or_else(|e| e.into_inner()).clone();
+            let preedit = self
+                .preedit
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .clone();
             let value = if preedit.is_empty() {
                 format!("{total_lines} lines")
             } else {
@@ -6517,7 +7073,10 @@ impl CodeEditorPanel {
             viewport_width_bits: cfg.viewport_width_px.to_bits(),
             glyph_width_bits: glyph_width.to_bits(),
         };
-        let mut guard = self.wrap_row_index.lock().unwrap_or_else(|e| e.into_inner());
+        let mut guard = self
+            .wrap_row_index
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         if let Some(idx) = guard.as_ref() {
             if idx.key == key {
                 return idx.total_rows();
@@ -6564,7 +7123,10 @@ impl CodeEditorPanel {
         cfg: &WrapConfig,
         glyph_width: f32,
     ) -> (Vec<VisualRow>, usize, usize) {
-        let guard = self.wrap_row_index.lock().unwrap_or_else(|e| e.into_inner());
+        let guard = self
+            .wrap_row_index
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let Some(index) = guard.as_ref() else {
             return (Vec::new(), row_range.start, 0);
         };
@@ -6656,13 +7218,19 @@ impl CodeEditorPanel {
             let text_node_id = ui.unique_id();
             // WP-KERNEL-012 MT-080: record the LIVE text-node egui id so `consume_swarm_text_actions` reads
             // swarm SetValue/ReplaceSelectedText requests at the EXACT node the tree emitted (AC-080-6).
-            *self.live_text_node_id.lock().unwrap_or_else(|e| e.into_inner()) = Some(text_node_id);
+            *self
+                .live_text_node_id
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = Some(text_node_id);
             ui.style_mut().spacing.item_spacing.y = 0.0;
             let origin = ui.cursor().min;
 
             // The buffer-line span the painted visual rows cover, for the highlight-span byte window.
             let (first_buffer_line, last_buffer_line) = if !window_rows.is_empty() {
-                (window_rows[0].logical_line, window_rows[window_rows.len() - 1].logical_line)
+                (
+                    window_rows[0].logical_line,
+                    window_rows[window_rows.len() - 1].logical_line,
+                )
             } else {
                 (0, 0)
             };
@@ -6736,7 +7304,9 @@ impl CodeEditorPanel {
     ) {
         let frag_start = row.byte_start;
         let frag_text_owned = self.with_buffer(|b| b.byte_slice_to_string(row.byte_range()));
-        let frag_text = frag_text_owned.strip_suffix('\n').unwrap_or(&frag_text_owned);
+        let frag_text = frag_text_owned
+            .strip_suffix('\n')
+            .unwrap_or(&frag_text_owned);
         let frag_end = frag_start + frag_text.len();
 
         let mono = egui::FontId::monospace(MONO_FONT_SIZE);
@@ -6757,7 +7327,7 @@ impl CodeEditorPanel {
         }
         runs.sort_by_key(|(r, _)| r.start);
 
-        ui.horizontal(|ui| {
+        let row = ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
             let default_color = syntax.punctuation;
             let frag_slice = |start: usize, end: usize| -> String {
@@ -6786,25 +7356,48 @@ impl CodeEditorPanel {
                 if range.start > cursor {
                     let gap = frag_slice(cursor, range.start);
                     if !gap.is_empty() {
-                        ui.label(egui::RichText::new(gap).font(mono.clone()).color(default_color));
+                        Self::code_static_label(
+                            ui,
+                            egui::RichText::new(gap)
+                                .font(mono.clone())
+                                .color(default_color),
+                        );
                     }
                 }
                 let run_text = frag_slice(range.start, range.end);
                 if !run_text.is_empty() {
                     let color = scope_to_color(*scope, syntax);
-                    ui.label(egui::RichText::new(run_text).font(mono.clone()).color(color));
+                    Self::code_static_label(
+                        ui,
+                        egui::RichText::new(run_text)
+                            .font(mono.clone())
+                            .color(color),
+                    );
                 }
                 cursor = cursor.max(range.end);
             }
             if cursor < frag_end {
                 let tail = frag_slice(cursor, frag_end);
                 if !tail.is_empty() {
-                    ui.label(egui::RichText::new(tail).font(mono.clone()).color(default_color));
+                    Self::code_static_label(
+                        ui,
+                        egui::RichText::new(tail)
+                            .font(mono.clone())
+                            .color(default_color),
+                    );
                 }
             }
             if runs.is_empty() && frag_text.is_empty() {
-                ui.label(egui::RichText::new(" ").font(mono.clone()).color(default_color));
+                Self::code_static_label(
+                    ui,
+                    egui::RichText::new(" ")
+                        .font(mono.clone())
+                        .color(default_color),
+                );
             }
+        });
+        ui.ctx().accesskit_node_builder(row.response.id, |node| {
+            node.set_role(accesskit::Role::Label);
         });
     }
 
@@ -6932,8 +7525,10 @@ impl CodeEditorPanel {
             let set = self.cursor_set.lock().unwrap_or_else(|e| e.into_inner());
             set.primary().head
         };
-        if let Some(BracketMatch { open_byte, close_byte }) =
-            find_matching_bracket(&buffer, cursor_byte)
+        if let Some(BracketMatch {
+            open_byte,
+            close_byte,
+        }) = find_matching_bracket(&buffer, cursor_byte)
         {
             let stroke = egui::Stroke::new(1.0, active_guide_color);
             for b in [open_byte, close_byte] {
@@ -6944,12 +7539,7 @@ impl CodeEditorPanel {
                         egui::pos2(x, y),
                         egui::vec2(glyph_width, geometry.line_height),
                     );
-                    painter.rect_stroke(
-                        rect,
-                        2.0,
-                        stroke,
-                        egui::StrokeKind::Inside,
-                    );
+                    painter.rect_stroke(rect, 2.0, stroke, egui::StrokeKind::Inside);
                 }
             }
         }
@@ -7048,7 +7638,10 @@ impl CodeEditorPanel {
             let author = if self.instance.is_empty() {
                 format!("{CODE_EDITOR_FOLD_AUTHOR_PREFIX}{start_line}")
             } else {
-                format!("{CODE_EDITOR_FOLD_AUTHOR_PREFIX}{start_line}#{}", self.instance)
+                format!(
+                    "{CODE_EDITOR_FOLD_AUTHOR_PREFIX}{start_line}#{}",
+                    self.instance
+                )
             };
             let value = if folded {
                 format!("folded lines {start_line}-{end_line}")
@@ -7079,7 +7672,10 @@ impl CodeEditorPanel {
             // SAFETY: each slot maps to a distinct fixed id in the disjoint fold band; never reused.
             unsafe { egui::Id::from_high_entropy_bits(PANEL_FOLD_NODE_ID_BASE + slot as u64) }
         } else {
-            egui::Id::new(format!("{CODE_EDITOR_FOLD_AUTHOR_PREFIX}{start_line}#{}", self.instance))
+            egui::Id::new(format!(
+                "{CODE_EDITOR_FOLD_AUTHOR_PREFIX}{start_line}#{}",
+                self.instance
+            ))
         }
     }
 
@@ -7103,8 +7699,14 @@ impl CodeEditorPanel {
         // painted code row; line_height = sans-spacing row stride). Without it (no frame yet) there is
         // nothing to align to.
         let Some(row_geom) = *self.row_geometry.lock().unwrap_or_else(|e| e.into_inner()) else {
-            self.last_gutter_rows.lock().unwrap_or_else(|e| e.into_inner()).clear();
-            *self.last_gutter_geometry.lock().unwrap_or_else(|e| e.into_inner()) = None;
+            self.last_gutter_rows
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .clear();
+            *self
+                .last_gutter_geometry
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = None;
             return;
         };
 
@@ -7129,8 +7731,16 @@ impl CodeEditorPanel {
         };
 
         // Snapshot the markers + breakpoints (clones so no lock is held across egui calls).
-        let markers = self.diagnostic_markers.lock().unwrap_or_else(|e| e.into_inner()).clone();
-        let breakpoints = self.breakpoint_set.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        let markers = self
+            .diagnostic_markers
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        let breakpoints = self
+            .breakpoint_set
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
 
         // A closure the gutter calls to learn whether a buffer line starts a fold region and, if so,
         // whether it is OPEN (not folded). `Some(true)` = region start, expanded; `Some(false)` = region
@@ -7140,7 +7750,11 @@ impl CodeEditorPanel {
             set.region_starting_at(line).map(|r| !r.folded)
         };
 
-        let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        let buffer = self
+            .buffer
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         let response: GutterResponse = Gutter::render(
             ui,
             gutter_rect,
@@ -7153,9 +7767,55 @@ impl CodeEditorPanel {
             &fold_open_for,
         );
 
+        if config.show_breakpoints {
+            for &line in &visible_rows {
+                let target_id = ui.id().with(("gutter_row", line)).with("bp");
+                let author = if self.instance.is_empty() {
+                    format!("{CODE_EDITOR_BREAKPOINT_TARGET_AUTHOR_PREFIX}{line}")
+                } else {
+                    format!(
+                        "{CODE_EDITOR_BREAKPOINT_TARGET_AUTHOR_PREFIX}{line}#{}",
+                        self.instance
+                    )
+                };
+                ui.ctx().accesskit_node_builder(target_id, move |node| {
+                    node.set_role(accesskit::Role::Button);
+                    node.set_author_id(author.clone());
+                    node.set_label(format!("Toggle breakpoint on line {}", line + 1));
+                });
+            }
+        }
+        if config.show_fold_triangles {
+            for &line in &visible_rows {
+                if fold_open_for(line).is_none() {
+                    continue;
+                }
+                let target_id = ui.id().with(("gutter_row", line)).with("fold");
+                let author = if self.instance.is_empty() {
+                    format!("{CODE_EDITOR_FOLD_TARGET_AUTHOR_PREFIX}{line}")
+                } else {
+                    format!(
+                        "{CODE_EDITOR_FOLD_TARGET_AUTHOR_PREFIX}{line}#{}",
+                        self.instance
+                    )
+                };
+                ui.ctx().accesskit_node_builder(target_id, move |node| {
+                    node.set_role(accesskit::Role::Button);
+                    node.set_author_id(author.clone());
+                    node.set_label(format!("Toggle fold on line {}", line + 1));
+                });
+            }
+        }
+
         // Persist the painted rows + geometry for the deterministic click tests.
-        *self.last_gutter_rows.lock().unwrap_or_else(|e| e.into_inner()) = visible_rows.clone();
-        *self.last_gutter_geometry.lock().unwrap_or_else(|e| e.into_inner()) = Some(geometry);
+        *self
+            .last_gutter_rows
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = visible_rows.clone();
+        *self
+            .last_gutter_geometry
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(geometry);
 
         // Apply the click outcomes AFTER the render (the same post-render-apply discipline the cursor
         // overlay + fold keymap use). A fold click toggles the fold; a breakpoint click toggles the
@@ -7213,8 +7873,10 @@ impl CodeEditorPanel {
         // A clicked lightbulb opens the quick-fix menu for that line (AC-003 — gutter-click path). If a
         // request for the line is not yet resolved the menu opens empty and re-fires on the next pump.
         if let Some(line) = open_for {
-            let mut controller =
-                self.code_action_controller.lock().unwrap_or_else(|e| e.into_inner());
+            let mut controller = self
+                .code_action_controller
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             if controller.active_line() == Some(line) {
                 controller.open_menu();
             }
@@ -7272,7 +7934,12 @@ impl CodeEditorPanel {
         let author = self.wrap_toggle_author_id();
         let node_id = self.wrap_toggle_node_id();
         let enabled = self.is_wrap_enabled();
-        let value = if enabled { "word wrap on" } else { "word wrap off" }.to_owned();
+        let value = if enabled {
+            "word wrap on"
+        } else {
+            "word wrap off"
+        }
+        .to_owned();
         ui.ctx().accesskit_node_builder(node_id, move |node| {
             node.set_role(accesskit::Role::Button);
             node.set_author_id(author.clone());
@@ -7349,11 +8016,12 @@ impl CodeEditorPanel {
     fn breakpoint_node_id(&self, slot: usize, line: usize) -> egui::Id {
         if self.instance.is_empty() {
             // SAFETY: each slot maps to a distinct fixed id in the disjoint breakpoint band; never reused.
-            unsafe {
-                egui::Id::from_high_entropy_bits(PANEL_BREAKPOINT_NODE_ID_BASE + slot as u64)
-            }
+            unsafe { egui::Id::from_high_entropy_bits(PANEL_BREAKPOINT_NODE_ID_BASE + slot as u64) }
         } else {
-            egui::Id::new(format!("{CODE_EDITOR_BREAKPOINT_AUTHOR_PREFIX}{line}#{}", self.instance))
+            egui::Id::new(format!(
+                "{CODE_EDITOR_BREAKPOINT_AUTHOR_PREFIX}{line}#{}",
+                self.instance
+            ))
         }
     }
 
@@ -7362,11 +8030,12 @@ impl CodeEditorPanel {
     fn diagnostic_node_id(&self, slot: usize, line: usize) -> egui::Id {
         if self.instance.is_empty() {
             // SAFETY: each slot maps to a distinct fixed id in the disjoint diagnostic band; never reused.
-            unsafe {
-                egui::Id::from_high_entropy_bits(PANEL_DIAGNOSTIC_NODE_ID_BASE + slot as u64)
-            }
+            unsafe { egui::Id::from_high_entropy_bits(PANEL_DIAGNOSTIC_NODE_ID_BASE + slot as u64) }
         } else {
-            egui::Id::new(format!("{CODE_EDITOR_DIAGNOSTIC_AUTHOR_PREFIX}{line}#{}", self.instance))
+            egui::Id::new(format!(
+                "{CODE_EDITOR_DIAGNOSTIC_AUTHOR_PREFIX}{line}#{}",
+                self.instance
+            ))
         }
     }
 
@@ -7380,7 +8049,10 @@ impl CodeEditorPanel {
         if win_end <= win_start {
             return Vec::new();
         }
-        let cache = self.highlight_cache.lock().unwrap_or_else(|e| e.into_inner());
+        let cache = self
+            .highlight_cache
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let Some((spans, _)) = cache.as_ref() else {
             return Vec::new();
         };
@@ -7411,6 +8083,14 @@ impl CodeEditorPanel {
             }
         }
         out
+    }
+
+    fn code_static_label(ui: &mut egui::Ui, text: egui::RichText) -> egui::Response {
+        let resp = ui.label(text);
+        ui.ctx().accesskit_node_builder(resp.id, |node| {
+            node.set_role(accesskit::Role::Label);
+        });
+        resp
     }
 
     /// WP-KERNEL-012 MT-078 (E13 RTL/bidi): paint ONE code-editor row whose base direction is RTL
@@ -7449,16 +8129,17 @@ impl CodeEditorPanel {
             return false;
         }
 
-        ui.horizontal(|ui| {
+        let row = ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
             let default_color = syntax.punctuation;
 
             // AC5 / PROOF3 / MC-1 — the visible typed-limitation marker for Arabic/Indic (never silently
             // broken). `⚠` is a literal glyph string (NOT a Color32 — CONTROL-4 holds); the color is the
             // subtle/comment theme token. Hover surfaces the note + the future-MT pointer.
-            let limitation_note = bidi.shaping_limitation.as_ref().map(|lim| {
-                format!("{}\n{}", lim.note, lim.pointer)
-            });
+            let limitation_note = bidi
+                .shaping_limitation
+                .as_ref()
+                .map(|lim| format!("{}\n{}", lim.note, lim.pointer));
 
             if bidi.base.is_rtl() {
                 // RTL base (Hebrew/Arabic line): paint the VISUAL-order text RIGHT-ALIGNED. A
@@ -7466,8 +8147,11 @@ impl CodeEditorPanel {
                 // reordered line anchors to the right edge (AC1/AC3 — right-aligned RTL code line).
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if let Some(note) = &limitation_note {
-                        ui.label(
-                            egui::RichText::new("⚠").font(mono.clone()).color(syntax.comment),
+                        Self::code_static_label(
+                            ui,
+                            egui::RichText::new("⚠")
+                                .font(mono.clone())
+                                .color(syntax.comment),
                         )
                         .on_hover_text(note);
                     }
@@ -7476,22 +8160,40 @@ impl CodeEditorPanel {
                     } else {
                         bidi.visual_text.clone()
                     };
-                    ui.label(egui::RichText::new(visual).font(mono.clone()).color(default_color));
+                    Self::code_static_label(
+                        ui,
+                        egui::RichText::new(visual)
+                            .font(mono.clone())
+                            .color(default_color),
+                    );
                 });
             } else {
                 // LTR base but the line CONTAINS Arabic/Indic (e.g. `let s = "العربية";`): keep the
                 // line left-to-right (its base is LTR) but still surface the visible limitation marker so
                 // the Arabic content is not silently presented as shaped. The text is the logical line
                 // (the LTR base reads left-to-right); only the limitation marker is added.
-                ui.label(egui::RichText::new(line_text).font(mono.clone()).color(default_color));
+                Self::code_static_label(
+                    ui,
+                    egui::RichText::new(line_text)
+                        .font(mono.clone())
+                        .color(default_color),
+                );
                 if let Some(note) = &limitation_note {
                     // A small gap then the bare `⚠` marker (its accessible text is exactly "⚠" so swarm
                     // queries / the integration test can find it; spacing is layout, not glyph text).
                     ui.add_space(mono.size * 0.5);
-                    ui.label(egui::RichText::new("⚠").font(mono.clone()).color(syntax.comment))
-                        .on_hover_text(note);
+                    Self::code_static_label(
+                        ui,
+                        egui::RichText::new("⚠")
+                            .font(mono.clone())
+                            .color(syntax.comment),
+                    )
+                    .on_hover_text(note);
                 }
             }
+        });
+        ui.ctx().accesskit_node_builder(row.response.id, |node| {
+            node.set_role(accesskit::Role::Label);
         });
         true
     }
@@ -7512,10 +8214,15 @@ impl CodeEditorPanel {
         syntax: &HsSyntaxTokens,
     ) {
         let (line_text_owned, line_start_byte) = self.with_buffer(|b| {
-            (b.slice_to_string(line_idx..line_idx + 1), b.line_to_byte(line_idx).unwrap_or(0))
+            (
+                b.slice_to_string(line_idx..line_idx + 1),
+                b.line_to_byte(line_idx).unwrap_or(0),
+            )
         });
         // Strip the trailing newline so each visual line is one row (the layout adds the row break).
-        let line_text = line_text_owned.strip_suffix('\n').unwrap_or(&line_text_owned);
+        let line_text = line_text_owned
+            .strip_suffix('\n')
+            .unwrap_or(&line_text_owned);
         let line_end_byte = line_start_byte + line_text.len();
 
         let mono = egui::FontId::monospace(13.0);
@@ -7538,7 +8245,7 @@ impl CodeEditorPanel {
         }
         runs.sort_by_key(|(r, _)| r.start);
 
-        ui.horizontal(|ui| {
+        let row = ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
             let default_color = syntax.punctuation;
             let mut cursor = line_start_byte;
@@ -7571,13 +8278,23 @@ impl CodeEditorPanel {
                     // Plain (un-highlighted) gap before this run.
                     let gap = line_slice(cursor, range.start);
                     if !gap.is_empty() {
-                        ui.label(egui::RichText::new(gap).font(mono.clone()).color(default_color));
+                        Self::code_static_label(
+                            ui,
+                            egui::RichText::new(gap)
+                                .font(mono.clone())
+                                .color(default_color),
+                        );
                     }
                 }
                 let run_text = line_slice(range.start, range.end);
                 if !run_text.is_empty() {
                     let color = scope_to_color(*scope, syntax);
-                    ui.label(egui::RichText::new(run_text).font(mono.clone()).color(color));
+                    Self::code_static_label(
+                        ui,
+                        egui::RichText::new(run_text)
+                            .font(mono.clone())
+                            .color(color),
+                    );
                 }
                 cursor = cursor.max(range.end);
             }
@@ -7585,13 +8302,26 @@ impl CodeEditorPanel {
             if cursor < line_end_byte {
                 let tail = line_slice(cursor, line_end_byte);
                 if !tail.is_empty() {
-                    ui.label(egui::RichText::new(tail).font(mono.clone()).color(default_color));
+                    Self::code_static_label(
+                        ui,
+                        egui::RichText::new(tail)
+                            .font(mono.clone())
+                            .color(default_color),
+                    );
                 }
             }
             // Empty line: emit a zero-width spacer so the row still occupies a line height.
             if runs.is_empty() && line_text.is_empty() {
-                ui.label(egui::RichText::new(" ").font(mono.clone()).color(default_color));
+                Self::code_static_label(
+                    ui,
+                    egui::RichText::new(" ")
+                        .font(mono.clone())
+                        .color(default_color),
+                );
             }
+        });
+        ui.ctx().accesskit_node_builder(row.response.id, |node| {
+            node.set_role(accesskit::Role::Label);
         });
     }
 
@@ -7695,8 +8425,10 @@ impl CodeEditorPanel {
             for ch in line_text.chars() {
                 match ch {
                     ' ' => {
-                        let center =
-                            egui::pos2(x_for(col) + glyph_width * 0.5, y_for(line) + geometry.line_height * 0.5);
+                        let center = egui::pos2(
+                            x_for(col) + glyph_width * 0.5,
+                            y_for(line) + geometry.line_height * 0.5,
+                        );
                         painter.text(
                             center,
                             egui::Align2::CENTER_CENTER,
@@ -7707,8 +8439,10 @@ impl CodeEditorPanel {
                         col += 1;
                     }
                     '\t' => {
-                        let center =
-                            egui::pos2(x_for(col) + glyph_width * 0.5, y_for(line) + geometry.line_height * 0.5);
+                        let center = egui::pos2(
+                            x_for(col) + glyph_width * 0.5,
+                            y_for(line) + geometry.line_height * 0.5,
+                        );
                         painter.text(
                             center,
                             egui::Align2::CENTER_CENTER,
@@ -7751,11 +8485,16 @@ impl CodeEditorPanel {
         let caret_color = syntax.punctuation;
         let selection_color = egui::Color32::from_rgba_unmultiplied(100, 149, 237, 80);
 
-        let cursors = self.cursor_set.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        let cursors = self
+            .cursor_set
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
 
         let x_for = |col: usize| geometry.left + col as f32 * glyph_width;
-        let y_for = |line: usize| geometry.top + (line - geometry.first_line) as f32 * geometry.line_height;
+        let y_for =
+            |line: usize| geometry.top + (line - geometry.first_line) as f32 * geometry.line_height;
 
         for cursor in cursors.cursors() {
             // Draw the SELECTION (if any) first, then the caret on top, so the caret stays visible.
@@ -7811,7 +8550,11 @@ impl CodeEditorPanel {
         // FontId the rows use, underlined, over a subtle theme-tinted background (no hex literal — the
         // selection tint reuse / theme tokens). A no-op when the composition is empty or the caret is
         // scrolled off the painted window.
-        let preedit = self.preedit.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        let preedit = self
+            .preedit
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         if !preedit.is_empty() {
             let primary = cursors.primary();
             let (head_line, head_col) = byte_to_line_col(primary.head, &buffer);
@@ -7824,8 +8567,7 @@ impl CodeEditorPanel {
                 let run_w = galley.rect.width().max(glyph_width);
                 let run_h = geometry.line_height;
                 let origin = egui::pos2(x, y);
-                let overall_rect =
-                    egui::Rect::from_min_size(origin, egui::vec2(run_w, run_h));
+                let overall_rect = egui::Rect::from_min_size(origin, egui::vec2(run_w, run_h));
                 // Subtle in-progress background (the same low-alpha cornflower selection tint the overlay
                 // already uses as a UI affordance, not a syntax color) so the composing run is distinct.
                 painter.rect_filled(overall_rect, 1.0, selection_color);
@@ -7833,19 +8575,23 @@ impl CodeEditorPanel {
                 // Underline the composing run (a 1px line in the caret color at the row baseline).
                 let underline_y = y + run_h - 1.0;
                 painter.line_segment(
-                    [egui::pos2(x, underline_y), egui::pos2(x + run_w, underline_y)],
+                    [
+                        egui::pos2(x, underline_y),
+                        egui::pos2(x + run_w, underline_y),
+                    ],
                     egui::Stroke::new(1.0, caret_color),
                 );
                 // The composition caret sits at the END of the preedit run (egui 0.33 Preedit carries no
                 // cursor range — the field-correct position).
                 let caret_x = x + run_w;
-                let cursor_rect = egui::Rect::from_min_size(
-                    egui::pos2(caret_x, y),
-                    egui::vec2(2.0, run_h),
-                );
+                let cursor_rect =
+                    egui::Rect::from_min_size(egui::pos2(caret_x, y), egui::vec2(2.0, run_h));
                 // AC4: report the IME caret rect so the OS candidate list anchors at the caret.
                 ui.ctx().output_mut(|o| {
-                    o.ime = Some(egui::output::IMEOutput { rect: overall_rect, cursor_rect });
+                    o.ime = Some(egui::output::IMEOutput {
+                        rect: overall_rect,
+                        cursor_rect,
+                    });
                 });
             }
         }
@@ -7859,7 +8605,11 @@ impl CodeEditorPanel {
     /// named `Role::TextCursor`, which does not exist in accesskit 0.21 — `Role::Caret` is the
     /// field-correct equivalent; the body documents the deviation in full.)
     fn emit_cursor_nodes(&self, ui: &egui::Ui) {
-        let cursors = self.cursor_set.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        let cursors = self
+            .cursor_set
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
         let count = cursors.len().min(MAX_ACCESSKIT_CURSORS);
         for (n, cursor) in cursors.cursors().iter().take(count).enumerate() {
@@ -7893,7 +8643,10 @@ impl CodeEditorPanel {
             // SAFETY: each `n` maps to a distinct fixed slot in the disjoint cursor band; never reused.
             unsafe { egui::Id::from_high_entropy_bits(PANEL_CURSOR_NODE_ID_BASE + n as u64) }
         } else {
-            egui::Id::new(format!("{CODE_EDITOR_CURSOR_AUTHOR_PREFIX}{n}#{}", self.instance))
+            egui::Id::new(format!(
+                "{CODE_EDITOR_CURSOR_AUTHOR_PREFIX}{n}#{}",
+                self.instance
+            ))
         }
     }
 
@@ -7902,7 +8655,12 @@ impl CodeEditorPanel {
     /// inverse of [`pointer_to_byte`](Self::pointer_to_byte): a kittest test computes the exact pixel to
     /// inject an Alt+Click at so the click lands on a known cell (AC-004). Adds half a glyph so the
     /// click lands inside the cell, not on its left edge.
-    pub fn screen_pos_for_line_col(&self, line: usize, col: usize, glyph_width: f32) -> Option<egui::Pos2> {
+    pub fn screen_pos_for_line_col(
+        &self,
+        line: usize,
+        col: usize,
+        glyph_width: f32,
+    ) -> Option<egui::Pos2> {
         let g = (*self.row_geometry.lock().unwrap_or_else(|e| e.into_inner()))?;
         if line < g.first_line {
             return None;
@@ -7915,14 +8673,22 @@ impl CodeEditorPanel {
     /// The cached monospace glyph width measured on the last `show` (px), or `None` before the first
     /// frame. Lets a test compute click pixels with the SAME width the overlay uses.
     pub fn measured_glyph_width(&self) -> Option<f32> {
-        *self.glyph_width_px.lock().unwrap_or_else(|e| e.into_inner())
+        *self
+            .glyph_width_px
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
     }
 
     /// Map a screen position to a buffer byte offset using the captured row geometry (MT-003 pointer
     /// hit-testing). Returns `None` if no geometry is captured yet (no frame painted). Clamps the
     /// column to the clicked line's length (RISK-002) so a click past the line end lands at the line
     /// end, never past it.
-    fn pointer_to_byte(&self, pos: egui::Pos2, glyph_width: f32, total_lines: usize) -> Option<usize> {
+    fn pointer_to_byte(
+        &self,
+        pos: egui::Pos2,
+        glyph_width: f32,
+        total_lines: usize,
+    ) -> Option<usize> {
         let geometry = (*self.row_geometry.lock().unwrap_or_else(|e| e.into_inner()))?;
         if geometry.line_height <= 0.0 || glyph_width <= 0.0 {
             return None;
@@ -7944,7 +8710,10 @@ impl CodeEditorPanel {
     /// A snapshot clone of the active keymap (VS Code defaults + operator overrides). For tests + the
     /// command-palette/manual hint surface. The keymap is cheap to clone (a small binding Vec + a map).
     pub fn keymap(&self) -> Keymap {
-        self.keymap.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.keymap
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Replace the active keymap (e.g. after an operator override reload or a programmatic rebind), bump
@@ -7967,7 +8736,10 @@ impl CodeEditorPanel {
     /// the SAME WP-011 command palette, not a second one). The host clones a `Sender<CodeEditorAction>`
     /// it drains into the shell command bus. The same per-component injection pattern `set_runtime` uses.
     pub fn set_command_palette_sender(&self, tx: mpsc::Sender<CodeEditorAction>) {
-        *self.command_palette_tx.lock().unwrap_or_else(|e| e.into_inner()) = Some(tx);
+        *self
+            .command_palette_tx
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(tx);
     }
 
     /// The current keymap version (bumped on every keymap swap). For tests + the AccessKit command-node
@@ -7998,7 +8770,10 @@ impl CodeEditorPanel {
     /// True while a two-chord prefix (e.g. Ctrl+K) is pending its second chord (RISK-001 surface for a
     /// test / a status hint).
     pub fn is_chord_pending(&self) -> bool {
-        self.pending_chord.lock().unwrap_or_else(|e| e.into_inner()).is_some()
+        self.pending_chord
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_some()
     }
 
     /// Test hook: back-date a pending two-chord prefix by `elapsed` so the next `process_keymap`'s
@@ -8021,7 +8796,10 @@ impl CodeEditorPanel {
     /// the instance suffix (RISK-004). This is what a swarm agent / MCP tool addresses to dispatch the
     /// command without simulating a keystroke (AC-005 / HBR-SWARM).
     pub fn command_author_id(&self, action: CodeEditorAction) -> String {
-        self.suffixed(&format!("{CODE_EDITOR_COMMAND_AUTHOR_PREFIX}{}", action.name()))
+        self.suffixed(&format!(
+            "{CODE_EDITOR_COMMAND_AUTHOR_PREFIX}{}",
+            action.name()
+        ))
     }
 
     /// Dispatch an editor command by its AccessKit `code_editor_cmd_*` author_id — the path a swarm
@@ -8032,7 +8810,10 @@ impl CodeEditorPanel {
     pub fn dispatch_command_by_author_id(&self, author_id: &str) -> Option<CodeEditorAction> {
         self.ensure_command_nodes();
         let action = {
-            let cache = self.command_node_cache.lock().unwrap_or_else(|e| e.into_inner());
+            let cache = self
+                .command_node_cache
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             cache
                 .as_ref()
                 .and_then(|(_, descs)| descs.iter().find(|d| d.author_id == author_id))
@@ -8059,8 +8840,10 @@ impl CodeEditorPanel {
             let mut reg = registry.lock().unwrap_or_else(|e| e.into_inner());
             reg.register(EditorPaneType::Code, instance_index)
         };
-        *self.editor_action_wiring.lock().unwrap_or_else(|e| e.into_inner()) =
-            Some(EditorActionWiring { registry, handle });
+        *self
+            .editor_action_wiring
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(EditorActionWiring { registry, handle });
     }
 
     /// Sync this pane's canonical `editor.code.<action>` nodes into the installed registry, emit them
@@ -8074,7 +8857,10 @@ impl CodeEditorPanel {
     /// (IN-041-08). A find option toggle's `checked` state is read from the live `find_state` so a
     /// ToggleButton never reports stale state (RISK-041-03 / CTRL-041-03).
     pub fn sync_editor_actions(&self, ui: &egui::Ui) -> Vec<String> {
-        let wiring = self.editor_action_wiring.lock().unwrap_or_else(|e| e.into_inner());
+        let wiring = self
+            .editor_action_wiring
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let Some(wiring) = wiring.as_ref() else {
             return Vec::new();
         };
@@ -8088,7 +8874,8 @@ impl CodeEditorPanel {
             let mut reg = wiring.registry.lock().unwrap_or_else(|e| e.into_inner());
             for entry in CODE_ACTION_CATALOG {
                 let author_id = handle.author_id(entry.action_id);
-                let state = self.code_action_state(entry, find_open, find_state.as_ref(), multi_cursor);
+                let state =
+                    self.code_action_state(entry, find_open, find_state.as_ref(), multi_cursor);
                 reg.upsert(author_id, entry.role, entry.label, state);
             }
             // AC-041-04: a `editor.code.find-panel` node appears in the tree ONLY while the find panel is
@@ -8099,7 +8886,11 @@ impl CodeEditorPanel {
                 AxRole::Button,
                 "Find panel",
                 if find_open {
-                    EditorActionState { present: true, enabled: false, checked: None }
+                    EditorActionState {
+                        present: true,
+                        enabled: false,
+                        checked: None,
+                    }
                 } else {
                     EditorActionState::absent()
                 },
@@ -8146,10 +8937,19 @@ impl CodeEditorPanel {
         // backing widget is not rendered otherwise — AC-041-08).
         let find_scoped = matches!(
             entry.action_id,
-            "find-next" | "find-prev" | "find-toggle-case" | "find-toggle-word" | "find-toggle-regex"
-                | "replace-one" | "replace-all"
+            "find-next"
+                | "find-prev"
+                | "find-toggle-case"
+                | "find-toggle-word"
+                | "find-toggle-regex"
+                | "replace-one"
+                | "replace-all"
         );
-        let present = if find_scoped { find_open } else { entry.always_present };
+        let present = if find_scoped {
+            find_open
+        } else {
+            entry.always_present
+        };
         if !present {
             return EditorActionState::absent();
         }
@@ -8162,7 +8962,11 @@ impl CodeEditorPanel {
             CodeDispatch::LanguagePickerUnavailable | CodeDispatch::FormatUnavailable
         ) && (entry.action_id != "multi-cursor-clear" || multi_cursor);
         match entry.role {
-            AxRole::Button => EditorActionState { present, enabled, checked: None },
+            AxRole::Button => EditorActionState {
+                present,
+                enabled,
+                checked: None,
+            },
             AxRole::ToggleButton => {
                 // The find option toggles reflect the live FindQuery state (RISK-041-03).
                 let checked = find_state.map(|f| match entry.action_id {
@@ -8171,7 +8975,11 @@ impl CodeEditorPanel {
                     "find-toggle-regex" => f.query.is_regex,
                     _ => false,
                 });
-                EditorActionState { present, enabled, checked }
+                EditorActionState {
+                    present,
+                    enabled,
+                    checked,
+                }
             }
         }
     }
@@ -8201,7 +9009,9 @@ impl CodeEditorPanel {
                 self.replace_all();
             }
             CodeDispatch::MultiCursorAdd => self.dispatch_action(CodeEditorAction::AddCursorBelow),
-            CodeDispatch::MultiCursorClear => self.dispatch_action(CodeEditorAction::CancelMultiCursor),
+            CodeDispatch::MultiCursorClear => {
+                self.dispatch_action(CodeEditorAction::CancelMultiCursor)
+            }
             // Flip the one find option, preserving the other two, then re-scan (the real mutator —
             // NOT a re-open of the find panel; mirrors the rich pane's RichDispatch::FindToggle*).
             // A no-op when the find bar is closed (find_state None), matching set_find_toggles.
@@ -8244,14 +9054,21 @@ impl CodeEditorPanel {
     fn ensure_command_nodes(&self) {
         let version = self.keymap_version.load(Ordering::Relaxed);
         {
-            let cache = self.command_node_cache.lock().unwrap_or_else(|e| e.into_inner());
+            let cache = self
+                .command_node_cache
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             if let Some((v, _)) = cache.as_ref() {
                 if *v == version {
                     return; // up to date for this keymap version.
                 }
             }
         }
-        let keymap = self.keymap.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        let keymap = self
+            .keymap
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         let descs: Vec<CommandNodeDesc> = CodeEditorAction::all()
             .iter()
             .enumerate()
@@ -8287,10 +9104,18 @@ impl CodeEditorPanel {
                 } else {
                     egui::Id::new(&author_id)
                 };
-                CommandNodeDesc { node_id, author_id, label, action }
+                CommandNodeDesc {
+                    node_id,
+                    author_id,
+                    label,
+                    action,
+                }
             })
             .collect();
-        *self.command_node_cache.lock().unwrap_or_else(|e| e.into_inner()) = Some((version, descs));
+        *self
+            .command_node_cache
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some((version, descs));
     }
 
     /// Emit the hidden editor-command AccessKit nodes (AC-005 / HBR-SWARM): one `Role::Button` per
@@ -8303,7 +9128,10 @@ impl CodeEditorPanel {
     /// descendants like the other editor nodes.
     fn emit_command_nodes(&self, ui: &egui::Ui) {
         self.ensure_command_nodes();
-        let cache = self.command_node_cache.lock().unwrap_or_else(|e| e.into_inner());
+        let cache = self
+            .command_node_cache
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let Some((_, descs)) = cache.as_ref() else {
             return;
         };
@@ -8333,7 +9161,10 @@ impl CodeEditorPanel {
         };
         // Throttle the stat to once per poll interval.
         {
-            let mut state = self.keymap_file_state.lock().unwrap_or_else(|e| e.into_inner());
+            let mut state = self
+                .keymap_file_state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             let now = std::time::Instant::now();
             if let Some(last) = state.1 {
                 if now.duration_since(last).as_secs() < KEYMAP_RELOAD_POLL_SECS {
@@ -8346,7 +9177,10 @@ impl CodeEditorPanel {
         // change so an unchanged file does not reload every poll.
         let mtime = std::fs::metadata(path).and_then(|m| m.modified()).ok();
         let changed = {
-            let mut state = self.keymap_file_state.lock().unwrap_or_else(|e| e.into_inner());
+            let mut state = self
+                .keymap_file_state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             let changed = mtime != state.0 && (mtime.is_some() || state.0.is_some());
             state.0 = mtime;
             changed
@@ -8381,7 +9215,10 @@ impl CodeEditorPanel {
         // rename would ALSO insert a newline into the buffer (the focus-precedence bug). The rename's own
         // render path (`render_rename`) reads Enter/Escape; the editor keymap is suppressed entirely this
         // frame so no editor action (InsertNewline / movement / etc.) fires under the open rename input.
-        if !matches!(*self.rename_state.lock().unwrap_or_else(|e| e.into_inner()), RenameState::Idle) {
+        if !matches!(
+            *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()),
+            RenameState::Idle
+        ) {
             return;
         }
 
@@ -8397,17 +9234,30 @@ impl CodeEditorPanel {
         }
 
         let events = ui.input(|i| i.events.clone());
-        let keymap = self.keymap.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        let keymap = self
+            .keymap
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
 
         for event in &events {
-            let egui::Event::Key { key, pressed: true, modifiers, .. } = event else {
+            let egui::Event::Key {
+                key,
+                pressed: true,
+                modifiers,
+                ..
+            } = event
+            else {
                 continue;
             };
             let chord = KeyChord::from_modifiers(*key, modifiers);
 
             // 1) If a two-chord prefix is pending, this chord must be the SECOND chord.
-            let pending_prefix =
-                self.pending_chord.lock().unwrap_or_else(|e| e.into_inner()).map(|(c, _)| c);
+            let pending_prefix = self
+                .pending_chord
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .map(|(c, _)| c);
             if let Some(prefix) = pending_prefix {
                 // Clear pending regardless of outcome (a wrong second chord cancels — RISK-001).
                 *self.pending_chord.lock().unwrap_or_else(|e| e.into_inner()) = None;
@@ -8463,11 +9313,7 @@ impl CodeEditorPanel {
     /// - completion popup open: ArrowUp/Down move the selection (Consumed), Enter accepts (Dispatch).
     /// - goto-line open: Enter submits (Consumed).
     /// - find open: Enter / Shift+Enter step matches (Consumed).
-    fn resolve_contextual(
-        &self,
-        key: egui::Key,
-        modifiers: &egui::Modifiers,
-    ) -> ContextOutcome {
+    fn resolve_contextual(&self, key: egui::Key, modifiers: &egui::Modifiers) -> ContextOutcome {
         use egui::Key;
         let completion_open = self.is_completion_open();
         let find_open = self.is_find_open();
@@ -8510,7 +9356,13 @@ impl CodeEditorPanel {
                 ContextOutcome::Consumed
             } else if find_open {
                 ContextOutcome::Dispatch(CodeEditorAction::CloseFind)
-            } else if self.cursor_set.lock().unwrap_or_else(|e| e.into_inner()).len() > 1 {
+            } else if self
+                .cursor_set
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .len()
+                > 1
+            {
                 ContextOutcome::Dispatch(CodeEditorAction::CancelMultiCursor)
             } else {
                 ContextOutcome::FallThrough // nothing open + single caret -> no-op
@@ -8902,7 +9754,10 @@ impl CodeEditorPanel {
     /// completed. Observable accessor so tests/agents can confirm the Shift+F12 backend round-trip
     /// (there is no rendered references panel in MT-010 scope).
     pub fn last_references(&self) -> Option<CodeSymbolReferencesResponse> {
-        self.last_references.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.last_references
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     // ── MT-034 code->notes cross-references (the NoteRefsPanel live wiring) ─────────────────────────────
@@ -8926,19 +9781,28 @@ impl CodeEditorPanel {
 
     /// A snapshot of the current NoteRefsPanel load state (for tests / the render path).
     pub fn note_refs_state(&self) -> NoteRefsState {
-        self.note_refs_state.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.note_refs_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// The symbol key the NoteRefsPanel currently tracks (the dwelled symbol), or `None`.
     pub fn note_refs_focused_symbol(&self) -> Option<String> {
-        self.note_refs_focused_symbol.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.note_refs_focused_symbol
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Inject a find-notes search backend (a kittest injects a counted in-memory mock so the live
     /// dwell->search->panel pipeline is driven with NO backend — the MT-014/MT-015 fetcher-trait pattern).
     /// The production default is the verified live search-v2 route ([`FindNotesHttp`]).
     pub fn set_find_notes_backend(&self, backend: Arc<dyn FindNotesSearch>) {
-        *self.find_notes_backend.lock().unwrap_or_else(|e| e.into_inner()) = backend;
+        *self
+            .find_notes_backend
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = backend;
     }
 
     /// Set the cursor-dwell threshold the live `pump_note_refs` uses (default
@@ -8946,7 +9810,10 @@ impl CodeEditorPanel {
     /// pipeline fires on the first settled frame — driving the REAL wired path deterministically without
     /// an 800ms wall-clock wait. Production never calls this (the 800ms default stands).
     pub fn set_note_refs_dwell_threshold(&self, threshold: std::time::Duration) {
-        *self.note_refs_dwell_threshold.lock().unwrap_or_else(|e| e.into_inner()) = threshold;
+        *self
+            .note_refs_dwell_threshold
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = threshold;
     }
 
     /// MT-034 LIVE code->notes pump: drive the cursor-dwell debounce from the running frame and, on a
@@ -8978,10 +9845,20 @@ impl CodeEditorPanel {
         }
         // Observe the word under the caret this frame; the dwell tracker fires ONCE per dwell crossing.
         let word = self.word_at_primary_cursor();
-        let current = if word.is_empty() { None } else { Some(word.as_str()) };
-        let threshold = *self.note_refs_dwell_threshold.lock().unwrap_or_else(|e| e.into_inner());
+        let current = if word.is_empty() {
+            None
+        } else {
+            Some(word.as_str())
+        };
+        let threshold = *self
+            .note_refs_dwell_threshold
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let fired = {
-            let mut dwell = self.note_refs_dwell.lock().unwrap_or_else(|e| e.into_inner());
+            let mut dwell = self
+                .note_refs_dwell
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             dwell.observe_with_threshold(current, std::time::Instant::now(), threshold)
         };
         let Some(dwelled_word) = fired else {
@@ -8994,9 +9871,16 @@ impl CodeEditorPanel {
         // otherwise stack a redundant search while the first is still in flight — this collapses that to
         // one outstanding search per focused symbol.
         {
-            let state = self.note_refs_state.lock().unwrap_or_else(|e| e.into_inner());
-            let focused = self.note_refs_focused_symbol.lock().unwrap_or_else(|e| e.into_inner());
-            if matches!(*state, NoteRefsState::Loading) && focused.as_deref() == Some(dwelled_word.as_str())
+            let state = self
+                .note_refs_state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            let focused = self
+                .note_refs_focused_symbol
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            if matches!(*state, NoteRefsState::Loading)
+                && focused.as_deref() == Some(dwelled_word.as_str())
             {
                 return;
             }
@@ -9004,12 +9888,22 @@ impl CodeEditorPanel {
 
         // A dwell crossed: mark the panel Loading + record the focused word, then resolve the word to a
         // precise symbol_key and fire the find-notes search off-thread.
-        *self.note_refs_state.lock().unwrap_or_else(|e| e.into_inner()) = NoteRefsState::Loading;
-        *self.note_refs_focused_symbol.lock().unwrap_or_else(|e| e.into_inner()) =
-            Some(dwelled_word.clone());
+        *self
+            .note_refs_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = NoteRefsState::Loading;
+        *self
+            .note_refs_focused_symbol
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(dwelled_word.clone());
 
         let client = self.code_nav_client.clone();
-        let backend = Arc::clone(&self.find_notes_backend.lock().unwrap_or_else(|e| e.into_inner()));
+        let backend = Arc::clone(
+            &self
+                .find_notes_backend
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()),
+        );
         let cell = Arc::clone(&self.note_refs_result);
         let ws = workspace_id.clone();
         runtime.spawn(async move {
@@ -9045,8 +9939,16 @@ impl CodeEditorPanel {
     /// MT-034: drain a delivered find-notes result into `note_refs_state` (HBR-QUIET — the spawn delivered
     /// it off-thread; here we just swap it in on the UI thread). A no-op when nothing was delivered.
     fn drain_note_refs(&self) {
-        if let Some(state) = self.note_refs_result.lock().unwrap_or_else(|e| e.into_inner()).take() {
-            *self.note_refs_state.lock().unwrap_or_else(|e| e.into_inner()) = state;
+        if let Some(state) = self
+            .note_refs_result
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
+        {
+            *self
+                .note_refs_state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = state;
         }
     }
 
@@ -9124,11 +10026,17 @@ impl CodeEditorPanel {
     /// channel is wired. Used for the actions the editor itself cannot complete in-process (Save,
     /// OpenCommandPalette). Benign no-op when no channel is wired (headless test / no host).
     fn send_to_command_bus(&self, action: CodeEditorAction) {
-        let tx = self.command_palette_tx.lock().unwrap_or_else(|e| e.into_inner());
+        let tx = self
+            .command_palette_tx
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         if let Some(tx) = tx.as_ref() {
             let _ = tx.send(action);
         } else {
-            tracing::debug!(action = action.name(), "code editor command has no host bus; no-op");
+            tracing::debug!(
+                action = action.name(),
+                "code editor command has no host bus; no-op"
+            );
         }
     }
 
@@ -9180,20 +10088,27 @@ impl CodeEditorPanel {
                     if region_rect.map(|r| r.contains(*pos)).unwrap_or(false) {
                         if modifiers.alt && modifiers.shift {
                             // Begin a box/column selection drag: remember the (line, col) start.
-                            if let Some(byte) = self.pointer_to_byte(*pos, glyph_width, total_lines) {
-                                let (line, col) =
-                                    self.with_buffer(|b| byte_to_line_col(byte, b));
-                                *self.box_drag_start.lock().unwrap_or_else(|e| e.into_inner()) =
-                                    Some((line, col));
+                            if let Some(byte) = self.pointer_to_byte(*pos, glyph_width, total_lines)
+                            {
+                                let (line, col) = self.with_buffer(|b| byte_to_line_col(byte, b));
+                                *self
+                                    .box_drag_start
+                                    .lock()
+                                    .unwrap_or_else(|e| e.into_inner()) = Some((line, col));
                             }
                         } else if modifiers.alt {
-                            if let Some(byte) = self.pointer_to_byte(*pos, glyph_width, total_lines) {
+                            if let Some(byte) = self.pointer_to_byte(*pos, glyph_width, total_lines)
+                            {
                                 self.add_cursor_at(byte);
                             }
                         } else {
                             // Plain click: single caret + clear any box drag.
-                            *self.box_drag_start.lock().unwrap_or_else(|e| e.into_inner()) = None;
-                            if let Some(byte) = self.pointer_to_byte(*pos, glyph_width, total_lines) {
+                            *self
+                                .box_drag_start
+                                .lock()
+                                .unwrap_or_else(|e| e.into_inner()) = None;
+                            if let Some(byte) = self.pointer_to_byte(*pos, glyph_width, total_lines)
+                            {
                                 self.set_single_cursor(byte);
                             }
                         }
@@ -9351,7 +10266,11 @@ impl CodeEditorPanel {
         // Read action requests at the LIVE text-node id the render path recorded this frame (the node is
         // emitted on `ui.unique_id()` inside the text scope, NOT on `text_id()`). Before the first render
         // there is no live id, so there is nothing to consume.
-        let Some(text_id) = *self.live_text_node_id.lock().unwrap_or_else(|e| e.into_inner()) else {
+        let Some(text_id) = *self
+            .live_text_node_id
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+        else {
             return;
         };
         // Collect the (action, value) pairs first so the input lock is released before mutating the buffer
@@ -9402,7 +10321,10 @@ impl CodeEditorPaneFactory {
     /// Build a factory wrapping `panel`. `Arc` so the same panel renders across frames without the
     /// factory owning a `&mut` (the registry borrows `&dyn PaneFactory` at render time).
     pub fn new(panel: CodeEditorPanel) -> Self {
-        Self { panel: Arc::new(panel), bus_registered: std::sync::atomic::AtomicBool::new(false) }
+        Self {
+            panel: Arc::new(panel),
+            bus_registered: std::sync::atomic::AtomicBool::new(false),
+        }
     }
 
     /// WP-KERNEL-012 MT-079: build a factory over an EXISTING `Arc<CodeEditorPanel>` so the
@@ -9410,7 +10332,10 @@ impl CodeEditorPaneFactory {
     /// inner factory render the SAME panel state. `new` wraps a fresh panel in its own Arc, which would
     /// give the mount and the inner render two different panels; this constructor shares one Arc.
     pub fn from_arc(panel: Arc<CodeEditorPanel>) -> Self {
-        Self { panel, bus_registered: std::sync::atomic::AtomicBool::new(false) }
+        Self {
+            panel,
+            bus_registered: std::sync::atomic::AtomicBool::new(false),
+        }
     }
 
     /// The Arc-shared panel this factory renders (so a test/host can drive the SAME panel state the
@@ -9435,9 +10360,8 @@ impl PaneFactory for CodeEditorPaneFactory {
         // The code pane owns the shared selection only while a widget under this pane's egui id scope
         // holds focus (impl note 6/7), so a background pane never clobbers the focused pane's selection.
         // `egui_id` is this pane's scope id; the code editor builds its child widget ids from it.
-        let has_focus = ui.memory(|m| {
-            m.focused().map(|f| f == ctx.egui_id).unwrap_or(false)
-        }) || self.panel.cursors().primary().is_selection();
+        let has_focus = ui.memory(|m| m.focused().map(|f| f == ctx.egui_id).unwrap_or(false))
+            || self.panel.cursors().primary().is_selection();
         let mut registered = self.bus_registered.load(Ordering::Relaxed);
         super::interop_adapter::drive_bus_in_render(
             &bus,
@@ -9516,7 +10440,10 @@ mod tests {
     fn panel_highlights_rust_on_construction() {
         let panel = CodeEditorPanel::new("fn main() { let x = 1; }", "rs");
         assert!(
-            panel.spans().iter().any(|s| s.scope == HighlightScope::Keyword),
+            panel
+                .spans()
+                .iter()
+                .any(|s| s.scope == HighlightScope::Keyword),
             "constructed rust panel carries keyword spans"
         );
     }
@@ -9524,7 +10451,10 @@ mod tests {
     #[test]
     fn unknown_extension_panel_has_no_spans_but_renders() {
         let panel = CodeEditorPanel::new("plain text\nsecond line", "txt");
-        assert!(panel.spans().is_empty(), "no grammar -> no spans (plain text)");
+        assert!(
+            panel.spans().is_empty(),
+            "no grammar -> no spans (plain text)"
+        );
         // Render it once to prove no panic on the unhighlighted path.
         let ctx = egui::Context::default();
         let _ = ctx.run(Default::default(), |ctx| {
@@ -9561,14 +10491,16 @@ mod tests {
             egui::CentralPanel::default().show(ctx, |ui| panel.show(ui));
         });
         let stats = panel.perf_stats();
-        assert_eq!(stats.buffer_len_lines, 5001, "whole document line count reported");
+        assert_eq!(
+            stats.buffer_len_lines, 5001,
+            "whole document line count reported"
+        );
         // The painted window must be strictly fewer lines than the whole document — that is
         // virtualization. (On a default headless egui Context the CentralPanel viewport is large, so
         // the absolute count depends on viewport height; the load-bearing fact is `painted < total`.
         // The fixed-window kittest screenshot proof asserts the tighter visible-window bound.)
         assert!(
-            stats.frame_lines_rendered > 0
-                && stats.frame_lines_rendered < stats.buffer_len_lines,
+            stats.frame_lines_rendered > 0 && stats.frame_lines_rendered < stats.buffer_len_lines,
             "virtualized: fewer lines painted than the whole doc (got {} of {})",
             stats.frame_lines_rendered,
             stats.buffer_len_lines
@@ -9600,6 +10532,10 @@ mod tests {
             .unwrap()
             .as_ref()
             .map(|(_, v)| *v);
-        assert_eq!(cached_version, Some(v0 + 1), "cache re-filled at the bumped version");
+        assert_eq!(
+            cached_version,
+            Some(v0 + 1),
+            "cache re-filled at the bumped version"
+        );
     }
 }

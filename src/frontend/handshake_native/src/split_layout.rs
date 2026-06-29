@@ -2,12 +2,14 @@
 //!
 //! ## What this provides
 //!
-//! A fixed 2x2 pane grid partitioned by exactly two dividers:
-//! - one **horizontal** divider that splits top/bottom at `weights.vertical * available_height`;
-//! - one **vertical** divider that splits left/right at `weights.horizontal * available_width`.
+//! A pane grid partitioned by split dividers:
+//! - one **horizontal** divider that splits top/bottom at `weights.horizontal * available_height`;
+//! - one **vertical** divider that splits left/right at `weights.vertical * available_width`.
 //!
-//! The four resulting rects host `pane-a` (top-left), `pane-b` (top-right), `pane-c` (bottom-left),
-//! `pane-d` (bottom-right) from the MT-005 [`PaneRegistry`]. Each divider is:
+//! Four-pane/restored layouts use the original 2x2 shape: `pane-a` (top-left), `pane-b` (top-right),
+//! `pane-c` (bottom-left), `pane-d` (bottom-right) from the MT-005 [`PaneRegistry`]. MT-097's fresh
+//! notes-only default contains only `pane-a` and `pane-b`, so that case uses a full-height two-column
+//! layout and renders only the vertical divider; it does not leave empty lower cells. Each live divider is:
 //! - draggable by pointer (drag delta -> weight delta, clamped),
 //! - resizable by keyboard (Arrow keys, ±[`SPLIT_STEP`]) **only when the divider is focused**,
 //! - addressable out-of-process as an AccessKit [`accesskit::Role::Splitter`] node with a stable
@@ -343,19 +345,44 @@ impl SplitLayoutWidget {
         let rects = compute_split_rects(area, *weights);
 
         // ── Pane bodies + tab bars ─────────────────────────────────────────────────────────────────
-        // Each pane is looked up by its spatial id and rendered into its rect. A missing pane (e.g.
-        // a registry that does not seed the full 2x2) degrades to an empty rect rather than a panic.
+        // Each pane is looked up by its spatial id and rendered into its rect. A missing pane in the
+        // legacy 2x2 shape degrades to an empty rect rather than a panic. MT-097's fresh notes-only
+        // registry has exactly pane-a/pane-b; render that as full-height columns so the work surface
+        // is not visually half blank.
         // A TAB_BAR_HEIGHT-tall strip is carved off the TOP of each pane rect for the MT-007 tab bar;
         // the pane body renders in the remaining rect below it. Tab interactions are collected here and
         // reconciled into `tab_bars` AFTER the loop (a drop needs two distinct &mut bars, which is not
         // possible while iterating).
         let registry_guard = registry.lock().expect("pane registry mutex poisoned");
-        let pane_slots = [
-            (PANE_A, rects.top_left),
-            (PANE_B, rects.top_right),
-            (PANE_C, rects.bottom_left),
-            (PANE_D, rects.bottom_right),
-        ];
+        let pane_a: PaneId = Arc::from(PANE_A);
+        let pane_b: PaneId = Arc::from(PANE_B);
+        let pane_c: PaneId = Arc::from(PANE_C);
+        let pane_d: PaneId = Arc::from(PANE_D);
+        let two_column_default = registry_guard.len() == 2
+            && registry_guard.get(&pane_a).is_some()
+            && registry_guard.get(&pane_b).is_some()
+            && registry_guard.get(&pane_c).is_none()
+            && registry_guard.get(&pane_d).is_none();
+        let pane_slots: Vec<(&str, egui::Rect)> = if two_column_default {
+            let split_x = area.left() + area.width() * weights.vertical;
+            vec![
+                (
+                    PANE_A,
+                    egui::Rect::from_min_max(area.min, egui::pos2(split_x, area.bottom())),
+                ),
+                (
+                    PANE_B,
+                    egui::Rect::from_min_max(egui::pos2(split_x, area.top()), area.max),
+                ),
+            ]
+        } else {
+            vec![
+                (PANE_A, rects.top_left),
+                (PANE_B, rects.top_right),
+                (PANE_C, rects.bottom_left),
+                (PANE_D, rects.bottom_right),
+            ]
+        };
         // (pane_id, TabBarResponse) collected per pane this frame, reconciled below.
         let mut tab_responses: Vec<(PaneId, crate::tab_bar::TabBarResponse)> = Vec::new();
         for (pane_key, pane_rect) in pane_slots {
@@ -403,7 +430,8 @@ impl SplitLayoutWidget {
                 egui::pos2(pane_rect.right(), pane_rect.top() + header_height),
             );
             let after_header_top = pane_rect.top() + header_height;
-            let tab_bar_height = TAB_BAR_HEIGHT.min((pane_rect.bottom() - after_header_top).max(0.0));
+            let tab_bar_height =
+                TAB_BAR_HEIGHT.min((pane_rect.bottom() - after_header_top).max(0.0));
             let tab_bar_rect = egui::Rect::from_min_max(
                 egui::pos2(pane_rect.left(), after_header_top),
                 egui::pos2(pane_rect.right(), after_header_top + tab_bar_height),
@@ -571,15 +599,17 @@ impl SplitLayoutWidget {
         // CANONICAL (React): the horizontal LINE controls `weights.horizontal` (top/bottom row split,
         // Y); the vertical LINE controls `weights.vertical` (left/right column split, X). Line-name
         // and weight-name match — see `SplitAxis` doc and `app/src/App.tsx`.
-        Self::divider(
-            ui,
-            SplitAxis::Horizontal,
-            area,
-            rects.divider_h,
-            &mut weights.horizontal,
-            &mut drag_state.dragging_horizontal,
-            divider_colors,
-        );
+        if !two_column_default {
+            Self::divider(
+                ui,
+                SplitAxis::Horizontal,
+                area,
+                rects.divider_h,
+                &mut weights.horizontal,
+                &mut drag_state.dragging_horizontal,
+                divider_colors,
+            );
+        }
         Self::divider(
             ui,
             SplitAxis::Vertical,
@@ -749,7 +779,11 @@ impl SplitLayoutWidget {
 /// oracle the unit tests assert against, hence `#[cfg(test)]`.
 #[cfg(test)]
 #[inline]
-fn divider_line_color(colors: DividerColors, hovered_or_focused: bool, dragging: bool) -> egui::Color32 {
+fn divider_line_color(
+    colors: DividerColors,
+    hovered_or_focused: bool,
+    dragging: bool,
+) -> egui::Color32 {
     if dragging {
         colors.grab
     } else if hovered_or_focused {
@@ -822,13 +856,19 @@ mod tests {
             assert!((r.bottom_right.bottom() - area.bottom()).abs() < EPS);
 
             // Shared vertical boundary (left column right edge == right column left edge).
-            assert!((r.top_left.right() - r.top_right.left()).abs() < EPS, "v boundary top");
+            assert!(
+                (r.top_left.right() - r.top_right.left()).abs() < EPS,
+                "v boundary top"
+            );
             assert!(
                 (r.bottom_left.right() - r.bottom_right.left()).abs() < EPS,
                 "v boundary bottom"
             );
             // Shared horizontal boundary (top row bottom edge == bottom row top edge).
-            assert!((r.top_left.bottom() - r.bottom_left.top()).abs() < EPS, "h boundary left");
+            assert!(
+                (r.top_left.bottom() - r.bottom_left.top()).abs() < EPS,
+                "h boundary left"
+            );
             assert!(
                 (r.top_right.bottom() - r.bottom_right.top()).abs() < EPS,
                 "h boundary right"
@@ -856,14 +896,26 @@ mod tests {
     #[test]
     fn axis_semantics_match_react_grid() {
         let area = area_600(); // 800 x 600 at origin
-        let base = SplitWeights { vertical: 0.5, horizontal: 0.5 };
+        let base = SplitWeights {
+            vertical: 0.5,
+            horizontal: 0.5,
+        };
         let r0 = compute_split_rects(area, base);
         // Baseline: split_x at 0.5*800=400, split_y at 0.5*600=300.
-        assert!((r0.top_left.right() - 400.0).abs() < EPS, "baseline split_x");
-        assert!((r0.top_left.bottom() - 300.0).abs() < EPS, "baseline split_y");
+        assert!(
+            (r0.top_left.right() - 400.0).abs() < EPS,
+            "baseline split_x"
+        );
+        assert!(
+            (r0.top_left.bottom() - 300.0).abs() < EPS,
+            "baseline split_y"
+        );
 
         // Increase ONLY `vertical`: the COLUMN (X) split must move right; the ROW (Y) split must NOT.
-        let more_vertical = SplitWeights { vertical: 0.7, horizontal: 0.5 };
+        let more_vertical = SplitWeights {
+            vertical: 0.7,
+            horizontal: 0.5,
+        };
         let rv = compute_split_rects(area, more_vertical);
         assert!(
             (rv.top_left.right() - 0.7 * 800.0).abs() < EPS,
@@ -879,7 +931,10 @@ mod tests {
         );
 
         // Increase ONLY `horizontal`: the ROW (Y) split must move down; the COLUMN (X) split must NOT.
-        let more_horizontal = SplitWeights { vertical: 0.5, horizontal: 0.7 };
+        let more_horizontal = SplitWeights {
+            vertical: 0.5,
+            horizontal: 0.7,
+        };
         let rh = compute_split_rects(area, more_horizontal);
         assert!(
             (rh.top_left.bottom() - 0.7 * 600.0).abs() < EPS,
@@ -920,9 +975,15 @@ mod tests {
         assert!((clamp_split(0.5) - 0.5).abs() < EPS, "in-range unchanged");
         // Drag a near-min weight further down: clamps, never goes below SPLIT_MIN.
         let dragged = clamp_split(0.21 + (-200.0 / 600.0));
-        assert!((dragged - SPLIT_MIN).abs() < EPS, "over-drag down clamps to min");
+        assert!(
+            (dragged - SPLIT_MIN).abs() < EPS,
+            "over-drag down clamps to min"
+        );
         let dragged_up = clamp_split(0.79 + (200.0 / 600.0));
-        assert!((dragged_up - SPLIT_MAX).abs() < EPS, "over-drag up clamps to max");
+        assert!(
+            (dragged_up - SPLIT_MAX).abs() < EPS,
+            "over-drag up clamps to max"
+        );
     }
 
     /// AC: keyboard step is ±SPLIT_STEP, clamped. On the horizontal LINE, ArrowDown grows
@@ -966,7 +1027,10 @@ mod tests {
         };
         let json = serde_json::to_string(&w).expect("serialize");
         assert!(json.contains("\"vertical\""), "has vertical field: {json}");
-        assert!(json.contains("\"horizontal\""), "has horizontal field: {json}");
+        assert!(
+            json.contains("\"horizontal\""),
+            "has horizontal field: {json}"
+        );
         let back: SplitWeights = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(back, w);
     }
@@ -1075,17 +1139,35 @@ mod tests {
             ..RailDimensions::default()
         };
         let area = area_600();
-        let r = compute_split_rects(area, SplitWeights { vertical: 0.5, horizontal: 0.5 });
+        let r = compute_split_rects(
+            area,
+            SplitWeights {
+                vertical: 0.5,
+                horizontal: 0.5,
+            },
+        );
 
         let old_h = divider_visible_rect(SplitAxis::Horizontal, r.divider_h);
         let rail_h = RailWidget::visual_rect(RailOrientation::Horizontal, r.divider_h, dims);
-        assert!((old_h.min - rail_h.min).length() < EPS, "horizontal visual min matches rail");
-        assert!((old_h.max - rail_h.max).length() < EPS, "horizontal visual max matches rail");
+        assert!(
+            (old_h.min - rail_h.min).length() < EPS,
+            "horizontal visual min matches rail"
+        );
+        assert!(
+            (old_h.max - rail_h.max).length() < EPS,
+            "horizontal visual max matches rail"
+        );
 
         let old_v = divider_visible_rect(SplitAxis::Vertical, r.divider_v);
         let rail_v = RailWidget::visual_rect(RailOrientation::Vertical, r.divider_v, dims);
-        assert!((old_v.min - rail_v.min).length() < EPS, "vertical visual min matches rail");
-        assert!((old_v.max - rail_v.max).length() < EPS, "vertical visual max matches rail");
+        assert!(
+            (old_v.min - rail_v.min).length() < EPS,
+            "vertical visual min matches rail"
+        );
+        assert!(
+            (old_v.max - rail_v.max).length() < EPS,
+            "vertical visual max matches rail"
+        );
     }
 
     /// Divider node ids stay below the pane id base and are disjoint from the chrome ids, preserving

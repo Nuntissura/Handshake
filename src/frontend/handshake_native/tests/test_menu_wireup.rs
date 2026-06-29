@@ -113,14 +113,52 @@ fn editor_shell() -> (HandshakeApp, tokio::runtime::Runtime) {
     (app, runtime)
 }
 
-/// A plain seeded shell (NO editor pane) — the MT-069 enable predicate is FALSE here, so the editor menu
-/// items render DISABLED. Used to prove the honest disabled-when-unavailable contract.
+/// A deliberately non-editor shell — MT-097's fresh default now has code + Notes editors, so this test
+/// fixture retypes those slots to non-editor panes to keep the disabled-when-unavailable proof honest.
 fn plain_shell() -> HandshakeApp {
-    HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
         status: "ok".to_string(),
         db_status: "ok".to_string(),
         migration_version: Some(1),
-    }))
+    }));
+    {
+        let registry = app.pane_registry();
+        let mut guard = registry.lock().expect("registry");
+        guard.insert(PaneRecord::new(
+            PaneId::from("pane-a"),
+            PaneType::Workspace,
+            DEFAULT_PROJECT_ID,
+            None,
+            LockState::Unlocked,
+            DirtyState::Clean,
+            PaneAuthority::System,
+        ));
+        guard.insert(PaneRecord::new(
+            PaneId::from("pane-b"),
+            PaneType::InferenceLab,
+            DEFAULT_PROJECT_ID,
+            None,
+            LockState::Unlocked,
+            DirtyState::Clean,
+            PaneAuthority::System,
+        ));
+    }
+    {
+        let bars = app.tab_bar_states_mut();
+        if let Some(bar) = bars.get_mut(&PaneId::from("pane-a")) {
+            bar.tabs = vec![handshake_native::tab_bar::TabState::new(
+                PaneType::Workspace,
+            )];
+            bar.active_index = 0;
+        }
+        if let Some(bar) = bars.get_mut(&PaneId::from("pane-b")) {
+            bar.tabs = vec![handshake_native::tab_bar::TabState::new(
+                PaneType::InferenceLab,
+            )];
+            bar.active_index = 0;
+        }
+    }
+    app
 }
 
 fn shell_harness(app: HandshakeApp) -> Harness<'static, HandshakeApp> {
@@ -133,7 +171,11 @@ fn live_author_nodes(harness: &Harness<'_, HandshakeApp>) -> Vec<(String, String
     for node in harness.root().children_recursive() {
         let ak = node.accesskit_node();
         if let Some(author_id) = ak.author_id() {
-            found.push((author_id.to_owned(), format!("{:?}", ak.role()), ak.is_disabled()));
+            found.push((
+                author_id.to_owned(),
+                format!("{:?}", ak.role()),
+                ak.is_disabled(),
+            ));
         }
     }
     found
@@ -158,11 +200,13 @@ fn node_id_for(harness: &Harness<'_, HandshakeApp>, author_id: &str) -> egui::ac
 /// genuine "menu item clicked by a model" path the contract requires (HBR-SWARM / HBR-VIS).
 fn click_author_id(harness: &mut Harness<'_, HandshakeApp>, author_id: &str) {
     let node_id = node_id_for(harness, author_id);
-    harness.event(egui::Event::AccessKitActionRequest(egui::accesskit::ActionRequest {
-        action: egui::accesskit::Action::Click,
-        target: node_id,
-        data: None,
-    }));
+    harness.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action: egui::accesskit::Action::Click,
+            target: node_id,
+            data: None,
+        },
+    ));
 }
 
 // ── AC-001 / AC-004 / PT-002 / PT-003: FILE > Save dispatches the MT-020 editor save path ──────────────
@@ -242,15 +286,23 @@ fn edit_toggle_comment_mutates_the_code_buffer() {
     // (dispatch_palette_action -> dispatch_editor_command). This is NOT a bare repaint: the arm routes
     // `CodeEditorAction::ToggleComment` to the mounted panel's `dispatch_action`, which runs the MT-051
     // `line_ops::toggle_comment` transform on the caret's line.
-    let fired = harness.state_mut().dispatch_palette_action_for_test(CMD_EDITOR_EDIT_TOGGLE_COMMENT);
+    let fired = harness
+        .state_mut()
+        .dispatch_palette_action_for_test(CMD_EDITOR_EDIT_TOGGLE_COMMENT);
     harness.run();
-    assert!(fired, "Toggle Comment produced an observable effect (not a logged no-op)");
+    assert!(
+        fired,
+        "Toggle Comment produced an observable effect (not a logged no-op)"
+    );
 
     // AC-002: the buffer ACTUALLY changed — the menu Toggle Comment reached the real MT-051 transform, not
     // a fake-enabled no-op (RISK-003). Toggling the commented first line UNcomments it (the `// ` prefix is
     // stripped), so the buffer differs and the first line no longer leads with `//`.
     let after = code_panel.buffer().to_string();
-    assert_ne!(after, before, "EDIT > Toggle Comment mutated the code buffer (MT-051 transform ran)");
+    assert_ne!(
+        after, before,
+        "EDIT > Toggle Comment mutated the code buffer (MT-051 transform ran)"
+    );
     let first_line_after = after.lines().next().unwrap_or_default().to_string();
     assert!(
         !first_line_after.trim_start().starts_with("//"),
@@ -259,7 +311,9 @@ fn edit_toggle_comment_mutates_the_code_buffer() {
 
     // Toggling again re-comments the line (VS Code all-or-nothing round-trip) — proves it is the real
     // reversible transform, not a one-way mutation.
-    let fired2 = harness.state_mut().dispatch_palette_action_for_test(CMD_EDITOR_EDIT_TOGGLE_COMMENT);
+    let fired2 = harness
+        .state_mut()
+        .dispatch_palette_action_for_test(CMD_EDITOR_EDIT_TOGGLE_COMMENT);
     harness.run();
     assert!(fired2, "second Toggle Comment also fired");
     assert_eq!(
@@ -271,10 +325,14 @@ fn edit_toggle_comment_mutates_the_code_buffer() {
     // Format Document dispatches the REAL MT-050 format-request arm (arms textDocument/formatting; a no-op +
     // toast when no formatter is available — the honest MT-050 disabled path). It must dispatch without
     // panic and report an observable effect (the request was armed), never a fake-enabled bare repaint.
-    let format_fired =
-        harness.state_mut().dispatch_palette_action_for_test(CMD_EDITOR_EDIT_FORMAT_DOCUMENT);
+    let format_fired = harness
+        .state_mut()
+        .dispatch_palette_action_for_test(CMD_EDITOR_EDIT_FORMAT_DOCUMENT);
     harness.run();
-    assert!(format_fired, "Format Document dispatched the real MT-050 format request arm (not a no-op)");
+    assert!(
+        format_fired,
+        "Format Document dispatched the real MT-050 format request arm (not a no-op)"
+    );
 }
 
 // ── AC-002 / AC-004 / PT-003: EDIT > Undo routes through the MT-035 unified-undo scope (one stack) ──────
@@ -306,9 +364,20 @@ fn edit_undo_routes_through_unified_undo_scope() {
             TextBuffer::new(&after),
             "MT-069 menu undo edit",
         );
-        assert_eq!(guard.local_undo_count(&pane_id), 1, "one unified-undo entry seeded");
-        assert!(guard.undo_scope().can_undo_local(&pane_id), "can_undo_local true right after seed");
-        assert_eq!(guard.focus_owner(), Some(&pane_id), "focus owner is the code pane after seed");
+        assert_eq!(
+            guard.local_undo_count(&pane_id),
+            1,
+            "one unified-undo entry seeded"
+        );
+        assert!(
+            guard.undo_scope().can_undo_local(&pane_id),
+            "can_undo_local true right after seed"
+        );
+        assert_eq!(
+            guard.focus_owner(),
+            Some(&pane_id),
+            "focus owner is the code pane after seed"
+        );
     }
 
     // The EDIT > Undo enable predicate is now true (can_undo). Open EDIT, confirm the leaf is ENABLED, and
@@ -320,7 +389,10 @@ fn edit_undo_routes_through_unified_undo_scope() {
         .into_iter()
         .find(|(a, _, _)| a == "menu.edit.undo")
         .expect("Undo leaf present in open EDIT menu");
-    assert!(!undo_node.2, "EDIT > Undo is ENABLED (the can_undo predicate read the seeded entry)");
+    assert!(
+        !undo_node.2,
+        "EDIT > Undo is ENABLED (the can_undo predicate read the seeded entry)"
+    );
     click_author_id(&mut harness, "menu.edit.undo");
     harness.run_steps(2);
 
@@ -361,7 +433,10 @@ fn edit_copy_then_paste_dispatch_through_shared_clipboard() {
         guard.set_focus_owner(pane_id.clone());
         let sel = text_range_selection(pane_id.clone(), EditorSurfaceKind::Code, 0, 5, "hello");
         guard.set_selection(sel);
-        assert!(guard.clipboard_read().is_none(), "clipboard empty before Copy");
+        assert!(
+            guard.clipboard_read().is_none(),
+            "clipboard empty before Copy"
+        );
     }
 
     // Click EDIT > Copy (by author_id): dispatches editor.edit.copy -> CMD_COPY on the bus, caching the
@@ -391,7 +466,10 @@ fn edit_copy_then_paste_dispatch_through_shared_clipboard() {
     {
         let bus = InteractionBus::get_or_init(&harness.ctx);
         let guard = bus.lock().unwrap();
-        assert!(guard.clipboard_read().is_some(), "clipboard payload persists after Paste request");
+        assert!(
+            guard.clipboard_read().is_some(),
+            "clipboard payload persists after Paste request"
+        );
     }
 }
 
@@ -401,7 +479,10 @@ fn edit_copy_then_paste_dispatch_through_shared_clipboard() {
 fn editor_menu_items_disabled_when_no_editor_pane() {
     let mut harness = shell_harness(plain_shell());
     harness.run();
-    assert!(!harness.state().editor_available(), "no editor pane mounted in the plain shell");
+    assert!(
+        !harness.state().editor_available(),
+        "no editor pane mounted in the plain shell"
+    );
 
     harness.get_by_label("FILE").click();
     harness.run();
@@ -410,7 +491,10 @@ fn editor_menu_items_disabled_when_no_editor_pane() {
         .iter()
         .find(|(a, _, _)| a == "menu.file.save")
         .expect("Save leaf present + addressable");
-    assert!(save.2, "FILE > Save renders DISABLED when no editor pane is the target (honest, no fake-enable)");
+    assert!(
+        save.2,
+        "FILE > Save renders DISABLED when no editor pane is the target (honest, no fake-enable)"
+    );
 }
 
 // ── AC-008 / PT-006: an editor pane present makes Save an ENABLED MenuItem with its WP-011 author_id ────
@@ -420,7 +504,10 @@ fn file_save_is_enabled_accesskit_node_with_wp011_author_id() {
     let (app, _rt) = editor_shell();
     let mut harness = shell_harness(app);
     harness.run_steps(3);
-    assert!(harness.state().editor_available(), "an editor pane is the focusable target");
+    assert!(
+        harness.state().editor_available(),
+        "an editor pane is the focusable target"
+    );
 
     harness.get_by_label("FILE").click();
     harness.run();
@@ -432,7 +519,10 @@ fn file_save_is_enabled_accesskit_node_with_wp011_author_id() {
         .find(|(a, _, _)| a == "menu.file.save")
         .unwrap_or_else(|| panic!("Save leaf missing from open FILE menu: {nodes:?}"));
     assert_eq!(save.1, "MenuItem", "Save leaf role is MenuItem");
-    assert!(!save.2, "AC-008: Save is an ENABLED (pressable) AccessKit node when an editor pane is mounted");
+    assert!(
+        !save.2,
+        "AC-008: Save is an ENABLED (pressable) AccessKit node when an editor pane is mounted"
+    );
 }
 
 // ── AC-003: the GO-menu code-nav items render DISABLED (never fake-enabled) ─────────────────────────────
@@ -453,10 +543,15 @@ fn go_nav_items_render_disabled_with_typed_no_op() {
             .iter()
             .find(|(a, _, _)| a == go_id)
             .unwrap_or_else(|| panic!("GO-nav item {go_id} missing from open GO menu: {nodes:?}"));
-        assert!(found.2, "GO-nav item {go_id} renders DISABLED (owner unregistered)");
+        assert!(
+            found.2,
+            "GO-nav item {go_id} renders DISABLED (owner unregistered)"
+        );
     }
     // The dispatcher recognizes them as pending (the typed logged no-op path, never a panic).
-    assert!(command_registry::is_go_nav_pending(CMD_EDITOR_GO_TO_DEFINITION));
+    assert!(command_registry::is_go_nav_pending(
+        CMD_EDITOR_GO_TO_DEFINITION
+    ));
 }
 
 // ── AC-005 / PT-004: the command-palette editor entries are now enabled + dispatch ─────────────────────
@@ -485,7 +580,10 @@ fn palette_editor_entries_enabled_and_dispatch() {
         .iter()
         .find(|(a, _, _)| a == "command-palette.option.hs-editor-menu-quick-open")
         .unwrap_or_else(|| panic!("Quick Open palette row missing: {nodes:?}"));
-    assert!(!quick_open.2, "AC-005: the Quick Switcher palette entry is enabled");
+    assert!(
+        !quick_open.2,
+        "AC-005: the Quick Switcher palette entry is enabled"
+    );
 }
 
 #[test]
@@ -515,14 +613,22 @@ fn palette_quick_open_dispatch_opens_quick_switcher() {
     let (app, _rt) = editor_shell();
     let mut harness = shell_harness(app);
     harness.run_steps(2);
-    assert!(!harness.state().quick_switcher_open(), "switcher closed initially");
+    assert!(
+        !harness.state().quick_switcher_open(),
+        "switcher closed initially"
+    );
 
     // Dispatch the workbench quick-open command directly through the SAME shell dispatcher the palette Run
     // outcome calls (dispatch_palette_action -> dispatch_editor_command), proving the editor-menu palette
     // entry reaches a real handler (no fake command, no panic).
-    let fired = harness.state_mut().dispatch_palette_action_for_test(CMD_WORKBENCH_QUICK_OPEN);
+    let fired = harness
+        .state_mut()
+        .dispatch_palette_action_for_test(CMD_WORKBENCH_QUICK_OPEN);
     harness.run();
-    assert!(fired, "the quick-open editor command produced an observable effect");
+    assert!(
+        fired,
+        "the quick-open editor command produced an observable effect"
+    );
     assert!(
         harness.state().quick_switcher_open(),
         "AC-005: the Quick Switcher palette command opened the ONE WP-011 quick switcher"
@@ -555,7 +661,10 @@ fn every_editor_menu_command_dispatches_without_panic() {
         harness.step();
     }
     // The shell is still alive + responsive after exercising every editor command path.
-    assert!(harness.state().editor_available(), "shell intact after dispatching every editor command");
+    assert!(
+        harness.state().editor_available(),
+        "shell intact after dispatching every editor command"
+    );
 }
 
 // ── AC-003 / AC-006 / PT-005: static source scan — zero todo!()/unimplemented!()/panic!() on the wired
@@ -567,8 +676,14 @@ fn no_todo_unimplemented_or_panic_on_wired_handlers() {
     // wired editor dispatch paths. `panic_disabled`-style strings in comments/docs are excluded by checking
     // for the macro-invocation form (`todo!(` / `unimplemented!(` / `panic!(`).
     let files = [
-        ("src/top_menu_bar.rs", include_str!("../src/top_menu_bar.rs")),
-        ("src/command_registry.rs", include_str!("../src/command_registry.rs")),
+        (
+            "src/top_menu_bar.rs",
+            include_str!("../src/top_menu_bar.rs"),
+        ),
+        (
+            "src/command_registry.rs",
+            include_str!("../src/command_registry.rs"),
+        ),
     ];
     for (name, src) in files {
         for (lineno, line) in src.lines().enumerate() {
@@ -599,11 +714,19 @@ fn menu_handlers_route_by_command_id_only() {
     // (e.g. `request_save`, `undo(`, `redo(`) directly inside the menu file (MC-001 / RISK-001).
     let menu_src = include_str!("../src/top_menu_bar.rs");
     assert!(
-        menu_src.contains("MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_SAVE)"),
+        menu_src.contains(
+            "MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_FILE_SAVE)"
+        ),
         "the FILE > Save leaf dispatches by command id (no inline editor logic)"
     );
     // No direct editor-mutation call sites in the menu file (it only routes by id).
-    for forbidden in ["request_save_for_host(", ".undo(&", ".redo(&", "set_text(", "buffer_mut("] {
+    for forbidden in [
+        "request_save_for_host(",
+        ".undo(&",
+        ".redo(&",
+        "set_text(",
+        "buffer_mut(",
+    ] {
         assert!(
             !menu_src.contains(forbidden),
             "MC-001: the menu file must not contain inline editor logic ('{forbidden}')"
@@ -640,7 +763,10 @@ fn wired_menu_accesskit_dump_and_screenshot() {
         .iter()
         .find(|(a, _, _)| a == "menu.edit.copy")
         .unwrap_or_else(|| panic!("Copy leaf missing: {nodes:?}"));
-    assert!(!edit_copy.2, "EDIT > Copy is an enabled MenuItem node (editor pane mounted)");
+    assert!(
+        !edit_copy.2,
+        "EDIT > Copy is an enabled MenuItem node (editor pane mounted)"
+    );
 
     // wgpu screenshot of the wired EDIT menu -> the EXTERNAL artifact root ONLY. On a GPU host this saves a
     // PNG; absent an adapter, record an honest non-fatal note (the AccessKit proof above stands).
@@ -653,8 +779,14 @@ fn wired_menu_accesskit_dump_and_screenshot() {
             let png_path = ext_dir.join("MT-069-edit-menu-wired.png");
             let saved = image.save(&png_path).is_ok();
             let abs = std::fs::canonicalize(&png_path).unwrap_or(png_path.clone());
-            println!("MT-069 wired-menu screenshot: {w}x{h}, saved={saved} ({})", abs.display());
-            assert!(saved, "the wired-menu screenshot PNG saved to the external root");
+            println!(
+                "MT-069 wired-menu screenshot: {w}x{h}, saved={saved} ({})",
+                abs.display()
+            );
+            assert!(
+                saved,
+                "the wired-menu screenshot PNG saved to the external root"
+            );
         }
         Err(e) => {
             println!(
@@ -675,8 +807,16 @@ fn editor_menu_catalog_has_the_contract_ids() {
         .filter(|c| c.kind == CommandKind::EditorMenu)
         .map(|c| c.id)
         .collect();
-    for id in [CMD_EDITOR_FILE_SAVE, CMD_EDITOR_EDIT_UNDO, CMD_EDITOR_EDIT_REDO, CMD_WORKBENCH_QUICK_OPEN] {
-        assert!(menu.contains(&id), "menu command id '{id}' present: {menu:?}");
+    for id in [
+        CMD_EDITOR_FILE_SAVE,
+        CMD_EDITOR_EDIT_UNDO,
+        CMD_EDITOR_EDIT_REDO,
+        CMD_WORKBENCH_QUICK_OPEN,
+    ] {
+        assert!(
+            menu.contains(&id),
+            "menu command id '{id}' present: {menu:?}"
+        );
     }
     assert_eq!(menu.len(), 22, "exactly 22 EditorMenu commands wired");
 }

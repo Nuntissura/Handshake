@@ -46,7 +46,8 @@ pub const DEFAULT_MINIMAP_WIDTH: f32 = 80.0;
 /// non-const, so the equivalent PREmultiplied form is used in the const (white at alpha 30 unmultiplied
 /// == 30/30/30/30 premultiplied, since premul = round(channel * a / 255) = round(255*30/255) = 30). The
 /// `from_rgba_premultiplied` ctor IS const, exactly as the MT-004 find-match tint uses it.
-const VIEWPORT_INDICATOR_COLOR: egui::Color32 = egui::Color32::from_rgba_premultiplied(30, 30, 30, 30);
+const VIEWPORT_INDICATOR_COLOR: egui::Color32 =
+    egui::Color32::from_rgba_premultiplied(30, 30, 30, 30);
 
 /// A minimap widget. Stateless apart from its configured width; the panel constructs one per frame (or
 /// reuses one) and calls [`render`](Minimap::render). The render result reports a click (the buffer
@@ -71,17 +72,25 @@ pub struct MinimapResponse {
     /// exactly `width × available_height`. This is the AC-003/AC-006 geometry surface (the configured
     /// 80px width, not the SidePanel's margin-inflated outer rect).
     pub content_rect: egui::Rect,
+    /// The egui response id for the minimap's real click/drag surface.
+    pub response_id: egui::Id,
 }
 
 impl Default for MinimapResponse {
     fn default() -> Self {
-        Self { clicked_buffer_line: None, content_rect: egui::Rect::NOTHING }
+        Self {
+            clicked_buffer_line: None,
+            content_rect: egui::Rect::NOTHING,
+            response_id: egui::Id::new("code-editor-minimap-empty-response"),
+        }
     }
 }
 
 impl Default for Minimap {
     fn default() -> Self {
-        Self { width: DEFAULT_MINIMAP_WIDTH }
+        Self {
+            width: DEFAULT_MINIMAP_WIDTH,
+        }
     }
 }
 
@@ -93,7 +102,9 @@ impl Minimap {
 
     /// A minimap with a custom width (clamped to a sane minimum so it never collapses to nothing).
     pub fn with_width(width: f32) -> Self {
-        Self { width: width.max(8.0) }
+        Self {
+            width: width.max(8.0),
+        }
     }
 
     /// The configured width in pixels.
@@ -195,7 +206,11 @@ impl Minimap {
         let (rect, response) = ui.allocate_exact_size(desired, egui::Sense::click_and_drag());
 
         if !ui.is_rect_visible(rect) || total_lines == 0 {
-            return MinimapResponse { clicked_buffer_line: None, content_rect: rect };
+            return MinimapResponse {
+                clicked_buffer_line: None,
+                content_rect: rect,
+                response_id: response.id,
+            };
         }
 
         let panel_height = rect.height();
@@ -229,7 +244,11 @@ impl Minimap {
                 egui::pos2(rect.left(), y0),
                 egui::pos2(rect.right(), y1.max(y0 + 1.0)),
             );
-            shapes.push(egui::Shape::rect_filled(indicator, 0.0, VIEWPORT_INDICATOR_COLOR));
+            shapes.push(egui::Shape::rect_filled(
+                indicator,
+                0.0,
+                VIEWPORT_INDICATOR_COLOR,
+            ));
         }
         ui.painter().add(egui::Shape::Vec(shapes));
 
@@ -256,7 +275,11 @@ impl Minimap {
             }
         }
 
-        MinimapResponse { clicked_buffer_line, content_rect: rect }
+        MinimapResponse {
+            clicked_buffer_line,
+            content_rect: rect,
+            response_id: response.id,
+        }
     }
 }
 
@@ -295,9 +318,21 @@ mod tests {
 
     #[test]
     fn compression_ratio_degenerate_inputs_yield_one() {
-        assert_eq!(Minimap::compression_ratio(0, 300.0), 1, "no lines -> ratio 1");
-        assert_eq!(Minimap::compression_ratio(100, 0.0), 1, "zero panel height -> ratio 1");
-        assert_eq!(Minimap::compression_ratio(100, -5.0), 1, "negative panel height -> ratio 1");
+        assert_eq!(
+            Minimap::compression_ratio(0, 300.0),
+            1,
+            "no lines -> ratio 1"
+        );
+        assert_eq!(
+            Minimap::compression_ratio(100, 0.0),
+            1,
+            "zero panel height -> ratio 1"
+        );
+        assert_eq!(
+            Minimap::compression_ratio(100, -5.0),
+            1,
+            "negative panel height -> ratio 1"
+        );
     }
 
     #[test]
@@ -329,7 +364,10 @@ mod tests {
     fn darken_reduces_channels_keeps_alpha() {
         let c = egui::Color32::from_rgba_unmultiplied(200, 100, 50, 255);
         let d = darken(c, 0.10);
-        assert!(d.r() < c.r() && d.g() < c.g() && d.b() < c.b(), "channels darkened");
+        assert!(
+            d.r() < c.r() && d.g() < c.g() && d.b() < c.b(),
+            "channels darkened"
+        );
         assert_eq!(d.a(), 255, "alpha preserved");
         // factor 0 -> unchanged.
         assert_eq!(darken(c, 0.0), c);

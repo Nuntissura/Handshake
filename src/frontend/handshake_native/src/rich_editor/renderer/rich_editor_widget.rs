@@ -35,11 +35,13 @@ use crate::rich_editor::document_model::position::DocPosition;
 use crate::rich_editor::document_model::selection::Selection;
 use crate::theme::{HsPalette, HsTheme};
 
-use super::block_renderer::{block_media_embed, paint_caret, paint_block};
+use super::block_renderer::{block_media_embed, paint_block, paint_caret};
 use super::caret::{blink_visible, request_blink_repaint, DocCaret};
 use super::ime_handler::{self, ImeContext, PreeditState};
 use super::input_handler::{self, EditContext};
-use super::{block_author_id, block_node_id, root_egui_id, BLOCK_ROLE, RICH_EDITOR_ROOT_AUTHOR_ID, ROOT_ROLE};
+use super::{
+    block_author_id, block_node_id, root_egui_id, BLOCK_ROLE, RICH_EDITOR_ROOT_AUTHOR_ID, ROOT_ROLE,
+};
 use crate::rich_editor::embeds::asset_resolver::ReqwestAssetFetcher;
 use crate::rich_editor::embeds::embed_block_renderer::{self, EmbedRuntime};
 
@@ -68,7 +70,8 @@ pub struct RichEditorState {
     /// so resolved transclusions/backlinks + popup state persist across frames.
     pub wikilinks: crate::rich_editor::wikilinks::runtime::WikilinkRuntime,
     /// MT-015 active wikilink autocomplete popup (`Some` while the operator is typing a `[[` trigger).
-    pub wikilink_autocomplete: Option<crate::rich_editor::wikilinks::autocomplete::AutocompleteState>,
+    pub wikilink_autocomplete:
+        Option<crate::rich_editor::wikilinks::autocomplete::AutocompleteState>,
     /// MT-015 editor events enqueued for the WP-011 host shell to drain + route (WikilinkActivated /
     /// BacklinkActivated / TransclusionOpenRequested). This MT only ENQUEUES; routing is owned by the
     /// shell (E11/MT-069). The shell drains this each frame after the editor renders.
@@ -149,8 +152,10 @@ pub struct RichEditorState {
     /// [`install_editor_action_registry`](RichEditorState::install_editor_action_registry); when present,
     /// every `show` syncs + emits + consumes through it (the ONE swarm-facing rich-action surface,
     /// consolidating — not re-minting — the toolbar/find/save author_ids).
-    pub editor_actions:
-        Option<(std::sync::Arc<std::sync::Mutex<EditorActionRegistry>>, RegistrationHandle)>,
+    pub editor_actions: Option<(
+        std::sync::Arc<std::sync::Mutex<EditorActionRegistry>>,
+        RegistrationHandle,
+    )>,
     /// WP-KERNEL-012 MT-056 (E2 — outline/TOC): a pending scroll target requested by the outline panel
     /// (or any caller of [`RichEditorWidget::scroll_to_block`]). Holds the top-level block path (`[idx]`)
     /// the next render pass must bring into view. The block renderer ([`RichEditorWidget::render_blocks`])
@@ -201,7 +206,9 @@ impl RichEditorState {
         let properties_runtime =
             crate::rich_editor::properties::metadata_client::PropertiesRuntime::new(
                 std::sync::Arc::new(
-                    crate::rich_editor::properties::metadata_client::ReqwestMetadataBackend::new(base),
+                    crate::rich_editor::properties::metadata_client::ReqwestMetadataBackend::new(
+                        base,
+                    ),
                 ),
                 None,
             );
@@ -256,9 +263,7 @@ impl RichEditorState {
         fn walk(block: &BlockNode, out: &mut Vec<String>) {
             for child in &block.children {
                 match child {
-                    Child::HsLink(link)
-                        if crate::rich_editor::inline_tags::is_tag_link(link) =>
-                    {
+                    Child::HsLink(link) if crate::rich_editor::inline_tags::is_tag_link(link) => {
                         out.push(crate::rich_editor::inline_tags::tag_from_link(link).name);
                     }
                     Child::Block(b) => walk(b, out),
@@ -417,9 +422,9 @@ impl RichEditorState {
         // POST path is LIVE. The session run id folds the document id (matching the MT-037 attribution
         // convention `native-editor-doc-{id}`), so each create is attributable (HBR-SWARM).
         self.wikilinks.set_create_backend(std::sync::Arc::new(
-            crate::rich_editor::wikilinks::runtime::KnowledgeCreateNoteBackend::production(format!(
-                "native-editor-{document_id}"
-            )),
+            crate::rich_editor::wikilinks::runtime::KnowledgeCreateNoteBackend::production(
+                format!("native-editor-{document_id}"),
+            ),
         ));
         // WP-KERNEL-012 MT-057 (2): seed the resolver index from the EXISTING Loom search binding so a
         // `[[Title]]` resolves at runtime (AC-003). A broad empty query lists the workspace's blocks by
@@ -451,7 +456,10 @@ impl RichEditorState {
     }
 
     /// Replace the entire wikilink runtime (test seam: inject a mock backend / pre-seeded caches).
-    pub fn with_wikilink_runtime(mut self, wikilinks: crate::rich_editor::wikilinks::runtime::WikilinkRuntime) -> Self {
+    pub fn with_wikilink_runtime(
+        mut self,
+        wikilinks: crate::rich_editor::wikilinks::runtime::WikilinkRuntime,
+    ) -> Self {
         self.wikilinks = wikilinks;
         self
     }
@@ -469,7 +477,11 @@ impl RichEditorState {
         let document_id = doc_metadata.rich_document_id.clone();
         match self.properties.as_mut() {
             Some(p) => p.set_metadata(doc_metadata),
-            None => self.properties = Some(crate::rich_editor::properties::PropertiesState::new(doc_metadata)),
+            None => {
+                self.properties = Some(crate::rich_editor::properties::PropertiesState::new(
+                    doc_metadata,
+                ))
+            }
         }
         self.properties_runtime.runtime = Some(runtime);
         self.properties_runtime.set_document(document_id);
@@ -500,7 +512,11 @@ impl RichEditorState {
     /// tokio runtime handle resolutions spawn onto. The shell calls this when it knows the active
     /// document's workspace (the production wiring point). Replaces the embed runtime's
     /// workspace/runtime while keeping the production fetcher.
-    pub fn set_embed_context(&mut self, workspace_id: impl Into<String>, runtime: tokio::runtime::Handle) {
+    pub fn set_embed_context(
+        &mut self,
+        workspace_id: impl Into<String>,
+        runtime: tokio::runtime::Handle,
+    ) {
         self.embeds.workspace_id = workspace_id.into();
         self.embeds.runtime = Some(runtime);
     }
@@ -618,7 +634,9 @@ impl RichEditorState {
             }
         };
         for (idx, child) in self.doc.children.iter().enumerate() {
-            let Some(block) = child.as_block() else { continue };
+            let Some(block) = child.as_block() else {
+                continue;
+            };
             if let Some(level) = block.heading_level() {
                 mix(&(idx as u64).to_le_bytes()); // ordinal position (a re-order changes the outline)
                 mix(&[level]); // heading level (a re-level changes nesting)
@@ -655,7 +673,12 @@ impl RichEditorState {
     /// rebuild, so click/Press first checks this and skips silently if the block is gone.
     pub fn block_path_exists(&self, path: &[usize]) -> bool {
         match path.first() {
-            Some(&idx) => self.doc.children.get(idx).and_then(Child::as_block).is_some(),
+            Some(&idx) => self
+                .doc
+                .children
+                .get(idx)
+                .and_then(Child::as_block)
+                .is_some(),
             None => false,
         }
     }
@@ -677,7 +700,16 @@ impl RichEditorState {
             .children
             .iter()
             .position(|c| c.as_text().is_some())
-            .map(|leaf_idx| (leaf_idx, block.children[leaf_idx].as_text().expect("checked").text.len_chars()));
+            .map(|leaf_idx| {
+                (
+                    leaf_idx,
+                    block.children[leaf_idx]
+                        .as_text()
+                        .expect("checked")
+                        .text
+                        .len_chars(),
+                )
+            });
         self.selection = match first_text {
             Some((leaf_idx, len)) => {
                 let anchor = DocPosition::new(vec![idx, leaf_idx], 0);
@@ -719,13 +751,19 @@ pub struct RichEditorWidget {
 impl RichEditorWidget {
     /// Build a widget over shared editor state in the editable (MT-012) mode (the default).
     pub fn new(state: Arc<Mutex<RichEditorState>>) -> Self {
-        Self { state, read_only: false }
+        Self {
+            state,
+            read_only: false,
+        }
     }
 
     /// WP-KERNEL-012 MT-055: build a widget that renders `state`'s document READ-ONLY (the Obsidian
     /// reading view). Equivalent to `Self::new(state).with_read_only(true)`.
     pub fn new_read_only(state: Arc<Mutex<RichEditorState>>) -> Self {
-        Self { state, read_only: true }
+        Self {
+            state,
+            read_only: true,
+        }
     }
 
     /// WP-KERNEL-012 MT-055: set the read-only (reading-mode) flag. The host reads
@@ -743,7 +781,10 @@ impl RichEditorWidget {
         state: Arc<Mutex<RichEditorState>>,
         mode: crate::rich_editor::reading_mode::ViewMode,
     ) -> Self {
-        Self { state, read_only: mode.is_read_only() }
+        Self {
+            state,
+            read_only: mode.is_read_only(),
+        }
     }
 
     /// WP-KERNEL-012 MT-055: whether this widget renders read-only (the reading view). Read by tests
@@ -810,194 +851,195 @@ impl RichEditorWidget {
             egui::Sense::click_and_drag()
         };
         let response = ui
-            .scope_builder(
-                egui::UiBuilder::new()
-                    .id_salt(root_egui_id())
-                    .sense(surface_sense),
-                |ui| {
-                    let palette = state.palette();
-                    // Paint the editor background from the theme (no hardcoded hex).
-                    let full_rect = ui.available_rect_before_wrap();
-                    if ui.is_rect_visible(full_rect) {
-                        ui.painter().rect_filled(full_rect, 0.0, palette.bg);
-                    }
+            .scope_builder(egui::UiBuilder::new().id_salt(root_egui_id()), |ui| {
+                let palette = state.palette();
+                // Paint the editor background from the theme (no hardcoded hex).
+                let full_rect = ui.available_rect_before_wrap();
+                if ui.is_rect_visible(full_rect) {
+                    ui.painter().rect_filled(full_rect, 0.0, palette.bg);
+                }
 
-                    // The surface response. In Edit mode: clickable+focusable so the editor can
-                    // hold keyboard focus and receive Text/Key/Ime events. In Reading mode (MT-055):
-                    // CLICK-only (NOT focusable) so it can never receive editing input — but it is
-                    // still an interactive node, so it MUST carry a stable author_id (the shell
-                    // HBR-SWARM gate panics on an unnamed interactive node) — we give it the
-                    // editor-surface id so a swarm agent can locate the surface by a stable key.
-                    let surface_id = ui.id().with("rich-editor-surface");
-                    let surface = ui.interact(full_rect, surface_id, surface_sense);
-                    // RISK-005: in reading mode the surface is never treated as focused, so the input
-                    // path is skipped and no caret/selection state is ever advanced or allocated.
-                    let has_focus = !read_only && surface.has_focus();
-                    // Attach the stable author_id to the interactive surface node (it keeps
-                    // egui's derived focusable role/actions; we only add the address).
-                    crate::accessibility::emit_interactive_node(
-                        ui.ctx(),
-                        surface_id,
-                        "rich-editor-surface",
+                // The surface response. In Edit mode: clickable+focusable so the editor can
+                // hold keyboard focus and receive Text/Key/Ime events. In Reading mode (MT-055):
+                // CLICK-only (NOT focusable) so it can never receive editing input — but it is
+                // still an interactive node, so it MUST carry a stable author_id (the shell
+                // HBR-SWARM gate panics on an unnamed interactive node) — we give it the
+                // editor-surface id so a swarm agent can locate the surface by a stable key.
+                let surface_id = ui.id().with("rich-editor-surface");
+                let surface = ui.interact(full_rect, surface_id, surface_sense);
+                // RISK-005: in reading mode the surface is never treated as focused, so the input
+                // path is skipped and no caret/selection state is ever advanced or allocated.
+                let has_focus = !read_only && surface.has_focus();
+                // Attach the stable author_id to the interactive surface node (it keeps
+                // egui's derived focusable role/actions; we only add the address).
+                crate::accessibility::emit_interactive_node(
+                    ui.ctx(),
+                    surface_id,
+                    "rich-editor-surface",
+                );
+
+                // MT-016 (RISK-4 / MC-004): close the slash menu when the editor surface loses
+                // focus (e.g. the operator clicked outside the window), so an open popup never
+                // strands input to other surfaces. An ACTIVE PROMPT modal is left open — it is a
+                // top-order egui::Window that holds its own focus, so the editor-surface losing
+                // focus to the modal is expected and must NOT dismiss the modal.
+                if !has_focus
+                    && state
+                        .slash_menu
+                        .as_ref()
+                        .is_some_and(|m| !m.prompt_active())
+                {
+                    state.slash_menu = None;
+                }
+
+                // WP-KERNEL-012 MT-055: in reading mode SKIP the entire input/edit + drag-in path
+                // (RISK-005 / MC-005 — no input dispatch, no caret/selection alloc, the DocModel is
+                // never mutated). The bus undo wiring is also skipped (nothing to record). Wikilink
+                // chips + embeds are still rendered+interactive below (RISK-003), since their click
+                // handling lives in `render_blocks`, NOT in this editable input branch.
+                if !read_only {
+                    // 1) Apply input + IME for this frame (only meaningful when focused, but
+                    //    we still drain events so a programmatically-focused test works). The ONE shared
+                    //    InteractionBus (MT-035 unified undo) is retrieved here so a rich-pane edit
+                    //    records its undo on the SAME scope the code/canvas panes share, and Ctrl+Z /
+                    //    Ctrl+Y / Ctrl+Shift+Z route THROUGH the bus (POLICY-1/POLICY-2) rather than a
+                    //    second per-pane stack. Bus access is via `with_try_lock` so it never blocks the
+                    //    egui frame thread (RISK-1 / MC-1).
+                    let bus =
+                        crate::interop::interaction_bus::InteractionBus::get_or_init(ui.ctx());
+                    undo_pane_id = state.undo_pane_id.clone();
+                    Self::apply_frame_input(
+                        ui,
+                        &mut state,
+                        has_focus,
+                        &bus,
+                        &state_arc,
+                        &mut pending_undo_chord,
                     );
 
-                    // MT-016 (RISK-4 / MC-004): close the slash menu when the editor surface loses
-                    // focus (e.g. the operator clicked outside the window), so an open popup never
-                    // strands input to other surfaces. An ACTIVE PROMPT modal is left open — it is a
-                    // top-order egui::Window that holds its own focus, so the editor-surface losing
-                    // focus to the modal is expected and must NOT dismiss the modal.
-                    if !has_focus
-                        && state
-                            .slash_menu
-                            .as_ref()
-                            .is_some_and(|m| !m.prompt_active())
-                    {
-                        state.slash_menu = None;
-                    }
-
-                    // WP-KERNEL-012 MT-055: in reading mode SKIP the entire input/edit + drag-in path
-                    // (RISK-005 / MC-005 — no input dispatch, no caret/selection alloc, the DocModel is
-                    // never mutated). The bus undo wiring is also skipped (nothing to record). Wikilink
-                    // chips + embeds are still rendered+interactive below (RISK-003), since their click
-                    // handling lives in `render_blocks`, NOT in this editable input branch.
-                    if !read_only {
-                        // 1) Apply input + IME for this frame (only meaningful when focused, but
-                        //    we still drain events so a programmatically-focused test works). The ONE shared
-                        //    InteractionBus (MT-035 unified undo) is retrieved here so a rich-pane edit
-                        //    records its undo on the SAME scope the code/canvas panes share, and Ctrl+Z /
-                        //    Ctrl+Y / Ctrl+Shift+Z route THROUGH the bus (POLICY-1/POLICY-2) rather than a
-                        //    second per-pane stack. Bus access is via `with_try_lock` so it never blocks the
-                        //    egui frame thread (RISK-1 / MC-1).
-                        let bus = crate::interop::interaction_bus::InteractionBus::get_or_init(ui.ctx());
-                        undo_pane_id = state.undo_pane_id.clone();
-                        Self::apply_frame_input(
-                            ui,
-                            &mut state,
-                            has_focus,
-                            &bus,
-                            &state_arc,
-                            &mut pending_undo_chord,
-                        );
-
-                        // WP-KERNEL-012 MT-033 (E5 — CKC drag-in): a CKC/Atelier item dragged from the atelier
-                        // side panel via the cross-surface [`crate::interop::DragPayload`] channel and RELEASED
-                        // over the editor inserts an inline `hsLink` embed atom (by CKC `refKind`) at the
-                        // caret. The embed is the EXISTING hsLink atom (the MT-014 lesson), so it ROUND-TRIPS
-                        // the backend `content_json` (AC-2) — never an invented node the backend would drop.
-                        // Guard the take with `has_payload_of_type` (the egui take-payload hazard: an unguarded
-                        // `dnd_release_payload::<T>` unconditionally takes-then-downcasts, discarding a payload
-                        // of another type meant for a sibling surface). SKIPPED in reading mode (a read-only
-                        // document accepts no drag-in edits).
-                        if egui::DragAndDrop::has_payload_of_type::<crate::interop::DragPayload>(ui.ctx()) {
-                            if let Some(payload) = surface.dnd_release_payload::<crate::interop::DragPayload>() {
-                                if let Some(link) = payload.to_hs_link() {
-                                    Self::insert_atelier_embed_at_caret(&mut state, link);
-                                    ui.ctx().request_repaint();
-                                }
+                    // WP-KERNEL-012 MT-033 (E5 — CKC drag-in): a CKC/Atelier item dragged from the atelier
+                    // side panel via the cross-surface [`crate::interop::DragPayload`] channel and RELEASED
+                    // over the editor inserts an inline `hsLink` embed atom (by CKC `refKind`) at the
+                    // caret. The embed is the EXISTING hsLink atom (the MT-014 lesson), so it ROUND-TRIPS
+                    // the backend `content_json` (AC-2) — never an invented node the backend would drop.
+                    // Guard the take with `has_payload_of_type` (the egui take-payload hazard: an unguarded
+                    // `dnd_release_payload::<T>` unconditionally takes-then-downcasts, discarding a payload
+                    // of another type meant for a sibling surface). SKIPPED in reading mode (a read-only
+                    // document accepts no drag-in edits).
+                    if egui::DragAndDrop::has_payload_of_type::<crate::interop::DragPayload>(
+                        ui.ctx(),
+                    ) {
+                        if let Some(payload) =
+                            surface.dnd_release_payload::<crate::interop::DragPayload>()
+                        {
+                            if let Some(link) = payload.to_hs_link() {
+                                Self::insert_atelier_embed_at_caret(&mut state, link);
+                                ui.ctx().request_repaint();
                             }
                         }
                     }
+                }
 
-                    // 2) MT-013: the formatting toolbar above the content area, then the
-                    //    blocks below it, stacked vertically (contract step 6:
-                    //    `ui.vertical(|ui| { toolbar.ui(ui); content_area(ui); })`). The
-                    //    toolbar borrows the SAME editor state so a button click dispatches a
-                    //    command directly on it.
-                    //
-                    // WP-KERNEL-012 MT-055: in reading mode the EDITING chrome (properties panel,
-                    // draft banner, formatting toolbar) is SUPPRESSED — a read-only view has no edit
-                    // affordances, and the toolbar emits editable controls that must not appear. The
-                    // BLOCKS still render (the reading presentation), centered into the reading column.
-                    let palette = state.palette(); // re-resolve (theme unchanged, cheap)
-                    ui.vertical(|ui| {
-                        if !read_only {
-                            // MT-017: the document properties panel ABOVE the content (default collapsed).
-                            Self::render_properties(ui, &mut state, &palette);
-                            // MT-020: the draft-recovery banner (only when a recoverable draft is available)
-                            // sits above the toolbar so the operator sees it before editing.
-                            Self::render_draft_banner(ui, &mut state, &palette);
-                            Self::render_toolbar(ui, &mut state);
-                            ui.separator();
-                        }
-                        Self::render_blocks(ui, &mut state, &palette, has_focus, read_only);
-                    });
-
-                    // WP-KERNEL-012 MT-055: the find/replace, save/draft, conflict, and export chrome are
-                    // EDITING surfaces — skipped in reading mode (a read-only document is never saved,
-                    // never has a draft conflict, and exposes no find-in-doc editing surface here).
+                // 2) MT-013: the formatting toolbar above the content area, then the
+                //    blocks below it, stacked vertically (contract step 6:
+                //    `ui.vertical(|ui| { toolbar.ui(ui); content_area(ui); })`). The
+                //    toolbar borrows the SAME editor state so a button click dispatches a
+                //    command directly on it.
+                //
+                // WP-KERNEL-012 MT-055: in reading mode the EDITING chrome (properties panel,
+                // draft banner, formatting toolbar) is SUPPRESSED — a read-only view has no edit
+                // affordances, and the toolbar emits editable controls that must not appear. The
+                // BLOCKS still render (the reading presentation), centered into the reading column.
+                let palette = state.palette(); // re-resolve (theme unchanged, cheap)
+                ui.vertical(|ui| {
                     if !read_only {
-                        // MT-018: render the floating find/replace panel (a top-level egui::Window) when
-                        // open, and apply its outcome (Replace One / Replace All / Close) against the doc
-                        // + undo manager. Rendered after the content so it floats above the blocks; the
-                        // window does not steal editor keyboard focus (HBR-QUIET).
-                        Self::render_find_panel(ui.ctx(), &mut state, &palette);
-
-                        // MT-020: drive the save/draft coordinators (drain completed off-thread results +
-                        // fire the debounced draft upsert), then render the conflict window, the draft
-                        // recovery banner, and the export format picker. All reuse the theme palette + the
-                        // shell accessibility hook. Rendered after the content so the conflict window floats
-                        // above the blocks.
-                        Self::drive_save_and_draft(ui.ctx(), &mut state);
-                        Self::render_conflict_window(ui.ctx(), &mut state, &palette);
-                        Self::render_export_picker(ui, &mut state, &palette);
+                        // MT-017: the document properties panel ABOVE the content (default collapsed).
+                        Self::render_properties(ui, &mut state, &palette);
+                        // MT-020: the draft-recovery banner (only when a recoverable draft is available)
+                        // sits above the toolbar so the operator sees it before editing.
+                        Self::render_draft_banner(ui, &mut state, &palette);
+                        Self::render_toolbar(ui, &mut state);
+                        ui.separator();
                     }
+                    Self::render_blocks(ui, &mut state, &palette, has_focus, read_only);
+                });
 
-                    // WP-KERNEL-012 MT-041 (E7): sync + emit the consolidated `editor.rich.<action>`
-                    // AccessKit nodes and consume any swarm Action::Click dispatched at them THIS frame,
-                    // so a swarm agent's dispatch reaches the editor before the next frame
-                    // (RISK-041-04). A no-op when no registry is installed. Run inside the editor scope
-                    // so the action nodes nest under the editor surface.
-                    //
-                    // WP-KERNEL-012 MT-055: the editor-action surface is the set of EDITING actions
-                    // (bold/italic/find/save/…) — suppressed in reading mode so a swarm agent cannot
-                    // dispatch an edit at a read-only document (RISK-005). The reading-view toggle is the
-                    // ONLY editor-chrome control the reading view exposes; it is mounted by the host
-                    // (E11) outside this widget.
-                    if !read_only {
-                        Self::sync_editor_actions(ui, &mut state);
-                    }
+                // WP-KERNEL-012 MT-055: the find/replace, save/draft, conflict, and export chrome are
+                // EDITING surfaces — skipped in reading mode (a read-only document is never saved,
+                // never has a draft conflict, and exposes no find-in-doc editing surface here).
+                if !read_only {
+                    // MT-018: render the floating find/replace panel (a top-level egui::Window) when
+                    // open, and apply its outcome (Replace One / Replace All / Close) against the doc
+                    // + undo manager. Rendered after the content so it floats above the blocks; the
+                    // window does not steal editor keyboard focus (HBR-QUIET).
+                    Self::render_find_panel(ui.ctx(), &mut state, &palette);
 
-                    // 3) Emit the root AccessKit node (author_id rich-editor-root) onto THIS scope's
-                    //    Ui id so the block nodes nest under it. REUSES the same accesskit_node_builder
-                    //    hook as the shell.
-                    //
-                    // WP-KERNEL-012 MT-055 (AC-003 / RISK-002 / MC-002): in Reading mode the document
-                    // body must NOT advertise an editable text field. AC-10's editable `Role::TextInput`
-                    // container is correct ONLY for the editable path. In read-only mode we instead emit
-                    // `Role::Document` and set the first-class `ReadOnly` flag (accesskit 0.21.1
-                    // lib.rs:1646 — "a text widget that allows focus/selection but not input"), and we
-                    // drop the editable-looking `set_value("{n} blocks")` so a screen reader / swarm
-                    // agent does not see a populated, editable text field for a read-only note.
-                    // WP-KERNEL-012 MT-076 (AC7): while an IME composition is in progress, expose the
-                    // in-progress preedit text in the editable root node's value so a screen reader / swarm
-                    // agent can OBSERVE the composition state (reuses the EXISTING editor AccessKit node —
-                    // no new tree). When idle the value is the unchanged block count. Reading mode never
-                    // composes (input is skipped), so this only affects the editable path.
-                    let root_node_id = ui.unique_id();
-                    let value = if state.preedit.is_active() {
-                        format!(
-                            "{} blocks (composing: {})",
-                            state.doc.children.len(),
-                            state.preedit.text
-                        )
+                    // MT-020: drive the save/draft coordinators (drain completed off-thread results +
+                    // fire the debounced draft upsert), then render the conflict window, the draft
+                    // recovery banner, and the export format picker. All reuse the theme palette + the
+                    // shell accessibility hook. Rendered after the content so the conflict window floats
+                    // above the blocks.
+                    Self::drive_save_and_draft(ui.ctx(), &mut state);
+                    Self::render_conflict_window(ui.ctx(), &mut state, &palette);
+                    Self::render_export_picker(ui, &mut state, &palette);
+                }
+
+                // WP-KERNEL-012 MT-041 (E7): sync + emit the consolidated `editor.rich.<action>`
+                // AccessKit nodes and consume any swarm Action::Click dispatched at them THIS frame,
+                // so a swarm agent's dispatch reaches the editor before the next frame
+                // (RISK-041-04). A no-op when no registry is installed. Run inside the editor scope
+                // so the action nodes nest under the editor surface.
+                //
+                // WP-KERNEL-012 MT-055: the editor-action surface is the set of EDITING actions
+                // (bold/italic/find/save/…) — suppressed in reading mode so a swarm agent cannot
+                // dispatch an edit at a read-only document (RISK-005). The reading-view toggle is the
+                // ONLY editor-chrome control the reading view exposes; it is mounted by the host
+                // (E11) outside this widget.
+                if !read_only {
+                    Self::sync_editor_actions(ui, &mut state);
+                }
+
+                // 3) Emit the root AccessKit node (author_id rich-editor-root) onto THIS scope's
+                //    Ui id so the block nodes nest under it. REUSES the same accesskit_node_builder
+                //    hook as the shell.
+                //
+                // WP-KERNEL-012 MT-055 (AC-003 / RISK-002 / MC-002): in Reading mode the document
+                // body must NOT advertise an editable text field. AC-10's editable `Role::TextInput`
+                // container is correct ONLY for the editable path. In read-only mode we instead emit
+                // `Role::Document` and set the first-class `ReadOnly` flag (accesskit 0.21.1
+                // lib.rs:1646 — "a text widget that allows focus/selection but not input"), and we
+                // drop the editable-looking `set_value("{n} blocks")` so a screen reader / swarm
+                // agent does not see a populated, editable text field for a read-only note.
+                // WP-KERNEL-012 MT-076 (AC7): while an IME composition is in progress, expose the
+                // in-progress preedit text in the editable root node's value so a screen reader / swarm
+                // agent can OBSERVE the composition state (reuses the EXISTING editor AccessKit node —
+                // no new tree). When idle the value is the unchanged block count. Reading mode never
+                // composes (input is skipped), so this only affects the editable path.
+                let root_node_id = ui.unique_id();
+                let value = if state.preedit.is_active() {
+                    format!(
+                        "{} blocks (composing: {})",
+                        state.doc.children.len(),
+                        state.preedit.text
+                    )
+                } else {
+                    format!("{} blocks", state.doc.children.len())
+                };
+                ui.ctx().accesskit_node_builder(root_node_id, move |node| {
+                    node.set_author_id(RICH_EDITOR_ROOT_AUTHOR_ID.to_owned());
+                    node.set_label("Rich text editor".to_owned());
+                    if read_only {
+                        node.set_role(accesskit::Role::Document);
+                        node.set_read_only();
                     } else {
-                        format!("{} blocks", state.doc.children.len())
-                    };
-                    ui.ctx().accesskit_node_builder(root_node_id, move |node| {
-                        node.set_author_id(RICH_EDITOR_ROOT_AUTHOR_ID.to_owned());
-                        node.set_label("Rich text editor".to_owned());
-                        if read_only {
-                            node.set_role(accesskit::Role::Document);
-                            node.set_read_only();
-                        } else {
-                            node.set_role(ROOT_ROLE);
-                            node.set_value(value.clone());
-                        }
-                    });
+                        node.set_role(ROOT_ROLE);
+                        node.set_value(value.clone());
+                        node.add_action(accesskit::Action::Focus);
+                    }
+                });
 
-                    surface
-                },
-            )
+                surface
+            })
             .inner;
 
         // MT-035 (E5 — unified undo): now that the per-frame state guard is dropped, route any decoded
@@ -1020,7 +1062,9 @@ impl RichEditorWidget {
                 if let Some(draft) = s.draft.as_mut() {
                     draft.mark_dirty(std::time::Instant::now());
                 }
-                let RichEditorState { doc, find_replace, .. } = &mut *s;
+                let RichEditorState {
+                    doc, find_replace, ..
+                } = &mut *s;
                 if let Some(panel) = find_replace.as_mut() {
                     panel.rescan(doc);
                 }
@@ -1062,7 +1106,10 @@ impl RichEditorWidget {
         // the autocomplete claim, this runs BEFORE the focus gate so Escape is not swallowed when egui
         // releases focus in the same frame. The claimed keys are removed before the editing path runs.
         if state.wikilink_autocomplete.is_none()
-            && state.slash_menu.as_ref().is_some_and(|m| !m.prompt_active())
+            && state
+                .slash_menu
+                .as_ref()
+                .is_some_and(|m| !m.prompt_active())
         {
             events = Self::handle_slash_menu_keys(state, events);
         }
@@ -1130,7 +1177,14 @@ impl RichEditorWidget {
         // input decoder applied at its position.
         for ev in &events {
             if let egui::Event::Ime(ime) = ev {
-                let RichEditorState { doc, selection, undo, preedit, actor_id, .. } = state;
+                let RichEditorState {
+                    doc,
+                    selection,
+                    undo,
+                    preedit,
+                    actor_id,
+                    ..
+                } = state;
                 let mut ctx = ImeContext {
                     doc,
                     selection,
@@ -1149,7 +1203,13 @@ impl RichEditorWidget {
         let in_list = input_handler::caret_in_list(&state.doc, &state.selection);
         let fmt_cmds = input_handler::decode_formatting_commands(&events, in_list);
         for cmd in &fmt_cmds {
-            let RichEditorState { doc, selection, undo, actor_id, .. } = state;
+            let RichEditorState {
+                doc,
+                selection,
+                undo,
+                actor_id,
+                ..
+            } = state;
             let mut ctx = EditContext {
                 doc,
                 selection,
@@ -1168,7 +1228,13 @@ impl RichEditorWidget {
         // MT-020 dirty-mark below can read it (the loop moves `actions` into `into_iter`).
         let any_edit = !actions.is_empty() || !fmt_cmds.is_empty();
         if !actions.is_empty() {
-            let RichEditorState { doc, selection, undo, actor_id, .. } = state;
+            let RichEditorState {
+                doc,
+                selection,
+                undo,
+                actor_id,
+                ..
+            } = state;
             let mut ctx = EditContext {
                 doc,
                 selection,
@@ -1224,7 +1290,9 @@ impl RichEditorWidget {
         // (the React "recompute on every document change"). Any typing/delete/undo this frame may
         // have mutated the doc, so the scan + the active-index clamp are refreshed here. This is a
         // synchronous in-memory walk (no spinner, no async); the panel renders only when open.
-        let RichEditorState { doc, find_replace, .. } = state;
+        let RichEditorState {
+            doc, find_replace, ..
+        } = state;
         if let Some(panel) = find_replace.as_mut() {
             panel.rescan(doc);
         }
@@ -1255,7 +1323,13 @@ impl RichEditorWidget {
         let mut decided: Option<UndoChord> = None;
         let mut remaining = Vec::with_capacity(events.len());
         for ev in events {
-            if let egui::Event::Key { key, pressed: true, modifiers, .. } = &ev {
+            if let egui::Event::Key {
+                key,
+                pressed: true,
+                modifiers,
+                ..
+            } = &ev
+            {
                 let ctrl = modifiers.command || modifiers.ctrl;
                 if ctrl && !modifiers.alt {
                     match key {
@@ -1308,8 +1382,10 @@ impl RichEditorWidget {
             // directly (no re-lock). scope=local — this is the focused-pane local-first Ctrl+Z/Ctrl+Y
             // ring (POLICY-1). The emit is a no-op until the shell installs the emitter (defer policy).
             if fired {
-                let workspace_id =
-                    b.event_emitter().map(|e| e.workspace_id().to_owned()).unwrap_or_default();
+                let workspace_id = b
+                    .event_emitter()
+                    .map(|e| e.workspace_id().to_owned())
+                    .unwrap_or_default();
                 let ev = crate::event_emitter::NativeEditorEvent::undo_fired(
                     crate::event_emitter::UndoScope::Local,
                     pane_id.as_ref(),
@@ -1336,7 +1412,9 @@ impl RichEditorWidget {
         before: serde_json::Value,
         after: serde_json::Value,
     ) {
-        use crate::rich_editor::interop_adapter::{push_or_coalesce_rich_edit_undo, RichSnapshotApplier};
+        use crate::rich_editor::interop_adapter::{
+            push_or_coalesce_rich_edit_undo, RichSnapshotApplier,
+        };
 
         let Some(pane_id) = state.undo_pane_id.clone() else {
             return; // not mounted; the bus undo wiring is inert (never faked).
@@ -1348,21 +1426,24 @@ impl RichEditorWidget {
             state.undo_batch_before = Some(before.clone());
             before.clone()
         } else {
-            state.undo_batch_before.clone().unwrap_or_else(|| before.clone())
+            state
+                .undo_batch_before
+                .clone()
+                .unwrap_or_else(|| before.clone())
         };
 
         // The applier the bus closures call to write a snapshot back into the live document. It rebuilds
         // the doc tree from content_json (the verified MT-011 round-trip), resets the caret, and resets
         // the parallel UndoManager so it cannot fight the bus (ONE authority).
-        let restore: RichSnapshotApplier<RichEditorState> = Arc::new(|s: &mut RichEditorState, snap| {
-            if let Ok(doc) =
-                crate::rich_editor::document_model::doc_json::from_json_value(snap)
-            {
-                s.doc = doc;
-                s.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
-                s.undo = UndoManager::new();
-            }
-        });
+        let restore: RichSnapshotApplier<RichEditorState> =
+            Arc::new(|s: &mut RichEditorState, snap| {
+                if let Ok(doc) = crate::rich_editor::document_model::doc_json::from_json_value(snap)
+                {
+                    s.doc = doc;
+                    s.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
+                    s.undo = UndoManager::new();
+                }
+            });
 
         // The entry captures a `Weak<Mutex<RichEditorState>>` to the SHARED state Arc the widget owns
         // (RISK-3 / MC-3): it upgrades only during a bus-driven undo/redo and writes the snapshot back.
@@ -1437,7 +1518,11 @@ impl RichEditorWidget {
                 AxRole::Button,
                 "Find panel",
                 if find_open {
-                    EditorActionState { present: true, enabled: false, checked: None }
+                    EditorActionState {
+                        present: true,
+                        enabled: false,
+                        checked: None,
+                    }
                 } else {
                     EditorActionState::absent()
                 },
@@ -1476,10 +1561,19 @@ impl RichEditorWidget {
         // Find-step / replace / find-toggle nodes are present ONLY while the find panel is open.
         let find_scoped = matches!(
             entry.action_id,
-            "find-next" | "find-prev" | "find-toggle-case" | "find-toggle-word" | "find-toggle-regex"
-                | "replace-one" | "replace-all"
+            "find-next"
+                | "find-prev"
+                | "find-toggle-case"
+                | "find-toggle-word"
+                | "find-toggle-regex"
+                | "replace-one"
+                | "replace-all"
         );
-        let present = if find_scoped { find_open } else { entry.always_present };
+        let present = if find_scoped {
+            find_open
+        } else {
+            entry.always_present
+        };
         if !present {
             return EditorActionState::absent();
         }
@@ -1487,7 +1581,11 @@ impl RichEditorWidget {
         // rejected by the MCP channel rather than silently mis-applied (typed limitation, no mock).
         let enabled = !rich_heading_is_unsupported(entry.action_id);
         match entry.role {
-            AxRole::Button => EditorActionState { present, enabled, checked: None },
+            AxRole::Button => EditorActionState {
+                present,
+                enabled,
+                checked: None,
+            },
             AxRole::ToggleButton => {
                 let checked = Some(match entry.action_id {
                     "format-bold" => bold,
@@ -1498,7 +1596,11 @@ impl RichEditorWidget {
                     "find-toggle-regex" => fc_regex,
                     _ => false,
                 });
-                EditorActionState { present, enabled, checked }
+                EditorActionState {
+                    present,
+                    enabled,
+                    checked,
+                }
             }
         }
     }
@@ -1531,7 +1633,13 @@ impl RichEditorWidget {
                     tracing::debug!(action_id, "rich heading >3 unsupported by the model; no-op");
                     return;
                 }
-                let RichEditorState { doc, undo, selection, actor_id, .. } = state;
+                let RichEditorState {
+                    doc,
+                    undo,
+                    selection,
+                    actor_id,
+                    ..
+                } = state;
                 let mut cctx = CommandContext::new(doc, undo, selection, actor_id.as_str());
                 let _ = commands::dispatch(&mut cctx, cmd);
             }
@@ -1554,7 +1662,13 @@ impl RichEditorWidget {
                 }
             }
             RichDispatch::ReplaceOne => {
-                let RichEditorState { doc, undo, selection, find_replace, .. } = state;
+                let RichEditorState {
+                    doc,
+                    undo,
+                    selection,
+                    find_replace,
+                    ..
+                } = state;
                 if let Some(f) = find_replace.as_mut() {
                     if let Some(active) = f.active.and_then(|i| f.scan.matches.get(i).cloned()) {
                         let repl = f.replacement.clone();
@@ -1564,7 +1678,13 @@ impl RichEditorWidget {
                 }
             }
             RichDispatch::ReplaceAll => {
-                let RichEditorState { doc, undo, selection, find_replace, .. } = state;
+                let RichEditorState {
+                    doc,
+                    undo,
+                    selection,
+                    find_replace,
+                    ..
+                } = state;
                 if let Some(f) = find_replace.as_mut() {
                     let matches = f.scan.matches.clone();
                     let repl = f.replacement.clone();
@@ -1600,15 +1720,15 @@ impl RichEditorWidget {
                 // surface the `/` trigger opens). The caret's leaf path + char offset anchor it.
                 if state.slash_menu.is_none() {
                     if let crate::rich_editor::document_model::selection::Selection::Text {
-                        head, ..
+                        head,
+                        ..
                     } = &state.selection
                     {
-                        state.slash_menu = Some(
-                            crate::rich_editor::slash_commands::SlashMenuState::open(
+                        state.slash_menu =
+                            Some(crate::rich_editor::slash_commands::SlashMenuState::open(
                                 head.path.clone(),
                                 head.char_offset,
-                            ),
-                        );
+                            ));
                         ctx.request_repaint();
                     }
                 }
@@ -1641,7 +1761,9 @@ impl RichEditorWidget {
                     // The canonical save landed: clear the server draft + re-base the draft manager on
                     // the just-saved content + version (so a later edit's draft bases correctly).
                     let saved_content =
-                        crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+                        crate::rich_editor::document_model::doc_json::to_content_json_value(
+                            &state.doc,
+                        );
                     // MT-036 (E5 — one event ledger): emit a REAL `document_saved` FlightEvent at this
                     // LIVE save-success call site (the MT-020 path that exists + is tested). The content
                     // hash is recomputed locally via the MT-032 canonical writer (matches the backend's
@@ -1650,8 +1772,11 @@ impl RichEditorWidget {
                     // the frame thread + bounded via the bus's installed emitter (a no-op until the shell
                     // installs the emitter — the unmounted-pane defer policy).
                     if let Some(pane_id) = state.undo_pane_id.clone() {
-                        let document_id =
-                            state.save.as_ref().map(|s| s.document_id().to_owned()).unwrap_or_default();
+                        let document_id = state
+                            .save
+                            .as_ref()
+                            .map(|s| s.document_id().to_owned())
+                            .unwrap_or_default();
                         if !document_id.is_empty() {
                             let content_hash =
                                 crate::loom_address::ContentHash::of_content_json(&saved_content)
@@ -1659,18 +1784,24 @@ impl RichEditorWidget {
                                     .to_owned();
                             let bus =
                                 crate::interop::interaction_bus::InteractionBus::get_or_init(ctx);
-                            crate::interop::interaction_bus::InteractionBus::with_try_lock(&bus, |b| {
-                                let ev = crate::event_emitter::NativeEditorEvent::document_saved(
-                                    document_id,
-                                    content_hash,
-                                    pane_id.as_ref(),
-                                    crate::event_emitter::native_editor_actor_id(pane_id.as_ref()),
-                                    b.event_emitter()
-                                        .map(|e| e.workspace_id().to_owned())
-                                        .unwrap_or_default(),
-                                );
-                                b.emit_event(ev);
-                            });
+                            crate::interop::interaction_bus::InteractionBus::with_try_lock(
+                                &bus,
+                                |b| {
+                                    let ev =
+                                        crate::event_emitter::NativeEditorEvent::document_saved(
+                                            document_id,
+                                            content_hash,
+                                            pane_id.as_ref(),
+                                            crate::event_emitter::native_editor_actor_id(
+                                                pane_id.as_ref(),
+                                            ),
+                                            b.event_emitter()
+                                                .map(|e| e.workspace_id().to_owned())
+                                                .unwrap_or_default(),
+                                        );
+                                    b.emit_event(ev);
+                                },
+                            );
                         }
                     }
                     if let Some(draft) = state.draft.as_mut() {
@@ -1729,11 +1860,17 @@ impl RichEditorWidget {
     /// MT-020: render the conflict window when a save conflict is open, and apply the operator's
     /// choice against the save manager + doc. "Keep server" rebuilds the live doc from the server
     /// content; "Keep yours" routes through the MC-003 confirmation before the overwrite.
-    fn render_conflict_window(ctx: &egui::Context, state: &mut RichEditorState, palette: &HsPalette) {
-        use crate::rich_editor::save::conflict_ui::{show_conflict_window, ConflictOutcome};
+    fn render_conflict_window(
+        ctx: &egui::Context,
+        state: &mut RichEditorState,
+        palette: &HsPalette,
+    ) {
         use crate::rich_editor::document_model::doc_json::from_json_value;
+        use crate::rich_editor::save::conflict_ui::{show_conflict_window, ConflictOutcome};
 
-        let Some(save) = state.save.as_ref() else { return };
+        let Some(save) = state.save.as_ref() else {
+            return;
+        };
         if !save.has_conflict() {
             return;
         }
@@ -1749,7 +1886,9 @@ impl RichEditorWidget {
                 if let Some(s) = state.save.as_mut() {
                     // Re-thread the live content as the overwrite payload, then confirm.
                     let content =
-                        crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+                        crate::rich_editor::document_model::doc_json::to_content_json_value(
+                            &state.doc,
+                        );
                     s.set_pending_local_content(content);
                     s.confirm_keep_yours();
                 }
@@ -1766,8 +1905,7 @@ impl RichEditorWidget {
                 if let Some(content) = server_content {
                     if let Ok(doc) = from_json_value(&content) {
                         state.doc = doc;
-                        state.selection =
-                            Selection::caret(DocPosition::new(vec![0, 0], 0));
+                        state.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
                         state.undo = UndoManager::new();
                     }
                 }
@@ -1779,10 +1917,12 @@ impl RichEditorWidget {
     /// apply the operator's choice. "Restore draft" rebuilds the live doc from the draft content;
     /// "Discard" clears the server draft; "Keep editing" dismisses the banner without discarding.
     fn render_draft_banner(ui: &mut egui::Ui, state: &mut RichEditorState, palette: &HsPalette) {
-        use crate::rich_editor::save::conflict_ui::{show_draft_banner, DraftBannerOutcome};
         use crate::rich_editor::document_model::doc_json::from_json_value;
+        use crate::rich_editor::save::conflict_ui::{show_draft_banner, DraftBannerOutcome};
 
-        let Some(draft) = state.draft.as_ref() else { return };
+        let Some(draft) = state.draft.as_ref() else {
+            return;
+        };
         if !draft.banner_visible() {
             return;
         }
@@ -1897,12 +2037,18 @@ impl RichEditorWidget {
     /// Up/Down (move selection), Enter/Tab (confirm the selected result -> insert the hsLink atom),
     /// and Escape (cancel -> remove the `[[` trigger text). Returns the events that were NOT claimed
     /// by the popup (so the normal editing path still handles plain typing that refines the query).
-    fn handle_autocomplete_keys(state: &mut RichEditorState, events: Vec<egui::Event>) -> Vec<egui::Event> {
+    fn handle_autocomplete_keys(
+        state: &mut RichEditorState,
+        events: Vec<egui::Event>,
+    ) -> Vec<egui::Event> {
         use crate::rich_editor::wikilinks::confirm;
 
         let mut remaining = Vec::with_capacity(events.len());
         for ev in events {
-            let egui::Event::Key { key, pressed: true, .. } = &ev else {
+            let egui::Event::Key {
+                key, pressed: true, ..
+            } = &ev
+            else {
                 remaining.push(ev);
                 continue;
             };
@@ -1937,7 +2083,14 @@ impl RichEditorWidget {
                     if let Some((leaf_path, trigger_start, link)) = confirmed {
                         let caret_char = Self::caret_char_offset(state);
                         let RichEditorState { doc, selection, .. } = state;
-                        confirm::confirm_wikilink(doc, selection, &leaf_path, trigger_start, caret_char, link);
+                        confirm::confirm_wikilink(
+                            doc,
+                            selection,
+                            &leaf_path,
+                            trigger_start,
+                            caret_char,
+                            link,
+                        );
                     }
                     // Close the popup whether or not a result was selected (Enter on an empty popup
                     // just closes it; the typed `[[` text is left as plain text).
@@ -1948,7 +2101,13 @@ impl RichEditorWidget {
                     if let Some(ac) = state.wikilink_autocomplete.take() {
                         let caret_char = Self::caret_char_offset(state);
                         let RichEditorState { doc, selection, .. } = state;
-                        confirm::cancel_wikilink(doc, selection, &ac.leaf_path, ac.trigger_start_char, caret_char);
+                        confirm::cancel_wikilink(
+                            doc,
+                            selection,
+                            &ac.leaf_path,
+                            ac.trigger_start_char,
+                            caret_char,
+                        );
                     }
                 }
                 // Any other key (plain typing, backspace) passes through to the normal editing path,
@@ -1975,13 +2134,19 @@ impl RichEditorWidget {
             Some((trigger_start_char, query)) => {
                 match state.wikilink_autocomplete.as_mut() {
                     // Same open token in the same leaf -> update the query (debounce + generation).
-                    Some(ac) if ac.leaf_path == leaf_path && ac.trigger_start_char == trigger_start_char => {
+                    Some(ac)
+                        if ac.leaf_path == leaf_path
+                            && ac.trigger_start_char == trigger_start_char =>
+                    {
                         ac.set_query(query);
                     }
                     // A new/relocated trigger -> open a fresh popup.
                     _ => {
-                        state.wikilink_autocomplete =
-                            Some(AutocompleteState::open(trigger_start_char, leaf_path, query));
+                        state.wikilink_autocomplete = Some(AutocompleteState::open(
+                            trigger_start_char,
+                            leaf_path,
+                            query,
+                        ));
                     }
                 }
             }
@@ -2032,8 +2197,11 @@ impl RichEditorWidget {
                     }
                     // A new/relocated trigger -> open a fresh menu.
                     _ => {
-                        state.tag_autocomplete =
-                            Some(TagAutocompleteState::open(trigger_start_char, leaf_path, query));
+                        state.tag_autocomplete = Some(TagAutocompleteState::open(
+                            trigger_start_char,
+                            leaf_path,
+                            query,
+                        ));
                     }
                 }
             }
@@ -2049,12 +2217,18 @@ impl RichEditorWidget {
     /// remove the `#query` trigger text). Returns the events NOT claimed by the menu (plain typing that
     /// refines the filter passes through). The menu item source is the cached MT-023 tag list filtered
     /// by the live query, ALWAYS allowing a free-typed NEW tag (AC-006).
-    fn handle_tag_menu_keys(state: &mut RichEditorState, events: Vec<egui::Event>) -> Vec<egui::Event> {
+    fn handle_tag_menu_keys(
+        state: &mut RichEditorState,
+        events: Vec<egui::Event>,
+    ) -> Vec<egui::Event> {
         use crate::rich_editor::inline_tags::tag_menu_items;
 
         let mut remaining = Vec::with_capacity(events.len());
         for ev in events {
-            let egui::Event::Key { key, pressed: true, .. } = &ev else {
+            let egui::Event::Key {
+                key, pressed: true, ..
+            } = &ev
+            else {
                 remaining.push(ev);
                 continue;
             };
@@ -2113,17 +2287,14 @@ impl RichEditorWidget {
         let items = tag_menu_items(&ac.query, &state.tag_list);
         // The selected row, or — when the list is empty (no existing match + an empty/invalid query) —
         // a free-typed tag from the raw query (so Enter on a typed `#wip` with no list still commits).
-        let chosen: Option<TagMenuItem> = items
-            .get(ac.selected)
-            .cloned()
-            .or_else(|| {
-                let q = ac.query.trim();
-                if q.is_empty() {
-                    None
-                } else {
-                    Some(TagMenuItem::new_tag(q))
-                }
-            });
+        let chosen: Option<TagMenuItem> = items.get(ac.selected).cloned().or_else(|| {
+            let q = ac.query.trim();
+            if q.is_empty() {
+                None
+            } else {
+                Some(TagMenuItem::new_tag(q))
+            }
+        });
         let Some(item) = chosen else {
             // Nothing to commit (empty query, no rows): just close the menu, leave the `#` as text.
             state.tag_autocomplete = None;
@@ -2206,7 +2377,11 @@ impl RichEditorWidget {
                     None => return false,
                 }
             }
-            match node.children.get_mut(*leaf_idx).and_then(Child::as_text_mut) {
+            match node
+                .children
+                .get_mut(*leaf_idx)
+                .and_then(Child::as_text_mut)
+            {
                 Some(leaf) => {
                     let len = leaf.text.len_chars();
                     let split = caret_char.min(len);
@@ -2250,7 +2425,11 @@ impl RichEditorWidget {
             node.children
                 .insert(trailing_idx, Child::Text(TextLeaf::new(&trailing_text)));
         } else if !trailing_text.is_empty() {
-            if let Some(leaf) = node.children.get_mut(trailing_idx).and_then(Child::as_text_mut) {
+            if let Some(leaf) = node
+                .children
+                .get_mut(trailing_idx)
+                .and_then(Child::as_text_mut)
+            {
                 leaf.text.insert(0, &trailing_text);
             }
         }
@@ -2268,7 +2447,9 @@ impl RichEditorWidget {
     /// no text caret is active. `None` when the doc has no inline-content block with a text leaf.
     fn first_inline_leaf_path(doc: &BlockNode) -> Option<(Vec<usize>, usize)> {
         for (bi, child) in doc.children.iter().enumerate() {
-            let Some(block) = child.as_block() else { continue };
+            let Some(block) = child.as_block() else {
+                continue;
+            };
             if !block.kind.holds_inline_content() {
                 continue;
             }
@@ -2287,14 +2468,20 @@ impl RichEditorWidget {
     /// (closing the menu and leaving the `/` in the text — AC-5). Returns the events NOT claimed (so
     /// plain typing that refines the filter still reaches the editing path, and the filter is then
     /// re-detected by [`Self::refresh_slash_trigger`]).
-    fn handle_slash_menu_keys(state: &mut RichEditorState, events: Vec<egui::Event>) -> Vec<egui::Event> {
+    fn handle_slash_menu_keys(
+        state: &mut RichEditorState,
+        events: Vec<egui::Event>,
+    ) -> Vec<egui::Event> {
         use crate::rich_editor::slash_commands::menu::SlashMenuOutcome;
         use crate::rich_editor::slash_commands::registry::filter_slash_commands;
 
         let mut remaining = Vec::with_capacity(events.len());
         let mut decisive: SlashMenuOutcome = SlashMenuOutcome::None;
         for ev in events {
-            let egui::Event::Key { key, pressed: true, .. } = &ev else {
+            let egui::Event::Key {
+                key, pressed: true, ..
+            } = &ev
+            else {
                 remaining.push(ev);
                 continue;
             };
@@ -2304,7 +2491,11 @@ impl RichEditorWidget {
                         let filtered = filter_slash_commands(&menu.filter);
                         if !filtered.is_empty() {
                             let max = filtered.len() as i64 - 1;
-                            let delta = if matches!(key, egui::Key::ArrowDown) { 1 } else { -1 };
+                            let delta = if matches!(key, egui::Key::ArrowDown) {
+                                1
+                            } else {
+                                -1
+                            };
                             let cur = (menu.selected as i64).min(max);
                             menu.selected = (cur + delta).clamp(0, max) as usize;
                         }
@@ -2314,7 +2505,8 @@ impl RichEditorWidget {
                     if let Some(menu) = state.slash_menu.as_ref() {
                         let filtered = filter_slash_commands(&menu.filter);
                         if !filtered.is_empty() {
-                            decisive = SlashMenuOutcome::Execute(menu.selected.min(filtered.len() - 1));
+                            decisive =
+                                SlashMenuOutcome::Execute(menu.selected.min(filtered.len() - 1));
                         } else {
                             decisive = SlashMenuOutcome::Cancel;
                         }
@@ -2349,14 +2541,22 @@ impl RichEditorWidget {
         };
         use crate::rich_editor::slash_commands::registry::filter_slash_commands;
 
-        let Some(menu) = state.slash_menu.clone() else { return };
+        let Some(menu) = state.slash_menu.clone() else {
+            return;
+        };
         let filtered = filter_slash_commands(&menu.filter);
         let Some(cmd) = filtered.get(filtered_index).copied() else {
             state.slash_menu = None;
             return;
         };
         let outcome = {
-            let RichEditorState { doc, selection, undo, actor_id, .. } = state;
+            let RichEditorState {
+                doc,
+                selection,
+                undo,
+                actor_id,
+                ..
+            } = state;
             let mut ctx = SlashExecContext {
                 doc,
                 history: undo,
@@ -2452,8 +2652,9 @@ impl RichEditorWidget {
         creating: bool,
     ) -> Option<crate::rich_editor::wikilinks::inline_view::EditorEvent> {
         use crate::rich_editor::wikilinks::inline_view::{
-            chip_author_id, chip_rect_for_span, code_ref_chip_author_id, create_affordance_author_id,
-            is_code_ref, is_locus_ref, locus_ref_chip_author_id, EditorEvent, CHIP_ROLE,
+            chip_author_id, chip_rect_for_span, code_ref_chip_author_id,
+            create_affordance_author_id, is_code_ref, is_locus_ref, locus_ref_chip_author_id,
+            EditorEvent, CHIP_ROLE,
         };
 
         let rect = chip_rect_for_span(spec.local_start, spec.local_end, origin);
@@ -2617,7 +2818,8 @@ impl RichEditorWidget {
                     // surface); a headless test injects a mock via a direct `PropertiesPanel` call.
                     let clipboard = EguiClipboard::new(ui.ctx().clone());
                     let props = state.properties.as_mut().expect("checked is_some");
-                    PropertiesPanel::new(props, &mut state.properties_runtime, &clipboard, palette).show(ui);
+                    PropertiesPanel::new(props, &mut state.properties_runtime, &clipboard, palette)
+                        .show(ui);
                 } else {
                     // Honest empty state — no document metadata loaded yet. NOT a spinner (the panel
                     // only loads metadata when the shell installs the context).
@@ -2630,9 +2832,10 @@ impl RichEditorWidget {
         // collapse control its own id (`properties-header`) distinct from the content container
         // (`properties-panel`, emitted on the grid in panel.rs) so a swarm agent can expand/collapse the
         // panel by a stable key without ambiguity.
-        ui.ctx().accesskit_node_builder(header.header_response.id, move |node| {
-            node.set_author_id("properties-header".to_owned());
-        });
+        ui.ctx()
+            .accesskit_node_builder(header.header_response.id, move |node| {
+                node.set_author_id("properties-header".to_owned());
+            });
     }
 
     /// MT-018: render the find/replace panel (when open) and apply its outcome. The panel is a pure
@@ -2668,7 +2871,12 @@ impl RichEditorWidget {
                 // then re-scan and advance to the next match (the React "keep going" behavior).
                 let index = panel.active.unwrap_or(0);
                 if let Some(m) = panel.scan.matches.get(index).cloned() {
-                    let RichEditorState { doc, undo, selection, .. } = state;
+                    let RichEditorState {
+                        doc,
+                        undo,
+                        selection,
+                        ..
+                    } = state;
                     let replaced = replace_one(doc, undo, selection, &m, &panel.replacement);
                     if replaced {
                         panel.rescan(&state.doc);
@@ -2686,7 +2894,12 @@ impl RichEditorWidget {
             PanelOutcome::ReplaceAll => {
                 let matches = panel.scan.matches.clone();
                 {
-                    let RichEditorState { doc, undo, selection, .. } = state;
+                    let RichEditorState {
+                        doc,
+                        undo,
+                        selection,
+                        ..
+                    } = state;
                     let _n = replace_all(doc, undo, selection, &matches, &panel.replacement);
                 }
                 panel.rescan(&state.doc); // the doc changed -> the matches are gone (no active match).
@@ -2714,7 +2927,13 @@ impl RichEditorWidget {
     fn render_toolbar(ui: &mut egui::Ui, state: &mut RichEditorState) {
         ui.horizontal(|ui| {
             {
-                let RichEditorState { doc, selection, undo, actor_id, .. } = state;
+                let RichEditorState {
+                    doc,
+                    selection,
+                    undo,
+                    actor_id,
+                    ..
+                } = state;
                 let cctx = crate::rich_editor::formatting::commands::CommandContext::new(
                     doc,
                     undo,
@@ -2775,7 +2994,11 @@ impl RichEditorWidget {
         // search results into their caches BEFORE rendering, with generation-counter cancellation
         // (MC-004). Then, while a popup is open, issue the debounced search (MC-002).
         let mut wikilink_applied = state.wikilinks.drain();
-        if state.wikilinks.autocomplete.drain(&mut state.wikilink_autocomplete) {
+        if state
+            .wikilinks
+            .autocomplete
+            .drain(&mut state.wikilink_autocomplete)
+        {
             wikilink_applied = true;
         }
         // WP-KERNEL-012 MT-057: drain a completed create-from-unresolved. On success the runtime already
@@ -2785,7 +3008,12 @@ impl RichEditorWidget {
         // the link unresolved (no silent success).
         if let Some(outcome) = state.wikilinks.drain_create() {
             use crate::rich_editor::wikilinks::runtime::CreateNoteOutcome;
-            if let CreateNoteOutcome::Created { normalized_title, display_title, document_id } = outcome {
+            if let CreateNoteOutcome::Created {
+                normalized_title,
+                display_title,
+                document_id,
+            } = outcome
+            {
                 crate::rich_editor::wikilinks::confirm::rewrite_mark_to_resolved(
                     &mut state.doc,
                     &normalized_title,
@@ -2798,9 +3026,13 @@ impl RichEditorWidget {
         if let Some(ac) = state.wikilink_autocomplete.as_mut() {
             // The autocomplete runtime lives inside the wikilink runtime; borrow it to issue the
             // debounced search for the current query (no-op until the 150ms window elapses).
-            state.wikilinks.autocomplete.maybe_search(ac, std::time::Instant::now());
+            state
+                .wikilinks
+                .autocomplete
+                .maybe_search(ac, std::time::Instant::now());
             // Keep animating so the debounce fires on a later frame even without new input.
-            ui.ctx().request_repaint_after(std::time::Duration::from_millis(60));
+            ui.ctx()
+                .request_repaint_after(std::time::Duration::from_millis(60));
         }
         if wikilink_applied {
             ui.ctx().request_repaint();
@@ -2851,7 +3083,11 @@ impl RichEditorWidget {
         use crate::rich_editor::reading_mode::{
             READING_COLUMN_WIDTH_PTS, READING_EXTRA_BLOCK_SPACING_PTS,
         };
-        let extra_block_gap = if read_only { READING_EXTRA_BLOCK_SPACING_PTS } else { 0.0 };
+        let extra_block_gap = if read_only {
+            READING_EXTRA_BLOCK_SPACING_PTS
+        } else {
+            0.0
+        };
 
         let caret_galley_out = egui::ScrollArea::vertical()
             .id_salt("rich-editor-scroll")
@@ -3188,11 +3424,21 @@ impl RichEditorWidget {
     /// [`insert_code_ref_atom`](crate::rich_editor::slash_commands::executor::insert_code_ref_atom) and
     /// closes the dialog; a Cancel closes it without inserting. The insert is the SAME inline-atom path
     /// the embed/wikilink confirms use, so the code-ref round-trips `content_json` (AC-1).
-    fn drive_code_symbol_search(ui: &mut egui::Ui, state: &mut RichEditorState, palette: &HsPalette) {
-        use crate::rich_editor::slash_commands::executor::{insert_code_ref_atom, SlashExecContext};
-        use crate::rich_editor::slash_commands::{render_code_symbol_search_dialog, CodeSymbolSearchOutcome};
+    fn drive_code_symbol_search(
+        ui: &mut egui::Ui,
+        state: &mut RichEditorState,
+        palette: &HsPalette,
+    ) {
+        use crate::rich_editor::slash_commands::executor::{
+            insert_code_ref_atom, SlashExecContext,
+        };
+        use crate::rich_editor::slash_commands::{
+            render_code_symbol_search_dialog, CodeSymbolSearchOutcome,
+        };
 
-        let Some(dialog) = state.code_symbol_search.as_mut() else { return };
+        let Some(dialog) = state.code_symbol_search.as_mut() else {
+            return;
+        };
         // Drain the off-thread lookup result; request a repaint so a just-delivered result shows.
         if dialog.drain() {
             ui.ctx().request_repaint();
@@ -3206,8 +3452,17 @@ impl RichEditorWidget {
             CodeSymbolSearchOutcome::Cancelled => {
                 state.code_symbol_search = None;
             }
-            CodeSymbolSearchOutcome::Selected { symbol_entity_id, display_name } => {
-                let RichEditorState { doc, selection, undo, actor_id, .. } = state;
+            CodeSymbolSearchOutcome::Selected {
+                symbol_entity_id,
+                display_name,
+            } => {
+                let RichEditorState {
+                    doc,
+                    selection,
+                    undo,
+                    actor_id,
+                    ..
+                } = state;
                 let mut ctx = SlashExecContext {
                     doc,
                     history: undo,
@@ -3237,7 +3492,9 @@ impl RichEditorWidget {
         use crate::rich_editor::wikilinks::confirm;
         use crate::rich_editor::wikilinks::inline_view::candidate_author_id;
 
-        let Some(ac) = state.wikilink_autocomplete.clone() else { return };
+        let Some(ac) = state.wikilink_autocomplete.clone() else {
+            return;
+        };
         // Anchor the popup at the caret pixel (impl note), defaulting to just below the editor when the
         // caret pixel is not resolvable (e.g. an empty doc).
         let anchor = caret_pixel.unwrap_or_else(|| ui.max_rect().left_bottom());
@@ -3257,7 +3514,11 @@ impl RichEditorWidget {
 
         // Confirmation can come from EITHER a backend row OR an alias candidate row (both insert an
         // hsLink atom at the trigger span); a single slot carries whichever fired this frame.
-        let mut confirmed: Option<(Vec<usize>, usize, crate::rich_editor::document_model::node::HsLinkNode)> = None;
+        let mut confirmed: Option<(
+            Vec<usize>,
+            usize,
+            crate::rich_editor::document_model::node::HsLinkNode,
+        )> = None;
         egui::Area::new(ui.id().with("wikilink-autocomplete-area"))
             .order(egui::Order::Foreground)
             .fixed_pos(anchor + egui::vec2(0.0, 4.0))
@@ -3384,7 +3645,9 @@ impl RichEditorWidget {
     ) {
         use crate::rich_editor::inline_tags::tag_menu_items;
 
-        let Some(ac) = state.tag_autocomplete.clone() else { return };
+        let Some(ac) = state.tag_autocomplete.clone() else {
+            return;
+        };
         let items = tag_menu_items(&ac.query, &state.tag_list);
         let anchor = caret_pixel.unwrap_or_else(|| ui.max_rect().left_bottom());
 
@@ -3454,7 +3717,9 @@ impl RichEditorWidget {
             render_slash_menu, render_slash_prompt, SlashMenuOutcome, SlashPromptOutcome,
         };
 
-        let Some(menu) = state.slash_menu.clone() else { return };
+        let Some(menu) = state.slash_menu.clone() else {
+            return;
+        };
 
         // A prompt modal is active -> render it (the list is hidden while a prompt is up).
         if let Some(prompt) = menu.prompt.clone() {
@@ -3471,7 +3736,13 @@ impl RichEditorWidget {
                     let mut confirm_state = prompt.clone();
                     confirm_state.input = input;
                     let _inserted = {
-                        let RichEditorState { doc, selection, undo, actor_id, .. } = state;
+                        let RichEditorState {
+                            doc,
+                            selection,
+                            undo,
+                            actor_id,
+                            ..
+                        } = state;
                         let mut ctx = SlashExecContext {
                             doc,
                             history: undo,
@@ -3556,12 +3827,15 @@ fn wikilink_chip_specs(
     painter: &egui::Painter,
     resolver_index: &crate::rich_editor::wikilinks::resolver::ResolverIndex,
 ) -> Vec<WikilinkChipSpec> {
-    use crate::rich_editor::wikilinks::inline_view::{chip_colors, chip_label, is_code_ref, is_locus_ref};
+    use crate::rich_editor::wikilinks::inline_view::{
+        chip_colors, chip_label, is_code_ref, is_locus_ref,
+    };
     use crate::rich_editor::wikilinks::resolver::{resolve_wikilink, WikilinkResolution};
     use egui::epaint::text::cursor::CCursor;
 
     // Only inline-content blocks (paragraph/heading) carry inline hsLink atoms.
-    let layout = super::line_layout::layout_block(block, palette, content_width.max(1.0), bold_available);
+    let layout =
+        super::line_layout::layout_block(block, palette, content_width.max(1.0), bold_available);
     let galley = painter.layout_job(layout.job);
 
     let mut specs = Vec::new();
@@ -3594,7 +3868,9 @@ fn wikilink_chip_specs(
                     None
                 } else {
                     match resolve_wikilink(resolver_index, &link.ref_value) {
-                        WikilinkResolution::Unresolved { title } if !title.is_empty() => Some(title),
+                        WikilinkResolution::Unresolved { title } if !title.is_empty() => {
+                            Some(title)
+                        }
                         _ => None, // the index now resolves it -> not a create candidate
                     }
                 };
@@ -3642,7 +3918,10 @@ pub struct RichEditorPaneFactory {
 impl RichEditorPaneFactory {
     /// Build the factory over shared editor state.
     pub fn new(state: Arc<Mutex<RichEditorState>>) -> Self {
-        Self { state, bus_registered: std::sync::atomic::AtomicBool::new(false) }
+        Self {
+            state,
+            bus_registered: std::sync::atomic::AtomicBool::new(false),
+        }
     }
 
     /// The Arc-shared editor state this factory renders (so a test/host can drive the SAME state the

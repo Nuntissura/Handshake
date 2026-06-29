@@ -20,59 +20,29 @@ use handshake_native::accessibility::{
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
 
-/// The four default panes seeded by the shell, by kebab-case author_id, plus their surface labels.
-/// Mirrors `app::default_panes()` (pane-a..pane-d). Kept here as the explicit expected contract so a
-/// drift between the seed and the live tree fails loudly.
-const EXPECTED_PANE_AUTHOR_IDS: [&str; 4] = ["pane-a", "pane-b", "pane-c", "pane-d"];
-const EXPECTED_CHROME_AUTHOR_IDS: [&str; 2] =
-    ["shell.chrome.title-bar", "shell.chrome.status-bar"];
-/// The two split dividers added by MT-006. They are LIVE `Role::Splitter` nodes addressable
-/// out-of-process by these stable author_ids, so the MT-025 live-tree snapshot now includes them.
-const EXPECTED_DIVIDER_AUTHOR_IDS: [&str; 2] = ["divider-horizontal", "divider-vertical"];
-/// MT-007 per-pane tab bars. The fresh-seed shell opens ONE tab per pane, so each of the four panes
-/// contributes a `Role::TabList` container (`tabbar-pane-{x}`), one `Role::Tab` node
-/// (`tab-pane-{x}-0`), and one `Role::Button` close node (`tab-close-pane-{x}-0`). These are LIVE
-/// nodes the MT-025 snapshot now includes alongside chrome / panes / dividers.
-const EXPECTED_TABBAR_AUTHOR_IDS: [&str; 4] =
-    ["tabbar-pane-a", "tabbar-pane-b", "tabbar-pane-c", "tabbar-pane-d"];
-const EXPECTED_TAB_AUTHOR_IDS: [&str; 4] =
-    ["tab-pane-a-0", "tab-pane-b-0", "tab-pane-c-0", "tab-pane-d-0"];
-const EXPECTED_TAB_CLOSE_AUTHOR_IDS: [&str; 4] = [
-    "tab-close-pane-a-0",
-    "tab-close-pane-b-0",
-    "tab-close-pane-c-0",
-    "tab-close-pane-d-0",
-];
+/// The two notes-first default panes seeded by the shell, by kebab-case author_id.
+/// Mirrors `app::default_panes()`: pane-a is the code editor, pane-b is the rich Notes editor.
+const EXPECTED_PANE_AUTHOR_IDS: [&str; 2] = ["pane-a", "pane-b"];
+const EXPECTED_CHROME_AUTHOR_IDS: [&str; 2] = ["shell.chrome.title-bar", "shell.chrome.status-bar"];
+/// The MT-097 fresh default is a two-column editor surface, so only the vertical divider is live.
+const EXPECTED_DIVIDER_AUTHOR_IDS: [&str; 1] = ["divider-vertical"];
+/// MT-007 per-pane tab bars. The fresh-seed shell opens ONE tab per default editor pane.
+const EXPECTED_TABBAR_AUTHOR_IDS: [&str; 2] = ["tabbar-pane-a", "tabbar-pane-b"];
+const EXPECTED_TAB_AUTHOR_IDS: [&str; 2] = ["tab-pane-a-0", "tab-pane-b-0"];
+const EXPECTED_TAB_CLOSE_AUTHOR_IDS: [&str; 2] = ["tab-close-pane-a-0", "tab-close-pane-b-0"];
 /// MT-013 per-pane LOCK buttons. The pane header (MT-013) adds one `Role::Button` lock control per
-/// pane (`pane-{pane_id}-lock`), so each of the four panes contributes a lock node. These are LIVE
+/// pane (`pane-{pane_id}-lock`), so each default pane contributes a lock node. These are LIVE
 /// nodes the MT-025 snapshot now includes alongside chrome / panes / dividers / tab nodes. The header
 /// TITLE is a presentational `Role::Label` (no author_id), so it is intentionally absent here.
-const EXPECTED_LOCK_AUTHOR_IDS: [&str; 4] = [
-    "pane-pane-a-lock",
-    "pane-pane-b-lock",
-    "pane-pane-c-lock",
-    "pane-pane-d-lock",
-];
+const EXPECTED_LOCK_AUTHOR_IDS: [&str; 2] = ["pane-pane-a-lock", "pane-pane-b-lock"];
 /// MT-013 per-pane header TITLE labels. The pane header binds its title to the pane's ACTIVE tab and
 /// emits it as an addressable `Role::Label` node (`pane-{pane_id}-title`), so a model reads the
 /// binding by a stable id. One per pane in the live tree.
-const EXPECTED_TITLE_AUTHOR_IDS: [&str; 4] = [
-    "pane-pane-a-title",
-    "pane-pane-b-title",
-    "pane-pane-c-title",
-    "pane-pane-d-title",
-];
+const EXPECTED_TITLE_AUTHOR_IDS: [&str; 2] = ["pane-pane-a-title", "pane-pane-b-title"];
 /// MT-020 per-pane header right-click TARGET (`pane-{pane_id}-header`, `Role::Group` + `Action::Click`).
 /// The header strip is the MT-020 pane-header context-menu surface; it is a DYNAMIC interactive node
-/// (egui hashed id space, like the MT-007 tabs), so it is NOT in the fixed-band `DECLARED_IDENTITIES`
-/// registry but IS present + named in the live default frame (one per pane). The context-menu ITEMS
-/// themselves stay closed by default, so only these four target nodes grow the snapshot (63 -> 67).
-const EXPECTED_HEADER_AUTHOR_IDS: [&str; 4] = [
-    "pane-pane-a-header",
-    "pane-pane-b-header",
-    "pane-pane-c-header",
-    "pane-pane-d-header",
-];
+/// (egui hashed id space, like the MT-007 tabs), so it is present + named in the live default frame.
+const EXPECTED_HEADER_AUTHOR_IDS: [&str; 2] = ["pane-pane-a-header", "pane-pane-b-header"];
 
 fn ok_app() -> HandshakeApp {
     HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
@@ -108,11 +78,7 @@ fn live_author_nodes(harness: &Harness<'_, HandshakeApp>) -> Vec<(String, String
     for node in root.children_recursive() {
         let ak = node.accesskit_node();
         if let Some(author_id) = ak.author_id() {
-            found.push((
-                author_id.to_owned(),
-                format!("{:?}", ak.role()),
-                ak.label(),
-            ));
+            found.push((author_id.to_owned(), format!("{:?}", ak.role()), ak.label()));
         }
     }
     found
@@ -120,16 +86,13 @@ fn live_author_nodes(harness: &Harness<'_, HandshakeApp>) -> Vec<(String, String
 
 #[test]
 fn live_tree_contains_chrome_and_panes_by_author_id() {
-    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
     harness.run();
 
     let nodes = live_author_nodes(&harness);
     let author_ids: Vec<&str> = nodes.iter().map(|(a, _, _)| a.as_str()).collect();
-    println!(
-        "LIVE author_id nodes ({}): {:?}",
-        nodes.len(),
-        nodes
-    );
+    println!("LIVE author_id nodes ({}): {:?}", nodes.len(), nodes);
 
     // Chrome (MT-002) must be live.
     for expected in EXPECTED_CHROME_AUTHOR_IDS {
@@ -160,18 +123,33 @@ fn live_tree_contains_chrome_and_panes_by_author_id() {
         .expect("status-bar node");
     assert_eq!(status.1, "Status", "status bar role");
     assert!(
-        status.2.as_deref().unwrap_or_default().contains("Backend: OK"),
+        status
+            .2
+            .as_deref()
+            .unwrap_or_default()
+            .contains("Backend: OK"),
         "status bar label carries live health text, got {:?}",
         status.2
     );
 
-    // Panes carry Role::Group (the PlaceholderPaneFactory default role) and their surface label.
-    for (author_id, role, label) in nodes
-        .iter()
-        .filter(|(a, _, _)| EXPECTED_PANE_AUTHOR_IDS.contains(&a.as_str()))
-    {
-        assert_eq!(role, "Group", "pane {author_id} role is the factory Group default");
-        assert!(label.is_some(), "pane {author_id} carries a surface label");
+    let expected_panes = [
+        ("pane-a", "GenericContainer", "Code Symbol"),
+        ("pane-b", "TextInput", "Loom Wiki Page"),
+    ];
+    for (pane_id, expected_role, expected_label) in expected_panes {
+        let (_, role, label) = nodes
+            .iter()
+            .find(|(a, _, _)| a == pane_id)
+            .unwrap_or_else(|| panic!("{pane_id} node present"));
+        assert_eq!(
+            role, expected_role,
+            "{pane_id} role comes from its editor factory"
+        );
+        assert_eq!(
+            label.as_deref(),
+            Some(expected_label),
+            "{pane_id} carries its editor surface label"
+        );
     }
 
     println!(
@@ -186,7 +164,8 @@ fn live_tree_findable_by_label_and_role() {
     // Second, independent proof path: kittest's own Queryable resolves the chrome by role+label,
     // which is exactly how an out-of-process UIA client locates a widget (the MT-001 spike matched
     // by Name). If the node were not live, get_by_role_and_label would panic.
-    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
     harness.run();
 
     let _title = harness.get_by_label("Handshake");
@@ -202,12 +181,23 @@ fn chrome_node_ids_are_stable_across_process_restarts() {
     let title_a = ChromeWidget::TitleBar.node_id();
     let title_b = ChromeWidget::TitleBar.node_id();
     let status_a = ChromeWidget::StatusBar.node_id();
-    assert_eq!(title_a, title_b, "title node id stable across calls/restarts");
+    assert_eq!(
+        title_a, title_b,
+        "title node id stable across calls/restarts"
+    );
     assert_ne!(title_a, status_a, "title and status node ids distinct");
     // Distinct from the theme toggle (10) and the pane id base (100).
-    assert!(title_a != 10 && status_a != 10, "chrome ids do not collide with theme toggle");
-    assert!(title_a < 100 && status_a < 100, "chrome ids stay below pane id base");
-    println!("PASS: chrome node ids stable and collision-free (title={title_a}, status={status_a})");
+    assert!(
+        title_a != 10 && status_a != 10,
+        "chrome ids do not collide with theme toggle"
+    );
+    assert!(
+        title_a < 100 && status_a < 100,
+        "chrome ids stay below pane id base"
+    );
+    println!(
+        "PASS: chrome node ids stable and collision-free (title={title_a}, status={status_a})"
+    );
 }
 
 #[test]
@@ -251,7 +241,10 @@ fn snapshot_projects_author_id_nodes_in_stable_order() {
     assert_eq!(a.role, "Group");
     assert_eq!(a.label.as_deref(), Some("Workspace"));
     assert_eq!(a.node_id, 3);
-    println!("PASS: snapshot projects {} author_id nodes in stable order", snapshot.nodes.len());
+    println!(
+        "PASS: snapshot projects {} author_id nodes in stable order",
+        snapshot.nodes.len()
+    );
 }
 
 // ── Item 1: theme toggle author_id is live ───────────────────────────────────────────────────────
@@ -317,10 +310,9 @@ fn assert_no_unnamed_interactive_fires_on_deliberately_unnamed_widget() {
         app.ui(ctx);
         // A real interactive egui button with NO author_id assigned. egui gives it Role::Button +
         // Action::Click via widget_info, exactly the shape the gate must catch.
-        egui::Area::new(egui::Id::new("unnamed_interactive_probe"))
-            .show(ctx, |ui| {
-                let _ = ui.button("Unnamed");
-            });
+        egui::Area::new(egui::Id::new("unnamed_interactive_probe")).show(ctx, |ui| {
+            let _ = ui.button("Unnamed");
+        });
     });
     let update = output
         .platform_output
@@ -347,8 +339,7 @@ fn assert_no_unnamed_interactive_fires_on_deliberately_unnamed_widget() {
 fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     // Closes the snapshot test gap: `collect_tree_snapshot` was previously only proven against a
     // hand-built TreeUpdate. Here it runs over the REAL shell's one-frame live tree and must contain
-    // all six chrome+pane author_id nodes PLUS the theme toggle, sorted by author_id (the snapshot's
-    // stable order contract).
+    // the chrome + MT-097 two-pane default author_id nodes plus the theme toggle, sorted by author_id.
     let update = live_tree_update();
     let snapshot: AccessTreeSnapshot = collect_tree_snapshot(&update);
 
@@ -359,7 +350,10 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     );
 
     // All six chrome+pane nodes are present.
-    for expected in EXPECTED_CHROME_AUTHOR_IDS.iter().chain(EXPECTED_PANE_AUTHOR_IDS.iter()) {
+    for expected in EXPECTED_CHROME_AUTHOR_IDS
+        .iter()
+        .chain(EXPECTED_PANE_AUTHOR_IDS.iter())
+    {
         assert!(
             snapshot.by_author_id(expected).is_some(),
             "author_id '{expected}' missing from LIVE-FRAME snapshot; found {:?}",
@@ -393,15 +387,18 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
         );
     }
     // The MT-013 per-pane lock buttons + header titles are present (one each per pane).
-    for expected in EXPECTED_LOCK_AUTHOR_IDS.iter().chain(EXPECTED_TITLE_AUTHOR_IDS.iter()) {
+    for expected in EXPECTED_LOCK_AUTHOR_IDS
+        .iter()
+        .chain(EXPECTED_TITLE_AUTHOR_IDS.iter())
+    {
         assert!(
             snapshot.by_author_id(expected).is_some(),
             "MT-013 author_id '{expected}' missing from LIVE-FRAME snapshot; found {:?}",
             snapshot.author_ids()
         );
     }
-    // The MT-020 per-pane header right-click TARGETS are present (one per pane). The context-menu items
-    // they open are closed by default, so only the four target nodes are live here.
+    // The MT-020 per-pane header right-click TARGETS are present (one per default pane). The
+    // context-menu items they open are closed by default, so only the target nodes are live here.
     for expected in EXPECTED_HEADER_AUTHOR_IDS {
         assert!(
             snapshot.by_author_id(expected).is_some(),
@@ -410,161 +407,36 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
         );
     }
 
-    // Stable order: the snapshot sorts by author_id. Assert the exact expected sorted sequence of all
-    // stable-id nodes the fresh-seed shell emits (41 pre-MT-014 nodes + 20 MT-014 left-rail nodes + 6
-    // MT-015 top-level menu-bar buttons = 67), so a re-order or a dropped node fails loudly. The four
-    // MT-020 per-pane header right-click TARGET nodes (`pane-pane-{x}-header`, Role::Group) raised the
-    // pre-MT-014 group from 37 to 41; the context-menu ITEMS those targets open stay CLOSED by default
-    // (dynamic `ctx-menu.*` MenuItem nodes appear only while a menu is open — see test_context_menu.rs
-    // and the MT-020 secondary-click kittests), so the default frame grows only by the four targets.
-    //
-    // MT-015 top menu bar (6): the six top-level menu buttons (`menu-{file,edit,view,go,run,help}`, all
-    // Role::MenuItem) rendered in the menu strip above the title bar. The individual LEAF items inside
-    // each menu are DYNAMIC — they exist only while that menu is OPEN — so the fresh-seed shell (no menu
-    // open) emits no leaf nodes here; they appear (and carry their own `menu.{menu}.{leaf}` author_ids)
-    // only in the menu-open kittest in tests/test_top_menu_bar.rs, mirroring how the MT-008 merge-back /
-    // MT-010 scrollbar nodes are absent from the default-seed snapshot.
-    //
-    // (The MT-014 left-rail node count rose from 18 to 20
-    // with the FIX-A Bookmarks group: the bookmarks container `project-tree.bookmarks` (Role::Tree) and
-    // its always-rendered group header `project-tree.group.bookmarks` (Role::TreeItem). The bookmark
-    // LEAF rows are dynamic and absent in the headless shell, which seeds no pins.)
-    //
-    // Pre-MT-014 (41): 7 chrome+pane + 2 MT-006 dividers + 12 MT-007 tab nodes + 4 MT-013 lock buttons +
-    // 4 MT-013 header titles + 4 MT-020 header right-click targets + 2 MT-011 project-tab nodes + 6
-    // MT-012 module-switcher buttons. The MT-020 nodes are the per-pane header targets
-    // (`pane-pane-{x}-header`, Role::Group). The two
-    // MT-011 nodes are the project-tab-strip container (`project-tabs`, Role::TabList) and the single
-    // seeded default-project tab (`project-tab-default-project`, Role::Tab); the headless shell seeds one
-    // project tab before the `/workspaces` fetch (which never runs headlessly) would resolve. The six
-    // MT-012 nodes are the header module buttons (`module-main`..`module-studio`, Role::Button). The
-    // eight MT-013 nodes are the per-pane lock buttons (`pane-pane-{x}-lock`, Role::Button) + the
-    // per-pane header titles (`pane-pane-{x}-title`, Role::Label, bound to the active tab).
-    //
-    // MT-014 left activity rail (18): the nine fixed rail buttons (`left-rail.activity.{files,agenda,
-    // mail,notes}`, `left-rail.{stash-toggle,agenda,mail,notes,collapse-toggle}`, all Role::Button); the
-    // project-tree container (`project-tree`, Role::Tree) + its three always-rendered group headers
-    // (`project-tree.group.{documents,canvases,bookmarks}`, Role::TreeItem — the leaf rows are dynamic
-    // and absent when the headless shell has no loaded documents/canvases/pins) + the FIX-A bookmarks
-    // sub-container (`project-tree.bookmarks`, Role::Tree); and the quick-links container (`quick-links`,
-    // Role::List) + its disclosure toggle (`quick-links.disclosure`, Role::Button) + one row per pane's
-    // ACTIVE tab (`quick-links.pane-{a..d}.0`, Role::Link — the collapsed default shows active-only, so
-    // exactly four rows for the four seeded panes). The ScrollArea's internal focusable viewport node is
-    // intentionally NOT emitted (the rail does not wrap content in an egui ScrollArea — see left_rail.rs
-    // note), so it adds no stable-id node and no anonymous interactive node.
-    let expected_sorted = vec![
-        // WP-KERNEL-012 MT-033 (E5 — CKC drag-in): the Atelier/CKC drag-source side panel is an
-        // ALWAYS-VISIBLE pinned RIGHT panel (open by default), so its container List node
-        // (`atelier-side-panel`) + its refresh Button (`atelier-side-panel.refresh`) are in the default
-        // frame. The headless shell has no atelier client, so the panel shows no item rows (the dynamic
-        // `atelier-item-{id}` ListItems appear only when rows are loaded/seeded) — these two nodes are the
-        // exactly two default-frame nodes MT-033 adds (80 → 82). The Stage pane is NOT here: it starts
-        // closed and is mounted only after a Route-to-Stage dispatch routes content in.
-        "atelier-side-panel",
-        "atelier-side-panel.refresh",
-        // MT-022 bottom search rail (12): the rail is an ALWAYS-VISIBLE pinned bottom panel, so — unlike
-        // the closed-by-default overlays (palette / switcher / settings) — its nodes ARE in the default
-        // frame every paint. Three FIXED-band controls (`bottom-rail.input` Role::TextInput = NodeId 22,
-        // `bottom-rail.clear` Role::Button = 23, `bottom-rail.loom` Role::Button = 24, all enumerated in
-        // DECLARED_IDENTITIES) plus the nine scope PILLS (`bottom-rail.scope.{project,file,pane,window,
-        // stash,trace,terminal,stage,layout}`, Role::Button) — a fixed-count set addressed by stable
-        // author_id STRINGS in egui's hashed id space (the MT-007 dynamic-author_id pattern), so they are
-        // named + present here but NOT in the fixed-band registry. The dynamic result rows
-        // (`bottom-rail.result.{block_id}`) appear only while a query has results, so the empty-query
-        // default frame adds exactly these 12 rail nodes.
-        "bottom-rail.clear",
-        "bottom-rail.input",
-        "bottom-rail.loom",
-        "bottom-rail.scope.file",
-        "bottom-rail.scope.layout",
-        "bottom-rail.scope.pane",
-        "bottom-rail.scope.project",
-        "bottom-rail.scope.stage",
-        "bottom-rail.scope.stash",
-        "bottom-rail.scope.terminal",
-        "bottom-rail.scope.trace",
-        "bottom-rail.scope.window",
-        "divider-horizontal",
-        "divider-vertical",
-        // MT-023 bottom drawer affordance tab (Role::Button, NodeId 32): the drawer is COLLAPSED by
-        // default (AC-023-2), so ONLY the always-visible affordance is in the default frame; the shelf
-        // container, the four cards, and the resize handle render open-only and are absent here (like the
-        // closed-by-default overlays). This is the single default-frame node MT-023 adds (79 → 80).
-        "hsk.drawer.affordance",
-        "left-rail.activity.agenda",
-        "left-rail.activity.files",
-        "left-rail.activity.mail",
-        "left-rail.activity.notes",
-        "left-rail.agenda",
-        "left-rail.collapse-toggle",
-        "left-rail.mail",
-        "left-rail.notes",
-        "left-rail.stash-toggle",
-        "menu-edit",
-        "menu-file",
-        "menu-go",
-        "menu-help",
-        "menu-run",
-        "menu-view",
-        "module-ckc",
-        "module-ingest",
-        "module-lab",
-        "module-main",
-        "module-stage",
-        "module-studio",
-        "pane-a",
-        "pane-b",
+    let author_ids = snapshot.author_ids();
+    let mut sorted = author_ids.clone();
+    sorted.sort();
+    assert_eq!(
+        author_ids, sorted,
+        "snapshot order remains stable/sorted by author_id"
+    );
+
+    // MT-097 default contract: retired feature panes and the right-side Atelier panel are not live in
+    // a fresh shell, while the two editor panes and their first tabs are live.
+    for absent in [
         "pane-c",
         "pane-d",
-        "pane-pane-a-header",
-        "pane-pane-a-lock",
-        "pane-pane-a-title",
-        "pane-pane-b-header",
-        "pane-pane-b-lock",
-        "pane-pane-b-title",
-        "pane-pane-c-header",
-        "pane-pane-c-lock",
-        "pane-pane-c-title",
-        "pane-pane-d-header",
-        "pane-pane-d-lock",
-        "pane-pane-d-title",
-        "project-tab-default-project",
-        "project-tabs",
-        "project-tree",
-        "project-tree.bookmarks",
-        "project-tree.group.bookmarks",
-        "project-tree.group.canvases",
-        "project-tree.group.documents",
-        "quick-links",
-        "quick-links.disclosure",
-        "quick-links.pane-a.0",
-        "quick-links.pane-b.0",
-        "quick-links.pane-c.0",
-        "quick-links.pane-d.0",
-        "shell.chrome.status-bar",
-        "shell.chrome.theme-toggle",
-        "shell.chrome.title-bar",
-        "tab-close-pane-a-0",
-        "tab-close-pane-b-0",
-        "tab-close-pane-c-0",
-        "tab-close-pane-d-0",
-        "tab-pane-a-0",
-        "tab-pane-b-0",
-        "tab-pane-c-0",
-        "tab-pane-d-0",
-        "tabbar-pane-a",
-        "tabbar-pane-b",
         "tabbar-pane-c",
         "tabbar-pane-d",
-    ];
-    assert_eq!(
-        snapshot.author_ids(),
-        expected_sorted,
-        "LIVE-FRAME snapshot must list exactly the 82 stable-id nodes in sorted order (67 pre-MT-022 + \
-         12 MT-022 bottom-rail nodes + 1 MT-023 drawer-affordance node + 2 MT-033 atelier-side-panel \
-         nodes; the drawer's shelf/cards/resize nodes and the closed-by-default Stage pane are absent \
-         from the collapsed-by-default frame)"
-    );
+        "tab-pane-c-0",
+        "tab-pane-d-0",
+        "pane-pane-c-header",
+        "pane-pane-d-header",
+        "quick-links.pane-c.0",
+        "quick-links.pane-d.0",
+        "divider-horizontal",
+        "atelier-side-panel",
+        "atelier-side-panel.refresh",
+    ] {
+        assert!(
+            snapshot.by_author_id(absent).is_none(),
+            "retired default surface '{absent}' must be absent from the MT-097 fresh frame"
+        );
+    }
 
     // MT-023: the always-visible affordance tab is a Role::Button in the default (collapsed) frame.
     assert_eq!(
@@ -581,7 +453,11 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
         "rail query input role"
     );
     for btn in ["bottom-rail.clear", "bottom-rail.loom"] {
-        assert_eq!(snapshot.by_author_id(btn).unwrap().role, "Button", "{btn} role");
+        assert_eq!(
+            snapshot.by_author_id(btn).unwrap().role,
+            "Button",
+            "{btn} role"
+        );
     }
     for scope in [
         "bottom-rail.scope.project",
@@ -594,7 +470,11 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
         "bottom-rail.scope.stage",
         "bottom-rail.scope.layout",
     ] {
-        assert_eq!(snapshot.by_author_id(scope).unwrap().role, "Button", "{scope} pill role");
+        assert_eq!(
+            snapshot.by_author_id(scope).unwrap().role,
+            "Button",
+            "{scope} pill role"
+        );
     }
 
     // MT-011 project-tab node roles: the strip container is a TabList, the seeded project tab a Tab.
@@ -604,29 +484,58 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
         "project-tabs strip container role"
     );
     assert_eq!(
-        snapshot.by_author_id("project-tab-default-project").unwrap().role,
+        snapshot
+            .by_author_id("project-tab-default-project")
+            .unwrap()
+            .role,
         "Tab",
         "seeded project tab role"
     );
 
     // MT-014 FIX-A bookmarks nodes: the sub-container is a Tree, its group header a TreeItem.
     assert_eq!(
-        snapshot.by_author_id("project-tree.bookmarks").unwrap().role,
+        snapshot
+            .by_author_id("project-tree.bookmarks")
+            .unwrap()
+            .role,
         "Tree",
         "bookmarks sub-container role"
     );
     assert_eq!(
-        snapshot.by_author_id("project-tree.group.bookmarks").unwrap().role,
+        snapshot
+            .by_author_id("project-tree.group.bookmarks")
+            .unwrap()
+            .role,
         "TreeItem",
         "bookmarks group header role"
     );
 
-    // Roles survive the projection: chrome regions, the interactive toggle, and the two dividers.
-    assert_eq!(snapshot.by_author_id("shell.chrome.title-bar").unwrap().role, "TitleBar");
-    assert_eq!(snapshot.by_author_id("shell.chrome.status-bar").unwrap().role, "Status");
-    assert_eq!(snapshot.by_author_id(THEME_TOGGLE_AUTHOR_ID).unwrap().role, "Button");
-    for pane in EXPECTED_PANE_AUTHOR_IDS {
-        assert_eq!(snapshot.by_author_id(pane).unwrap().role, "Group", "{pane} role");
+    // Roles survive the projection: chrome regions, the interactive toggle, the editor panes, and the
+    // default vertical divider.
+    assert_eq!(
+        snapshot
+            .by_author_id("shell.chrome.title-bar")
+            .unwrap()
+            .role,
+        "TitleBar"
+    );
+    assert_eq!(
+        snapshot
+            .by_author_id("shell.chrome.status-bar")
+            .unwrap()
+            .role,
+        "Status"
+    );
+    assert_eq!(
+        snapshot.by_author_id(THEME_TOGGLE_AUTHOR_ID).unwrap().role,
+        "Button"
+    );
+    for (pane, expected_role) in [("pane-a", "GenericContainer"), ("pane-b", "TextInput")] {
+        assert_eq!(
+            snapshot.by_author_id(pane).unwrap().role,
+            expected_role,
+            "{pane} role"
+        );
     }
     for divider in EXPECTED_DIVIDER_AUTHOR_IDS {
         assert_eq!(
@@ -637,29 +546,43 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     }
     // MT-007 tab node roles: TabList containers, Tab tabs, Button close buttons.
     for tabbar in EXPECTED_TABBAR_AUTHOR_IDS {
-        assert_eq!(snapshot.by_author_id(tabbar).unwrap().role, "TabList", "{tabbar} role");
+        assert_eq!(
+            snapshot.by_author_id(tabbar).unwrap().role,
+            "TabList",
+            "{tabbar} role"
+        );
     }
     for tab in EXPECTED_TAB_AUTHOR_IDS {
-        assert_eq!(snapshot.by_author_id(tab).unwrap().role, "Tab", "{tab} role");
+        assert_eq!(
+            snapshot.by_author_id(tab).unwrap().role,
+            "Tab",
+            "{tab} role"
+        );
     }
     for close in EXPECTED_TAB_CLOSE_AUTHOR_IDS {
-        assert_eq!(snapshot.by_author_id(close).unwrap().role, "Button", "{close} role");
+        assert_eq!(
+            snapshot.by_author_id(close).unwrap().role,
+            "Button",
+            "{close} role"
+        );
     }
     // MT-013 lock button roles: each is a Role::Button addressable out-of-process. Default seed panes
     // are Unlocked, so the live label is "Lock".
     for lock in EXPECTED_LOCK_AUTHOR_IDS {
         let node = snapshot.by_author_id(lock).unwrap();
         assert_eq!(node.role, "Button", "{lock} role");
-        assert_eq!(node.label.as_deref(), Some("Lock"), "{lock} default (unlocked) label");
+        assert_eq!(
+            node.label.as_deref(),
+            Some("Lock"),
+            "{lock} default (unlocked) label"
+        );
     }
     // MT-013 header title roles + binding: each is a Role::Label bound to its pane's ACTIVE tab label.
-    // Seed: pane-a=Workspace, pane-b=Inference Lab, pane-c=Media Downloader, pane-d=Fonts (the SHORT
-    // tab labels from PaneType::default_label, NOT the longer pane labels).
+    // Seed: pane-a=Code Symbol, pane-b=Wiki Page (the SHORT tab labels from PaneType::default_label,
+    // NOT the longer pane labels).
     let expected_title_text = [
-        ("pane-pane-a-title", "Workspace"),
-        ("pane-pane-b-title", "Inference Lab"),
-        ("pane-pane-c-title", "Media Downloader"),
-        ("pane-pane-d-title", "Fonts"),
+        ("pane-pane-a-title", "Code Symbol"),
+        ("pane-pane-b-title", "Wiki Page"),
     ];
     for (title_id, text) in expected_title_text {
         let node = snapshot.by_author_id(title_id).unwrap();
@@ -672,7 +595,7 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     }
 
     println!(
-        "PASS: LIVE-FRAME snapshot has chrome+panes+toggle+dividers + MT-007 tab nodes + MT-013 locks, sorted ({} total)",
+        "PASS: LIVE-FRAME snapshot has chrome+editor panes+toggle+vertical divider + MT-007/013 nodes, sorted ({} total)",
         snapshot.nodes.len()
     );
 }
@@ -723,7 +646,11 @@ fn settings_dialog_controls_carry_correct_accesskit_roles() {
     assert_eq!(role_of("settings.dialog"), "Dialog", "dialog root role");
     // Theme + view-mode selectors = Role::ComboBox.
     assert_eq!(role_of("settings.theme"), "ComboBox", "theme selector role");
-    assert_eq!(role_of("settings.view-mode"), "ComboBox", "view-mode selector role");
+    assert_eq!(
+        role_of("settings.view-mode"),
+        "ComboBox",
+        "view-mode selector role"
+    );
     // A text field = Role::TextInput (the search box + the per-action keybinding inputs).
     assert_eq!(role_of("settings.search"), "TextInput", "search field role");
     assert_eq!(
@@ -739,7 +666,11 @@ fn settings_dialog_controls_carry_correct_accesskit_roles() {
     );
     // Buttons = Role::Button (Close, Reset-layout, and a per-action keybinding Reset).
     assert_eq!(role_of("settings.close"), "Button", "close button role");
-    assert_eq!(role_of("settings.reset-layout"), "Button", "reset-layout button role");
+    assert_eq!(
+        role_of("settings.reset-layout"),
+        "Button",
+        "reset-layout button role"
+    );
     assert_eq!(
         role_of("settings.keybinding-reset.app.quick_switcher.open"),
         "Button",
@@ -748,4 +679,3 @@ fn settings_dialog_controls_carry_correct_accesskit_roles() {
 
     println!("PASS: settings dialog controls carry correct AccessKit roles (AC13)");
 }
-

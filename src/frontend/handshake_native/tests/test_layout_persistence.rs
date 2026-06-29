@@ -19,7 +19,9 @@
 //! the bottom of this file.
 
 use egui_kittest::Harness;
-use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID, LAYOUT_SAVE_DEBOUNCE};
+use handshake_native::app::{
+    HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID, LAYOUT_SAVE_DEBOUNCE,
+};
 use handshake_native::backend_client::HealthInfo;
 use handshake_native::layout_persistence::{
     LayoutError, LayoutPersistenceManager, LayoutTransport,
@@ -116,12 +118,12 @@ fn full_layout_round_trips_through_the_app() {
         bar.stabilize_pins();
     }
 
-    // MT-008: pop pane-c out. request_pop_out is consumed at the top of the next ui() frame.
-    h1.state_mut().request_pop_out(pid("pane-c"));
+    // MT-008: pop pane-b out. request_pop_out is consumed at the top of the next ui() frame.
+    h1.state_mut().request_pop_out(pid("pane-b"));
     h1.run();
     assert!(
-        h1.state().is_popped_out(&pid("pane-c")),
-        "pane-c should be popped out before save"
+        h1.state().is_popped_out(&pid("pane-b")),
+        "pane-b should be popped out before save"
     );
 
     let saved_json = serde_json::to_value(h1.state().capture_layout_snapshot()).unwrap();
@@ -129,7 +131,11 @@ fn full_layout_round_trips_through_the_app() {
 
     // The blob is now in the shared backing store under the default workspace id.
     assert!(
-        transport.store.lock().unwrap().contains_key(DEFAULT_PROJECT_ID),
+        transport
+            .store
+            .lock()
+            .unwrap()
+            .contains_key(DEFAULT_PROJECT_ID),
         "expected layout blob stored for {DEFAULT_PROJECT_ID}"
     );
 
@@ -147,7 +153,10 @@ fn full_layout_round_trips_through_the_app() {
     // The restored shell's captured snapshot must equal the saved one (serialized-form equality, the
     // persisted contract — see layout_persistence.rs PaneRecord/Instant note).
     let restored_json = serde_json::to_value(h2.state().capture_layout_snapshot()).unwrap();
-    assert_eq!(saved_json, restored_json, "restored layout must equal saved layout");
+    assert_eq!(
+        saved_json, restored_json,
+        "restored layout must equal saved layout"
+    );
 
     // Spot-check the individual composed pieces too (so a future serde change can't make the whole
     // blob match by coincidence while a sub-piece is wrong).
@@ -156,11 +165,24 @@ fn full_layout_round_trips_through_the_app() {
         changed_weights,
         "MT-006 split weights restored"
     );
-    assert!(h2.state().is_popped_out(&pid("pane-c")), "MT-008 pop-out restored");
+    assert!(
+        h2.state().is_popped_out(&pid("pane-b")),
+        "MT-008 pop-out restored"
+    );
     let app2 = h2.state();
-    let bar_a = app2.tab_bar_states().get(&pid("pane-a")).expect("pane-a bar");
-    assert_eq!(bar_a.tabs.len(), 2, "MT-007 pane-a has its second tab restored");
-    assert!(bar_a.tabs.iter().any(|t| t.pinned), "MT-007 pinned flag restored");
+    let bar_a = app2
+        .tab_bar_states()
+        .get(&pid("pane-a"))
+        .expect("pane-a bar");
+    assert_eq!(
+        bar_a.tabs.len(),
+        2,
+        "MT-007 pane-a has its second tab restored"
+    );
+    assert!(
+        bar_a.tabs.iter().any(|t| t.pinned),
+        "MT-007 pinned flag restored"
+    );
 }
 
 /// First run for a project (no blob) keeps the seeded default layout and reports `false` (default
@@ -179,7 +201,7 @@ fn first_run_keeps_default_layout() {
 }
 
 /// Structurally-corrupt-but-schema-valid blob through the app (MT-009 AC#3): a blob that passes the
-/// schema_id + version checks but is MISSING a canonical pane (pane-c) must NOT be applied. With no
+/// schema_id + version checks but is MISSING a canonical pane (pane-b) must NOT be applied. With no
 /// last-known-good held, the load path keeps the seeded default layout and reports `false` (did not
 /// apply persisted) — the validate-before-restore pane-completeness gate. Mirrors the corrupt-blob /
 /// fallback assertion style of the module-level `load_corrupt_blob_*` tests.
@@ -187,16 +209,16 @@ fn first_run_keeps_default_layout() {
 fn load_blob_missing_pane_falls_back_to_default() {
     let transport = MemoryTransport::new();
 
-    // Shell #1: capture a VALID snapshot, then drop pane-c so the stored blob is schema-valid but
+    // Shell #1: capture a VALID snapshot, then drop pane-b so the stored blob is schema-valid but
     // structurally corrupt, and store it directly under the default workspace id.
     let mut h1 = shell(transport.clone());
     h1.run();
     let mut snap = h1.state().capture_layout_snapshot();
     assert!(
-        snap.panes.contains_key(&pid("pane-c")),
-        "captured snapshot should seed pane-c before we remove it"
+        snap.panes.contains_key(&pid("pane-b")),
+        "captured snapshot should seed pane-b before we remove it"
     );
-    snap.panes.remove(&pid("pane-c"));
+    snap.panes.remove(&pid("pane-b"));
     transport
         .store
         .lock()
@@ -206,17 +228,19 @@ fn load_blob_missing_pane_falls_back_to_default() {
     // Shell #2 (fresh, no LKG): loading the corrupt blob must NOT apply the 3-pane layout.
     let mut h2 = shell(transport.clone());
     h2.run();
-    let applied = h2.state_mut().load_layout(DEFAULT_PROJECT_ID, big_desktop());
+    let applied = h2
+        .state_mut()
+        .load_layout(DEFAULT_PROJECT_ID, big_desktop());
     assert!(
         !applied,
         "a schema-valid but pane-incomplete blob must fall back to default, not be applied"
     );
-    // The default seed has all four canonical panes; prove the corrupt 3-pane layout was not applied.
+    // The default seed has both canonical panes; prove the corrupt one-pane layout was not applied.
     let app2 = h2.state();
-    for id in ["pane-a", "pane-b", "pane-c", "pane-d"] {
+    for id in ["pane-a", "pane-b"] {
         assert!(
             app2.tab_bar_states().contains_key(&pid(id)),
-            "default layout (with {id}) kept, corrupt 3-pane layout rejected"
+            "default layout (with {id}) kept, corrupt one-pane layout rejected"
         );
     }
     assert_eq!(
@@ -290,7 +314,11 @@ fn lifecycle_loads_then_autosaves_a_change() {
 
     // No blob should have been written yet (nothing changed).
     assert!(
-        !transport.store.lock().unwrap().contains_key(DEFAULT_PROJECT_ID),
+        !transport
+            .store
+            .lock()
+            .unwrap()
+            .contains_key(DEFAULT_PROJECT_ID),
         "no autosave before any change"
     );
 
@@ -309,13 +337,21 @@ fn lifecycle_loads_then_autosaves_a_change() {
     // The worker thread does the actual store insert; poll briefly for it to land.
     let mut saved = false;
     for _ in 0..200 {
-        if transport.store.lock().unwrap().contains_key(DEFAULT_PROJECT_ID) {
+        if transport
+            .store
+            .lock()
+            .unwrap()
+            .contains_key(DEFAULT_PROJECT_ID)
+        {
             saved = true;
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
-    assert!(saved, "a layout-affecting change autosaved via the debounced lifecycle");
+    assert!(
+        saved,
+        "a layout-affecting change autosaved via the debounced lifecycle"
+    );
 
     // The autosaved blob reflects the changed split weights.
     let blob = transport
@@ -327,11 +363,20 @@ fn lifecycle_loads_then_autosaves_a_change() {
         .unwrap();
     // Compare against the f32-widened JSON the snapshot actually serializes (f32 0.2 -> a slightly
     // longer f64 in JSON), not the literal 0.2_f64, so the assertion is exact, not float-fuzzy.
-    assert_eq!(blob["split_weights"]["vertical"], serde_json::json!(0.2_f32));
-    assert_eq!(blob["split_weights"]["horizontal"], serde_json::json!(0.8_f32));
+    assert_eq!(
+        blob["split_weights"]["vertical"],
+        serde_json::json!(0.2_f32)
+    );
+    assert_eq!(
+        blob["split_weights"]["horizontal"],
+        serde_json::json!(0.8_f32)
+    );
 
     // Sanity on the debounce constant the app uses (documents the wired value).
-    assert!(LAYOUT_SAVE_DEBOUNCE.as_millis() > 0, "production debounce is non-zero");
+    assert!(
+        LAYOUT_SAVE_DEBOUNCE.as_millis() > 0,
+        "production debounce is non-zero"
+    );
 }
 
 // ── Live-backend round trip (cfg-gated; needs managed-postgres + handshake_core running) ─────────
@@ -386,5 +431,8 @@ fn live_backend_layout_round_trips_through_postgres() {
         .load(&workspace_id)
         .expect("GET layout from live backend")
         .expect("backend returned a stored layout");
-    assert_eq!(got, expected, "live PostgreSQL layout_state round-trips identically");
+    assert_eq!(
+        got, expected,
+        "live PostgreSQL layout_state round-trips identically"
+    );
 }

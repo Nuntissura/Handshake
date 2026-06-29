@@ -14,19 +14,54 @@
 
 use egui::accesskit::{self, Action, ActionData, ActionRequest, NodeId};
 use egui_kittest::Harness;
-use handshake_native::app::{HandshakeApp, HealthDisplayState};
+use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
 use handshake_native::backend_client::HealthInfo;
+use handshake_native::pane_registry::{
+    DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
+};
 use handshake_native::split_layout::{
     DIVIDER_H_AUTHOR_ID, DIVIDER_H_NODE_ID, DIVIDER_V_AUTHOR_ID, DIVIDER_V_NODE_ID, SPLIT_MAX,
     SPLIT_MIN, SPLIT_STEP,
 };
+use handshake_native::tab_bar::{TabBarState, TabState};
 
 fn ok_app() -> HandshakeApp {
-    HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
         status: "ok".to_string(),
         db_status: "ok".to_string(),
         migration_version: Some(1),
-    }))
+    }));
+    seed_legacy_four_pane_layout(&mut app);
+    app
+}
+
+fn seed_legacy_four_pane_layout(app: &mut HandshakeApp) {
+    let seeds = [
+        ("pane-c", PaneType::MediaDownloader),
+        ("pane-d", PaneType::FontManager),
+    ];
+    {
+        let registry = app.pane_registry();
+        let mut guard = registry.lock().expect("pane registry");
+        for (id, pane_type) in &seeds {
+            guard.insert(PaneRecord::new(
+                PaneId::from(*id),
+                pane_type.clone(),
+                DEFAULT_PROJECT_ID,
+                None,
+                LockState::Unlocked,
+                DirtyState::Clean,
+                PaneAuthority::System,
+            ));
+        }
+    }
+    for (id, pane_type) in seeds {
+        let pane_id = PaneId::from(id);
+        app.tab_bar_states_mut().insert(
+            pane_id.clone(),
+            TabBarState::new(pane_id, vec![TabState::new(pane_type)]),
+        );
+    }
 }
 
 /// (author_id, role, numeric_value) for every Splitter node in the live consumer-side tree.
@@ -83,7 +118,11 @@ fn grid_renders_five_frames_with_two_splitters_in_range() {
 
     let splitters = live_splitters(&harness);
     println!("LIVE splitters: {splitters:?}");
-    assert_eq!(splitters.len(), 2, "exactly two Splitter nodes; got {splitters:?}");
+    assert_eq!(
+        splitters.len(),
+        2,
+        "exactly two Splitter nodes; got {splitters:?}"
+    );
 
     let author_ids: Vec<&str> = splitters.iter().map(|(a, _, _)| a.as_str()).collect();
     assert!(
@@ -216,7 +255,9 @@ fn live_pointer_drag_horizontal_divider_changes_weight_and_clamps() {
         (SPLIT_MIN as f64..=SPLIT_MAX as f64).contains(&after),
         "live dragged value stays clamped in [{SPLIT_MIN}, {SPLIT_MAX}]; got {after}"
     );
-    println!("PASS: live pointer drag moved + clamped the horizontal divider through the real widget");
+    println!(
+        "PASS: live pointer drag moved + clamped the horizontal divider through the real widget"
+    );
 }
 
 /// AC-3 (LIVE): a real pointer drag FAR past the bottom clamps `weights.horizontal` to SPLIT_MAX
@@ -311,7 +352,13 @@ fn live_keyboard_arrow_without_focus_does_not_move_divider() {
 
     let after_h = divider_value(&harness, DIVIDER_H_AUTHOR_ID);
     let after_v = divider_value(&harness, DIVIDER_V_AUTHOR_ID);
-    assert!((after_h - before_h).abs() < 1e-9, "unfocused arrow must not move horizontal divider");
-    assert!((after_v - before_v).abs() < 1e-9, "unfocused arrow must not move vertical divider");
+    assert!(
+        (after_h - before_h).abs() < 1e-9,
+        "unfocused arrow must not move horizontal divider"
+    );
+    assert!(
+        (after_v - before_v).abs() < 1e-9,
+        "unfocused arrow must not move vertical divider"
+    );
     println!("PASS: arrow keys are ignored while no divider is focused (focus-gated)");
 }

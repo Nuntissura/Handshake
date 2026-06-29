@@ -87,10 +87,8 @@ pub const DEFAULT_PROJECT_ID: &str = "default-project";
 /// "a short debounce so rapid drags coalesce"). 600ms balances responsiveness against `PUT` volume.
 pub const LAYOUT_SAVE_DEBOUNCE: std::time::Duration = std::time::Duration::from_millis(600);
 
-const BACKGROUND_WORKER_SHUTDOWN_TIMEOUT: std::time::Duration =
-    std::time::Duration::from_secs(10);
-const BACKGROUND_WORKER_SHUTDOWN_POLL: std::time::Duration =
-    std::time::Duration::from_millis(10);
+const BACKGROUND_WORKER_SHUTDOWN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+const BACKGROUND_WORKER_SHUTDOWN_POLL: std::time::Duration = std::time::Duration::from_millis(10);
 
 /// Debounce quiet period for the settings save (MT-018, red-team R2): a `PUT /workspaces/{id}/settings`
 /// fires this long after the LAST settings change so rapid keybinding edits coalesce into one request.
@@ -676,8 +674,8 @@ pub struct HandshakeApp {
     /// real `/atelier` backend off the UI thread); the headless/test shell has no runtime, so the panel
     /// stays idle/neutral (no perpetual spinner) until a test injects rows.
     atelier_side_panel: AtelierSidePanel,
-    /// MT-033: whether the right-edge Atelier/CKC side panel is expanded. Defaults open so a fresh shell
-    /// shows the drag source. Toggled by the bus / future affordance; persisted state is a later MT.
+    /// MT-033: whether the right-edge Atelier/CKC side panel is expanded. MT-097 defaults it closed so
+    /// a fresh shell is notes-only; tests or an affordance can open it when the drag source is needed.
     atelier_panel_open: bool,
     /// MT-033: the live Stage pane (the route-to-Stage DISPLAY surface). Held by the shell and mounted as
     /// a bottom panel; the per-frame bus drain (`take_pending_stage_content`) sets its content when a
@@ -709,14 +707,12 @@ pub struct PendingRename {
     pub text: String,
 }
 
-/// The four seed panes for a fresh work surface. Mirrors the React `DEFAULT_PANES` four-pane shape
-/// (`app/src/App.tsx`): pane-a..pane-d, all System-authored, Unlocked, and Clean.
+/// The two seed panes for a fresh notes-first work surface. MT-097 keeps feature pane factories
+/// registered, but the default live work surface starts with only the code editor and Notes editor.
 fn default_panes() -> Vec<PaneRecord> {
-    let seeds: [(&str, PaneType); 4] = [
-        ("pane-a", PaneType::Workspace),
-        ("pane-b", PaneType::InferenceLab),
-        ("pane-c", PaneType::MediaDownloader),
-        ("pane-d", PaneType::FontManager),
+    let seeds: [(&str, PaneType); 2] = [
+        ("pane-a", PaneType::CodeSymbol),
+        ("pane-b", PaneType::LoomWikiPage),
     ];
     seeds
         .into_iter()
@@ -1098,7 +1094,7 @@ fn seeded_registry() -> PaneRegistry {
 /// Seed one tab bar per default pane (MT-007). Each pane opens with a single tab matching its seed
 /// `PaneType`, so a fresh work surface shows a coherent "one tab per pane" state that the operator or
 /// an agent can then add/close/reorder/pin. Mirrors the registry's `default_panes` shape so the two
-/// stay aligned (the live-tree test asserts pane-a..pane-d each have a tab bar).
+/// stay aligned (the live-tree test asserts each seeded pane has a tab bar).
 fn default_tab_bar_states() -> HashMap<PaneId, TabBarState> {
     default_panes()
         .into_iter()
@@ -1459,7 +1455,7 @@ impl HandshakeApp {
             last_seen_layout: None,
             project_tabs: default_project_tabs(),
             workspaces_handle,
-            // The default seed pane (`pane-a`) is the React `MAIN` module, so the switcher starts on MAIN.
+            // The default seed pane (`pane-a`) is still the MAIN module target, so the switcher starts on MAIN.
             module_switcher: ModuleSwitcher::new(ModuleId::Main),
             left_rail: LeftRail::new(),
             left_rail_open: true,
@@ -1555,10 +1551,10 @@ impl HandshakeApp {
             capturing_snapshot: false,
             ime_allowed_sent: false,
             // MT-033: the production Atelier/CKC side panel loads from the real `/atelier` backend off the
-            // UI thread (the same runtime handle every other off-thread client uses). Mounted on the right
-            // edge so its drag-source rows are reachable in the running product.
+            // UI thread (the same runtime handle every other off-thread client uses). MT-097 keeps the
+            // feature mounted but CLOSED by default so a fresh launch is notes-only.
             atelier_side_panel: AtelierSidePanel::production(rt_handle.clone()),
-            atelier_panel_open: true,
+            atelier_panel_open: false,
             stage_pane: StagePane::new(),
             stage_panel_open: false,
         };
@@ -2013,10 +2009,10 @@ impl HandshakeApp {
             ime_allowed_sent: false,
             // MT-033: headless/test shell — no runtime to bridge the atelier client onto, so the panel has
             // no client (it renders no rows + never touches the network; a test injects rows via the
-            // `atelier_side_panel_mut` accessor + `with_rows`-style state if it wants seeded rows). The
-            // panel is still MOUNTED every frame so its List container node is in the live AccessKit tree.
+            // `atelier_side_panel_mut` accessor + `with_rows`-style state if it wants seeded rows). MT-097
+            // leaves it mounted but CLOSED by default so the fresh default frame stays notes-only.
             atelier_side_panel: AtelierSidePanel::with_client(None),
-            atelier_panel_open: true,
+            atelier_panel_open: false,
             stage_pane: StagePane::new(),
             stage_panel_open: false,
         }
@@ -2047,6 +2043,12 @@ impl HandshakeApp {
     /// Shared handle to the pane registry (for tests and future concurrent agent/operator wiring).
     pub fn pane_registry(&self) -> Arc<Mutex<PaneRegistry>> {
         self.pane_registry.clone()
+    }
+
+    /// Whether the shell can still open `pane_type` through the factory map. MT-097 proves stripped
+    /// feature panes were removed only from the default seed, not from registration.
+    pub fn pane_factory_registered(&self, pane_type: &PaneType) -> bool {
+        self.factories.contains_key(pane_type)
     }
 
     /// Active base theme (for tests / future settings binding).
@@ -5711,9 +5713,9 @@ impl HandshakeApp {
     }
 
     /// Reset the live work-surface layout to the seeded default for `project_id` (MT-011), the native
-    /// mirror of React's `defaultWorkbenchLayoutState(projectId)`. Rebuilds the four default panes
-    /// (re-stamped to `project_id`), the default per-pane tab bars, the default split weights, clears
-    /// the active pane and all pop-outs, and points `active_project_id` at the new project.
+    /// mirror of React's `defaultWorkbenchLayoutState(projectId)`. Rebuilds the two notes-first default
+    /// panes (re-stamped to `project_id`), the default per-pane tab bars, the default split weights,
+    /// clears the active pane and all pop-outs, and points `active_project_id` at the new project.
     ///
     /// This is called on a project switch BEFORE the lifecycle load so a project with NO stored layout
     /// shows its own fresh default — never the leaving project's panes/tabs/splits carried over (the
@@ -5731,7 +5733,7 @@ impl HandshakeApp {
         // overwrites these if the entered project has stored drawer flags.
         self.left_rail_open = true;
         self.bottom_drawer_open = false;
-        // A fresh default work surface starts on the MAIN module (the default seed pane's module), so the
+        // A fresh default work surface starts on the MAIN module (the default code pane's module), so the
         // switcher highlight resets too. A subsequent lifecycle load overwrites this if the entered
         // project has a stored `active_module`.
         self.module_switcher.set_active(ModuleId::Main);
@@ -7398,7 +7400,7 @@ impl HandshakeApp {
         let placeholder_text = palette.text;
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            // SplitLayoutWidget renders the four panes into their split rects and the two dividers.
+            // SplitLayoutWidget renders the current pane slots into their split rects and dividers.
             // The pane render path keeps LIVE AccessKit emission (MT-025): the emit callback is
             // invoked once per pane inside its egui scope, so panes remain findable out-of-process
             // by author_id and the MT-025 live-tree tests still pass. A pane that is popped out
