@@ -1,0 +1,228 @@
+{
+  "schema": "hsk.microtask_index@1",
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "generated_at_utc": "2026-06-28T23:46:43.220Z",
+  "total": 11,
+  "range": "MT-001..MT-011",
+  "note": "Research-backed Activation Manager MT set. Operator may add, remove, split, or reorder MTs ad hoc; packet.json microtasks.declared_ids must be kept in sync when the MT set changes.",
+  "microtasks": [
+    {
+      "mt_id": "MT-001",
+      "status": "READY_FOR_VALIDATION",
+      "depends_on": [],
+      "summary": "Keep SPEC_CURRENT and the packet contract aligned with the modern ModelLane exchange architecture.",
+      "unlocks": "Unlocks current spec/packet authority so later MTs implement the same ModelLane contract.",
+      "blocks": [
+        "MT-002",
+        "MT-003",
+        "MT-004",
+        "MT-005",
+        "MT-006",
+        "MT-007",
+        "MT-008",
+        "MT-009",
+        "MT-010"
+      ],
+      "proof_status": "PASS_MT001_SPEC_PACKET_TOPOLOGY_CHECKS",
+      "hbr_status": "PASS_HBR_MATRIX_CHECK",
+      "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
+      "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-28",
+      "adversarial_findings_status": "ALL_POST_REVIEW_FINDINGS_APPLIED_OR_CONVERTED_TO_CONTRACT_FIELDS"
+    },
+    {
+      "mt_id": "MT-002",
+      "status": "READY_FOR_VALIDATION",
+      "depends_on": [
+        "MT-001"
+      ],
+      "summary": "Add backend schemas/types for ModelLaneRun, ModelLane, ModelLaneMessage, and lane status.",
+      "unlocks": "Unlocks durable Rust/PostgreSQL lane schemas that every local/cloud/subagent message can cite and replay.",
+      "blocks": [
+        "MT-003",
+        "MT-004",
+        "MT-005",
+        "MT-007",
+        "MT-008"
+      ],
+      "proof_status": "PASS_MT002_EXACT_RUST_POSTGRES_RUNTIME_USERMANUAL_PROOFS",
+      "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT002_SCOPE",
+      "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
+      "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-28",
+      "adversarial_findings_status": "POST_REVIEW_BLOCKERS_ADDRESSED_IN_PRODUCT_CODE_AND_TESTS"
+    },
+    {
+      "mt_id": "MT-003",
+      "status": "PENDING",
+      "depends_on": [
+        "MT-002"
+      ],
+      "summary": "Normalize launch adapters for local, cloud, CLI, human, subagent, and validator lanes.",
+      "unlocks": "Unlocks normalized launch/reclaim paths for local, cloud, CLI, human, subagent, and validator lanes.",
+      "blocks": [
+        "MT-006",
+        "MT-007",
+        "MT-009"
+      ],
+      "proof_status": "NOT_RUN",
+      "hbr_status": "PENDING",
+      "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
+      "post_implementation_adversarial_review_status": "NOT_RUN",
+      "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+    },
+    {
+      "mt_id": "MT-004",
+      "status": "PENDING",
+      "depends_on": [
+        "MT-002"
+      ],
+      "summary": "Implement coordinator routing policies and explicit advisory-to-authority promotion.",
+      "unlocks": "Unlocks deterministic coordinator routing and safe advisory-to-authority promotion.",
+      "blocks": [
+        "MT-005",
+        "MT-006",
+        "MT-009"
+      ],
+      "proof_status": "NOT_RUN",
+      "hbr_status": "PENDING",
+      "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
+      "post_implementation_adversarial_review_status": "NOT_RUN",
+      "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+    },
+    {
+      "mt_id": "MT-005",
+      "status": "PENDING",
+      "depends_on": [
+        "MT-002",
+        "MT-004"
+      ],
+      "summary": "Route model-to-model handoff through ContextBundle and artifact references.",
+      "unlocks": "Unlocks restart-safe model-to-model handoff through ContextBundle, artifact refs, Loom, FEMS, and CRDT proposals.",
+      "blocks": [
+        "MT-007",
+        "MT-009"
+      ],
+      "proof_status": "NOT_RUN",
+      "hbr_status": "PENDING",
+      "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
+      "post_implementation_adversarial_review_status": "NOT_RUN",
+      "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+    },
+    {
+      "mt_id": "MT-006",
+      "status": "PENDING",
+      "depends_on": [
+        "MT-003",
+        "MT-004",
+        "MT-005"
+      ],
+      "summary": "Enforce cloud projection, consent, and authority boundaries for cloud lanes.",
+      "unlocks": "Unlocks cloud use without hidden data leakage by enforcing projection, consent, fan-out/revocation, and advisory-only output.",
+      "blocks": [
+        "MT-009"
+      ],
+      "proof_status": "NOT_RUN",
+      "hbr_status": "PENDING",
+      "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
+      "post_implementation_adversarial_review_status": "NOT_RUN",
+      "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+    },
+    {
+      "mt_id": "MT-007",
+      "status": "PENDING",
+      "depends_on": [
+        "MT-002",
+        "MT-003",
+        "MT-004",
+        "MT-005",
+        "MT-006"
+      ],
+      "summary": "Add lane recovery, orphan detection, replay, and diagnostics state.",
+      "unlocks": "Unlocks recovery from crash, cancellation, missing payload, orphan lane, lease expiry, and stale CRDT state without chat history.",
+      "blocks": [
+        "MT-008",
+        "MT-009",
+        "MT-010"
+      ],
+      "proof_status": "NOT_RUN",
+      "hbr_status": "PENDING",
+      "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
+      "post_implementation_adversarial_review_status": "NOT_RUN",
+      "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+    },
+    {
+      "mt_id": "MT-008",
+      "status": "PENDING",
+      "depends_on": [
+        "MT-002",
+        "MT-004",
+        "MT-005",
+        "MT-006",
+        "MT-007"
+      ],
+      "summary": "Expose readable swarm lane/message diagnostics in UI/debug surfaces.",
+      "unlocks": "Unlocks inspectable lane diagnostics through native/debug TraceProjection surfaces without naming the separate internal viewing tool.",
+      "blocks": [
+        "MT-010"
+      ],
+      "proof_status": "NOT_RUN",
+      "hbr_status": "PENDING",
+      "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
+      "post_implementation_adversarial_review_status": "NOT_RUN",
+      "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+    },
+    {
+      "mt_id": "MT-009",
+      "status": "PENDING",
+      "depends_on": [
+        "MT-003",
+        "MT-004",
+        "MT-005",
+        "MT-006",
+        "MT-007"
+      ],
+      "summary": "Build validation harnesses and negative cases for mixed cloud/local/subagent lane runs.",
+      "unlocks": "Unlocks proof that mixed model lanes fail closed under negative cases, concurrency, process ownership, and replay loss scenarios.",
+      "blocks": [
+        "MT-010"
+      ],
+      "proof_status": "NOT_RUN",
+      "hbr_status": "PENDING",
+      "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
+      "post_implementation_adversarial_review_status": "NOT_RUN",
+      "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+    },
+    {
+      "mt_id": "MT-010",
+      "status": "PENDING",
+      "depends_on": [
+        "MT-007",
+        "MT-008",
+        "MT-009"
+      ],
+      "summary": "Update no-context model manual and backend navigation for lane launch, exchange, diagnostics, and recovery.",
+      "unlocks": "Unlocks no-context model/operator use of the lane system through canonical UserManual and backend navigation.",
+      "blocks": [],
+      "proof_status": "NOT_RUN",
+      "hbr_status": "PENDING",
+      "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
+      "post_implementation_adversarial_review_status": "NOT_RUN",
+      "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+    },
+    {
+      "mt_id": "MT-011",
+      "status": "PENDING",
+      "depends_on": [
+        "MT-009",
+        "MT-010"
+      ],
+      "summary": "Update the internal UserManual so every WP behavior is usable by future models/operators and linked to Flight Recorder plus Palmistry posture.",
+      "unlocks": "Unlocks WP-wide manual currency so every implemented behavior is discoverable, recoverable, and tied to evidence.",
+      "blocks": [],
+      "proof_status": "NOT_RUN",
+      "hbr_status": "PENDING",
+      "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
+      "post_implementation_adversarial_review_status": "NOT_RUN",
+      "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+    }
+  ]
+}

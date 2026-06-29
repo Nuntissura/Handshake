@@ -814,10 +814,14 @@ Canonical Week 5 WP stubs:
 - `WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1`
 - `WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1`
 
-Deprecated source stubs:
+Deprecated direct-activation stubs and folded source-stub map:
 
 - `WP-1-Atelier-Lens-v2` is `SUPERSEDED` and folded into `WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1`.
 - `WP-1-Photo-Studio-v2` is `SUPERSEDED` and folded into `WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1`.
+- These are the two old stubs that were explicitly deprecated in the stub files, Task Board, traceability registry, and Build Order.
+- They are not the only folded sources. The broader old-stub preservation map lives in `.GOV/reference/ckc_atelier_lens_consolidation/wp-stub-coverage-audit-20260516.md` under `Old Stub Owner Map`.
+- That owner map assigns the wider Atelier/Lens-adjacent source set to the three canonical Week 5 stubs as `folded`, `folded_dependency`, `baseline_dependency`, `inherited_validation`, `historical_source`, `separate_pattern_source`, or `foundational_dependency`.
+- Activation must use that owner map so older stubs and dependencies are not re-opened, duplicated, or lost when the three canonical stubs become active full work packets.
 
 Draft MT activation handoff:
 

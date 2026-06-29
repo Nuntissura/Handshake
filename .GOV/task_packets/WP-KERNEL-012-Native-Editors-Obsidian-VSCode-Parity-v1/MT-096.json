@@ -75,6 +75,7 @@
       "PT-016-D: `cargo test three_tier_privacy_allowlist` GREEN — system-wide typed-allowlist scan; proof manifest + Diagnostics Panel screenshot emitted external + inspected; FR-forward live half gated NEEDS_MANAGED_RESOURCE_PROOF if no backend; both crates build clean + clippy -D warnings + full suite -j 2 green."
     ],
     "implementation_notes": [
+      "BOUNDED-TEST RULE (MT-092 precedent, MANDATORY): any test spawning the palmistry binary / doing minidumper-IPC / waiting on a child MUST use an explicit timeout (wait_for_exit/connect/read) - NEVER an unbounded Command::output() or socket read_line. #[ignore] with a typed reason any test that deadlocks under this headless harness (run with --ignored on a real host); minidumper out-of-process IPC + simulate_exception are the known hangers. Run palmistry tests under a hard external bound so a deadlock cannot waste hours.",
       "This is INTEGRATION: wire + prove MT-081..015 together on the REAL HandshakeApp + the REAL palmistry.exe + the REAL ring. Do not re-implement any tier; reuse their real APIs/spawn/ring.",
       "Locate the built palmistry.exe via the external target dir / current_exe()-relative resolution (the same MT-094 path). The capstone needs both binaries built; run with the external CARGO_TARGET_DIR.",
       "Freeze/crash injection must be DETERMINISTIC + TEST-FEATURE-GATED (a cfg/feature stall pane + a crash trigger) — NOT reachable in the shipped binary. Keep the footprint minimal; document any unavoidable production hook as test-feature-gated.",

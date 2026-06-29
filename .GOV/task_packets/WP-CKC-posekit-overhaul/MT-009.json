@@ -1,0 +1,80 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-009",
+  "title": "Restore CKC character and avatar database core parity",
+  "status": "IN_PROGRESS",
+  "created_at_utc": "2026-06-28T21:53:53.761Z",
+  "updated_at_utc": "2026-06-28T23:28:00.301Z",
+  "product_edit_allowed": true,
+  "operator_request": "Original CKC was a character/avatar database with character data sheets reusable in CUI workflows, porn production workflows, Unreal, Blender, and other pipelines.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-009.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
+    "parity_map": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003-parity-map.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-009.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-009.json"
+  },
+  "lifecycle": {
+    "status": "IN_PROGRESS",
+    "active": true,
+    "depends_on": [
+      "MT-006"
+    ],
+    "validator_verdict": "PENDING",
+    "started_at_utc": "2026-06-28T23:28:00.301Z"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "recovery_rule": "Start by reading current Rust Atelier models/routes and MT-003 parity map. Preserve existing backend authority and PostgreSQL/EventLedger stance."
+  },
+  "scope": {
+    "summary": "Make Castkit Codex inside Atelier a real reusable character/avatar database with editable sheets and versioned data.",
+    "base_scope": [
+      "Audit current Rust Atelier character/profile data models and UI.",
+      "Implement or complete character/avatar sheet create, edit, read, version, and reuse paths.",
+      "Expose stable model-facing IDs and backend routes for character sheet operations.",
+      "Make character data usable by downstream CUI, porn production, Unreal, Blender, and other Handshake workflows through typed references, not copy-paste text.",
+      "Update internal UserManual with the CKC character sheet workflow."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/**",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/**"
+    ],
+    "acceptance_criteria": [
+      "An operator/model can create or select a CKC character and view/edit its character sheet.",
+      "Character sheets have stable IDs and version references.",
+      "Other Handshake modules can reference a CKC sheet/version through typed refs.",
+      "Argus can inspect and steer the CKC character sheet surface."
+    ],
+    "verification": [
+      "Backend/model tests for sheet round-trip and version references.",
+      "Native UI tests for CKC sheet display/edit affordances.",
+      "Argus visual inspection evidence for the CKC sheet surface."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "data model stability",
+      "cross-module reuse",
+      "operator workflow fit",
+      "parallel-agent conflict behavior"
+    ]
+  },
+  "manual_requirement": "Required in this MT.",
+  "handoff": {
+    "status": "IN_PROGRESS",
+    "summary": "Implementation started: audit current backend/native CKC character-sheet support, then add the smallest typed sheet/version/UI surface that satisfies MT-009 without disturbing parallel work."
+  },
+  "started_at_utc": "2026-06-28T23:28:00.301Z"
+}

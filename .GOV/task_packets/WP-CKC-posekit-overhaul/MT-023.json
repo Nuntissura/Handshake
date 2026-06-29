@@ -1,0 +1,83 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-023",
+  "title": "Run Argus-driven visual and behavioral overhaul pass for Atelier tools",
+  "status": "PENDING",
+  "created_at_utc": "2026-06-28T21:53:53.761Z",
+  "updated_at_utc": "2026-06-28T21:53:53.761Z",
+  "product_edit_allowed": true,
+  "operator_request": "After native/state work, visually and behaviorally overhaul CKC/Posekit inside Handshake so it mirrors the original app more, with Argus checking panels, tabs, overview, navigation, layout, and style.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-023.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
+    "parity_map": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003-parity-map.json",
+    "argus_protocol": ".GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-023.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-023.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-013",
+      "MT-015",
+      "MT-017",
+      "MT-021",
+      "MT-022"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "recovery_rule": "Only start after main surfaces exist. Use Argus headlessly; do not pop the app foreground for visual inspection."
+  },
+  "scope": {
+    "summary": "Polish the live Atelier product experience against original CKC/Posekit workflow intent, using Argus as the proof path.",
+    "base_scope": [
+      "Inspect every Atelier tab and major state through Argus snapshots/screenshots.",
+      "Fix clutter, overlapping text, confusing labels, dead controls, and incoherent navigation.",
+      "Check CKC book layout, Posekit split view, Ingest review flow, and manual discoverability.",
+      "Record remaining visual/behavioral gaps as follow-up MTs instead of claiming parity.",
+      "Update internal UserManual if navigation or behavior changes."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_side_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/**"
+    ],
+    "acceptance_criteria": [
+      "Argus can see and steer all core Atelier workflows.",
+      "Layouts are readable and do not overlap at tested desktop/constrained sizes.",
+      "Navigation labels match operator intent.",
+      "Residual gaps are explicit and not represented as complete."
+    ],
+    "verification": [
+      "Argus snapshots/screenshots for core screens.",
+      "Focused UI tests for navigation and layout states.",
+      "Adversarial visual review before and after fixes."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "visual clarity",
+      "operator workflow speed",
+      "original-app parity",
+      "model steerability",
+      "false completion risk"
+    ]
+  },
+  "manual_requirement": "Required for any changed behavior or navigation.",
+  "handoff": {
+    "status": "PENDING"
+  }
+}

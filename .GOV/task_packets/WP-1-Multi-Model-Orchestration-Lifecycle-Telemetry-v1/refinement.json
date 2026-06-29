@@ -1,0 +1,163 @@
+{
+  "schema_id": "hsk.refinement_contract@1",
+  "schema_version": "refinement_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "created_at_utc": "2026-06-28T17:11:31.143Z",
+  "updated_at_utc": "2026-06-28T21:51:59.965Z",
+  "authority_files": {
+    "refinement_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/refinement.json",
+    "refinement_projection": "",
+    "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "",
+    "status": "SKIPPED_MINIMAL_GOVERNANCE",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "activation_manager": {
+    "required": true,
+    "status": "READY_FOR_DEV",
+    "session_id": "KERNEL_BUILDER-20260628-163352",
+    "handoff_summary": "Activated existing multi-model stub into an official JSON-first packet after operator directed Activation Manager protocol use. Governance scope intentionally limited to spec-current alignment, taskboard, traceability, packet, microtasks, worktree, and recovery state.",
+    "readiness_status": "READY_FOR_DEV"
+  },
+  "refinement": {
+    "operator_request": "The original spec was written before modern swarm models/subagents. Use Activation Manager protocol and create a WP and worktree with MTs, keeping only enough governance for taskboard/spec/current WP/MT status and recovery.",
+    "user_approval_evidence": "operator_directive_2026-06-28_chat",
+    "user_review_status": "APPROVED_BY_OPERATOR_DIRECTIVE",
+    "approved_spec_enrichment": [
+      {
+        "module": ".GOV/spec/master-spec-v02.197/spec-modules/04-llm-infrastructure.md",
+        "anchor": "4.3.9.2.5",
+        "summary": "Add ModelLaneRun, ModelLane, and ModelLaneMessage as the normative cloud/local/subagent exchange contract."
+      },
+      {
+        "module": ".GOV/spec/master-spec-v02.197/spec-modules/04-llm-infrastructure.md",
+        "anchor": "4.3.9.10.1",
+        "summary": "Add CX-MM-006..009 failstate codes for missing lane payloads, cloud consent/projection gaps, unauthorized peer channels, and orphaned subagent lanes."
+      }
+    ],
+    "scope_edges": [
+      "Activate the existing v1 stub identity; do not invent a new WP name.",
+      "Keep repo-governance ceremony minimal because repo governance is planned for abandonment.",
+      "Allow operator ad hoc MT additions and changes after activation.",
+      "Implementation must reuse existing ModelRuntime, cloud lane, SwarmCoordinator, SessionBroker, ContextBundle, ArtifactStore/EventLedger, and diagnostics where practical.",
+      "Product implementation scope is Rust-only for this WP: Rust backend plus Rust native egui/Argus surfaces. app/src legacy React/Tauri/TypeScript surfaces are reference-only and must not be implementation or proof authority.",
+      "Every MT implementation must keep Flight Recorder/EventLedger authority, CRDT proposal/promotion, Loom, Locus, FEMS, and UserManual compatibility explicit where touched.",
+      "Palmistry/internal_diagnostics are required diagnostic posture fields through HBR-INT-009; if not present in this worktree, record DEFERRED-with-reason and do not claim live integration.",
+      "All implementation/proof surfaces for this WP are Rust-only: Rust backend plus Rust native egui/Argus. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are reference-only or forbidden as proof authority.",
+      "Implementation MTs must use exact Rust proof targets that touch real PostgreSQL/EventLedger or the named Handshake-owned resource; zero matching tests are a hard failure.",
+      "MT lifecycle/status signaling must support Kernel Builder/Coder Spec-Realism states and restart recovery without chat history."
+    ],
+    "assumptions": [
+      "The worktree branch can be based on main while the live .GOV junction points back to the governance kernel.",
+      "Initial MT status should be PENDING until a coder/subagent claims work.",
+      "The old DOCS_ONLY/AI_ENABLED stub remains historical input, not execution authority."
+    ],
+    "non_goals": [
+      "No broad repo-governance refactor.",
+      "No product implementation in this activation pass.",
+      "No new peer-to-peer model bus outside Handshake authority surfaces.",
+      "No hidden cloud escalation path."
+    ],
+    "spec_anchors": [
+      ".GOV/spec/master-spec-v02.197/spec-modules/04-llm-infrastructure.md#4.3.9",
+      ".GOV/spec/master-spec-v02.197/spec-modules/04-llm-infrastructure.md#4.6",
+      ".GOV/spec/master-spec-v02.197/spec-modules/11-shared-dev-platform-and-oss-foundations.md#11.1.7"
+    ],
+    "acceptance_criteria": [
+      "Taskboard maps the packet to Ready for Dev and the old stub is no longer the active row.",
+      "Traceability registry maps the base WP to the official packet folder.",
+      "Spec current bundle contains the ModelLane exchange contract and matching hash metadata.",
+      "Worktree exists for implementation and links back to the live .GOV kernel.",
+      "MT contracts are present, PENDING, and detailed enough for ad hoc assignment.",
+      "MT contracts include the UserManual currency pass that reflects every WP behavior into the internal manual with Flight Recorder/EventLedger and Palmistry/internal_diagnostics posture.",
+      "Each MT contains research_basis and Handshake compatibility translation tied to master spec/product code authority.",
+      "Each product implementation MT requires same-change UserManual updates with Flight Recorder/EventLedger linkage and HBR-INT-009 diagnostic posture.",
+      "MTs forbid hidden peer-to-peer model channels, prompt-only handoff, SQLite authority, legacy app/src authority leaks, and npm/JavaScript proof targets."
+    ],
+    "microtask_plan": [
+      "MT-001: Spec and contract alignment",
+      "MT-002: ModelLaneRun/ModelLane/ModelLaneMessage backend schemas",
+      "MT-003: Unified launch adapters for local, cloud, CLI, human, subagent, validator lanes",
+      "MT-004: Coordinator routing and artifact promotion",
+      "MT-005: ContextBundle handoff and model-to-model exchange",
+      "MT-006: Consent, projection, and authority boundaries",
+      "MT-007: Recovery, orphan handling, and diagnostics",
+      "MT-008: UI/debug lane trace",
+      "MT-009: Validation harness and negative cases",
+      "MT-010: Model manual and backend navigation",
+      "MT-011: Internal UserManual currency and Flight Recorder/Palmistry linkage for every WP behavior"
+    ],
+    "research_basis": {
+      "status": "CURRENT_EXTERNAL_RESEARCH_COMPLETED_FOR_MT_REFINEMENT_2026-06-28",
+      "updated_at_utc": "2026-06-28T20:10:33.273Z",
+      "summary": "Research and product-code inspection strengthened MT contracts around Rust backend execution, PostgreSQL/EventLedger authority, CRDT proposal/promotion, Flight Recorder/internal_diagnostics/Palmistry diagnostics, Loom/Locus/FEMS/UserManual compatibility, and deterministic model-lane orchestration.",
+      "external_source_ids": [
+        "autogen",
+        "autogenStudio",
+        "langgraph",
+        "langgraphPersistence",
+        "mcp",
+        "yjs",
+        "yjsInternals",
+        "automerge",
+        "loro",
+        "peritext",
+        "localFirst",
+        "otel",
+        "dapper",
+        "temporal",
+        "pgEvent",
+        "fstore",
+        "llamaCpp",
+        "candle",
+        "pgvector",
+        "mcpResources",
+        "llamaIndexMemory",
+        "langchainMemory"
+      ],
+      "translation_rule": "External frameworks are field evidence only; Handshake remains layered as models propose edits, Handshake validates/promotes deterministically, PostgreSQL/EventLedger stores authority, Flight Recorder records business evidence, and UserManual/Loom/Locus/FEMS make state usable by no-context models."
+    },
+    "acceptance": [
+      "Every MT has restartable lifecycle/status fields for claim, ready-for-validation, validator completion, blockers, missing resource, proof/HBR status, KB ready checklist, and runtime/recovery refs.",
+      "Rust-only proof targets replace npm, app/src, docs/model-manual, and grep-as-proof surfaces.",
+      "MT dependencies ensure consent, recovery, diagnostics, navigation, and manual audit run after the product behavior they inspect.",
+      "Pre-implementation adversarial review hardens the contracts; post-implementation adversarial review hardens each actual MT diff before READY_FOR_VALIDATION."
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "A broad swarm WP can sprawl into unrelated governance rebuild work.",
+      "Legacy multi-model wording can be mistaken for sufficient modern subagent design.",
+      "Cloud/local lane exchange can accidentally use prompt text as hidden authority.",
+      "Subagent work can become unrecoverable if lane identity is not durable."
+    ],
+    "minimum_controls": [
+      "Keep activation surfaces limited to packet, MTs, taskboard, traceability, spec-current, and worktree.",
+      "Require typed lane records and messages before implementation claims communication is complete.",
+      "Require explicit artifact promotion for authority changes.",
+      "Require restart/orphan tests before completion."
+    ]
+  }
+}

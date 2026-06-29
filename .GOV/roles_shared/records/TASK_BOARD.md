@@ -72,6 +72,7 @@ Entry format (recommended):
 ## Ready for Dev
 
 A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
+- **[WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1]** - [READY_FOR_DEV]
 
 
 
@@ -136,7 +137,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Governance-Hooks-v2]** - [STUB]
 - **[WP-1-Workspace-Bundle-v2]** - [STUB]
 - **[WP-1-Metrics-Traces-v2]** - [STUB]
-- **[WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1]** - [STUB]
 - **[WP-1-FEMS-Acceptance-Replay-Eval-v1]** - [STUB]
 - **[WP-1-FEMS-Hygiene-Manager-Job-v1]** - [STUB]
 - **[WP-1-FEMS-Injection-Scoring-Graceful-Degradation-v1]** - [STUB]
@@ -144,10 +144,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-FEMS-Pinned-Core-Memory-v1]** - [STUB]
 - **[WP-1-FEMS-Bitemporal-Indexing-v1]** - [STUB]
 - **[WP-1-FEMS-Outcome-Feedback-Loop-v1]** - [STUB]
-- **[WP-1-Provider-Feature-Coverage-Agentic-Ready-v1]** - [STUB]
 - **[WP-1-Consent-Audit-Projection-v1]** - [STUB]
-- **[WP-1-Cloud-Consent-Evidence-Portability-v1]** - [STUB]
-- **[WP-1-Layerwise-Inference-Foundations-v1]** - [STUB]
 - **[WP-1-Handshake-Stage-MVP-v1]** - [STUB]
 - **[WP-1-Stage-Media-Artifact-Portability-v1]** - [STUB]
 - **[WP-1-Mail-Runtime-Backfill-v1]** - [STUB]
@@ -1230,6 +1227,9 @@ Entry format for this section:
 ---
 
 ## Superseded (Archive)
+- **[WP-1-Provider-Feature-Coverage-Agentic-Ready-v1]** - [SUPERSEDED]
+- **[WP-1-Cloud-Consent-Evidence-Portability-v1]** - [SUPERSEDED]
+- **[WP-1-Layerwise-Inference-Foundations-v1]** - [SUPERSEDED]
 - **[WP-1-Project-Brain-Runtime-Backfill-v1]** - [SUPERSEDED]
 - **[WP-1-Semantic-Catalog-v2]** - [SUPERSEDED]
 - **[WP-1-AIReady-Index-Evidence-Export-v1]** - [SUPERSEDED]

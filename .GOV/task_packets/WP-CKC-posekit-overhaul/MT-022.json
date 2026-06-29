@@ -1,0 +1,82 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-022",
+  "title": "Make all Atelier tool surfaces parallel-agent safe and Argus steerable",
+  "status": "PENDING",
+  "created_at_utc": "2026-06-28T21:53:53.761Z",
+  "updated_at_utc": "2026-06-28T21:53:53.761Z",
+  "product_edit_allowed": true,
+  "operator_request": "Everything should be usable by parallel agents inside Handshake, with front-end and back-end navigation paths and Argus visual proof; missing GUI/operator surfaces are accepted scope expansion.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-022.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
+    "argus_protocol": ".GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-022.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-022.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-008",
+      "MT-013",
+      "MT-017"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "recovery_rule": "Audit every Atelier surface for stable IDs, routes, leases, receipts, and visual proof. Treat gaps as product debt, not documentation-only issues."
+  },
+  "scope": {
+    "summary": "Harden CKC, Posekit, Ingest, Facial-backed tools, and prompt feedback surfaces for safe parallel model operation.",
+    "base_scope": [
+      "Audit stable author_id coverage for all Atelier tabs, controls, lists, viewers, and status regions.",
+      "Add deterministic backend/headless commands where GUI-only operation blocks agents.",
+      "Add receipts/attribution for model actions that mutate CKC/Posekit/Ingest state.",
+      "Ensure parallel agents have leases/conflict behavior for shared mutable targets.",
+      "Expose enough structured state for no-context recovery.",
+      "Update internal UserManual with model operation rules."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/mcp/**",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/**",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/**"
+    ],
+    "acceptance_criteria": [
+      "Every major Atelier surface has stable Argus-visible author_ids.",
+      "Mutations are attributable and safe under parallel agent use.",
+      "No critical workflow requires hidden chat context or manual foreground interaction.",
+      "Argus can steer and re-observe all core controls."
+    ],
+    "verification": [
+      "AccessKit/Argus ID audit tests.",
+      "Parallel-agent mutation tests for selected workflows.",
+      "Manual-content tests for model operation guidance."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "parallel concurrency",
+      "state recovery",
+      "Argus steerability",
+      "missing backend routes",
+      "operator workflow interruption"
+    ]
+  },
+  "manual_requirement": "Required in this MT.",
+  "handoff": {
+    "status": "PENDING"
+  }
+}

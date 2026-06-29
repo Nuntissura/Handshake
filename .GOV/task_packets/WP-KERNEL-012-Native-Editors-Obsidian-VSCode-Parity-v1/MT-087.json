@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-082",
@@ -137,5 +137,10 @@
     },
     "motivating_incident": "After the 2026-06-26 freeze there was no first-party in-app surface to read the app's own liveness/frame/resource state; this panel is that surface (§5.8.4 / §10.12.5).",
     "validation_plan": "live-app mount + screenshot + projection-only + three-tier-layout + CONTROL-4; clippy -D warnings; full suite -j 2."
+  },
+  "implementation_result": {
+    "summary": "Settings->Diagnostics panel (per operator steer - NOT a worksurface pane): DiagnosticsPanel widget + settings_diagnostics_section.rs hosted in settings_dialog.rs; projects live internal_diagnostics (heartbeat alive/uptime, frame p50/p95/slow, CPU/RSS/GPU adapter, last-N events) + honest Tier-3 Palmistry empty-state. AC-007-1..6 PASS; theme-token-only (CONTROL-4 clean); AccessKit ids; no spinner; operator-inspected screenshot legible no-overlap. GpuInfo strings stay panel-local (not in ring/Palmistry record).",
+    "visual_proof": "Handshake_Artifacts/handshake-test/wp-kernel-015-mt-007/MT-087-diagnostics-settings-section-live.png - Settings->Diagnostics live (heartbeat 15 alive, frame p50 13.6ms, RSS 121.7MiB, GPU Dx12), backend OK.",
+    "note": "full -j2 suite did not finish in the background window; no-regression via 1590 lib + 73 targeted neighbor tests green (per diagnostic_gate_policy)."
   }
 }

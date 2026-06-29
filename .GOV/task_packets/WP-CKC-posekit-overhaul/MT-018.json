@@ -1,0 +1,76 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-018",
+  "title": "Add native contact sheet generator for image mining and LoRA review",
+  "status": "PENDING",
+  "created_at_utc": "2026-06-28T21:53:53.761Z",
+  "updated_at_utc": "2026-06-28T21:53:53.761Z",
+  "product_edit_allowed": true,
+  "operator_request": "CKC/Ingest should create flexible contact sheets with DPI, rows, columns, and export settings for visually inspecting mined images.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-018.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-018.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-018.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-017"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "recovery_rule": "Build contact sheets as native export artifacts tied to Ingest review sets and CKC albums."
+  },
+  "scope": {
+    "summary": "Generate contact sheets from Ingest/CKC image sets with controlled layout and export receipts.",
+    "base_scope": [
+      "Select images from an ingest review set, CKC album, or character media set.",
+      "Configure DPI, rows, columns, thumbnail fit, labels, and output path.",
+      "Generate/export contact sheet artifacts with lineage metadata.",
+      "Make the preview and export controls Argus-inspectable.",
+      "Update internal UserManual with contact sheet workflow."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/**",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/**"
+    ],
+    "acceptance_criteria": [
+      "A contact sheet can be generated from a selected image set.",
+      "Rows, columns, and DPI affect output layout.",
+      "Export produces a receipt linking back to source image IDs.",
+      "Argus can inspect and steer the contact sheet controls."
+    ],
+    "verification": [
+      "Image/layout tests for contact sheet generation.",
+      "Native UI tests for controls and preview.",
+      "Argus evidence for export workflow."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "export correctness",
+      "large image set memory use",
+      "lineage and reproducibility",
+      "operator visual review usefulness"
+    ]
+  },
+  "manual_requirement": "Required in this MT.",
+  "handoff": {
+    "status": "PENDING"
+  }
+}

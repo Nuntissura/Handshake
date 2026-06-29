@@ -2209,15 +2209,38 @@ WARN ESCALATION: {WP-ID} [CX-620]
 **Awaiting Response By:** {date/time}
 ```
 
+## Minimal Runtime-Proven Implementation Discipline [CDR-MRPI-001]
+
+This is a Handshake-native implementation rule, not an adoption of the Ponytail project. Do not install, copy, invoke, benchmark against, or cite Ponytail plugin/rule files as Handshake authority.
+
+Before adding implementation code, Coder MUST choose the smallest runtime-proven implementation that satisfies the signed WP/MT contract, touched product code, and proof requirements.
+
+Apply this ladder in order after reading the packet/MT and tracing the real product flow:
+
+1. Skip work the signed scope does not require.
+2. Reuse existing Handshake product code, data contracts, proof helpers, and runtime patterns.
+3. Prefer language standard library, native platform capability, or Handshake-owned capability over new custom machinery.
+4. Prefer an already-installed dependency only when it is already part of the governed product stack and is simpler than owning new code.
+5. Use a one-line implementation only when it is clear, readable, edge-case-correct, and runtime-provable.
+6. Otherwise write the minimum new code that works and can be proven at the executable runtime or named Handshake-managed resource boundary.
+
+YAGNI means no speculative buildout: no unrequested abstractions, no interface with one implementation, no factory/config/schema/adapter/descriptor/projection "for later", no new dependency without governed need, no parallel replacement for an existing module, no boilerplate nobody asked for, and no scaffold that cannot satisfy the Spec-Realism Gate.
+
+Minimal does not mean under-proven. This rule MUST NOT weaken runtime proof, HBR rows, trust-boundary validation, data-loss/error handling, security, accessibility, Argus visual proof, UserManual/diagnostic duties, no-context MT detail, anti-scaffold gates, validator handoff, or independent validator review.
+
+When an example or check is needed, provide one canonical runnable example/check unless the packet, validator focus, safety case, or HBR row requires more. Any intentional simplification with a known ceiling MUST be recorded in the existing packet/receipt/debt surface with the ceiling and upgrade trigger.
+
 ## Spec-Realism Gate (mandatory before READY_FOR_VALIDATION)
 
 This role implements code. This role does NOT mark an MT `COMPLETED`. The terminal transition this role can perform on an MT lifecycle is `CLAIMED -> READY_FOR_VALIDATION`. The `READY_FOR_VALIDATION -> COMPLETED` transition requires a different actor under the validator protocols (`VALIDATOR_PROTOCOL.md` / `WP_VALIDATOR_PROTOCOL.md` / `INTEGRATION_VALIDATOR_PROTOCOL.md`).
 
 Before this role can hand off (`READY_FOR_VALIDATION`), apply the three sub-rules below as a self-check. Failure of any sub-rule means the lifecycle status is one of the named alternatives — never `READY_FOR_VALIDATION`, and certainly never `COMPLETED`.
 
+Runtime-proof anti-scaffold interpretation: `READY_FOR_VALIDATION` is illegal for scaffold-only work. Declarations, traits, schemas, contracts, descriptors, projections, generated types, placeholder branches, mock or in-memory adapters, fixture-only tests, and tests that assert behavior only against code or fake resources authored by this role do not prove the MT. At least one proof command must exercise the executable product runtime or the named Handshake-managed resource boundary for every claimed behavior. Compile/type/unit proof is build health only unless it drives that real runtime path.
+
 **Sub-rule 1 — No deferred-live escape.** If any proof command, or any function body the spec requires to run at runtime, exits through a `*Unavailable` / `not yet wired` / "follow-on commit will…" code path, the MT is `BLOCKED_ON_DEPENDENCY` (with the missing dep named in `lifecycle.blocker`), not `READY_FOR_VALIDATION`. Lexical trip-wires the gov-check greps for: `LiveClientUnavailable`, `LiveSpawnUnavailable`, `LiveRuntimeUnavailable`, `TrainerUnavailable`, `NativeToolchainUnavailable`, `not yet wired`, `deferred to follow-on`, `pending MT-NNN`, `live store not attached`. Adding new placeholder error variants of the same shape is the same failure.
 
-**Sub-rule 2 — Handshake-owned resource touch.** For every resource the MT contract names — model artifact, Handshake-managed PostgreSQL/EventLedger table/column, Handshake-native HTTP endpoint, product-managed subprocess, file-format round-trip, OS-level surface, IPC channel routed to a Handshake-owned process, or explicit operator-configured adapter — at least one proof command must touch the real product resource or adapter boundary. A trait abstraction plus an in-memory impl this role also authored does not count as touching the resource. Docker Desktop, Docker Compose, third-party model-server daemons, external service wrappers, and manually launched support apps do not count as default proof resources; they are compatibility-only opt-ins and must have an explicit adapter contract. If the contract names product resources and proof only touches mocks or an unmanaged outside app, status is `NEEDS_MANAGED_RESOURCE_PROOF` (resource named in `lifecycle.missing_resource`).
+**Sub-rule 2 — Handshake-owned resource touch.** For every resource the MT contract names — model artifact, Handshake-managed PostgreSQL/EventLedger table/column, Handshake-native HTTP endpoint, product-managed subprocess, file-format round-trip, OS-level surface, IPC channel routed to a Handshake-owned process, or explicit operator-configured adapter — at least one proof command must touch the real product resource or adapter boundary. A trait abstraction, schema/descriptor/projection, generated contract, or in-memory impl this role also authored does not count as touching the resource unless the proof also drives the executable consumer. Docker Desktop, Docker Compose, third-party model-server daemons, external service wrappers, and manually launched support apps do not count as default proof resources; they are compatibility-only opt-ins and must have an explicit adapter contract. If the contract names product resources and proof only touches mocks, fixtures, generated descriptors, or an unmanaged outside app, status is `NEEDS_MANAGED_RESOURCE_PROOF` (resource named in `lifecycle.missing_resource`).
 
 **Sub-rule 3 — Implementer cannot self-certify.** Structural rule, not a self-check. `lifecycle.claimed_by` must not equal `lifecycle.completed_by`. The implementer transitions `CLAIMED -> READY_FOR_VALIDATION` and emits the validator handoff per the packet's `workflow.validation_topology`. The validator role transitions `READY_FOR_VALIDATION -> COMPLETED`.
 

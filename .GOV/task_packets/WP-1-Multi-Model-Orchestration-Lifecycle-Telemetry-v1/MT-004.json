@@ -1,0 +1,241 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "mt_id": "MT-004",
+  "created_at_utc": "2026-06-28T17:11:31.143Z",
+  "updated_at_utc": "2026-06-28T21:51:59.965Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-004.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "",
+    "status": "SKIPPED_MINIMAL_GOVERNANCE"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-002"
+    ],
+    "blocks": [
+      "MT-005",
+      "MT-006",
+      "MT-009"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING",
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
+    "completed_by": null,
+    "blocker": null,
+    "missing_resource": null,
+    "proof_status": "NOT_RUN",
+    "hbr_status": "PENDING",
+    "kb_ready_checklist_receipt_id": null,
+    "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
+    "last_recovery_event_ref": null,
+    "last_runtime_status_ref": null,
+    "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
+    "post_implementation_adversarial_review_status": "NOT_RUN",
+    "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+  },
+  "scope": {
+    "summary": "Implement coordinator routing policies and explicit advisory-to-authority promotion.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/",
+      "src/backend/handshake_core/src/distillation/swarm_trace.rs",
+      "src/backend/handshake_core/tests/",
+      "src/backend/handshake_core/migrations/",
+      "src/backend/handshake_core/src/kernel/kb003_promotion/",
+      "src/backend/handshake_core/src/kernel/promotion.rs",
+      "src/backend/handshake_core/src/kernel/crdt/",
+      "src/backend/handshake_core/src/flight_recorder/event_ledger.rs",
+      "src/backend/handshake_core/src/storage/"
+    ],
+    "forbidden_paths": [
+      "automatic code/contract promotion without explicit policy",
+      "hidden model consensus outside ModelLaneMessage",
+      "new TypeScript/React/app/src implementation",
+      "npm/JavaScript proof targets for this WP",
+      "app/src-tauri launch or IPC authority for this WP",
+      "proof commands that pass with zero matching tests"
+    ],
+    "acceptance_criteria": [
+      "Routing policies cover local-first, cloud-review, cloud-plan-local-execute, parallel-debate, validator lane, and operator lane.",
+      "Advisory output cannot modify authority until promoted through a typed decision.",
+      "Disagreement produces explicit messages and a coordinator decision artifact.",
+      "Promotion MUST be modeled as an explicit deterministic state machine: advisory -> promotion_requested -> pending_policy|pending_approval -> approved|denied|expired -> executing -> executed|skipped|unsupported, keyed by stable action/request ids and idempotency keys. Only PromotionGate resolution records may mutate authority.",
+      "PromotionGate MUST deny CRDT/model-lane promotions when base_snapshot_ref, state_vector, schema_id, or expected EventLedger aggregate/version is stale or mismatched. The denial MUST be typed, durable, replayable, and include the current state_vector/base snapshot or recovery hint; stale proposals MUST NOT auto-rebase into authority.",
+      "Routing and promotion decisions persist as EventLedger-backed decision artifacts with idempotency key, selected input refs, rejected input refs, validator/operator authority, and trace/span correlation.",
+      "Disagreement and stalled progress produce bounded state transitions and explicit recovery/next-action records instead of recursive agent chatter.",
+      "ModelLane promotion input MUST include stable sorted input refs, canonical hash basis, selected/rejected refs, validator/operator authority identity, expected EventLedger aggregate/version, base_snapshot_ref, state_vector, schema_id, deterministic tie-break rule, and decision identity.",
+      "Negative proof MUST cover duplicate idempotency, stale base, mismatched schema, mismatched aggregate version, direct authority mutation, and reordered input refs producing the same deterministic decision.",
+      "After implementation and before READY_FOR_VALIDATION, this MT MUST receive post-implementation adversarial review against the actual diff. Findings must be fixed or converted into explicit lifecycle blocker/missing_resource/proof_status state; the implementer may not self-certify COMPLETED."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_promotion_pg_tests model_lane_promotion_appends_eventledger_and_replays_decision -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_promotion_pg_tests model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_mutation -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_promotion_pg_tests model_lane_promotion_reordered_inputs_keep_same_decision_hash -- --exact"
+    ],
+    "risk_if_missed": "A swarm can look parallel while still depending on hidden prompt arbitration.",
+    "reference_only_paths": [
+      "app/src/components/swarm/",
+      "app/src/lib/ipc/swarm_runtime.ts",
+      "app/src-tauri/",
+      "docs/model-manual/",
+      "app/MODEL_MANUAL.md"
+    ]
+  },
+  "implementation_notes": [
+    "Implement routing policies as typed Rust enums/structs, not stringly prompt conventions.",
+    "Required policies: local_first, cloud_review, cloud_plan_local_execute, parallel_debate, validator_lane, operator_lane.",
+    "Every cross-lane message must use typed routing fields; narrative-only handoff is forbidden.",
+    "Advisory lane output must not mutate code, contracts, validation verdicts, or authority state until PromotionGate/operator/validator promotion records it.",
+    "Disagreement must create typed critique/vote/decision messages plus a selected decision artifact; downstream lanes receive the selected decision through ContextBundle.",
+    "Provider feature gaps must fail closed with explicit CX-MM or provider capability error codes; no silent fallback.",
+    "Temporal-style durable replay maps to deterministic routing records plus recorded non-deterministic adapter calls; rerun/replay must not depend on live provider output.",
+    "Local-first suggesting/pull-request patterns map to model proposals that Handshake accepts/rejects/promotes, not to direct model writes.",
+    "Locus must be updated with run/lane progress and MT association whenever coordinator state changes a governed work unit.",
+    "Use Flight Recorder/EventLedger payloads as bounded events plus artifact refs; do not put unbounded model output, raw secrets, or prompt-only state in event payloads.",
+    "If this MT changes any product behavior, storage/event contract, command, IPC/API path, diagnostic surface, model lane, or navigation path, update the in-product UserManual in the same implementation change per HBR-MAN-004.",
+    "Product implementation for this MT must be Rust-only: Rust backend plus Rust native egui/Argus surfaces where UI is touched. Legacy app/src, app/src-tauri, React, Tauri/WebView, TypeScript, JavaScript, docs/model-manual, and npm proof targets are reference-only or forbidden and MUST NOT satisfy implementation/proof authority.",
+    "Proof commands must name exact Rust test targets or exact test names. Zero matching tests is a hard failure. Deterministic provider fakes are allowed for cloud/local model calls, but PostgreSQL/EventLedger/ArtifactStore/CRDT/UserManual/Argus authority must touch real Handshake-owned Rust resources or an explicit real PostgreSQL URL.",
+    "Each behavior-changing MT must include same-change UserManual coverage for the changed behavior; MT-011 audits coverage and cannot substitute for same-change HBR-MAN-004 proof.",
+    "This pre-implementation contract review does not replace post-implementation review. After coding, run adversarial review against the actual diff through the listed lenses and update MT status signaling before handoff."
+  ],
+  "required_build_rules": [
+    "HBR-INT-003",
+    "HBR-SWARM-004",
+    "HBR-INT-007",
+    "HBR-MAN-004",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002"
+  ],
+  "hbr_obligations": [
+    "INT",
+    "SWARM",
+    "MAN"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "post_implementation_adversarial_review_required": true,
+    "post_implementation_review_lenses": [
+      "runtime_launch_and_model_lane_authority",
+      "postgres_eventledger_crdt_state_recovery",
+      "rust_native_argus_operator_surface_and_usermanual",
+      "spec_realism_negative_guards_and_mt_status_signaling"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Consensus can be implied by last-writer-wins prompts."
+    ],
+    "minimum_controls": [
+      "Promotion state must be part of a ModelLaneMessage or linked decision record."
+    ]
+  },
+  "research_basis": {
+    "updated_at_utc": "2026-06-28T20:10:33.273Z",
+    "authority_posture": "Master spec/SPEC_CURRENT/product code are authority; HANDSHAKE_PRODUCT_REFERENCE.md and external research are navigation/evidence only.",
+    "local_authority_checked": [
+      ".GOV/spec/SPEC_CURRENT.md",
+      ".GOV/spec/master-spec-v02.197/spec-modules/04-llm-infrastructure.md#4.3.9",
+      ".GOV/spec/master-spec-v02.197/spec-modules/05-security-and-observability.md#5.8",
+      ".GOV/spec/master-spec-v02.197/spec-modules/06-mechanical-integrations.md#6.13",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      ".GOV/spec/HANDSHAKE_PRODUCT_REFERENCE.md (reference/navigation only)"
+    ],
+    "product_code_evidence": [
+      "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs defines SwarmCoordinator",
+      "src/backend/handshake_core/src/swarm_orchestration/schedule.rs defines SwarmSchedule/SwarmScheduler",
+      "src/backend/handshake_core/src/kernel/kb003_promotion/gate.rs defines PromotionGate::evaluate",
+      "src/backend/handshake_core/src/kernel/action_catalog.rs contains state_vector_freshness hook"
+    ],
+    "external_sources_checked": [
+      {
+        "id": "autogen",
+        "name": "AutoGen multi-agent conversation",
+        "url": "https://www.microsoft.com/en-us/research/publication/autogen-enabling-next-gen-llm-applications-via-multi-agent-conversation-framework/"
+      },
+      {
+        "id": "langgraph",
+        "name": "LangGraph stateful agents",
+        "url": "https://github.com/langchain-ai/langgraph"
+      },
+      {
+        "id": "temporal",
+        "name": "Temporal deterministic replay/event history",
+        "url": "https://docs.temporal.io/encyclopedia/event-history/event-history-typescript"
+      },
+      {
+        "id": "localFirst",
+        "name": "Local-first software paper",
+        "url": "https://www.inkandswitch.com/essay/local-first/"
+      },
+      {
+        "id": "pgEvent",
+        "name": "PostgreSQL event sourcing reference",
+        "url": "https://github.com/eugene-khyst/postgresql-event-sourcing"
+      },
+      {
+        "id": "yjsInternals",
+        "name": "Yjs internals state vectors/snapshots",
+        "url": "https://github.com/yjs/yjs/blob/main/INTERNALS.md"
+      }
+    ],
+    "patterns_applied": [
+      "Typed multi-agent orchestration becomes ModelLaneRun/ModelLane/ModelLaneMessage records, never peer-to-peer chat authority.",
+      "Durable workflow/replay patterns become PostgreSQL/EventLedger aggregates, checkpoints, projections, and deterministic state transitions.",
+      "CRDT research becomes explicit draft/proposal/update/state-vector/snapshot/stale-base records before promotion.",
+      "Trace/span research becomes propagated trace_id/span_id/model_session_id/lane_id correlation across lanes, tools, providers, artifacts, and diagnostics.",
+      "Tool protocol research becomes Handshake capability check, consent/projection, Flight Recorder/EventLedger logging, execution, result capture, and recovery."
+    ],
+    "rejected_options": [
+      "peer-to-peer model channels outside coordinator-owned ModelLaneMessage records",
+      "prompt-only or chat-history-only state transfer",
+      "legacy app/src React/Tauri code as runtime authority",
+      "SQLite runtime/test/fixture/cache/fallback authority for this WP",
+      "Flight Recorder-only replay without PostgreSQL/EventLedger authority rows",
+      "manual or markdown prose as product runtime authority"
+    ],
+    "selected_handshake_translation": "Coordinator routing and promotion must be a deterministic Rust state machine with idempotency keys, stale-base denial, evidence refs, and PromotionGate/ValidationRunner authority boundaries."
+  },
+  "handshake_compatibility": {
+    "native_rust_backend_first": true,
+    "product_reference_file_posture": "reference/navigation only; do not override SPEC_CURRENT, master spec, build rules, or product code evidence",
+    "proposal_promotion_model": "Models may propose, critique, summarize, and produce artifacts; Handshake validates/promotes deterministically through Rust backend authority surfaces before state becomes authoritative.",
+    "durable_authority": [
+      "PostgreSQL",
+      "EventLedger",
+      "ArtifactStore",
+      "ContextBundle",
+      "CRDT/write-box when shared editable state is touched"
+    ],
+    "observability_required": [
+      "Flight Recorder/EventLedger correlation",
+      "trace_id/span_id/model_session_id/lane_id propagation",
+      "HBR-INT-009 tier posture for Flight Recorder, internal_diagnostics, Palmistry"
+    ],
+    "pillar_links": [
+      "SwarmCoordinator",
+      "PromotionGate",
+      "ValidationRunner",
+      "EventLedger",
+      "CRDT",
+      "Locus"
+    ],
+    "no_context_model_requirement": "A model with no chat history must be able to implement and verify this MT from this contract, SPEC_CURRENT/master spec, product code paths, UserManual/backend navigation, and listed proof targets.",
+    "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
+    "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
+  }
+}

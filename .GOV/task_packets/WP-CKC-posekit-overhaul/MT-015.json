@@ -1,0 +1,78 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-015",
+  "title": "Restore Posekit marker editing, zoom/lens controls, and failure containment",
+  "status": "PENDING",
+  "created_at_utc": "2026-06-28T21:53:53.761Z",
+  "updated_at_utc": "2026-06-28T21:53:53.761Z",
+  "product_edit_allowed": true,
+  "operator_request": "Posekit needs marker toggles and placement adjustment, initially facial markers, zoom/lens/black-space export forcing, and safe add/remove body marker behavior.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-015.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
+    "parity_map": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003-parity-map.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-015.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-015.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-014"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "recovery_rule": "Start with facial marker editing parity and explicit failure containment for bad/missing limb markers."
+  },
+  "scope": {
+    "summary": "Add Posekit editing tools for markers, framing/zoom, and safe marker add/remove behavior without breaking OpenPose exports.",
+    "base_scope": [
+      "Toggle marker visibility and marker classes.",
+      "Adjust marker placement, with facial marker support first.",
+      "Add zoom/lens/black-space export controls to force model framing such as full-body-with-feet.",
+      "Support remove-limb/body markers safely.",
+      "Gate add-hand/add-marker features behind validation so bad detections do not corrupt export renders.",
+      "Update internal UserManual with Posekit editing and failure recovery."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/pose.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/**"
+    ],
+    "acceptance_criteria": [
+      "Posekit marker controls are visible, stable, and Argus-steerable.",
+      "Facial marker placement edits persist into export state.",
+      "Zoom/lens controls affect output framing metadata or pixels.",
+      "Bad marker injection fails closed without corrupting the OpenPose output."
+    ],
+    "verification": [
+      "Pose marker data tests for edit/remove/fail-closed behavior.",
+      "Native UI tests for marker controls.",
+      "Argus evidence for editing flow."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "pose-data corruption",
+      "bad detection failure modes",
+      "output framing usefulness",
+      "control discoverability"
+    ]
+  },
+  "manual_requirement": "Required in this MT.",
+  "handoff": {
+    "status": "PENDING"
+  }
+}

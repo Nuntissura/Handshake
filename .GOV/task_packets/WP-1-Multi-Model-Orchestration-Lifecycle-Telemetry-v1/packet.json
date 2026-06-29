@@ -1,0 +1,523 @@
+{
+  "schema_id": "hsk.work_packet_contract@1",
+  "schema_version": "work_packet_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "base_wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry",
+  "created_at_utc": "2026-06-28T17:11:31.143Z",
+  "updated_at_utc": "2026-06-28T23:46:43.220Z",
+  "source_control": {
+    "merge_base_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
+    "canonical_branch": "main",
+    "work_branch": "feat/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+    "worktree_dir": "../wtc-multi-model-orchestration-v1",
+    "worktree_creation_status": "CREATED_WITH_ARTIFACT_HYGIENE_BLOCKER",
+    "worktree_head_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
+    "worktree_created_at_utc": "2026-06-28T17:36:39.897Z",
+    "worktree_preflight_blockers": [
+      "ckc-overhaul-launch: unknown noncanonical artifact directory under ../Handshake_Artifacts",
+      "managed_pgdata: unknown noncanonical artifact directory under ../Handshake_Artifacts"
+    ],
+    "worktree_preflight_note": "The branch and worktree exist and are clean, but just worktree-add exited nonzero after creation because artifact hygiene policy preserves unknown noncanonical artifact directories until operator review.",
+    "remote_backup_branch": "",
+    "remote_backup_url": "",
+    "backup_push_status": "NOT_STARTED"
+  },
+  "workflow": {
+    "lane": "ORCHESTRATOR_MANAGED",
+    "authority": "ACTIVATION_MANAGER",
+    "execution_owner": "UNCLAIMED",
+    "session_start_authority": "ORCHESTRATOR_AFTER_OPERATOR_MT_SELECTION",
+    "host_preference": "AUTO",
+    "communication_dir": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+    "thread_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/THREAD.md",
+    "runtime_status_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/RUNTIME_STATUS.json",
+    "receipts_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/RECEIPTS.jsonl",
+    "notifications_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/NOTIFICATIONS.jsonl",
+    "communication_contract": "WP_COMMUNICATIONS_V1",
+    "communication_health_gate": "REQUIRED_BEFORE_CODER_LAUNCH",
+    "agentic_mode": "YES",
+    "role_model_profile_policy": "ROLE_MODEL_PROFILE_CATALOG_V1",
+    "coder_compatible_execution_lane": "MULTI_AGENT_MT_PARALLEL"
+  },
+  "lifecycle": {
+    "status": "Ready for Dev",
+    "current_wp_status": "READY_FOR_DEV",
+    "main_containment_status": "NOT_STARTED",
+    "merged_main_commit": "NONE",
+    "main_containment_verified_at_utc": "N/A",
+    "current_main_compatibility_status": "NOT_RUN",
+    "current_main_compatibility_baseline_sha": "NONE",
+    "current_main_compatibility_verified_at_utc": "N/A",
+    "packet_widening_decision": "NONE",
+    "packet_widening_evidence": "N/A",
+    "risk_tier": "HIGH",
+    "user_signature": "operator_directive_20260628_activation_manager_wp_worktree_mt",
+    "packet_format_version": "2026-06-28",
+    "wp_validator_of_record": "UNCLAIMED",
+    "integration_validator_of_record": "UNCLAIMED"
+  },
+  "authority_files": {
+    "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json",
+    "packet_projection": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.md",
+    "refinement_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/refinement.json",
+    "microtask_contract_glob": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-*.json",
+    "microtask_index": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/mt_index.json",
+    "bundled_stub_preservation": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/bundled-stubs.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.md",
+    "status": "MINIMAL_LEGACY_COMPATIBILITY_PROJECTION",
+    "source_file": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json",
+    "source_hash": null,
+    "projection_hash": null,
+    "generated_at_utc": "2026-06-28T17:11:31.143Z",
+    "generator": "manual-activation-manager-protocol-minimal-projection"
+  },
+  "scope": {
+    "summary": "Define and implement modern Handshake local/cloud/subagent swarm lane launch and communication so models speak through typed Handshake state rather than hidden chat or peer channels.",
+    "why": "The original v02.122 multi-model spec predated current subagent and cloud/local swarm practice. Handshake now needs explicit ModelLaneRun, ModelLane, ModelLaneMessage, ContextBundle, artifact promotion, consent, diagnostics, and recovery contracts.",
+    "allowed_paths": [
+      ".GOV/spec/master-spec-v02.197/spec-modules/04-llm-infrastructure.md",
+      "src/backend/handshake_core/src/model_runtime/",
+      "src/backend/handshake_core/src/swarm_orchestration/",
+      "src/backend/handshake_core/src/kernel/session_broker.rs",
+      "src/backend/handshake_core/src/kernel/context_bundle.rs",
+      "src/backend/handshake_core/src/distillation/swarm_trace.rs",
+      "src/backend/handshake_core/src/flight_recorder/",
+      "src/backend/handshake_core/src/api/user_manual.rs",
+      "src/backend/handshake_core/src/user_manual/",
+      "src/backend/handshake_core/src/storage/",
+      "src/backend/handshake_core/src/kernel/crdt/",
+      "src/backend/handshake_core/tests/",
+      "src/frontend/handshake_native/",
+      "src/backend/handshake_core/migrations/",
+      "src/backend/handshake_core/src/kernel/kb003_promotion/",
+      "src/backend/handshake_core/src/kernel/promotion.rs",
+      "src/backend/handshake_core/src/process_ledger/",
+      "src/backend/handshake_core/src/inspector_read/",
+      "src/backend/handshake_core/src/api/kernel.rs",
+      "src/backend/handshake_core/src/flight_recorder/event_ledger.rs",
+      "src/frontend/handshake_native/src/mcp/tools.rs",
+      "src/frontend/handshake_native/src/mcp/screenshot.rs"
+    ],
+    "forbidden_paths": [
+      "unrelated repo-governance refactors",
+      "wholesale spec restructuring outside the owning LLM Infrastructure module",
+      "direct cloud calls outside LlmClient/CloudLane boundaries",
+      "peer-to-peer hidden model channels",
+      "SQLite runtime/test/fixture additions",
+      "new TypeScript/React/app/src implementation",
+      "npm/JavaScript proof targets for this WP"
+    ],
+    "reference_only_paths": [
+      "app/src/components/swarm/",
+      "app/src/lib/ipc/swarm_runtime.ts",
+      "docs/model-manual/",
+      "app/MODEL_MANUAL.md"
+    ],
+    "spec_anchors": [
+      ".GOV/spec/SPEC_CURRENT.md",
+      ".GOV/spec/master-spec-v02.197/spec-modules/04-llm-infrastructure.md#4.3.9",
+      ".GOV/spec/master-spec-v02.197/spec-modules/04-llm-infrastructure.md#4.6"
+    ],
+    "acceptance_criteria": [
+      "Local model lanes launch through LlmClient -> ModelRuntime and produce ModelLane state.",
+      "Cloud model lanes launch through CloudLane/BYOK with ProjectionPlan and ConsentReceipt where required.",
+      "Subagents are modeled as ModelLane records with stable lane ids, session ids, status, and recovery metadata.",
+      "All cloud/local/subagent exchange is represented as coordinator-mediated ModelLaneMessage plus payload artifacts.",
+      "A downstream model receives prior model output through ContextBundle or artifact refs, not hidden conversational memory.",
+      "Lane outputs remain advisory until promoted into code, WP/MT contracts, or validator verdicts.",
+      "Diagnostics expose ModelLaneRun, lane status, messages, artifact refs, and recoverability failures.",
+      "Validation covers local-only, cloud-only, mixed cloud/local, subagent, disagreement, consent-block, orphan, restart, and missing-payload cases.",
+      "Durable model-lane state uses Rust backend code and PostgreSQL/EventLedger/ArtifactStore authority; SQLite is not allowed as runtime, cache, fixture, fallback, or test authority.",
+      "Collaborative/operator-model state uses CRDT draft semantics where live shared edits are possible, then promotes through ValidationRunner/PromotionGate before becoming authority.",
+      "Every observable lane behavior records Flight Recorder/EventLedger evidence plus the HBR-INT-009 three-tier diagnostic outcome for Flight Recorder, internal_diagnostics, and Palmistry.",
+      "The project-named internal viewing tool renders lane topology, message flow, artifacts, validation, promotion, runtime errors, and recovery hints for visual/debug verification; naming is owned by the separate viewing-tool worktree/session.",
+      "The in-product internal UserManual reflects every ModelLane/cloud/local/subagent orchestration behavior introduced by this WP, including usage, recovery, verification, Flight Recorder/EventLedger linkage, and HBR-INT-009 Flight Recorder/internal_diagnostics/Palmistry posture.",
+      "All product implementation and proof for this WP is Rust-only: Rust backend plus Rust native egui/Argus surfaces. Legacy TypeScript/React/app/src surfaces are reference-only and must not become implementation or proof authority.",
+      "The ModelLaneRun/ModelLane/ModelLaneMessage contract explicitly carries trace/span, runtime, capability, tool, payload, replay, recovery, promotion, CRDT, and Locus ownership fields: trace_id, run_span_id, lane_span_id, message_span_id, parent_span_id or linked_span_contexts, adapter_id, runtime_binding, capability_token_ids or effective_capability_snapshot_ref, projection_plan_ref, consent_receipt_ref, tool_gate_decision_refs, idempotency_key, payload_sha256, replay_order_key, event_ledger_stream_id, event_ledger_append_id or event_ledger_event_id, event_ledger_seq, event_stream_version, transaction_seq, replay_after_event_ledger_seq, promoted_artifact_ref, promoted_artifact_sha256, promoted_artifact_version, promotion_gate_ref, promotion_receipt_ref, validator_verdict_ref, operator_decision_ref, crdt_update_ref, crdt_base_snapshot_ref, crdt_state_vector, crdt_proposal_ref, crdt_stale_base_ref, recovery_state, heartbeat_at_utc, lease_expires_at_utc, reclaim_after_utc, restart_generation, cancellation_ref, backpressure_ref, loop_counter_ref, failstate_code, reason_ref, recovery_hint_ref, work_packet_id, micro_task_id, task_board_id, coordinator_session_id, owner_session, and locus_binding_ref.",
+      "MT lifecycle/status signaling is restartable: every MT contract carries claimed_by, claimed_at_utc, ready_for_validation_by, ready_for_validation_at_utc, completed_by, blocker, missing_resource, proof_status, hbr_status, kb_ready_checklist_receipt_id, product_worktree_root_resolution, last_recovery_event_ref, and last_runtime_status_ref.",
+      "Proof commands for implementation MTs must use exact Rust test targets or exact test names and must fail on zero matching tests. Provider calls may use deterministic fakes; durable authority must touch PostgreSQL/EventLedger/ArtifactStore/CRDT/UserManual/Argus Rust resources.",
+      "Dexterity is the internal model switching and launch kernel name for this WP. It is a kernel/manual/display name only; stable schema IDs remain ModelLaneRun, ModelLane, ModelLaneMessage, and hsk.model_lane_*@1.",
+      "The provisional Rust-native diagnostics/navigation contract id is native_swarm_lane_diagnostics until the separate naming worktree supplies an approved alias.",
+      "Each MT receives post-implementation adversarial review through runtime launch, PostgreSQL/EventLedger/CRDT recovery, Rust native Argus/UserManual, and Spec-Realism/status-signaling lenses before READY_FOR_VALIDATION."
+    ]
+  },
+  "architecture_directives": {
+    "backend_language": "Rust-only product implementation for this WP. Runtime, state, adapters, storage, diagnostics, UserManual APIs, and proof harnesses must be Rust backend or Rust native egui/Argus code.",
+    "frontend_language": "If GUI/debug/operator surface work is required, implement it in src/frontend/handshake_native Rust native surfaces with Argus-compatible AccessKit/egui evidence. Do not add TypeScript, React, Tauri, WebView, or npm proof requirements.",
+    "durable_storage": "PostgreSQL plus EventLedger, ArtifactStore, ContextBundle, TraceProjection, and Flight Recorder are canonical. Markdown, UI rows, debug reports, HTML, and chat text are projections only.",
+    "collaboration_model": "CRDT draft/update semantics are required for any shared editable surface touched by operator and model lanes. Authority changes require ValidationRunner or PromotionGate evidence.",
+    "model_switching_launch_kernel_name": "Dexterity",
+    "visual_debug_surface_name": "OUT_OF_SCOPE_PROJECT_NAMING_DEPENDENCY",
+    "visual_debug_surface_contract": "This WP must consume the project-approved internal viewing-tool name from the separate viewing-tool worktree/session. The surface must inspect lane runs, messages, artifacts, tool calls, validation, promotion, runtime errors, and recovery state.",
+    "build_rules_authority": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+    "internal_user_manual_contract": "Every implementation MT in this WP must update the in-product internal UserManual for the behavior it changes. Manual entries must explain no-context usage and connect the behavior to Flight Recorder/EventLedger plus HBR-INT-009 Flight Recorder/internal_diagnostics/Palmistry posture; Palmistry/internal_diagnostics absence is DEFERRED-with-reason, never silently skipped.",
+    "product_reference_posture": "HANDSHAKE_PRODUCT_REFERENCE.md is reference/navigation only. Implementation authority resolves through SPEC_CURRENT, master-spec-v02.197, build rules, and product code evidence.",
+    "legacy_frontend_posture": "app/src legacy React/Tauri/TypeScript surfaces are reference-only for this WP; implementation and proof authority is Rust backend plus Rust native frontend/debug surfaces.",
+    "model_exchange_pillar_translation": "Dexterity launches and switches model lanes; models propose/critique/plan through typed ModelLaneMessage/ContextBundle/artifact refs; Handshake validates/promotes deterministically; PostgreSQL/EventLedger holds authority; Flight Recorder/internal_diagnostics/Palmistry record observability posture; Loom/Locus/FEMS/UserManual make the work navigable and recoverable.",
+    "rust_only_hard_gate": "No new TypeScript, React, app/src, app/src-tauri, Tauri/WebView, JavaScript, npm, or docs/model-manual proof may satisfy this WP. Those surfaces are reference-only unless future authority explicitly reactivates them outside this WP.",
+    "status_recovery_contract": "MT status signaling must be restartable and validator-honest: implementers may set CLAIMED/READY_FOR_VALIDATION plus proof/blocker fields; completed_by remains validator-only.",
+    "post_implementation_review_contract": "Every MT gets pre-implementation contract review and post-implementation adversarial review against the actual diff before READY_FOR_VALIDATION. Review findings must be addressed in product code/contracts or represented as explicit MT lifecycle blocker/missing_resource/proof_status state. Implementers do not mark COMPLETED."
+  },
+  "bundled_stub_summary": {
+    "folded_complete": [
+      "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+      "WP-1-Provider-Feature-Coverage-Agentic-Ready-v1",
+      "WP-1-Cloud-Consent-Evidence-Portability-v1",
+      "WP-1-Layerwise-Inference-Foundations-v1"
+    ],
+    "folded_as_dependency_or_correlation_requirement": [
+      "WP-1-FR-ModelSessionId-v1"
+    ],
+    "not_folded_empty_or_orthogonal": [
+      "WP-1-Model-Profiles-v2",
+      "WP-1-MEX-Safety-Gates-v2",
+      "WP-1-MEX-Observability-v2",
+      "WP-1-MEX-UX-Bridges-v2",
+      "WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1",
+      "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1"
+    ],
+    "preservation_file": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/bundled-stubs.json"
+  },
+  "acceptance_matrix": {
+    "hbr": [
+      {
+        "id": "HBR-INT-001",
+        "status": "REQUIRED",
+        "requirement": "Typed EventLedger append plus replay reconstructs ModelLaneRun, ModelLane, and ModelLaneMessage behavior."
+      },
+      {
+        "id": "HBR-INT-002",
+        "status": "REQUIRED",
+        "requirement": "Model invocation dispatches through stored ContextBundle, ModelRuntime/CloudLane adapter, ToolGate for tool calls, and ArtifactStore output; no invocation bypass."
+      },
+      {
+        "id": "HBR-INT-003",
+        "status": "REQUIRED",
+        "requirement": "Lane output reaches authority only through PromotionGate or explicit validator/operator promotion; direct mutation fails closed."
+      },
+      {
+        "id": "HBR-INT-004",
+        "status": "REQUIRED",
+        "requirement": "CRDT draft updates persist, replay after reconnect, and promote through ValidationRunner before becoming authority when shared editable state is touched."
+      },
+      {
+        "id": "HBR-INT-005",
+        "status": "REQUIRED",
+        "requirement": "Every local, CLI bridge, BYOK/cloud, manual, and subagent lane normalizes into the same SessionRun/ModelLane event stream."
+      },
+      {
+        "id": "HBR-INT-007",
+        "status": "REQUIRED",
+        "requirement": "The project-named internal viewing tool reconstructs the behavior from durable state alone: no chat history, terminal scrollback, or provider memory."
+      },
+      {
+        "id": "HBR-INT-009",
+        "status": "REQUIRED",
+        "requirement": "Every observable runtime behavior records the three-tier diagnostic outcome: Flight Recorder, internal_diagnostics, and Palmistry as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason."
+      },
+      {
+        "id": "HBR-SWARM-001",
+        "status": "REQUIRED",
+        "requirement": "At least two concurrent agent/model lanes plus simulated operator edits run against touched shared state without silent overwrite, deadlock, or starvation."
+      },
+      {
+        "id": "HBR-SWARM-002",
+        "status": "REQUIRED",
+        "requirement": "Leases, locks, queues, cancellation, backpressure, and loop counters are bounded and recover stale lane sessions."
+      },
+      {
+        "id": "HBR-SWARM-004",
+        "status": "REQUIRED",
+        "requirement": "Every cross-agent/model message uses typed routing fields and can be acted on without prose parsing."
+      },
+      {
+        "id": "HBR-VIS-001",
+        "status": "REQUIRED_IF_UI_OR_DIAGNOSTIC_SURFACE_TOUCHED",
+        "requirement": "Drive the running operator surface or project-named internal viewing-tool equivalent, capture it, and inspect the rendered result."
+      },
+      {
+        "id": "HBR-VIS-004",
+        "status": "REQUIRED",
+        "requirement": "For non-UI behavior, the project-named internal viewing tool must answer task, context, return, tool calls, artifact, validation, and promotion from durable state."
+      },
+      {
+        "id": "HBR-QUIET-001",
+        "status": "REQUIRED",
+        "requirement": "Automated model-lane tests run headless or hidden without focus/Z-order changes."
+      },
+      {
+        "id": "HBR-QUIET-003",
+        "status": "REQUIRED",
+        "requirement": "Background model, CLI, subagent, or sandbox launches record ownership metadata and reclaim on close, failure, staleness, or cancel."
+      },
+      {
+        "id": "HBR-MAN-001",
+        "status": "REQUIRED",
+        "requirement": "Any model-callable command/tool/IPC/config/operator capability updates the in-product ModelManual/UserManual in the same change."
+      },
+      {
+        "id": "HBR-MAN-002",
+        "status": "REQUIRED",
+        "requirement": "Manual content lets a no-context model operate the feature: purpose, workflows, startup, commands, expected I/O, navigation, constraints, failures, and recovery."
+      },
+      {
+        "id": "HBR-MAN-003",
+        "status": "REQUIRED",
+        "requirement": "Manual entries are code-truthful and self-consistency tests verify named surfaces exist."
+      },
+      {
+        "id": "HBR-MAN-004",
+        "status": "REQUIRED",
+        "requirement": "Every implementation that changes a Handshake behavior, tool, feature, primitive, workflow, model lane, diagnostic surface, storage/event contract, or operator/model navigation path updates the internal UserManual in the same change with Flight Recorder/EventLedger linkage and Palmistry/internal_diagnostics posture."
+      }
+    ],
+    "validation_commands": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test mixed_model_lane_integration_pg_tests mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects -- --exact",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus mixed_model_lane_run_is_inspectable_through_argus -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test user_manual_behavior_coverage_tests mixed_model_lane_behaviors_have_manual_coverage -- --exact",
+      "node .GOV/roles_shared/scripts/spec-current-check.mjs",
+      "node .GOV/roles_shared/checks/spec-bundle-check.mjs"
+    ]
+  },
+  "refinement": {
+    "contract_file": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/refinement.json",
+    "status": "READY_FOR_DEV",
+    "activation_manager_required": true,
+    "enforcement_profile": "OPERATOR_DIRECTIVE_MINIMAL_GOVERNANCE",
+    "hydration_profile": "SPEC_CURRENT_AND_LOCAL_CODE_INSPECTION"
+  },
+  "microtasks": {
+    "contract_glob": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-*.json",
+    "count": 11,
+    "declared_ids": [
+      "MT-001",
+      "MT-002",
+      "MT-003",
+      "MT-004",
+      "MT-005",
+      "MT-006",
+      "MT-007",
+      "MT-008",
+      "MT-009",
+      "MT-010",
+      "MT-011"
+    ],
+    "active_id": "MT-003",
+    "next_id": "MT-003"
+  },
+  "research_basis": {
+    "external_research_status": "CURRENT_EXTERNAL_RESEARCH_COMPLETED_FOR_MT_REFINEMENT_2026-06-28",
+    "updated_at_utc": "2026-06-28T20:10:33.273Z",
+    "reason": "Operator requested research-backed MT strengthening before implementation. Sources were used as evidence patterns only, then translated through current master spec and product code authority.",
+    "local_sources_checked": [
+      ".GOV/spec/SPEC_CURRENT.md",
+      ".GOV/spec/master-spec-v02.197/spec-modules/04-llm-infrastructure.md",
+      ".GOV/spec/master-spec-v02.197/spec-modules/05-security-and-observability.md",
+      ".GOV/spec/master-spec-v02.197/spec-modules/06-mechanical-integrations.md",
+      ".GOV/spec/master-spec-v02.197/spec-modules/07-user-experience-and-development.md",
+      ".GOV/spec/master-spec-v02.197/spec-modules/12-end-of-file-appendices.md",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      ".GOV/spec/HANDSHAKE_PRODUCT_REFERENCE.md (reference/navigation only)",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/src/model_runtime/",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/src/swarm_orchestration/",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/src/kernel/context_bundle.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/src/kernel/crdt/",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/src/flight_recorder/",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/src/storage/loom.rs",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/src/locus/",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/backend/handshake_core/src/user_manual/",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1/src/frontend/handshake_native/"
+    ],
+    "external_sources_checked": [
+      {
+        "id": "autogen",
+        "name": "AutoGen multi-agent conversation",
+        "url": "https://www.microsoft.com/en-us/research/publication/autogen-enabling-next-gen-llm-applications-via-multi-agent-conversation-framework/"
+      },
+      {
+        "id": "autogenStudio",
+        "name": "AutoGen Studio debugging/evaluation",
+        "url": "https://www.microsoft.com/en-us/research/publication/autogen-studio-a-no-code-developer-tool-for-building-and-debugging-multi-agent-systems/"
+      },
+      {
+        "id": "langgraph",
+        "name": "LangGraph stateful agents",
+        "url": "https://github.com/langchain-ai/langgraph"
+      },
+      {
+        "id": "langgraphPersistence",
+        "name": "LangGraph persistence",
+        "url": "https://docs.langchain.com/oss/python/langgraph/persistence"
+      },
+      {
+        "id": "mcp",
+        "name": "Model Context Protocol specification",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25"
+      },
+      {
+        "id": "yjs",
+        "name": "Yjs CRDT shared types",
+        "url": "https://github.com/yjs/yjs"
+      },
+      {
+        "id": "yjsInternals",
+        "name": "Yjs internals state vectors/snapshots",
+        "url": "https://github.com/yjs/yjs/blob/main/INTERNALS.md"
+      },
+      {
+        "id": "automerge",
+        "name": "Automerge CRDT sync protocol",
+        "url": "https://github.com/automerge/automerge"
+      },
+      {
+        "id": "loro",
+        "name": "Loro Rust/JS CRDT library",
+        "url": "https://github.com/loro-dev/loro"
+      },
+      {
+        "id": "peritext",
+        "name": "Peritext rich-text CRDT intent paper",
+        "url": "https://www.inkandswitch.com/peritext/"
+      },
+      {
+        "id": "localFirst",
+        "name": "Local-first software paper",
+        "url": "https://www.inkandswitch.com/essay/local-first/"
+      },
+      {
+        "id": "otel",
+        "name": "OpenTelemetry trace/span context",
+        "url": "https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/overview.md"
+      },
+      {
+        "id": "dapper",
+        "name": "Dapper tracing paper",
+        "url": "https://research.google/pubs/dapper-a-large-scale-distributed-systems-tracing-infrastructure/"
+      },
+      {
+        "id": "temporal",
+        "name": "Temporal deterministic replay/event history",
+        "url": "https://docs.temporal.io/encyclopedia/event-history/event-history-typescript"
+      },
+      {
+        "id": "pgEvent",
+        "name": "PostgreSQL event sourcing reference",
+        "url": "https://github.com/eugene-khyst/postgresql-event-sourcing"
+      },
+      {
+        "id": "fstore",
+        "name": "fstore-sql PostgreSQL event store",
+        "url": "https://github.com/fraktalio/fstore-sql"
+      },
+      {
+        "id": "llamaCpp",
+        "name": "llama.cpp OpenAI-compatible local server",
+        "url": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md"
+      },
+      {
+        "id": "candle",
+        "name": "Hugging Face Candle Rust ML runtime",
+        "url": "https://github.com/huggingface/candle"
+      },
+      {
+        "id": "pgvector",
+        "name": "pgvector Postgres vector search",
+        "url": "https://github.com/pgvector/pgvector"
+      },
+      {
+        "id": "mcpResources",
+        "name": "MCP resources model",
+        "url": "https://modelcontextprotocol.io/specification/2025-06-18/server/resources"
+      },
+      {
+        "id": "llamaIndexMemory",
+        "name": "LlamaIndex memory docs",
+        "url": "https://developers.llamaindex.ai/python/framework/module_guides/deploying/agents/memory/"
+      },
+      {
+        "id": "langchainMemory",
+        "name": "LangChain memory docs",
+        "url": "https://docs.langchain.com/oss/python/concepts/memory"
+      }
+    ],
+    "relevant_patterns_found": [
+      "Current multi-agent systems emphasize stateful orchestration, tool use, human-in-the-loop oversight, debugging/evaluation, and long-running workflows.",
+      "Field CRDT implementations expose explicit updates, state vectors, snapshots, sync protocols, and rich-text intent issues; Handshake must not treat merged state as automatically semantically accepted.",
+      "Distributed tracing standards propagate trace/span context across process boundaries and use trace data as an operations/debug substrate.",
+      "Durable workflow systems separate deterministic workflow replay from non-deterministic external activities.",
+      "PostgreSQL event-sourcing implementations use append-only event streams, optimistic concurrency, snapshots, projections, ACK/NACK, and concurrent consumers.",
+      "Local model runtimes commonly expose OpenAI-compatible endpoints, while Rust-native ML runtimes exist; Handshake must normalize both behind ModelRuntime rather than letting endpoint shape define authority.",
+      "Postgres-backed vector search supports keeping retrieval data with application data, aligning Loom/FEMS/UserManual retrieval with PostgreSQL authority."
+    ],
+    "reuse_opportunities": [
+      "Reuse existing Rust ModelRuntime/CloudLane/SwarmCoordinator/SessionBroker/ContextBundle/CRDT/Flight Recorder/Loom/Locus/UserManual modules before adding new primitives.",
+      "Reuse existing UserManual live PostgreSQL/EventLedger tests as the proof model for MT-010/MT-011.",
+      "Reuse existing kernel CRDT stale-base, denial, snapshot, and state-vector tests for MT-005/MT-007/MT-009 proof design.",
+      "Reuse existing Flight Recorder span/event repositories for lane trace correlation instead of introducing a second trace store."
+    ],
+    "rejected_options": [
+      "peer-to-peer model channels outside coordinator-owned ModelLaneMessage records",
+      "prompt-only or chat-history-only state transfer",
+      "legacy app/src React/Tauri code as runtime authority",
+      "SQLite runtime/test/fixture/cache/fallback authority for this WP",
+      "Flight Recorder-only replay without PostgreSQL/EventLedger authority rows",
+      "manual or markdown prose as product runtime authority"
+    ],
+    "selected_approach": "Keep WP-1 as a Rust/PostgreSQL/EventLedger-first ModelLane orchestration packet: typed lane schemas, deterministic routing/promotion, ContextBundle/Loom/FEMS handoff, cloud consent/projection, recovery/replay/diagnostics, validation harnesses, and UserManual currency.",
+    "risks": [
+      "MTs could still be implemented through old app/src UI or endpoint-specific shortcuts unless contracts explicitly forbid reference-only authority leaks.",
+      "CRDT mechanical convergence could be mistaken for semantic acceptance of model edits.",
+      "Flight Recorder could be overloaded as replay authority despite master spec requiring PostgreSQL/EventLedger authority.",
+      "Manual updates could become markdown-only and fail no-context product operation.",
+      "Cloud/local adapters could share request shapes but diverge in consent, capability, trace, or recovery behavior."
+    ],
+    "mitigations": [
+      "Each MT now states native Rust/backend authority and legacy app/src reference-only posture where relevant.",
+      "CRDT-touched MTs require proposal/draft/state-vector/stale-base/promotion metadata and semantic review before authority.",
+      "Recovery MTs require replay from PostgreSQL/EventLedger/ArtifactStore/CRDT records without Flight Recorder/provider trace history.",
+      "MT-010/MT-011 require canonical UserManual rows/API/navigation with self-consistency and freshness proof.",
+      "MT-003/MT-006 require capability/consent/Flight Recorder/EventLedger/result-capture boundary for all tool/provider paths."
+    ],
+    "validation_plan": [
+      "JSON parse packet/refinement/MT files.",
+      "Run spec-current-check and spec-bundle-check.",
+      "Run hbr-matrix-check against packet.json.",
+      "Run wp-traceability-registry-projection-check and wp-declared-topology-check.",
+      "Run mt-board projection for WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1."
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "The existing swarm runtime already models enough state for model-to-model communication.",
+      "Cloud and local model outputs can be passed through prompts without durable artifacts.",
+      "Subagents can be treated as ordinary chat participants without lane identity.",
+      "Diagnostics can be added after implementation rather than as a contract requirement."
+    ],
+    "minimum_controls": [
+      "No peer-to-peer hidden channels: every exchange must become typed lane message plus artifact ref.",
+      "No cloud bypass: CloudLane/BYOK consent/projection checks remain mandatory.",
+      "No advisory promotion confusion: only explicit promotion changes authority.",
+      "No orphan subagents: lane status and recovery metadata must be canonical."
+    ]
+  }
+}

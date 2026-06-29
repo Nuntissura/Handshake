@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-084"
@@ -128,5 +128,10 @@
     },
     "motivating_incident": "The 2026-06-26 freeze began as the UI thread stalling; frame-time tracking surfaces the degradation that precedes/accompanies a stall (slow frames before a full stop) as a panel-visible signal below the 5s freeze threshold.",
     "validation_plan": "stats correctness + live slow-frame flag + idle-no-false-flag + debounce; clippy -D warnings; full suite -j 2."
+  },
+  "implementation_result": {
+    "commit": "aa4b2803",
+    "summary": "FrameTimer/FrameStats (last/min/max/p50/p95 over 120-frame ring; ~100ms slow threshold; ~1s emit debounce) wired into the live update() measuring WORK-time around self.ui(ctx) -> record_frame_live -> debounced SlowFrame DiagEvent + frame_stats() accessor for MT-087. AC-005-1..5 PASS; idle keep-alive does NOT false-flag; typed micros. Pre-existing other-MT suite failures (file_save/quick_switcher/perf_lc07) baseline-proven unrelated.",
+    "notes": "#[doc(hidden)] set_extra_frame_work_for_test seam (inert in production) for the live slow-frame proof."
   }
 }

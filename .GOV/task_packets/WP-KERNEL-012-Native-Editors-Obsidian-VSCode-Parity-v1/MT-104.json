@@ -11,7 +11,7 @@
   },
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-104",
-  "title": "U8-MT-104-InternalManualUpdate-NotesChatTerminalModelDiagnostics",
+  "title": "U8-MT-104-InternalManualUpdate-NotesChatTerminalModel-DiagnosticToolTopics",
   "group": "U1 Usable-Product Expansion (notes+chat worksurface, §product-vision 2026-06-27)",
   "created_at_utc": "2026-06-27T00:00:00Z",
   "updated_at_utc": "2026-06-27T00:00:00Z",
@@ -58,15 +58,18 @@
       "AC-104-2 (AGENT-TOOL REFERENCE USES REAL IDs + REAL MCP TOOLS): the updated agent_tool_rows() add the new addressable controls (e.g. runtime-chat-input, runtime-chat-send, the terminal/model launch command ids, the visual-debugger/diagnostics surface ids) and each row's author_id is a LIVE registered id + each mcp_tool is one of the FOUR real tools (list_widgets/click_widget/set_value/screenshot) — proven by the id-audit test (an orphan author_id or an invented gui.* tool FAILS the build), exactly as MT-073 established.",
       "AC-104-3 (HONEST STATE): where MT-100/101 landed a typed blocker, the manual states the HONEST state (what works vs what is a typed blocker) — proven by a test asserting the terminal/model topics name the typed-blocker condition (no fabricated 'fully working' claim) consistent with the MT-100/101 implementation_result.",
       "AC-104-4 (DIAGNOSTICS IN SETTINGS, NOT WORKSURFACE): the manual states diagnostics + the visual debugger live in Settings->Diagnostics and the worksurface is notes+chat only — proven by a test asserting the diagnostics/visual-debugger topics point to the Settings surface (consistent with MT-087/097/102), not a worksurface feature pane.",
-      "AC-104-5: `cargo build -p handshake-native` (lib + bins) clean; clippy `--all-targets -D warnings` clean; full suite `-j 2` green (incl. the manual id-audit); external CARGO_TARGET_DIR; no Color32 literal outside theme/palette.rs (CONTROL-4); `git ls-files src/**/*.png` empty."
+      "AC-104-5: `cargo build -p handshake-native` (lib + bins) clean; clippy `--all-targets -D warnings` clean; full suite `-j 2` green (incl. the manual id-audit); external CARGO_TARGET_DIR; no Color32 literal outside theme/palette.rs (CONTROL-4); `git ls-files src/**/*.png` empty.",
+      "AC-104-6 (DIAGNOSTIC-TOOL TOPICS, one per tool): the manual renders a dedicated selectable topic for EACH of Flight Recorder, internal_diagnostics, and Palmistry (same depth as the editor-tool topics) with non-empty no-context bodies covering purpose/what-it-does/how-it-works/where-it-lives + the three-tier model (which tool catches which failure class) - proven by a kittest/widget test asserting all three diagnostic-tool topic headings are present + selectable with concrete no-context bodies, exactly as the editor-tool topics are."
     ],
     "proof_targets": [
       "PT-104-A: widget/kittest asserts the seven new/updated topic headings are present + selectable in the manual pane with non-empty no-context bodies.",
       "PT-104-B: the manual id-audit test asserts every new agent_tool_rows() author_id is a LIVE registered id + every mcp_tool is one of the four real tools (orphan id / invented tool FAILS the build).",
       "PT-104-C: test asserts the terminal/model topics state the honest typed-blocker condition (per MT-100/101) and the diagnostics/visual-debugger topics point to Settings (per MT-087/102).",
-      "PT-104-D: cargo build --lib --bins clean + clippy -D warnings clean + full suite -j 2 green (incl. id-audit) + CONTROL-4 green + git ls-files src/**/*.png empty."
+      "PT-104-D: cargo build --lib --bins clean + clippy -D warnings clean + full suite -j 2 green (incl. id-audit) + CONTROL-4 green + git ls-files src/**/*.png empty.",
+      "PT-104-E: widget/kittest asserts the three diagnostic-tool topics (Flight Recorder, internal_diagnostics, Palmistry) are present + selectable in the manual with no-context bodies covering the three-tier model."
     ],
     "implementation_notes": [
+      "OPERATOR STEER 2026-06-28 - DEDICATED MANUAL TOPIC PER DIAGNOSTIC TOOL: the internal manual MUST carry a standalone TOPIC for EACH of the three diagnostic tools, at the SAME depth + format as the editor-tool topics copied from the Obsidian/VS Code clones into Notes (Purpose / What it does / How it works / How to use it + where it lives / when to use it). Add a DIAGNOSTICS manual section (e.g. diagnostics_manual_section() registered in app.rs alongside editors_manual_section()) OR topics, with one topic each for: (1) FLIGHT RECORDER - Tier 1, the backend BUSINESS-EVENT ledger (what it records, that it is the canonical replay/audit log, where it surfaces, GET /events); kept-as-is, in handshake_core. (2) internal_diagnostics - Tier 2, Handshake-native IN-APP self-diagnostics (UI-thread heartbeat, frame-time, CPU/RSS/GPU, panic hook, the open diagnostic-event API, the StalledOperation watchdog MT-105); reachable in Settings->Diagnostics; how a model reads it. (3) PALMISTRY - Tier 3, the EXTERNAL out-of-process watcher that survives Handshake freezes/crashes/heavy-CPU (the shared-memory ring reader, freeze detection, crash->minidump, the durable survivor records, and the child-process stall watch MT-106); how its records surface (the Tier-3 section of the diagnostics panel). The three topics must explain the THREE-TIER model + when each catches a failure (FR=business events while healthy; internal_diagnostics=in-app health + stalls; Palmistry=freeze/crash survival when the app itself is dead). A no-context model must be able to pick the right diagnostic tool for a failure from these topics. Same id-audit discipline (every referenced author_id live, MCP tools = the four real names).",
       "Use the EXTERNAL CARGO_TARGET_DIR (Handshake_Artifacts/handshake-native-target); NEVER a repo-local target/. Run the full suite with -j 2.",
       "CONTENT UPDATE only: extend editors_manual_section() / agent_tool_rows() in manual_content_editors.rs (the existing MT-073 section). Reuse the ManualSection/ManualTopic/AgentToolReference data model + the ManualPane widget; do NOT build a new manual subsystem.",
       "The agent-tool reference author_ids MUST be LIVE registered ids (the MT-073 id-audit cross-checks against the live AccessKit registries — an orphan id FAILS the build). Source the new ids from the real surfaces: runtime-chat-panel/input/send (MT-098), the terminal/model launch command ids (MT-100/101), the visual-debugger/diagnostics surface ids (MT-087/102). Use ONLY the four real MCP tool names (list_widgets/click_widget/set_value/screenshot) — never an invented gui.* name.",
@@ -92,17 +95,17 @@
     {
       "tier": "FLIGHT_RECORDER",
       "status": "NOT_APPLICABLE",
-      "reason": "The manual is in-process documentation content; it neither reads nor writes the Flight Recorder. FR stays as-is/forbidden."
+      "reason": "The manual is in-process documentation content; it neither reads nor writes the Flight Recorder. FR stays as-is/forbidden. (MT-104 now also carries a DEDICATED manual TOPIC for this tier - documentation only, not a producer/consumer.)"
     },
     {
       "tier": "INTERNAL_DIAGNOSTICS",
       "status": "NOT_APPLICABLE",
-      "reason": "The manual DOCUMENTS the Settings->Diagnostics panel + the visual debugger but emits no internal_diagnostics events itself; it is content, not a producer or consumer of the diagnostics ring."
+      "reason": "The manual DOCUMENTS the Settings->Diagnostics panel + the visual debugger but emits no internal_diagnostics events itself; it is content, not a producer or consumer of the diagnostics ring. (MT-104 now also carries a DEDICATED manual TOPIC for this tier - documentation only, not a producer/consumer.)"
     },
     {
       "tier": "PALMISTRY",
       "status": "NOT_APPLICABLE",
-      "reason": "The manual content does not produce or read freeze/crash/debris records; it describes where they surface (the MT-093 Palmistry section of the diagnostics panel)."
+      "reason": "The manual content does not produce or read freeze/crash/debris records; it describes where they surface (the MT-093 Palmistry section of the diagnostics panel). (MT-104 now also carries a DEDICATED manual TOPIC for this tier - documentation only, not a producer/consumer.)"
     }
   ],
   "handoff": {

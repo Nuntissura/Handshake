@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-090",
@@ -73,6 +73,7 @@
       "PT-013-D: recovery-detection (unfreeze + crash-restart) drains unforwarded records; both crates build clean + clippy -D warnings + full suite -j 2 green."
     ],
     "implementation_notes": [
+      "BOUNDED-TEST RULE (MT-092 precedent, MANDATORY): any test spawning the palmistry binary / doing minidumper-IPC / waiting on a child MUST use an explicit timeout (wait_for_exit/connect/read) - NEVER an unbounded Command::output() or socket read_line. #[ignore] with a typed reason any test that deadlocks under this headless harness (run with --ignored on a real host); minidumper out-of-process IPC + simulate_exception are the known hangers. Run palmistry tests under a hard external bound so a deadlock cannot waste hours.",
       "The FR route is the EXISTING verified `POST http://127.0.0.1:37501/api/flight_recorder/runtime_chat_event` — event_emitter.rs is the in-repo reference for the exact RuntimeChatEventV0_1 body + the actor_id + non-nil session-UUID requirements. REUSE it; do NOT invent a new route, do NOT edit the FR module (forbidden_paths).",
       "HONESTY GATE: VERIFY whether runtime_chat_event can actually carry a freeze/crash survivor payload. If its schema cannot represent it (it is a chat-event shape), the correct outcome is a TYPED BLOCKER (FrForwardBlocker) + the record stays local flagged pending, plus a documented follow-on (WP-016) to add a proper FR ingestion shape WITHOUT touching the FR here. Do NOT fake a success. (event_emitter.rs already documents a similar typed-backend-blocker pattern for a missing native-editor ingestion shape — mirror that honesty.)",
       "Survivor store: typed-allowlist JSON, atomic temp+rename, portable dirs-resolved per-user dir (same convention as MT-083). Read existing records on startup so a Palmistry restart does not lose pending forwards.",
@@ -143,5 +144,10 @@
     },
     "motivating_incident": "The 2026-06-26 freeze produced no governed-ledger record of the freeze; §6.13.7 + this MT close that gap — the out-of-process evidence rejoins the FR on recovery and shows in the Diagnostics Panel, instead of being lost when the in-process tools stalled.",
     "validation_plan": "durable atomic survivor store + restart-survival + typed-allowlist + FR forward via the verified route (live-gated or stub-shape-matched) + honest blocker on incompatibility + recovery-drain; clippy -D warnings; full suite -j 2."
+  },
+  "implementation_result": {
+    "commit": "097d6887",
+    "summary": "Palmistry durable survivor store (atomic typed-allowlist SurvivorRecord Freeze|Crash, restart-survival, idempotent forwarded flag, drain-on-recovery) + recovery-time FR-forward to POST /api/flight_recorder/runtime_chat_event. HONEST TYPED BLOCKER (AC-013-4): the FR closed RuntimeChatEvent schema rejects the survivor body -> FrForwardBlocker::SchemaIncompatible naming WP-KERNEL-016 (no fake forward, FR untouched). Handshake-side survivor_forward reader + the Settings->Diagnostics Tier-3 section now POPULATES from forwarded freeze/crash records (replacing the empty-state, AC-013-6). palmistry crate gained a [lib] target (tests drive real types). AC-013-1..7 PASS; palmistry full suite -j2 green; handshake-native lib 1594/0; the 5 -j2 failures are pre-existing flakes (pass isolated).",
+    "notes": "coder added uuid v7+v4 to palmistry (now_v7 for record ids) which also made the clippy.toml new_v4 entry reachable - resolved the benign config warning."
   }
 }

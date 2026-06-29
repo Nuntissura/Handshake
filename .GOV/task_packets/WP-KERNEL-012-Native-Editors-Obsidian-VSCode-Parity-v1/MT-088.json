@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-082",
@@ -138,5 +138,10 @@
     },
     "motivating_incident": "THE concrete bug: 2026-06-26 live session — launching Handshake with the backend (127.0.0.1:37501) down stalled the UI thread (Responding=false, CPU->0, frozen) because a UI-thread backend call blocked the frame loop. This MT is the direct fix + re-prove; it is the reason internal_diagnostics + Palmistry exist (the freeze that an external watcher should catch, and the §5.8.5 degrade-not-freeze rule that should prevent it).",
     "validation_plan": "real backend-down launch responsiveness re-prove (frames + heartbeat) + UI-thread-block_on audit + typed transition events + degraded UI + recovery; clippy -D warnings; full suite -j 2."
+  },
+  "implementation_result": {
+    "summary": "THE BACKEND-DOWN FREEZE FIX (the 2026-06-26 live freeze). Layout-load block_on moved OFF the UI thread (spawn_layout_load + poll_layout_load); EVERY per-frame UI-thread manager access -> try_lock (skip-when-contended) - the load-bearing fix (the agent hit the exact freeze: worker held the layout-manager lock during the GET while ui() blocked on .lock()). Bounded 1.5s connect timeout; debounced BackendUnreachable/BackendRecovered typed events on edges; Disconnected indicator (no spinner); live /health re-probe recovery. AC-008-1..7 PASS.",
+    "key_proof": "AC-008-1: real HandshakeApp pointed at a connection-REFUSING dead port (127.0.0.1:1), 30 frames each complete <1s + heartbeat advances -> the CPU->0/Responding=false symptom GONE. Real TCP refusal, not mocked. No new regression (only the pre-existing file_save flake).",
+    "milestone": "completes the internal_diagnostics tier (MT-081..088): ring, open API, panic hook, heartbeat, frame-time, resources, Settings->Diagnostics panel, freeze fix."
   }
 }

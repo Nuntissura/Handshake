@@ -1,0 +1,83 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-020",
+  "title": "Integrate prompt feedback kernel and Leeseo wishlist into Handshake workflows",
+  "status": "PENDING",
+  "created_at_utc": "2026-06-28T21:53:53.761Z",
+  "updated_at_utc": "2026-06-28T21:53:53.761Z",
+  "product_edit_allowed": true,
+  "operator_request": "Include the assistant prompt feedback kernel handoff and Leeseo wishlist as a future Handshake workflow connected to Atelier/Comfy/intake.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-020.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-020.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-020.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-016",
+      "MT-017"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "operator_supplied_external_paths": [
+      "D:/Projects/LLM projects/comfyui-workbench/projects/leeseo/HANDSHAKE_PROMPT_FEEDBACK_KERNEL_HANDOFF_2026-06-28.md",
+      "D:/Projects/LLM projects/comfyui-workbench/projects/leeseo/leeseo_wishlist.md"
+    ],
+    "recovery_rule": "Read both external handoff/wishlist files before implementation. Preserve their requirements explicitly; do not reduce them to generic prompt notes."
+  },
+  "scope": {
+    "summary": "Turn the Leeseo prompt feedback handoff into native Handshake prompt/render review workflow connected to Atelier, ComfyUI receipts, and CKC/Ingest outputs.",
+    "base_scope": [
+      "Inspect and preserve requirements from the prompt feedback kernel handoff and Leeseo wishlist.",
+      "Define import paths for prompt/render receipts and review verdicts.",
+      "Implement or stage rule-pack rewrite workflows and traceable exports.",
+      "Connect feedback records to CKC characters, ComfyUI renders, and Ingest review artifacts where relevant.",
+      "Expose model-facing headless commands and operator-visible review surfaces.",
+      "Update internal UserManual with prompt feedback workflow."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/**",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/**/comfy*",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/**"
+    ],
+    "acceptance_criteria": [
+      "External prompt feedback handoff and wishlist requirements are mapped to native Handshake workflow fields.",
+      "Prompt/render receipts can be imported or referenced.",
+      "Review verdicts and rewrite suggestions are persisted and traceable.",
+      "Argus can inspect and steer the prompt feedback surface."
+    ],
+    "verification": [
+      "Requirement-map review against the external files.",
+      "Backend tests for receipt/verdict persistence.",
+      "Native UI/Argus evidence for review workflow."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "preservation of external wishlist intent",
+      "ComfyUI receipt integration",
+      "traceability/export correctness",
+      "operator and model review ergonomics"
+    ]
+  },
+  "manual_requirement": "Required in this MT.",
+  "handoff": {
+    "status": "PENDING"
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-016",
+  "title": "Link CKC sheet versions to ComfyUI renders and OpenPose artifacts",
+  "status": "PENDING",
+  "created_at_utc": "2026-06-28T21:53:53.761Z",
+  "updated_at_utc": "2026-06-28T21:53:53.761Z",
+  "product_edit_allowed": true,
+  "operator_request": "CKC should store good CUI-ready OpenPose images, CUI renders, and linked objects on character sheets or sheet versions for reuse.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-016.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
+    "parity_map": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003-parity-map.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-016.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-016.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-009",
+      "MT-014"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "recovery_rule": "Treat ComfyUI/OpenPose artifacts as typed reusable linked objects attached to CKC sheet versions."
+  },
+  "scope": {
+    "summary": "Connect CKC, Posekit, and ComfyUI receipts so character sheet versions can hold reusable renders and OpenPose assets.",
+    "base_scope": [
+      "Define typed links from character sheet versions to OpenPose exports.",
+      "Define typed links from character sheet versions to ComfyUI render receipts/artifacts.",
+      "Expose UI to browse, attach, detach, and reuse linked artifacts.",
+      "Make linked objects available to other Handshake modules via typed refs.",
+      "Update internal UserManual with artifact reuse workflow."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/**",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/comfy.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/**"
+    ],
+    "acceptance_criteria": [
+      "A character sheet version can list linked OpenPose images and ComfyUI renders.",
+      "Links persist and round-trip through backend authority.",
+      "Artifacts can be reused through typed refs, not copied manually.",
+      "Argus can inspect and steer artifact link operations."
+    ],
+    "verification": [
+      "Backend tests for typed artifact links.",
+      "UI tests for link/list/reuse operations.",
+      "Argus evidence for linked-object workflow."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "artifact lineage",
+      "sheet-version correctness",
+      "reuse by downstream tools",
+      "data loss prevention"
+    ]
+  },
+  "manual_requirement": "Required in this MT.",
+  "handoff": {
+    "status": "PENDING"
+  }
+}

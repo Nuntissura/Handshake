@@ -16,7 +16,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "base_wp_id": "WP-CKC-posekit-overhaul",
   "created_at_utc": "2026-06-28T12:26:14.447Z",
-  "updated_at_utc": "2026-06-28T23:26:05.618Z",
+  "updated_at_utc": "2026-06-28T23:28:00.301Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
     "packet_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.md",
@@ -73,8 +73,8 @@
       "state_recovery": "Subagents must write results back to MT contracts or WP communications, not to chat-only memory."
     },
     "last_state_update": {
-      "updated_at_utc": "2026-06-28T23:26:05.618Z",
-      "summary": "MT-006, MT-007, and MT-008 are implemented and READY_FOR_VALIDATION; next direct implementation item is MT-009."
+      "updated_at_utc": "2026-06-28T23:28:00.301Z",
+      "summary": "MT-009 started after MT-006/007/008 reached READY_FOR_VALIDATION."
     }
   },
   "source_control": {

@@ -1,0 +1,79 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-011",
+  "title": "Restore CKC fuzzy, vector, combination search and rich tags",
+  "status": "PENDING",
+  "created_at_utc": "2026-06-28T21:53:53.761Z",
+  "updated_at_utc": "2026-06-28T21:53:53.761Z",
+  "product_edit_allowed": true,
+  "operator_request": "Original CKC had fuzzy search, vector search, combination search, rich tags, and a notes system for images and tags.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-011.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
+    "parity_map": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003-parity-map.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-011.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-011.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-010"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "recovery_rule": "Inspect existing search/vector/tag infrastructure before adding new search stacks."
+  },
+  "scope": {
+    "summary": "Make CKC searchable across characters, media, albums, notes, and tags with fuzzy/vector/combined modes.",
+    "base_scope": [
+      "Audit existing Handshake search, vector, and tag primitives.",
+      "Implement CKC fuzzy search over character/media/tag fields.",
+      "Implement or wire vector search using existing Handshake vector/index systems.",
+      "Implement combination search that can intersect text, vector, tags, and character/media constraints.",
+      "Expose rich tags and tag notes without collapsing them into character notes.",
+      "Update internal UserManual with search modes and expected inputs/outputs."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/**",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/**/search*",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/**"
+    ],
+    "acceptance_criteria": [
+      "CKC exposes fuzzy, vector, and combined search modes.",
+      "Search results can cite stable CKC character/media/tag refs.",
+      "Rich tags and tag notes round-trip.",
+      "Argus can inspect and steer the search controls."
+    ],
+    "verification": [
+      "Backend tests for fuzzy/vector/combined search behavior.",
+      "Native UI tests for search controls and result rows.",
+      "Argus evidence for search workflow."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "search correctness",
+      "index staleness/rebuild behavior",
+      "tag/note data separation",
+      "large dataset performance"
+    ]
+  },
+  "manual_requirement": "Required in this MT.",
+  "handoff": {
+    "status": "PENDING"
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-010",
+  "title": "Restore CKC linked images, folders, albums, and media notes",
+  "status": "PENDING",
+  "created_at_utc": "2026-06-28T21:53:53.761Z",
+  "updated_at_utc": "2026-06-28T21:53:53.761Z",
+  "product_edit_allowed": true,
+  "operator_request": "CKC links images and folders to a character sheet, creates albums per character, and supports image-specific notes and tags.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-010.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
+    "parity_map": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003-parity-map.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-010.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-010.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-009"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "recovery_rule": "Resume from CKC character sheet model and existing Atelier media refs. Do not invent a separate media database if Loom/assets already own the file authority."
+  },
+  "scope": {
+    "summary": "Bring CKC media linking back to production parity: character-linked images/folders/albums, media notes, and reusable typed media refs.",
+    "base_scope": [
+      "Map existing Loom/assets/Atelier media refs to CKC character sheet versions.",
+      "Implement character albums and folder/image link management.",
+      "Separate image notes/tags from character sheet notes.",
+      "Make linked media rows inspectable, selectable, and draggable/reusable in other Handshake surfaces.",
+      "Update internal UserManual with CKC media and album workflow."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/**",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_side_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/interop/drag_payload.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/**"
+    ],
+    "acceptance_criteria": [
+      "A CKC character can show linked images/folders/albums.",
+      "Image notes/tags are distinct from character sheet notes.",
+      "Linked media persists through the existing backend authority path.",
+      "Argus can inspect and steer album/media rows."
+    ],
+    "verification": [
+      "Backend tests for media link persistence.",
+      "Native UI tests for album/media rows and stable author_ids.",
+      "Argus evidence for media selection and notes surface."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "data loss and asset authority",
+      "notes/tag separation",
+      "drag/ref interoperability",
+      "large-library operator usability"
+    ]
+  },
+  "manual_requirement": "Required in this MT.",
+  "handoff": {
+    "status": "PENDING"
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-021",
+  "title": "Create full internal UserManual coverage for Atelier, CKC, Posekit, Ingest, Facial, Argus, and prompt feedback",
+  "status": "PENDING",
+  "created_at_utc": "2026-06-28T21:53:53.761Z",
+  "updated_at_utc": "2026-06-28T21:53:53.761Z",
+  "product_edit_allowed": true,
+  "operator_request": "Update the Handshake internal manual so operators and models know how to use CKC, Posekit, Ingest, Argus, Facial-backed tools, and prompt feedback workflows.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-021.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-021.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-021.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-006",
+      "MT-007"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "recovery_rule": "This is the broad manual consolidation MT. It does not replace per-MT manual updates required by implementation MTs."
+  },
+  "scope": {
+    "summary": "Create a coherent no-context internal manual section for the full Atelier tool family and model/operator workflows.",
+    "base_scope": [
+      "Document the Atelier main panel and its CKC, Posekit, and Ingest tabs.",
+      "Document CKC character sheets, media/albums, search/tags/notes, story, moodboard, and linked artifacts at the current implementation level.",
+      "Document Posekit split view, marker editing, OpenPose export, and ComfyUI use at the current implementation level.",
+      "Document Ingest dataset review, contact sheets, and Facial-backed tools at the current implementation level.",
+      "Document Argus visual inspection requirements and methods.",
+      "Document prompt feedback/kernel workflow once implemented or clearly mark current status and recovery path.",
+      "Add manual-content tests so key method names and workflows cannot drift silently."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_manual_pane_editors.rs"
+    ],
+    "acceptance_criteria": [
+      "A no-context model can open the internal manual and understand the purpose, navigation, inputs, outputs, safety constraints, failure modes, and recovery steps for Atelier tools.",
+      "Manual text does not claim unimplemented behavior as complete.",
+      "Manual tests guard the presence of key tool names, methods, and workflows.",
+      "Argus usage is described as mandatory for GUI proof."
+    ],
+    "verification": [
+      "Focused manual-content cargo tests.",
+      "Argus/manual pane visual inspection if available headlessly.",
+      "Diff review against implemented status to avoid false claims."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "truthfulness against actual implementation",
+      "no-context model usability",
+      "operator navigation clarity",
+      "false feature-complete claims"
+    ]
+  },
+  "manual_requirement": "This MT is itself manual coverage; later implementation MTs still update manual deltas.",
+  "handoff": {
+    "status": "PENDING"
+  }
+}

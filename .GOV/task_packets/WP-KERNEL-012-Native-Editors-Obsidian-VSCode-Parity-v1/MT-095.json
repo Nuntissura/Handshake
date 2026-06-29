@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-082",
@@ -134,5 +134,14 @@
     },
     "motivating_incident": "The 2026-06-26 freeze + the three-tier decoupling created an obligation (HBR-INT-009) that, if left prose-only, drifts; this format makes the per-tier wiring machine-checkable so WP-016's retrofit + all future WPs prove it consistently.",
     "validation_plan": "emit+parse + validate() pass/fail + vocabulary congruence + real grounded example + repo-gov/product split preserved; clippy -D warnings."
+  },
+  "implementation_result": {
+    "commit": "e4043649",
+    "summary": "HBR-INT-009 three-tier evidence gate: three_tier_evidence.rs in the SHARED diag_ring crate (the only crate handshake-native + palmistry both depend on) emits/validates/loads a ThreeTierDiagnosticWiringRecord proving all three tiers (FLIGHT_RECORDER/INTERNAL_DIAGNOSTICS/PALMISTRY) present-once with WIRED proof_ref or NOT_APPLICABLE/DEFERRED reason; serde spellings congruent with the hbr_int_009_tier_obligations vocabulary; grounded heartbeat example (internal_diagnostics=WIRED MT-084, palmistry=WIRED MT-091, FR=NOT_APPLICABLE). Emits JSON to the EXTERNAL artifact root (atomic tmp+rename), no repo-local target/, no tracked artifact. AC-015-1..6 PASS; 12 tests green (10 unit + 2 integration). +853/-2, 4 files.",
+    "gate": "own-tests-green per diagnostic_gate_policy (lightened pipeline)",
+    "governance_handoffs": [
+      "auto-relay hook subject-format drift (commit recorded e4043649; certifier picks up manually) - deferred",
+      "the .GOV-side validator gate that reads the emitted JSON + marks hbr_int_009 acceptance rows - deferred to WP validation per operator no-paperwork directive"
+    ]
   }
 }

@@ -4,7 +4,7 @@
   "authority_surface": "MACHINE_CONTRACT",
   "rendered_md_projection_path": ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md",
   "rendered_md_projection_policy": "GENERATED_FROM_JSON_DO_NOT_HAND_EDIT",
-  "updated_at_utc": "2026-06-28T12:35:23.978Z",
+  "updated_at_utc": "2026-06-28T17:44:39.421Z",
   "entries": [
     {
       "base_wp_id": "WP-1-ACE-Auditability",
@@ -164,9 +164,9 @@
     },
     {
       "base_wp_id": "WP-1-Cloud-Consent-Evidence-Portability",
-      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Cloud-Consent-Evidence-Portability-v1.md",
-      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Cloud-Consent-Evidence-Portability-v1",
-      "notes": "stub (spec v02.153); backend capability/diagnostics evidence pass for consent receipt and cloud escalation request portability semantics"
+      "active_packet_path": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.md",
+      "task_board_projection": "Folded into Ready for Dev: WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+      "notes": "folded complete into WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1; CloudEscalationRequest, ConsentReceipt, ProjectionPlan, bounded evidence, replay/export, and no-secret-leak intent preserved in bundled-stubs.json and MT-006/MT-009."
     },
     {
       "base_wp_id": "WP-1-Cross-Tool-Interaction-Conformance",
@@ -225,8 +225,8 @@
     {
       "base_wp_id": "WP-1-FR-ModelSessionId",
       "active_packet_path": ".GOV/task_packets/WP-1-FR-ModelSessionId-v1/packet.md",
-      "task_board_projection": "Stub Backlog (Not Activated): WP-1-FR-ModelSessionId-v1",
-      "notes": "stub (audit remediation); add model_session_id to FR envelope + DuckDB"
+      "task_board_projection": "Done: WP-1-FR-ModelSessionId-v1",
+      "notes": "validated on Task Board; reused by WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 as the Flight Recorder model_session_id correlation dependency, not reopened or folded."
     },
     {
       "base_wp_id": "WP-1-Flight-Recorder-UI",
@@ -662,9 +662,9 @@
     },
     {
       "base_wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry",
-      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1.md",
-      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
-      "notes": "stub (spec v02.122); new Phase 1 roadmap addition"
+      "active_packet_path": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.md",
+      "task_board_projection": "Ready for Dev: WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+      "notes": "activated via Activation Manager from source stub; expands scope for current swarm/subagent era: Rust backend, PostgreSQL/EventLedger, CRDT collaborative state, ModelLane launch/exchange, Flight Recorder correlation, and project-named internal viewing-tool visual debugging."
     },
     {
       "base_wp_id": "WP-1-ModelSession-Core-Scheduler",
@@ -692,9 +692,9 @@
     },
     {
       "base_wp_id": "WP-1-Layerwise-Inference-Foundations",
-      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Layerwise-Inference-Foundations-v1.md",
-      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Layerwise-Inference-Foundations-v1",
-      "notes": "stub (spec v02.122); new Phase 1 roadmap addition"
+      "active_packet_path": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.md",
+      "task_board_projection": "Folded into Ready for Dev: WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+      "notes": "folded telemetry/control-plane slice into WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1; exec_policy, compute preset, waiver_ref, requested/effective events, and trace refs preserved; actual layerwise inference algorithms remain out of scope."
     },
     {
       "base_wp_id": "WP-1-Atelier-Collaboration-Panel",
@@ -782,9 +782,9 @@
     },
     {
       "base_wp_id": "WP-1-Provider-Feature-Coverage-Agentic-Ready",
-      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Provider-Feature-Coverage-Agentic-Ready-v1.md",
-      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Provider-Feature-Coverage-Agentic-Ready-v1",
-      "notes": "stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage"
+      "active_packet_path": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.md",
+      "task_board_projection": "Folded into Ready for Dev: WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+      "notes": "folded complete into WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1; provider capability/profile, multi-turn, tool-call, adapter-quirk, and fail-closed feature-gap intent preserved in bundled-stubs.json and MT-002/MT-003/MT-004/MT-009."
     },
     {
       "base_wp_id": "WP-1-Workspace-Safety-Parallel-Sessions",
@@ -980,6 +980,24 @@
     }
   ],
   "superseded_activation_history": [
+    {
+      "base_wp_id": "WP-1-Layerwise-Inference-Foundations",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Layerwise-Inference-Foundations-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Layerwise-Inference-Foundations-v1",
+      "replacement_notes": "folded telemetry/control-plane scope into WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1; source stub retained as superseded evidence; actual layerwise algorithm scope remains excluded."
+    },
+    {
+      "base_wp_id": "WP-1-Cloud-Consent-Evidence-Portability",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Cloud-Consent-Evidence-Portability-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Cloud-Consent-Evidence-Portability-v1",
+      "replacement_notes": "folded complete into WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1; source stub retained as superseded evidence; consent/projection evidence intent preserved in .GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/bundled-stubs.json."
+    },
+    {
+      "base_wp_id": "WP-1-Provider-Feature-Coverage-Agentic-Ready",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Provider-Feature-Coverage-Agentic-Ready-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Provider-Feature-Coverage-Agentic-Ready-v1",
+      "replacement_notes": "folded complete into WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1; source stub retained as superseded evidence; technical intent preserved in .GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/bundled-stubs.json."
+    },
     {
       "base_wp_id": "WP-1-Atelier-Lens",
       "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-v2.md",

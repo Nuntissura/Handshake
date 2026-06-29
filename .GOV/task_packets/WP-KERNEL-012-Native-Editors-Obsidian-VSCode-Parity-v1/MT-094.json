@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-082",
@@ -55,7 +55,7 @@
       ".GOV/**"
     ],
     "acceptance_criteria": [
-      "AC-014-1 (LAUNCH + HANDSHAKE, prove first): launching the Handshake startup path SPAWNS palmistry.exe (a child process exists) and completes the startup IPC handshake (Palmistry acks the HandshakeHello over the control socket with the matching pid/session/ring) — proven by a test driving the real launch against the built palmistry.exe and asserting the child + the ack.",
+      "AC-014-1 (LAUNCH + HANDSHAKE via the FUNCTION, not the windowed app): a BOUNDED test calls launch_palmistry() directly with test inputs and asserts (a) a real palmistry.exe child process spawns, (b) the startup IPC handshake acks over the MT-089 control socket with the matching pid/session/ring, (c) the child is then reaped via Shutdown. The main() WIRING (main() calls launch_palmistry before eframe::run_native) is proven by a source-scan assertion on main.rs. The real windowed binary is NEVER executed-and-waited-on in a test (eframe::run_native never returns -> hang).",
       "AC-014-2 (HBR-QUIET): the spawn is headless + quiet — CREATE_NO_WINDOW / detached, stdout/stderr not inherited to a console, NO SetForegroundWindow / focus steal — verified via the spawn flags + the existing focus-audit/quiet-mode source discipline (no foreground call), consistent with the crate's existing subprocess-spawn pattern (the MT-088 LSP CREATE_NO_WINDOW spawn).",
       "AC-014-3 (NOT kill-on-job-close): the spawn does NOT add Palmistry to a kill-on-job-close Win32 Job Object / parent-dies process group — documented spawn flags + the MT-089 survives-parent-death behavior preserved (the launcher-side half of the §6.13.3 inversion contract).",
       "AC-014-4 (CLEAN SHUTDOWN): on a clean Handshake exit, Handshake sends the Shutdown control message and Palmistry exits cleanly with NO crash record — proven by a test that runs the startup + clean-shutdown path and asserts Palmistry got Shutdown + exited + wrote no crash artifact.",
@@ -70,6 +70,8 @@
       "PT-014-D: install_payload includes palmistry.exe; current_exe()-relative resolution; `cargo build --lib --bins` clean + clippy clean + full suite -j 2 green."
     ],
     "implementation_notes": [
+      "CRITICAL TEST STEER (the MT-094 HANG 2026-06-28: a test launched the REAL windowed handshake-native binary and WAITED on it; eframe::run_native+'+s event loop NEVER EXITS -> the app spun at 100% CPU -> cargo/agent blocked 1h10m). HARD RULES, no exceptions: (1) Put launch_palmistry() in main() startup BEFORE eframe::run_native - NOT in HandshakeApp::new - so that kittest build_eframe tests ACROSS THE WHOLE SUITE (MT-082/084/087 etc. all call HandshakeApp::new) do NOT each spawn + leak a palmistry child. (2) The launch PROOF (AC-014-1) tests launch_palmistry() DIRECTLY: call the function with test inputs -> assert a real palmistry.exe child spawns + the startup handshake acks over the MT-089 control socket -> send Shutdown -> assert clean exit -> REAP the child. EVERYTHING BOUNDED (wait_for_exit/connect/read with explicit timeouts; NO unbounded Command::output()/read_line). (3) ABSOLUTELY NEVER spawn the real handshake-native windowed binary (Command::new(<handshake_native exe>).spawn) and wait on it, and NEVER call eframe::run_native in a test - the windowed event loop does not return and WILL hang. Prove the main() WIRING (that main() calls launch_palmistry before run_native) with a SOURCE-SCAN assertion on main.rs, NOT by executing the windowed app. #[ignore]-with-reason any test that genuinely needs the real windowed app (run --ignored on a real host, closed by a human). (4) Every spawned palmistry MUST be reaped (send Shutdown, then kill-on-timeout) so it neither leaks (no orphan ping/palmistry) nor records a crash for the test-process death.",
+      "BOUNDED-TEST RULE (MT-092 precedent, MANDATORY): any test spawning the palmistry binary / doing minidumper-IPC / waiting on a child MUST use an explicit timeout (wait_for_exit/connect/read) - NEVER an unbounded Command::output() or socket read_line. #[ignore] with a typed reason any test that deadlocks under this headless harness (run with --ignored on a real host); minidumper out-of-process IPC + simulate_exception are the known hangers. Run palmistry tests under a hard external bound so a deadlock cannot waste hours.",
       "Resolve palmistry.exe via std::env::current_exe() -> its sibling directory (the installer ships both side-by-side; the self-check pattern already resolves bundled assets relative to the exe). Portable, no hardcoded path.",
       "Spawn with CREATE_NO_WINDOW + a detached/quiet disposition (HBR-QUIET) — reuse the EXACT subprocess-spawn discipline the crate already uses for the MT-088 LSP server (CREATE_NO_WINDOW, focus-safe). Do NOT inherit the console; pipe or log stdout/stderr.",
       "Do NOT add Palmistry to a kill-on-job-close Job Object (§6.13.3). A plain Command::spawn does not by default, but VERIFY nothing in the launch wrapper does; the MT-089 survives-parent-death test is the behavioral proof this launcher must preserve.",
@@ -140,5 +142,11 @@
     },
     "motivating_incident": "The 2026-06-26 freeze is only observable by an external watcher if that watcher is actually RUNNING when the freeze happens — so Handshake must launch Palmistry at startup, quietly, before the app can stall, without blocking startup on it.",
     "validation_plan": "real spawn + handshake + HBR-QUIET flags + not-kill-on-job-close + clean-shutdown + graceful-degradation + install_payload; clippy -D warnings; full suite -j 2."
+  },
+  "implementation_result": {
+    "commit": "40c0a295",
+    "harden_commit": "f31f9321",
+    "summary": "Handshake launches Palmistry at startup: launch_palmistry_or_degrade() spawns the real palmistry.exe (current_exe()-sibling, install_payload) BEFORE eframe::run_native, completes a BOUNDED HandshakeHello/Ack over the MT-089 interprocess control socket (recv_timeout 4s, degrades to None if absent), stores the handle on HandshakeApp, sends Shutdown on on_exit (clean exit, no crash record, CleanShutdown survivor). HBR-QUIET (CREATE_NO_WINDOW + null stdio + no foreground; focus-audit 7/7). NOT kill-on-job-close (plain std Command, no Job Object; source-scan asserts absence). Graceful degradation (<2s, startup not blocked). PROVEN by a live BOUNDED direct test (launch_palmistry_at with test inputs) + main() SOURCE-SCAN — the windowed binary is NEVER executed (the anti-hang fix). AC-014-1..6 PASS; AC-014-7 PARTIAL (full -j2 suite deferred to WP validation per the 2026-06-28 lightened pipeline). +1142/-3, 7 files.",
+    "gate": "own-tests-green (5/5 launch + 6/6 unit + focus/heartbeat/diag-panel no-regression) per diagnostic_gate_policy"
   }
 }

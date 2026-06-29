@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-089",
@@ -136,5 +136,10 @@
     },
     "motivating_incident": "The 2026-06-26 freeze (UI thread stalled, Responding=false) is EXACTLY the case this detects: the heartbeat would have stopped advancing and the hung-window probe would have returned not-responding — a confirmed freeze Palmistry captures from outside the hung process.",
     "validation_plan": "no-false-positive-on-healthy + stale+corroborated freeze + double-signal corroboration + recovery + monotonic reference; external target dir; clippy -D warnings."
+  },
+  "implementation_result": {
+    "commit": "05875991",
+    "summary": "Palmistry freeze detection: FreezeDetector (Healthy/Suspected/Frozen) with the DOUBLE-SIGNAL gate - Frozen requires heartbeat staleness >5s AND the real Win32 SendMessageTimeoutW(WM_NULL) hung-window probe confirming. AC-011: no-false-positive (idle 250ms cadence never freezes, reset-on-advance); stalled writer -> Frozen{stale_ms>=6000} over a real ring; stale-but-responding -> Suspected only; recovery clears (no latch); monotonic Instant reference (not embedded ts); named consts with compile-time invariants. 55 tests GREEN; external target dir.",
+    "notes": "spawn_freeze_poll thread off the control loop; bin-crate constraint -> integration re-states the rule over a real ring, binary copy proven by in-crate unit tests."
   }
 }

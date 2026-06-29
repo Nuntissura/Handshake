@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-082"
@@ -134,5 +134,9 @@
     },
     "motivating_incident": "The 2026-06-26 freeze (UI thread stalled, CPU->0) is exactly the failure this heartbeat makes observable: a stalled `fn update` stops bumping the counter; Palmistry (MT-091) sees the staleness from outside the hung process.",
     "validation_plan": "kittest N-frame step + separate-reader counter-advance + monotonic-timestamp + idle-cadence assertions; clippy -D warnings; full suite -j 2."
+  },
+  "implementation_result": {
+    "summary": "UI-thread heartbeat wired into the live egui update loop (per-frame frame_counter + monotonic Instant clock -> MT-081 ring header heartbeat slot, wait-free + alloc-free, no buffer/lock); 250ms idle repaint cadence (in [100,500]ms poll window, <5s freeze threshold); cross-process reader sees counter advance by N; both constructors init the fields. AC-004-1..6 PASS (AC-004-6 PARTIAL: the only full-suite red is the pre-existing MT-069 FILE>Save bug, baseline-proven, pinned to MT-099).",
+    "notes": "diagnostics::heartbeat no-op without writer; monotonic Instant (not SystemTime)."
   }
 }

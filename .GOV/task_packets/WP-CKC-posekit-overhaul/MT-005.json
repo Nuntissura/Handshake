@@ -1,0 +1,168 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract"
+    ]
+  },
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-005",
+  "title": "Make native GUI cargo build launch deterministic without test-feature unification",
+  "status": "COMPLETED",
+  "created_at_utc": "2026-06-28T16:49:48.833Z",
+  "updated_at_utc": "2026-06-28T16:56:35.333Z",
+  "started_at_utc": "2026-06-28T16:49:48.833Z",
+  "completed_at_utc": "2026-06-28T16:56:35.333Z",
+  "product_edit_allowed": true,
+  "governance_edit_allowed": true,
+  "operator_request": "Follow up the launch correction: the native GUI should launch from a normal current-source cargo build, not from stale artifacts or accidental test feature unification.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-005.json",
+    "microtask_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-005.md",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-005.md",
+    "status": "HAND_AUTHORED_IN_SYNC",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-005.json",
+    "generated_at_utc": "2026-06-28T16:49:48.833Z",
+    "generator": "manual-kernel-builder-hotfix-projection"
+  },
+  "lifecycle": {
+    "status": "COMPLETED",
+    "active": false,
+    "depends_on": [
+      "MT-004"
+    ],
+    "blocks": [
+      "MT-006"
+    ],
+    "validator_verdict": "PENDING",
+    "started_at_utc": "2026-06-28T16:49:48.833Z",
+    "completed_at_utc": "2026-06-28T16:56:35.333Z"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "primary_product_branch": "feat/WP-CKC-posekit-overhaul",
+    "parallel_active_worktree_do_not_touch": "../wtc-native-editors-v1",
+    "parallel_active_branch_do_not_touch": "feat/WP-KERNEL-012",
+    "artifact_root": "../Handshake_Artifacts/ckc-overhaul-launch",
+    "recovery_rule": "If a no-context model resumes this MT, reproduce the bug with a fresh cargo build target outside the repo. Do not rely on ../Handshake_Artifacts/handshake-native-target or any target previously built by tests. Do not edit unrelated inherited diagnostics or Palmistry files."
+  },
+  "scope": {
+    "summary": "Fix the native GUI crate's runtime feature declaration so `cargo build --manifest-path src/frontend/handshake_native/Cargo.toml --bin handshake-native` produces an executable that launches on Windows without first running a test build.",
+    "type": "PRODUCT_BUILD_HOTFIX",
+    "product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_worktree": "../wtc-native-editors-v1",
+    "product_edit_allowed": true,
+    "base_scope": [
+      "Inspect the native GUI cargo feature graph for the missing wgpu platform backend feature.",
+      "Add the smallest explicit runtime dependency feature needed for Windows launch.",
+      "Keep build/test artifacts outside the repo under ../Handshake_Artifacts/.",
+      "Verify a fresh non-test cargo build launches the GUI from the current-source target."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/Cargo.toml",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/Cargo.lock"
+    ],
+    "forbidden_paths": [
+      "../wtc-native-editors-v1/**",
+      "../handshake_main/**",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/diagnostics/**",
+      "../wtc-ckc-posekit-overhaul/src/frontend/palmistry/**"
+    ],
+    "acceptance_criteria": [
+      "Fresh cargo build of the native GUI bin succeeds into an MT-owned target directory under ../Handshake_Artifacts/.",
+      "Launching the resulting handshake-native.exe no longer fails with 'No wgpu backend feature that is implemented for the target platform was enabled'.",
+      "The launched GUI process path points at the MT-owned current-source target, not the stale shared target.",
+      "The Handshake backend remains healthy and the GUI connects to it.",
+      "The fix is explicit in product build configuration and does not require running `cargo test --no-run` first."
+    ],
+    "proof_targets": [
+      "cargo build --manifest-path src/frontend/handshake_native/Cargo.toml --bin handshake-native --target-dir ../Handshake_Artifacts/ckc-overhaul-launch/native-target-mt005",
+      "Start-Process ../Handshake_Artifacts/ckc-overhaul-launch/native-target-mt005/debug/handshake-native.exe",
+      "Get-Process proves the GUI path is the MT-005 target and the main window is present.",
+      "stderr log is empty or at least does not contain the wgpu backend feature panic."
+    ]
+  },
+  "implementation_plan": [
+    "1. Use cargo tree/metadata or the lockfile to identify which wgpu platform backend feature was only present under dev/test feature unification.",
+    "2. Patch the native GUI Cargo.toml with the smallest explicit runtime feature declaration.",
+    "3. Build the native GUI bin into a fresh MT-owned target directory under ../Handshake_Artifacts/.",
+    "4. Relaunch the GUI from that target and verify process path, window presence, backend health, and no wgpu backend panic.",
+    "5. Update MT-005 closeout and mt_index before moving to MT-006."
+  ],
+  "validation_commands": [
+    "cargo tree --manifest-path src/frontend/handshake_native/Cargo.toml -e features -i wgpu",
+    "cargo build --manifest-path src/frontend/handshake_native/Cargo.toml --bin handshake-native --target-dir ../Handshake_Artifacts/ckc-overhaul-launch/native-target-mt005",
+    "Start-Process ../Handshake_Artifacts/ckc-overhaul-launch/native-target-mt005/debug/handshake-native.exe",
+    "Invoke-RestMethod http://127.0.0.1:37501/health"
+  ],
+  "execution": {
+    "commands_planned": [
+      "Inspect wgpu feature graph.",
+      "Patch native GUI runtime dependency features.",
+      "Build into a fresh MT-owned target directory.",
+      "Launch the fresh executable and verify process path, stderr, window, and backend health."
+    ],
+    "commands_run": [
+      "cargo tree --manifest-path src/frontend/handshake_native/Cargo.toml -e features -i wgpu",
+      "cargo build --manifest-path src/frontend/handshake_native/Cargo.toml --bin handshake-native --target-dir ../Handshake_Artifacts/ckc-overhaul-launch/native-target-mt005",
+      "Start-Process ../Handshake_Artifacts/ckc-overhaul-launch/native-target-mt005/debug/handshake-native.exe",
+      "Get-Process -Name handshake-native",
+      "Invoke-RestMethod http://127.0.0.1:37501/health"
+    ],
+    "product_files_changed": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/Cargo.toml",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/Cargo.lock"
+    ]
+  },
+  "verification": {
+    "results": [
+      "Feature proof before/after patch: `wgpu/dx12` is now pulled by the runtime `handshake-native` package, not only by dev dependency `egui_kittest`.",
+      "Fresh non-test build passed into `../Handshake_Artifacts/ckc-overhaul-launch/native-target-mt005`.",
+      "Fresh GUI launch passed: running process PID 26328 path is `../Handshake_Artifacts/ckc-overhaul-launch/native-target-mt005/debug/handshake-native.exe`.",
+      "Window proof passed: main window title `Handshake`, nonzero main window handle.",
+      "stderr proof passed: `native-run-mt005-20260628-185606.err.log` length is 0; no wgpu backend feature panic.",
+      "Backend health proof passed: `/health` returned status ok, component handshake_core, db_status ok, migration_version 2026."
+    ]
+  },
+  "risk_notes": [
+    {
+      "risk": "The fix hides the problem by reusing a target already warmed by test builds.",
+      "failure_scenario": "A later clean machine still crashes on launch because the runtime dependency features are incomplete.",
+      "mitigation": "Use a fresh MT-owned target directory and do not run `cargo test --no-run` before the proof build."
+    },
+    {
+      "risk": "Enabling too many graphics backends increases build size or platform behavior.",
+      "failure_scenario": "A broad default-feature restore pulls unrelated renderer or platform features.",
+      "mitigation": "Prefer the minimal Windows wgpu backend feature required by the locked wgpu/eframe graph."
+    }
+  ],
+  "handoff": {
+    "status": "COMPLETED",
+    "summary": "Native GUI build hotfix completed. The Windows wgpu backend is explicit in runtime Cargo features, and a fresh non-test build launches from the MT-owned target without the previous wgpu backend panic."
+  },
+  "red_team": {
+    "required": true,
+    "risks": [
+      "A GUI launch can appear successful from a stale executable while the current-source build remains broken.",
+      "Target reuse can mask feature graph bugs.",
+      "Build config changes can accidentally pull dev-only dependencies into runtime."
+    ],
+    "minimum_controls": [
+      "Verify process path.",
+      "Use a fresh target dir.",
+      "Check stderr for the exact wgpu backend panic."
+    ]
+  }
+}

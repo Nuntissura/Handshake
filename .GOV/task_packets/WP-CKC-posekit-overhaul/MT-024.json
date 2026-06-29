@@ -1,0 +1,78 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-024",
+  "title": "Retire or contain legacy non-Rust CKC/Posekit surfaces after native parity",
+  "status": "PENDING",
+  "created_at_utc": "2026-06-28T21:53:53.761Z",
+  "updated_at_utc": "2026-06-28T21:53:53.761Z",
+  "product_edit_allowed": true,
+  "operator_request": "Address the non-Rust language things first, but do not delete useful behavior before native Handshake parity exists.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-024.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
+    "inventory": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-001-inventory.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-024.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-024.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-023"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "recovery_rule": "Use MT-001 inventory. Only retire/contain a non-Rust surface when a native Rust/Handshake path is proven for the same behavior or the operator accepts deletion."
+  },
+  "scope": {
+    "summary": "Finish the language-surface cleanup by retiring, containing, or documenting legacy React/TypeScript/JavaScript CKC/Posekit surfaces after native parity is proven.",
+    "base_scope": [
+      "Re-open MT-001 inventory and verify which non-Rust surfaces remain live.",
+      "For each surface, classify as retired, contained, replaced by native, or intentionally retained.",
+      "Remove or route away from legacy surfaces only when native parity and tests exist.",
+      "Preserve useful behavior by moving it into native Handshake modules or explicit adapters.",
+      "Update internal UserManual and developer notes to point to native surfaces."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/app/src/**",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/**",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/**",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/**"
+    ],
+    "acceptance_criteria": [
+      "Every MT-001 non-Rust CKC/Posekit surface has an updated disposition.",
+      "No useful production behavior is deleted without native replacement or explicit accepted non-goal.",
+      "Runtime navigation points to native Handshake surfaces.",
+      "Argus can inspect the final native entry points."
+    ],
+    "verification": [
+      "Inventory diff against MT-001.",
+      "Targeted build/tests for removed or rerouted surfaces.",
+      "Argus final inspection of native entry points."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "behavior loss",
+      "dead route cleanup",
+      "native parity proof",
+      "repo/product split"
+    ]
+  },
+  "manual_requirement": "Required in this MT.",
+  "handoff": {
+    "status": "PENDING"
+  }
+}

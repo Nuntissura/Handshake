@@ -1,0 +1,80 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-012",
+  "title": "Restore CKC story panels and native moodboard integration",
+  "status": "PENDING",
+  "created_at_utc": "2026-06-28T21:53:53.761Z",
+  "updated_at_utc": "2026-06-28T21:53:53.761Z",
+  "product_edit_allowed": true,
+  "operator_request": "CKC gained story per character and a moodboard; the old Excalidraw attempt should be replaced by the already-built Handshake notion-style moodboard system.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-012.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
+    "parity_map": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003-parity-map.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-012.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-012.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-009",
+      "MT-010"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "recovery_rule": "Reuse current Handshake moodboard/canvas/notion-style primitives; do not revive Excalidraw unless explicitly approved."
+  },
+  "scope": {
+    "summary": "Give CKC character sheets linked story and moodboard surfaces using native Handshake primitives.",
+    "base_scope": [
+      "Add or wire story documents per character/sheet version.",
+      "Add moodboard links/cards per character using existing native moodboard/canvas primitives.",
+      "Keep story, character sheet notes, image notes, and moodboards distinct but cross-linked.",
+      "Expose story and moodboard tabs/panels inside CKC when appropriate.",
+      "Update internal UserManual with story and moodboard workflows."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/**",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/graph/**",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/canvas_board.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/**"
+    ],
+    "acceptance_criteria": [
+      "A CKC character can open linked story content.",
+      "A CKC character can open linked moodboard content through native Handshake primitives.",
+      "Story/moodboard refs persist and can be reused by other modules.",
+      "Argus can inspect and steer story/moodboard entry points."
+    ],
+    "verification": [
+      "Backend/ref tests for story and moodboard links.",
+      "Native UI tests for CKC story/moodboard surfaces.",
+      "Argus evidence for story/moodboard navigation."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "reuse of existing moodboard primitives",
+      "note/story/moodboard boundary clarity",
+      "cross-module linking",
+      "visual workflow usability"
+    ]
+  },
+  "manual_requirement": "Required in this MT.",
+  "handoff": {
+    "status": "PENDING"
+  }
+}

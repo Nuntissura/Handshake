@@ -1,0 +1,79 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-013",
+  "title": "Restore CKC book-style visual layout and work-surface behavior",
+  "status": "PENDING",
+  "created_at_utc": "2026-06-28T21:53:53.761Z",
+  "updated_at_utc": "2026-06-28T21:53:53.761Z",
+  "product_edit_allowed": true,
+  "operator_request": "CKC visually worked like a book: left panel almost always showed images from a character sheet, right panel was the editable sheet, and only stories/character sheet notes/moodboard created a third middle panel.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-013.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
+    "parity_map": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003-parity-map.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-013.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-013.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-006",
+      "MT-010",
+      "MT-012"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "recovery_rule": "Use Argus visual inspection before and after layout changes. Do not reintroduce the four-window grid inside Atelier."
+  },
+  "scope": {
+    "summary": "Make CKC feel like the original high-value production app: image-focused left side, editable work surface right side, optional middle panel only for story/notes/moodboard modes.",
+    "base_scope": [
+      "Implement CKC default split: image/media viewer on left, character sheet editor on right.",
+      "Add middle-panel mode only for story, character-sheet notes, and moodboard workflows.",
+      "Keep image notes separate from character sheet notes in the UI.",
+      "Ensure responsive layout remains readable and non-overlapping.",
+      "Update internal UserManual with CKC visual workflow."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_side_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/**"
+    ],
+    "acceptance_criteria": [
+      "CKC default view shows character images and editable sheet together.",
+      "Story/notes/moodboard modes can expose a third working area without becoming the default.",
+      "Argus can inspect tab, viewer, sheet, and middle-panel states.",
+      "No unwanted four-window layout appears inside Atelier."
+    ],
+    "verification": [
+      "Native UI layout tests for default and middle-panel modes.",
+      "Argus screenshots/snapshots for desktop and constrained view sizes.",
+      "Manual-content tests for CKC layout guidance."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "visual parity with original CKC",
+      "layout readability",
+      "mode confusion",
+      "Argus inspectability"
+    ]
+  },
+  "manual_requirement": "Required in this MT.",
+  "handoff": {
+    "status": "PENDING"
+  }
+}

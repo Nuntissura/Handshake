@@ -3,11 +3,11 @@
 Companion to the Master Spec (`SPEC_CURRENT.md`). Single-page entry point for models and humans.
 Every row links to a spec section. This file describes what Handshake IS — not roadmap status or WP backlog.
 
-**Pegged spec version:** `v02.195` (resolved via `SPEC_CURRENT.md`) · **updated_at:** `2026-06-27`
+**Pegged spec version:** `v02.197` (resolved via `SPEC_CURRENT.md`) · **updated_at:** `2026-06-28`
 
 > **REFERENCE ONLY.** This file is a navigation aid. All decisions, technical advice, and implementation guidance MUST be derived from the Master Spec (via `SPEC_CURRENT.md`), not from this summary. When in doubt, read the spec section referenced in the §ref column. Do not cite this file as authority for design choices.
 >
-> **Canonical frontend = NATIVE RUST GUI.** Since WP-KERNEL-011 (2026-06-19) the canonical desktop shell + frontend is a native Rust GUI (egui + egui_tiles + wgpu + AccessKit), no webview. The legacy React/Tauri app under `app/src` is a **reference-only parity source — do not edit**; it is retired as native parity lands. Spec modules 07/10/11 may still carry stale React/Tauri prose (tracked as non-blocking spec-debt); the canonical tech-stack declaration is native Rust.
+> **Canonical desktop shell = NATIVE RUST GUI.** Since WP-KERNEL-011 (2026-06-19) the canonical desktop shell + frontend is a native Rust GUI (egui + egui_tiles + wgpu + AccessKit), not a webview-hosted app shell. Controlled browser/WebView surfaces are allowed only as explicit feature islands such as Stage External Web and Stage Apps; they are not the application substrate. The legacy React/Tauri app under `app/src` is a **reference-only parity source - do not edit**; it is retired as native parity lands. Spec modules 07/10/11 may still carry stale React/Tauri prose (tracked as non-blocking spec-debt); the canonical tech-stack declaration is native Rust.
 
 ---
 
@@ -15,20 +15,29 @@ Every row links to a spec section. This file describes what Handshake IS — not
 
 Handshake is a local-first, AI-native desktop application combining Notion-like documents, Milanote-style visual canvas, and Excel-like spreadsheets — all running on your machine with local AI models and optional cloud escalation. It integrates a 1,200+ clause governance system making AI behavior reliable, auditable, and deterministic across every creative and execution surface. Every feature is designed as a force multiplier — primitives, tools, engines, and pillars interweave so each combination produces more capability than the sum of its parts.
 
+Handshake is also a shared-primitives product: tools should reuse the same Rust-native entities, command surfaces, artifact handles, model-visible state, permissions, undo/redo, provenance, and diagnostics instead of becoming isolated mini-apps. Markdown is a lossy operator projection. HTML is a richer first-class projection and artifact format for model/operator co-authoring, interactive plans, mockups, dashboards, reports, frontend tests, and visual communication, while structured records and artifacts remain authority.
+
+### 1.1 Stage / Studio Boundary
+
+- **Stage** is Handshake's governed browser, trusted HTML app host, and capture/import surface. It owns External Web viewing, Stage Apps, Stage Sessions/Tabs, web/PDF/media/3D capture, model-operated browsing, and frontend visual test workflows.
+- **Studio** is the visual creation module. Figma-like collaboration, visual canvas, photo/painting/compositing, Affinity/Photoshop-class workflows, future 3D visual tooling, and related creative inspectors belong under Studio rather than under Stage.
+- **Stage and Studio share primitives.** A tool exposed in Stage should be reusable from Notes, Studio, and other work surfaces through the same command/tool contracts where the operation is domain-general.
+- **HTML is projection, not authority.** Stage may render generated HTML tools and self-contained HTML artifacts, but durable Handshake state stays in typed records, artifact manifests, EventLedger/PostgreSQL authority, and shared Rust-native primitives.
+
 ---
 
 ## 2. Tech Stack
 
 | Layer | Technology | Spec §ref |
 |---|---|---|
-| Desktop shell (canonical) | **Native Rust GUI — no webview** (not Tauri, not Electron), single bundled installer; canonical since WP-KERNEL-011 (2026-06-19) | §1.1.3, §2.1.1 |
+| Desktop shell (canonical) | **Native Rust GUI - no webview-hosted shell** (not Tauri, not Electron), single bundled installer; controlled Stage browser/WebView islands are explicit feature surfaces only | §1.1.3, §2.1.1, §10.13 |
 | GUI toolkit (canonical) | **egui + egui_tiles** (dockable work-surface) **+ wgpu** (GPU viewport) **+ AccessKit** (model-see/steer surface) | §2.1.1 |
 | Backend coordinator | Rust | §2.1.1 |
 | AI orchestration | Python (AutoGen/LangGraph) | §1.1.3 |
 | Rich text editor (canonical) | **Native Rust** Obsidian/Notion-class rich editor (WP-KERNEL-012); legacy Tiptap/ProseMirror + BlockNote is reference-only | §7.1.1 |
 | Code editor (canonical) | **Native Rust** tree-sitter / ropey / cosmic-text VS-Code-class editor (WP-KERNEL-012); legacy Monaco + Monarch is reference-only | §10.2 |
 | Spreadsheet engine | Wolf-Table + HyperFormula | §7.1.0, §2.2.1.13 |
-| Canvas | Excalidraw | §6.3.3.5 |
+| Canvas | Handshake-native Studio/Canvas primitives; Excalidraw, tldraw, Milanote, Miro, and Figma are reference patterns, not the application substrate | §7.1.2, §6.3.3.5 |
 | Legacy frontend (reference-only — do not edit) | React + TypeScript + Tauri shell under `app/src`, retired as native parity lands | §1.1.3 |
 | Control-plane storage | PostgreSQL (primary runtime authority) | §2.3.13 |
 | Collaboration state | Yjs CRDTs and PostgreSQL-backed authoritative records | §1.1.3, §2.3.13 |
@@ -64,8 +73,8 @@ The 24 product pillars (22 original + internal_diagnostics #23 and Palmistry #24
 | 14 | Spec to prompt | Transforms spec sections into deterministic prompt envelopes | SpecPromptCompiler loads SpecPromptPacks, injects CapabilitySnapshots, records pack SHA-256 + token counts | §2.6.8.5.2 |
 | 15 | PostgreSQL + CRDT authority | Runtime authority and collaborative state boundary | PostgreSQL-primary control-plane records, CRDT collaboration semantics, fail-closed authoritative writes, explicit source/freshness metadata | §2.3.13 |
 | 16 | LLM-friendly data | All data structured for model consumption | Bronze/Silver/Gold medallion, hybrid indexing (vector+keyword+graph), semantic chunking (AST-aware code, header-recursive docs) | §2.3.14 |
-| 17 | Stage | Evidence-grade media capture/import pipeline | Browser surface with Stage Apps, capture jobs through Workflow Engine, artifact bundles + SHA-256 manifests | §10.13 |
-| 18 | Studio | Creative shell — Canvas, Photo, Lens, design surfaces | Cross-surface runtime orchestration, Darkroom photo engines, explicit lineage between Stage/ASR/Lens artifacts | §6.3.3.5, §10.10 |
+| 17 | Stage | Governed browser, trusted HTML app host, and capture/import surface | External Web + Stage Apps, isolated Stage Sessions/Tabs, model-operated browsing/test workflows, capture jobs through Workflow Engine, artifact bundles + SHA-256 manifests | §10.13 |
+| 18 | Studio | Visual creation module - Canvas, Figma-like design, photo/painting/compositing, Affinity/Photoshop-class workflows, Lens, and future visual tools | Cross-surface runtime orchestration, shared Rust-native visual primitives, Darkroom/photo engines, explicit lineage between Stage/ASR/Lens artifacts | §6.3.3.5, §10.10 |
 | 19 | Atelier/Lens | Collaboration panel + governed creative extraction | LensExtractionTier (cheap vs deep), role-lane retrieval, proposal workflows with evidence, replayable versioning | §6.3.3.5 |
 | 20 | Skill distillation / LoRA | Training pair extraction from governed work for model specialization | Escalation-driven candidate generation, teacher→student format, adapter-only LoRA/QLoRA/DoRA, benchmark-gated | §2.6.6.8.13, §9 |
 | 21 | ACE | Autonomous Collaboration Engine — context engineering runtime | WorkingContext compilation per model call, tiered memory (durable vs per-call), ContextSnapshot for audit/replay | §2.6.6.7 |
@@ -295,6 +304,7 @@ Designed-in pillar × pillar interactions. These are intentional architectural c
 | Native Editors × Loom | Code/Rich-text editors (WP-012), Loom | Editor blocks are block-as-unit-of-meaning artifacts retrievable through the Loom library | (WP-012 interconnection) |
 | Native Editors × FEMS | Code/Rich-text editors (WP-012), Front End Memory System | Editor decisions/blockers/edits emit typed FEMS records with source links and retrieval policy | (WP-012 interconnection) |
 | Native Editors × CKC | Code/Rich-text editors (WP-012), Studio/Atelier (CKC) | Editor content feeds governed creative extraction / CKC source patterns | (WP-012 interconnection) |
+| Stage × Studio | Stage, Studio | Captured web/media/HTML/3D artifacts can move into Studio for visual arrangement, annotation, design, photo/compositor work, and later Figma-like collaboration without duplicating storage or command authority | §10.13, §6.3.3.5 |
 | FR × internal_diagnostics × Palmistry | Flight Recorder (#1), internal_diagnostics (#23), Palmistry (#24) | Three-tier diagnostic model: business-event ledger (tier 1) supplemented by internal self-diagnostics (tier 2) and an external survives-crash watcher (tier 3); no tier replaces another | HBR-INT-009 |
 
 > Full interaction matrix with 100+ edges: Appendix 12.6 in Master Spec.

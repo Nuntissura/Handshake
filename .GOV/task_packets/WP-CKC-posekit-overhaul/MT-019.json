@@ -1,0 +1,81 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-019",
+  "title": "Integrate Facial Rust app capabilities into native Handshake Ingest",
+  "status": "PENDING",
+  "created_at_utc": "2026-06-28T21:53:53.761Z",
+  "updated_at_utc": "2026-06-28T21:53:53.761Z",
+  "product_edit_allowed": true,
+  "operator_request": "The Rust facial.exe app is used a lot and should be rebuilt as Handshake native tools for image mining and LoRA training ingest.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-019.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-019.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-019.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-017"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "operator_supplied_external_paths": [
+      "D:/Projects/LLM projects/facial/product",
+      "D:/Projects/LLM projects/facial/specs/app-spec.md"
+    ],
+    "recovery_rule": "Inspect the external Facial source/spec before implementation. Port capabilities into Handshake-native modules; do not shell out to facial.exe as the default product path unless explicitly accepted as a transitional adapter."
+  },
+  "scope": {
+    "summary": "Bring Facial's Rust image-quality, identity, dedupe, review, and dataset-prep capabilities into Handshake native Ingest.",
+    "base_scope": [
+      "Research/inspect Facial product source and app spec.",
+      "Map Facial capabilities to Handshake Ingest primitives and receipts.",
+      "Implement native quality, identity, dedupe, and review assistance as reusable Handshake tools.",
+      "Expose headless commands/receipts for model agents and visible Ingest controls for operators.",
+      "Link Facial-derived results to CKC character/image review state.",
+      "Update internal UserManual with Facial-backed Ingest tools."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/**",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/**"
+    ],
+    "acceptance_criteria": [
+      "Facial capability map exists from source/spec to Handshake native functions.",
+      "At least one high-value Facial capability is implemented natively in Ingest.",
+      "Results are attributable, persisted, and linkable to CKC/Ingest review sets.",
+      "Argus can inspect and steer the Facial-backed Ingest surface."
+    ],
+    "verification": [
+      "Capability-map review against external Facial source/spec.",
+      "Native backend tests for implemented capability.",
+      "Native UI/Argus evidence for operator/model workflow."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "source parity with Facial",
+      "native-vs-shellout boundary",
+      "dataset safety and reproducibility",
+      "LoRA mining workflow value"
+    ]
+  },
+  "manual_requirement": "Required in this MT.",
+  "handoff": {
+    "status": "PENDING"
+  }
+}

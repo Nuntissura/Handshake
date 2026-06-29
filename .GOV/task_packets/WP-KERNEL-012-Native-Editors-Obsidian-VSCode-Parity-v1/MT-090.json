@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-081",
@@ -131,5 +131,10 @@
     },
     "motivating_incident": "The 2026-06-26 freeze: when Handshake's UI thread stalled, an in-process tool could not report — but the LAST heartbeat + events it wrote to shared memory remained readable from outside. This reader is what reads that last good state while Handshake is frozen.",
     "validation_plan": "cross-process read-back + frozen-writer zero-cooperation + open-retry + wait-free + no-content; external target dir; clippy -D warnings."
+  },
+  "implementation_result": {
+    "commit": "d3a2fc27",
+    "summary": "PalmistryRingReader (zero-cooperation): wraps the MT-081 DiagRingReader read-side + open_with_retry (bounded backoff). KEY PROOF AC-010-2: reads Handshake last-good heartbeat + events while the writer is FROZEN (parked thread hb=55 + 5 events; AND a stalled separate process hb=88 + 3 events), seqlock-only reads, no wait on writer, each read <50ms. Cross-process read-back (AC-010-1); typed-allowlist no-content (AC-010-4); wait-free under hot writer 50k reads <50ms (AC-010-5). 39 tests GREEN; external target dir.",
+    "notes": "palmistry is a bin crate (no [lib]); wrapper is a thin delegate proven by in-crate unit tests + the binary-driven lifecycle path. mid-seqlock-write torn case owned by MT-081 seqlock tests."
   }
 }

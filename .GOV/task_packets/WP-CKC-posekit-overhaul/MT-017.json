@@ -1,0 +1,79 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-017",
+  "title": "Build CKC/Ingest dataset mining review pipeline",
+  "status": "PENDING",
+  "created_at_utc": "2026-06-28T21:53:53.761Z",
+  "updated_at_utc": "2026-06-28T21:53:53.761Z",
+  "product_edit_allowed": true,
+  "operator_request": "Image ingest should select large datasets, mark images pass/reject/unsure, batch add tags/notes such as events/dates/location, and link passed images to a character sheet.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-017.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
+    "parity_map": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003-parity-map.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-017.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-017.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-006",
+      "MT-010"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "recovery_rule": "Treat Ingest as a sibling Atelier tab and reuse CKC media linking instead of creating a disconnected sorter."
+  },
+  "scope": {
+    "summary": "Make Ingest a real image-mining front end for CKC and LoRA dataset preparation.",
+    "base_scope": [
+      "Select/import a large image dataset non-destructively.",
+      "Review images with pass/reject/unsure states.",
+      "Batch apply tags, notes, event names, dates, locations, and source metadata.",
+      "Link passed images to CKC character sheets/albums.",
+      "Make review state attributable and safe for parallel agents.",
+      "Update internal UserManual with Ingest review workflow."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/**",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/**"
+    ],
+    "acceptance_criteria": [
+      "Ingest tab exposes dataset selection and review states.",
+      "Batch metadata can be applied without losing per-image notes.",
+      "Passed images can be linked to CKC characters.",
+      "Argus can inspect and steer the review workflow."
+    ],
+    "verification": [
+      "Backend tests for ingest review states and batch metadata.",
+      "Native UI tests for review controls.",
+      "Argus evidence for pass/reject/unsure workflow."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "large-dataset performance",
+      "non-destructive ingest",
+      "batch metadata correctness",
+      "parallel-agent collision handling"
+    ]
+  },
+  "manual_requirement": "Required in this MT.",
+  "handoff": {
+    "status": "PENDING"
+  }
+}

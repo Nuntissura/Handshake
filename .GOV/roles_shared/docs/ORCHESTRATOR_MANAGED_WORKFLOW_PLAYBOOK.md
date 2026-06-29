@@ -60,6 +60,7 @@ This file is a human-readable projection of the machine workflow contract. It ex
    - Coder implements exactly one MT, commits, and emits `wp-review-request` or `CODER_HANDOFF` as required by the packet route.
    - WP Validator checks notifications, reviews, and emits `wp-review-response` / MT verdict.
    - Runtime alternates between Coder and WP Validator. Orchestrator watches route truth and wakes stalled projected actors; it does not broker ordinary technical content.
+   - Runtime-proof gate projection: Coder or Kernel Builder may move an MT only to `READY_FOR_VALIDATION`, and only when proof exercises the executable product runtime or named Handshake-managed resource boundary. Scaffold-only work — schemas, descriptors, traits, projections, placeholder branches, implementer-authored mocks, fixture-only tests, or tests against fake resources authored with the implementation — is not enough even when compile/type/unit checks pass. WP Validator rejects per-MT scaffold/runtime mismatches; Integration Validator reapplies the same gate before whole-WP PASS or merge readiness.
 
 6. Whole-WP closeout prep
    - Confirm all MTs have WP Validator PASS receipts.

@@ -1,0 +1,264 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "mt_id": "MT-005",
+  "created_at_utc": "2026-06-28T17:11:31.143Z",
+  "updated_at_utc": "2026-06-28T21:51:59.965Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-005.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "",
+    "status": "SKIPPED_MINIMAL_GOVERNANCE"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-002",
+      "MT-004"
+    ],
+    "blocks": [
+      "MT-007",
+      "MT-009"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING",
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
+    "completed_by": null,
+    "blocker": null,
+    "missing_resource": null,
+    "proof_status": "NOT_RUN",
+    "hbr_status": "PENDING",
+    "kb_ready_checklist_receipt_id": null,
+    "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
+    "last_recovery_event_ref": null,
+    "last_runtime_status_ref": null,
+    "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
+    "post_implementation_adversarial_review_status": "NOT_RUN",
+    "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+  },
+  "scope": {
+    "summary": "Route model-to-model handoff through ContextBundle and artifact references.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/kernel/context_bundle.rs",
+      "src/backend/handshake_core/src/kernel/crdt/",
+      "src/backend/handshake_core/src/swarm_orchestration/",
+      "src/backend/handshake_core/src/distillation/swarm_trace.rs",
+      "src/backend/handshake_core/src/storage/",
+      "src/backend/handshake_core/src/memory/",
+      "src/backend/handshake_core/src/ace/",
+      "src/backend/handshake_core/tests/",
+      "src/backend/handshake_core/migrations/",
+      "src/backend/handshake_core/src/flight_recorder/event_ledger.rs",
+      "src/backend/handshake_core/src/inspector_read/"
+    ],
+    "forbidden_paths": [
+      "passing prior lane output only through freeform prompt text",
+      "untracked temporary files as model exchange state",
+      "new TypeScript/React/app/src implementation",
+      "npm/JavaScript proof targets for this WP",
+      "app/src-tauri launch or IPC authority for this WP",
+      "proof commands that pass with zero matching tests"
+    ],
+    "acceptance_criteria": [
+      "A downstream lane can receive previous lane output by ContextBundle or artifact ref.",
+      "Message payload artifact refs are replayable after process restart.",
+      "ContextBundle records selected, rejected, and unresolved lane outputs.",
+      "When a ModelLaneMessage carries a CRDT proposal for shared editable state, the payload artifact MUST include schema_id, document_id, workspace_id, actor_id, actor_kind, lane_id, crdt_site_id, update_seq, Yjs-compatible update_bytes_ref, update_sha256, state_vector, base_snapshot_ref, materialized_projection_hash, replay_metadata, and PromotionGate/ValidationRunner refs. CRDT payloads are pre-promotion evidence only until validated and promoted through EventLedger authority.",
+      "ContextBundle handoff entries MUST be typed records, not opaque prompt text: source_lane_id, source_message_id, artifact_ref, artifact_sha256/content_hash, source_kind, authority_state, selection_state selected|rejected|unresolved|superseded, reason_code, reviewer/decision_ref, created_at, and replay_hint. Downstream lanes MUST consume these records by id/ref, and tests MUST prove reconstruction without raw prompt replay.",
+      "When a ModelLaneMessage or ContextBundle references Loom-derived context or output, it MUST carry stable Loom refs: workspace_id, block_id, optional source_block_id/target_block_id, artifact_ref when materialized, content_hash/version, and EventLedger/Flight Recorder evidence.",
+      "FEMS use is bounded: MemoryPack entries are reviewable, scope-tagged, cloud-safe when sent to cloud lanes, and never treated as unverified authority over current EventLedger/CRDT state. Hidden provider/session memory MUST NOT substitute for MemoryPack.",
+      "CRDT handoff preserves state-vector/proposal metadata and requires semantic review/promotion for rich editable surfaces; mechanical merge is not acceptance.",
+      "ContextBundle handoff MUST add or extend Rust/PostgreSQL storage for model-lane handoff selection state with run_id, source_lane_id, source_message_id, artifact_ref, artifact_sha256, selection_state, reason_code, decision_ref, EventLedger event id, and replay query API.",
+      "Negative proof MUST fail closed when selected, rejected, unresolved, or superseded artifact refs are missing, hash-mismatched, or not replayable.",
+      "After implementation and before READY_FOR_VALIDATION, this MT MUST receive post-implementation adversarial review against the actual diff. Findings must be fixed or converted into explicit lifecycle blocker/missing_resource/proof_status state; the implementer may not self-certify COMPLETED."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_context_bundle_pg_tests model_lane_context_bundle_persists_selection_state_and_replays -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_context_bundle_pg_tests model_lane_context_bundle_missing_artifact_ref_fails_closed -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_context_bundle_pg_tests model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayable -- --exact"
+    ],
+    "risk_if_missed": "Cloud and local models cannot reliably speak across restart or validator review.",
+    "reference_only_paths": [
+      "app/src/components/swarm/",
+      "app/src/lib/ipc/swarm_runtime.ts",
+      "app/src-tauri/",
+      "docs/model-manual/",
+      "app/MODEL_MANUAL.md"
+    ]
+  },
+  "implementation_notes": [
+    "Use ContextBundle and artifact refs as the only durable way one model lane gives another lane prior output.",
+    "Payload artifacts must live in ArtifactStore/EventLedger/PostgreSQL-backed authority, not temp files or prompt-only memory.",
+    "ContextBundle must record selected, rejected, unresolved, and superseded lane outputs with reason metadata.",
+    "If shared editable state is touched by operator and model lanes, use CRDT draft/update semantics and promote through ValidationRunner/PromotionGate.",
+    "No raw prompt replay should be required to reconstruct a handoff; the project-named internal viewing tool must show enough artifact/message state for recovery.",
+    "LangGraph-style checkpoint/store separation maps to ContextBundle for run-local handoff and FEMS/Loom/UserManual for durable cross-run memory/knowledge, all under PostgreSQL/EventLedger authority.",
+    "Peritext-style user-intent risk means rich text or work-surface CRDT merges need validation/preview/promotion records before becoming authority.",
+    "Payload refs should be large-data references with bounded summaries because Flight Recorder/EventLedger events should not carry unbounded model output bodies.",
+    "Use Flight Recorder/EventLedger payloads as bounded events plus artifact refs; do not put unbounded model output, raw secrets, or prompt-only state in event payloads.",
+    "If this MT changes any product behavior, storage/event contract, command, IPC/API path, diagnostic surface, model lane, or navigation path, update the in-product UserManual in the same implementation change per HBR-MAN-004.",
+    "Product implementation for this MT must be Rust-only: Rust backend plus Rust native egui/Argus surfaces where UI is touched. Legacy app/src, app/src-tauri, React, Tauri/WebView, TypeScript, JavaScript, docs/model-manual, and npm proof targets are reference-only or forbidden and MUST NOT satisfy implementation/proof authority.",
+    "Proof commands must name exact Rust test targets or exact test names. Zero matching tests is a hard failure. Deterministic provider fakes are allowed for cloud/local model calls, but PostgreSQL/EventLedger/ArtifactStore/CRDT/UserManual/Argus authority must touch real Handshake-owned Rust resources or an explicit real PostgreSQL URL.",
+    "Each behavior-changing MT must include same-change UserManual coverage for the changed behavior; MT-011 audits coverage and cannot substitute for same-change HBR-MAN-004 proof.",
+    "This pre-implementation contract review does not replace post-implementation review. After coding, run adversarial review against the actual diff through the listed lenses and update MT status signaling before handoff."
+  ],
+  "required_build_rules": [
+    "HBR-INT-001",
+    "HBR-INT-002",
+    "HBR-INT-004",
+    "HBR-INT-007",
+    "HBR-MAN-004",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-004"
+  ],
+  "hbr_obligations": [
+    "INT",
+    "SWARM",
+    "MAN"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "post_implementation_adversarial_review_required": true,
+    "post_implementation_review_lenses": [
+      "runtime_launch_and_model_lane_authority",
+      "postgres_eventledger_crdt_state_recovery",
+      "rust_native_argus_operator_surface_and_usermanual",
+      "spec_realism_negative_guards_and_mt_status_signaling"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Rejected lane outputs may disappear and make decisions unreproducible."
+    ],
+    "minimum_controls": [
+      "Store artifact refs and summaries for selected and rejected outputs."
+    ]
+  },
+  "research_basis": {
+    "updated_at_utc": "2026-06-28T20:10:33.273Z",
+    "authority_posture": "Master spec/SPEC_CURRENT/product code are authority; HANDSHAKE_PRODUCT_REFERENCE.md and external research are navigation/evidence only.",
+    "local_authority_checked": [
+      ".GOV/spec/SPEC_CURRENT.md",
+      ".GOV/spec/master-spec-v02.197/spec-modules/04-llm-infrastructure.md#4.3.9",
+      ".GOV/spec/master-spec-v02.197/spec-modules/05-security-and-observability.md#5.8",
+      ".GOV/spec/master-spec-v02.197/spec-modules/06-mechanical-integrations.md#6.13",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      ".GOV/spec/HANDSHAKE_PRODUCT_REFERENCE.md (reference/navigation only)"
+    ],
+    "product_code_evidence": [
+      "src/backend/handshake_core/src/kernel/context_bundle.rs defines ContextBundle",
+      "src/backend/handshake_core/src/kernel/crdt/ai_edit_proposal.rs defines AI edit proposal flow",
+      "src/backend/handshake_core/src/storage/loom.rs defines LoomBlock and LoomEdgeType",
+      "src/backend/handshake_core/src/ace/mod.rs defines MemoryPack"
+    ],
+    "external_sources_checked": [
+      {
+        "id": "langgraphPersistence",
+        "name": "LangGraph persistence",
+        "url": "https://docs.langchain.com/oss/python/langgraph/persistence"
+      },
+      {
+        "id": "mcpResources",
+        "name": "MCP resources model",
+        "url": "https://modelcontextprotocol.io/specification/2025-06-18/server/resources"
+      },
+      {
+        "id": "yjs",
+        "name": "Yjs CRDT shared types",
+        "url": "https://github.com/yjs/yjs"
+      },
+      {
+        "id": "yjsInternals",
+        "name": "Yjs internals state vectors/snapshots",
+        "url": "https://github.com/yjs/yjs/blob/main/INTERNALS.md"
+      },
+      {
+        "id": "automerge",
+        "name": "Automerge CRDT sync protocol",
+        "url": "https://github.com/automerge/automerge"
+      },
+      {
+        "id": "loro",
+        "name": "Loro Rust/JS CRDT library",
+        "url": "https://github.com/loro-dev/loro"
+      },
+      {
+        "id": "peritext",
+        "name": "Peritext rich-text CRDT intent paper",
+        "url": "https://www.inkandswitch.com/peritext/"
+      },
+      {
+        "id": "pgvector",
+        "name": "pgvector Postgres vector search",
+        "url": "https://github.com/pgvector/pgvector"
+      },
+      {
+        "id": "llamaIndexMemory",
+        "name": "LlamaIndex memory docs",
+        "url": "https://developers.llamaindex.ai/python/framework/module_guides/deploying/agents/memory/"
+      },
+      {
+        "id": "langchainMemory",
+        "name": "LangChain memory docs",
+        "url": "https://docs.langchain.com/oss/python/concepts/memory"
+      }
+    ],
+    "patterns_applied": [
+      "Typed multi-agent orchestration becomes ModelLaneRun/ModelLane/ModelLaneMessage records, never peer-to-peer chat authority.",
+      "Durable workflow/replay patterns become PostgreSQL/EventLedger aggregates, checkpoints, projections, and deterministic state transitions.",
+      "CRDT research becomes explicit draft/proposal/update/state-vector/snapshot/stale-base records before promotion.",
+      "Trace/span research becomes propagated trace_id/span_id/model_session_id/lane_id correlation across lanes, tools, providers, artifacts, and diagnostics.",
+      "Tool protocol research becomes Handshake capability check, consent/projection, Flight Recorder/EventLedger logging, execution, result capture, and recovery."
+    ],
+    "rejected_options": [
+      "peer-to-peer model channels outside coordinator-owned ModelLaneMessage records",
+      "prompt-only or chat-history-only state transfer",
+      "legacy app/src React/Tauri code as runtime authority",
+      "SQLite runtime/test/fixture/cache/fallback authority for this WP",
+      "Flight Recorder-only replay without PostgreSQL/EventLedger authority rows",
+      "manual or markdown prose as product runtime authority"
+    ],
+    "selected_handshake_translation": "Model-to-model exchange must use typed ContextBundle entries, ArtifactStore/EventLedger refs, Loom refs, FEMS MemoryPack refs, and CRDT proposal/promotion semantics for shared editable state."
+  },
+  "handshake_compatibility": {
+    "native_rust_backend_first": true,
+    "product_reference_file_posture": "reference/navigation only; do not override SPEC_CURRENT, master spec, build rules, or product code evidence",
+    "proposal_promotion_model": "Models may propose, critique, summarize, and produce artifacts; Handshake validates/promotes deterministically through Rust backend authority surfaces before state becomes authoritative.",
+    "durable_authority": [
+      "PostgreSQL",
+      "EventLedger",
+      "ArtifactStore",
+      "ContextBundle",
+      "CRDT/write-box when shared editable state is touched"
+    ],
+    "observability_required": [
+      "Flight Recorder/EventLedger correlation",
+      "trace_id/span_id/model_session_id/lane_id propagation",
+      "HBR-INT-009 tier posture for Flight Recorder, internal_diagnostics, Palmistry"
+    ],
+    "pillar_links": [
+      "ContextBundle",
+      "ArtifactStore",
+      "EventLedger",
+      "Loom",
+      "FEMS",
+      "CRDT"
+    ],
+    "no_context_model_requirement": "A model with no chat history must be able to implement and verify this MT from this contract, SPEC_CURRENT/master spec, product code paths, UserManual/backend navigation, and listed proof targets.",
+    "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
+    "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
+  }
+}

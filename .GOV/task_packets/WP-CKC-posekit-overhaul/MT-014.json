@@ -1,0 +1,77 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-014",
+  "title": "Restore Posekit 3D-to-OpenPose split-view generation",
+  "status": "PENDING",
+  "created_at_utc": "2026-06-28T21:53:53.761Z",
+  "updated_at_utc": "2026-06-28T21:53:53.761Z",
+  "product_edit_allowed": true,
+  "operator_request": "Posekit/OpenRepose takes an image, renders a live 3D figure and OpenPose split view, rotates 360 degrees, rerenders OpenPose, and exports ComfyUI-ready OpenPose images.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-014.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
+    "parity_map": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-003-parity-map.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-014.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-014.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-006"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "recovery_rule": "Inspect current Rust Atelier pose modules before adding rendering. Use existing 3D/render primitives where present."
+  },
+  "scope": {
+    "summary": "Make Posekit a sibling Atelier tab that can generate, preview, rotate, and export OpenPose from a native split view.",
+    "base_scope": [
+      "Render a Posekit split view with 3D source/figure preview and OpenPose preview.",
+      "Support 360-degree rotation controls and rerender OpenPose output.",
+      "Export ComfyUI-ready OpenPose images with receipts.",
+      "Expose stable Argus IDs for viewport, controls, export, and status.",
+      "Update internal UserManual with Posekit generation/export workflow."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/pose.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/**"
+    ],
+    "acceptance_criteria": [
+      "Posekit tab opens next to CKC and Ingest.",
+      "The split view is nonblank and Argus-inspectable.",
+      "Rotation changes the exported OpenPose orientation or recorded pose state.",
+      "Export produces a ComfyUI-ready artifact with traceable metadata."
+    ],
+    "verification": [
+      "Pose model/export tests.",
+      "Native UI tests for Posekit split view and controls.",
+      "Argus screenshot/snapshot evidence for Posekit."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "3D/render determinism",
+      "ComfyUI output compatibility",
+      "Argus inspectability",
+      "operator pose-sculpting usability"
+    ]
+  },
+  "manual_requirement": "Required in this MT.",
+  "handoff": {
+    "status": "PENDING"
+  }
+}

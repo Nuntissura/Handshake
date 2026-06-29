@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-084"
@@ -135,5 +135,11 @@
     },
     "motivating_incident": "§6.13.1 names 'pinned under heavy CPU' as a stall mode; the 2026-06-26 freeze showed CPU->0 (the opposite extreme). CPU%/RSS counters make both extremes visible in-process and feed the panel's resource line.",
     "validation_plan": "current-process sample + ResourceSample ring event + GPU capture + bounded cadence + single sysinfo core; clippy -D warnings; full suite -j 2."
+  },
+  "implementation_result": {
+    "commit": "0c512c53",
+    "summary": "CPU/RSS/GPU resource counters: sysinfo (single core, cpu_milli/rss_kb) + wgpu GpuInfo (adapter name/driver/backend, kept PANEL-LOCAL not in the ring) sampled ~1s into resource_counters.rs + gpu_info.rs, wired into the live shell -> ResourceSample DiagEvent. test_resource_counters 5/5 + resource_counters 4/4 + gpu_info 3/3 GREEN; perf_manifest debug-drift checkout'd (only 6 allowed files staged); clean tree.",
+    "disposition": "Review CHANGES_REQUIRED was the full-suite-green AC blocked by PRE-EXISTING editor-MT kittest flakes (baseline-proven, different failure set without MT-086) + the perf_manifest hygiene (resolved via checkout). Both dispositioned in the harden (0c512c53). GpuInfo strings stay panel-local (privacy: never in the integer-only ring/Palmistry record).",
+    "carry_forward": "MT-087 panel author: GpuInfo strings are panel-local ONLY - never serialize into any ring/Palmistry survivor record. First-frame CPU sample is 0% (~first 1s) by design."
   }
 }

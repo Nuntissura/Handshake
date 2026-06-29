@@ -1,0 +1,256 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "mt_id": "MT-011",
+  "created_at_utc": "2026-06-28T18:06:24.222Z",
+  "updated_at_utc": "2026-06-28T21:51:59.965Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-011.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "",
+    "status": "SKIPPED_MINIMAL_GOVERNANCE"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-009",
+      "MT-010"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING",
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
+    "completed_by": null,
+    "blocker": null,
+    "missing_resource": null,
+    "proof_status": "NOT_RUN",
+    "hbr_status": "PENDING",
+    "kb_ready_checklist_receipt_id": null,
+    "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
+    "last_recovery_event_ref": null,
+    "last_runtime_status_ref": null,
+    "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
+    "post_implementation_adversarial_review_status": "NOT_RUN",
+    "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+  },
+  "scope": {
+    "summary": "Make the in-product internal UserManual reflect every ModelLane/cloud/local/subagent orchestration behavior this WP introduces, including Flight Recorder/EventLedger linkage and Palmistry/internal_diagnostics posture.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/api/user_manual.rs",
+      "src/backend/handshake_core/src/user_manual/",
+      "src/backend/handshake_core/src/model_runtime/",
+      "src/backend/handshake_core/src/swarm_orchestration/",
+      "src/backend/handshake_core/src/kernel/session_broker.rs",
+      "src/backend/handshake_core/src/kernel/context_bundle.rs",
+      "src/backend/handshake_core/src/kernel/crdt/",
+      "src/backend/handshake_core/src/flight_recorder/",
+      "src/backend/handshake_core/src/storage/",
+      "src/backend/handshake_core/src/memory/",
+      "src/backend/handshake_core/tests/",
+      "src/frontend/handshake_native/",
+      "src/backend/handshake_core/src/flight_recorder/event_ledger.rs",
+      "src/backend/handshake_core/src/inspector_read/"
+    ],
+    "forbidden_paths": [
+      "parallel UserManual/ModelManual documentation islands",
+      "chat-history-only operating instructions",
+      "manual entries that describe aspirational live APIs as implemented",
+      "silent omission of Palmistry/internal_diagnostics because those surfaces are built in another worktree",
+      "operator-facing marketing copy instead of operational manual content",
+      "treating app/src legacy React/Tauri surfaces as canonical implementation authority",
+      "new TypeScript/React/app/src implementation",
+      "npm/JavaScript proof targets for this WP",
+      "app/src-tauri launch or IPC authority for this WP",
+      "proof commands that pass with zero matching tests"
+    ],
+    "acceptance_criteria": [
+      "There is one in-product internal UserManual surface for this WP; if legacy ModelManual paths/names exist, they are updated as aliases rather than forked into a second manual.",
+      "The UserManual covers ModelLaneRun, ModelLane, ModelLaneMessage, ContextBundle handoff, artifact refs, local/cloud/CLI/human/subagent/validator lane launch, cloud ProjectionPlan/ConsentReceipt, advisory-to-authority promotion, recovery/orphan/replay, diagnostics, validation harnesses, and backend navigation introduced by this WP.",
+      "Each entry explains purpose, usage path, startup/invocation command or IPC/API path when applicable, expected inputs/outputs, affected tools/features/primitives, durable authority source, failure modes, recovery steps, and verification proof.",
+      "Each observable behavior entry links to Flight Recorder/EventLedger evidence and records the HBR-INT-009 posture for Flight Recorder, internal_diagnostics, and Palmistry as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason.",
+      "Palmistry/internal_diagnostics absence in this worktree is recorded as DEFERRED-with-reason plus the integration follow-up; it is never silently skipped.",
+      "UserManual self-consistency proof verifies named commands, IPC channels, backend navigation paths, schema names, storage/event contracts, and diagnostic surfaces exist or are explicitly tagged as roadmap/deferred.",
+      "MT-011 proof MUST include a machine-readable per-behavior UserManual coverage matrix keyed by behavior_id/schema/event_family, with columns for implemented command/API/IPC, EventLedger/Flight Recorder evidence path, internal_diagnostics posture, Palmistry posture, and self-consistency result. Keyword grep is supporting evidence only, not acceptance proof.",
+      "Every MT that changes product behavior has a corresponding UserManual delta in the same implementation change, and MT-011 verifies coverage by behavior inventory rather than by file-name guesswork.",
+      "UserManual entries link each behavior to EventLedger event family/aggregate refs, Flight Recorder trace/span refs, backend navigation paths, diagnostic tier posture, and recovery proof commands.",
+      "Palmistry/internal_diagnostics integration is recorded exactly as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason per behavior; this MT must not claim Palmistry is implemented in this worktree unless product code proves it.",
+      "MT-011 owns WP-wide UserManual coverage audit and freshness/self-consistency proof. It does not replace the same-change UserManual obligation in MT-002 through MT-010.",
+      "Define and implement Rust-owned coverage matrix schema hsk.user_manual_behavior_coverage@1 generated from ModelLane schema/event/API registries. Required columns: behavior_id, schema_id or event_family, command/API/IPC id, UserManual entry id/version, EventLedger/Flight Recorder evidence path, internal_diagnostics posture, Palmistry posture, self-consistency result, deferred reason, and follow_up_ref.",
+      "Coverage proof MUST fail when any behavior lacks a UserManual entry, EventLedger/FR evidence, internal_diagnostics posture, Palmistry posture, runtime route/schema existence, or self-consistency result. Keyword grep is supporting evidence only and cannot be a proof target.",
+      "After implementation and before READY_FOR_VALIDATION, this MT MUST receive post-implementation adversarial review against the actual diff. Findings must be fixed or converted into explicit lifecycle blocker/missing_resource/proof_status state; the implementer may not self-certify COMPLETED."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test user_manual_behavior_coverage_tests behavior_coverage_matrix_generated_from_model_lane_registries -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test user_manual_behavior_coverage_tests behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test user_manual_freshness_fixture_tests model_lane_user_manual_freshness_detects_stale_code_truth -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test user_manual_storage_tests model_lane_user_manual_entries_persist_in_postgres -- --exact"
+    ],
+    "risk_if_missed": "Future models and the operator will only understand the new orchestration system through this chat or stale packets, causing parallel work, recovery, diagnostics, and cloud/local handoff to drift.",
+    "reference_only_paths": [
+      "docs/model-manual/",
+      "app/src/components/swarm/",
+      "app/src/lib/ipc/swarm_runtime.ts",
+      "app/src-tauri/",
+      "app/MODEL_MANUAL.md"
+    ]
+  },
+  "implementation_notes": [
+    "Start by locating the current in-product manual surface. If the codebase still calls it ModelManual, update that surface and treat ModelManual as a legacy alias; do not create a parallel UserManual directory or feature.",
+    "This MT is the WP-wide manual currency pass. It complements MT-010, which adds the lane-specific no-context manual/backend navigation content.",
+    "Do not own or rename the internal visual/debug tool in this MT. Use the project-approved name from the separate viewing-tool worktree/session when it exists; otherwise describe the backend navigation equivalent and mark naming as out-of-scope dependency.",
+    "Do not build Palmistry or internal_diagnostics here if those surfaces are not in this worktree. Record DEFERRED-with-reason and the follow-up integration hook required by HBR-INT-009/HBR-MAN-004.",
+    "Manual entries must cite implemented code truth. If a behavior is deferred, roadmap, or blocked by another worktree, label it that way with reason instead of presenting it as live.",
+    "Keep durable state authority clear: PostgreSQL/EventLedger/ArtifactStore/ContextBundle/CRDT/Flight Recorder are product authority or evidence surfaces; Markdown/chat/manual prose is a projection and operating guide, not runtime authority.",
+    "Treat UserManual as part of product operation, not repo-governance prose. It must be available to future no-context models and operators through product APIs/navigation.",
+    "Loom/FEMS/ContextBundle references in manual entries must point to actual backend storage/API surfaces or be explicitly deferred; do not invent visible names from this session.",
+    "Manual entries should include enough exact primitives, IDs, commands/routes, expected I/O, failure modes, and recovery steps for a model with no conversation history to use the feature.",
+    "Use Flight Recorder/EventLedger payloads as bounded events plus artifact refs; do not put unbounded model output, raw secrets, or prompt-only state in event payloads.",
+    "If this MT changes any product behavior, storage/event contract, command, IPC/API path, diagnostic surface, model lane, or navigation path, update the in-product UserManual in the same implementation change per HBR-MAN-004.",
+    "Product implementation for this MT must be Rust-only: Rust backend plus Rust native egui/Argus surfaces where UI is touched. Legacy app/src, app/src-tauri, React, Tauri/WebView, TypeScript, JavaScript, docs/model-manual, and npm proof targets are reference-only or forbidden and MUST NOT satisfy implementation/proof authority.",
+    "Proof commands must name exact Rust test targets or exact test names. Zero matching tests is a hard failure. Deterministic provider fakes are allowed for cloud/local model calls, but PostgreSQL/EventLedger/ArtifactStore/CRDT/UserManual/Argus authority must touch real Handshake-owned Rust resources or an explicit real PostgreSQL URL.",
+    "Each behavior-changing MT must include same-change UserManual coverage for the changed behavior; MT-011 audits coverage and cannot substitute for same-change HBR-MAN-004 proof.",
+    "This pre-implementation contract review does not replace post-implementation review. After coding, run adversarial review against the actual diff through the listed lenses and update MT status signaling before handoff."
+  ],
+  "required_build_rules": [
+    "HBR-MAN-001",
+    "HBR-MAN-002",
+    "HBR-MAN-003",
+    "HBR-MAN-004",
+    "HBR-INT-007",
+    "HBR-INT-009"
+  ],
+  "hbr_obligations": [
+    "MAN",
+    "INT",
+    "VIS",
+    "SWARM"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "post_implementation_adversarial_review_required": true,
+    "post_implementation_review_lenses": [
+      "runtime_launch_and_model_lane_authority",
+      "postgres_eventledger_crdt_state_recovery",
+      "rust_native_argus_operator_surface_and_usermanual",
+      "spec_realism_negative_guards_and_mt_status_signaling"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Manual can describe the intended orchestration model but miss one concrete primitive, leaving future no-context models unable to recover or use that path.",
+      "Palmistry/internal_diagnostics can be omitted because they are being built elsewhere, weakening the project-wide diagnostic invariant.",
+      "A second manual surface can be created by accident if legacy ModelManual naming is treated as separate from UserManual."
+    ],
+    "minimum_controls": [
+      "Self-consistency proof must scan named primitives, commands, schemas, IPC paths, diagnostic surfaces, and storage/event contracts.",
+      "Every observable behavior entry must explicitly record Flight Recorder/internal_diagnostics/Palmistry posture.",
+      "Legacy ModelManual references must be aliases to the single internal UserManual surface, not a new documentation island."
+    ]
+  },
+  "research_basis": {
+    "updated_at_utc": "2026-06-28T20:10:33.273Z",
+    "authority_posture": "Master spec/SPEC_CURRENT/product code are authority; HANDSHAKE_PRODUCT_REFERENCE.md and external research are navigation/evidence only.",
+    "local_authority_checked": [
+      ".GOV/spec/SPEC_CURRENT.md",
+      ".GOV/spec/master-spec-v02.197/spec-modules/04-llm-infrastructure.md#4.3.9",
+      ".GOV/spec/master-spec-v02.197/spec-modules/05-security-and-observability.md#5.8",
+      ".GOV/spec/master-spec-v02.197/spec-modules/06-mechanical-integrations.md#6.13",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      ".GOV/spec/HANDSHAKE_PRODUCT_REFERENCE.md (reference/navigation only)"
+    ],
+    "product_code_evidence": [
+      "HBR-MAN-004 requires same-change UserManual updates and diagnostic linkage",
+      "src/backend/handshake_core/src/api/user_manual.rs exposes canonical UserManual APIs and legacy alias plan",
+      "src/backend/handshake_core/src/flight_recorder/mod.rs includes MemoryPack and Loom event types",
+      "src/backend/handshake_core/tests/user_manual_storage_tests.rs states UserManual proof requires live PostgreSQL/EventLedger"
+    ],
+    "external_sources_checked": [
+      {
+        "id": "autogenStudio",
+        "name": "AutoGen Studio debugging/evaluation",
+        "url": "https://www.microsoft.com/en-us/research/publication/autogen-studio-a-no-code-developer-tool-for-building-and-debugging-multi-agent-systems/"
+      },
+      {
+        "id": "mcp",
+        "name": "Model Context Protocol specification",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25"
+      },
+      {
+        "id": "otel",
+        "name": "OpenTelemetry trace/span context",
+        "url": "https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/overview.md"
+      },
+      {
+        "id": "dapper",
+        "name": "Dapper tracing paper",
+        "url": "https://research.google/pubs/dapper-a-large-scale-distributed-systems-tracing-infrastructure/"
+      },
+      {
+        "id": "pgEvent",
+        "name": "PostgreSQL event sourcing reference",
+        "url": "https://github.com/eugene-khyst/postgresql-event-sourcing"
+      },
+      {
+        "id": "pgvector",
+        "name": "pgvector Postgres vector search",
+        "url": "https://github.com/pgvector/pgvector"
+      }
+    ],
+    "patterns_applied": [
+      "Typed multi-agent orchestration becomes ModelLaneRun/ModelLane/ModelLaneMessage records, never peer-to-peer chat authority.",
+      "Durable workflow/replay patterns become PostgreSQL/EventLedger aggregates, checkpoints, projections, and deterministic state transitions.",
+      "CRDT research becomes explicit draft/proposal/update/state-vector/snapshot/stale-base records before promotion.",
+      "Trace/span research becomes propagated trace_id/span_id/model_session_id/lane_id correlation across lanes, tools, providers, artifacts, and diagnostics.",
+      "Tool protocol research becomes Handshake capability check, consent/projection, Flight Recorder/EventLedger logging, execution, result capture, and recovery."
+    ],
+    "rejected_options": [
+      "peer-to-peer model channels outside coordinator-owned ModelLaneMessage records",
+      "prompt-only or chat-history-only state transfer",
+      "legacy app/src React/Tauri code as runtime authority",
+      "SQLite runtime/test/fixture/cache/fallback authority for this WP",
+      "Flight Recorder-only replay without PostgreSQL/EventLedger authority rows",
+      "manual or markdown prose as product runtime authority"
+    ],
+    "selected_handshake_translation": "Manual currency is a WP-wide acceptance gate: every implemented behavior has a UserManual entry with exact usage, code-truth refs, Flight Recorder/EventLedger evidence, and internal_diagnostics/Palmistry status."
+  },
+  "handshake_compatibility": {
+    "native_rust_backend_first": true,
+    "product_reference_file_posture": "reference/navigation only; do not override SPEC_CURRENT, master spec, build rules, or product code evidence",
+    "proposal_promotion_model": "Models may propose, critique, summarize, and produce artifacts; Handshake validates/promotes deterministically through Rust backend authority surfaces before state becomes authoritative.",
+    "durable_authority": [
+      "PostgreSQL",
+      "EventLedger",
+      "ArtifactStore",
+      "ContextBundle",
+      "CRDT/write-box when shared editable state is touched"
+    ],
+    "observability_required": [
+      "Flight Recorder/EventLedger correlation",
+      "trace_id/span_id/model_session_id/lane_id propagation",
+      "HBR-INT-009 tier posture for Flight Recorder, internal_diagnostics, Palmistry"
+    ],
+    "pillar_links": [
+      "UserManual",
+      "Flight Recorder",
+      "EventLedger",
+      "internal_diagnostics",
+      "Palmistry",
+      "Loom/FEMS"
+    ],
+    "no_context_model_requirement": "A model with no chat history must be able to implement and verify this MT from this contract, SPEC_CURRENT/master spec, product code paths, UserManual/backend navigation, and listed proof targets.",
+    "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
+    "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
+  }
+}

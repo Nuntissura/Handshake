@@ -1,0 +1,157 @@
+{
+  "schema": "hsk.bundled_stub_preservation@1",
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "updated_at_utc": "2026-06-28T17:11:31.143Z",
+  "policy": "Preserve every folded stub's intent, technical scope, acceptance criteria, risks, and out-of-scope boundaries. If a later MT changes this set, update this file, packet.json bundled_stub_summary, taskboard state, and traceability notes together.",
+  "folded_complete": [
+    {
+      "source_wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+      "source_contract": ".GOV/task_packets/stubs/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1.contract.json",
+      "source_projection": ".GOV/task_packets/stubs/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1.md",
+      "preserved_intent": "Governed multi-model execution with DOCS_ONLY vs AI_ENABLED, strict file-scope locks across concurrent WPs/MTs, compact lifecycle telemetry, HSK_STATUS, CX-MM codes, and Flight Recorder correlation.",
+      "preserved_technical_scope": [
+        "Coordinator/runtime enforcement of RuntimeMode and ExecutionMode.",
+        "min_ready_models=1 readiness gate in AI_ENABLED.",
+        "INV-MM-003 strict non-overlap lock enforcement and CX-MM-002 conflict surface.",
+        "HSK_STATUS on every phase/state change, adjacent to gate output.",
+        "RoleExecutionIdentity fields for role/model/backend/parameter_class/session/wp/mt correlation.",
+        "Work Profile routing hooks and performance telemetry snapshot.",
+        "MailboxKind COLLAB remains non-authoritative."
+      ],
+      "preserved_acceptance": [
+        "Overlapping lock sets block deterministically with code=CX-MM-002 and explicit conflicting paths.",
+        "DOCS_ONLY disables model-backed actions with explicit failstate/softblock codes.",
+        "RoleExecutionIdentity fields are present in outputs/telemetry for audit and debugging."
+      ],
+      "preserved_non_goals": [
+        "No GPU sharding or intra-model distributed inference.",
+        "No Phase 2+ ACE-RAG retrieval caching/ContextPack expansion.",
+        "No UI polish beyond required surfaces for model readiness, lock state, lifecycle, and diagnostics."
+      ],
+      "folded_into_mts": [
+        "MT-001",
+        "MT-002",
+        "MT-003",
+        "MT-004",
+        "MT-007",
+        "MT-008",
+        "MT-009"
+      ]
+    },
+    {
+      "source_wp_id": "WP-1-Provider-Feature-Coverage-Agentic-Ready-v1",
+      "source_contract": ".GOV/task_packets/stubs/WP-1-Provider-Feature-Coverage-Agentic-Ready-v1.contract.json",
+      "source_projection": ".GOV/task_packets/stubs/WP-1-Provider-Feature-Coverage-Agentic-Ready-v1.md",
+      "preserved_intent": "Provider abstractions must support orchestration-ready streaming, tool calling, structured outputs, multi-turn sessions, and adapter hardening for provider quirks.",
+      "preserved_technical_scope": [
+        "ProviderCapabilities flags for streaming, tool_calling, structured_output, multi_turn, and related readiness.",
+        "ChatRequest/ChatResponse keyed by session_id and trace_id.",
+        "ToolDefinition generated from Tool Registry; provider schemas generated in adapters.",
+        "TOOL_CALL and TOOL_RESULT messages correlated and routed through ToolGate.",
+        "Missing provider features fail closed or use explicit deterministic emulation with strict parsing; no silent degradation.",
+        "Provider quirks such as tool ID sanitization, thinking-block scrubbing, refusal detection, and endpoint routing stay inside adapter layer."
+      ],
+      "preserved_acceptance": [
+        "ProviderCapabilities are discoverable and drive runtime behavior.",
+        "At least one provider path supports multi-turn streaming tool loops without bypassing ToolGate or Tool Registry.",
+        "Provider quirks do not leak into session/orchestration code."
+      ],
+      "folded_into_mts": [
+        "MT-002",
+        "MT-003",
+        "MT-004",
+        "MT-009"
+      ]
+    },
+    {
+      "source_wp_id": "WP-1-Cloud-Consent-Evidence-Portability-v1",
+      "source_contract": ".GOV/task_packets/stubs/WP-1-Cloud-Consent-Evidence-Portability-v1.contract.json",
+      "source_projection": ".GOV/task_packets/stubs/WP-1-Cloud-Consent-Evidence-Portability-v1.md",
+      "preserved_intent": "Consent receipt, cloud escalation request, and projection-plan evidence must become stable portable backend evidence with manifest, hash, retention, replay, and export semantics.",
+      "preserved_technical_scope": [
+        "Canonical manifest/hash/retention semantics for consent_receipt.json and cloud_escalation_request.json.",
+        "Explicit relation to Flight Recorder, storage portability, and bounded export.",
+        "Stable ids, hashes, and retention semantics survive storage/backend swaps.",
+        "Cloud UI flow redesign and provider-specific consent flows remain out of scope."
+      ],
+      "preserved_acceptance": [
+        "Consent artifacts are portable backend evidence, not workflow-local JSON only.",
+        "Replay/export packets can rely on one canonical consent-artifact portability contract."
+      ],
+      "folded_into_mts": [
+        "MT-006",
+        "MT-007",
+        "MT-009"
+      ]
+    },
+    {
+      "source_wp_id": "WP-1-Layerwise-Inference-Foundations-v1",
+      "source_contract": ".GOV/task_packets/stubs/WP-1-Layerwise-Inference-Foundations-v1.contract.json",
+      "source_projection": ".GOV/task_packets/stubs/WP-1-Layerwise-Inference-Foundations-v1.md",
+      "preserved_intent": "Runtime settings.exec_policy and Work Profile compute presets must be accepted, governed, downgraded deterministically when unsupported, and recorded as requested-vs-effective Flight Recorder telemetry.",
+      "preserved_technical_scope": [
+        "Runtime settings accepts exec_policy.",
+        "Work Profiles accept per-role compute presets standard, fast_exact, and fast_approx.",
+        "Approximate execution requires waiver_ref; if waiver missing/expired, downgrade to exact.",
+        "Emit FR-EVT-LLM-EXEC-001 llm_exec_policy with requested vs effective policy, hashes, summaries, waiver_ref, and hsk.layerwise_trace@0.1 artifact ref when applicable.",
+        "No true layer-wise inference algorithms, multi-device inference, sharding, token IDs by default, or raw prompts in traces."
+      ],
+      "preserved_acceptance": [
+        "Approximate execution cannot occur without valid waiver.",
+        "settings.exec_policy produces Flight Recorder telemetry for requested/effective policy.",
+        "Trace artifact reference exists or has explicit null reason."
+      ],
+      "folded_into_mts": [
+        "MT-002",
+        "MT-003",
+        "MT-004",
+        "MT-007",
+        "MT-009"
+      ]
+    }
+  ],
+  "folded_as_dependency_or_correlation_requirement": [
+    {
+      "source_wp_id": "WP-1-FR-ModelSessionId-v1",
+      "source_contract": ".GOV/task_packets/stubs/WP-1-FR-ModelSessionId-v1.contract.json",
+      "preserved_intent": "Flight Recorder events must carry model_session_id for session-scoped operations so cross-event model/session correlation is complete.",
+      "required_by_this_wp": [
+        "ModelLaneRun and ModelLane records must include session_id and, where applicable, model_session_id correlation.",
+        "Session-scoped Flight Recorder/EventLedger events emitted by model lanes must be queryable by session.",
+        "Backward compatibility/migration strategy must be explicit if event envelope fields change."
+      ],
+      "folded_into_mts": [
+        "MT-002",
+        "MT-007",
+        "MT-009"
+      ],
+      "note": "Task Board currently shows WP-1-FR-ModelSessionId-v1 as VALIDATED, so this packet treats it as a correlation dependency and must not re-open or supersede it unless runtime evidence proves the requirement is still missing."
+    }
+  ],
+  "not_folded": [
+    {
+      "source_wp_id": "WP-1-Model-Profiles-v2",
+      "reason": "Stub contract has empty draft_scope. Do not invent scope; model profile fields needed here are specified directly by ModelLane/Work Profile requirements."
+    },
+    {
+      "source_wp_id": "WP-1-MEX-Safety-Gates-v2",
+      "reason": "Stub contract has empty draft_scope. Preserve as separate placeholder until operator or spec provides technical payload."
+    },
+    {
+      "source_wp_id": "WP-1-MEX-Observability-v2",
+      "reason": "Stub contract has empty draft_scope. Observability duties for this WP are covered by HBR-INT-001/007/009 and Flight Recorder requirements."
+    },
+    {
+      "source_wp_id": "WP-1-MEX-UX-Bridges-v2",
+      "reason": "Stub contract has empty draft_scope. Visual/debug requirements are specified directly as project-named internal viewing-tool obligations; naming itself is out of scope for this WP."
+    },
+    {
+      "source_wp_id": "WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1",
+      "reason": "Broader PostgreSQL parity for Work Packet, Micro-Task, and Task Board records is not safe to fold without widening this WP beyond model-lane communication. This WP still requires PostgreSQL/EventLedger authority for new model-lane artifacts."
+    },
+    {
+      "source_wp_id": "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1",
+      "reason": "Already owns broad CRDT workspace/write-box/control-plane hardening. This WP reuses that direction and requires CRDT semantics for lane-touched shared editable state without re-opening the whole kernel packet."
+    }
+  ]
+}

@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-081"
@@ -144,5 +144,10 @@
     },
     "motivating_incident": "The 2026-06-26 freeze (UI thread stalled, the in-process tools were exactly the thing that stopped running) is why an EXTERNAL survivor watcher is needed; the lifecycle inversion is what lets it observe + record a freeze/crash from outside the hung/dead process.",
     "validation_plan": "build + run-and-stay-alive + Shutdown-only-exit + survives-hard-kill-of-parent + clean-shutdown-not-a-crash + refuse-partial; external target dir; clippy -D warnings."
+  },
+  "implementation_result": {
+    "commit": "76bbd6d5",
+    "summary": "NEW palmistry crate (separate watcher binary): cli/lifecycle/control over interprocess local-socket + windows-sys parent-handle wait + handshake-diag-ring reuse. THE LIFECYCLE INVERSION proven LIVE: AC-009-4 hard-kills (TerminateProcess) a real dummy parent -> palmistry STILL RUNNING while parent dead -> exits after bounded finalize -> survivor JSON abnormal_parent_exit=true/ParentDiedAbnormally. Clean Shutdown != crash; refuses partial start (exit 2); no Job-API membership (no-kill-on-job-close contract documented). 26/26 tests GREEN; external target dir.",
+    "notes": "self-attacks: AC-009-4 timing window 300ms<500ms finalize defended by the non-timing survivor-record assertion; Cargo.lock committed (standard for a bin crate)."
   }
 }

@@ -1,0 +1,152 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-105",
+  "title": "D9-MT-105-OperationSubprocessStallWatchdog-DeadlineProgressTicks",
+  "group": "D2 internal_diagnostics (Tier 2 — generalized stall/hang detection)",
+  "created_at_utc": "2026-06-28T00:00:00Z",
+  "updated_at_utc": "2026-06-28T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-105.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-081",
+      "MT-082",
+      "MT-084",
+      "MT-087"
+    ],
+    "blocks": [
+      "MT-106"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Goal: build a GENERALIZED OPERATION/SUBPROCESS STALL WATCHDOG inside internal_diagnostics (Tier 2) so a silent, hours-long hang of ANY in-app operation OR ANY spawned child process becomes IMPOSSIBLE — it is detected within a BOUNDED time (seconds, not hours). This GENERALIZES the MT-088 backend-down UI-thread freeze fix + the MT-091 freeze-detection pattern from 'the UI thread froze' to 'ANY deadline-bounded operation stopped making progress'. It is the internal_diagnostics half of the stall-detection capability; the Palmistry child-process half + the end-to-end no-silent-hang capstone are MT-106.\n\nMOTIVATING INCIDENT (operator, 2026-06-28): a spawned subprocess — a `cargo test` doing minidumper IPC (the MT-092 known hanger) — DEADLOCKED SILENTLY for HOURS with no detection and no one noticed. That whole CLASS of failure (an operation, or a spawned child process, that hangs/stalls with no progress and no observer) must be impossible inside Handshake: BOTH internal_diagnostics (this MT) AND Palmistry (MT-106) must catch it within a bounded time.\n\nTHE MODEL (deadline + progress ticks = a per-operation heartbeat): any in-app operation that could stall — a backend call, a spawned terminal/model session (MT-100/101), a tool run, a long async step, a spawned child process Handshake supervises — REGISTERS with the watchdog and gets back an `OperationHandle`. Registration carries: a typed numeric `operation_code` (a closed enum, NOT free text — see the typed-allowlist note), a `deadline` (max wall-clock the operation may run before it is presumed stalled), and an optional `progress_interval` (the max gap between progress ticks before it is presumed stalled even if the overall deadline has not elapsed). While the operation runs it calls `handle.tick()` periodically — a per-operation progress heartbeat (the same liveness idea as the MT-084 UI-thread heartbeat, but per-operation). On completion the operation calls `handle.complete()` (or drops the handle, which auto-completes/deregisters) so it can never false-flag after it finished. A background WATCHDOG thread (off the UI thread; reuse the MT-084/091 dedicated-poll-thread pattern) periodically scans the registered operations; any operation that has exceeded its `deadline` OR gone longer than `progress_interval` since its last tick — and has NOT completed — is declared STALLED: the watchdog emits a TYPED `DiagEventCode::StalledOperation` DiagEvent (typed integers only — see below) ONCE per stalled operation (debounced — not every scan tick), records it via the MT-082 `record()` API (so it lands in the ring Palmistry reads AND the in-process buffer the Settings->Diagnostics panel reads), and surfaces it (Settings->Diagnostics panel MT-087 + the status bar). A completed or still-ticking operation NEVER false-flags.\n\nThe whole point mirrors MT-091's no-false-positive gate: an operation that progresses (ticks within its interval) or completes before its deadline must produce NO StalledOperation; only an operation that is registered, never ticks/completes, and passes its deadline/interval is flagged — within a BOUNDED time (<= deadline + one watchdog poll interval).\n\nExact files to create/edit (inside handshake-native; the ring crate + backend are reuse-via-API only):\n- CREATE `src/frontend/handshake_native/src/diagnostics/operation_watchdog.rs` — the `OperationWatchdog` + `OperationHandle` + `OperationCode` enum + the typed `StalledOperationReport`. Declare `pub mod operation_watchdog;` in `src/frontend/handshake_native/src/diagnostics/mod.rs` and re-export the public types.\n- EDIT `src/frontend/handshake_native/diag_ring/...` IS FORBIDDEN — instead ADD the `StalledOperation` variant to the `DiagEventCode` enum which lives in the MT-081 ring crate at `src/frontend/handshake_native/diag_ring/src/schema.rs`. The ring crate is MT-081-owned and in this MT's forbidden_paths. THE SCHEMA ADDITION IS A NECESSARY CROSS-MT EDIT: append `StalledOperation = 11` to `DiagEventCode` (codes 0..=10 are used: Heartbeat=0 .. Shutdown=10; Other=65535 — append the new variant at 11, do NOT renumber any existing variant, the explicit-value/append rule is documented in schema.rs) and add a `DiagEvent::stalled_operation(...)` typed constructor alongside the existing `heartbeat`/`backend_unreachable` constructors. This is the ONE allowed schema edit; do it as a deliberate, reviewed allowlist-gate change exactly as the schema.rs docs require, then keep the rest of the MT inside handshake-native. (If a coordinating reviewer prefers, the schema edit can be split to an MT-081-owned micro-step, but the variant MUST exist for this MT to record the typed event — flag it explicitly in the handoff, do not smuggle text instead.)\n- EDIT `src/frontend/handshake_native/src/app.rs` — start the watchdog poll thread once at startup (alongside / mirroring where the diagnostics ring is installed in `HandshakeApp::new`), and wire the FIRST REAL CONSUMER: the MT-088 backend-down path. A backend call IS a deadline-bounded operation — register the backend health/layout call with the watchdog (`OperationCode::BackendCall`, a short deadline) so a backend call that hangs (TCP-accepted-but-silent, the half-open case MT-088 added timeouts for) is caught by the watchdog as a StalledOperation, in addition to MT-088's client timeout. This is the anti-dead-code wire-into-live gate (mirrors MT-082 AC-002-4): the watchdog must have at least one REAL shipped-path consumer, not be scaffolding.\n- EDIT `src/frontend/handshake_native/src/diagnostics/panel.rs` (+ `settings_diagnostics_section.rs` if needed) — surface the current stalled-operation count / the last-N StalledOperation events in the Settings->Diagnostics panel (MT-087 is a pure projection; read the MT-082 snapshot, do not add panel-local authority). Also surface a stalled-operation indicator in the status bar (reuse the MT-088 disconnected-indicator status-bar pattern; theme tokens only — CONTROL-4).\n- CREATE `src/frontend/handshake_native/tests/test_operation_watchdog.rs`.\n\nTYPED-ALLOWLIST (§5.8.3 + §6.13.8 — HARD): the StalledOperation DiagEvent carries TYPED INTEGERS ONLY — NO free text. Map onto the existing MT-081 DiagEvent fields: `operation_code` (the OperationCode discriminant, a u16/u64 numeric) in `counter_a`; `elapsed_ms` (how long the operation ran before being flagged) in `metric_micros` or `counter_b`; `last_progress_ms` (ms since the last tick, 0 if it never ticked) in the other counter; the op's opaque numeric id in `sequence_id`; `timestamp_nanos` monotonic. NO operation NAME string, NO command line, NO arguments, NO path text in the DiagEvent (a local file path may only appear in a survivor/record per the MT-092/093 path-reference rule, never in the ring DiagEvent). The `OperationCode` enum is a CLOSED allowlist exactly like `DiagEventCode` — adding an operation kind is a reviewed code change, not a string.\n\nWAIT-FREE / NON-BLOCKING (the watchdog must not itself become the hang): registering, ticking, and completing an operation must be cheap + non-blocking + panic-free on the calling thread (a tick may be called from the UI thread for a UI-thread-driven operation, so it must be allocation-light and never block — mirror the MT-082 record() hot-path discipline: a short lock or a lock-free structure, poisoned-lock recovery via into_inner, no format! on the hot path). The watchdog POLL thread runs OFF the UI thread (a dedicated thread, like MT-084/091's poll thread) so scanning the registry never blocks the frame loop. The watchdog itself must be wait-free in the sense MT-081 requires of the writer: it never waits on a stalled operation (it only OBSERVES last-tick timestamps), so a stalled operation cannot back-pressure or block the watchdog.\n\nReuse note: the MT-081 ring + the MT-082 `record()` / `record_with()` API are the emit path (REUSE them — record the StalledOperation through `diagnostics::record(...)`, do not invent a second emit path). The MT-084 dedicated-poll-thread + monotonic-Instant pattern is the watchdog-thread reference (staleness measured against a MONOTONIC `std::time::Instant`, never a wall clock that can jump — exactly MT-091's AC-011-5 discipline). The MT-088 backend-down path is the first real consumer (a backend call is a deadline-bounded operation). The MT-087 panel is the operator-facing surface. src/backend is reuse-via-API only (forbidden to edit). FR (flight_recorder) kept as-is.\n\nRisk if missed: the exact 2026-06-28 silent-hours-long-hang class recurs (an in-app operation or a spawned child stalls with no detection); the generalization of MT-088/091 from 'UI thread' to 'any operation' is absent, so only the UI-thread freeze is caught and a stalled backend call / tool run / spawned session goes silent; MT-106 (which depends on this) has no in-app StalledOperation path to assert in the capstone no-silent-hang proof.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/diagnostics/operation_watchdog.rs",
+      "src/frontend/handshake_native/src/diagnostics/mod.rs",
+      "src/frontend/handshake_native/src/diagnostics/panel.rs",
+      "src/frontend/handshake_native/src/settings_diagnostics_section.rs",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/tests/test_operation_watchdog.rs"
+    ],
+    "forbidden_paths": [
+      "src/frontend/handshake_native/diag_ring/** (MT-081-owned; reuse via API — EXCEPT the single allowed schema.rs DiagEventCode::StalledOperation variant + DiagEvent::stalled_operation constructor addition, which is the deliberate reviewed allowlist-gate edit this MT requires; flag it in the handoff)",
+      "src/backend/** (reuse via API only; the watchdog is entirely client-side/frame-path)",
+      "src/backend/handshake_core/src/flight_recorder/** (FR kept as-is)",
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-105-1 (STALL DETECTED WITHIN A BOUNDED TIME — the deliverable, prove first): a test registers an operation with a short deadline (and/or progress_interval), NEVER calls tick() or complete(), and asserts the watchdog declares it STALLED and emits exactly one typed StalledOperation DiagEvent within a BOUNDED time (<= deadline + one watchdog poll interval) — proven by a separate-reader/snapshot read of the ring/buffer asserting the StalledOperation event with the correct typed fields (operation_code, elapsed_ms, last_progress_ms). This is the 2026-06-28 silent-hang made impossible: a registered-but-never-progressing operation is caught in seconds, not hours.",
+      "AC-105-2 (NO FALSE POSITIVE — the gate, mirrors MT-091 AC-011-1): a healthy operation that calls tick() faster than its progress_interval (and/or completes before its deadline) NEVER produces a StalledOperation event, across many watchdog poll ticks and past the wall-clock deadline window — a progressing/completed operation must not be flagged. A completed/deregistered operation produces NO event even if later poll ticks run.",
+      "AC-105-3 (DEBOUNCED / one event per stall): a stalled operation emits the StalledOperation event exactly ONCE (on the healthy->stalled edge), not once per watchdog poll tick (the ring is bounded — RISK of flooding). A test asserts a single StalledOperation per stalled operation even across many scans while it remains stalled.",
+      "AC-105-4 (TYPED-ALLOWLIST, §5.8.3): the StalledOperation DiagEvent carries TYPED INTEGERS ONLY (operation_code, elapsed_ms, last_progress_ms, op id, timestamp) — NO operation name / command / args / path text. A source + value scan asserts the DiagEvent and the OperationCode enum expose no free-text field; the DiagEventCode::StalledOperation variant + DiagEvent::stalled_operation constructor are the only schema additions (no String/Vec/&str anywhere on the watchdog emit path).",
+      "AC-105-5 (WAIT-FREE / NON-BLOCKING — the watchdog is not itself the hang): register()/tick()/complete() are cheap, non-blocking, and panic-free (poisoned-lock recovery, no format! / no heavy alloc on the hot path — a tick may run on the UI thread); the watchdog POLL runs OFF the UI thread; the watchdog NEVER waits on a stalled operation (it only observes last-tick timestamps). A stress test calls register/tick/complete from multiple threads thousands of times asserting no panic, no deadlock, bounded resources; a perf/timing assertion corroborates the watchdog does not stall the caller.",
+      "AC-105-6 (WIRE-INTO-LIVE, anti-dead-code — mirrors MT-082 AC-002-4): the MT-088 backend call is registered with the watchdog in the SHIPPED path (not a test) as the first real consumer — a backend call is a deadline-bounded operation. Proven by a test driving the real backend-down path and asserting the backend call registers (and, when it hangs, would be flagged) — the watchdog has a real shipped-path consumer, not scaffolding.",
+      "AC-105-7 (OPERATOR SURFACE): the Settings->Diagnostics panel (MT-087) shows the StalledOperation events / current stalled count (projection over the MT-082 snapshot — no panel-local authority), and the status bar shows a stalled-operation indicator (reuse the MT-088 status-bar pattern; theme tokens only — CONTROL-4 green). Proven by a kittest asserting the panel/status surface renders a StalledOperation after one is emitted.",
+      "AC-105-8: monotonic staleness reference — staleness/elapsed is measured against a process-monotonic std::time::Instant (never a wall clock that can jump), exactly the MT-091 AC-011-5 discipline; named consts for the watchdog poll interval + any default deadline/interval, with the relationship documented.",
+      "AC-105-9: `cargo build -p handshake-native` (lib + bins) + `cargo build -p handshake-diag-ring` clean; clippy `--all-targets -D warnings` clean; full suite `-j 2` green (no regression to the existing diagnostics/panes); external CARGO_TARGET_DIR; no repo-local target/; `git ls-files src/**/*.png` empty."
+    ],
+    "proof_targets": [
+      "PT-105-A: `cargo test -p handshake-native operation_watchdog` GREEN — a registered-never-progressing operation -> StalledOperation emitted within <= deadline + one poll (the 2026-06-28 silent-hang caught in seconds), typed fields asserted via a ring/buffer read.",
+      "PT-105-B: no-false-positive GREEN — a ticking/completing operation never emits StalledOperation across many polls past the deadline window; a completed/deregistered op never flags.",
+      "PT-105-C: debounce GREEN (one event per stalled op) + typed-allowlist scan (no free text; only the StalledOperation variant + stalled_operation constructor added) + wait-free/non-blocking stress GREEN.",
+      "PT-105-D: wire-into-live GREEN — the MT-088 backend call registers with the watchdog in the shipped path; panel + status-bar surface a StalledOperation (kittest); `cargo build --lib --bins` + diag-ring clean + clippy -D warnings + full suite -j 2 green; external target dir; git ls-files src/**/*.png empty."
+    ],
+    "implementation_notes": [
+      "GENERALIZE, do not reinvent: this is the MT-084 heartbeat idea (a liveness counter/timestamp that stops advancing under a stall) + the MT-091 staleness-vs-threshold + reset-on-advance gate, applied PER-OPERATION instead of per-UI-thread. tick() is the per-operation 'advance'; the watchdog's deadline/progress_interval is the per-operation threshold. Lean on the proven MT-091 monotonic-Instant + reset-on-advance discipline so the no-false-positive gate (AC-105-2) is by construction, not luck.",
+      "THE SCHEMA EDIT (the one allowed ring-crate touch): append `StalledOperation = 11` to `DiagEventCode` in diag_ring/src/schema.rs (codes 0..=10 used; Other=65535; append with an explicit value, never renumber — the explicit-value/append rule is documented in schema.rs for the WP-016 forward/backward-compat map) and add a `DiagEvent::stalled_operation(thread_id, sequence_id, operation_code, elapsed_ms, last_progress_ms, timestamp_nanos)` typed constructor next to `backend_unreachable`. Update DIAG_EVENT_SIZE only if a field is added (it is NOT — reuse the existing counter fields), so the const-size assertion stays green. Flag this cross-MT edit in the handoff so MT-081's owner reviews the allowlist-gate change.",
+      "EMIT through the MT-082 API: `diagnostics::record(DiagEvent::stalled_operation(...))` (or record_with on the StalledOperation code) — do NOT open a second writer or a second ring. record() is already non-blocking + panic-free; reuse it so the StalledOperation lands in BOTH the ring (Palmistry reads it; MT-106 keys on it) AND the in-process buffer (the panel reads it).",
+      "REGISTRY shape: a process-global watchdog behind a OnceLock (mirror the MT-082 recorder global) so any module can register an operation without threading a handle — `diagnostics::watchdog().register(OperationCode::X, deadline, progress_interval) -> OperationHandle`. The handle holds the op id + a shared last-tick cell; tick() updates the last-tick Instant (a single atomic store / short lock); complete()/Drop deregisters. The poll thread scans the live registry each POLL_INTERVAL, comparing now (monotonic) against each op's deadline + last-tick; on the healthy->stalled edge it records + marks the op 'flagged' so it is not re-emitted (debounce).",
+      "WAIT-FREE: tick() on the UI-thread-driven op path must be allocation-free + non-blocking (an AtomicU64 nanos store is ideal; if a map lock is needed, keep it tiny + recover poison via into_inner, never unwrap). The poll thread does the scanning off the UI thread. The watchdog NEVER calls into / waits on the operation — it only reads timestamps, so a stalled op cannot block it (the MT-081 wait-free-writer principle applied to the watchdog).",
+      "DEBOUNCE: emit StalledOperation ONCE on the healthy->stalled edge (like MT-088 debounces BackendUnreachable to the transition, and MT-091 logs the freeze edge once). A still-stalled op on later scans does not re-emit. If the op later completes after being flagged, deregister it quietly (optionally a Recovered-phase marker, but do not spam).",
+      "WIRE-INTO-LIVE (AC-105-6): register the MT-088 backend health/layout call as an operation (OperationCode::BackendCall, a short deadline matching/above the reqwest connect timeout) so a TCP-accepted-but-silent backend (the half-open case) is caught as a StalledOperation even if the client timeout path is slow. This makes the watchdog a REAL shipped consumer, not scaffolding — the same anti-dead-code gate as MT-082 AC-002-4.",
+      "PANEL is a PURE PROJECTION (MT-087 §5.8.4): the Settings->Diagnostics panel reads the MT-082 snapshot for StalledOperation events; do NOT cache panel-local authority. The status-bar indicator reuses the MT-088 disconnected-indicator pattern (theme tokens only; no Color32 literal outside theme/palette.rs — CONTROL-4).",
+      "Read the KERNEL_BUILDER coder protocol under .GOV/ first; the Spec-Realism Gate forbids a mock watchdog — AC-105-1 must use a REAL registered-but-stalled operation proven via a real ring/buffer read, and AC-105-6 must wire a REAL shipped consumer. No fake stalled operation, no scaffolding-only watchdog."
+    ],
+    "ports_from_react": [
+      "NONE (native generalized stall watchdog; no React analogue)"
+    ],
+    "binds_backend_api": [
+      "NONE NEW, and NO backend edit. The watchdog is entirely client-side/in-process. It REUSES the MT-082 record() API + the MT-081 ring (adding only the StalledOperation typed code) and observes the existing MT-088 backend call as its first registered operation. src/backend untouched (reuse-via-API only)."
+    ]
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-VIS",
+    "HBR-SWARM",
+    "HBR-QUIET"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "status": "NOT_APPLICABLE",
+      "reason": "A StalledOperation is a Tier 2 internal_diagnostics event written to the ring + in-process buffer; it is not a Tier 1 business event and is not forwarded to the FR by this MT (recovery-time FR forwarding of survivor evidence is MT-093's family). FR kept as-is/forbidden."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "status": "WIRED",
+      "reason": "This MT IS the Tier 2 generalized stall watchdog: the per-operation deadline+progress-tick watchdog, the typed StalledOperation event recorded through the MT-082 record() API, the Settings->Diagnostics panel + status-bar surface, and the live MT-088 backend-call consumer. Built + consumed here, generalizing the MT-088 UI-thread freeze fix to ANY deadline-bounded operation."
+    },
+    {
+      "tier": "PALMISTRY",
+      "status": "WIRED",
+      "reason": "The StalledOperation event is written to the MT-081 ring with the typed allowlist, so the external Palmistry watcher (Tier 3) sees an in-app stall with zero cooperation — exactly the cross-tier link MT-106 keys on for the end-to-end no-silent-hang capstone. The Palmistry-side child-process stall watch + the capstone proof are MT-106; this MT produces the in-app StalledOperation signal it consumes."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "cross_mt_schema_edit": "REQUIRES adding DiagEventCode::StalledOperation = 11 + DiagEvent::stalled_operation(...) to the MT-081-owned diag_ring/src/schema.rs (the typed-allowlist gate). This is the single allowed touch of the otherwise-forbidden ring crate; it is an append-only, no-renumber, no-new-field change (reuses existing DiagEvent counter fields so DIAG_EVENT_SIZE is unchanged). MT-081's owner/reviewer must confirm the allowlist-gate addition. Surface it explicitly; never substitute free text for the typed code."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DIAGNOSTIC_SUBSTRATE_V1",
+    "risks": [
+      "RISK-105-1: a healthy/long-but-progressing operation is flagged as stalled (false positive — crying wolf, the MT-091 RISK-011-1 class). Mitigate: reset-on-tick against a monotonic Instant + deadline/progress_interval gate; AC-105-2 proves a ticking/completing op never flags across many polls past the deadline window.",
+      "RISK-105-2: a real stall is MISSED (false negative) — a wrong staleness reference (wall-clock jump, or never resetting last-tick), or the watchdog itself blocking on the stalled op so it cannot scan. Mitigate: monotonic reference (AC-105-8) + the watchdog only OBSERVES timestamps and never waits on an op (AC-105-5); AC-105-1 proves detection within <= deadline + one poll.",
+      "RISK-105-3: the StalledOperation floods the bounded ring (emitted every poll tick while stalled). Mitigate: debounce to the healthy->stalled edge, one event per stall (AC-105-3).",
+      "RISK-105-4: free text (an operation name / command / path) is smuggled into the DiagEvent, breaking the typed-allowlist + cross-process POD map. Mitigate: typed integers only via DiagEvent::stalled_operation; OperationCode is a closed enum; AC-105-4 source+value scan (the bytemuck Pod derive already forbids a non-POD field structurally).",
+      "RISK-105-5: the watchdog is built but nothing registers an operation (dead scaffolding) — the MT-082 RISK-002-2 class. Mitigate: AC-105-6 wires the MT-088 backend call as a real shipped consumer.",
+      "RISK-105-6: tick()/register() blocks or allocates on the UI-thread hot path, reintroducing the very latency the WP fights. Mitigate: atomic-store/short-lock tick, no format!, poison recovery; AC-105-5 stress + timing.",
+      "RISK-105-7: the schema edit renumbers an existing DiagEventCode or adds a field, breaking the cross-process map / DIAG_EVENT_SIZE. Mitigate: append StalledOperation = 11 with an explicit value, reuse existing counter fields (no size change); the schema.rs const-size assertion + the MT-081 reader's record_size validation catch any drift.",
+      "RISK-105-8: a tracked PNG / repo-local target leaks. Mitigate: external target dir; git ls-files src/**/*.png empty (AC-105-9)."
+    ],
+    "minimum_controls": [
+      "MC-105-1: bounded-time stall detection on a real registered-but-stalled operation (AC-105-1) — the 2026-06-28 silent-hang made impossible for in-app operations.",
+      "MC-105-2: no-false-positive gate (ticking/completing op never flags) + debounce (AC-105-2/3).",
+      "MC-105-3: typed-allowlist StalledOperation (only the variant + constructor added; no free text) + wait-free non-blocking watchdog (AC-105-4/5/8).",
+      "MC-105-4: live shipped consumer (MT-088 backend call) + operator surface (panel + status bar) + external target dir + clippy -D warnings + full suite -j 2 green (AC-105-6/7/9)."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-KERNEL-012 field research (June 2026) + the 2026-06-28 silent-subprocess-deadlock incident; generalizes the MT-088 backend-down freeze fix + the MT-091 freeze-detection precedent",
+    "field_stack": "The watchdog-timer / deadline + progress-heartbeat pattern (the standard liveness/keepalive technique: a supervised task periodically 'kicks' a watchdog; the supervisor declares a stall when the kick stops past a deadline/interval — used in embedded watchdog timers, systemd WatchdogSec/sd_notify, and async task-stall detectors like tokio-console's slow-poll detection). Here it is per-operation, emitting the MT-081 typed allowlist event through the MT-082 record() API, with the MT-091 monotonic-Instant + reset-on-advance + double-threshold (deadline OR progress_interval) discipline so a healthy operation never false-flags and a real stall is caught in bounded time.",
+    "crate_versions_verified_2026_06_27": {
+      "handshake-diag-ring": "path dep (MT-081; +DiagEventCode::StalledOperation + DiagEvent::stalled_operation)",
+      "std-only": "the watchdog is std-only (std::time::Instant monotonic + std::thread poll + atomics/Mutex) — no new external crate; mirrors MT-082/084's std hot-path discipline"
+    },
+    "motivating_incident": "2026-06-28: a spawned subprocess (a cargo test doing minidumper IPC — the MT-092 known hanger) DEADLOCKED SILENTLY for HOURS with no detection and no observer. The whole class — an in-app operation OR a spawned child that hangs/stalls with no progress and no one notices — must be IMPOSSIBLE inside Handshake, caught by BOTH internal_diagnostics (this MT) AND Palmistry (MT-106) within a BOUNDED time (seconds, not hours). This MT is the internal_diagnostics half: the generalized deadline+progress watchdog that turns the MT-088/091 'the UI thread froze' detection into 'ANY operation stopped making progress'.",
+    "validation_plan": "registered-but-stalled operation -> StalledOperation within <= deadline + one poll (typed fields read back) + no-false-positive on a ticking/completing op + debounce + typed-allowlist scan + wait-free/non-blocking stress + live MT-088 backend-call consumer + panel/status surface; monotonic reference; clippy -D warnings; full suite -j 2."
+  }
+}
