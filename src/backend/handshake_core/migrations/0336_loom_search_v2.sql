@@ -35,9 +35,48 @@
 -- pgcrypto setup in the test harness). Migrations run with a per-schema
 -- search_path that does NOT include public, so every extension object below is
 -- referenced fully-qualified (public.vector, public.gin_trgm_ops,
--- public.vector_cosine_ops).
-CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
-CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;
+-- public.vector_cosine_ops). If a database already installed either extension
+-- elsewhere, fail early with a clear invariant instead of later failing on a
+-- missing public type/operator.
+DO $$
+DECLARE
+    existing_schema TEXT;
+BEGIN
+    SELECT n.nspname
+      INTO existing_schema
+      FROM pg_extension e
+      JOIN pg_namespace n ON n.oid = e.extnamespace
+     WHERE e.extname = 'pg_trgm';
+
+    IF existing_schema IS NULL THEN
+        CREATE EXTENSION pg_trgm WITH SCHEMA public;
+    ELSIF existing_schema <> 'public' THEN
+        RAISE EXCEPTION
+            'Handshake requires pg_trgm extension in schema public; found schema %',
+            existing_schema
+            USING ERRCODE = 'invalid_schema_name';
+    END IF;
+END $$;
+
+DO $$
+DECLARE
+    existing_schema TEXT;
+BEGIN
+    SELECT n.nspname
+      INTO existing_schema
+      FROM pg_extension e
+      JOIN pg_namespace n ON n.oid = e.extnamespace
+     WHERE e.extname = 'vector';
+
+    IF existing_schema IS NULL THEN
+        CREATE EXTENSION vector WITH SCHEMA public;
+    ELSIF existing_schema <> 'public' THEN
+        RAISE EXCEPTION
+            'Handshake requires vector extension in schema public; found schema %',
+            existing_schema
+            USING ERRCODE = 'invalid_schema_name';
+    END IF;
+END $$;
 
 -- The canonical embedding dimensionality for LoomSearchV2. 768 matches common
 -- local embedding models (e.g. nomic-embed-text). The HNSW index requires a

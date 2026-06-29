@@ -22,21 +22,21 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use egui_kittest::kittest::Queryable;
 use egui_kittest::Harness;
+use egui_kittest::kittest::Queryable;
 
 use handshake_native::accessibility::editor_action_registry::{
-    rich_action_catalog, CODE_ACTION_CATALOG,
+    CODE_ACTION_CATALOG, rich_action_catalog,
 };
 use handshake_native::accessibility::{
     CANVAS_CONTROL_CATALOG, COLLECTION_CONTROL_CATALOG, DECLARED_IDENTITIES, GRAPH_CONTROL_CATALOG,
     PALETTE_AUTHOR_IDS,
 };
 use handshake_native::manual_content_editors::{
-    agent_tool_rows, editors_manual_section, INTEROP_EDGES, REQUIRED_HEADINGS,
+    INTEROP_EDGES, REQUIRED_HEADINGS, agent_tool_rows, editors_manual_section,
 };
 use handshake_native::manual_pane::{
-    ManualPane, ManualPaneState, ManualRegistry, ManualSurface, MANUAL_SEARCH_AUTHOR_ID,
+    MANUAL_SEARCH_AUTHOR_ID, ManualPane, ManualPaneState, ManualRegistry, ManualSurface,
 };
 use handshake_native::theme::HsPalette;
 
@@ -193,6 +193,22 @@ fn live_author_id_set() -> HashSet<String> {
         handshake_native::atelier_panel::ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_MEDIA_SAVE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SEARCH_QUERY_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SEARCH_TAGS_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SEARCH_FILTER_CHARACTER_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SEARCH_FILTER_COLLECTION_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SEARCH_FILTER_MEDIA_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SEARCH_FILTER_SIMILARITY_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SEARCH_MODE_FUZZY_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SEARCH_MODE_VECTOR_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SEARCH_MODE_COMBINED_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SEARCH_RUN_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SEARCH_STATUS_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SEARCH_RESULTS_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_TAG_NOTE_TAG_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_TAG_NOTE_SCOPE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_TAG_NOTE_EDITOR_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_TAG_NOTE_SAVE_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_POSE_YAW_MINUS_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_POSE_YAW_PLUS_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_POSE_RESET_AUTHOR_ID,
@@ -295,6 +311,27 @@ fn manual_documents_atelier_tabs_and_argus_control_ids() {
         "atelier-ckc-media-notes-editor",
         "atelier-ckc-media-tags-editor",
         "atelier-ckc-media-save",
+        "atelier-ckc-search-query",
+        "atelier-ckc-search-tags",
+        "atelier-ckc-search-filter-character",
+        "atelier-ckc-search-filter-collection",
+        "atelier-ckc-search-filter-media",
+        "atelier-ckc-search-filter-similarity",
+        "atelier-ckc-search-mode-fuzzy",
+        "atelier-ckc-search-mode-vector",
+        "atelier-ckc-search-mode-combined",
+        "atelier-ckc-search-run",
+        "atelier-ckc-search-status",
+        "atelier-ckc-search-results",
+        "atelier-ckc-search-result-*",
+        "llm_embedding+pgvector_projection",
+        "semantic_unavailable_no_embedding_model",
+        "POST /atelier/ckc/search",
+        "atelier-ckc-tag-note-tag",
+        "atelier-ckc-tag-note-scope",
+        "atelier-ckc-tag-note-editor",
+        "atelier-ckc-tag-note-save",
+        "POST /atelier/ckc/tag-notes",
         "atelier-ckc-album-",
         "atelier-ckc-media-",
         "atelier-ckc-folder-",

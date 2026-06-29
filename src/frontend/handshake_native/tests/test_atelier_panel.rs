@@ -3,18 +3,25 @@
 use std::sync::{Arc, Mutex};
 
 use egui::accesskit;
-use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
+use egui_kittest::kittest::{NodeT, Queryable};
 
 use handshake_native::accessibility::{UiNodeBounds, UiTreeNode, UiTreeSnapshot};
 use handshake_native::atelier_panel::{
-    ckc_folder_row_author_id, ckc_media_album_row_author_id, ckc_media_row_author_id, AtelierPanel,
     ATELIER_CKC_CHARACTER_CREATE_AUTHOR_ID, ATELIER_CKC_CHARACTER_CREATE_NAME_AUTHOR_ID,
     ATELIER_CKC_CHARACTER_LIST_AUTHOR_ID, ATELIER_CKC_CHARACTER_REF_AUTHOR_ID,
     ATELIER_CKC_LINKED_MEDIA_LIST_AUTHOR_ID, ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID,
     ATELIER_CKC_MEDIA_SAVE_AUTHOR_ID, ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_FILTER_CHARACTER_AUTHOR_ID, ATELIER_CKC_SEARCH_FILTER_COLLECTION_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_FILTER_MEDIA_AUTHOR_ID, ATELIER_CKC_SEARCH_FILTER_SIMILARITY_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_MODE_COMBINED_AUTHOR_ID, ATELIER_CKC_SEARCH_MODE_FUZZY_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_MODE_VECTOR_AUTHOR_ID, ATELIER_CKC_SEARCH_QUERY_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_RESULTS_AUTHOR_ID, ATELIER_CKC_SEARCH_RUN_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_STATUS_AUTHOR_ID, ATELIER_CKC_SEARCH_TAGS_AUTHOR_ID,
     ATELIER_CKC_SELECTED_CHARACTER_AUTHOR_ID, ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID,
     ATELIER_CKC_SHEET_SAVE_AUTHOR_ID, ATELIER_CKC_SHEET_VERSION_REF_AUTHOR_ID,
+    ATELIER_CKC_TAG_NOTE_EDITOR_AUTHOR_ID, ATELIER_CKC_TAG_NOTE_SAVE_AUTHOR_ID,
+    ATELIER_CKC_TAG_NOTE_SCOPE_AUTHOR_ID, ATELIER_CKC_TAG_NOTE_TAG_AUTHOR_ID,
     ATELIER_CKC_TYPED_REF_KIND_AUTHOR_ID, ATELIER_CONTENT_CKC_AUTHOR_ID,
     ATELIER_CONTENT_INGEST_AUTHOR_ID, ATELIER_CONTENT_POSEKIT_AUTHOR_ID,
     ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID, ATELIER_INGEST_PASS_AUTHOR_ID,
@@ -23,14 +30,16 @@ use handshake_native::atelier_panel::{
     ATELIER_POSE_HANDS_TOGGLE_AUTHOR_ID, ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID,
     ATELIER_POSE_RESET_AUTHOR_ID, ATELIER_POSE_YAW_MINUS_AUTHOR_ID,
     ATELIER_POSE_YAW_PLUS_AUTHOR_ID, ATELIER_POSE_YAW_SLIDER_AUTHOR_ID,
-    ATELIER_POSE_ZOOM_SLIDER_AUTHOR_ID, ATELIER_TABLIST_AUTHOR_ID, ATELIER_TAB_CKC_AUTHOR_ID,
-    ATELIER_TAB_INGEST_AUTHOR_ID, ATELIER_TAB_POSEKIT_AUTHOR_ID,
+    ATELIER_POSE_ZOOM_SLIDER_AUTHOR_ID, ATELIER_TAB_CKC_AUTHOR_ID, ATELIER_TAB_INGEST_AUTHOR_ID,
+    ATELIER_TAB_POSEKIT_AUTHOR_ID, ATELIER_TABLIST_AUTHOR_ID, AtelierPanel,
+    ckc_folder_row_author_id, ckc_media_album_row_author_id, ckc_media_row_author_id,
+    ckc_search_result_row_author_id,
 };
-use handshake_native::atelier_side_panel::{item_author_id, AtelierSidePanel, PANEL_AUTHOR_ID};
+use handshake_native::atelier_side_panel::{AtelierSidePanel, PANEL_AUTHOR_ID, item_author_id};
 use handshake_native::backend_client::{AtelierBatchRow, AtelierItemRow};
-use handshake_native::graph::canvas_board::{CanvasEvent, LoomCanvasBoard, ADD_CARD_AUTHOR_ID};
+use handshake_native::graph::canvas_board::{ADD_CARD_AUTHOR_ID, CanvasEvent, LoomCanvasBoard};
 use handshake_native::mcp::{
-    dispatch_request, ActionChannel, McpRequest, ScreenshotError, SessionToken,
+    ActionChannel, McpRequest, ScreenshotError, SessionToken, dispatch_request,
 };
 use handshake_native::theme::HsTheme;
 
@@ -180,6 +189,22 @@ fn atelier_main_panel_exposes_ckc_posekit_ingest_tabs() {
         ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID,
         ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID,
         ATELIER_CKC_MEDIA_SAVE_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_QUERY_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_TAGS_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_FILTER_CHARACTER_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_FILTER_COLLECTION_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_FILTER_MEDIA_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_FILTER_SIMILARITY_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_MODE_FUZZY_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_MODE_VECTOR_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_MODE_COMBINED_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_RUN_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_STATUS_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_RESULTS_AUTHOR_ID,
+        ATELIER_CKC_TAG_NOTE_TAG_AUTHOR_ID,
+        ATELIER_CKC_TAG_NOTE_SCOPE_AUTHOR_ID,
+        ATELIER_CKC_TAG_NOTE_EDITOR_AUTHOR_ID,
+        ATELIER_CKC_TAG_NOTE_SAVE_AUTHOR_ID,
         PANEL_AUTHOR_ID,
         &item_author_id("item-aaa"),
         ADD_CARD_AUTHOR_ID,
@@ -214,6 +239,16 @@ fn ckc_character_sheet_surface_is_model_addressable() {
         ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID,
         ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID,
         ATELIER_CKC_MEDIA_SAVE_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_QUERY_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_TAGS_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_FILTER_CHARACTER_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_FILTER_COLLECTION_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_FILTER_MEDIA_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_FILTER_SIMILARITY_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_RUN_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_RESULTS_AUTHOR_ID,
+        ATELIER_CKC_TAG_NOTE_EDITOR_AUTHOR_ID,
+        ATELIER_CKC_TAG_NOTE_SAVE_AUTHOR_ID,
     ] {
         assert!(
             ids.contains(expected),
@@ -239,6 +274,11 @@ fn ckc_character_sheet_surface_is_model_addressable() {
         ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID,
         ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID,
         ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_QUERY_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_TAGS_AUTHOR_ID,
+        ATELIER_CKC_TAG_NOTE_TAG_AUTHOR_ID,
+        ATELIER_CKC_TAG_NOTE_SCOPE_AUTHOR_ID,
+        ATELIER_CKC_TAG_NOTE_EDITOR_AUTHOR_ID,
     ] {
         let node = harness.get_by(|node| node.author_id() == Some(expected));
         assert!(
@@ -264,6 +304,24 @@ fn ckc_character_sheet_surface_is_model_addressable() {
             .supports_action(egui::accesskit::Action::Click),
         "CKC media-notes save control must be steerable by Argus click"
     );
+    let search_run =
+        harness.get_by(|node| node.author_id() == Some(ATELIER_CKC_SEARCH_RUN_AUTHOR_ID));
+    assert!(
+        search_run
+            .accesskit_node()
+            .data()
+            .supports_action(egui::accesskit::Action::Click),
+        "CKC search run control must be steerable by Argus click"
+    );
+    let tag_note_save =
+        harness.get_by(|node| node.author_id() == Some(ATELIER_CKC_TAG_NOTE_SAVE_AUTHOR_ID));
+    assert!(
+        tag_note_save
+            .accesskit_node()
+            .data()
+            .supports_action(egui::accesskit::Action::Click),
+        "CKC tag-note save control must be steerable by Argus click"
+    );
 }
 
 #[test]
@@ -282,6 +340,21 @@ fn argus_inspects_and_steers_ckc_character_sheet_surface() {
         assert!(
             snapshot.find_by_author_id(expected).is_some(),
             "Argus inspect snapshot must include CKC sheet author_id {expected}"
+        );
+    }
+    for expected in [
+        ATELIER_CKC_SEARCH_FILTER_CHARACTER_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_FILTER_COLLECTION_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_FILTER_MEDIA_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_FILTER_SIMILARITY_AUTHOR_ID,
+    ] {
+        let node = snapshot
+            .find_by_author_id(expected)
+            .expect("CKC search filter node exists");
+        assert!(
+            node.actions.iter().any(|action| action == "Click"),
+            "Argus must be able to click CKC search filter {expected}; actions={:?}",
+            node.actions
         );
     }
 
@@ -498,6 +571,159 @@ fn argus_inspects_and_steers_ckc_linked_media_without_touching_sheet_notes() {
     assert_eq!(
         sheet_before, sheet_after,
         "image notes/tags must stay separate from character sheet notes"
+    );
+}
+
+#[test]
+fn argus_inspects_and_steers_ckc_search_and_tag_notes() {
+    let mut harness = build_panel_harness();
+    harness.run();
+    harness.run();
+    let snapshot = snapshot_harness(&mut harness);
+    for expected in [
+        ATELIER_CKC_SEARCH_QUERY_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_TAGS_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_FILTER_CHARACTER_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_FILTER_COLLECTION_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_FILTER_MEDIA_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_FILTER_SIMILARITY_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_MODE_FUZZY_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_MODE_VECTOR_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_MODE_COMBINED_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_RUN_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_STATUS_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_RESULTS_AUTHOR_ID,
+        ATELIER_CKC_TAG_NOTE_TAG_AUTHOR_ID,
+        ATELIER_CKC_TAG_NOTE_SCOPE_AUTHOR_ID,
+        ATELIER_CKC_TAG_NOTE_EDITOR_AUTHOR_ID,
+        ATELIER_CKC_TAG_NOTE_SAVE_AUTHOR_ID,
+    ] {
+        assert!(
+            snapshot.find_by_author_id(expected).is_some(),
+            "Argus inspect snapshot must include CKC search/tag-note author_id {expected}"
+        );
+    }
+
+    let mut channel = ActionChannel::new();
+    for (target, value) in [
+        (ATELIER_CKC_SEARCH_QUERY_AUTHOR_ID, "expression"),
+        (ATELIER_CKC_SEARCH_TAGS_AUTHOR_ID, "reference"),
+        (
+            ATELIER_CKC_TAG_NOTE_EDITOR_AUTHOR_ID,
+            "training tag note saved through the CKC search surface",
+        ),
+    ] {
+        let response = dispatch_request(
+            &argus_req(
+                "argus.set_value",
+                serde_json::json!({ "target": target, "value": value }),
+            ),
+            &argus_token(),
+            &snapshot,
+            &mut channel,
+            || Err(ScreenshotError("not used".to_owned())),
+        );
+        assert_eq!(
+            response.to_json()["result"]["queued"],
+            true,
+            "Argus set_value queues for {target}"
+        );
+    }
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+
+    let after_inputs = snapshot_harness(&mut harness);
+    let query_value = after_inputs
+        .find_by_author_id(ATELIER_CKC_SEARCH_QUERY_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .unwrap_or_else(|| "<missing query>".to_owned());
+    let tag_value = after_inputs
+        .find_by_author_id(ATELIER_CKC_SEARCH_TAGS_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .unwrap_or_else(|| "<missing tags>".to_owned());
+    assert!(
+        query_value.contains("expression") && tag_value.contains("reference"),
+        "Argus set_value must update CKC search inputs; query={query_value:?}, tags={tag_value:?}"
+    );
+    for target in [
+        ATELIER_CKC_SEARCH_MODE_COMBINED_AUTHOR_ID,
+        ATELIER_CKC_SEARCH_RUN_AUTHOR_ID,
+    ] {
+        let response = dispatch_request(
+            &argus_req("argus.click", serde_json::json!({ "target": target })),
+            &argus_token(),
+            &after_inputs,
+            &mut channel,
+            || Err(ScreenshotError("not used".to_owned())),
+        );
+        assert_eq!(
+            response.to_json()["result"]["queued"],
+            true,
+            "Argus click queues for {target}"
+        );
+    }
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+
+    let after_search = snapshot_harness(&mut harness);
+    let second_album_ref = format!("atelier://collection/{MIRA_DEMO_SECOND_ALBUM_ID}");
+    let second_album_result = ckc_search_result_row_author_id(&second_album_ref);
+    let search_debug_ids: Vec<_> = after_search
+        .root
+        .children
+        .iter()
+        .filter_map(|node| node.author_id.as_deref())
+        .filter(|id| id.starts_with("atelier-ckc-search"))
+        .collect();
+    let debug_status = after_search
+        .find_by_author_id(ATELIER_CKC_SEARCH_STATUS_AUTHOR_ID)
+        .and_then(|node| node.label.clone())
+        .unwrap_or_else(|| "<missing status>".to_owned());
+    assert!(
+        after_search
+            .find_by_author_id(&second_album_result)
+            .is_some(),
+        "Argus must see a stable CKC search result row for the matching album; expected {second_album_result}, status {debug_status:?}, saw {search_debug_ids:?}"
+    );
+    let status = after_search
+        .find_by_author_id(ATELIER_CKC_SEARCH_STATUS_AUTHOR_ID)
+        .and_then(|node| node.label.clone())
+        .expect("search status visible");
+    assert!(
+        status.contains("Combined") && status.contains("result"),
+        "combined search status must be visible after Argus click; got {status}"
+    );
+
+    let save_note = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_CKC_TAG_NOTE_SAVE_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &after_search,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(save_note.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let after_note = snapshot_harness(&mut harness);
+    let status = after_note
+        .find_by_author_id(ATELIER_CKC_SEARCH_STATUS_AUTHOR_ID)
+        .and_then(|node| node.label.clone())
+        .expect("tag-note save status visible");
+    assert!(
+        status.contains("Saved local CKC tag note for training"),
+        "tag-note save status must be visible after Argus click; got {status}"
     );
 }
 

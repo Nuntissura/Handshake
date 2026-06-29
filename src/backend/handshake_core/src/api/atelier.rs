@@ -16,36 +16,37 @@
 //! interpolated into SQL.
 
 use axum::{
+    Json, Router,
     extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post},
-    Json, Router,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use uuid::Uuid;
 
+use crate::AppState;
 use crate::atelier::collections::{Collection, NewCollection};
 use crate::atelier::intake::{
     IntakeBatchMode, IntakeLaneCounts, IntakeProfileMode, NewIntakeBatch,
 };
 use crate::atelier::search::{
-    normalize_tag, AiTagSuggestion, AiTagSuggestionDecision, AiTagSuggestionStatus,
-    NewAiTagSuggestion,
+    AiTagSuggestion, AiTagSuggestionDecision, AiTagSuggestionStatus, CkcSearchMode,
+    CkcSearchRequest, CkcSearchResponse, CkcTagNote, NewAiTagSuggestion, UpsertCkcTagNote,
+    normalize_tag,
 };
 use crate::atelier::stealth_window::ResolvedContentRef;
 use crate::atelier::{
+    AtelierError, AtelierStore, BulkOperationReceipt, CHARACTER_SHEET_V2_TEMPLATE_VERSION,
+    Character, ClipboardImageImportRequest, DEFAULT_SHEET_TOOL, DeletionArchiveRequest,
+    DeletionImpactPreview, DeletionImpactPreviewRequest, DeletionRestoreRequest, DeletionTargetRef,
+    ImageImportRecord, MediaReviewMetadataUpdate, NewCharacter, NewSheetVersion,
+    SetMediaSourceProvenanceRefs, SheetVersion, UrlImageImportRequest,
     builtin_character_sheet_template, builtin_safe_subset, character_ref, collection_ref,
-    default_character_sheet_text, media_asset_ref, sheet_version_ref, text_hash, AtelierError,
-    AtelierStore, BulkOperationReceipt, Character, ClipboardImageImportRequest,
-    DeletionArchiveRequest, DeletionImpactPreview, DeletionImpactPreviewRequest,
-    DeletionRestoreRequest, DeletionTargetRef, ImageImportRecord, MediaReviewMetadataUpdate,
-    NewCharacter, NewSheetVersion, SetMediaSourceProvenanceRefs, SheetVersion,
-    UrlImageImportRequest, CHARACTER_SHEET_V2_TEMPLATE_VERSION, DEFAULT_SHEET_TOOL,
+    default_character_sheet_text, media_asset_ref, sheet_version_ref, text_hash,
 };
-use crate::AppState;
 
 const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
 
@@ -80,6 +81,8 @@ pub fn routes(state: AppState) -> Router {
             "/atelier/media-assets/:asset_id/notes-tags",
             post(update_media_notes_tags),
         )
+        .route("/atelier/ckc/search", post(search_ckc))
+        .route("/atelier/ckc/tag-notes", post(upsert_ckc_tag_note))
         .route(
             "/atelier/sheet-versions/:version_id",
             get(get_sheet_version),
@@ -165,6 +168,8 @@ const OVERVIEW_TABLES: &[&str] = &[
     "atelier_collection",
     "atelier_collection_item",
     "atelier_media_asset_tag",
+    "atelier_tag_note",
+    "atelier_ckc_search_projection",
     "atelier_media_review_metadata",
     "atelier_media_source_provenance_ref",
     "atelier_media_sidecar",
@@ -477,6 +482,26 @@ struct MediaNotesTagsResponse {
     tags: Vec<String>,
     source_path_ref: Option<String>,
     source_url_ref: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CkcSearchApiRequest {
+    query: Option<String>,
+    modes: Option<Vec<String>>,
+    tags: Option<Vec<String>>,
+    character_internal_id: Option<Uuid>,
+    collection_id: Option<Uuid>,
+    media_asset_id: Option<Uuid>,
+    similar_to_asset_id: Option<Uuid>,
+    similar_to_dhash_hex: Option<String>,
+    limit: Option<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CkcTagNoteRequest {
+    tag_text: String,
+    scope_ref: Option<String>,
+    note: String,
 }
 
 fn character_response(character: Character) -> CharacterResponse {
@@ -1100,6 +1125,87 @@ async fn update_media_notes_tags(
     }))
 }
 
+fn parse_ckc_search_modes(
+    raw_modes: Option<Vec<String>>,
+) -> Result<Vec<CkcSearchMode>, (StatusCode, Json<ErrorResponse>)> {
+    let Some(raw_modes) = raw_modes else {
+        return Ok(Vec::new());
+    };
+    let mut modes = Vec::new();
+    for raw in raw_modes {
+        let Some(mode) = CkcSearchMode::parse(&raw) else {
+            return Err(atelier_error(AtelierError::Validation(format!(
+                "unknown CKC search mode: {raw}"
+            ))));
+        };
+        if !modes.contains(&mode) {
+            modes.push(mode);
+        }
+    }
+    Ok(modes)
+}
+
+/// POST /atelier/ckc/search — fuzzy/vector/combined CKC search over characters, sheets, albums, media, tags, and tag notes.
+async fn search_ckc(
+    State(state): State<AppState>,
+    Json(payload): Json<CkcSearchApiRequest>,
+) -> Result<Json<CkcSearchResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let store = atelier_store(&state);
+    let request = CkcSearchRequest {
+        query: payload.query.unwrap_or_default(),
+        modes: parse_ckc_search_modes(payload.modes)?,
+        tags: payload.tags.unwrap_or_default(),
+        character_internal_id: payload.character_internal_id,
+        collection_id: payload.collection_id,
+        media_asset_id: payload.media_asset_id,
+        similar_to_asset_id: payload.similar_to_asset_id,
+        similar_to_dhash_hex: payload.similar_to_dhash_hex,
+        limit: payload.limit.unwrap_or(25),
+    };
+    let response = store
+        .ckc_search(request, Some(state.llm_client.as_ref()))
+        .await
+        .map_err(atelier_error)?;
+    tracing::info!(
+        target: "handshake_core::atelier",
+        route = "/atelier/ckc/search",
+        status = "ok",
+        result_count = response.result_count,
+        semantic_available = response.semantic_available,
+        "search CKC"
+    );
+    Ok(Json(response))
+}
+
+/// POST /atelier/ckc/tag-notes — rich tag note round-trip, separate from sheet/media/album notes.
+async fn upsert_ckc_tag_note(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<CkcTagNoteRequest>,
+) -> Result<Json<CkcTagNote>, (StatusCode, Json<ErrorResponse>)> {
+    let actor = calling_actor(&headers)?;
+    let store = atelier_store(&state);
+    let tag_note = store
+        .upsert_ckc_tag_note(&UpsertCkcTagNote {
+            tag_text: payload.tag_text,
+            scope_ref: payload.scope_ref,
+            note: payload.note,
+            updated_by: actor.clone(),
+        })
+        .await
+        .map_err(atelier_error)?;
+    tracing::info!(
+        target: "handshake_core::atelier",
+        route = "/atelier/ckc/tag-notes",
+        status = "ok",
+        actor = %actor,
+        tag_note_id = %tag_note.tag_note_id,
+        tag_text = %tag_note.tag_text,
+        "upsert CKC tag note"
+    );
+    Ok(Json(tag_note))
+}
+
 /// POST /atelier/characters/:character_internal_id/sheet-versions — append a guarded sheet edit.
 async fn append_sheet_version(
     State(state): State<AppState>,
@@ -1268,16 +1374,16 @@ async fn export_sheet_version(
 }
 
 /// GET /atelier/sheet-templates/default — bundled CKC v2.00 template metadata + raw text.
-async fn get_default_sheet_template(
-) -> Result<Json<crate::atelier::BuiltInSheetTemplate>, (StatusCode, Json<ErrorResponse>)> {
+async fn get_default_sheet_template()
+-> Result<Json<crate::atelier::BuiltInSheetTemplate>, (StatusCode, Json<ErrorResponse>)> {
     builtin_character_sheet_template()
         .map(Json)
         .map_err(atelier_error)
 }
 
 /// GET /atelier/sheet-templates/default/safe-subset — original LLM-safe v2.00 field whitelist.
-async fn get_default_sheet_template_safe_subset(
-) -> Result<Json<crate::atelier::BuiltInSafeSubset>, (StatusCode, Json<ErrorResponse>)> {
+async fn get_default_sheet_template_safe_subset()
+-> Result<Json<crate::atelier::BuiltInSafeSubset>, (StatusCode, Json<ErrorResponse>)> {
     builtin_safe_subset().map(Json).map_err(atelier_error)
 }
 

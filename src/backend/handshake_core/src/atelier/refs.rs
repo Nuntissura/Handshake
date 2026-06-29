@@ -16,6 +16,10 @@ pub fn collection_ref(collection_id: Uuid) -> String {
     format!("atelier://collection/{collection_id}")
 }
 
+pub fn tag_ref(tag_id: Uuid) -> String {
+    format!("atelier://tag/{tag_id}")
+}
+
 pub fn parse_character_ref(value: &str) -> Option<Uuid> {
     value
         .strip_prefix("atelier://character/")
@@ -42,6 +46,12 @@ pub fn parse_collection_ref(value: &str) -> Option<Uuid> {
         .and_then(|id| Uuid::parse_str(id).ok())
 }
 
+pub fn parse_tag_ref(value: &str) -> Option<Uuid> {
+    value
+        .strip_prefix("atelier://tag/")
+        .and_then(|id| Uuid::parse_str(id).ok())
+}
+
 pub fn validate_character_ref(value: &str) -> bool {
     parse_character_ref(value).is_some()
 }
@@ -56,4 +66,8 @@ pub fn validate_media_asset_ref(value: &str) -> bool {
 
 pub fn validate_collection_ref(value: &str) -> bool {
     parse_collection_ref(value).is_some()
+}
+
+pub fn validate_tag_ref(value: &str) -> bool {
+    parse_tag_ref(value).is_some()
 }

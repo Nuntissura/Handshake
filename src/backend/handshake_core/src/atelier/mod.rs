@@ -83,8 +83,9 @@ pub use self::media::{
 };
 pub use self::refs::{
     character_ref, collection_ref, media_asset_ref, parse_character_ref, parse_collection_ref,
-    parse_media_asset_ref, parse_sheet_version_ref, sheet_version_ref, validate_character_ref,
-    validate_collection_ref, validate_media_asset_ref, validate_sheet_version_ref,
+    parse_media_asset_ref, parse_sheet_version_ref, parse_tag_ref, sheet_version_ref, tag_ref,
+    validate_character_ref, validate_collection_ref, validate_media_asset_ref,
+    validate_sheet_version_ref, validate_tag_ref,
 };
 pub use self::relationships::{
     CharacterRelationship, CharacterRelationshipGraph, CharacterRelationshipGraphEdge,
@@ -2169,6 +2170,11 @@ impl AtelierStore {
         .await?;
         sqlx::raw_sql(include_str!(
             "../../migrations/0129_atelier_visual_steer_retention.sql"
+        ))
+        .execute(&mut *tx)
+        .await?;
+        sqlx::raw_sql(include_str!(
+            "../../migrations/0337_atelier_ckc_search_tag_notes.sql"
         ))
         .execute(&mut *tx)
         .await?;

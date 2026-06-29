@@ -317,7 +317,23 @@ atelier-ckc-sheet-editor. The matching backend routes are GET/POST \
 /atelier/characters/{character_internal_id}/media-albums, POST \
 /atelier/media-albums/{collection_id}/items, and POST /atelier/media-assets/{asset_id}/notes-tags; POST \
 writes require x-hsk-actor-id. Folder links are source_path_ref/source_url_ref typed refs, and image refs \
-are atelier://media/{asset_id}. \
+are atelier://media/{asset_id}. CKC search lives in the same tab: set atelier-ckc-search-query, optional \
+rich tag filters in atelier-ckc-search-tags, optionally toggle selected-character/album/media scope \
+with atelier-ckc-search-filter-character, atelier-ckc-search-filter-collection, and \
+atelier-ckc-search-filter-media, optionally use selected-media dHash similarity with \
+atelier-ckc-search-filter-similarity, choose atelier-ckc-search-mode-fuzzy, \
+atelier-ckc-search-mode-vector, or atelier-ckc-search-mode-combined, then click \
+atelier-ckc-search-run. Results appear under atelier-ckc-search-results with stable \
+atelier-ckc-search-result-* rows and cite target_ref plus character_ref, sheet_version_ref, \
+collection_ref, media_ref, or tag_ref as available. The status line atelier-ckc-search-status tells \
+whether semantic CKC projection is available; vector mode reports llm_embedding+pgvector_projection \
+when it uses the configured embedding model plus native pgvector projection, degrades to \
+semantic_unavailable_no_embedding_model when no embedding model is configured, and can still rank \
+selected-media hits through dHash image similarity. Rich CKC tag notes are \
+separate from sheet notes, album notes, and image notes: edit atelier-ckc-tag-note-tag, \
+atelier-ckc-tag-note-scope, and atelier-ckc-tag-note-editor, then click atelier-ckc-tag-note-save. The \
+native backend routes are POST /atelier/ckc/search and POST /atelier/ckc/tag-notes; tag-note writes \
+require x-hsk-actor-id. \
 Posekit starts from atelier-content-posekit and exposes model-addressable controls for the current \
 placeholder split-view workflow: atelier-pose-yaw-minus, atelier-pose-yaw-plus, atelier-pose-reset, \
 atelier-pose-face-toggle, atelier-pose-body-toggle, atelier-pose-hands-toggle, \
@@ -509,6 +525,134 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         mcp_tool: "argus.click",
         description:
             "argus.click{target:'atelier-ckc-media-save'} writes media notes/tags with actor attribution.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SEARCH_QUERY_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Type a CKC search query",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-search-query', value:'<query>'} sets fuzzy/vector/combined search text.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SEARCH_TAGS_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Filter CKC search by tags",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-search-tags', value:'tag, tag'} applies rich tag filters.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SEARCH_FILTER_CHARACTER_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Scope CKC search to the selected character",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-search-filter-character'} toggles selected-character search scope.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SEARCH_FILTER_COLLECTION_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Scope CKC search to the selected album",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-search-filter-collection'} toggles selected-album search scope.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SEARCH_FILTER_MEDIA_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Scope CKC search to the selected media",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-search-filter-media'} toggles selected-media search scope.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SEARCH_FILTER_SIMILARITY_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Use selected media similarity for CKC search",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-search-filter-similarity'} uses the selected media asset as an image-similarity source when backend dHash projection exists.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SEARCH_MODE_FUZZY_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Select CKC fuzzy search",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-search-mode-fuzzy'} selects typo-tolerant CKC search.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SEARCH_MODE_VECTOR_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Select CKC vector search",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-search-mode-vector'} selects CKC semantic search; status reports llm_embedding+pgvector_projection when a model is available or semantic_unavailable_no_embedding_model when it is not.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SEARCH_MODE_COMBINED_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Select CKC combined search",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-search-mode-combined'} selects fuzzy plus vector intersection search.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SEARCH_RUN_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Run CKC search",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-search-run'} runs search and fills atelier-ckc-search-results.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SEARCH_RESULTS_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Inspect CKC search results",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads atelier-ckc-search-results and stable atelier-ckc-search-result-* rows.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SEARCH_STATUS_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Read CKC search status",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads semantic availability, vector source, pending state, and result counts.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_TAG_NOTE_TAG_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Type the CKC tag-note tag",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-tag-note-tag', value:'training'} selects the tag.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_TAG_NOTE_SCOPE_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Type the CKC tag-note scope ref",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-tag-note-scope', value:'atelier://collection/...'} scopes the note.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_TAG_NOTE_EDITOR_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Edit a CKC rich tag note",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-tag-note-editor', value:'<note>'} edits the tag-note body.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_TAG_NOTE_SAVE_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Save a CKC rich tag note",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-tag-note-save'} writes a CKC tag note with actor attribution.",
     });
 
     // ── Code editor: every CODE_ACTION_CATALOG entry as editor.code.<action> ─────────────────────────

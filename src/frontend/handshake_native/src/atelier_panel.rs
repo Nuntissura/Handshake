@@ -12,8 +12,9 @@ use crate::atelier_side_panel::AtelierSidePanel;
 use crate::backend_client::{
     AtelierCharacterRow, AtelierCkcAppendCell, AtelierCkcCell, AtelierCkcCharacterSheetRow,
     AtelierCkcCreateCell, AtelierCkcMediaAlbumRow, AtelierCkcMediaMemberRow,
-    AtelierCkcMediaNotesCell, AtelierCkcMediaNotesTagsRow, AtelierClient, AtelierSheetVersionRow,
-    ATELIER_CKC_ACTOR_ID,
+    AtelierCkcMediaNotesCell, AtelierCkcMediaNotesTagsRow, AtelierCkcSearchCell,
+    AtelierCkcSearchResponse, AtelierCkcSearchResultRow, AtelierCkcTagNoteCell,
+    AtelierCkcTagNoteRow, AtelierClient, AtelierSheetVersionRow, ATELIER_CKC_ACTOR_ID,
 };
 use crate::editor_pane_factories::SharedPalette;
 use crate::graph::canvas_board::{CanvasEvent, LoomCanvasBoard};
@@ -43,6 +44,25 @@ pub const ATELIER_CKC_LINKED_MEDIA_LIST_AUTHOR_ID: &str = "atelier-ckc-linked-me
 pub const ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID: &str = "atelier-ckc-media-notes-editor";
 pub const ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID: &str = "atelier-ckc-media-tags-editor";
 pub const ATELIER_CKC_MEDIA_SAVE_AUTHOR_ID: &str = "atelier-ckc-media-save";
+pub const ATELIER_CKC_SEARCH_QUERY_AUTHOR_ID: &str = "atelier-ckc-search-query";
+pub const ATELIER_CKC_SEARCH_TAGS_AUTHOR_ID: &str = "atelier-ckc-search-tags";
+pub const ATELIER_CKC_SEARCH_FILTER_CHARACTER_AUTHOR_ID: &str =
+    "atelier-ckc-search-filter-character";
+pub const ATELIER_CKC_SEARCH_FILTER_COLLECTION_AUTHOR_ID: &str =
+    "atelier-ckc-search-filter-collection";
+pub const ATELIER_CKC_SEARCH_FILTER_MEDIA_AUTHOR_ID: &str = "atelier-ckc-search-filter-media";
+pub const ATELIER_CKC_SEARCH_FILTER_SIMILARITY_AUTHOR_ID: &str =
+    "atelier-ckc-search-filter-similarity";
+pub const ATELIER_CKC_SEARCH_MODE_FUZZY_AUTHOR_ID: &str = "atelier-ckc-search-mode-fuzzy";
+pub const ATELIER_CKC_SEARCH_MODE_VECTOR_AUTHOR_ID: &str = "atelier-ckc-search-mode-vector";
+pub const ATELIER_CKC_SEARCH_MODE_COMBINED_AUTHOR_ID: &str = "atelier-ckc-search-mode-combined";
+pub const ATELIER_CKC_SEARCH_RUN_AUTHOR_ID: &str = "atelier-ckc-search-run";
+pub const ATELIER_CKC_SEARCH_STATUS_AUTHOR_ID: &str = "atelier-ckc-search-status";
+pub const ATELIER_CKC_SEARCH_RESULTS_AUTHOR_ID: &str = "atelier-ckc-search-results";
+pub const ATELIER_CKC_TAG_NOTE_TAG_AUTHOR_ID: &str = "atelier-ckc-tag-note-tag";
+pub const ATELIER_CKC_TAG_NOTE_SCOPE_AUTHOR_ID: &str = "atelier-ckc-tag-note-scope";
+pub const ATELIER_CKC_TAG_NOTE_EDITOR_AUTHOR_ID: &str = "atelier-ckc-tag-note-editor";
+pub const ATELIER_CKC_TAG_NOTE_SAVE_AUTHOR_ID: &str = "atelier-ckc-tag-note-save";
 pub const ATELIER_POSE_YAW_MINUS_AUTHOR_ID: &str = "atelier-pose-yaw-minus";
 pub const ATELIER_POSE_YAW_PLUS_AUTHOR_ID: &str = "atelier-pose-yaw-plus";
 pub const ATELIER_POSE_RESET_AUTHOR_ID: &str = "atelier-pose-reset";
@@ -138,6 +158,165 @@ struct CkcMediaSaveRequest {
     review_status: Option<String>,
     source_path_ref: Option<String>,
     source_url_ref: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CkcSearchMode {
+    Fuzzy,
+    Vector,
+    Combined,
+}
+
+impl CkcSearchMode {
+    const ALL: [Self; 3] = [Self::Fuzzy, Self::Vector, Self::Combined];
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::Fuzzy => "Fuzzy",
+            Self::Vector => "Vector",
+            Self::Combined => "Combined",
+        }
+    }
+
+    fn backend_value(self) -> &'static str {
+        match self {
+            Self::Fuzzy => "fuzzy",
+            Self::Vector => "vector",
+            Self::Combined => "combined",
+        }
+    }
+
+    fn author_id(self) -> &'static str {
+        match self {
+            Self::Fuzzy => ATELIER_CKC_SEARCH_MODE_FUZZY_AUTHOR_ID,
+            Self::Vector => ATELIER_CKC_SEARCH_MODE_VECTOR_AUTHOR_ID,
+            Self::Combined => ATELIER_CKC_SEARCH_MODE_COMBINED_AUTHOR_ID,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct CkcSearchResultRecord {
+    target_kind: String,
+    target_ref: String,
+    title: String,
+    snippet: String,
+    character_ref: Option<String>,
+    sheet_version_ref: Option<String>,
+    collection_ref: Option<String>,
+    media_ref: Option<String>,
+    tag_ref: Option<String>,
+    tags: Vec<String>,
+    tag_notes: Vec<CkcTagNoteRecord>,
+    match_modes: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+struct CkcTagNoteRecord {
+    tag_ref: String,
+    tag_text: String,
+    scope_ref: Option<String>,
+    note: String,
+}
+
+#[derive(Debug, Clone)]
+struct CkcTagNoteSaveRequest {
+    tag_text: String,
+    scope_ref: Option<String>,
+    note: String,
+}
+
+#[derive(Debug, Clone, Default)]
+struct CkcSearchFilterRefs {
+    character_internal_id: Option<String>,
+    character_ref: Option<String>,
+    collection_id: Option<String>,
+    collection_ref: Option<String>,
+    media_asset_id: Option<String>,
+    media_ref: Option<String>,
+}
+
+fn selected_ckc_search_filter_refs(state: &AtelierPanelState) -> CkcSearchFilterRefs {
+    let Some(character) = state.ckc_characters.get(
+        state
+            .ckc_selected_index
+            .min(state.ckc_characters.len().saturating_sub(1)),
+    ) else {
+        return CkcSearchFilterRefs::default();
+    };
+    let mut refs = CkcSearchFilterRefs {
+        character_internal_id: Some(character.character_internal_id.clone()),
+        character_ref: Some(character.character_ref()),
+        ..Default::default()
+    };
+    let media_location = state
+        .ckc_selected_media_asset_id
+        .as_deref()
+        .and_then(|asset_id| character.media_location(asset_id))
+        .or_else(|| character.first_media_location());
+    if let Some((album_idx, member_idx)) = media_location {
+        let album = &character.media_albums[album_idx];
+        let member = &album.members[member_idx];
+        refs.collection_id = Some(album.collection_id.clone());
+        refs.collection_ref = Some(album.collection_ref.clone());
+        refs.media_asset_id = Some(member.asset_id.clone());
+        refs.media_ref = Some(member.media_ref.clone());
+    }
+    refs
+}
+
+fn ckc_result_has_ref(result: &CkcSearchResultRecord, expected: Option<&str>) -> bool {
+    let Some(expected) = expected else {
+        return false;
+    };
+    [
+        Some(result.target_ref.as_str()),
+        result.character_ref.as_deref(),
+        result.sheet_version_ref.as_deref(),
+        result.collection_ref.as_deref(),
+        result.media_ref.as_deref(),
+        result.tag_ref.as_deref(),
+    ]
+    .into_iter()
+    .flatten()
+    .any(|actual| actual == expected)
+}
+
+fn ckc_scope_matches_result_refs(
+    scope_ref: Option<&str>,
+    target_ref: &str,
+    character_ref: Option<&str>,
+    sheet_version_ref: Option<&str>,
+    collection_ref: Option<&str>,
+    media_ref: Option<&str>,
+    tag_ref: Option<&str>,
+) -> bool {
+    let Some(scope_ref) = scope_ref else {
+        return true;
+    };
+    [
+        Some(target_ref),
+        character_ref,
+        sheet_version_ref,
+        collection_ref,
+        media_ref,
+        tag_ref,
+    ]
+    .into_iter()
+    .flatten()
+    .any(|actual| actual == scope_ref)
+}
+
+fn ckc_search_result_matches_filters(
+    result: &CkcSearchResultRecord,
+    filters: &CkcSearchFilterRefs,
+    use_character: bool,
+    use_collection: bool,
+    use_media: bool,
+) -> bool {
+    (!use_character || ckc_result_has_ref(result, filters.character_ref.as_deref()))
+        && (!use_collection || ckc_result_has_ref(result, filters.collection_ref.as_deref()))
+        && (!use_media || ckc_result_has_ref(result, filters.media_ref.as_deref()))
 }
 
 impl CkcCharacterRecord {
@@ -326,6 +505,289 @@ impl CkcMediaMemberRecord {
     }
 }
 
+impl CkcSearchResultRecord {
+    fn from_backend(row: AtelierCkcSearchResultRow) -> Self {
+        let AtelierCkcSearchResultRow {
+            target_kind,
+            target_ref,
+            title,
+            snippet,
+            character_ref,
+            sheet_version_ref,
+            collection_ref,
+            media_ref,
+            tag_ref,
+            tags,
+            tag_notes,
+            match_modes,
+            fuzzy_score: _,
+            vector_score: _,
+        } = row;
+        let tag_notes = tag_notes
+            .into_iter()
+            .filter(|note| {
+                ckc_scope_matches_result_refs(
+                    note.scope_ref.as_deref(),
+                    &target_ref,
+                    character_ref.as_deref(),
+                    sheet_version_ref.as_deref(),
+                    collection_ref.as_deref(),
+                    media_ref.as_deref(),
+                    tag_ref.as_deref(),
+                )
+            })
+            .map(CkcTagNoteRecord::from_backend)
+            .collect();
+        Self {
+            target_kind,
+            target_ref,
+            title,
+            snippet,
+            character_ref,
+            sheet_version_ref,
+            collection_ref,
+            media_ref,
+            tag_ref,
+            tags,
+            tag_notes,
+            match_modes,
+        }
+    }
+
+    fn summary_label(&self) -> String {
+        let modes = if self.match_modes.is_empty() {
+            "match".to_owned()
+        } else {
+            self.match_modes.join("+")
+        };
+        format!(
+            "{}: {} [{}] {}",
+            self.target_kind, self.title, modes, self.target_ref
+        )
+    }
+}
+
+impl CkcTagNoteRecord {
+    fn from_backend(row: AtelierCkcTagNoteRow) -> Self {
+        Self {
+            tag_ref: row.tag_ref,
+            tag_text: row.tag_text,
+            scope_ref: row.scope_ref,
+            note: row.note,
+        }
+    }
+}
+
+fn seeded_ckc_search_results(characters: &[CkcCharacterRecord]) -> Vec<CkcSearchResultRecord> {
+    local_ckc_search(
+        characters,
+        "mira reference",
+        CkcSearchMode::Fuzzy,
+        &["reference".to_owned()],
+    )
+}
+
+fn local_ckc_search(
+    characters: &[CkcCharacterRecord],
+    query: &str,
+    mode: CkcSearchMode,
+    tags: &[String],
+) -> Vec<CkcSearchResultRecord> {
+    let query = query.trim().to_ascii_lowercase();
+    let tags: Vec<String> = tags
+        .iter()
+        .map(|tag| tag.trim().to_ascii_lowercase())
+        .filter(|tag| !tag.is_empty())
+        .collect();
+    let mut out = Vec::new();
+    for character in characters {
+        let character_tags = ["character".to_owned(), "sheet".to_owned()];
+        let haystack = format!(
+            "{}\n{}\n{}",
+            character.display_name, character.public_id, character.sheet_editor_text
+        )
+        .to_ascii_lowercase();
+        if local_match(&haystack, &query, mode)
+            && tags.iter().all(|tag| {
+                character_tags.iter().any(|candidate| candidate == tag)
+                    || haystack.contains(tag.as_str())
+            })
+        {
+            out.push(CkcSearchResultRecord {
+                target_kind: "character".to_owned(),
+                target_ref: character.character_ref(),
+                title: character.display_name.clone(),
+                snippet: character
+                    .sheet_editor_text
+                    .lines()
+                    .next()
+                    .unwrap_or_default()
+                    .to_owned(),
+                character_ref: Some(character.character_ref()),
+                sheet_version_ref: character.sheet_version_ref(),
+                collection_ref: None,
+                media_ref: None,
+                tag_ref: None,
+                tags: character_tags.to_vec(),
+                tag_notes: Vec::new(),
+                match_modes: vec![mode.backend_value().to_owned()],
+            });
+        }
+
+        for album in &character.media_albums {
+            let album_haystack = format!(
+                "{}\n{}\n{}\n{}",
+                album.name,
+                album.description,
+                album.tags.join(" "),
+                character.display_name
+            )
+            .to_ascii_lowercase();
+            if local_match(&album_haystack, &query, mode)
+                && tags
+                    .iter()
+                    .all(|tag| album.tags.iter().any(|candidate| candidate == tag))
+            {
+                out.push(CkcSearchResultRecord {
+                    target_kind: "album".to_owned(),
+                    target_ref: album.collection_ref.clone(),
+                    title: album.name.clone(),
+                    snippet: album.description.clone(),
+                    character_ref: Some(character.character_ref()),
+                    sheet_version_ref: character.sheet_version_ref(),
+                    collection_ref: Some(album.collection_ref.clone()),
+                    media_ref: None,
+                    tag_ref: None,
+                    tags: album.tags.clone(),
+                    tag_notes: seeded_local_tag_notes(album),
+                    match_modes: vec![mode.backend_value().to_owned()],
+                });
+            }
+            for member in &album.members {
+                let member_tags = ckc_tags_from_buffer(&member.tags_buffer);
+                let member_haystack = format!(
+                    "{}\n{}\n{}\n{}\n{}",
+                    member.display_label,
+                    member.notes,
+                    member_tags.join(" "),
+                    album.name,
+                    character.display_name
+                )
+                .to_ascii_lowercase();
+                if local_match(&member_haystack, &query, mode)
+                    && tags
+                        .iter()
+                        .all(|tag| member_tags.iter().any(|candidate| candidate == tag))
+                {
+                    out.push(CkcSearchResultRecord {
+                        target_kind: "media".to_owned(),
+                        target_ref: member.media_ref.clone(),
+                        title: member.display_label.clone(),
+                        snippet: member.notes.clone(),
+                        character_ref: Some(character.character_ref()),
+                        sheet_version_ref: character.sheet_version_ref(),
+                        collection_ref: Some(album.collection_ref.clone()),
+                        media_ref: Some(member.media_ref.clone()),
+                        tag_ref: None,
+                        tags: member_tags,
+                        tag_notes: seeded_local_tag_notes(album),
+                        match_modes: vec![mode.backend_value().to_owned()],
+                    });
+                }
+            }
+        }
+    }
+    out.truncate(8);
+    out
+}
+
+fn local_match(haystack: &str, query: &str, mode: CkcSearchMode) -> bool {
+    if query.is_empty() {
+        return true;
+    }
+    if haystack.contains(query) {
+        return true;
+    }
+    match mode {
+        CkcSearchMode::Fuzzy | CkcSearchMode::Combined => query.split_whitespace().all(|needle| {
+            haystack
+                .split_whitespace()
+                .any(|word| fuzzy_word_match(word, needle))
+        }),
+        CkcSearchMode::Vector => query.split_whitespace().any(|needle| {
+            haystack
+                .split_whitespace()
+                .any(|word| fuzzy_word_match(word, needle))
+        }),
+    }
+}
+
+fn fuzzy_word_match(word: &str, needle: &str) -> bool {
+    if needle.len() <= 2 {
+        return word == needle;
+    }
+    if word.contains(needle) || needle.contains(word) {
+        return true;
+    }
+    let common = needle.chars().filter(|ch| word.contains(*ch)).count();
+    common + 1 >= needle.len()
+}
+
+fn seeded_local_tag_notes(album: &CkcMediaAlbumRecord) -> Vec<CkcTagNoteRecord> {
+    album
+        .tags
+        .iter()
+        .filter(|tag| tag.as_str() == "training" || tag.as_str() == "reference")
+        .map(|tag| CkcTagNoteRecord {
+            tag_ref: format!("atelier://tag/local-{tag}"),
+            tag_text: tag.clone(),
+            scope_ref: Some(album.collection_ref.clone()),
+            note: format!("{tag} applies to reusable CKC media for this album."),
+        })
+        .collect()
+}
+
+fn ckc_search_status_from_response(response: &AtelierCkcSearchResponse) -> String {
+    let modes = if response.modes.is_empty() {
+        "fuzzy".to_owned()
+    } else {
+        response.modes.join("+")
+    };
+    let vector = response
+        .vector_source
+        .as_deref()
+        .filter(|value| !value.is_empty())
+        .unwrap_or("no vector source");
+    format!(
+        "CKC search returned {} result(s) for '{}' via {modes}; semantic_available={} ({vector})",
+        response.result_count, response.query, response.semantic_available
+    )
+}
+
+fn attach_tag_note_to_visible_results(
+    results: &mut [CkcSearchResultRecord],
+    note: CkcTagNoteRecord,
+) {
+    for result in results {
+        let tag_matches = result.tags.iter().any(|tag| tag == &note.tag_text)
+            || result
+                .tag_ref
+                .as_deref()
+                .is_some_and(|tag_ref| tag_ref == note.tag_ref);
+        let scope_matches = note
+            .scope_ref
+            .as_deref()
+            .map(|scope_ref| ckc_result_has_ref(result, Some(scope_ref)))
+            .unwrap_or(true);
+        if tag_matches && scope_matches {
+            result.tag_notes.retain(|existing| {
+                !(existing.tag_text == note.tag_text && existing.scope_ref == note.scope_ref)
+            });
+            result.tag_notes.push(note.clone());
+        }
+    }
+}
+
 #[derive(Debug)]
 struct AtelierPanelState {
     active_tab: AtelierPanelTab,
@@ -339,6 +801,20 @@ struct AtelierPanelState {
     ckc_append_pending: bool,
     ckc_media_save_pending: bool,
     ckc_selected_media_asset_id: Option<String>,
+    ckc_search_query: String,
+    ckc_search_tags: String,
+    ckc_search_filter_selected_character: bool,
+    ckc_search_filter_selected_collection: bool,
+    ckc_search_filter_selected_media: bool,
+    ckc_search_use_selected_media_similarity: bool,
+    ckc_search_mode: CkcSearchMode,
+    ckc_search_pending: bool,
+    ckc_search_status: String,
+    ckc_search_results: Vec<CkcSearchResultRecord>,
+    ckc_tag_note_tag: String,
+    ckc_tag_note_scope_ref: String,
+    ckc_tag_note_editor: String,
+    ckc_tag_note_pending: bool,
     ckc_error: Option<String>,
     pose_yaw: f32,
     pose_pitch: f32,
@@ -352,9 +828,11 @@ struct AtelierPanelState {
 
 impl Default for AtelierPanelState {
     fn default() -> Self {
+        let ckc_characters = seeded_ckc_characters();
+        let ckc_search_results = seeded_ckc_search_results(&ckc_characters);
         Self {
             active_tab: AtelierPanelTab::CastkitCodex,
-            ckc_characters: seeded_ckc_characters(),
+            ckc_characters,
             ckc_selected_index: 0,
             ckc_new_display_name: "New character".to_owned(),
             ckc_backend_loaded: false,
@@ -364,6 +842,22 @@ impl Default for AtelierPanelState {
             ckc_append_pending: false,
             ckc_media_save_pending: false,
             ckc_selected_media_asset_id: None,
+            ckc_search_query: String::new(),
+            ckc_search_tags: String::new(),
+            ckc_search_filter_selected_character: false,
+            ckc_search_filter_selected_collection: false,
+            ckc_search_filter_selected_media: false,
+            ckc_search_use_selected_media_similarity: false,
+            ckc_search_mode: CkcSearchMode::Fuzzy,
+            ckc_search_pending: false,
+            ckc_search_status: "Local CKC search ready".to_owned(),
+            ckc_search_results,
+            ckc_tag_note_tag: "training".to_owned(),
+            ckc_tag_note_scope_ref: "atelier://collection/018f7848-1111-7000-9000-00000000a001"
+                .to_owned(),
+            ckc_tag_note_editor: "Use this tag for reusable CKC training/reference media."
+                .to_owned(),
+            ckc_tag_note_pending: false,
             ckc_error: None,
             pose_yaw: 0.0,
             pose_pitch: 0.0,
@@ -503,6 +997,13 @@ pub fn ckc_folder_row_author_id(folder_ref: &str) -> String {
     format!("atelier-ckc-folder-{}", stable_author_id_suffix(folder_ref))
 }
 
+pub fn ckc_search_result_row_author_id(target_ref: &str) -> String {
+    format!(
+        "atelier-ckc-search-result-{}",
+        stable_author_id_suffix(target_ref)
+    )
+}
+
 fn stable_author_id_suffix(value: &str) -> String {
     let mut out = String::new();
     let mut last_dash = false;
@@ -567,6 +1068,8 @@ pub struct AtelierPanel {
     ckc_create_cell: AtelierCkcCreateCell,
     ckc_append_cell: AtelierCkcAppendCell,
     ckc_media_notes_cell: AtelierCkcMediaNotesCell,
+    ckc_search_cell: AtelierCkcSearchCell,
+    ckc_tag_note_cell: AtelierCkcTagNoteCell,
 }
 
 impl AtelierPanel {
@@ -584,8 +1087,15 @@ impl AtelierPanel {
         canvas_events: Arc<Mutex<Vec<CanvasEvent>>>,
         ckc_client: Option<AtelierClient>,
     ) -> Self {
+        let mut state = AtelierPanelState::default();
+        if ckc_client.is_some() {
+            state.ckc_characters.clear();
+            state.ckc_search_results.clear();
+            state.ckc_search_status = "Waiting for live CKC database load".to_owned();
+            state.ckc_tag_note_scope_ref.clear();
+        }
         Self {
-            state: Mutex::new(AtelierPanelState::default()),
+            state: Mutex::new(state),
             side_panel,
             canvas_board,
             canvas_events,
@@ -594,6 +1104,8 @@ impl AtelierPanel {
             ckc_create_cell: Arc::new(Mutex::new(None)),
             ckc_append_cell: Arc::new(Mutex::new(None)),
             ckc_media_notes_cell: Arc::new(Mutex::new(None)),
+            ckc_search_cell: Arc::new(Mutex::new(None)),
+            ckc_tag_note_cell: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -752,6 +1264,17 @@ impl AtelierPanel {
                             .unwrap_or(0);
                         state.ckc_backend_loaded = true;
                         state.ckc_error = None;
+                        state.ckc_search_results.clear();
+                        let filters = selected_ckc_search_filter_refs(&state);
+                        state.ckc_tag_note_scope_ref = filters
+                            .collection_ref
+                            .clone()
+                            .or(filters.character_ref.clone())
+                            .unwrap_or_default();
+                        state.ckc_search_status = format!(
+                            "CKC database loaded ({} character(s)); run search for live refs",
+                            state.ckc_characters.len()
+                        );
                     }
                     Err(err) => {
                         state.ckc_backend_loaded = false;
@@ -871,6 +1394,58 @@ impl AtelierPanel {
                 }
             }
         }
+
+        let search_result = self
+            .ckc_search_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        if let Some(result) = search_result {
+            if let Ok(mut state) = self.state.lock() {
+                state.ckc_search_pending = false;
+                match result {
+                    Ok(response) => {
+                        let status = ckc_search_status_from_response(&response);
+                        state.ckc_search_results = response
+                            .results
+                            .into_iter()
+                            .map(CkcSearchResultRecord::from_backend)
+                            .collect();
+                        state.ckc_search_status = status;
+                        state.ckc_error = None;
+                    }
+                    Err(err) => {
+                        state.ckc_search_results.clear();
+                        state.ckc_search_status = format!("CKC search failed: {err}");
+                    }
+                }
+            }
+        }
+
+        let tag_note_result = self
+            .ckc_tag_note_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        if let Some(result) = tag_note_result {
+            if let Ok(mut state) = self.state.lock() {
+                state.ckc_tag_note_pending = false;
+                match result {
+                    Ok(row) => {
+                        let tag_text = row.tag_text.clone();
+                        state.ckc_search_status = format!("Saved CKC tag note for {tag_text}");
+                        attach_tag_note_to_visible_results(
+                            &mut state.ckc_search_results,
+                            CkcTagNoteRecord::from_backend(row),
+                        );
+                        state.ckc_error = None;
+                    }
+                    Err(err) => {
+                        state.ckc_search_status = format!("CKC tag note save failed: {err}");
+                    }
+                }
+            }
+        }
     }
 
     fn show_ckc(&self, ui: &mut egui::Ui, palette: &HsPalette) {
@@ -888,12 +1463,18 @@ impl AtelierPanel {
             ui.vertical(|ui| {
                 ui.set_width(left_w);
                 ui.heading(egui::RichText::new("Characters").color(palette.text));
+                egui::ScrollArea::vertical()
+                    .id_salt("atelier-ckc-left-scroll")
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
                 if state.ckc_loading {
                     ui.label(egui::RichText::new("Loading CKC database...").color(palette.text_subtle));
                 }
                 if let Some(error) = &state.ckc_error {
                     ui.label(egui::RichText::new(format!("CKC backend: {error}")).color(palette.error_text));
                 }
+                self.show_ckc_search(ui, palette, &mut state);
+                ui.separator();
                 let list_response = ui
                     .vertical(|ui| {
                         let mut pending_selection = None;
@@ -1035,6 +1616,7 @@ impl AtelierPanel {
                 if let Ok(mut side_panel) = self.side_panel.lock() {
                     side_panel.show(ui, palette);
                 }
+                    });
             });
             ui.separator();
             ui.vertical(|ui| {
@@ -1194,6 +1776,322 @@ impl AtelierPanel {
                 }
             });
         });
+    }
+
+    fn show_ckc_search(
+        &self,
+        ui: &mut egui::Ui,
+        palette: &HsPalette,
+        state: &mut AtelierPanelState,
+    ) {
+        ui.heading(egui::RichText::new("Search").color(palette.text));
+        let query = ui.text_edit_singleline(&mut state.ckc_search_query);
+        emit_node(
+            ui.ctx(),
+            query.id,
+            accesskit::Role::TextInput,
+            ATELIER_CKC_SEARCH_QUERY_AUTHOR_ID,
+            "CKC fuzzy vector combined search query",
+            false,
+        );
+        let tags = ui.text_edit_singleline(&mut state.ckc_search_tags);
+        emit_node(
+            ui.ctx(),
+            tags.id,
+            accesskit::Role::TextInput,
+            ATELIER_CKC_SEARCH_TAGS_AUTHOR_ID,
+            "CKC rich tag filter",
+            false,
+        );
+        ui.horizontal_wrapped(|ui| {
+            let character =
+                ui.checkbox(&mut state.ckc_search_filter_selected_character, "Character");
+            emit_node(
+                ui.ctx(),
+                character.id,
+                accesskit::Role::CheckBox,
+                ATELIER_CKC_SEARCH_FILTER_CHARACTER_AUTHOR_ID,
+                "Filter CKC search to the selected character",
+                state.ckc_search_filter_selected_character,
+            );
+            let collection = ui.checkbox(&mut state.ckc_search_filter_selected_collection, "Album");
+            emit_node(
+                ui.ctx(),
+                collection.id,
+                accesskit::Role::CheckBox,
+                ATELIER_CKC_SEARCH_FILTER_COLLECTION_AUTHOR_ID,
+                "Filter CKC search to the selected album",
+                state.ckc_search_filter_selected_collection,
+            );
+            let media = ui.checkbox(&mut state.ckc_search_filter_selected_media, "Media");
+            emit_node(
+                ui.ctx(),
+                media.id,
+                accesskit::Role::CheckBox,
+                ATELIER_CKC_SEARCH_FILTER_MEDIA_AUTHOR_ID,
+                "Filter CKC search to the selected media asset",
+                state.ckc_search_filter_selected_media,
+            );
+            let similarity = ui.checkbox(
+                &mut state.ckc_search_use_selected_media_similarity,
+                "Similarity",
+            );
+            emit_node(
+                ui.ctx(),
+                similarity.id,
+                accesskit::Role::CheckBox,
+                ATELIER_CKC_SEARCH_FILTER_SIMILARITY_AUTHOR_ID,
+                "Use selected media as CKC image-similarity source",
+                state.ckc_search_use_selected_media_similarity,
+            );
+        });
+        ui.horizontal(|ui| {
+            for mode in CkcSearchMode::ALL {
+                let selected = state.ckc_search_mode == mode;
+                let button = ui.add(egui::Button::selectable(selected, mode.label()));
+                emit_node(
+                    ui.ctx(),
+                    button.id,
+                    accesskit::Role::Button,
+                    mode.author_id(),
+                    mode.label(),
+                    selected,
+                );
+                if button.clicked() {
+                    state.ckc_search_mode = mode;
+                }
+            }
+        });
+        let run = ui.add_enabled(!state.ckc_search_pending, egui::Button::new("Search CKC"));
+        emit_node(
+            ui.ctx(),
+            run.id,
+            accesskit::Role::Button,
+            ATELIER_CKC_SEARCH_RUN_AUTHOR_ID,
+            "Run CKC search",
+            state.ckc_search_pending,
+        );
+        if run.clicked() {
+            let tags = ckc_tags_from_buffer(&state.ckc_search_tags);
+            let mode = state.ckc_search_mode;
+            let filters = selected_ckc_search_filter_refs(state);
+            let character_internal_id = if state.ckc_search_filter_selected_character {
+                filters.character_internal_id.as_deref()
+            } else {
+                None
+            };
+            let collection_id = if state.ckc_search_filter_selected_collection {
+                filters.collection_id.as_deref()
+            } else {
+                None
+            };
+            let media_asset_id = if state.ckc_search_filter_selected_media {
+                filters.media_asset_id.as_deref()
+            } else {
+                None
+            };
+            let similar_to_asset_id = if state.ckc_search_use_selected_media_similarity {
+                filters.media_asset_id.as_deref()
+            } else {
+                None
+            };
+            if let Some(client) = self.ckc_client.as_ref() {
+                state.ckc_search_pending = true;
+                state.ckc_search_status = format!("Searching CKC with {} mode", mode.label());
+                let modes = vec![mode.backend_value().to_owned()];
+                client.search_ckc(
+                    &state.ckc_search_query,
+                    &modes,
+                    &tags,
+                    character_internal_id,
+                    collection_id,
+                    media_asset_id,
+                    similar_to_asset_id,
+                    None,
+                    12,
+                    self.ckc_search_cell.clone(),
+                );
+            } else {
+                let mut results =
+                    local_ckc_search(&state.ckc_characters, &state.ckc_search_query, mode, &tags);
+                results.retain(|result| {
+                    ckc_search_result_matches_filters(
+                        result,
+                        &filters,
+                        state.ckc_search_filter_selected_character,
+                        state.ckc_search_filter_selected_collection,
+                        state.ckc_search_filter_selected_media
+                            || state.ckc_search_use_selected_media_similarity,
+                    )
+                });
+                state.ckc_search_results = results;
+                state.ckc_search_status = format!(
+                    "Local CKC {} search returned {} result(s)",
+                    mode.label(),
+                    state.ckc_search_results.len()
+                );
+            }
+        }
+        let status =
+            ui.label(egui::RichText::new(&state.ckc_search_status).color(palette.text_subtle));
+        emit_node(
+            ui.ctx(),
+            status.id,
+            accesskit::Role::Label,
+            ATELIER_CKC_SEARCH_STATUS_AUTHOR_ID,
+            &state.ckc_search_status,
+            state.ckc_search_pending,
+        );
+
+        let results_response = ui
+            .vertical(|ui| {
+                if state.ckc_search_results.is_empty() {
+                    ui.label(
+                        egui::RichText::new("No CKC search results").color(palette.text_subtle),
+                    );
+                }
+                for result in &state.ckc_search_results {
+                    let row = ui.label(result.summary_label());
+                    emit_node(
+                        ui.ctx(),
+                        row.id,
+                        accesskit::Role::ListItem,
+                        &ckc_search_result_row_author_id(&result.target_ref),
+                        &result.summary_label(),
+                        false,
+                    );
+                    if !result.snippet.is_empty() {
+                        ui.label(
+                            egui::RichText::new(result.snippet.clone()).color(palette.text_subtle),
+                        );
+                    }
+                    let mut refs = Vec::new();
+                    for value in [
+                        result.character_ref.as_deref(),
+                        result.sheet_version_ref.as_deref(),
+                        result.collection_ref.as_deref(),
+                        result.media_ref.as_deref(),
+                        result.tag_ref.as_deref(),
+                    ]
+                    .into_iter()
+                    .flatten()
+                    {
+                        refs.push(value.to_owned());
+                    }
+                    if !refs.is_empty() {
+                        ui.label(
+                            egui::RichText::new(format!("refs: {}", refs.join(" | ")))
+                                .color(palette.text_subtle),
+                        );
+                    }
+                    if !result.tags.is_empty() {
+                        ui.label(
+                            egui::RichText::new(format!("tags: {}", result.tags.join(", ")))
+                                .color(palette.text_subtle),
+                        );
+                    }
+                    for note in &result.tag_notes {
+                        let scope = note.scope_ref.as_deref().unwrap_or("global");
+                        ui.label(
+                            egui::RichText::new(format!(
+                                "tag note {} [{}]: {}",
+                                note.tag_text, scope, note.note
+                            ))
+                            .color(palette.text_subtle),
+                        );
+                    }
+                }
+            })
+            .response;
+        emit_node(
+            ui.ctx(),
+            results_response.id,
+            accesskit::Role::List,
+            ATELIER_CKC_SEARCH_RESULTS_AUTHOR_ID,
+            "CKC search results",
+            false,
+        );
+
+        ui.add_space(4.0);
+        ui.label(egui::RichText::new("Tag note").color(palette.text));
+        ui.horizontal(|ui| {
+            let tag = ui.text_edit_singleline(&mut state.ckc_tag_note_tag);
+            emit_node(
+                ui.ctx(),
+                tag.id,
+                accesskit::Role::TextInput,
+                ATELIER_CKC_TAG_NOTE_TAG_AUTHOR_ID,
+                "CKC tag note tag",
+                false,
+            );
+            let scope = ui.text_edit_singleline(&mut state.ckc_tag_note_scope_ref);
+            emit_node(
+                ui.ctx(),
+                scope.id,
+                accesskit::Role::TextInput,
+                ATELIER_CKC_TAG_NOTE_SCOPE_AUTHOR_ID,
+                "CKC tag note scope ref",
+                false,
+            );
+        });
+        let note = ui.add(
+            egui::TextEdit::multiline(&mut state.ckc_tag_note_editor)
+                .desired_rows(2)
+                .lock_focus(true),
+        );
+        emit_node(
+            ui.ctx(),
+            note.id,
+            accesskit::Role::TextInput,
+            ATELIER_CKC_TAG_NOTE_EDITOR_AUTHOR_ID,
+            "CKC rich tag note editor",
+            false,
+        );
+        let save = ui.add_enabled(
+            !state.ckc_tag_note_pending,
+            egui::Button::new("Save tag note"),
+        );
+        emit_node(
+            ui.ctx(),
+            save.id,
+            accesskit::Role::Button,
+            ATELIER_CKC_TAG_NOTE_SAVE_AUTHOR_ID,
+            "Save CKC rich tag note",
+            state.ckc_tag_note_pending,
+        );
+        if save.clicked() {
+            let request = CkcTagNoteSaveRequest {
+                tag_text: state.ckc_tag_note_tag.trim().to_ascii_lowercase(),
+                scope_ref: if state.ckc_tag_note_scope_ref.trim().is_empty() {
+                    None
+                } else {
+                    Some(state.ckc_tag_note_scope_ref.trim().to_owned())
+                },
+                note: state.ckc_tag_note_editor.clone(),
+            };
+            if !request.tag_text.is_empty() {
+                if let Some(client) = self.ckc_client.as_ref() {
+                    state.ckc_tag_note_pending = true;
+                    client.save_ckc_tag_note(
+                        &request.tag_text,
+                        request.scope_ref.as_deref(),
+                        &request.note,
+                        ATELIER_CKC_ACTOR_ID,
+                        self.ckc_tag_note_cell.clone(),
+                    );
+                } else {
+                    let note = CkcTagNoteRecord {
+                        tag_ref: format!("atelier://tag/local-{}", request.tag_text),
+                        tag_text: request.tag_text.clone(),
+                        scope_ref: request.scope_ref,
+                        note: request.note,
+                    };
+                    attach_tag_note_to_visible_results(&mut state.ckc_search_results, note);
+                    state.ckc_search_status =
+                        format!("Saved local CKC tag note for {}", request.tag_text);
+                }
+            }
+        }
     }
 
     fn show_ckc_linked_media(
@@ -1724,4 +2622,86 @@ fn emit_node(
             node.add_action(accesskit::Action::Focus);
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::backend_client::{AtelierBatchRow, AtelierItemRow};
+
+    fn empty_side_panel() -> Arc<Mutex<AtelierSidePanel>> {
+        Arc::new(Mutex::new(AtelierSidePanel::with_rows(
+            Vec::<AtelierBatchRow>::new(),
+            Vec::new(),
+            None::<(String, Vec<AtelierItemRow>)>,
+        )))
+    }
+
+    #[test]
+    fn backend_ckc_search_result_filters_nonmatching_scoped_tag_notes() {
+        let result = CkcSearchResultRecord::from_backend(AtelierCkcSearchResultRow {
+            target_kind: "media".to_owned(),
+            target_ref: "atelier://media/asset-1".to_owned(),
+            title: "hero".to_owned(),
+            snippet: "training face".to_owned(),
+            character_ref: Some("atelier://character/char-1".to_owned()),
+            sheet_version_ref: Some("atelier://sheet/char-1/sheet-1".to_owned()),
+            collection_ref: Some("atelier://collection/album-1".to_owned()),
+            media_ref: Some("atelier://media/asset-1".to_owned()),
+            tag_ref: None,
+            tags: vec!["training".to_owned()],
+            tag_notes: vec![
+                AtelierCkcTagNoteRow {
+                    tag_ref: "atelier://tag/tag-1".to_owned(),
+                    tag_text: "training".to_owned(),
+                    scope_ref: None,
+                    note: "global training note".to_owned(),
+                },
+                AtelierCkcTagNoteRow {
+                    tag_ref: "atelier://tag/tag-1".to_owned(),
+                    tag_text: "training".to_owned(),
+                    scope_ref: Some("atelier://collection/album-1".to_owned()),
+                    note: "matching album note".to_owned(),
+                },
+                AtelierCkcTagNoteRow {
+                    tag_ref: "atelier://tag/tag-1".to_owned(),
+                    tag_text: "training".to_owned(),
+                    scope_ref: Some("atelier://collection/other-album".to_owned()),
+                    note: "wrong album note".to_owned(),
+                },
+            ],
+            match_modes: vec!["combined".to_owned()],
+            fuzzy_score: 0.8,
+            vector_score: 1.0,
+        });
+
+        let notes: Vec<&str> = result
+            .tag_notes
+            .iter()
+            .map(|note| note.note.as_str())
+            .collect();
+        assert_eq!(notes, vec!["global training note", "matching album note"]);
+    }
+
+    #[test]
+    fn live_ckc_panel_starts_without_seeded_demo_refs() {
+        let runtime = tokio::runtime::Runtime::new().expect("test runtime");
+        let panel = AtelierPanel::with_client(
+            empty_side_panel(),
+            Arc::new(Mutex::new(LoomCanvasBoard::new("ws-test", "canvas-1"))),
+            Arc::new(Mutex::new(Vec::<CanvasEvent>::new())),
+            Some(AtelierClient::new(
+                "http://127.0.0.1:65535",
+                runtime.handle().clone(),
+            )),
+        );
+        let state = panel.state.lock().expect("panel state");
+        assert!(state.ckc_characters.is_empty());
+        assert!(state.ckc_search_results.is_empty());
+        assert_eq!(
+            state.ckc_search_status,
+            "Waiting for live CKC database load"
+        );
+        assert!(state.ckc_tag_note_scope_ref.is_empty());
+    }
 }

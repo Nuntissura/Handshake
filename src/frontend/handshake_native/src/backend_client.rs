@@ -5308,6 +5308,46 @@ pub struct AtelierCkcMediaNotesTagsRow {
     pub source_url_ref: Option<String>,
 }
 
+/// One rich tag note attached to a CKC tag and optionally scoped to a character/sheet/album/media ref.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCkcTagNoteRow {
+    pub tag_ref: String,
+    pub tag_text: String,
+    pub scope_ref: Option<String>,
+    pub note: String,
+}
+
+/// One native CKC search hit. Refs are stable `atelier://...` handles so models can pass results to
+/// Posekit, Ingest, ComfyUI workflows, or future native Atelier tools without scraping labels.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AtelierCkcSearchResultRow {
+    pub target_kind: String,
+    pub target_ref: String,
+    pub title: String,
+    pub snippet: String,
+    pub character_ref: Option<String>,
+    pub sheet_version_ref: Option<String>,
+    pub collection_ref: Option<String>,
+    pub media_ref: Option<String>,
+    pub tag_ref: Option<String>,
+    pub tags: Vec<String>,
+    pub tag_notes: Vec<AtelierCkcTagNoteRow>,
+    pub match_modes: Vec<String>,
+    pub fuzzy_score: f64,
+    pub vector_score: f64,
+}
+
+/// Search response from `POST /atelier/ckc/search`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AtelierCkcSearchResponse {
+    pub query: String,
+    pub modes: Vec<String>,
+    pub semantic_available: bool,
+    pub vector_source: Option<String>,
+    pub result_count: usize,
+    pub results: Vec<AtelierCkcSearchResultRow>,
+}
+
 /// One CKC character plus its current/latest sheet version, as the native panel needs it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AtelierCkcCharacterSheetRow {
@@ -5398,6 +5438,12 @@ pub type AtelierCkcAppendCell = Arc<Mutex<Option<Result<AtelierSheetVersionRow, 
 
 /// One-slot delivery cell for off-thread CKC media notes/tags saves.
 pub type AtelierCkcMediaNotesCell = Arc<Mutex<Option<Result<AtelierCkcMediaNotesTagsRow, String>>>>;
+
+/// One-slot delivery cell for off-thread CKC fuzzy/vector/combined search.
+pub type AtelierCkcSearchCell = Arc<Mutex<Option<Result<AtelierCkcSearchResponse, String>>>>;
+
+/// One-slot delivery cell for off-thread CKC rich tag-note saves.
+pub type AtelierCkcTagNoteCell = Arc<Mutex<Option<Result<AtelierCkcTagNoteRow, String>>>>;
 
 /// REST client for the VERIFIED atelier read surface the MT-033 AtelierSidePanel consumes.
 #[derive(Clone)]
@@ -5842,6 +5888,71 @@ impl AtelierClient {
         }
     }
 
+    /// Pure request builder for native CKC fuzzy/vector/combined search.
+    pub fn ckc_search_request(
+        &self,
+        query: &str,
+        modes: &[String],
+        tags: &[String],
+        character_internal_id: Option<&str>,
+        collection_id: Option<&str>,
+        media_asset_id: Option<&str>,
+        similar_to_asset_id: Option<&str>,
+        similar_to_dhash_hex: Option<&str>,
+        limit: usize,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/ckc/search", self.base_url),
+            body: Some(serde_json::json!({
+                "query": query,
+                "modes": modes,
+                "tags": tags,
+                "character_internal_id": character_internal_id,
+                "collection_id": collection_id,
+                "media_asset_id": media_asset_id,
+                "similar_to_asset_id": similar_to_asset_id,
+                "similar_to_dhash_hex": similar_to_dhash_hex,
+                "limit": limit,
+            })),
+        }
+    }
+
+    /// Pure request builder for rich CKC tag-note upserts.
+    pub fn ckc_tag_note_request(
+        &self,
+        tag_text: &str,
+        scope_ref: Option<&str>,
+        note: &str,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/ckc/tag-notes", self.base_url),
+            body: Some(serde_json::json!({
+                "tag_text": tag_text,
+                "scope_ref": scope_ref,
+                "note": note,
+            })),
+        }
+    }
+
+    /// Actor-attributed request builder for rich CKC tag-note upserts.
+    pub fn ckc_tag_note_actor_request(
+        &self,
+        tag_text: &str,
+        scope_ref: Option<&str>,
+        note: &str,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.ckc_tag_note_request(tag_text, scope_ref, note);
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
     /// Load the batches + command corpus off the UI thread, delivering the parsed projection into `cell`.
     /// A failure of EITHER read fails the whole load (the panel surfaces the error text, never a blank
     /// half-loaded panel). The two reads run concurrently on the runtime.
@@ -5977,6 +6088,75 @@ impl AtelierClient {
                 .and_then(|value| {
                     parse_atelier_media_notes_tags_row(&value).ok_or_else(|| {
                         AppError::Parse("missing media notes/tags row in save response".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Run CKC fuzzy/vector/combined search off the UI thread.
+    pub fn search_ckc(
+        &self,
+        query: &str,
+        modes: &[String],
+        tags: &[String],
+        character_internal_id: Option<&str>,
+        collection_id: Option<&str>,
+        media_asset_id: Option<&str>,
+        similar_to_asset_id: Option<&str>,
+        similar_to_dhash_hex: Option<&str>,
+        limit: usize,
+        cell: AtelierCkcSearchCell,
+    ) {
+        let spec = self.ckc_search_request(
+            query,
+            modes,
+            tags,
+            character_internal_id,
+            collection_id,
+            media_asset_id,
+            similar_to_asset_id,
+            similar_to_dhash_hex,
+            limit,
+        );
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = match spec.body.as_ref() {
+                Some(body) => post_json(&client, &spec.url, body).await.and_then(|value| {
+                    parse_atelier_ckc_search_response(&value)
+                        .ok_or_else(|| AppError::Parse("missing CKC search response".to_owned()))
+                }),
+                None => Err(AppError::Parse(
+                    "CKC search request missing JSON body".to_owned(),
+                )),
+            }
+            .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Save a rich CKC tag note off the UI thread.
+    pub fn save_ckc_tag_note(
+        &self,
+        tag_text: &str,
+        scope_ref: Option<&str>,
+        note: &str,
+        actor_id: &str,
+        cell: AtelierCkcTagNoteCell,
+    ) {
+        let spec = self.ckc_tag_note_actor_request(tag_text, scope_ref, note, actor_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_ckc_tag_note_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing CKC tag note row in save response".to_owned())
                     })
                 })
                 .map_err(|e| e.to_string());
@@ -6392,6 +6572,86 @@ fn parse_atelier_media_notes_tags_row(
     })
 }
 
+fn parse_atelier_ckc_tag_note_row(row: &serde_json::Value) -> Option<AtelierCkcTagNoteRow> {
+    let tag_text = json_string(row, "tag_text")?;
+    if tag_text.is_empty() {
+        return None;
+    }
+    Some(AtelierCkcTagNoteRow {
+        tag_ref: json_string(row, "tag_ref").unwrap_or_default(),
+        tag_text,
+        scope_ref: json_string(row, "scope_ref"),
+        note: json_string(row, "note").unwrap_or_default(),
+    })
+}
+
+fn parse_atelier_ckc_search_result(row: &serde_json::Value) -> Option<AtelierCkcSearchResultRow> {
+    let target_ref = json_string(row, "target_ref")?;
+    if target_ref.is_empty() {
+        return None;
+    }
+    let tag_notes = row
+        .get("tag_notes")
+        .and_then(|value| value.as_array())
+        .map(|rows| {
+            rows.iter()
+                .filter_map(parse_atelier_ckc_tag_note_row)
+                .collect()
+        })
+        .unwrap_or_default();
+    Some(AtelierCkcSearchResultRow {
+        target_kind: json_string(row, "target_kind").unwrap_or_else(|| "unknown".to_owned()),
+        target_ref,
+        title: json_string(row, "title").unwrap_or_else(|| "(untitled CKC result)".to_owned()),
+        snippet: json_string(row, "snippet").unwrap_or_default(),
+        character_ref: json_string(row, "character_ref"),
+        sheet_version_ref: json_string(row, "sheet_version_ref"),
+        collection_ref: json_string(row, "collection_ref"),
+        media_ref: json_string(row, "media_ref"),
+        tag_ref: json_string(row, "tag_ref"),
+        tags: json_string_vec(row, "tags"),
+        tag_notes,
+        match_modes: json_string_vec(row, "match_modes"),
+        fuzzy_score: row
+            .get("fuzzy_score")
+            .and_then(|value| value.as_f64())
+            .unwrap_or(0.0),
+        vector_score: row
+            .get("vector_score")
+            .and_then(|value| value.as_f64())
+            .unwrap_or(0.0),
+    })
+}
+
+fn parse_atelier_ckc_search_response(row: &serde_json::Value) -> Option<AtelierCkcSearchResponse> {
+    let results = row
+        .get("results")
+        .and_then(|value| value.as_array())
+        .map(|rows| {
+            rows.iter()
+                .filter_map(parse_atelier_ckc_search_result)
+                .collect::<Vec<_>>()
+        })?;
+    let mut modes = json_string_vec(row, "search_modes");
+    if modes.is_empty() {
+        modes = json_string_vec(row, "modes");
+    }
+    Some(AtelierCkcSearchResponse {
+        query: json_string(row, "query").unwrap_or_default(),
+        modes,
+        semantic_available: row
+            .get("semantic_available")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false),
+        vector_source: json_string(row, "vector_source"),
+        result_count: row
+            .get("result_count")
+            .and_then(|value| value.as_u64())
+            .unwrap_or(results.len() as u64) as usize,
+        results,
+    })
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // MT-021 hardening tests (MAJOR #1/#2/#3): prove every menu-action backend call constructs the EXACT
 // verified URL + JSON body. Two layers:
@@ -6415,6 +6675,108 @@ mod tests {
     }
 
     const BASE: &str = "http://test.local:1234";
+
+    #[test]
+    fn atelier_ckc_search_request_targets_native_search_route() {
+        let rt = rt();
+        let c = AtelierClient::new(BASE, rt.handle().clone());
+        let modes = vec!["combined".to_owned()];
+        let tags = vec!["training".to_owned(), "face".to_owned()];
+        let spec = c.ckc_search_request(
+            "silver bob",
+            &modes,
+            &tags,
+            Some("018f7848-1111-7000-9000-000000000001"),
+            None,
+            None,
+            Some("018f7848-1111-7000-9000-00000000b001"),
+            None,
+            12,
+        );
+        assert_eq!(spec.method, HttpMethod::Post);
+        assert_eq!(spec.url, "http://test.local:1234/atelier/ckc/search");
+        assert_eq!(
+            spec.body.unwrap(),
+            serde_json::json!({
+                "query": "silver bob",
+                "modes": ["combined"],
+                "tags": ["training", "face"],
+                "character_internal_id": "018f7848-1111-7000-9000-000000000001",
+                "collection_id": null,
+                "media_asset_id": null,
+                "similar_to_asset_id": "018f7848-1111-7000-9000-00000000b001",
+                "similar_to_dhash_hex": null,
+                "limit": 12,
+            })
+        );
+    }
+
+    #[test]
+    fn atelier_ckc_search_response_parser_reads_backend_search_modes_field() {
+        let parsed = parse_atelier_ckc_search_response(&serde_json::json!({
+            "query": "silver bob",
+            "search_modes": ["combined"],
+            "semantic_available": true,
+            "vector_source": "llm_embedding+pgvector_projection+dhash_similarity",
+            "result_count": 1,
+            "results": [{
+                "target_kind": "media",
+                "target_ref": "atelier://media/018f7848-1111-7000-9000-00000000b001",
+                "title": "hero",
+                "snippet": "silver bob",
+                "character_ref": "atelier://character/018f7848-1111-7000-9000-000000000001",
+                "sheet_version_ref": null,
+                "collection_ref": "atelier://collection/018f7848-1111-7000-9000-00000000a001",
+                "media_ref": "atelier://media/018f7848-1111-7000-9000-00000000b001",
+                "tag_ref": null,
+                "tags": ["training"],
+                "tag_notes": [],
+                "match_modes": ["vector", "image_similarity"],
+                "fuzzy_score": 0.2,
+                "vector_score": 1.0,
+                "similarity_distance": 0,
+            }]
+        }))
+        .expect("parse CKC search response");
+        assert_eq!(parsed.modes, vec!["combined".to_owned()]);
+        assert_eq!(
+            parsed.vector_source.as_deref(),
+            Some("llm_embedding+pgvector_projection+dhash_similarity")
+        );
+        assert_eq!(
+            parsed.results[0].match_modes,
+            vec!["vector", "image_similarity"]
+        );
+    }
+
+    #[test]
+    fn atelier_ckc_tag_note_actor_request_targets_native_tag_note_route() {
+        let rt = rt();
+        let c = AtelierClient::new(BASE, rt.handle().clone());
+        let spec = c.ckc_tag_note_actor_request(
+            "training",
+            Some("atelier://collection/018f7848-1111-7000-9000-00000000a001"),
+            "LoRA-approved references only",
+            ATELIER_CKC_ACTOR_ID,
+        );
+        assert_eq!(spec.method, HttpMethod::Post);
+        assert_eq!(spec.url, "http://test.local:1234/atelier/ckc/tag-notes");
+        assert_eq!(
+            spec.headers,
+            vec![(
+                HSK_HEADER_ACTOR_ID.to_owned(),
+                ATELIER_CKC_ACTOR_ID.to_owned()
+            )]
+        );
+        assert_eq!(
+            spec.body.unwrap(),
+            serde_json::json!({
+                "tag_text": "training",
+                "scope_ref": "atelier://collection/018f7848-1111-7000-9000-00000000a001",
+                "note": "LoRA-approved references only",
+            })
+        );
+    }
 
     // ── SourceControlClient: stage / unstage / discard / diff / blame ────────────────────────────────
 

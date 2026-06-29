@@ -22,7 +22,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use handshake_core::AppState;
 use handshake_core::api::atelier as atelier_api;
+use handshake_core::atelier::search::TagType;
 use handshake_core::atelier::search::search_event_family;
 use handshake_core::atelier::stealth_window::stealth_ref_event_family::{
     STEALTH_REF_ADDED, STEALTH_REF_CAPTURED, STEALTH_REF_REMOVED, STEALTH_REF_REORDERED,
@@ -32,8 +34,8 @@ use handshake_core::atelier::stealth_window::{
     ContentRefKind, NewContentRef, NewStealthWindow, QuietFlags, StealthRefStatus, VisibilityFlag,
 };
 use handshake_core::atelier::{
-    character_ref, event_family, AtelierStore, MediaSidecarRelationKind, NewCharacter,
-    NewMediaAsset, NewMediaSidecarRelation, NewSheetVersion,
+    AtelierStore, MediaSidecarRelationKind, NewCharacter, NewMediaAsset, NewMediaSidecarRelation,
+    NewSheetVersion, character_ref, collection_ref, event_family, media_asset_ref,
 };
 use handshake_core::capabilities::CapabilityRegistry;
 use handshake_core::diagnostics::{DiagFilter, Diagnostic, DiagnosticsStore, ProblemGroup};
@@ -41,11 +43,11 @@ use handshake_core::flight_recorder::{
     EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError,
 };
 use handshake_core::llm::{
-    CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
+    CompletionRequest, CompletionResponse, EmbeddingRequest, EmbeddingResponse, LlmClient,
+    LlmError, ModelProfile, TokenUsage,
 };
 use handshake_core::storage::tests::optional_postgres_backend_with_pool_from_env;
 use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
-use handshake_core::AppState;
 use sqlx::Row;
 use uuid::Uuid;
 
@@ -268,9 +270,45 @@ impl LlmClient for NoopLlmClient {
         })
     }
 
+    async fn embedding(&self, req: EmbeddingRequest) -> Result<EmbeddingResponse, LlmError> {
+        Ok(EmbeddingResponse {
+            vector: deterministic_test_embedding(
+                &req.input,
+                handshake_core::loom_search::LOOM_SEARCH_EMBEDDING_DIM,
+            ),
+            model_id: req.model_id,
+            latency_ms: 0,
+        })
+    }
+
     fn profile(&self) -> &ModelProfile {
         &self.profile
     }
+}
+
+fn deterministic_test_embedding(input: &str, dim: usize) -> Vec<f32> {
+    let mut vector = vec![0.0f32; dim.max(1)];
+    for token in input
+        .to_lowercase()
+        .split(|ch: char| !ch.is_alphanumeric())
+        .filter(|token| !token.is_empty())
+    {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(token.as_bytes());
+        let digest = hasher.finalize();
+        let idx = (u32::from_be_bytes([digest[0], digest[1], digest[2], digest[3]]) as usize)
+            % vector.len();
+        let sign = if digest[4] & 1 == 0 { 1.0 } else { -1.0 };
+        vector[idx] += sign;
+    }
+    let norm = vector.iter().map(|value| value * value).sum::<f32>().sqrt();
+    if norm > 0.0 {
+        for value in &mut vector {
+            *value /= norm;
+        }
+    }
+    vector
 }
 
 async fn test_app_state_from_database_url() -> Option<AppState> {
@@ -337,8 +375,8 @@ fn assert_uuid_v7(id: Uuid, label: &str) {
 }
 
 #[tokio::test]
-async fn atelier_character_sheet_api_round_trips_refs_and_conflicts(
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_character_sheet_api_round_trips_refs_and_conflicts()
+-> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -532,8 +570,8 @@ async fn atelier_character_sheet_api_round_trips_refs_and_conflicts(
 }
 
 #[tokio::test]
-async fn atelier_ckc_bundled_template_import_export_and_field_suggestions(
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_ckc_bundled_template_import_export_and_field_suggestions()
+-> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -581,11 +619,13 @@ async fn atelier_ckc_bundled_template_import_export_and_field_suggestions(
         safe_subset["file_name"].as_str(),
         Some("LLM_SAFE_SUBSET__v2.00.json")
     );
-    assert!(safe_subset["field_ids"]
-        .as_array()
-        .expect("safe subset field ids")
-        .iter()
-        .any(|value| value.as_str() == Some("CHAR-ID-006")));
+    assert!(
+        safe_subset["field_ids"]
+            .as_array()
+            .expect("safe subset field ids")
+            .iter()
+            .any(|value| value.as_str() == Some("CHAR-ID-006"))
+    );
 
     let created = client
         .post(format!("{base_url}/atelier/characters"))
@@ -631,10 +671,12 @@ async fn atelier_ckc_bundled_template_import_export_and_field_suggestions(
     let txt_export: serde_json::Value = txt_export.json().await?;
     assert_eq!(txt_export["format"].as_str(), Some("txt"));
     assert_eq!(txt_export["content"].as_str(), Some(first_raw));
-    assert!(txt_export["file_name"]
-        .as_str()
-        .expect("export file name")
-        .ends_with(".txt"));
+    assert!(
+        txt_export["file_name"]
+            .as_str()
+            .expect("export file name")
+            .ends_with(".txt")
+    );
 
     let imported_raw = first_raw.replace(
         "CHAR-ID-006 — Primary_Role: <string>",
@@ -676,10 +718,12 @@ async fn atelier_ckc_bundled_template_import_export_and_field_suggestions(
     assert_eq!(json_export.status(), reqwest::StatusCode::OK);
     let json_export: serde_json::Value = json_export.json().await?;
     assert_eq!(json_export["format"].as_str(), Some("json"));
-    assert!(json_export["content"]
-        .as_str()
-        .expect("json export content")
-        .contains("proof-primary-role"));
+    assert!(
+        json_export["content"]
+            .as_str()
+            .expect("json export content")
+            .contains("proof-primary-role")
+    );
 
     let suggestions = client
         .get(format!(
@@ -702,8 +746,8 @@ async fn atelier_ckc_bundled_template_import_export_and_field_suggestions(
 }
 
 #[tokio::test]
-async fn atelier_ckc_media_album_api_links_assets_notes_tags_and_refs(
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_ckc_media_album_api_links_assets_notes_tags_and_refs()
+-> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -901,6 +945,291 @@ async fn atelier_ckc_media_album_api_links_assets_notes_tags_and_refs(
     Ok(())
 }
 
+#[tokio::test]
+async fn atelier_ckc_search_api_returns_fuzzy_vector_combined_refs_and_tag_notes()
+-> Result<(), Box<dyn std::error::Error>> {
+    let Some(state) = test_app_state_from_database_url().await else {
+        return Ok(());
+    };
+    let store = AtelierStore::new(state.postgres_pool.clone());
+    let (base_url, server) = start_atelier_api_server(state).await?;
+    let client = reqwest::Client::new();
+    let actor = format!("mt011-search-agent-{}", Uuid::new_v4());
+    let public_id = format!("mt011-search-char-{}", Uuid::new_v4());
+
+    let created = client
+        .post(format!("{base_url}/atelier/characters"))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "public_id": public_id,
+            "display_name": "Silver Bob Reference",
+        }))
+        .send()
+        .await?;
+    assert_eq!(created.status(), reqwest::StatusCode::CREATED);
+    let character: serde_json::Value = created.json().await?;
+    let character_internal_id = character["internal_id"]
+        .as_str()
+        .expect("character internal id");
+    let character_uuid = Uuid::parse_str(character_internal_id)?;
+    let expected_character_ref = format!("atelier://character/{character_internal_id}");
+
+    let sheet = client
+        .post(format!(
+            "{base_url}/atelier/characters/{character_internal_id}/sheet-versions"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "raw_text": "CHAR-ID-002 — Name: Silver Bob Reference\nCHAR-ID-006 — Primary_Role: facial close-up training avatar\nnotes: silver bob hair, green eyes, soft backlight",
+            "expected_parent_version_id": null,
+            "tool": "argus",
+        }))
+        .send()
+        .await?;
+    assert_eq!(sheet.status(), reqwest::StatusCode::CREATED);
+    let sheet: serde_json::Value = sheet.json().await?;
+    let sheet_version_id = sheet["version_id"].as_str().expect("sheet version id");
+    let expected_sheet_ref = format!("atelier://sheet/{character_internal_id}/{sheet_version_id}");
+
+    store
+        .tag_character(character_uuid, "silver-bob", TagType::Manual)
+        .await
+        .expect("tag character");
+
+    let hero_asset = fresh_api_media_asset(&store, "mt011-hero").await;
+    let decoy_asset = fresh_api_media_asset(&store, "mt011-decoy").await;
+    store
+        .upsert_similarity_projection(
+            hero_asset,
+            Some("0000000000000000"),
+            serde_json::json!({"dominant":[{"hex":"#c0c0c0"}]}),
+        )
+        .await
+        .expect("hero similarity projection");
+    store
+        .upsert_similarity_projection(
+            decoy_asset,
+            Some("ffffffffffffffff"),
+            serde_json::json!({"dominant":[{"hex":"#111111"}]}),
+        )
+        .await
+        .expect("decoy similarity projection");
+
+    let created_album = client
+        .post(format!(
+            "{base_url}/atelier/characters/{character_internal_id}/media-albums"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "name": format!("Silver Bob close-up album {}", Uuid::new_v4()),
+            "notes": "album note: approved close-up reference set",
+            "tags": ["training", "face"],
+            "sheet_version_id": sheet_version_id,
+        }))
+        .send()
+        .await?;
+    assert_eq!(created_album.status(), reqwest::StatusCode::CREATED);
+    let created_album: serde_json::Value = created_album.json().await?;
+    let album_id = created_album["collection_id"].as_str().expect("album id");
+    let album_uuid = Uuid::parse_str(album_id)?;
+    let expected_collection_ref = collection_ref(album_uuid);
+
+    let add_items = client
+        .post(format!("{base_url}/atelier/media-albums/{album_id}/items"))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "asset_ids": [hero_asset, decoy_asset],
+        }))
+        .send()
+        .await?;
+    assert_eq!(add_items.status(), reqwest::StatusCode::OK);
+
+    let media_note = client
+        .post(format!(
+            "{base_url}/atelier/media-assets/{hero_asset}/notes-tags"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "notes": "image note: silver bob close-up, soft backlight, CUI-ready face crop",
+            "tags": ["training", "face", "approved"],
+            "review_status": "pass",
+            "source_path_ref": "atelier://folder/mt011-reference-set",
+        }))
+        .send()
+        .await?;
+    assert_eq!(media_note.status(), reqwest::StatusCode::OK);
+
+    let tag_note = client
+        .post(format!("{base_url}/atelier/ckc/tag-notes"))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "tag_text": "training",
+            "scope_ref": expected_collection_ref,
+            "note": "Use this tag for LoRA-approved CKC image sets only.",
+        }))
+        .send()
+        .await?;
+    assert_eq!(
+        tag_note.status(),
+        reqwest::StatusCode::OK,
+        "CKC tag notes must round-trip through a native route"
+    );
+    let tag_note: serde_json::Value = tag_note.json().await?;
+    assert_eq!(tag_note["tag_text"].as_str(), Some("training"));
+    assert_eq!(
+        tag_note["scope_ref"].as_str(),
+        Some(expected_collection_ref.as_str())
+    );
+    assert_eq!(
+        tag_note["note"].as_str(),
+        Some("Use this tag for LoRA-approved CKC image sets only.")
+    );
+    let invalid_tag_text = format!("mt011-invalid-tag-{}", Uuid::new_v4());
+    let invalid_scope = client
+        .post(format!("{base_url}/atelier/ckc/tag-notes"))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "tag_text": invalid_tag_text.clone(),
+            "scope_ref": collection_ref(Uuid::new_v4()),
+            "note": "This should not attach to a missing album.",
+        }))
+        .send()
+        .await?;
+    assert_eq!(
+        invalid_scope.status(),
+        reqwest::StatusCode::BAD_REQUEST,
+        "CKC tag notes must reject syntactically valid refs whose target does not exist"
+    );
+    assert!(
+        !store
+            .list_all_tags()
+            .await?
+            .iter()
+            .any(|tag| tag.text == invalid_tag_text),
+        "rejected CKC tag-note writes must not leave an orphan tag dictionary row"
+    );
+
+    let fuzzy = client
+        .post(format!("{base_url}/atelier/ckc/search"))
+        .json(&serde_json::json!({
+            "query": "silvr bob",
+            "modes": ["fuzzy"],
+            "limit": 10,
+        }))
+        .send()
+        .await?;
+    assert_eq!(fuzzy.status(), reqwest::StatusCode::OK);
+    let fuzzy: serde_json::Value = fuzzy.json().await?;
+    assert_eq!(fuzzy["query"].as_str(), Some("silvr bob"));
+    assert!(
+        fuzzy["search_modes"]
+            .as_array()
+            .expect("fuzzy modes")
+            .iter()
+            .any(|mode| mode.as_str() == Some("fuzzy"))
+    );
+    assert!(
+        fuzzy["results"]
+            .as_array()
+            .expect("fuzzy results")
+            .iter()
+            .any(|hit| hit["target_kind"].as_str() == Some("character")
+                && hit["target_ref"].as_str() == Some(expected_character_ref.as_str()))
+    );
+
+    let vector = client
+        .post(format!("{base_url}/atelier/ckc/search"))
+        .json(&serde_json::json!({
+            "query": "soft backlight CUI-ready face crop",
+            "modes": ["vector"],
+            "similar_to_asset_id": hero_asset,
+            "limit": 10,
+        }))
+        .send()
+        .await?;
+    assert_eq!(vector.status(), reqwest::StatusCode::OK);
+    let vector: serde_json::Value = vector.json().await?;
+    assert_eq!(vector["semantic_available"].as_bool(), Some(true));
+    assert_eq!(
+        vector["vector_source"].as_str(),
+        Some("llm_embedding+pgvector_projection+dhash_similarity")
+    );
+    assert!(
+        vector["results"]
+            .as_array()
+            .expect("vector results")
+            .iter()
+            .any(|hit| hit["target_kind"].as_str() == Some("media")
+                && hit["target_ref"].as_str() == Some(media_asset_ref(hero_asset).as_str())
+                && hit["match_modes"]
+                    .as_array()
+                    .expect("match modes")
+                    .iter()
+                    .any(|mode| mode.as_str() == Some("vector"))
+                && hit["match_modes"]
+                    .as_array()
+                    .expect("match modes")
+                    .iter()
+                    .any(|mode| mode.as_str() == Some("image_similarity")))
+    );
+
+    let combined = client
+        .post(format!("{base_url}/atelier/ckc/search"))
+        .json(&serde_json::json!({
+            "query": "backlight face",
+            "modes": ["combined"],
+            "tags": ["training"],
+            "character_internal_id": character_internal_id,
+            "similar_to_asset_id": hero_asset,
+            "limit": 10,
+        }))
+        .send()
+        .await?;
+    assert_eq!(combined.status(), reqwest::StatusCode::OK);
+    let combined: serde_json::Value = combined.json().await?;
+    let media_hit = combined["results"]
+        .as_array()
+        .expect("combined results")
+        .iter()
+        .find(|hit| {
+            hit["target_kind"].as_str() == Some("media")
+                && hit["target_ref"].as_str() == Some(media_asset_ref(hero_asset).as_str())
+        })
+        .expect("combined search returns the tagged hero media hit");
+    assert!(
+        !combined["results"]
+            .as_array()
+            .expect("combined results")
+            .iter()
+            .any(|hit| hit["target_kind"].as_str() == Some("media")
+                && hit["target_ref"].as_str() == Some(media_asset_ref(decoy_asset).as_str())),
+        "combined CKC search must intersect text/tag constraints with the selected image-similarity leg"
+    );
+    assert_eq!(
+        media_hit["character_ref"].as_str(),
+        Some(expected_character_ref.as_str()),
+        "combined CKC media hits carry the parent character ref"
+    );
+    assert_eq!(
+        media_hit["sheet_version_ref"].as_str(),
+        Some(expected_sheet_ref.as_str()),
+        "combined CKC media hits carry the sheet version ref when known"
+    );
+    assert_eq!(
+        media_hit["collection_ref"].as_str(),
+        Some(expected_collection_ref.as_str()),
+        "combined CKC media hits carry the album collection ref"
+    );
+    assert_eq!(
+        media_hit["tag_notes"][0]["note"].as_str(),
+        Some("Use this tag for LoRA-approved CKC image sets only."),
+        "rich tag notes must be returned with matching CKC search hits"
+    );
+
+    server.abort();
+    Ok(())
+}
+
 #[test]
 fn stealth_ref_tauri_commands_are_registered_and_postgres_backed() {
     let repo = repo_root();
@@ -937,8 +1266,8 @@ fn stealth_ref_tauri_commands_are_registered_and_postgres_backed() {
 }
 
 #[tokio::test]
-async fn stealth_window_api_list_is_scoped_to_calling_actor(
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn stealth_window_api_list_is_scoped_to_calling_actor()
+-> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -994,8 +1323,8 @@ async fn stealth_window_api_list_is_scoped_to_calling_actor(
 }
 
 #[tokio::test]
-async fn atelier_filesystem_health_api_records_read_only_check(
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_filesystem_health_api_records_read_only_check()
+-> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -1124,8 +1453,8 @@ async fn atelier_filesystem_health_api_records_read_only_check(
 }
 
 #[tokio::test]
-async fn atelier_deletion_controls_api_preview_archive_and_restore(
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_deletion_controls_api_preview_archive_and_restore()
+-> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -1197,14 +1526,18 @@ async fn atelier_deletion_controls_api_preview_archive_and_restore(
     let archive: serde_json::Value = archive_response.json().await?;
     assert_eq!(archive["operation"], "archive_deletion_targets");
     assert_eq!(archive["target_count"], 2);
-    assert!(store
-        .is_media_asset_trashed(asset_id)
-        .await
-        .expect("media marker after API archive"));
-    assert!(store
-        .is_sheet_version_trashed(sheet.version_id)
-        .await
-        .expect("sheet marker after API archive"));
+    assert!(
+        store
+            .is_media_asset_trashed(asset_id)
+            .await
+            .expect("media marker after API archive")
+    );
+    assert!(
+        store
+            .is_sheet_version_trashed(sheet.version_id)
+            .await
+            .expect("sheet marker after API archive")
+    );
 
     let restore_response = client
         .post(format!("{base_url}/atelier/deletion/restore"))
@@ -1219,22 +1552,26 @@ async fn atelier_deletion_controls_api_preview_archive_and_restore(
     let restore: serde_json::Value = restore_response.json().await?;
     assert_eq!(restore["operation"], "restore_deletion_targets");
     assert_eq!(restore["target_count"], 2);
-    assert!(!store
-        .is_media_asset_trashed(asset_id)
-        .await
-        .expect("media marker after API restore"));
-    assert!(!store
-        .is_sheet_version_trashed(sheet.version_id)
-        .await
-        .expect("sheet marker after API restore"));
+    assert!(
+        !store
+            .is_media_asset_trashed(asset_id)
+            .await
+            .expect("media marker after API restore")
+    );
+    assert!(
+        !store
+            .is_sheet_version_trashed(sheet.version_id)
+            .await
+            .expect("sheet marker after API restore")
+    );
     server.abort();
 
     Ok(())
 }
 
 #[tokio::test]
-async fn atelier_image_import_api_records_clipboard_and_url_imports(
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_image_import_api_records_clipboard_and_url_imports()
+-> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -1350,8 +1687,8 @@ async fn atelier_image_import_api_records_clipboard_and_url_imports(
 }
 
 #[tokio::test]
-async fn atelier_image_import_api_rejects_caller_supplied_artifact_workspace_root(
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_image_import_api_rejects_caller_supplied_artifact_workspace_root()
+-> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -1426,8 +1763,8 @@ async fn atelier_image_import_api_rejects_caller_supplied_artifact_workspace_roo
 }
 
 #[tokio::test]
-async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle(
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle()
+-> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -1568,8 +1905,8 @@ async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle(
 }
 
 #[tokio::test]
-async fn atelier_ai_tag_suggestion_api_rejects_non_receipt_refs(
-) -> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_ai_tag_suggestion_api_rejects_non_receipt_refs()
+-> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
