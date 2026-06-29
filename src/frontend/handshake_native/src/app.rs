@@ -2109,6 +2109,17 @@ impl HandshakeApp {
         self.mcp_snapshot.clone()
     }
 
+    /// MT-103 foreground-safe navigation: refresh and return the same in-process MCP widget snapshot
+    /// used by `list_widgets`/`click_widget`/`set_value`, without mutating app state beyond the
+    /// existing model-vision snapshot slot.
+    pub fn capture_mcp_snapshot_for_navigation(&mut self) -> crate::accessibility::UiTreeSnapshot {
+        self.refresh_mcp_snapshot();
+        match self.mcp_snapshot.lock() {
+            Ok(slot) => slot.clone(),
+            Err(poisoned) => poisoned.into_inner().clone(),
+        }
+    }
+
     /// MT-102 Visual Debugger: compose a live worksurface/window-structure snapshot and write it to
     /// an external artifact directory. This is the runtime seam behind Settings -> Diagnostics; tests
     /// pass an explicit root, while the Settings button uses [`crate::visual_debugger::default_artifact_root`].
