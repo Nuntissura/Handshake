@@ -337,11 +337,14 @@ Next: N/A
 - SUB_AGENT_DELEGATION: DISALLOWED
 - OPERATOR_APPROVAL_EVIDENCE: N/A
 - SUB_AGENT_REASONING_ASSUMPTION: LOW (HARD)
+- ROLE_DELEGATION_PROFILE: <fill> (CODER_SINGLE_SESSION | KERNEL_BUILDER_SPEED_BUILD | VALIDATOR_READ_ONLY_REVIEW | ORCHESTRATOR_PRELAUNCH_RESEARCH)
 - NOTE: `AGENTIC_MODE: YES` means sub-agent use is explicitly authorized for this WP; `AGENTIC_MODE: NO` means all roles remain single-session.
 - RULES (if SUB_AGENT_DELEGATION=ALLOWED):
   - Sub-agents produce draft code only; Primary Coder verifies against resolved SPEC_CURRENT + task packet acceptance criteria before applying.
   - Sub-agents MUST NOT edit any governance surface (`.GOV/**`, including task packets/refinements and `## VALIDATION_REPORTS`).
   - Only Primary Coder runs gates, records EVIDENCE/EVIDENCE_MAPPING/VALIDATION manifest, commits, and hands off.
+  - For `ROLE_DELEGATION_PROFILE=KERNEL_BUILDER_SPEED_BUILD`, Kernel Builder may use read/write sub-agents for disjoint product slices inside the declared product worktree and read-only sub-agents for spec/code exploration, but Kernel Builder must review every sub-agent diff, run the MT proof, update MT/packet/UserManual evidence, and remain accountable for all outcomes.
+  - Validator roles may use sub-agents only for read-only review or evidence inspection unless the Operator explicitly grants a bounded repair task; sub-agents never issue PASS/FAIL.
   - See: `/.GOV/roles/coder/agentic/AGENTIC_PROTOCOL.md` Section 6.
 - NOTE: Set `SUB_AGENT_DELEGATION: ALLOWED` only with explicit Operator approval; when ALLOWED, replace `OPERATOR_APPROVAL_EVIDENCE` with the exact approval line from chat.
 
@@ -468,6 +471,29 @@ Next: N/A
   - <fill>
 - GUI_ENGINEERING_TRICKS_TO_CARRY:
   - <fill>
+- Rule: when the WP creates or changes product behavior that is operator-visible, model-navigable, diagnostic-visible, or otherwise needs an operator/model entry path, the packet must include GUI creation or GUI wiring scope for that behavior. Backend-only implementation is insufficient unless a signed packet row explicitly records why no GUI/operator/model surface is required.
+
+## GUI_AND_USER_MANUAL_OBLIGATIONS (AUTHORITATIVE SNAPSHOT; HYDRATED FROM CONTRACT)
+- GUI_OPERATOR_SURFACE_REQUIRED: <fill> (YES | NO)
+- GUI_CREATION_REQUIRED_WHEN_OPERATOR_VISIBLE: YES
+- ARGUS_REQUIRED_FOR_GUI_SURFACES: YES
+- TRACE_PROJECTION_REQUIRED_FOR_NON_UI_RUNTIME_BEHAVIOR: YES
+- GUI_SURFACES:
+  - <surface id/path or NONE>
+- ARGUS_TARGETS:
+  - <author_id/tool/snapshot target or NONE>
+- GUI_NOT_APPLICABLE_REASON: <fill or NONE>
+- USER_MANUAL_REQUIRED_FOR_EVERY_MT: YES
+- PRODUCT_MT_REQUIRES_SAME_CHANGE_USER_MANUAL_UPDATE: YES
+- NON_PRODUCT_MT_NOT_APPLICABLE_REQUIRES_REASON: YES
+- USER_MANUAL_TARGET_ENTRIES:
+  - <entry/group/path or NONE>
+- REQUIRED_USER_MANUAL_EVIDENCE:
+  - user_manual_diff
+  - manual_self_consistency_test
+  - manual_inspection_or_no_context_operation_test
+  - diagnostic_linkage_posture
+- Rule: every MT must carry UserManual evidence. Product-behavior MTs must update the in-product internal UserManual in the same change and prove the entry through a self-consistency test plus inspection/no-context operation proof. Governance-only, proof-only, or non-product MTs may use NOT_APPLICABLE only with a concrete reason.
 
 ## SCOPE
 - What:
@@ -687,6 +713,18 @@ git revert <commit-sha>
   - LOG_PATH: `.handshake/logs/{{WP_ID}}/<name>.log` (recommended; not committed)
   - LOG_SHA256: `<hash>`
   - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+- GUI_EVIDENCE:
+  - ARGUS_COMMAND_OR_TOOL: `<argus.inspect|argus.click|argus.set_value|argus.screenshot|AccessKit/egui_kittest path or NONE>`
+  - TARGET_AUTHOR_IDS: `<ids or NONE>`
+  - SNAPSHOT_OR_SCREENSHOT_REF: `<artifact ref or NONE>`
+  - CONSOLE_ERROR_SCAN: `<PASS|FAIL|NOT_APPLICABLE with reason>`
+  - CAPTURE_MATRIX: `<normal|constrained|edge states covered, or blocker>`
+- USER_MANUAL_EVIDENCE:
+  - MANUAL_DIFF: `<path/entry or NONE>`
+  - MANUAL_VERSION: `<before->after or NOT_APPLICABLE with reason>`
+  - SELF_CONSISTENCY_TEST: `<command/evidence or blocker>`
+  - INSPECTION_OR_NO_CONTEXT_OPERATION_TEST: `<command/evidence or blocker>`
+  - DIAGNOSTIC_LINKAGE_POSTURE: `<FR/internal_diagnostics/Palmistry outcome or blocker>`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)

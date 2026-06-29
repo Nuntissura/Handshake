@@ -67,6 +67,41 @@
     "tags_declared": [],
     "not_applicable_overrides": []
   },
+  "gui_obligations": {
+    "operator_surface_required": "{{GUI_OPERATOR_SURFACE_REQUIRED}}",
+    "gui_creation_required_when_operator_visible": true,
+    "argus_required_for_gui_surfaces": true,
+    "trace_projection_required_for_non_ui_runtime_behavior": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "required_hbr_rows": [
+      "HBR-VIS-001",
+      "HBR-VIS-002",
+      "HBR-VIS-003",
+      "HBR-VIS-004",
+      "HBR-VIS-005"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligations": {
+    "required_for_every_mt": true,
+    "product_mt_requires_same_change_update": true,
+    "non_product_mt_not_applicable_requires_reason": true,
+    "manual_version_policy": "BUMP_WHEN_APPLICABLE",
+    "required_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "diagnostic_linkage_posture"
+    ],
+    "required_hbr_rows": [
+      "HBR-MAN-001",
+      "HBR-MAN-002",
+      "HBR-MAN-003",
+      "HBR-MAN-004"
+    ],
+    "target_entries": []
+  },
   "acceptance_matrix": {
     "schema_version": 1,
     "hbr": [],
@@ -82,7 +117,11 @@
     "contract_glob": ".GOV/task_packets/{{WP_ID}}/MT-*.json",
     "declared_ids": [],
     "active_id": null,
-    "next_id": null
+    "next_id": null,
+    "required_contract_fields": [
+      "gui_obligation",
+      "user_manual_obligation"
+    ]
   },
   "role_profiles": {
     "activation_manager": "{{ACTIVATION_MANAGER_MODEL_PROFILE}}",

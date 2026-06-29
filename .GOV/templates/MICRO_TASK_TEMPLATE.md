@@ -20,12 +20,36 @@ Projection note: this Markdown is a generated compatibility view for `{{MT_ID}}`
 - LEGACY_MARKDOWN_POLICY: SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD
 - RED_TEAM_REQUIRED: YES
 - RED_TEAM_PROFILE: DETERMINISTIC_CONTRACT_MIGRATION_V1
+- GUI_OPERATOR_SURFACE_REQUIRED: <YES|NO>
+- GUI_CREATION_REQUIRED: <YES|NO>
+- ARGUS_REQUIRED: <YES|NO>
+- GUI_SURFACES:
+  - <surface id/path or NONE>
+- ARGUS_TARGETS:
+  - <author_id/tool/snapshot target or NONE>
+- USER_MANUAL_REQUIRED: YES
+- USER_MANUAL_UPDATE_REQUIRED: <YES|NO>
+- USER_MANUAL_TARGET_ENTRIES:
+  - <entry/group/path or NONE>
+- USER_MANUAL_NOT_APPLICABLE_REASON: <reason or NONE>
 <!-- Assume stale projections, shadow prose authority, schema omissions, round-trip loss, lifecycle split drift, and role-duty divergence until machine checks prove otherwise. -->
 
 ## CODER
 - STATUS: PENDING
 - EVIDENCE:
 - TESTS_RUN:
+- GUI_EVIDENCE:
+  - ARGUS_COMMAND_OR_TOOL:
+  - TARGET_AUTHOR_IDS:
+  - SNAPSHOT_OR_SCREENSHOT_REF:
+  - CONSOLE_ERROR_SCAN:
+  - CAPTURE_MATRIX:
+- USER_MANUAL_EVIDENCE:
+  - MANUAL_DIFF:
+  - MANUAL_VERSION:
+  - SELF_CONSISTENCY_TEST:
+  - INSPECTION_OR_NO_CONTEXT_OPERATION_TEST:
+  - DIAGNOSTIC_LINKAGE_POSTURE:
 - NOTES:
 
 ## VALIDATOR

@@ -25,3 +25,5 @@ ARGUS-011: If remediation cannot be completed in the current role authority, rec
 ARGUS-012: Argus evidence must be recorded in review/handoff artifacts with the tool/path used, snapshot or screenshot reference, target `author_id` values, action sequence when steering occurred, before/after observation, and any unremediated gaps.
 
 ARGUS-013: Observable Argus behavior must record the HBR-INT-009 three-tier diagnostics posture in implementation evidence and the internal UserManual: Tier 1 Flight Recorder/EventLedger, Tier 2 internal_diagnostics, and Tier 3 Palmistry must each be WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason. Current MT-007 Argus writes native MCP ActionLog receipts, not durable EventLedger persistence; do not claim Flight Recorder/EventLedger wiring until that mirroring exists.
+
+ARGUS-014: Creating or changing a GUI surface is incomplete until the same MT/WP creates or verifies the Argus-visible contract for that surface: stable `author_id` targets, reachable navigation, inspectable rendered or AccessKit-visible state, safe steering for applicable controls, and post-action observation.

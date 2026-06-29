@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-003",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-06-28T21:51:59.965Z",
+  "updated_at_utc": "2026-06-29T01:11:12.746Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-003.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -77,9 +77,14 @@
       "After implementation and before READY_FOR_VALIDATION, this MT MUST receive post-implementation adversarial review against the actual diff. Findings must be fixed or converted into explicit lifecycle blocker/missing_resource/proof_status state; the implementer may not self-certify COMPLETED."
     ],
     "proof_targets": [
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_launch_tests model_lane_launch_all_lane_kinds_through_rust_registry -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_launch_tests model_lane_launch_rejects_direct_endpoint_frontend_tauri_and_terminal_bypass -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_launch_tests model_lane_launch_cancellation_reclaim_contracts_all_lane_kinds -- --exact"
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_all_lane_kinds_through_rust_registry -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_rejects_direct_endpoint_frontend_tauri_and_terminal_bypass -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_cancellation_reclaim_contracts_all_lane_kinds -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_records_factory_failure_through_swarm_coordinator -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests production_builder_wires_model_lane_store_for_failed_dexterity_launch -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests dexterity_launch_records_real_swarm_spawn_session_runtime_path -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_launch_user_manual_entry_is_current -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_schema_user_manual_entry_is_current -- --exact"
     ],
     "risk_if_missed": "Local and cloud models remain separate launch systems and cannot be reasoned about by the coordinator.",
     "reference_only_paths": [

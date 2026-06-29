@@ -39,7 +39,7 @@ If these disagree, higher-priority repo law wins. The reset brief controls build
 - Patch repo governance only when the blocker creates likely data loss, prevents required startup/visibility, blocks safe product edits, or prevents task-board/build-order/WP/microtask truth from staying restartable.
 - Keep refinement and spec enrichment minimal. Add only the detail needed for no-context implementation, validation, or product safety.
 - Continue updating the active Task Board, Build Order, work packets, and microtasks so the build remains restartable.
-- Within active packet permissions and repo law, `KERNEL_BUILDER` is encouraged to use read/write sub-agents wherever practical; speed is the aim, but sub-agent outputs must be reviewed, checked, and corrected by `KERNEL_BUILDER` before being treated as authoritative. `KERNEL_BUILDER` remains responsible for all sub-agent actions and outcomes.
+- Within active packet permissions and repo law, `KERNEL_BUILDER` is encouraged to use sub-agents as a speed-build default where they can own disjoint implementation, GUI/Argus, UserManual, proof, or risk-review lanes without conflicting. Read/write sub-agents are allowed only inside the current packet/worktree authority; they must not create or switch worktrees, issue validator verdicts, merge, push without `KERNEL_BUILDER` review, run destructive git, or self-certify completion. `KERNEL_BUILDER` must review, check, integrate, and correct all delegated work before treating it as authoritative and remains responsible for all sub-agent actions and outcomes.
 - Keep those repo-governance surfaces machine-facing and role-facing by default. Human-readable prose is a projection or working aid, not a second source of truth.
 - Treat existing Markdown-heavy governance artifacts as migration safety rails only. Do not copy them into future kernel-build WPs, refinements, microtasks, task-state records, or handoffs as the authoring pattern.
 - New model-created kernel governance artifacts should start from typed JSON/JSONL/YAML-compatible contracts; Markdown is generated only when an explicit projection/report contract or current Operator request requires it.
@@ -121,8 +121,10 @@ This role must honor `HANDSHAKE_BUILD_RULES.json` v1.3.0+ (see Codex CX-131, Mas
 - PostgreSQL/EventLedger duty: durable authority work must use Handshake-managed PostgreSQL/EventLedger paths or an explicit real PostgreSQL URL. No SQLite authority, cache, fixture, compatibility, fallback, import, example, harness, or temporary adapter is acceptable.
 - CRDT duty: collaborative state work must prove CRDT persistence, reconnect/replay, conflict visibility, and promotion into EventLedger authority where in scope.
 - Argus visual duty: GUI/operator-surface, diagnostic-surface, frontend navigation, layout, style, panel, tab, button, input, or visible-state work must use Argus per `.GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md` when observable UI behavior is touched. If Argus cannot see, identify by stable `author_id`, steer, or re-observe the changed surface, remediate the missing Argus hook as allowed same-MT/WP scope expansion when it blocks proof; otherwise record a blocking HBR-VIS gap.
+- GUI creation duty: any claimed MT that creates or changes operator-visible, model-navigable, diagnostic-visible, or frontend behavior must create or wire the corresponding GUI/operator path in the same MT unless the MT carries a typed `NOT_APPLICABLE` reason proving the behavior is intentionally headless. Creating the GUI includes reachable navigation, stable `author_id` targets for applicable controls, inspectable rendered or AccessKit-visible state, safe Argus steering for applicable controls, and before/after observation evidence.
 - Diagnostics/Flight-Recorder + Palmistry duty: map every observable runtime behavior to a three-tier diagnostic consideration before readiness — Tier 1 Flight Recorder (kept-as-is backend business-event ledger), Tier 2 internal_diagnostics (Handshake-native internal self-diagnostics: panic hook, UI-thread heartbeat, frame-time, CPU/RSS/GPU counters, open diagnostic-event API), and Tier 3 Palmistry (external out-of-process watcher that survives freezes/crashes). Plan each behavior's per-tier outcome (WIRED | NOT_APPLICABLE-with-reason | DEFERRED-with-reason) so the implementing MTs wire/consider all three tiers and record the per-tier verdict as build evidence; until internal_diagnostics/Palmistry ship, mark the consideration DEFERRED, never silently skip it. Per HBR-INT-009 + CX-981.
 - UserManual duty: every implementation that creates, changes, wires, exposes, deprecates, or removes a Handshake product behavior, tool, feature, primitive, workflow, model lane, command, IPC channel, config key, diagnostic surface, storage/event contract, operator navigation path, or model navigation path must update the in-product internal UserManual in the same change. The entry must explain purpose, usage path, expected inputs/outputs, affected tools/features/primitives, failure/recovery steps, verification proof, Flight Recorder/EventLedger linkage, and the HBR-INT-009 Flight Recorder/internal_diagnostics/Palmistry posture. If internal_diagnostics or Palmistry are unavailable in the current worktree, record DEFERRED-with-reason plus integration follow-up, never silent skip. Legacy `ModelManual` identifiers are aliases only, not a second manual surface.
+- Per-MT UserManual duty: every implementation MT must carry a `user_manual_obligation` field. Product-behavior MTs require same-change UserManual diff evidence, `MANUAL_VERSION` handling when applicable, a no-context/manual-self-consistency test, and direct inspection of the updated manual path. Pure repo-governance MTs may mark this `NOT_APPLICABLE` only with a typed reason.
 - STOP duty: never use capacity, token, throughput, multi-session, or future-work aggregate reasoning as a stop reason. Dependency blockers must be worked or routed through the packet, and out-of-scope unblockers require full disclosure and waiver handling per HBR-STOP.
 - Handoff duty: HandoffGate (MT-004), `hbr-matrix-check`, and packet HBR matrix closure must pass before final Kernel Builder handoff. Do not request validation while any required HBR row is `PENDING`, `STEER`, or `BLOCKED`.
 
@@ -243,13 +245,15 @@ For each implementation session:
 5. If no MT board exists, populate it from the packet's declared MT contracts before claiming work.
 6. Claim exactly one unblocked MT at a time unless the packet explicitly permits a grouped MT slice and records the grouping rationale.
 7. Before implementing the MT, emit a typed intent/claim receipt with WP ID, MT ID, session key, planned files, proof commands, and any known scope risk.
-8. Implement only the claimed MT scope in the product worktree, using read/write sub-agents when packet rules or the operator instruction explicitly allows it, and review all delegated work before advancing state. `KERNEL_BUILDER` remains responsible for all sub-agent actions and outcomes.
-9. Run the MT's proof commands or record the exact blocker. Build/test/tool outputs must use `../Handshake_Artifacts/`.
-10. Update typed MT/packet/runtime/receipt state from the authoritative gov root when the MT status, evidence, blocker, or next actor changes; regenerate projections instead of hand-maintaining Markdown as authority.
-11. Commit product-code checkpoints on the assigned `feat/WP-*` branch only after the diff is scoped, tests or blockers are recorded, and `.GOV/` files are absent from the product commit.
-12. Push the assigned WP backup branch at implementation checkpoints that must survive session loss, and before any destructive or state-hiding git operation.
-13. Emit the packet-declared typed handoff when review is needed. For folded Kernel Builder packets, hand off the completed MT batch to Integration Validator; include commit range, touched files, proof results, open risks, and MT IDs. Use a WP Validator handoff only when the packet explicitly declares one.
-14. Continue only after the typed review route allows continuation, or record the blocker truthfully.
+8. Implement only the claimed MT scope in the product worktree. If the MT creates or changes operator-visible, model-navigable, diagnostic-visible, or frontend behavior, create or wire the GUI/operator path and Argus inspection/steering path in the same MT unless the MT records a typed headless `NOT_APPLICABLE` reason.
+9. Use role-relevant sub-agents as speed-build lanes when packet rules or the Operator instruction allow it: disjoint product implementation slices, GUI/Argus wiring, UserManual/manual-test updates, proof command hardening, and independent risk review. Review all delegated diffs and outputs before advancing state. `KERNEL_BUILDER` remains responsible for all sub-agent actions and outcomes.
+10. Update the in-product internal UserManual for every product-behavior MT in the same change, handle `MANUAL_VERSION` when applicable, run a manual self-consistency/no-context operation check, inspect the updated manual path, and record evidence or a typed pure-governance `NOT_APPLICABLE` reason.
+11. Run the MT's proof commands, Argus proof when visual scope exists, UserManual proof when product behavior exists, or record the exact blocker. Build/test/tool outputs must use `../Handshake_Artifacts/`.
+12. Update typed MT/packet/runtime/receipt state from the authoritative gov root when the MT status, evidence, blocker, or next actor changes; regenerate projections instead of hand-maintaining Markdown as authority.
+13. Commit product-code checkpoints on the assigned `feat/WP-*` branch only after the diff is scoped, tests or blockers are recorded, GUI/UserManual obligations are evidenced or typed `NOT_APPLICABLE`, delegated sub-agent outputs are reviewed, and `.GOV/` files are absent from the product commit.
+14. Push the assigned WP backup branch at implementation checkpoints that must survive session loss, and before any destructive or state-hiding git operation.
+15. Emit the packet-declared typed handoff when review is needed. For folded Kernel Builder packets, hand off the completed MT batch to Integration Validator; include commit range, touched files, proof results, Argus/UserManual evidence, sub-agent delegation summary, open risks, and MT IDs. Use a WP Validator handoff only when the packet explicitly declares one.
+16. Continue only after the typed review route allows continuation, or record the blocker truthfully.
 
 Use existing command surfaces where they fit the current packet instead of inventing new public helpers:
 
@@ -290,6 +294,10 @@ MT_SCOPE: <active/completed MT ids>
 COMMIT_RANGE: <base..head or NONE>
 FILES_TOUCHED: <paths>
 PROOF_COMMANDS: <commands and outcomes>
+GUI_EVIDENCE: <Argus targets/screenshots/tree/action evidence or NOT_APPLICABLE-with-reason>
+USER_MANUAL_EVIDENCE: <manual diff/version/test/inspection evidence or NOT_APPLICABLE-with-reason>
+SUB_AGENT_DELEGATION_SUMMARY: <lanes delegated, agents used, reviewed outputs, rejected outputs, or NONE>
+HBR_VIS_MAN_INT_STATUS: <VIS/MAN/INT row status and blockers>
 PACKET_STATE_UPDATES: <receipts/runtime/MT/task-board changes>
 OPEN_BLOCKERS: <blockers or NONE>
 VALIDATION_BOUNDARY: <validator/operator action required or NONE>
@@ -347,6 +355,9 @@ ARTIFACT_DIR_CLEANUP: <whether artifacts root has been cleaned per-WP after vali
 PRIMITIVE_RETENTION_PROOF: <paths/actions/tests/primitives preserved or superseded>
 SPEC_MUST_TO_PROOF_MATRIX: <anchor -> MUST -> proof_class -> evidence>
 ANTI_SCAFFOLD_GATE: <declarative surfaces -> executable consumers>
+ARGUS_GUI_EVIDENCE: <reachable navigation, stable author_id targets, before/after observation, screenshot/tree references, or NOT_APPLICABLE>
+USER_MANUAL_CLOSEOUT: <per-MT manual update/version/test/inspection matrix or NOT_APPLICABLE-with-reasons>
+SUB_AGENT_REVIEW_LEDGER: <delegated lanes, reviewed diffs, proof reruns, corrections applied, or NONE>
 NEGATIVE_GUARD_TESTS: <tests proving forbidden or missing behavior fails closed>
 SELF_VALIDATOR_ATTACKS: <five plausible Integration Validator failures and dispositions>
 ```
@@ -375,6 +386,8 @@ Each kernel-build WP must include:
 - relevant Master Spec or reset-brief anchors;
 - exact in-scope and out-of-scope paths;
 - data contracts, schemas, events, IDs, and state transitions affected;
+- GUI/operator surfaces to create or update, Argus targets, visual proof path, or typed headless `NOT_APPLICABLE` reason;
+- per-MT UserManual obligations, target entries, version policy, manual test/inspection path, or typed pure-governance `NOT_APPLICABLE` reason;
 - execution order and dependency notes;
 - acceptance rows with stable IDs;
 - validator focus, known risks, and non-goals;
@@ -390,6 +403,8 @@ Each microtask must include:
 - dependencies and unblock conditions;
 - implementation notes sufficient for a no-context model;
 - proof command or inspection evidence;
+- GUI/Argus obligation with surfaces, `author_id` targets, screenshot/tree evidence, action sequence, or typed `NOT_APPLICABLE` reason;
+- UserManual obligation with target entry, diff/version evidence, self-consistency test, direct inspection proof, or typed `NOT_APPLICABLE` reason;
 - risk if missed;
 - validator focus.
 

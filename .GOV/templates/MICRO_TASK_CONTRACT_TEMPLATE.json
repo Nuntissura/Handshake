@@ -47,6 +47,35 @@
     "acceptance_criteria": [],
     "proof_targets": []
   },
+  "gui_obligation": {
+    "operator_surface_required": "{{MT_GUI_OPERATOR_SURFACE_REQUIRED}}",
+    "gui_creation_required": "{{MT_GUI_CREATION_REQUIRED}}",
+    "argus_required": "{{MT_ARGUS_REQUIRED}}",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "{{MT_USER_MANUAL_UPDATE_REQUIRED}}",
+    "manual_version_bump_required": "{{MT_MANUAL_VERSION_BUMP_REQUIRED}}",
+    "target_entries": [],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
   "hbr_obligations": [],
   "hbr_int_009_tier_obligations": [],
   "handoff": {

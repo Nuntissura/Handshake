@@ -44,8 +44,9 @@ This role must honor `HANDSHAKE_BUILD_RULES.json` v1.3.0+ (see Codex CX-131, Mas
 - Native-runtime duty: reject Docker Desktop, Docker Compose, third-party daemons, manually launched support apps, SQLite, SQL-portability shims, and mock-only resources as default core-operation proof. Built-in sandbox/VM/workspace/worktree behavior must be product-managed or explicitly operator-configured.
 - PostgreSQL/EventLedger duty: durable authority claims require real PostgreSQL/EventLedger proof through Handshake-managed PostgreSQL or an explicit real PostgreSQL URL. Legacy SQLite or in-memory-only tests cannot satisfy authority storage rows.
 - CRDT duty: collaborative state claims require CRDT persistence, reconnect/replay, conflict visibility, and promotion-gate evidence when in scope.
-- Argus visual duty: for UI/operator-surface, diagnostic-surface, frontend navigation, layout, style, panel, tab, button, input, or visible-state MTs, require Argus evidence per `.GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md` before accepting the MT. If Argus cannot see, identify by stable `author_id`, steer, or re-observe an in-scope surface, require same-MT/WP remediation when that gap blocks proof; if remediation is outside role authority, record the exact missing surface as a blocking HBR-VIS gap rather than issuing PASS.
-- UserManual duty: verify model-callable and operator-facing surface changes include UserManual updates and code-truth self-consistency evidence when applicable. Current HBR-MAN registry anchors may still use the legacy `ModelManual` identifier until that authority rename is performed.
+- Argus visual duty: for any MT that creates or changes a GUI/operator surface, diagnostic surface, frontend navigation, layout, style, panel, tab, button, input, or visible state, PASS requires Argus evidence per `.GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md`. GUI creation includes creating or verifying the Argus inspection/steering contract in the same MT when absent: reachable navigation, stable `author_id` targets, rendered or AccessKit-visible state, safe steering, before/after observation, and screenshot/tree evidence. Unit tests, process exits, uninspected screenshots, foreground desktop automation, legacy Tauri/WebView2/CDP-only checks, or narrative "looked OK" text are not enough. If Argus cannot see, identify, steer, or re-observe an in-scope surface, require remediation or FAIL with a blocking HBR-VIS gap.
+- UserManual duty: every implementation MT is subject to HBR-MAN by default unless the MT is pure repo governance and records a concrete `NOT_APPLICABLE` reason. PASS requires same-MT/same-commit internal UserManual update evidence when product behavior changed, `MANUAL_VERSION` handling when applicable, code-truth self-consistency evidence, a no-context/manual operation or inspection test, and HBR-INT-009 diagnostic-posture linkage. Missing, stale, untested, uninspected, or code-untruthful manual content fails the MT. Current HBR-MAN registry anchors may still use the legacy `ModelManual` identifier until that authority rename is performed.
+- Role-relevant sub-agent duty: WP Validator may use read-only sub-agents as independent review lenses for bounded per-MT questions such as Argus evidence, UserManual evidence, scope containment, proof quality, and regression-risk review. Sub-agents must not edit files, issue the verdict, advance runtime state, approve acceptance rows, or replace the WP Validator's own inspection of the final evidence.
 - Quiet/process duty: require proof that tests, agent activity, sandboxes, and background processes are non-intrusive and reclaim owned processes.
 - Verdict duty: a per-MT approval is illegal while an applicable required HBR row lacks evidence, is only prose-supported, or remains `PENDING`, `STEER`, or `BLOCKED`. Emit remediation through typed review receipts.
 
@@ -170,6 +171,8 @@ After boundary, scope, worktree isolation, and hygiene checks pass, review the M
 **Review criteria:**
 - Does the code implement what the MT description asks for?
 - Does it compile and pass the declared proof commands?
+- If the MT creates or changes GUI/operator-visible behavior, does Argus prove reachable navigation, stable `author_id` targeting, inspectable state, safe steering when applicable, before/after observation, and layout/text sanity?
+- If the MT creates or changes product behavior, does the internal UserManual update occur in the same change, pass manual self-consistency/no-context inspection, and record HBR-INT-009 diagnostic posture?
 - Are there obvious logic errors or missing edge cases?
 - Does the code follow the patterns established in the surrounding codebase?
 
@@ -195,6 +198,8 @@ WP Validator mechanical pre-check:
 WP Validator AI review:
   - Code quality, logic, MT satisfaction
   - Product/repo conceptual boundary
+  - Argus GUI evidence when visual scope exists
+  - UserManual update, test, and inspection evidence when product behavior exists
   |
   +--> PASS --> REVIEW_RESPONSE PASS, coder proceeds to next MT
   +--> FAIL --> REVIEW_RESPONSE FAIL with specific findings
