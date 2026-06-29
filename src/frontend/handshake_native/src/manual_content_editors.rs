@@ -277,6 +277,20 @@ atelier-tab-ingest. Use Argus to inspect the panel, click a tab, then re-inspect
 region before claiming the workflow works.\n\
 \n\
 CKC starts from atelier-content-ckc and is the character/avatar database surface. Inspect \
+atelier-ckc-book-layout first: default CKC is a book-style two-pane work surface, not a four-window \
+grid. The left page is atelier-ckc-book-left-media with the selected image/media viewer \
+atelier-ckc-media-viewer, linked albums, source folders, source URLs, and image notes/tags. The right \
+page is atelier-ckc-book-right-sheet with the editable character sheet and sheet utilities. \
+atelier-ckc-book-middle is absent in default Sheet mode; click atelier-ckc-mode-sheet to return to \
+that two-pane state. The middle page appears only after clicking \
+atelier-ckc-mode-story, atelier-ckc-mode-notes, or atelier-ckc-mode-moodboard; those mode controls \
+must keep atelier-ckc-book-left-media and atelier-ckc-book-right-sheet visible so the old CKC \
+large-picture-left / work-surface-right pattern stays intact. Argus proof for CKC layout requires \
+argus.inspect plus argus.screenshot at desktop and constrained sizes. If a model sees pane-a, pane-b, \
+pane-c, pane-d, SplitLayoutWidget, a four-window grid, or a foreground popout inside Atelier, treat \
+that as a layout regression.\n\
+\n\
+Inspect \
 atelier-ckc-character-list to select a character, use atelier-ckc-character-create-name and \
 atelier-ckc-character-create to create a new character shell, edit the current sheet in \
 atelier-ckc-sheet-editor, and use atelier-ckc-sheet-save-version to append a new sheet version rather \
@@ -318,15 +332,22 @@ re-inspect the panel, and verify the editor text or visible sheet_version_ref ch
 the UI was steered.\n\
 \n\
 CKC story documents are native character documents under \
-/atelier/characters/{character_internal_id}/documents?doc_type=story, and their reusable refs are \
-atelier://document/{document_id}. Plural story rows use atelier-ckc-story-document-{document_id}; \
+/atelier/characters/{character_internal_id}/documents?doc_type=story, but their controls are \
+mode-gated. \
+Click atelier-ckc-mode-story before expecting story controls. Click atelier-ckc-mode-notes for \
+character sheet notes; edit atelier-ckc-character-notes-editor and click \
+atelier-ckc-character-notes-apply to write back to the selected sheet notes field, then append a \
+sheet version if persistence is needed. Character sheet notes are not image notes: image notes stay in \
+atelier-ckc-media-notes-editor on the left media page and must not change when sheet notes are edited. \
+Story reusable refs are atelier://document/{document_id}. Plural story rows use atelier-ckc-story-document-{document_id}; \
 click a row to make atelier-ckc-story-doc-ref and atelier-ckc-story-editor target that document. \
 Inspect atelier-ckc-story-doc-ref, edit the story body in atelier-ckc-story-editor, and click \
 atelier-ckc-story-save. Story cards and beats live under \
 /atelier/character-documents/{document_id}/story-cards and \
 /atelier/character-documents/{document_id}/story-beats: inspect atelier-ckc-story-card-list, set \
 atelier-ckc-story-card-title and atelier-ckc-story-card-body, click atelier-ckc-story-card-save, set \
-atelier-ckc-story-beat-editor, and click atelier-ckc-story-beat-save. CKC moodboards are also native \
+atelier-ckc-story-beat-editor, and click atelier-ckc-story-beat-save. Click \
+atelier-ckc-mode-moodboard before expecting moodboard controls. CKC moodboards are also native \
 character documents, under /atelier/characters/{character_internal_id}/documents?doc_type=moodboard. \
 Moodboard snapshots use /atelier/character-documents/{document_id}/moodboard/snapshots, the latest \
 snapshot uses /atelier/character-documents/{document_id}/moodboard/latest, and reusable refs are \
@@ -504,6 +525,75 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         description: "argus.inspect surfaces the CKC character list and selected sheet version.",
     });
     rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_BOOK_LAYOUT_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Inspect CKC book layout",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect confirms CKC uses a left-media/right-sheet book layout, not a four-window grid.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_BOOK_LEFT_MEDIA_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Inspect CKC left media page",
+        mcp_tool: "argus.inspect",
+        description: "argus.inspect reads the CKC left page with character images and media notes.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_BOOK_RIGHT_SHEET_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Inspect CKC right sheet page",
+        mcp_tool: "argus.inspect",
+        description: "argus.inspect reads the CKC right page with the editable character sheet.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_BOOK_MIDDLE_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Inspect CKC middle work page",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads the optional CKC middle page after Story, Notes, or Moodboard mode is selected.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_MEDIA_VIEWER_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Inspect CKC selected image viewer",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads the selected CKC image/media preview and source refs in the left page.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_MODE_SHEET_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Switch CKC to sheet mode",
+        mcp_tool: "argus.click",
+        description: "argus.click{target:'atelier-ckc-mode-sheet'} hides the optional middle page.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_MODE_STORY_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Switch CKC to story mode",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-mode-story'} opens the story middle page while keeping media and sheet visible.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_MODE_NOTES_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Switch CKC to notes mode",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-mode-notes'} opens character sheet notes in the middle page.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_MODE_MOODBOARD_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Switch CKC to moodboard mode",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-mode-moodboard'} opens the moodboard middle page and native canvas.",
+    });
+    rows.push(AgentToolRow {
         author_id: crate::atelier_panel::ATELIER_CKC_CHARACTER_CREATE_NAME_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Type a new CKC character name",
@@ -541,6 +631,22 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         mcp_tool: "argus.inspect",
         description:
             "argus.inspect reads atelier://sheet/{character_internal_id}/{sheet_version_id}.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_CHARACTER_NOTES_EDITOR_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Edit CKC character sheet notes",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-character-notes-editor', value:'<notes>'} edits sheet notes, not image notes.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_CHARACTER_NOTES_APPLY_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Apply CKC character sheet notes",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-character-notes-apply'} writes the notes back into the selected sheet text.",
     });
     rows.push(AgentToolRow {
         author_id: crate::atelier_panel::ATELIER_CKC_TEMPLATE_STATUS_AUTHOR_ID,

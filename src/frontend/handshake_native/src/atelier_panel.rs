@@ -96,6 +96,17 @@ pub const ATELIER_CKC_MOODBOARD_EDITOR_AUTHOR_ID: &str = "atelier-ckc-moodboard-
 pub const ATELIER_CKC_MOODBOARD_SAVE_AUTHOR_ID: &str = "atelier-ckc-moodboard-save";
 pub const ATELIER_CKC_MOODBOARD_OPEN_AUTHOR_ID: &str = "atelier-ckc-moodboard-open";
 pub const ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID: &str = "atelier-ckc-moodboard-canvas";
+pub const ATELIER_CKC_BOOK_LAYOUT_AUTHOR_ID: &str = "atelier-ckc-book-layout";
+pub const ATELIER_CKC_BOOK_LEFT_MEDIA_AUTHOR_ID: &str = "atelier-ckc-book-left-media";
+pub const ATELIER_CKC_BOOK_MIDDLE_AUTHOR_ID: &str = "atelier-ckc-book-middle";
+pub const ATELIER_CKC_BOOK_RIGHT_SHEET_AUTHOR_ID: &str = "atelier-ckc-book-right-sheet";
+pub const ATELIER_CKC_MEDIA_VIEWER_AUTHOR_ID: &str = "atelier-ckc-media-viewer";
+pub const ATELIER_CKC_MODE_SHEET_AUTHOR_ID: &str = "atelier-ckc-mode-sheet";
+pub const ATELIER_CKC_MODE_STORY_AUTHOR_ID: &str = "atelier-ckc-mode-story";
+pub const ATELIER_CKC_MODE_NOTES_AUTHOR_ID: &str = "atelier-ckc-mode-notes";
+pub const ATELIER_CKC_MODE_MOODBOARD_AUTHOR_ID: &str = "atelier-ckc-mode-moodboard";
+pub const ATELIER_CKC_CHARACTER_NOTES_EDITOR_AUTHOR_ID: &str = "atelier-ckc-character-notes-editor";
+pub const ATELIER_CKC_CHARACTER_NOTES_APPLY_AUTHOR_ID: &str = "atelier-ckc-character-notes-apply";
 pub const ATELIER_CKC_SEARCH_QUERY_AUTHOR_ID: &str = "atelier-ckc-search-query";
 pub const ATELIER_CKC_SEARCH_TAGS_AUTHOR_ID: &str = "atelier-ckc-search-tags";
 pub const ATELIER_CKC_SEARCH_FILTER_CHARACTER_AUTHOR_ID: &str =
@@ -161,6 +172,49 @@ impl AtelierPanelTab {
             Self::Posekit => ATELIER_CONTENT_POSEKIT_AUTHOR_ID,
             Self::Ingest => ATELIER_CONTENT_INGEST_AUTHOR_ID,
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CkcBookMode {
+    Sheet,
+    Story,
+    Notes,
+    Moodboard,
+}
+
+impl CkcBookMode {
+    const ALL: [Self; 4] = [Self::Sheet, Self::Story, Self::Notes, Self::Moodboard];
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::Sheet => "Sheet",
+            Self::Story => "Story",
+            Self::Notes => "Notes",
+            Self::Moodboard => "Moodboard",
+        }
+    }
+
+    fn author_id(self) -> &'static str {
+        match self {
+            Self::Sheet => ATELIER_CKC_MODE_SHEET_AUTHOR_ID,
+            Self::Story => ATELIER_CKC_MODE_STORY_AUTHOR_ID,
+            Self::Notes => ATELIER_CKC_MODE_NOTES_AUTHOR_ID,
+            Self::Moodboard => ATELIER_CKC_MODE_MOODBOARD_AUTHOR_ID,
+        }
+    }
+
+    fn middle_label(self) -> &'static str {
+        match self {
+            Self::Sheet => "No middle panel",
+            Self::Story => "Story work surface",
+            Self::Notes => "Character sheet notes",
+            Self::Moodboard => "Moodboard work surface",
+        }
+    }
+
+    fn has_middle_panel(self) -> bool {
+        !matches!(self, Self::Sheet)
     }
 }
 
@@ -1856,6 +1910,7 @@ fn apply_ckc_moodboard_snapshot_row(
 #[derive(Debug)]
 struct AtelierPanelState {
     active_tab: AtelierPanelTab,
+    ckc_book_mode: CkcBookMode,
     ckc_characters: Vec<CkcCharacterRecord>,
     ckc_selected_index: usize,
     ckc_new_display_name: String,
@@ -1896,6 +1951,9 @@ struct AtelierPanelState {
     ckc_moodboard_status: String,
     ckc_active_story_document_id: Option<String>,
     ckc_active_moodboard_document_id: Option<String>,
+    ckc_character_notes_buffer: String,
+    ckc_character_notes_source_key: Option<String>,
+    ckc_character_notes_status: String,
     ckc_search_query: String,
     ckc_search_tags: String,
     ckc_search_filter_selected_character: bool,
@@ -1927,6 +1985,7 @@ impl Default for AtelierPanelState {
         let ckc_search_results = seeded_ckc_search_results(&ckc_characters);
         Self {
             active_tab: AtelierPanelTab::CastkitCodex,
+            ckc_book_mode: CkcBookMode::Sheet,
             ckc_characters,
             ckc_selected_index: 0,
             ckc_new_display_name: "New character".to_owned(),
@@ -1972,6 +2031,10 @@ impl Default for AtelierPanelState {
                     .to_owned(),
             ckc_active_story_document_id: None,
             ckc_active_moodboard_document_id: None,
+            ckc_character_notes_buffer: String::new(),
+            ckc_character_notes_source_key: None,
+            ckc_character_notes_status:
+                "Character sheet notes mirror the notes field inside the selected sheet.".to_owned(),
             ckc_search_query: String::new(),
             ckc_search_tags: String::new(),
             ckc_search_filter_selected_character: false,
@@ -2472,6 +2535,52 @@ fn non_empty_trimmed(value: &str) -> Option<String> {
     } else {
         Some(trimmed.to_owned())
     }
+}
+
+fn ckc_sheet_notes_source_key(character: &CkcCharacterRecord) -> String {
+    let version = character
+        .sheet_version_id
+        .as_deref()
+        .unwrap_or("draft-sheet-version");
+    format!("{}:{version}", character.character_internal_id)
+}
+
+fn extract_ckc_sheet_notes(sheet_text: &str) -> String {
+    sheet_text
+        .lines()
+        .find_map(|line| {
+            let trimmed = line.trim_start();
+            trimmed
+                .strip_prefix("notes:")
+                .map(|notes| notes.trim().to_owned())
+        })
+        .unwrap_or_default()
+}
+
+fn upsert_ckc_sheet_notes(sheet_text: &mut String, notes: &str) {
+    let normalized_notes = notes
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join(" / ");
+    let mut found = false;
+    let mut out = Vec::new();
+    for line in sheet_text.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("notes:") {
+            let prefix_len = line.len() - trimmed.len();
+            let prefix = &line[..prefix_len];
+            out.push(format!("{prefix}notes: {normalized_notes}"));
+            found = true;
+        } else {
+            out.push(line.to_owned());
+        }
+    }
+    if !found {
+        out.push(format!("notes: {normalized_notes}"));
+    }
+    *sheet_text = out.join("\n");
 }
 
 fn local_ckc_media_member(
@@ -3360,15 +3469,44 @@ impl AtelierPanel {
             state.ckc_characters = seeded_ckc_characters();
             state.ckc_selected_index = 0;
         }
-        ui.horizontal(|ui| {
-            let left_w = (ui.available_width() * 0.34).clamp(240.0, 380.0);
-            ui.vertical(|ui| {
-                ui.set_width(left_w);
-                ui.heading(egui::RichText::new("Characters").color(palette.text));
-                egui::ScrollArea::vertical()
-                    .id_salt("atelier-ckc-left-scroll")
-                    .auto_shrink([false, false])
-                    .show(ui, |ui| {
+        self.show_ckc_mode_controls(ui, palette, &mut state.ckc_book_mode);
+        let book_mode = state.ckc_book_mode;
+        let selected_index = state
+            .ckc_selected_index
+            .min(state.ckc_characters.len().saturating_sub(1));
+        state.ckc_selected_index = selected_index;
+        let book_response = ui
+            .scope_builder(
+                egui::UiBuilder::new().id_salt(egui::Id::new(ATELIER_CKC_BOOK_LAYOUT_AUTHOR_ID)),
+                |ui| {
+                    let available_width = ui.available_width();
+                    let has_middle = book_mode.has_middle_panel();
+                    let left_w = if has_middle {
+                        (available_width * 0.30).clamp(220.0, 340.0)
+                    } else {
+                        (available_width * 0.42).clamp(280.0, 460.0)
+                    };
+                    let middle_w = if has_middle {
+                        (available_width * 0.30).clamp(260.0, 430.0)
+                    } else {
+                        0.0
+                    };
+                    ui.horizontal(|ui| {
+                        let left_response = ui
+                            .scope_builder(
+                                egui::UiBuilder::new().id_salt(egui::Id::new(
+                                    ATELIER_CKC_BOOK_LEFT_MEDIA_AUTHOR_ID,
+                                )),
+                                |ui| {
+                                    ui.set_width(left_w);
+                                    egui::ScrollArea::vertical()
+                                        .id_salt("atelier-ckc-book-left-media-scroll")
+                                        .auto_shrink([false, false])
+                                        .show(ui, |ui| {
+                                            ui.heading(
+                                                egui::RichText::new("Character images")
+                                                    .color(palette.text),
+                                            );
                 if state.ckc_loading {
                     ui.label(egui::RichText::new("Loading CKC database...").color(palette.text_subtle));
                 }
@@ -3625,16 +3763,401 @@ impl AtelierPanel {
                 if let Ok(mut side_panel) = self.side_panel.lock() {
                     side_panel.show(ui, palette);
                 }
+                                        });
+                                },
+                            )
+                            .response;
+                        emit_node(
+                            ui.ctx(),
+                            left_response.id,
+                            accesskit::Role::Group,
+                            ATELIER_CKC_BOOK_LEFT_MEDIA_AUTHOR_ID,
+                            "CKC left page: character images albums media notes and source refs",
+                            false,
+                        );
+                        ui.separator();
+                        if has_middle {
+                            let middle_response = ui
+                                .scope_builder(
+                                    egui::UiBuilder::new()
+                                        .id_salt(egui::Id::new(ATELIER_CKC_BOOK_MIDDLE_AUTHOR_ID)),
+                                    |ui| {
+                                        ui.set_width(middle_w);
+                                        egui::ScrollArea::vertical()
+                                            .id_salt("atelier-ckc-book-middle-scroll")
+                                            .auto_shrink([false, false])
+                                            .show(ui, |ui| {
+                                                self.show_ckc_middle_work_panel(
+                                                    ui,
+                                                    palette,
+                                                    &mut state,
+                                                    selected_index,
+                                                );
+                                            });
+                                    },
+                                )
+                                .response;
+                            emit_node(
+                                ui.ctx(),
+                                middle_response.id,
+                                accesskit::Role::Group,
+                                ATELIER_CKC_BOOK_MIDDLE_AUTHOR_ID,
+                                book_mode.middle_label(),
+                                false,
+                            );
+                            ui.separator();
+                        }
+                        let right_response = ui
+                            .scope_builder(
+                                egui::UiBuilder::new().id_salt(egui::Id::new(
+                                    ATELIER_CKC_BOOK_RIGHT_SHEET_AUTHOR_ID,
+                                )),
+                                |ui| {
+                                    egui::ScrollArea::vertical()
+                                        .id_salt("atelier-ckc-book-right-sheet-scroll")
+                                        .auto_shrink([false, false])
+                                        .show(ui, |ui| {
+                                            self.show_ckc_character_sheet_panel(
+                                                ui,
+                                                palette,
+                                                &mut state,
+                                                selected_index,
+                                            );
+                                            ui.separator();
+                                            self.show_ckc_sheet_tools(
+                                                ui,
+                                                palette,
+                                                &mut state,
+                                                selected_index,
+                                            );
+                                        });
+                                },
+                            )
+                            .response;
+                        emit_node(
+                            ui.ctx(),
+                            right_response.id,
+                            accesskit::Role::Group,
+                            ATELIER_CKC_BOOK_RIGHT_SHEET_AUTHOR_ID,
+                            "CKC right page: editable character sheet and sheet tools",
+                            false,
+                        );
                     });
-            });
-            ui.separator();
-            ui.vertical(|ui| {
-                let append_pending = state.ckc_append_pending;
-                let mut pending_append_request: Option<(String, String, Option<String>)> = None;
-                let selected_index = state
-                    .ckc_selected_index
-                    .min(state.ckc_characters.len().saturating_sub(1));
-                state.ckc_selected_index = selected_index;
+                },
+            )
+            .response;
+        emit_node(
+            ui.ctx(),
+            book_response.id,
+            accesskit::Role::Group,
+            ATELIER_CKC_BOOK_LAYOUT_AUTHOR_ID,
+            if book_mode.has_middle_panel() {
+                "CKC book layout with left media middle work surface and right sheet"
+            } else {
+                "CKC book layout with left media and right sheet"
+            },
+            false,
+        );
+    }
+
+    fn show_ckc_mode_controls(
+        &self,
+        ui: &mut egui::Ui,
+        _palette: &HsPalette,
+        mode: &mut CkcBookMode,
+    ) {
+        ui.horizontal_wrapped(|ui| {
+            ui.label("CKC book mode:");
+            for next_mode in CkcBookMode::ALL {
+                let selected = *mode == next_mode;
+                let response = ui.add(egui::Button::selectable(selected, next_mode.label()));
+                emit_node(
+                    ui.ctx(),
+                    response.id,
+                    accesskit::Role::Button,
+                    next_mode.author_id(),
+                    next_mode.middle_label(),
+                    selected,
+                );
+                if response.clicked() {
+                    *mode = next_mode;
+                }
+            }
+        });
+    }
+
+    fn show_ckc_character_sheet_panel(
+        &self,
+        ui: &mut egui::Ui,
+        palette: &HsPalette,
+        state: &mut AtelierPanelState,
+        selected_index: usize,
+    ) {
+        let append_pending = state.ckc_append_pending;
+        let mut pending_append_request: Option<(String, String, Option<String>)> = None;
+        let mut clear_last_export = false;
+        state.ckc_selected_index = selected_index;
+        if let Some(character) = state.ckc_characters.get_mut(selected_index) {
+            let selected_response = ui
+                .vertical(|ui| {
+                    ui.heading(egui::RichText::new(&character.display_name).color(palette.text));
+                    ui.label(format!("public_id: {}", character.public_id));
+                    if character.sheet_seq > 0 {
+                        ui.label(format!("sheet seq: {}", character.sheet_seq));
+                    } else {
+                        ui.label("sheet seq: no sheet version yet");
+                    }
+                    if let Some(parent) = &character.parent_sheet_version_id {
+                        ui.label(format!("parent_version_id: {parent}"));
+                    }
+                })
+                .response;
+            emit_node(
+                ui.ctx(),
+                selected_response.id,
+                accesskit::Role::Group,
+                ATELIER_CKC_SELECTED_CHARACTER_AUTHOR_ID,
+                &format!(
+                    "{} current sheet version {}",
+                    character.display_name, character.sheet_seq
+                ),
+                true,
+            );
+            ui.add_space(4.0);
+            let character_ref = character.character_ref();
+            let character_ref_response = ui.label(format!("character_ref: {character_ref}"));
+            emit_node(
+                ui.ctx(),
+                character_ref_response.id,
+                accesskit::Role::Label,
+                ATELIER_CKC_CHARACTER_REF_AUTHOR_ID,
+                &character_ref,
+                false,
+            );
+            let sheet_ref = character.sheet_atelier_ref();
+            if let Some(sheet_ref) = &sheet_ref {
+                debug_assert_eq!(sheet_ref.item_kind, AtelierItemKind::CharacterSheet);
+            }
+            let ref_kind = sheet_ref
+                .as_ref()
+                .map(|sheet_ref| sheet_ref.ref_kind())
+                .unwrap_or("character_sheet");
+            let ref_kind_response = ui.label(format!("hsLink refKind: {ref_kind}"));
+            emit_node(
+                ui.ctx(),
+                ref_kind_response.id,
+                accesskit::Role::Label,
+                ATELIER_CKC_TYPED_REF_KIND_AUTHOR_ID,
+                ref_kind,
+                false,
+            );
+            let sheet_version_ref = character
+                .sheet_version_ref()
+                .unwrap_or_else(|| "pending-first-sheet-version".to_owned());
+            let sheet_ref_response = ui.label(format!("sheet_version_ref: {sheet_version_ref}"));
+            emit_node(
+                ui.ctx(),
+                sheet_ref_response.id,
+                accesskit::Role::Label,
+                ATELIER_CKC_SHEET_VERSION_REF_AUTHOR_ID,
+                &sheet_version_ref,
+                false,
+            );
+            ui.add_space(8.0);
+            let editor = ui.add(
+                egui::TextEdit::multiline(&mut character.sheet_editor_text)
+                    .desired_rows(15)
+                    .lock_focus(true),
+            );
+            emit_node(
+                ui.ctx(),
+                editor.id,
+                accesskit::Role::TextInput,
+                ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID,
+                "CKC character sheet editor",
+                false,
+            );
+            let save = ui.button("Append sheet version");
+            emit_node(
+                ui.ctx(),
+                save.id,
+                accesskit::Role::Button,
+                ATELIER_CKC_SHEET_SAVE_AUTHOR_ID,
+                "Append CKC sheet version",
+                append_pending,
+            );
+            if save.clicked() {
+                if self.ckc_client.is_some() {
+                    if !append_pending {
+                        pending_append_request = Some((
+                            character.character_internal_id.clone(),
+                            character.sheet_editor_text.clone(),
+                            character.sheet_version_id.clone(),
+                        ));
+                    }
+                } else {
+                    character.parent_sheet_version_id = character.sheet_version_id.clone();
+                    let next_sheet_version_id = Uuid::new_v4().to_string();
+                    character.sheet_version_id = Some(next_sheet_version_id.clone());
+                    character.sheet_seq += 1;
+                    character.sheet_version_ref = Some(format!(
+                        "atelier://sheet/{}/{}",
+                        character.character_internal_id, next_sheet_version_id
+                    ));
+                    clear_last_export = true;
+                }
+            }
+        } else {
+            ui.label(egui::RichText::new("No CKC characters yet").color(palette.text_subtle));
+        }
+        if clear_last_export {
+            state.ckc_last_export = None;
+        }
+        if let Some((character_internal_id, raw_text, expected_parent_version_id)) =
+            pending_append_request
+        {
+            if let Some(client) = self.ckc_client.as_ref() {
+                state.ckc_append_pending = true;
+                state.ckc_error = None;
+                client.append_ckc_sheet_version(
+                    &character_internal_id,
+                    &raw_text,
+                    expected_parent_version_id.as_deref(),
+                    Some("handshake-native-atelier"),
+                    client.actor_id(),
+                    self.ckc_append_cell.clone(),
+                );
+            }
+        }
+    }
+
+    fn show_ckc_character_notes_panel(
+        &self,
+        ui: &mut egui::Ui,
+        palette: &HsPalette,
+        character: &mut CkcCharacterRecord,
+        notes_buffer: &mut String,
+        notes_source_key: &mut Option<String>,
+        notes_status: &mut String,
+    ) {
+        let source_key = ckc_sheet_notes_source_key(character);
+        if notes_source_key.as_deref() != Some(source_key.as_str()) {
+            *notes_buffer = extract_ckc_sheet_notes(&character.sheet_editor_text);
+            *notes_source_key = Some(source_key);
+        }
+        ui.heading(egui::RichText::new("Character sheet notes").color(palette.text));
+        ui.label(egui::RichText::new(notes_status.as_str()).color(palette.text_subtle));
+        ui.label(
+            egui::RichText::new(
+                "Image notes stay in the left media panel; this edits sheet notes.",
+            )
+            .color(palette.text_subtle),
+        );
+        let notes = ui.add(
+            egui::TextEdit::multiline(notes_buffer)
+                .desired_rows(8)
+                .lock_focus(true),
+        );
+        emit_node(
+            ui.ctx(),
+            notes.id,
+            accesskit::Role::TextInput,
+            ATELIER_CKC_CHARACTER_NOTES_EDITOR_AUTHOR_ID,
+            "CKC character sheet notes editor",
+            false,
+        );
+        let apply = ui.button("Apply notes to sheet");
+        emit_node(
+            ui.ctx(),
+            apply.id,
+            accesskit::Role::Button,
+            ATELIER_CKC_CHARACTER_NOTES_APPLY_AUTHOR_ID,
+            "Apply CKC character notes to the selected sheet text",
+            false,
+        );
+        if apply.clicked() {
+            upsert_ckc_sheet_notes(&mut character.sheet_editor_text, notes_buffer);
+            *notes_status = format!(
+                "Applied character sheet notes to {}. Append the sheet version to persist.",
+                character
+                    .sheet_version_ref()
+                    .unwrap_or_else(|| "pending sheet".to_owned())
+            );
+        }
+    }
+
+    fn show_ckc_moodboard_canvas(&self, ui: &mut egui::Ui, palette: &HsPalette) {
+        ui.separator();
+        ui.heading(egui::RichText::new("Moodboard").color(palette.text));
+        ui.add_space(4.0);
+        let mut event = None;
+        let canvas_response = ui
+            .scope_builder(
+                egui::UiBuilder::new()
+                    .id_salt(egui::Id::new(ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID)),
+                |ui| {
+                    if let Ok(mut board) = self.canvas_board.lock() {
+                        event = board.show(ui, palette);
+                        let drained = board.drain_knowledge_events();
+                        if !drained.is_empty() {
+                            if let Ok(mut q) = self.canvas_events.lock() {
+                                q.extend(drained);
+                            }
+                        }
+                    }
+                },
+            )
+            .response;
+        emit_node(
+            ui.ctx(),
+            canvas_response.id,
+            accesskit::Role::Group,
+            ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID,
+            "Native CKC moodboard canvas surface",
+            false,
+        );
+        if let Some(ev) = event {
+            if let Ok(mut q) = self.canvas_events.lock() {
+                q.push(ev);
+            }
+        }
+    }
+
+    fn show_ckc_middle_work_panel(
+        &self,
+        ui: &mut egui::Ui,
+        palette: &HsPalette,
+        state: &mut AtelierPanelState,
+        selected_index: usize,
+    ) {
+        match state.ckc_book_mode {
+            CkcBookMode::Sheet => {}
+            CkcBookMode::Notes => {
+                let mut notes_buffer = std::mem::take(&mut state.ckc_character_notes_buffer);
+                let mut notes_source_key =
+                    std::mem::take(&mut state.ckc_character_notes_source_key);
+                let mut notes_status = std::mem::take(&mut state.ckc_character_notes_status);
+                if let Some(character) = state.ckc_characters.get_mut(selected_index) {
+                    self.show_ckc_character_notes_panel(
+                        ui,
+                        palette,
+                        character,
+                        &mut notes_buffer,
+                        &mut notes_source_key,
+                        &mut notes_status,
+                    );
+                } else {
+                    ui.label(
+                        egui::RichText::new("No CKC character selected for notes.")
+                            .color(palette.text_subtle),
+                    );
+                }
+                state.ckc_character_notes_buffer = notes_buffer;
+                state.ckc_character_notes_source_key = notes_source_key;
+                state.ckc_character_notes_status = notes_status;
+            }
+            CkcBookMode::Story | CkcBookMode::Moodboard => {
+                let mode = state.ckc_book_mode;
                 let mut story_card_title = std::mem::take(&mut state.ckc_story_card_title);
                 let mut story_card_body = std::mem::take(&mut state.ckc_story_card_body);
                 let mut story_beat_text = std::mem::take(&mut state.ckc_story_beat_text);
@@ -3644,120 +4167,7 @@ impl AtelierPanel {
                     std::mem::take(&mut state.ckc_active_story_document_id);
                 let mut active_moodboard_document_id =
                     std::mem::take(&mut state.ckc_active_moodboard_document_id);
-                let mut clear_last_export = false;
                 if let Some(character) = state.ckc_characters.get_mut(selected_index) {
-                    let selected_response = ui
-                        .vertical(|ui| {
-                            ui.heading(
-                                egui::RichText::new(&character.display_name).color(palette.text),
-                            );
-                            ui.label(format!("public_id: {}", character.public_id));
-                            if character.sheet_seq > 0 {
-                                ui.label(format!("sheet seq: {}", character.sheet_seq));
-                            } else {
-                                ui.label("sheet seq: no sheet version yet");
-                            }
-                            if let Some(parent) = &character.parent_sheet_version_id {
-                                ui.label(format!("parent_version_id: {parent}"));
-                            }
-                        })
-                        .response;
-                    emit_node(
-                        ui.ctx(),
-                        selected_response.id,
-                        accesskit::Role::Group,
-                        ATELIER_CKC_SELECTED_CHARACTER_AUTHOR_ID,
-                        &format!(
-                            "{} current sheet version {}",
-                            character.display_name, character.sheet_seq
-                        ),
-                        true,
-                    );
-                    ui.add_space(4.0);
-                    let character_ref = character.character_ref();
-                    let character_ref_response = ui.label(format!("character_ref: {character_ref}"));
-                    emit_node(
-                        ui.ctx(),
-                        character_ref_response.id,
-                        accesskit::Role::Label,
-                        ATELIER_CKC_CHARACTER_REF_AUTHOR_ID,
-                        &character_ref,
-                        false,
-                    );
-                    let sheet_ref = character.sheet_atelier_ref();
-                    if let Some(sheet_ref) = &sheet_ref {
-                        debug_assert_eq!(sheet_ref.item_kind, AtelierItemKind::CharacterSheet);
-                    }
-                    let ref_kind = sheet_ref
-                        .as_ref()
-                        .map(|sheet_ref| sheet_ref.ref_kind())
-                        .unwrap_or("character_sheet");
-                    let ref_kind_response = ui.label(format!("hsLink refKind: {ref_kind}"));
-                    emit_node(
-                        ui.ctx(),
-                        ref_kind_response.id,
-                        accesskit::Role::Label,
-                        ATELIER_CKC_TYPED_REF_KIND_AUTHOR_ID,
-                        ref_kind,
-                        false,
-                    );
-                    let sheet_version_ref = character
-                        .sheet_version_ref()
-                        .unwrap_or_else(|| "pending-first-sheet-version".to_owned());
-                    let sheet_ref_response = ui.label(format!("sheet_version_ref: {sheet_version_ref}"));
-                    emit_node(
-                        ui.ctx(),
-                        sheet_ref_response.id,
-                        accesskit::Role::Label,
-                        ATELIER_CKC_SHEET_VERSION_REF_AUTHOR_ID,
-                        &sheet_version_ref,
-                        false,
-                    );
-                    ui.add_space(8.0);
-                    let editor = ui.add(
-                        egui::TextEdit::multiline(&mut character.sheet_editor_text)
-                            .desired_rows(11)
-                            .lock_focus(true),
-                    );
-                    emit_node(
-                        ui.ctx(),
-                        editor.id,
-                        accesskit::Role::TextInput,
-                        ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID,
-                        "CKC character sheet editor",
-                        false,
-                    );
-                    let save = ui.button("Append sheet version");
-                    emit_node(
-                        ui.ctx(),
-                        save.id,
-                        accesskit::Role::Button,
-                        ATELIER_CKC_SHEET_SAVE_AUTHOR_ID,
-                        "Append CKC sheet version",
-                        append_pending,
-                    );
-                    if save.clicked() {
-                        if self.ckc_client.is_some() {
-                            if !append_pending {
-                                pending_append_request = Some((
-                                    character.character_internal_id.clone(),
-                                    character.sheet_editor_text.clone(),
-                                    character.sheet_version_id.clone(),
-                                ));
-                            }
-                        } else {
-                            character.parent_sheet_version_id = character.sheet_version_id.clone();
-                            let next_sheet_version_id = Uuid::new_v4().to_string();
-                            character.sheet_version_id = Some(next_sheet_version_id.clone());
-                            character.sheet_seq += 1;
-                            character.sheet_version_ref = Some(format!(
-                                "atelier://sheet/{}/{}",
-                                character.character_internal_id, next_sheet_version_id
-                            ));
-                            clear_last_export = true;
-                        }
-                    }
-                    ui.separator();
                     self.show_ckc_story_and_moodboard(
                         ui,
                         palette,
@@ -3769,9 +4179,16 @@ impl AtelierPanel {
                         &mut moodboard_status,
                         &mut active_story_document_id,
                         &mut active_moodboard_document_id,
+                        mode,
                     );
+                    if mode == CkcBookMode::Moodboard {
+                        self.show_ckc_moodboard_canvas(ui, palette);
+                    }
                 } else {
-                    ui.label(egui::RichText::new("No CKC characters yet").color(palette.text_subtle));
+                    ui.label(
+                        egui::RichText::new("No CKC character selected for this work surface.")
+                            .color(palette.text_subtle),
+                    );
                 }
                 state.ckc_story_card_title = story_card_title;
                 state.ckc_story_card_body = story_card_body;
@@ -3780,63 +4197,8 @@ impl AtelierPanel {
                 state.ckc_moodboard_status = moodboard_status;
                 state.ckc_active_story_document_id = active_story_document_id;
                 state.ckc_active_moodboard_document_id = active_moodboard_document_id;
-                if clear_last_export {
-                    state.ckc_last_export = None;
-                }
-                if let Some((character_internal_id, raw_text, expected_parent_version_id)) =
-                    pending_append_request
-                {
-                    if let Some(client) = self.ckc_client.as_ref() {
-                        state.ckc_append_pending = true;
-                        state.ckc_error = None;
-                        client.append_ckc_sheet_version(
-                            &character_internal_id,
-                            &raw_text,
-                            expected_parent_version_id.as_deref(),
-                            Some("handshake-native-atelier"),
-                            client.actor_id(),
-                            self.ckc_append_cell.clone(),
-                        );
-                    }
-                }
-                ui.separator();
-                self.show_ckc_sheet_tools(ui, palette, &mut state, selected_index);
-                ui.separator();
-                ui.heading(egui::RichText::new("Moodboard").color(palette.text));
-                ui.add_space(4.0);
-                let mut event = None;
-                let canvas_response = ui
-                    .scope_builder(
-                        egui::UiBuilder::new()
-                            .id_salt(egui::Id::new(ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID)),
-                        |ui| {
-                            if let Ok(mut board) = self.canvas_board.lock() {
-                                event = board.show(ui, palette);
-                                let drained = board.drain_knowledge_events();
-                                if !drained.is_empty() {
-                                    if let Ok(mut q) = self.canvas_events.lock() {
-                                        q.extend(drained);
-                                    }
-                                }
-                            }
-                        },
-                    )
-                    .response;
-                emit_node(
-                    ui.ctx(),
-                    canvas_response.id,
-                    accesskit::Role::Group,
-                    ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID,
-                    "Native CKC moodboard canvas surface",
-                    false,
-                );
-                if let Some(ev) = event {
-                    if let Ok(mut q) = self.canvas_events.lock() {
-                        q.push(ev);
-                    }
-                }
-            });
-        });
+            }
+        }
     }
 
     fn show_ckc_story_and_moodboard(
@@ -3851,6 +4213,7 @@ impl AtelierPanel {
         moodboard_status: &mut String,
         active_story_document_id: &mut Option<String>,
         active_moodboard_document_id: &mut Option<String>,
+        mode: CkcBookMode,
     ) {
         if character.story_documents.is_empty() {
             character.story_documents.push(pending_ckc_story_document(
@@ -3891,238 +4254,321 @@ impl AtelierPanel {
         let character_internal_id = character.character_internal_id.clone();
         let display_name = character.display_name.clone();
 
-        ui.heading(egui::RichText::new("Story").color(palette.text));
-        ui.label(egui::RichText::new(story_status.as_str()).color(palette.text_subtle));
+        if mode == CkcBookMode::Story {
+            ui.heading(egui::RichText::new("Story").color(palette.text));
+            ui.label(egui::RichText::new(story_status.as_str()).color(palette.text_subtle));
 
-        let _story_doc_list = ui
-            .vertical(|ui| {
-                for (idx, story) in character.story_documents.iter().enumerate() {
-                    let selected = idx == active_story_idx;
-                    let marker = if selected { "active" } else { "linked" };
-                    let row_label = format!(
-                        "{marker} story document: {} [{}]",
-                        story.title, story.document_ref
-                    );
-                    let row = ui.selectable_label(selected, &row_label);
-                    if row.clicked() {
-                        active_story_idx = idx;
-                        *active_story_document_id = Some(story.document_id.clone());
-                        *story_status =
-                            format!("Selected CKC story document {}", story.document_ref);
-                    }
-                    let author_id = ckc_story_document_row_author_id(&story.document_id);
-                    emit_node(
-                        ui.ctx(),
-                        row.id,
-                        accesskit::Role::ListItem,
-                        &author_id,
-                        &row_label,
-                        selected,
-                    );
-                }
-            })
-            .response;
-
-        {
-            let story = character
-                .story_documents
-                .get_mut(active_story_idx)
-                .expect("story placeholder inserted before rendering");
-            let story_ref_label = format!("story_document_ref: {}", story.document_ref);
-            let story_ref_response = ui.label(&story_ref_label);
-            emit_node(
-                ui.ctx(),
-                story_ref_response.id,
-                accesskit::Role::Label,
-                ATELIER_CKC_STORY_DOC_REF_AUTHOR_ID,
-                &story_ref_label,
-                false,
-            );
-            if !story.tags.is_empty() {
-                ui.label(
-                    egui::RichText::new(format!("story tags: {}", story.tags.join(", ")))
-                        .color(palette.text_subtle),
-                );
-            }
-            let story_editor = ui.add(
-                egui::TextEdit::multiline(&mut story.body_raw_text)
-                    .desired_rows(4)
-                    .lock_focus(true),
-            );
-            emit_node(
-                ui.ctx(),
-                story_editor.id,
-                accesskit::Role::TextInput,
-                ATELIER_CKC_STORY_EDITOR_AUTHOR_ID,
-                "CKC story document editor",
-                false,
-            );
-            let story_save = ui.button("Save story note");
-            emit_node(
-                ui.ctx(),
-                story_save.id,
-                accesskit::Role::Button,
-                ATELIER_CKC_STORY_SAVE_AUTHOR_ID,
-                "Save CKC story document draft",
-                false,
-            );
-            if story_save.clicked() {
-                let tags = story.tags.clone();
-                if let Some(client) = self.ckc_client.as_ref() {
-                    if is_pending_ckc_document_id(&story.document_id) {
-                        *story_status = format!("Creating CKC story document for {display_name}");
-                        client.create_ckc_character_document(
-                            &character_internal_id,
-                            "story",
-                            &story.title,
-                            &story.body_raw_text,
-                            &tags,
-                            client.actor_id(),
-                            self.ckc_character_document_cell.clone(),
-                        );
-                    } else {
-                        *story_status =
-                            format!("Appending CKC story document {}", story.document_ref);
-                        let expected_parent_version_id = story.current_version_id.as_deref();
-                        client.append_ckc_character_document_version(
-                            &story.document_id,
-                            &story.title,
-                            &story.body_raw_text,
-                            &tags,
-                            expected_parent_version_id,
-                            client.actor_id(),
-                            self.ckc_character_document_cell.clone(),
-                        );
-                    }
-                } else {
-                    if is_pending_ckc_document_id(&story.document_id) {
-                        let next_document_id = Uuid::new_v4().to_string();
-                        story.document_id = next_document_id.clone();
-                        story.document_ref = format!("atelier://document/{next_document_id}");
-                        story.current_version_id = Some(Uuid::new_v4().to_string());
-                        story.current_version_seq = 1;
-                    }
-                    *story_status = format!(
-                        "Saved local CKC story document draft {} separate from sheet/image/tag notes",
-                        story.document_ref
-                    );
-                }
-            }
-
-            let story_card_list = ui
+            let _story_doc_list = ui
                 .vertical(|ui| {
-                    if story.cards.is_empty() {
-                        ui.label(
-                            egui::RichText::new("No story cards yet.").color(palette.text_subtle),
+                    for (idx, story) in character.story_documents.iter().enumerate() {
+                        let selected = idx == active_story_idx;
+                        let marker = if selected { "active" } else { "linked" };
+                        let row_label = format!(
+                            "{marker} story document: {} [{}]",
+                            story.title, story.document_ref
                         );
-                    }
-                    for card in &story.cards {
-                        let card_label = format!(
-                            "{} [{}] document:{} ref:{}",
-                            card.title,
-                            card.card_ref,
-                            card.story_document_id,
-                            card.story_document_ref
-                        );
-                        let card_row = ui.label(&card_label);
-                        let card_author_id =
-                            ckc_story_card_row_author_id(&story.document_id, &card.card_id);
-                        emit_node(
-                            ui.ctx(),
-                            card_row.id,
-                            accesskit::Role::ListItem,
-                            &card_author_id,
-                            &format!(
-                                "atelier-ref story_card:{} story_document:{}",
-                                card.card_ref, card.story_document_ref
-                            ),
-                            false,
-                        );
-                        if !card.body_raw_text.is_empty() {
-                            ui.label(
-                                egui::RichText::new(card.body_raw_text.clone())
-                                    .color(palette.text_subtle),
-                            );
+                        let row = ui.selectable_label(selected, &row_label);
+                        if row.clicked() {
+                            active_story_idx = idx;
+                            *active_story_document_id = Some(story.document_id.clone());
+                            *story_status =
+                                format!("Selected CKC story document {}", story.document_ref);
                         }
-                    }
-                    for beat in &story.beats {
-                        let card = beat.card_id.as_deref().unwrap_or("unscoped");
-                        let beat_label = format!(
-                            "beat {} {} document:{} ref:{} [{}]: {}",
-                            beat.beat_id,
-                            beat.beat_ref,
-                            beat.story_document_id,
-                            beat.story_document_ref,
-                            card,
-                            beat.beat_text
-                        );
-                        let beat_row =
-                            ui.label(egui::RichText::new(&beat_label).color(palette.text_subtle));
-                        let beat_author_id =
-                            ckc_story_beat_row_author_id(&story.document_id, &beat.beat_id);
+                        let author_id = ckc_story_document_row_author_id(&story.document_id);
                         emit_node(
                             ui.ctx(),
-                            beat_row.id,
+                            row.id,
                             accesskit::Role::ListItem,
-                            &beat_author_id,
-                            &format!(
-                                "atelier-ref story_beat:{} story_document:{}",
-                                beat.beat_ref, beat.story_document_ref
-                            ),
-                            false,
+                            &author_id,
+                            &row_label,
+                            selected,
                         );
                     }
                 })
                 .response;
-            emit_node(
-                ui.ctx(),
-                story_card_list.id,
-                accesskit::Role::List,
-                ATELIER_CKC_STORY_CARD_LIST_AUTHOR_ID,
-                "CKC reusable story cards and beats",
-                false,
-            );
 
-            ui.horizontal_wrapped(|ui| {
-                let title = ui.text_edit_singleline(story_card_title);
+            {
+                let story = character
+                    .story_documents
+                    .get_mut(active_story_idx)
+                    .expect("story placeholder inserted before rendering");
+                let story_ref_label = format!("story_document_ref: {}", story.document_ref);
+                let story_ref_response = ui.label(&story_ref_label);
                 emit_node(
                     ui.ctx(),
-                    title.id,
+                    story_ref_response.id,
+                    accesskit::Role::Label,
+                    ATELIER_CKC_STORY_DOC_REF_AUTHOR_ID,
+                    &story_ref_label,
+                    false,
+                );
+                if !story.tags.is_empty() {
+                    ui.label(
+                        egui::RichText::new(format!("story tags: {}", story.tags.join(", ")))
+                            .color(palette.text_subtle),
+                    );
+                }
+                let story_editor = ui.add(
+                    egui::TextEdit::multiline(&mut story.body_raw_text)
+                        .desired_rows(4)
+                        .lock_focus(true),
+                );
+                emit_node(
+                    ui.ctx(),
+                    story_editor.id,
                     accesskit::Role::TextInput,
-                    ATELIER_CKC_STORY_CARD_TITLE_AUTHOR_ID,
-                    "CKC story card title",
+                    ATELIER_CKC_STORY_EDITOR_AUTHOR_ID,
+                    "CKC story document editor",
                     false,
                 );
-                let save_card = ui.button("Add card");
+                let story_save = ui.button("Save story note");
                 emit_node(
                     ui.ctx(),
-                    save_card.id,
+                    story_save.id,
                     accesskit::Role::Button,
-                    ATELIER_CKC_STORY_CARD_SAVE_AUTHOR_ID,
-                    "Add CKC story card",
+                    ATELIER_CKC_STORY_SAVE_AUTHOR_ID,
+                    "Save CKC story document draft",
                     false,
                 );
-                if save_card.clicked() {
-                    let title = story_card_title.trim().to_owned();
-                    if !title.is_empty() {
-                        let body = story_card_body.trim().to_owned();
-                        let tags = vec!["story".to_owned()];
+                if story_save.clicked() {
+                    let tags = story.tags.clone();
+                    if let Some(client) = self.ckc_client.as_ref() {
+                        if is_pending_ckc_document_id(&story.document_id) {
+                            *story_status =
+                                format!("Creating CKC story document for {display_name}");
+                            client.create_ckc_character_document(
+                                &character_internal_id,
+                                "story",
+                                &story.title,
+                                &story.body_raw_text,
+                                &tags,
+                                client.actor_id(),
+                                self.ckc_character_document_cell.clone(),
+                            );
+                        } else {
+                            *story_status =
+                                format!("Appending CKC story document {}", story.document_ref);
+                            let expected_parent_version_id = story.current_version_id.as_deref();
+                            client.append_ckc_character_document_version(
+                                &story.document_id,
+                                &story.title,
+                                &story.body_raw_text,
+                                &tags,
+                                expected_parent_version_id,
+                                client.actor_id(),
+                                self.ckc_character_document_cell.clone(),
+                            );
+                        }
+                    } else {
+                        if is_pending_ckc_document_id(&story.document_id) {
+                            let next_document_id = Uuid::new_v4().to_string();
+                            story.document_id = next_document_id.clone();
+                            story.document_ref = format!("atelier://document/{next_document_id}");
+                            story.current_version_id = Some(Uuid::new_v4().to_string());
+                            story.current_version_seq = 1;
+                        }
+                        *story_status = format!(
+                        "Saved local CKC story document draft {} separate from sheet/image/tag notes",
+                        story.document_ref
+                    );
+                    }
+                }
+
+                let story_card_list = ui
+                    .vertical(|ui| {
+                        if story.cards.is_empty() {
+                            ui.label(
+                                egui::RichText::new("No story cards yet.")
+                                    .color(palette.text_subtle),
+                            );
+                        }
+                        for card in &story.cards {
+                            let card_label = format!(
+                                "{} [{}] document:{} ref:{}",
+                                card.title,
+                                card.card_ref,
+                                card.story_document_id,
+                                card.story_document_ref
+                            );
+                            let card_row = ui.label(&card_label);
+                            let card_author_id =
+                                ckc_story_card_row_author_id(&story.document_id, &card.card_id);
+                            emit_node(
+                                ui.ctx(),
+                                card_row.id,
+                                accesskit::Role::ListItem,
+                                &card_author_id,
+                                &format!(
+                                    "atelier-ref story_card:{} story_document:{}",
+                                    card.card_ref, card.story_document_ref
+                                ),
+                                false,
+                            );
+                            if !card.body_raw_text.is_empty() {
+                                ui.label(
+                                    egui::RichText::new(card.body_raw_text.clone())
+                                        .color(palette.text_subtle),
+                                );
+                            }
+                        }
+                        for beat in &story.beats {
+                            let card = beat.card_id.as_deref().unwrap_or("unscoped");
+                            let beat_label = format!(
+                                "beat {} {} document:{} ref:{} [{}]: {}",
+                                beat.beat_id,
+                                beat.beat_ref,
+                                beat.story_document_id,
+                                beat.story_document_ref,
+                                card,
+                                beat.beat_text
+                            );
+                            let beat_row = ui
+                                .label(egui::RichText::new(&beat_label).color(palette.text_subtle));
+                            let beat_author_id =
+                                ckc_story_beat_row_author_id(&story.document_id, &beat.beat_id);
+                            emit_node(
+                                ui.ctx(),
+                                beat_row.id,
+                                accesskit::Role::ListItem,
+                                &beat_author_id,
+                                &format!(
+                                    "atelier-ref story_beat:{} story_document:{}",
+                                    beat.beat_ref, beat.story_document_ref
+                                ),
+                                false,
+                            );
+                        }
+                    })
+                    .response;
+                emit_node(
+                    ui.ctx(),
+                    story_card_list.id,
+                    accesskit::Role::List,
+                    ATELIER_CKC_STORY_CARD_LIST_AUTHOR_ID,
+                    "CKC reusable story cards and beats",
+                    false,
+                );
+
+                ui.horizontal_wrapped(|ui| {
+                    let title = ui.text_edit_singleline(story_card_title);
+                    emit_node(
+                        ui.ctx(),
+                        title.id,
+                        accesskit::Role::TextInput,
+                        ATELIER_CKC_STORY_CARD_TITLE_AUTHOR_ID,
+                        "CKC story card title",
+                        false,
+                    );
+                    let save_card = ui.button("Add card");
+                    emit_node(
+                        ui.ctx(),
+                        save_card.id,
+                        accesskit::Role::Button,
+                        ATELIER_CKC_STORY_CARD_SAVE_AUTHOR_ID,
+                        "Add CKC story card",
+                        false,
+                    );
+                    if save_card.clicked() {
+                        let title = story_card_title.trim().to_owned();
+                        if !title.is_empty() {
+                            let body = story_card_body.trim().to_owned();
+                            let tags = vec!["story".to_owned()];
+                            if let Some(client) = self.ckc_client.as_ref() {
+                                if is_pending_ckc_document_id(&story.document_id) {
+                                    *story_status =
+                                        "Save the CKC story document before adding cards."
+                                            .to_owned();
+                                } else {
+                                    *story_status = format!(
+                                        "Adding CKC story card {title} under {}",
+                                        story.document_ref
+                                    );
+                                    client.add_ckc_story_card(
+                                        &story.document_id,
+                                        &title,
+                                        &body,
+                                        &tags,
+                                        client.actor_id(),
+                                        self.ckc_story_card_cell.clone(),
+                                    );
+                                }
+                            } else {
+                                if is_pending_ckc_document_id(&story.document_id) {
+                                    let next_document_id = Uuid::new_v4().to_string();
+                                    story.document_id = next_document_id.clone();
+                                    story.document_ref =
+                                        format!("atelier://document/{next_document_id}");
+                                }
+                                let card_id = Uuid::new_v4().to_string();
+                                story.cards.push(CkcStoryCardRecord {
+                                    card_id: card_id.clone(),
+                                    card_ref: format!("atelier://story-card/{card_id}"),
+                                    story_document_id: story.document_id.clone(),
+                                    story_document_ref: story.document_ref.clone(),
+                                    title: title.clone(),
+                                    body_raw_text: body,
+                                    tags,
+                                });
+                                *story_status = format!(
+                                    "Added local CKC story card {title} under {}",
+                                    story.document_ref
+                                );
+                            }
+                        }
+                    }
+                });
+                let card_body = ui.add(
+                    egui::TextEdit::multiline(story_card_body)
+                        .desired_rows(3)
+                        .lock_focus(true),
+                );
+                emit_node(
+                    ui.ctx(),
+                    card_body.id,
+                    accesskit::Role::TextInput,
+                    ATELIER_CKC_STORY_CARD_BODY_AUTHOR_ID,
+                    "CKC story card body",
+                    false,
+                );
+                let beat_editor = ui.add(
+                    egui::TextEdit::multiline(story_beat_text)
+                        .desired_rows(2)
+                        .lock_focus(true),
+                );
+                emit_node(
+                    ui.ctx(),
+                    beat_editor.id,
+                    accesskit::Role::TextInput,
+                    ATELIER_CKC_STORY_BEAT_EDITOR_AUTHOR_ID,
+                    "CKC story beat editor",
+                    false,
+                );
+                let save_beat = ui.button("Add beat");
+                emit_node(
+                    ui.ctx(),
+                    save_beat.id,
+                    accesskit::Role::Button,
+                    ATELIER_CKC_STORY_BEAT_SAVE_AUTHOR_ID,
+                    "Add CKC story beat",
+                    false,
+                );
+                if save_beat.clicked() {
+                    let beat_text = story_beat_text.trim().to_owned();
+                    if !beat_text.is_empty() {
+                        let card_id = story.cards.first().map(|card| card.card_id.clone());
                         if let Some(client) = self.ckc_client.as_ref() {
                             if is_pending_ckc_document_id(&story.document_id) {
                                 *story_status =
-                                    "Save the CKC story document before adding cards.".to_owned();
+                                    "Save the CKC story document before adding beats.".to_owned();
                             } else {
-                                *story_status = format!(
-                                    "Adding CKC story card {title} under {}",
-                                    story.document_ref
-                                );
-                                client.add_ckc_story_card(
+                                *story_status =
+                                    format!("Adding CKC story beat under {}", story.document_ref);
+                                client.add_ckc_story_beat(
                                     &story.document_id,
-                                    &title,
-                                    &body,
-                                    &tags,
+                                    card_id.as_deref(),
+                                    &beat_text,
                                     client.actor_id(),
-                                    self.ckc_story_card_cell.clone(),
+                                    self.ckc_story_beat_cell.clone(),
                                 );
                             }
                         } else {
@@ -4132,345 +4578,150 @@ impl AtelierPanel {
                                 story.document_ref =
                                     format!("atelier://document/{next_document_id}");
                             }
-                            let card_id = Uuid::new_v4().to_string();
-                            story.cards.push(CkcStoryCardRecord {
-                                card_id: card_id.clone(),
-                                card_ref: format!("atelier://story-card/{card_id}"),
+                            let beat_id = Uuid::new_v4().to_string();
+                            story.beats.push(CkcStoryBeatRecord {
+                                beat_id: beat_id.clone(),
+                                beat_ref: format!("atelier://story-beat/{beat_id}"),
                                 story_document_id: story.document_id.clone(),
                                 story_document_ref: story.document_ref.clone(),
-                                title: title.clone(),
-                                body_raw_text: body,
-                                tags,
+                                card_id,
+                                beat_text,
                             });
-                            *story_status = format!(
-                                "Added local CKC story card {title} under {}",
-                                story.document_ref
-                            );
-                        }
-                    }
-                }
-            });
-            let card_body = ui.add(
-                egui::TextEdit::multiline(story_card_body)
-                    .desired_rows(3)
-                    .lock_focus(true),
-            );
-            emit_node(
-                ui.ctx(),
-                card_body.id,
-                accesskit::Role::TextInput,
-                ATELIER_CKC_STORY_CARD_BODY_AUTHOR_ID,
-                "CKC story card body",
-                false,
-            );
-            let beat_editor = ui.add(
-                egui::TextEdit::multiline(story_beat_text)
-                    .desired_rows(2)
-                    .lock_focus(true),
-            );
-            emit_node(
-                ui.ctx(),
-                beat_editor.id,
-                accesskit::Role::TextInput,
-                ATELIER_CKC_STORY_BEAT_EDITOR_AUTHOR_ID,
-                "CKC story beat editor",
-                false,
-            );
-            let save_beat = ui.button("Add beat");
-            emit_node(
-                ui.ctx(),
-                save_beat.id,
-                accesskit::Role::Button,
-                ATELIER_CKC_STORY_BEAT_SAVE_AUTHOR_ID,
-                "Add CKC story beat",
-                false,
-            );
-            if save_beat.clicked() {
-                let beat_text = story_beat_text.trim().to_owned();
-                if !beat_text.is_empty() {
-                    let card_id = story.cards.first().map(|card| card.card_id.clone());
-                    if let Some(client) = self.ckc_client.as_ref() {
-                        if is_pending_ckc_document_id(&story.document_id) {
                             *story_status =
-                                "Save the CKC story document before adding beats.".to_owned();
-                        } else {
-                            *story_status =
-                                format!("Adding CKC story beat under {}", story.document_ref);
-                            client.add_ckc_story_beat(
-                                &story.document_id,
-                                card_id.as_deref(),
-                                &beat_text,
-                                client.actor_id(),
-                                self.ckc_story_beat_cell.clone(),
-                            );
+                                format!("Added local CKC story beat under {}", story.document_ref);
                         }
-                    } else {
-                        if is_pending_ckc_document_id(&story.document_id) {
-                            let next_document_id = Uuid::new_v4().to_string();
-                            story.document_id = next_document_id.clone();
-                            story.document_ref = format!("atelier://document/{next_document_id}");
-                        }
-                        let beat_id = Uuid::new_v4().to_string();
-                        story.beats.push(CkcStoryBeatRecord {
-                            beat_id: beat_id.clone(),
-                            beat_ref: format!("atelier://story-beat/{beat_id}"),
-                            story_document_id: story.document_id.clone(),
-                            story_document_ref: story.document_ref.clone(),
-                            card_id,
-                            beat_text,
-                        });
-                        *story_status =
-                            format!("Added local CKC story beat under {}", story.document_ref);
                     }
                 }
             }
         }
 
-        ui.separator();
-        ui.heading(egui::RichText::new("Moodboard links").color(palette.text));
-        ui.label(egui::RichText::new(moodboard_status.as_str()).color(palette.text_subtle));
+        if mode == CkcBookMode::Moodboard {
+            ui.separator();
+            ui.heading(egui::RichText::new("Moodboard links").color(palette.text));
+            ui.label(egui::RichText::new(moodboard_status.as_str()).color(palette.text_subtle));
 
-        let _moodboard_doc_list = ui
-            .vertical(|ui| {
-                for (idx, moodboard) in character.moodboard_documents.iter().enumerate() {
-                    let selected = idx == active_moodboard_idx;
-                    let marker = if selected { "active" } else { "linked" };
-                    let row_label = format!(
-                        "{marker} moodboard document: {} [{}]",
-                        moodboard.title, moodboard.document_ref
-                    );
-                    let row = ui.selectable_label(selected, &row_label);
-                    if row.clicked() {
-                        active_moodboard_idx = idx;
-                        *active_moodboard_document_id = Some(moodboard.document_id.clone());
-                        *moodboard_status =
-                            format!("Selected CKC moodboard document {}", moodboard.document_ref);
-                    }
-                    let author_id = ckc_moodboard_document_row_author_id(&moodboard.document_id);
-                    emit_node(
-                        ui.ctx(),
-                        row.id,
-                        accesskit::Role::ListItem,
-                        &author_id,
-                        &row_label,
-                        selected,
-                    );
-                    if let Some(snapshot_id) = &moodboard.latest_snapshot_id {
-                        let latest_ref = moodboard
-                            .latest_snapshot_ref
-                            .clone()
-                            .unwrap_or_else(|| format!("atelier://moodboard/{snapshot_id}"));
-                        let snapshot_author_id = ckc_moodboard_snapshot_row_author_id(
-                            &moodboard.document_id,
-                            snapshot_id,
+            let _moodboard_doc_list = ui
+                .vertical(|ui| {
+                    for (idx, moodboard) in character.moodboard_documents.iter().enumerate() {
+                        let selected = idx == active_moodboard_idx;
+                        let marker = if selected { "active" } else { "linked" };
+                        let row_label = format!(
+                            "{marker} moodboard document: {} [{}]",
+                            moodboard.title, moodboard.document_ref
                         );
-                        let snapshot_label = format!(
-                            "{marker} moodboard snapshot: {} [{}] {}",
-                            moodboard.moodboard_name, snapshot_id, latest_ref
-                        );
-                        let snapshot_row = ui
-                            .label(egui::RichText::new(&snapshot_label).color(palette.text_subtle));
+                        let row = ui.selectable_label(selected, &row_label);
+                        if row.clicked() {
+                            active_moodboard_idx = idx;
+                            *active_moodboard_document_id = Some(moodboard.document_id.clone());
+                            *moodboard_status = format!(
+                                "Selected CKC moodboard document {}",
+                                moodboard.document_ref
+                            );
+                        }
+                        let author_id =
+                            ckc_moodboard_document_row_author_id(&moodboard.document_id);
                         emit_node(
                             ui.ctx(),
-                            snapshot_row.id,
+                            row.id,
                             accesskit::Role::ListItem,
-                            &snapshot_author_id,
-                            &format!(
-                                "atelier-ref moodboard:{latest_ref} document:{}",
-                                moodboard.document_ref
-                            ),
+                            &author_id,
+                            &row_label,
                             selected,
                         );
+                        if let Some(snapshot_id) = &moodboard.latest_snapshot_id {
+                            let latest_ref = moodboard
+                                .latest_snapshot_ref
+                                .clone()
+                                .unwrap_or_else(|| format!("atelier://moodboard/{snapshot_id}"));
+                            let snapshot_author_id = ckc_moodboard_snapshot_row_author_id(
+                                &moodboard.document_id,
+                                snapshot_id,
+                            );
+                            let snapshot_label = format!(
+                                "{marker} moodboard snapshot: {} [{}] {}",
+                                moodboard.moodboard_name, snapshot_id, latest_ref
+                            );
+                            let snapshot_row = ui.label(
+                                egui::RichText::new(&snapshot_label).color(palette.text_subtle),
+                            );
+                            emit_node(
+                                ui.ctx(),
+                                snapshot_row.id,
+                                accesskit::Role::ListItem,
+                                &snapshot_author_id,
+                                &format!(
+                                    "atelier-ref moodboard:{latest_ref} document:{}",
+                                    moodboard.document_ref
+                                ),
+                                selected,
+                            );
+                        }
                     }
-                }
-            })
-            .response;
+                })
+                .response;
 
-        {
-            let moodboard = character
-                .moodboard_documents
-                .get_mut(active_moodboard_idx)
-                .expect("moodboard placeholder inserted before rendering");
-            let doc_ref_label = format!("moodboard_document_ref: {}", moodboard.document_ref);
-            let doc_ref_response = ui.label(&doc_ref_label);
-            emit_node(
-                ui.ctx(),
-                doc_ref_response.id,
-                accesskit::Role::Label,
-                ATELIER_CKC_MOODBOARD_DOC_REF_AUTHOR_ID,
-                &doc_ref_label,
-                false,
-            );
-            let latest_ref = moodboard
-                .latest_snapshot_ref
-                .clone()
-                .unwrap_or_else(|| "pending-native-moodboard-snapshot".to_owned());
-            let latest_ref_label = format!("latest_moodboard_ref: {latest_ref}");
-            let latest_ref_response = ui.label(&latest_ref_label);
-            emit_node(
-                ui.ctx(),
-                latest_ref_response.id,
-                accesskit::Role::Label,
-                ATELIER_CKC_MOODBOARD_LATEST_REF_AUTHOR_ID,
-                &latest_ref_label,
-                false,
-            );
-            if !moodboard.tags.is_empty() {
-                ui.label(
-                    egui::RichText::new(format!("moodboard tags: {}", moodboard.tags.join(", ")))
-                        .color(palette.text_subtle),
+            {
+                let moodboard = character
+                    .moodboard_documents
+                    .get_mut(active_moodboard_idx)
+                    .expect("moodboard placeholder inserted before rendering");
+                let doc_ref_label = format!("moodboard_document_ref: {}", moodboard.document_ref);
+                let doc_ref_response = ui.label(&doc_ref_label);
+                emit_node(
+                    ui.ctx(),
+                    doc_ref_response.id,
+                    accesskit::Role::Label,
+                    ATELIER_CKC_MOODBOARD_DOC_REF_AUTHOR_ID,
+                    &doc_ref_label,
+                    false,
                 );
-            }
-            let moodboard_editor = ui.add(
-                egui::TextEdit::multiline(&mut moodboard.body_raw_text)
-                    .desired_rows(5)
-                    .lock_focus(true),
-            );
-            emit_node(
-                ui.ctx(),
-                moodboard_editor.id,
-                accesskit::Role::TextInput,
-                ATELIER_CKC_MOODBOARD_EDITOR_AUTHOR_ID,
-                "CKC moodboard native snapshot JSON editor",
-                false,
-            );
-            let save_moodboard = ui.button("Save moodboard");
-            emit_node(
-                ui.ctx(),
-                save_moodboard.id,
-                accesskit::Role::Button,
-                ATELIER_CKC_MOODBOARD_SAVE_AUTHOR_ID,
-                "Save CKC native moodboard snapshot",
-                false,
-            );
-            if save_moodboard.clicked() {
-                if moodboard.body_raw_text.trim().is_empty() {
-                    moodboard.body_raw_text = local_ckc_moodboard_snapshot_json(
-                        &moodboard.document_id,
-                        &moodboard.moodboard_name,
-                        &format!(
-                            "Native CKC moodboard for {} linked to {}",
-                            display_name, moodboard.document_ref
-                        ),
+                let latest_ref = moodboard
+                    .latest_snapshot_ref
+                    .clone()
+                    .unwrap_or_else(|| "pending-native-moodboard-snapshot".to_owned());
+                let latest_ref_label = format!("latest_moodboard_ref: {latest_ref}");
+                let latest_ref_response = ui.label(&latest_ref_label);
+                emit_node(
+                    ui.ctx(),
+                    latest_ref_response.id,
+                    accesskit::Role::Label,
+                    ATELIER_CKC_MOODBOARD_LATEST_REF_AUTHOR_ID,
+                    &latest_ref_label,
+                    false,
+                );
+                if !moodboard.tags.is_empty() {
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "moodboard tags: {}",
+                            moodboard.tags.join(", ")
+                        ))
+                        .color(palette.text_subtle),
                     );
                 }
-                if let Err(err) =
-                    ckc_moodboard_snapshot_to_canvas_projection(&moodboard.body_raw_text)
-                {
-                    *moodboard_status = format!("CKC moodboard save blocked: {err}");
-                } else if let Some(client) = self.ckc_client.as_ref() {
-                    if is_pending_ckc_document_id(&moodboard.document_id) {
-                        *moodboard_status = format!(
-                            "Creating CKC moodboard document and snapshot for {display_name}"
-                        );
-                        client.create_ckc_moodboard_document_snapshot(
-                            &character_internal_id,
-                            &moodboard.title,
-                            &moodboard.body_raw_text,
-                            &moodboard.tags,
-                            client.actor_id(),
-                            self.ckc_character_document_cell.clone(),
-                            self.ckc_moodboard_latest_cell.clone(),
-                        );
-                    } else {
-                        let expected_parent_version_id = moodboard.current_version_id.as_deref();
-                        *moodboard_status = format!(
-                            "Saving CKC moodboard document and snapshot for {}",
-                            moodboard.document_ref
-                        );
-                        client.save_ckc_moodboard_document_snapshot(
-                            &moodboard.document_id,
-                            &moodboard.title,
-                            &moodboard.body_raw_text,
-                            &moodboard.tags,
-                            expected_parent_version_id,
-                            client.actor_id(),
-                            self.ckc_character_document_cell.clone(),
-                            self.ckc_moodboard_latest_cell.clone(),
-                        );
-                    }
-                } else {
-                    if is_pending_ckc_document_id(&moodboard.document_id) {
-                        let next_document_id = Uuid::new_v4().to_string();
-                        moodboard.document_id = next_document_id.clone();
-                        moodboard.document_ref = format!("atelier://document/{next_document_id}");
-                    }
-                    moodboard.current_version_id = Some(Uuid::new_v4().to_string());
-                    moodboard.current_version_seq = (moodboard.current_version_seq + 1).max(1);
-                    let snapshot_id = Uuid::new_v4().to_string();
-                    moodboard.latest_snapshot_id = Some(snapshot_id.clone());
-                    moodboard.latest_snapshot_ref =
-                        Some(format!("atelier://moodboard/{snapshot_id}"));
-                    let latest_ref = moodboard
-                        .latest_snapshot_ref
-                        .clone()
-                        .unwrap_or_else(|| "pending-native-moodboard-snapshot".to_owned());
-                    match apply_ckc_moodboard_snapshot_to_board(
-                        &self.canvas_board,
-                        &moodboard.body_raw_text,
-                        &latest_ref,
-                    ) {
-                        Ok(()) => {
-                            *moodboard_status = format!("Saved local CKC moodboard {latest_ref}");
-                        }
-                        Err(err) => {
-                            *moodboard_status =
-                                format!("CKC local moodboard save projection failed: {err}");
-                        }
-                    }
-                }
-            }
-            let open = ui.button("Open moodboard");
-            emit_node(
-                ui.ctx(),
-                open.id,
-                accesskit::Role::Button,
-                ATELIER_CKC_MOODBOARD_OPEN_AUTHOR_ID,
-                "Open CKC native moodboard snapshot",
-                false,
-            );
-            if open.clicked() {
-                if let Some(client) = self.ckc_client.as_ref() {
-                    if is_pending_ckc_document_id(&moodboard.document_id) {
-                        *moodboard_status = format!(
-                            "Creating CKC moodboard document and snapshot for {display_name}"
-                        );
-                        client.create_ckc_moodboard_document_snapshot(
-                            &character_internal_id,
-                            &moodboard.title,
-                            &moodboard.body_raw_text,
-                            &moodboard.tags,
-                            client.actor_id(),
-                            self.ckc_character_document_cell.clone(),
-                            self.ckc_moodboard_latest_cell.clone(),
-                        );
-                    } else {
-                        *moodboard_status = format!(
-                            "Opening CKC moodboard snapshot for {}",
-                            moodboard.document_ref
-                        );
-                        client.fetch_ckc_latest_moodboard_snapshot(
-                            &moodboard.document_id,
-                            self.ckc_moodboard_latest_cell.clone(),
-                        );
-                    }
-                } else {
-                    if is_pending_ckc_document_id(&moodboard.document_id) {
-                        let next_document_id = Uuid::new_v4().to_string();
-                        moodboard.document_id = next_document_id.clone();
-                        moodboard.document_ref = format!("atelier://document/{next_document_id}");
-                        moodboard.current_version_id = Some(Uuid::new_v4().to_string());
-                        moodboard.current_version_seq = 1;
-                    }
-                    if moodboard.latest_snapshot_id.is_none() {
-                        let snapshot_id = Uuid::new_v4().to_string();
-                        moodboard.latest_snapshot_id = Some(snapshot_id.clone());
-                        moodboard.latest_snapshot_ref =
-                            Some(format!("atelier://moodboard/{snapshot_id}"));
-                    }
-                    if ckc_moodboard_snapshot_to_canvas_projection(&moodboard.body_raw_text)
-                        .is_err()
-                    {
+                let moodboard_editor = ui.add(
+                    egui::TextEdit::multiline(&mut moodboard.body_raw_text)
+                        .desired_rows(5)
+                        .lock_focus(true),
+                );
+                emit_node(
+                    ui.ctx(),
+                    moodboard_editor.id,
+                    accesskit::Role::TextInput,
+                    ATELIER_CKC_MOODBOARD_EDITOR_AUTHOR_ID,
+                    "CKC moodboard native snapshot JSON editor",
+                    false,
+                );
+                let save_moodboard = ui.button("Save moodboard");
+                emit_node(
+                    ui.ctx(),
+                    save_moodboard.id,
+                    accesskit::Role::Button,
+                    ATELIER_CKC_MOODBOARD_SAVE_AUTHOR_ID,
+                    "Save CKC native moodboard snapshot",
+                    false,
+                );
+                if save_moodboard.clicked() {
+                    if moodboard.body_raw_text.trim().is_empty() {
                         moodboard.body_raw_text = local_ckc_moodboard_snapshot_json(
                             &moodboard.document_id,
                             &moodboard.moodboard_name,
@@ -4480,21 +4731,153 @@ impl AtelierPanel {
                             ),
                         );
                     }
-                    let latest_ref = moodboard
-                        .latest_snapshot_ref
-                        .clone()
-                        .unwrap_or_else(|| "pending-native-moodboard-snapshot".to_owned());
-                    match apply_ckc_moodboard_snapshot_to_board(
-                        &self.canvas_board,
-                        &moodboard.body_raw_text,
-                        &latest_ref,
-                    ) {
-                        Ok(()) => {
-                            *moodboard_status = format!("Opened local CKC moodboard {latest_ref}");
+                    if let Err(err) =
+                        ckc_moodboard_snapshot_to_canvas_projection(&moodboard.body_raw_text)
+                    {
+                        *moodboard_status = format!("CKC moodboard save blocked: {err}");
+                    } else if let Some(client) = self.ckc_client.as_ref() {
+                        if is_pending_ckc_document_id(&moodboard.document_id) {
+                            *moodboard_status = format!(
+                                "Creating CKC moodboard document and snapshot for {display_name}"
+                            );
+                            client.create_ckc_moodboard_document_snapshot(
+                                &character_internal_id,
+                                &moodboard.title,
+                                &moodboard.body_raw_text,
+                                &moodboard.tags,
+                                client.actor_id(),
+                                self.ckc_character_document_cell.clone(),
+                                self.ckc_moodboard_latest_cell.clone(),
+                            );
+                        } else {
+                            let expected_parent_version_id =
+                                moodboard.current_version_id.as_deref();
+                            *moodboard_status = format!(
+                                "Saving CKC moodboard document and snapshot for {}",
+                                moodboard.document_ref
+                            );
+                            client.save_ckc_moodboard_document_snapshot(
+                                &moodboard.document_id,
+                                &moodboard.title,
+                                &moodboard.body_raw_text,
+                                &moodboard.tags,
+                                expected_parent_version_id,
+                                client.actor_id(),
+                                self.ckc_character_document_cell.clone(),
+                                self.ckc_moodboard_latest_cell.clone(),
+                            );
                         }
-                        Err(err) => {
-                            *moodboard_status =
-                                format!("CKC local moodboard projection failed: {err}");
+                    } else {
+                        if is_pending_ckc_document_id(&moodboard.document_id) {
+                            let next_document_id = Uuid::new_v4().to_string();
+                            moodboard.document_id = next_document_id.clone();
+                            moodboard.document_ref =
+                                format!("atelier://document/{next_document_id}");
+                        }
+                        moodboard.current_version_id = Some(Uuid::new_v4().to_string());
+                        moodboard.current_version_seq = (moodboard.current_version_seq + 1).max(1);
+                        let snapshot_id = Uuid::new_v4().to_string();
+                        moodboard.latest_snapshot_id = Some(snapshot_id.clone());
+                        moodboard.latest_snapshot_ref =
+                            Some(format!("atelier://moodboard/{snapshot_id}"));
+                        let latest_ref = moodboard
+                            .latest_snapshot_ref
+                            .clone()
+                            .unwrap_or_else(|| "pending-native-moodboard-snapshot".to_owned());
+                        match apply_ckc_moodboard_snapshot_to_board(
+                            &self.canvas_board,
+                            &moodboard.body_raw_text,
+                            &latest_ref,
+                        ) {
+                            Ok(()) => {
+                                *moodboard_status =
+                                    format!("Saved local CKC moodboard {latest_ref}");
+                            }
+                            Err(err) => {
+                                *moodboard_status =
+                                    format!("CKC local moodboard save projection failed: {err}");
+                            }
+                        }
+                    }
+                }
+                let open = ui.button("Open moodboard");
+                emit_node(
+                    ui.ctx(),
+                    open.id,
+                    accesskit::Role::Button,
+                    ATELIER_CKC_MOODBOARD_OPEN_AUTHOR_ID,
+                    "Open CKC native moodboard snapshot",
+                    false,
+                );
+                if open.clicked() {
+                    if let Some(client) = self.ckc_client.as_ref() {
+                        if is_pending_ckc_document_id(&moodboard.document_id) {
+                            *moodboard_status = format!(
+                                "Creating CKC moodboard document and snapshot for {display_name}"
+                            );
+                            client.create_ckc_moodboard_document_snapshot(
+                                &character_internal_id,
+                                &moodboard.title,
+                                &moodboard.body_raw_text,
+                                &moodboard.tags,
+                                client.actor_id(),
+                                self.ckc_character_document_cell.clone(),
+                                self.ckc_moodboard_latest_cell.clone(),
+                            );
+                        } else {
+                            *moodboard_status = format!(
+                                "Opening CKC moodboard snapshot for {}",
+                                moodboard.document_ref
+                            );
+                            client.fetch_ckc_latest_moodboard_snapshot(
+                                &moodboard.document_id,
+                                self.ckc_moodboard_latest_cell.clone(),
+                            );
+                        }
+                    } else {
+                        if is_pending_ckc_document_id(&moodboard.document_id) {
+                            let next_document_id = Uuid::new_v4().to_string();
+                            moodboard.document_id = next_document_id.clone();
+                            moodboard.document_ref =
+                                format!("atelier://document/{next_document_id}");
+                            moodboard.current_version_id = Some(Uuid::new_v4().to_string());
+                            moodboard.current_version_seq = 1;
+                        }
+                        if moodboard.latest_snapshot_id.is_none() {
+                            let snapshot_id = Uuid::new_v4().to_string();
+                            moodboard.latest_snapshot_id = Some(snapshot_id.clone());
+                            moodboard.latest_snapshot_ref =
+                                Some(format!("atelier://moodboard/{snapshot_id}"));
+                        }
+                        if ckc_moodboard_snapshot_to_canvas_projection(&moodboard.body_raw_text)
+                            .is_err()
+                        {
+                            moodboard.body_raw_text = local_ckc_moodboard_snapshot_json(
+                                &moodboard.document_id,
+                                &moodboard.moodboard_name,
+                                &format!(
+                                    "Native CKC moodboard for {} linked to {}",
+                                    display_name, moodboard.document_ref
+                                ),
+                            );
+                        }
+                        let latest_ref = moodboard
+                            .latest_snapshot_ref
+                            .clone()
+                            .unwrap_or_else(|| "pending-native-moodboard-snapshot".to_owned());
+                        match apply_ckc_moodboard_snapshot_to_board(
+                            &self.canvas_board,
+                            &moodboard.body_raw_text,
+                            &latest_ref,
+                        ) {
+                            Ok(()) => {
+                                *moodboard_status =
+                                    format!("Opened local CKC moodboard {latest_ref}");
+                            }
+                            Err(err) => {
+                                *moodboard_status =
+                                    format!("CKC local moodboard projection failed: {err}");
+                            }
                         }
                     }
                 }
@@ -5268,6 +5651,67 @@ impl AtelierPanel {
                 let member = &album.members[member_idx];
                 ckc_media_occurrence_key(&album.collection_id, &member.asset_id)
             });
+        let viewer_response = ui
+            .vertical(|ui| {
+                ui.label(egui::RichText::new("Selected image preview").color(palette.text));
+                if let Some((album_idx, member_idx)) =
+                    character.selected_or_first_media_location(resolved_selection.as_deref())
+                {
+                    let album = &character.media_albums[album_idx];
+                    let member = &album.members[member_idx];
+                    let preview_label = format!(
+                        "{}\n{}\n{}",
+                        member.display_label,
+                        member
+                            .source_path_ref
+                            .as_deref()
+                            .unwrap_or("no source_path_ref"),
+                        member
+                            .source_url_ref
+                            .as_deref()
+                            .unwrap_or("no source_url_ref")
+                    );
+                    let desired_size = egui::vec2(ui.available_width().max(160.0), 116.0);
+                    let (rect, _) = ui.allocate_exact_size(desired_size, egui::Sense::hover());
+                    ui.painter()
+                        .rect_filled(rect, 4.0, palette.surface.linear_multiply(1.12));
+                    ui.painter().rect_stroke(
+                        rect,
+                        4.0,
+                        egui::Stroke::new(1.0, palette.border),
+                        egui::StrokeKind::Inside,
+                    );
+                    ui.painter().text(
+                        rect.center(),
+                        egui::Align2::CENTER_CENTER,
+                        preview_label,
+                        egui::FontId::proportional(13.0),
+                        palette.text,
+                    );
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "album: {} | status: {}",
+                            album.name,
+                            member.review_status.as_deref().unwrap_or("unreviewed")
+                        ))
+                        .color(palette.text_subtle),
+                    );
+                } else {
+                    ui.label(
+                        egui::RichText::new("No linked image selected for this character.")
+                            .color(palette.text_subtle),
+                    );
+                }
+            })
+            .response;
+        emit_node(
+            ui.ctx(),
+            viewer_response.id,
+            accesskit::Role::Group,
+            ATELIER_CKC_MEDIA_VIEWER_AUTHOR_ID,
+            "CKC selected image preview and source refs",
+            false,
+        );
         let mut pending_selection = None;
         let list_response = ui
             .vertical(|ui| {

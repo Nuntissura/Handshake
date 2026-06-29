@@ -12,24 +12,28 @@ use egui_kittest::Harness;
 use handshake_native::accessibility::{UiTreeNode, UiTreeSnapshot};
 use handshake_native::atelier_panel::{
     ckc_field_suggestion_row_author_id, ckc_folder_row_author_id, ckc_media_album_row_author_id,
-    ckc_media_row_author_id, ckc_moodboard_document_row_author_id,
-    ckc_moodboard_snapshot_row_author_id, ckc_search_result_row_author_id,
-    ckc_source_url_row_author_id, ckc_story_beat_row_author_id, ckc_story_card_row_author_id,
-    ckc_story_document_row_author_id, AtelierPanel, ATELIER_CKC_ALBUM_CREATE_AUTHOR_ID,
-    ATELIER_CKC_ALBUM_CREATE_NAME_AUTHOR_ID, ATELIER_CKC_ALBUM_CREATE_NOTES_AUTHOR_ID,
-    ATELIER_CKC_ALBUM_CREATE_TAGS_AUTHOR_ID, ATELIER_CKC_ALBUM_LINK_ASSET_IDS_AUTHOR_ID,
-    ATELIER_CKC_ALBUM_LINK_AUTHOR_ID, ATELIER_CKC_ALBUM_LINK_SOURCE_PATH_AUTHOR_ID,
-    ATELIER_CKC_ALBUM_LINK_SOURCE_URL_AUTHOR_ID, ATELIER_CKC_ALBUM_STATUS_AUTHOR_ID,
-    ATELIER_CKC_CHARACTER_CREATE_AUTHOR_ID, ATELIER_CKC_CHARACTER_CREATE_NAME_AUTHOR_ID,
-    ATELIER_CKC_CHARACTER_LIST_AUTHOR_ID, ATELIER_CKC_CHARACTER_REF_AUTHOR_ID,
-    ATELIER_CKC_EXPORT_JSON_AUTHOR_ID, ATELIER_CKC_EXPORT_PREVIEW_AUTHOR_ID,
-    ATELIER_CKC_EXPORT_REF_AUTHOR_ID, ATELIER_CKC_EXPORT_SAFE_JSON_AUTHOR_ID,
-    ATELIER_CKC_EXPORT_SAFE_TXT_AUTHOR_ID, ATELIER_CKC_EXPORT_STATUS_AUTHOR_ID,
-    ATELIER_CKC_EXPORT_TXT_AUTHOR_ID, ATELIER_CKC_FIELD_SUGGESTIONS_LIST_AUTHOR_ID,
-    ATELIER_CKC_FIELD_SUGGESTIONS_LOAD_AUTHOR_ID, ATELIER_CKC_FIELD_SUGGESTION_FIELD_AUTHOR_ID,
-    ATELIER_CKC_IMPORT_AUTHOR_ID, ATELIER_CKC_IMPORT_EDITOR_AUTHOR_ID,
-    ATELIER_CKC_LINKED_MEDIA_LIST_AUTHOR_ID, ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID,
-    ATELIER_CKC_MEDIA_SAVE_AUTHOR_ID, ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID,
+    ckc_media_row_author_id, ckc_moodboard_document_row_author_id, ckc_search_result_row_author_id,
+    ckc_source_url_row_author_id, ckc_story_document_row_author_id, AtelierPanel,
+    ATELIER_CKC_ALBUM_CREATE_AUTHOR_ID, ATELIER_CKC_ALBUM_CREATE_NAME_AUTHOR_ID,
+    ATELIER_CKC_ALBUM_CREATE_NOTES_AUTHOR_ID, ATELIER_CKC_ALBUM_CREATE_TAGS_AUTHOR_ID,
+    ATELIER_CKC_ALBUM_LINK_ASSET_IDS_AUTHOR_ID, ATELIER_CKC_ALBUM_LINK_AUTHOR_ID,
+    ATELIER_CKC_ALBUM_LINK_SOURCE_PATH_AUTHOR_ID, ATELIER_CKC_ALBUM_LINK_SOURCE_URL_AUTHOR_ID,
+    ATELIER_CKC_ALBUM_STATUS_AUTHOR_ID, ATELIER_CKC_BOOK_LAYOUT_AUTHOR_ID,
+    ATELIER_CKC_BOOK_LEFT_MEDIA_AUTHOR_ID, ATELIER_CKC_BOOK_MIDDLE_AUTHOR_ID,
+    ATELIER_CKC_BOOK_RIGHT_SHEET_AUTHOR_ID, ATELIER_CKC_CHARACTER_CREATE_AUTHOR_ID,
+    ATELIER_CKC_CHARACTER_CREATE_NAME_AUTHOR_ID, ATELIER_CKC_CHARACTER_LIST_AUTHOR_ID,
+    ATELIER_CKC_CHARACTER_NOTES_APPLY_AUTHOR_ID, ATELIER_CKC_CHARACTER_NOTES_EDITOR_AUTHOR_ID,
+    ATELIER_CKC_CHARACTER_REF_AUTHOR_ID, ATELIER_CKC_EXPORT_JSON_AUTHOR_ID,
+    ATELIER_CKC_EXPORT_PREVIEW_AUTHOR_ID, ATELIER_CKC_EXPORT_REF_AUTHOR_ID,
+    ATELIER_CKC_EXPORT_SAFE_JSON_AUTHOR_ID, ATELIER_CKC_EXPORT_SAFE_TXT_AUTHOR_ID,
+    ATELIER_CKC_EXPORT_STATUS_AUTHOR_ID, ATELIER_CKC_EXPORT_TXT_AUTHOR_ID,
+    ATELIER_CKC_FIELD_SUGGESTIONS_LIST_AUTHOR_ID, ATELIER_CKC_FIELD_SUGGESTIONS_LOAD_AUTHOR_ID,
+    ATELIER_CKC_FIELD_SUGGESTION_FIELD_AUTHOR_ID, ATELIER_CKC_IMPORT_AUTHOR_ID,
+    ATELIER_CKC_IMPORT_EDITOR_AUTHOR_ID, ATELIER_CKC_LINKED_MEDIA_LIST_AUTHOR_ID,
+    ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID, ATELIER_CKC_MEDIA_SAVE_AUTHOR_ID,
+    ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID, ATELIER_CKC_MEDIA_VIEWER_AUTHOR_ID,
+    ATELIER_CKC_MODE_MOODBOARD_AUTHOR_ID, ATELIER_CKC_MODE_NOTES_AUTHOR_ID,
+    ATELIER_CKC_MODE_SHEET_AUTHOR_ID, ATELIER_CKC_MODE_STORY_AUTHOR_ID,
     ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID, ATELIER_CKC_MOODBOARD_DOC_REF_AUTHOR_ID,
     ATELIER_CKC_MOODBOARD_EDITOR_AUTHOR_ID, ATELIER_CKC_MOODBOARD_LATEST_REF_AUTHOR_ID,
     ATELIER_CKC_MOODBOARD_OPEN_AUTHOR_ID, ATELIER_CKC_MOODBOARD_SAVE_AUTHOR_ID,
@@ -62,7 +66,7 @@ use handshake_native::atelier_panel::{
 };
 use handshake_native::atelier_side_panel::{item_author_id, AtelierSidePanel, PANEL_AUTHOR_ID};
 use handshake_native::backend_client::{AtelierBatchRow, AtelierItemRow};
-use handshake_native::graph::canvas_board::{CanvasEvent, LoomCanvasBoard, ADD_CARD_AUTHOR_ID};
+use handshake_native::graph::canvas_board::{CanvasEvent, LoomCanvasBoard};
 use handshake_native::mcp::{
     dispatch_request, ActionChannel, McpRequest, ScreenshotError, SessionToken,
 };
@@ -79,12 +83,7 @@ const MIRA_DEMO_SECOND_MEDIA_ID: &str = "018f7848-1111-7000-9000-00000000b003";
 const MIRA_DEMO_SECOND_FOLDER_REF: &str = "atelier://folder/mira-expression-set";
 const MIRA_DEMO_SECOND_SOURCE_URL_REF: &str =
     "https://example.invalid/reference/mira-expression-set";
-const MIRA_DEMO_STORY_DOC_ID: &str = "018f7848-1111-7000-9000-00000000c001";
-const MIRA_DEMO_STORY_CARD_ID: &str = "018f7848-1111-7000-9000-00000000c101";
-const MIRA_DEMO_STORY_BEAT_ID: &str = "018f7848-1111-7000-9000-00000000c101-beat-001";
 const MIRA_DEMO_SECOND_STORY_DOC_ID: &str = "018f7848-1111-7000-9000-00000000c002";
-const MIRA_DEMO_MOODBOARD_DOC_ID: &str = "018f7848-1111-7000-9000-00000000d001";
-const MIRA_DEMO_MOODBOARD_SNAPSHOT_ID: &str = "018f7848-1111-7000-9000-00000000d101";
 const MIRA_DEMO_SECOND_MOODBOARD_DOC_ID: &str = "018f7848-1111-7000-9000-00000000d003";
 const MIRA_DEMO_SECOND_MOODBOARD_SNAPSHOT_ID: &str = "018f7848-1111-7000-9000-00000000d103";
 const PROBE_ACTIONS: &[accesskit::Action] = &[
@@ -203,47 +202,170 @@ fn external_artifact_dir(name: &str) -> PathBuf {
         .join(name)
 }
 
-fn save_visual_probe(harness: &mut Harness<'_, AtelierPanel>, name: &str) {
-    let _guard = WGPU_RENDER_LOCK.lock().expect("wgpu render lock poisoned");
-    match harness.render() {
-        Ok(image) => {
-            let (w, h) = (image.width(), image.height());
-            assert!(w > 0 && h > 0, "rendered CKC panel image is non-empty");
-            let has_visible_pixels = image.pixels().any(|pixel| pixel.0[3] > 0);
-            assert!(
-                has_visible_pixels,
-                "rendered CKC panel image must contain visible pixels"
-            );
-            let out_dir = external_artifact_dir("wp-ckc-posekit-overhaul-mt-012");
-            std::fs::create_dir_all(&out_dir)
-                .expect("create external CKC visual proof artifact directory");
-            let out_path = out_dir.join(format!("{name}.png"));
-            image
-                .save(&out_path)
-                .expect("save CKC visual proof screenshot to external artifact root");
-            let abs = std::fs::canonicalize(&out_path).unwrap_or(out_path);
-            println!("MT-012 CKC visual proof: {w}x{h} saved={}", abs.display());
-        }
-        Err(error) => panic!("MT-012 CKC visual proof render unavailable: {error}"),
-    }
+fn capture_atelier_harness(
+    harness: &mut Harness<'_, AtelierPanel>,
+) -> Result<handshake_native::mcp::ScreenshotResult, ScreenshotError> {
+    use image::ImageEncoder;
+
+    let image = harness.render().map_err(ScreenshotError)?;
+    let (width, height) = (image.width(), image.height());
+    let mut png_bytes = Vec::new();
+    image::codecs::png::PngEncoder::new(&mut png_bytes)
+        .write_image(
+            image.as_raw(),
+            width,
+            height,
+            image::ExtendedColorType::Rgba8,
+        )
+        .map_err(|err| ScreenshotError(format!("PNG encode failed: {err}")))?;
+    Ok(handshake_native::mcp::screenshot::screenshot_from_png(
+        &png_bytes, width, height,
+    ))
 }
 
-fn build_panel_harness() -> Harness<'static, AtelierPanel> {
+fn save_visual_probe_to(harness: &mut Harness<'_, AtelierPanel>, artifact_dir: &str, name: &str) {
+    let _guard = WGPU_RENDER_LOCK.lock().expect("wgpu render lock poisoned");
+    let snapshot = snapshot_harness(harness);
+    let mut channel = ActionChannel::new();
+    let response = dispatch_request(
+        &argus_req("argus.screenshot", serde_json::json!({})),
+        &argus_token(),
+        &snapshot,
+        &mut channel,
+        || capture_atelier_harness(harness),
+    );
+    let json = response.to_json();
+    assert!(
+        json.get("error").is_none(),
+        "argus.screenshot must succeed for CKC visual proof: {json}"
+    );
+    assert_eq!(
+        json["result"]["argus"]["method"], "argus.screenshot",
+        "visual proof must flow through Argus screenshot"
+    );
+    assert_eq!(
+        json["result"]["argus"]["headless"], true,
+        "Argus screenshot proof must be headless"
+    );
+    assert_eq!(
+        json["result"]["argus"]["non_intrusive"], true,
+        "Argus screenshot proof must be non-intrusive"
+    );
+    let width = json["result"]["width"]
+        .as_u64()
+        .expect("argus screenshot width present") as u32;
+    let height = json["result"]["height"]
+        .as_u64()
+        .expect("argus screenshot height present") as u32;
+    assert!(width > 0 && height > 0, "Argus screenshot is non-empty");
+    let png_base64 = json["result"]["png_base64"]
+        .as_str()
+        .expect("argus screenshot png_base64 present");
+    let bytes = decode_base64(png_base64).expect("argus screenshot base64 decodes");
+    assert_eq!(&bytes[..8], b"\x89PNG\r\n\x1a\n", "PNG magic bytes present");
+    let decoded = image::load_from_memory(&bytes).expect("Argus screenshot bytes are a valid PNG");
+    assert_eq!(decoded.width(), width);
+    assert_eq!(decoded.height(), height);
+    let has_visible_pixels = decoded.to_rgba8().pixels().any(|pixel| pixel.0[3] > 0);
+    assert!(
+        has_visible_pixels,
+        "Argus screenshot must contain visible pixels"
+    );
+    let out_dir = external_artifact_dir(artifact_dir);
+    std::fs::create_dir_all(&out_dir).expect("create external CKC visual proof artifact directory");
+    let out_path = out_dir.join(format!("{name}.png"));
+    std::fs::write(&out_path, &bytes).expect("save Argus CKC visual proof screenshot");
+    let abs = std::fs::canonicalize(&out_path).unwrap_or(out_path);
+    println!(
+        "{artifact_dir} Argus CKC visual proof: {width}x{height} saved={}",
+        abs.display()
+    );
+}
+
+fn build_panel_harness_with_size(size: egui::Vec2) -> Harness<'static, AtelierPanel> {
     let panel = AtelierPanel::new(
         seeded_side_panel(),
         Arc::new(Mutex::new(LoomCanvasBoard::new("ws-test", "canvas-1"))),
         Arc::new(Mutex::new(Vec::<CanvasEvent>::new())),
     );
-    Harness::builder()
-        .with_size(egui::vec2(1280.0, 760.0))
-        .build_state(
-            |ctx, panel: &mut AtelierPanel| {
-                egui::CentralPanel::default().show(ctx, |ui| {
-                    panel.show(ui, &HsTheme::Dark.palette());
-                });
-            },
-            panel,
-        )
+    Harness::builder().with_size(size).build_state(
+        |ctx, panel: &mut AtelierPanel| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                panel.show(ui, &HsTheme::Dark.palette());
+            });
+        },
+        panel,
+    )
+}
+
+fn build_panel_harness() -> Harness<'static, AtelierPanel> {
+    build_panel_harness_with_size(egui::vec2(1280.0, 760.0))
+}
+
+fn decode_base64(s: &str) -> Result<Vec<u8>, String> {
+    fn val(c: u8) -> Option<u8> {
+        match c {
+            b'A'..=b'Z' => Some(c - b'A'),
+            b'a'..=b'z' => Some(c - b'a' + 26),
+            b'0'..=b'9' => Some(c - b'0' + 52),
+            b'+' => Some(62),
+            b'/' => Some(63),
+            _ => None,
+        }
+    }
+    let clean: Vec<u8> = s.bytes().filter(|b| !b.is_ascii_whitespace()).collect();
+    let mut out = Vec::with_capacity(clean.len() / 4 * 3);
+    for chunk in clean.chunks(4) {
+        if chunk.len() < 2 {
+            return Err("truncated base64".to_owned());
+        }
+        let b0 = val(chunk[0]).ok_or("bad base64 char")?;
+        let b1 = val(chunk[1]).ok_or("bad base64 char")?;
+        out.push((b0 << 2) | (b1 >> 4));
+        if chunk.len() >= 3 && chunk[2] != b'=' {
+            let b2 = val(chunk[2]).ok_or("bad base64 char")?;
+            out.push((b1 << 4) | (b2 >> 2));
+            if chunk.len() == 4 && chunk[3] != b'=' {
+                let b3 = val(chunk[3]).ok_or("bad base64 char")?;
+                out.push((b2 << 6) | b3);
+            }
+        }
+    }
+    Ok(out)
+}
+
+fn assert_no_four_window_artifacts(snapshot: &UiTreeSnapshot) {
+    const FORBIDDEN: &[&str] = &[
+        "pane-a",
+        "pane-b",
+        "pane-c",
+        "pane-d",
+        "splitlayoutwidget",
+        "four-window",
+        "four pane",
+        "4-pane",
+        "popout",
+    ];
+    let mut hits = Vec::new();
+    for node in snapshot.iter_nodes() {
+        for text in [
+            node.id.as_str(),
+            node.author_id.as_deref().unwrap_or_default(),
+            node.label.as_deref().unwrap_or_default(),
+            node.value.as_deref().unwrap_or_default(),
+        ] {
+            let lower = text.to_ascii_lowercase();
+            for forbidden in FORBIDDEN {
+                if lower.contains(forbidden) {
+                    hits.push(format!("{} contains {forbidden}", node.id));
+                }
+            }
+        }
+    }
+    assert!(
+        hits.is_empty(),
+        "CKC Atelier view must not expose old four-window/split-layout artifacts: {hits:?}"
+    );
 }
 
 fn argus_token() -> SessionToken {
@@ -275,6 +397,14 @@ fn atelier_main_panel_exposes_ckc_posekit_ingest_tabs() {
         ATELIER_TAB_POSEKIT_AUTHOR_ID,
         ATELIER_TAB_INGEST_AUTHOR_ID,
         ATELIER_CONTENT_CKC_AUTHOR_ID,
+        ATELIER_CKC_BOOK_LAYOUT_AUTHOR_ID,
+        ATELIER_CKC_BOOK_LEFT_MEDIA_AUTHOR_ID,
+        ATELIER_CKC_BOOK_RIGHT_SHEET_AUTHOR_ID,
+        ATELIER_CKC_MEDIA_VIEWER_AUTHOR_ID,
+        ATELIER_CKC_MODE_SHEET_AUTHOR_ID,
+        ATELIER_CKC_MODE_STORY_AUTHOR_ID,
+        ATELIER_CKC_MODE_NOTES_AUTHOR_ID,
+        ATELIER_CKC_MODE_MOODBOARD_AUTHOR_ID,
         ATELIER_CKC_CHARACTER_LIST_AUTHOR_ID,
         ATELIER_CKC_SELECTED_CHARACTER_AUTHOR_ID,
         ATELIER_CKC_CHARACTER_REF_AUTHOR_ID,
@@ -308,21 +438,6 @@ fn atelier_main_panel_exposes_ckc_posekit_ingest_tabs() {
         ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID,
         ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID,
         ATELIER_CKC_MEDIA_SAVE_AUTHOR_ID,
-        ATELIER_CKC_STORY_DOC_REF_AUTHOR_ID,
-        ATELIER_CKC_STORY_EDITOR_AUTHOR_ID,
-        ATELIER_CKC_STORY_SAVE_AUTHOR_ID,
-        ATELIER_CKC_STORY_CARD_LIST_AUTHOR_ID,
-        ATELIER_CKC_STORY_CARD_TITLE_AUTHOR_ID,
-        ATELIER_CKC_STORY_CARD_BODY_AUTHOR_ID,
-        ATELIER_CKC_STORY_CARD_SAVE_AUTHOR_ID,
-        ATELIER_CKC_STORY_BEAT_EDITOR_AUTHOR_ID,
-        ATELIER_CKC_STORY_BEAT_SAVE_AUTHOR_ID,
-        ATELIER_CKC_MOODBOARD_DOC_REF_AUTHOR_ID,
-        ATELIER_CKC_MOODBOARD_LATEST_REF_AUTHOR_ID,
-        ATELIER_CKC_MOODBOARD_EDITOR_AUTHOR_ID,
-        ATELIER_CKC_MOODBOARD_SAVE_AUTHOR_ID,
-        ATELIER_CKC_MOODBOARD_OPEN_AUTHOR_ID,
-        ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID,
         ATELIER_CKC_SEARCH_QUERY_AUTHOR_ID,
         ATELIER_CKC_SEARCH_TAGS_AUTHOR_ID,
         ATELIER_CKC_SEARCH_FILTER_CHARACTER_AUTHOR_ID,
@@ -341,14 +456,14 @@ fn atelier_main_panel_exposes_ckc_posekit_ingest_tabs() {
         ATELIER_CKC_TAG_NOTE_SAVE_AUTHOR_ID,
         PANEL_AUTHOR_ID,
         &item_author_id("item-aaa"),
-        ADD_CARD_AUTHOR_ID,
     ] {
         assert!(
             ids.contains(expected),
             "expected stable author_id {expected}; got {ids:?}"
         );
     }
-    for expected_unique in [
+    for absent in [
+        ATELIER_CKC_BOOK_MIDDLE_AUTHOR_ID,
         ATELIER_CKC_STORY_DOC_REF_AUTHOR_ID,
         ATELIER_CKC_STORY_EDITOR_AUTHOR_ID,
         ATELIER_CKC_STORY_SAVE_AUTHOR_ID,
@@ -360,9 +475,9 @@ fn atelier_main_panel_exposes_ckc_posekit_ingest_tabs() {
         ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID,
     ] {
         assert_eq!(
-            counts.get(expected_unique).copied().unwrap_or_default(),
-            1,
-            "stable author_id {expected_unique} must be unique in the live Argus tree"
+            counts.get(absent).copied().unwrap_or_default(),
+            0,
+            "default CKC sheet mode must not expose middle-panel author_id {absent}"
         );
     }
 }
@@ -375,6 +490,14 @@ fn ckc_character_sheet_surface_is_model_addressable() {
 
     let ids = author_ids(&harness);
     for expected in [
+        ATELIER_CKC_BOOK_LAYOUT_AUTHOR_ID,
+        ATELIER_CKC_BOOK_LEFT_MEDIA_AUTHOR_ID,
+        ATELIER_CKC_BOOK_RIGHT_SHEET_AUTHOR_ID,
+        ATELIER_CKC_MEDIA_VIEWER_AUTHOR_ID,
+        ATELIER_CKC_MODE_SHEET_AUTHOR_ID,
+        ATELIER_CKC_MODE_STORY_AUTHOR_ID,
+        ATELIER_CKC_MODE_NOTES_AUTHOR_ID,
+        ATELIER_CKC_MODE_MOODBOARD_AUTHOR_ID,
         ATELIER_CKC_CHARACTER_LIST_AUTHOR_ID,
         MIRA_DEMO_ROW_AUTHOR_ID,
         ARIA_DEMO_ROW_AUTHOR_ID,
@@ -390,21 +513,6 @@ fn ckc_character_sheet_surface_is_model_addressable() {
         ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID,
         ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID,
         ATELIER_CKC_MEDIA_SAVE_AUTHOR_ID,
-        ATELIER_CKC_STORY_DOC_REF_AUTHOR_ID,
-        ATELIER_CKC_STORY_EDITOR_AUTHOR_ID,
-        ATELIER_CKC_STORY_SAVE_AUTHOR_ID,
-        ATELIER_CKC_STORY_CARD_LIST_AUTHOR_ID,
-        ATELIER_CKC_STORY_CARD_TITLE_AUTHOR_ID,
-        ATELIER_CKC_STORY_CARD_BODY_AUTHOR_ID,
-        ATELIER_CKC_STORY_CARD_SAVE_AUTHOR_ID,
-        ATELIER_CKC_STORY_BEAT_EDITOR_AUTHOR_ID,
-        ATELIER_CKC_STORY_BEAT_SAVE_AUTHOR_ID,
-        ATELIER_CKC_MOODBOARD_DOC_REF_AUTHOR_ID,
-        ATELIER_CKC_MOODBOARD_LATEST_REF_AUTHOR_ID,
-        ATELIER_CKC_MOODBOARD_EDITOR_AUTHOR_ID,
-        ATELIER_CKC_MOODBOARD_SAVE_AUTHOR_ID,
-        ATELIER_CKC_MOODBOARD_OPEN_AUTHOR_ID,
-        ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID,
         ATELIER_CKC_SEARCH_QUERY_AUTHOR_ID,
         ATELIER_CKC_SEARCH_TAGS_AUTHOR_ID,
         ATELIER_CKC_SEARCH_FILTER_CHARACTER_AUTHOR_ID,
@@ -442,24 +550,29 @@ fn ckc_character_sheet_surface_is_model_addressable() {
             MIRA_DEMO_SECOND_MEDIA_ID,
             MIRA_DEMO_SECOND_SOURCE_URL_REF,
         ),
-        ckc_story_document_row_author_id(MIRA_DEMO_STORY_DOC_ID),
-        ckc_story_document_row_author_id(MIRA_DEMO_SECOND_STORY_DOC_ID),
-        ckc_story_card_row_author_id(MIRA_DEMO_STORY_DOC_ID, MIRA_DEMO_STORY_CARD_ID),
-        ckc_story_beat_row_author_id(MIRA_DEMO_STORY_DOC_ID, MIRA_DEMO_STORY_BEAT_ID),
-        ckc_moodboard_document_row_author_id(MIRA_DEMO_MOODBOARD_DOC_ID),
-        ckc_moodboard_document_row_author_id(MIRA_DEMO_SECOND_MOODBOARD_DOC_ID),
-        ckc_moodboard_snapshot_row_author_id(
-            MIRA_DEMO_MOODBOARD_DOC_ID,
-            MIRA_DEMO_MOODBOARD_SNAPSHOT_ID,
-        ),
-        ckc_moodboard_snapshot_row_author_id(
-            MIRA_DEMO_SECOND_MOODBOARD_DOC_ID,
-            MIRA_DEMO_SECOND_MOODBOARD_SNAPSHOT_ID,
-        ),
     ] {
         assert!(
             ids.contains(&expected),
-            "CKC linked-media/story/moodboard surface must expose stable author_id {expected}; got {ids:?}"
+            "CKC linked-media surface must expose stable author_id {expected}; got {ids:?}"
+        );
+    }
+    for absent in [
+        ATELIER_CKC_BOOK_MIDDLE_AUTHOR_ID,
+        ATELIER_CKC_STORY_DOC_REF_AUTHOR_ID,
+        ATELIER_CKC_STORY_EDITOR_AUTHOR_ID,
+        ATELIER_CKC_STORY_SAVE_AUTHOR_ID,
+        ATELIER_CKC_MOODBOARD_DOC_REF_AUTHOR_ID,
+        ATELIER_CKC_MOODBOARD_LATEST_REF_AUTHOR_ID,
+        ATELIER_CKC_MOODBOARD_EDITOR_AUTHOR_ID,
+        ATELIER_CKC_MOODBOARD_SAVE_AUTHOR_ID,
+        ATELIER_CKC_MOODBOARD_OPEN_AUTHOR_ID,
+        ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID,
+        ATELIER_CKC_CHARACTER_NOTES_EDITOR_AUTHOR_ID,
+        ATELIER_CKC_CHARACTER_NOTES_APPLY_AUTHOR_ID,
+    ] {
+        assert!(
+            !ids.contains(absent),
+            "default CKC sheet mode must not expose middle-panel author_id {absent}"
         );
     }
 
@@ -476,10 +589,6 @@ fn ckc_character_sheet_surface_is_model_addressable() {
         ATELIER_CKC_ALBUM_LINK_SOURCE_URL_AUTHOR_ID,
         ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID,
         ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID,
-        ATELIER_CKC_STORY_EDITOR_AUTHOR_ID,
-        ATELIER_CKC_STORY_CARD_TITLE_AUTHOR_ID,
-        ATELIER_CKC_STORY_CARD_BODY_AUTHOR_ID,
-        ATELIER_CKC_STORY_BEAT_EDITOR_AUTHOR_ID,
         ATELIER_CKC_SEARCH_QUERY_AUTHOR_ID,
         ATELIER_CKC_SEARCH_TAGS_AUTHOR_ID,
         ATELIER_CKC_TAG_NOTE_TAG_AUTHOR_ID,
@@ -512,10 +621,6 @@ fn ckc_character_sheet_surface_is_model_addressable() {
         ATELIER_CKC_FIELD_SUGGESTIONS_LOAD_AUTHOR_ID,
         ATELIER_CKC_ALBUM_CREATE_AUTHOR_ID,
         ATELIER_CKC_ALBUM_LINK_AUTHOR_ID,
-        ATELIER_CKC_STORY_SAVE_AUTHOR_ID,
-        ATELIER_CKC_STORY_CARD_SAVE_AUTHOR_ID,
-        ATELIER_CKC_STORY_BEAT_SAVE_AUTHOR_ID,
-        ATELIER_CKC_MOODBOARD_OPEN_AUTHOR_ID,
     ] {
         let node = harness.get_by(|node| node.author_id() == Some(expected));
         assert!(
@@ -551,6 +656,265 @@ fn ckc_character_sheet_surface_is_model_addressable() {
             .data()
             .supports_action(egui::accesskit::Action::Click),
         "CKC tag-note save control must be steerable by Argus click"
+    );
+}
+
+#[test]
+fn ckc_book_layout_modes_gate_middle_panel_surfaces() {
+    let mut harness = build_panel_harness();
+    harness.run();
+    harness.run();
+
+    let default_snapshot = snapshot_harness(&mut harness);
+    assert_no_four_window_artifacts(&default_snapshot);
+    for expected in [
+        ATELIER_CKC_BOOK_LAYOUT_AUTHOR_ID,
+        ATELIER_CKC_BOOK_LEFT_MEDIA_AUTHOR_ID,
+        ATELIER_CKC_BOOK_RIGHT_SHEET_AUTHOR_ID,
+        ATELIER_CKC_MEDIA_VIEWER_AUTHOR_ID,
+        ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID,
+        ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID,
+    ] {
+        assert!(
+            default_snapshot.find_by_author_id(expected).is_some(),
+            "default CKC book layout must expose {expected}"
+        );
+    }
+    for absent in [
+        ATELIER_CKC_BOOK_MIDDLE_AUTHOR_ID,
+        ATELIER_CKC_STORY_EDITOR_AUTHOR_ID,
+        ATELIER_CKC_MOODBOARD_EDITOR_AUTHOR_ID,
+        ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID,
+        ATELIER_CKC_CHARACTER_NOTES_EDITOR_AUTHOR_ID,
+    ] {
+        assert!(
+            default_snapshot.find_by_author_id(absent).is_none(),
+            "default CKC sheet mode must not expose {absent}"
+        );
+    }
+    save_visual_probe_to(
+        &mut harness,
+        "wp-ckc-posekit-overhaul-mt-013",
+        "ckc_book_default_desktop",
+    );
+
+    let mut channel = ActionChannel::new();
+    let story_click = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_CKC_MODE_STORY_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &default_snapshot,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(story_click.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let story_snapshot = snapshot_harness(&mut harness);
+    assert_no_four_window_artifacts(&story_snapshot);
+    for expected in [
+        ATELIER_CKC_BOOK_LEFT_MEDIA_AUTHOR_ID,
+        ATELIER_CKC_BOOK_MIDDLE_AUTHOR_ID,
+        ATELIER_CKC_BOOK_RIGHT_SHEET_AUTHOR_ID,
+        ATELIER_CKC_STORY_DOC_REF_AUTHOR_ID,
+        ATELIER_CKC_STORY_EDITOR_AUTHOR_ID,
+        ATELIER_CKC_STORY_SAVE_AUTHOR_ID,
+        ATELIER_CKC_STORY_CARD_LIST_AUTHOR_ID,
+        ATELIER_CKC_STORY_CARD_TITLE_AUTHOR_ID,
+        ATELIER_CKC_STORY_CARD_BODY_AUTHOR_ID,
+        ATELIER_CKC_STORY_CARD_SAVE_AUTHOR_ID,
+        ATELIER_CKC_STORY_BEAT_EDITOR_AUTHOR_ID,
+        ATELIER_CKC_STORY_BEAT_SAVE_AUTHOR_ID,
+    ] {
+        assert!(
+            story_snapshot.find_by_author_id(expected).is_some(),
+            "story mode must expose {expected}"
+        );
+    }
+    for absent in [
+        ATELIER_CKC_MOODBOARD_EDITOR_AUTHOR_ID,
+        ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID,
+        ATELIER_CKC_CHARACTER_NOTES_EDITOR_AUTHOR_ID,
+    ] {
+        assert!(
+            story_snapshot.find_by_author_id(absent).is_none(),
+            "story mode must not expose unrelated middle-panel control {absent}"
+        );
+    }
+
+    let notes_click = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_CKC_MODE_NOTES_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &story_snapshot,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(notes_click.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let notes_snapshot = snapshot_harness(&mut harness);
+    assert_no_four_window_artifacts(&notes_snapshot);
+    for expected in [
+        ATELIER_CKC_BOOK_LEFT_MEDIA_AUTHOR_ID,
+        ATELIER_CKC_BOOK_MIDDLE_AUTHOR_ID,
+        ATELIER_CKC_BOOK_RIGHT_SHEET_AUTHOR_ID,
+        ATELIER_CKC_CHARACTER_NOTES_EDITOR_AUTHOR_ID,
+        ATELIER_CKC_CHARACTER_NOTES_APPLY_AUTHOR_ID,
+    ] {
+        assert!(
+            notes_snapshot.find_by_author_id(expected).is_some(),
+            "notes mode must expose {expected}"
+        );
+    }
+    for absent in [
+        ATELIER_CKC_STORY_EDITOR_AUTHOR_ID,
+        ATELIER_CKC_MOODBOARD_EDITOR_AUTHOR_ID,
+        ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID,
+    ] {
+        assert!(
+            notes_snapshot.find_by_author_id(absent).is_none(),
+            "notes mode must not expose unrelated middle-panel control {absent}"
+        );
+    }
+    let media_note_before = notes_snapshot
+        .find_by_author_id(ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("media notes visible before sheet-note edit");
+    let set_notes = dispatch_request(
+        &argus_req(
+            "argus.set_value",
+            serde_json::json!({
+                "target": ATELIER_CKC_CHARACTER_NOTES_EDITOR_AUTHOR_ID,
+                "value": "MT-013 character sheet note"
+            }),
+        ),
+        &argus_token(),
+        &notes_snapshot,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(set_notes.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let notes_after_set = snapshot_harness(&mut harness);
+    let apply_notes = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_CKC_CHARACTER_NOTES_APPLY_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &notes_after_set,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(apply_notes.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let notes_after_apply = snapshot_harness(&mut harness);
+    let sheet_after_notes = notes_after_apply
+        .find_by_author_id(ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("sheet visible after applying sheet notes");
+    assert!(
+        sheet_after_notes.contains("MT-013 character sheet note"),
+        "sheet-note mode must write into the selected sheet editor"
+    );
+    let media_note_after = notes_after_apply
+        .find_by_author_id(ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("media notes visible after sheet-note edit");
+    assert_eq!(
+        media_note_before, media_note_after,
+        "character sheet notes must not mutate selected image notes"
+    );
+
+    let moodboard_click = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_CKC_MODE_MOODBOARD_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &notes_after_apply,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(moodboard_click.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let moodboard_snapshot = snapshot_harness(&mut harness);
+    assert_no_four_window_artifacts(&moodboard_snapshot);
+    for expected in [
+        ATELIER_CKC_BOOK_LEFT_MEDIA_AUTHOR_ID,
+        ATELIER_CKC_BOOK_MIDDLE_AUTHOR_ID,
+        ATELIER_CKC_BOOK_RIGHT_SHEET_AUTHOR_ID,
+        ATELIER_CKC_MOODBOARD_DOC_REF_AUTHOR_ID,
+        ATELIER_CKC_MOODBOARD_LATEST_REF_AUTHOR_ID,
+        ATELIER_CKC_MOODBOARD_EDITOR_AUTHOR_ID,
+        ATELIER_CKC_MOODBOARD_SAVE_AUTHOR_ID,
+        ATELIER_CKC_MOODBOARD_OPEN_AUTHOR_ID,
+        ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID,
+    ] {
+        assert!(
+            moodboard_snapshot.find_by_author_id(expected).is_some(),
+            "moodboard mode must expose {expected}"
+        );
+    }
+    for absent in [
+        ATELIER_CKC_STORY_EDITOR_AUTHOR_ID,
+        ATELIER_CKC_CHARACTER_NOTES_EDITOR_AUTHOR_ID,
+    ] {
+        assert!(
+            moodboard_snapshot.find_by_author_id(absent).is_none(),
+            "moodboard mode must not expose unrelated middle-panel control {absent}"
+        );
+    }
+    save_visual_probe_to(
+        &mut harness,
+        "wp-ckc-posekit-overhaul-mt-013",
+        "ckc_book_moodboard_desktop",
+    );
+
+    let mut constrained = build_panel_harness_with_size(egui::vec2(920.0, 640.0));
+    constrained.run();
+    constrained.run();
+    let constrained_snapshot = snapshot_harness(&mut constrained);
+    assert_no_four_window_artifacts(&constrained_snapshot);
+    for expected in [
+        ATELIER_CKC_BOOK_LAYOUT_AUTHOR_ID,
+        ATELIER_CKC_BOOK_LEFT_MEDIA_AUTHOR_ID,
+        ATELIER_CKC_BOOK_RIGHT_SHEET_AUTHOR_ID,
+        ATELIER_CKC_MEDIA_VIEWER_AUTHOR_ID,
+        ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID,
+    ] {
+        assert!(
+            constrained_snapshot.find_by_author_id(expected).is_some(),
+            "constrained CKC book layout must expose {expected}"
+        );
+    }
+    save_visual_probe_to(
+        &mut constrained,
+        "wp-ckc-posekit-overhaul-mt-013",
+        "ckc_book_default_constrained",
     );
 }
 
@@ -704,48 +1068,60 @@ fn argus_inspects_and_steers_ckc_character_sheet_surface() {
         "Argus click must rerender a new visible CKC sheet_version_ref"
     );
 
-    for target in [
-        ckc_story_document_row_author_id(MIRA_DEMO_SECOND_STORY_DOC_ID),
-        ckc_moodboard_document_row_author_id(MIRA_DEMO_SECOND_MOODBOARD_DOC_ID),
-    ] {
-        let click = dispatch_request(
-            &argus_req("argus.click", serde_json::json!({ "target": target })),
-            &argus_token(),
-            &snapshot_harness(&mut harness),
-            &mut channel,
-            || Err(ScreenshotError("not used".to_owned())),
-        );
-        assert_eq!(click.to_json()["result"]["queued"], true);
-        for event in channel.drain_into_events() {
-            harness.event(event);
-        }
-        harness.run();
-        harness.run();
+    let story_mode_click = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_CKC_MODE_STORY_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &snapshot_harness(&mut harness),
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(story_mode_click.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
     }
-    let selected_docs = snapshot_harness(&mut harness);
-    let active_story_ref = selected_docs
+    harness.run();
+    harness.run();
+    let story_mode_snapshot = snapshot_harness(&mut harness);
+    for expected in [
+        ATELIER_CKC_BOOK_LEFT_MEDIA_AUTHOR_ID,
+        ATELIER_CKC_BOOK_MIDDLE_AUTHOR_ID,
+        ATELIER_CKC_BOOK_RIGHT_SHEET_AUTHOR_ID,
+        ATELIER_CKC_STORY_EDITOR_AUTHOR_ID,
+    ] {
+        assert!(
+            story_mode_snapshot.find_by_author_id(expected).is_some(),
+            "Argus must see {expected} after switching to Story mode"
+        );
+    }
+    let story_doc_click = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({
+                "target": ckc_story_document_row_author_id(MIRA_DEMO_SECOND_STORY_DOC_ID)
+            }),
+        ),
+        &argus_token(),
+        &story_mode_snapshot,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(story_doc_click.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let selected_story = snapshot_harness(&mut harness);
+    let active_story_ref = selected_story
         .find_by_author_id(ATELIER_CKC_STORY_DOC_REF_AUTHOR_ID)
         .and_then(|node| node.label.clone())
         .expect("active story ref visible after second story row click");
     assert!(
         active_story_ref.contains(MIRA_DEMO_SECOND_STORY_DOC_ID),
         "Argus document-row click must switch the active story document; got {active_story_ref}"
-    );
-    let active_moodboard_ref = selected_docs
-        .find_by_author_id(ATELIER_CKC_MOODBOARD_DOC_REF_AUTHOR_ID)
-        .and_then(|node| node.label.clone())
-        .expect("active moodboard ref visible after second moodboard row click");
-    assert!(
-        active_moodboard_ref.contains(MIRA_DEMO_SECOND_MOODBOARD_DOC_ID),
-        "Argus document-row click must switch the active moodboard document; got {active_moodboard_ref}"
-    );
-    let active_latest_ref = selected_docs
-        .find_by_author_id(ATELIER_CKC_MOODBOARD_LATEST_REF_AUTHOR_ID)
-        .and_then(|node| node.label.clone())
-        .expect("active latest moodboard ref visible after second moodboard row click");
-    assert!(
-        active_latest_ref.contains(MIRA_DEMO_SECOND_MOODBOARD_SNAPSHOT_ID),
-        "active latest moodboard ref must follow selected moodboard document; got {active_latest_ref}"
     );
 
     let story_set = dispatch_request(
@@ -757,7 +1133,7 @@ fn argus_inspects_and_steers_ckc_character_sheet_surface() {
             }),
         ),
         &argus_token(),
-        &snapshot_harness(&mut harness),
+        &selected_story,
         &mut channel,
         || Err(ScreenshotError("not used".to_owned())),
     );
@@ -778,6 +1154,135 @@ fn argus_inspects_and_steers_ckc_character_sheet_surface() {
             .unwrap_or_default()
             .contains("Argus-steered story continuity note"),
         "Argus set_value must change the live CKC story editor; got {story_editor:?}"
+    );
+
+    let card_count_before =
+        snapshot_author_id_prefix_count(&story_after_set, "atelier-ckc-story-card-");
+    for (target, value) in [
+        (ATELIER_CKC_STORY_CARD_TITLE_AUTHOR_ID, "Argus story card"),
+        (
+            ATELIER_CKC_STORY_CARD_BODY_AUTHOR_ID,
+            "Argus-created reusable story card body",
+        ),
+        (
+            ATELIER_CKC_STORY_BEAT_EDITOR_AUTHOR_ID,
+            "Argus-created reusable beat",
+        ),
+    ] {
+        let set = dispatch_request(
+            &argus_req(
+                "argus.set_value",
+                serde_json::json!({ "target": target, "value": value }),
+            ),
+            &argus_token(),
+            &snapshot_harness(&mut harness),
+            &mut channel,
+            || Err(ScreenshotError("not used".to_owned())),
+        );
+        assert_eq!(set.to_json()["result"]["queued"], true);
+        for event in channel.drain_into_events() {
+            harness.event(event);
+        }
+        harness.run();
+        harness.run();
+    }
+    for target in [
+        ATELIER_CKC_STORY_SAVE_AUTHOR_ID,
+        ATELIER_CKC_STORY_CARD_SAVE_AUTHOR_ID,
+        ATELIER_CKC_STORY_BEAT_SAVE_AUTHOR_ID,
+    ] {
+        let click = dispatch_request(
+            &argus_req("argus.click", serde_json::json!({ "target": target })),
+            &argus_token(),
+            &snapshot_harness(&mut harness),
+            &mut channel,
+            || Err(ScreenshotError("not used".to_owned())),
+        );
+        assert_eq!(click.to_json()["result"]["queued"], true);
+        for event in channel.drain_into_events() {
+            harness.event(event);
+        }
+        harness.run();
+        harness.run();
+    }
+    let story_after_clicks = snapshot_harness(&mut harness);
+    let card_count_after =
+        snapshot_author_id_prefix_count(&story_after_clicks, "atelier-ckc-story-card-");
+    assert!(
+        card_count_after > card_count_before,
+        "Argus story-card save click must add an inspectable CKC story-card row"
+    );
+    save_visual_probe_to(
+        &mut harness,
+        "wp-ckc-posekit-overhaul-mt-013",
+        "ckc_story_middle_panel_desktop",
+    );
+
+    let moodboard_mode_click = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_CKC_MODE_MOODBOARD_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &story_after_clicks,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(moodboard_mode_click.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let moodboard_mode_snapshot = snapshot_harness(&mut harness);
+    for expected in [
+        ATELIER_CKC_BOOK_LEFT_MEDIA_AUTHOR_ID,
+        ATELIER_CKC_BOOK_MIDDLE_AUTHOR_ID,
+        ATELIER_CKC_BOOK_RIGHT_SHEET_AUTHOR_ID,
+        ATELIER_CKC_MOODBOARD_EDITOR_AUTHOR_ID,
+        ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID,
+    ] {
+        assert!(
+            moodboard_mode_snapshot
+                .find_by_author_id(expected)
+                .is_some(),
+            "Argus must see {expected} after switching to Moodboard mode"
+        );
+    }
+    let moodboard_doc_click = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({
+                "target": ckc_moodboard_document_row_author_id(MIRA_DEMO_SECOND_MOODBOARD_DOC_ID)
+            }),
+        ),
+        &argus_token(),
+        &moodboard_mode_snapshot,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(moodboard_doc_click.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let selected_moodboard = snapshot_harness(&mut harness);
+    let active_moodboard_ref = selected_moodboard
+        .find_by_author_id(ATELIER_CKC_MOODBOARD_DOC_REF_AUTHOR_ID)
+        .and_then(|node| node.label.clone())
+        .expect("active moodboard ref visible after second moodboard row click");
+    assert!(
+        active_moodboard_ref.contains(MIRA_DEMO_SECOND_MOODBOARD_DOC_ID),
+        "Argus document-row click must switch the active moodboard document; got {active_moodboard_ref}"
+    );
+    let active_latest_ref = selected_moodboard
+        .find_by_author_id(ATELIER_CKC_MOODBOARD_LATEST_REF_AUTHOR_ID)
+        .and_then(|node| node.label.clone())
+        .expect("active latest moodboard ref visible after second moodboard row click");
+    assert!(
+        active_latest_ref.contains(MIRA_DEMO_SECOND_MOODBOARD_SNAPSHOT_ID),
+        "active latest moodboard ref must follow selected moodboard document; got {active_latest_ref}"
     );
 
     let moodboard_payload = serde_json::json!({
@@ -845,7 +1350,7 @@ fn argus_inspects_and_steers_ckc_character_sheet_surface() {
             }),
         ),
         &argus_token(),
-        &snapshot_harness(&mut harness),
+        &selected_moodboard,
         &mut channel,
         || Err(ScreenshotError("not used".to_owned())),
     );
@@ -865,41 +1370,7 @@ fn argus_inspects_and_steers_ckc_character_sheet_surface() {
         "Argus set_value must replace the live CKC moodboard editor value; got {moodboard_editor:?}"
     );
 
-    let card_count_before =
-        snapshot_author_id_prefix_count(&moodboard_after_set, "atelier-ckc-story-card-");
-    for (target, value) in [
-        (ATELIER_CKC_STORY_CARD_TITLE_AUTHOR_ID, "Argus story card"),
-        (
-            ATELIER_CKC_STORY_CARD_BODY_AUTHOR_ID,
-            "Argus-created reusable story card body",
-        ),
-        (
-            ATELIER_CKC_STORY_BEAT_EDITOR_AUTHOR_ID,
-            "Argus-created reusable beat",
-        ),
-    ] {
-        let set = dispatch_request(
-            &argus_req(
-                "argus.set_value",
-                serde_json::json!({ "target": target, "value": value }),
-            ),
-            &argus_token(),
-            &snapshot_harness(&mut harness),
-            &mut channel,
-            || Err(ScreenshotError("not used".to_owned())),
-        );
-        assert_eq!(set.to_json()["result"]["queued"], true);
-        for event in channel.drain_into_events() {
-            harness.event(event);
-        }
-        harness.run();
-        harness.run();
-    }
-
     for target in [
-        ATELIER_CKC_STORY_SAVE_AUTHOR_ID,
-        ATELIER_CKC_STORY_CARD_SAVE_AUTHOR_ID,
-        ATELIER_CKC_STORY_BEAT_SAVE_AUTHOR_ID,
         ATELIER_CKC_MOODBOARD_SAVE_AUTHOR_ID,
         ATELIER_CKC_MOODBOARD_OPEN_AUTHOR_ID,
     ] {
@@ -917,33 +1388,32 @@ fn argus_inspects_and_steers_ckc_character_sheet_surface() {
         harness.run();
         harness.run();
     }
-    let story_after_clicks = snapshot_harness(&mut harness);
+    let moodboard_after_clicks = snapshot_harness(&mut harness);
     for expected in [
-        ATELIER_CKC_STORY_EDITOR_AUTHOR_ID,
         ATELIER_CKC_MOODBOARD_EDITOR_AUTHOR_ID,
         ATELIER_CKC_MOODBOARD_SAVE_AUTHOR_ID,
         ATELIER_CKC_MOODBOARD_OPEN_AUTHOR_ID,
         ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID,
     ] {
         assert!(
-            story_after_clicks.find_by_author_id(expected).is_some(),
-            "Argus inspect snapshot must include the CKC story/moodboard surface {expected}"
+            moodboard_after_clicks.find_by_author_id(expected).is_some(),
+            "Argus inspect snapshot must include the CKC moodboard surface {expected}"
         );
     }
-    save_visual_probe(&mut harness, "ckc_story_moodboard_panel");
-    let card_count_after =
-        snapshot_author_id_prefix_count(&story_after_clicks, "atelier-ckc-story-card-");
-    assert!(
-        card_count_after > card_count_before,
-        "Argus story-card save click must add an inspectable CKC story-card row"
+    save_visual_probe_to(
+        &mut harness,
+        "wp-ckc-posekit-overhaul-mt-013",
+        "ckc_moodboard_middle_panel_desktop",
     );
-    let moodboard_canvas_cards =
-        snapshot_author_id_prefix_count(&story_after_clicks, "canvas.placement.moodboard-text-");
+    let moodboard_canvas_cards = snapshot_author_id_prefix_count(
+        &moodboard_after_clicks,
+        "canvas.placement.moodboard-text-",
+    );
     assert!(
         moodboard_canvas_cards > 0,
         "Argus moodboard save/open must load the selected CKC moodboard snapshot into the native canvas"
     );
-    let moodboard_canvas_label = story_after_clicks
+    let moodboard_canvas_label = moodboard_after_clicks
         .find_by_author_id("canvas.placement.moodboard-text-argus-note-1")
         .and_then(|node| node.label.clone());
     assert!(

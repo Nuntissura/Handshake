@@ -181,6 +181,17 @@ fn live_author_id_set() -> HashSet<String> {
         handshake_native::atelier_panel::ATELIER_CONTENT_CKC_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CONTENT_POSEKIT_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CONTENT_INGEST_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_BOOK_LAYOUT_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_BOOK_LEFT_MEDIA_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_BOOK_MIDDLE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_BOOK_RIGHT_SHEET_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_MEDIA_VIEWER_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_MODE_SHEET_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_MODE_STORY_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_MODE_NOTES_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_MODE_MOODBOARD_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_CHARACTER_NOTES_EDITOR_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_CHARACTER_NOTES_APPLY_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_CHARACTER_LIST_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_SELECTED_CHARACTER_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_CHARACTER_CREATE_NAME_AUTHOR_ID,
@@ -344,6 +355,35 @@ fn rendered_ckc_panel_author_id_set() -> HashSet<String> {
             .children_recursive()
             .filter_map(|node| node.accesskit_node().author_id().map(str::to_owned)),
     );
+
+    for mode_author_id in [
+        handshake_native::atelier_panel::ATELIER_CKC_MODE_STORY_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_MODE_NOTES_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_MODE_MOODBOARD_AUTHOR_ID,
+    ] {
+        let node_id = harness
+            .root()
+            .children_recursive()
+            .find(|node| node.accesskit_node().author_id() == Some(mode_author_id))
+            .unwrap_or_else(|| panic!("CKC mode button {mode_author_id} present"))
+            .accesskit_node()
+            .id();
+        harness.event(egui::Event::AccessKitActionRequest(
+            egui::accesskit::ActionRequest {
+                action: egui::accesskit::Action::Click,
+                target: node_id,
+                data: None,
+            },
+        ));
+        harness.run();
+        harness.run();
+        ids.extend(
+            harness
+                .root()
+                .children_recursive()
+                .filter_map(|node| node.accesskit_node().author_id().map(str::to_owned)),
+        );
+    }
     ids
 }
 
@@ -418,6 +458,18 @@ fn manual_documents_atelier_tabs_and_argus_control_ids() {
         "atelier-tab-ckc",
         "atelier-tab-posekit",
         "atelier-tab-ingest",
+        "book-style two-pane",
+        "atelier-ckc-book-layout",
+        "atelier-ckc-book-left-media",
+        "atelier-ckc-media-viewer",
+        "atelier-ckc-book-right-sheet",
+        "atelier-ckc-book-middle",
+        "atelier-ckc-mode-sheet",
+        "atelier-ckc-mode-story",
+        "atelier-ckc-mode-notes",
+        "atelier-ckc-mode-moodboard",
+        "desktop and constrained sizes",
+        "four-window grid",
         "atelier-ckc-character-list",
         "atelier-ckc-sheet-editor",
         "atelier-ckc-sheet-save-version",
@@ -471,6 +523,11 @@ fn manual_documents_atelier_tabs_and_argus_control_ids() {
         "atelier-ckc-tag-note-editor",
         "atelier-ckc-tag-note-save",
         "POST /atelier/ckc/tag-notes",
+        "Click atelier-ckc-mode-story before expecting story controls",
+        "atelier-ckc-character-notes-editor",
+        "atelier-ckc-character-notes-apply",
+        "Character sheet notes are not image notes",
+        "Click atelier-ckc-mode-moodboard before expecting moodboard controls",
         "/atelier/characters/{character_internal_id}/documents?doc_type=story",
         "atelier://document/{document_id}",
         "atelier-ckc-story-doc-ref",
