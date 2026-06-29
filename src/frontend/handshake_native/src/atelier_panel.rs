@@ -10,8 +10,10 @@ use egui::accesskit;
 
 use crate::atelier_side_panel::AtelierSidePanel;
 use crate::backend_client::{
-    ATELIER_CKC_ACTOR_ID, AtelierCharacterRow, AtelierCkcAppendCell, AtelierCkcCell,
-    AtelierCkcCharacterSheetRow, AtelierCkcCreateCell, AtelierClient, AtelierSheetVersionRow,
+    AtelierCharacterRow, AtelierCkcAppendCell, AtelierCkcCell, AtelierCkcCharacterSheetRow,
+    AtelierCkcCreateCell, AtelierCkcMediaAlbumRow, AtelierCkcMediaMemberRow,
+    AtelierCkcMediaNotesCell, AtelierCkcMediaNotesTagsRow, AtelierClient, AtelierSheetVersionRow,
+    ATELIER_CKC_ACTOR_ID,
 };
 use crate::editor_pane_factories::SharedPalette;
 use crate::graph::canvas_board::{CanvasEvent, LoomCanvasBoard};
@@ -37,6 +39,10 @@ pub const ATELIER_CKC_SHEET_VERSION_REF_AUTHOR_ID: &str = "atelier-ckc-sheet-ver
 pub const ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID: &str = "atelier-ckc-sheet-editor";
 pub const ATELIER_CKC_SHEET_SAVE_AUTHOR_ID: &str = "atelier-ckc-sheet-save-version";
 pub const ATELIER_CKC_TYPED_REF_KIND_AUTHOR_ID: &str = "atelier-ckc-typed-ref-kind";
+pub const ATELIER_CKC_LINKED_MEDIA_LIST_AUTHOR_ID: &str = "atelier-ckc-linked-media-list";
+pub const ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID: &str = "atelier-ckc-media-notes-editor";
+pub const ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID: &str = "atelier-ckc-media-tags-editor";
+pub const ATELIER_CKC_MEDIA_SAVE_AUTHOR_ID: &str = "atelier-ckc-media-save";
 pub const ATELIER_POSE_YAW_MINUS_AUTHOR_ID: &str = "atelier-pose-yaw-minus";
 pub const ATELIER_POSE_YAW_PLUS_AUTHOR_ID: &str = "atelier-pose-yaw-plus";
 pub const ATELIER_POSE_RESET_AUTHOR_ID: &str = "atelier-pose-reset";
@@ -97,6 +103,41 @@ struct CkcCharacterRecord {
     sheet_seq: i64,
     sheet_editor_text: String,
     sheet_version_ref: Option<String>,
+    media_albums: Vec<CkcMediaAlbumRecord>,
+}
+
+#[derive(Debug, Clone)]
+struct CkcMediaAlbumRecord {
+    collection_id: String,
+    collection_ref: String,
+    name: String,
+    description: String,
+    tags: Vec<String>,
+    member_count: usize,
+    members_next_offset: Option<i64>,
+    members: Vec<CkcMediaMemberRecord>,
+}
+
+#[derive(Debug, Clone)]
+struct CkcMediaMemberRecord {
+    asset_id: String,
+    media_ref: String,
+    display_label: String,
+    source_path_ref: Option<String>,
+    source_url_ref: Option<String>,
+    notes: String,
+    review_status: Option<String>,
+    tags_buffer: String,
+}
+
+#[derive(Debug, Clone)]
+struct CkcMediaSaveRequest {
+    asset_id: String,
+    notes: String,
+    tags: Vec<String>,
+    review_status: Option<String>,
+    source_path_ref: Option<String>,
+    source_url_ref: Option<String>,
 }
 
 impl CkcCharacterRecord {
@@ -133,6 +174,7 @@ impl CkcCharacterRecord {
         let AtelierCkcCharacterSheetRow {
             character,
             latest_sheet,
+            media_albums,
         } = row;
         let (
             sheet_version_id,
@@ -170,6 +212,10 @@ impl CkcCharacterRecord {
             sheet_seq,
             sheet_editor_text,
             sheet_version_ref,
+            media_albums: media_albums
+                .into_iter()
+                .map(CkcMediaAlbumRecord::from_backend)
+                .collect(),
         }
     }
 
@@ -187,6 +233,7 @@ impl CkcCharacterRecord {
                 character.display_name
             ),
             sheet_version_ref: None,
+            media_albums: Vec::new(),
         }
     }
 
@@ -198,6 +245,84 @@ impl CkcCharacterRecord {
         self.sheet_seq = sheet.seq;
         self.sheet_editor_text = sheet.raw_text;
         self.sheet_version_ref = Some(sheet.sheet_version_ref);
+    }
+
+    fn first_media_location(&self) -> Option<(usize, usize)> {
+        self.media_albums
+            .iter()
+            .enumerate()
+            .find_map(|(album_idx, album)| {
+                if album.members.is_empty() {
+                    None
+                } else {
+                    Some((album_idx, 0))
+                }
+            })
+    }
+
+    fn media_location(&self, asset_id: &str) -> Option<(usize, usize)> {
+        self.media_albums
+            .iter()
+            .enumerate()
+            .find_map(|(album_idx, album)| {
+                album
+                    .members
+                    .iter()
+                    .position(|member| member.asset_id == asset_id)
+                    .map(|member_idx| (album_idx, member_idx))
+            })
+    }
+
+    fn selected_or_first_media_location(
+        &self,
+        selected_asset_id: Option<&str>,
+    ) -> Option<(usize, usize)> {
+        selected_asset_id
+            .and_then(|asset_id| self.media_location(asset_id))
+            .or_else(|| self.first_media_location())
+    }
+}
+
+impl CkcMediaAlbumRecord {
+    fn from_backend(row: AtelierCkcMediaAlbumRow) -> Self {
+        Self {
+            collection_id: row.collection_id,
+            collection_ref: row.collection_ref,
+            name: row.name,
+            description: row.description.unwrap_or_default(),
+            tags: row.tags,
+            member_count: row.member_count,
+            members_next_offset: row.members_next_offset,
+            members: row
+                .members
+                .into_iter()
+                .map(CkcMediaMemberRecord::from_backend)
+                .collect(),
+        }
+    }
+}
+
+impl CkcMediaMemberRecord {
+    fn from_backend(row: AtelierCkcMediaMemberRow) -> Self {
+        Self {
+            asset_id: row.asset_id,
+            media_ref: row.media_ref,
+            display_label: row.file_name,
+            source_path_ref: row.source_path_ref,
+            source_url_ref: row.source_url_ref,
+            notes: row.notes.unwrap_or_default(),
+            review_status: row.review_status,
+            tags_buffer: row.tags.join(", "),
+        }
+    }
+
+    fn apply_notes_tags(&mut self, row: &AtelierCkcMediaNotesTagsRow) {
+        self.media_ref = row.media_ref.clone();
+        self.notes = row.notes.clone().unwrap_or_default();
+        self.review_status = row.review_status.clone();
+        self.tags_buffer = row.tags.join(", ");
+        self.source_path_ref = row.source_path_ref.clone();
+        self.source_url_ref = row.source_url_ref.clone();
     }
 }
 
@@ -212,6 +337,8 @@ struct AtelierPanelState {
     ckc_loading: bool,
     ckc_create_pending: bool,
     ckc_append_pending: bool,
+    ckc_media_save_pending: bool,
+    ckc_selected_media_asset_id: Option<String>,
     ckc_error: Option<String>,
     pose_yaw: f32,
     pose_pitch: f32,
@@ -235,6 +362,8 @@ impl Default for AtelierPanelState {
             ckc_loading: false,
             ckc_create_pending: false,
             ckc_append_pending: false,
+            ckc_media_save_pending: false,
+            ckc_selected_media_asset_id: None,
             ckc_error: None,
             pose_yaw: 0.0,
             pose_pitch: 0.0,
@@ -262,6 +391,22 @@ fn seeded_ckc_characters() -> Vec<CkcCharacterRecord> {
             sheet_version_ref: Some(
                 "atelier://sheet/018f7848-1111-7000-9000-000000000001/018f7848-1111-7000-9000-000000000101".to_owned(),
             ),
+            media_albums: vec![
+                seeded_ckc_media_album(
+                    "018f7848-1111-7000-9000-00000000a001",
+                    "Mira reference album",
+                    "018f7848-1111-7000-9000-00000000b001",
+                    "mira-closeup-001.png",
+                    "atelier://folder/mira-reference-set",
+                ),
+                seeded_ckc_media_album(
+                    "018f7848-1111-7000-9000-00000000a003",
+                    "Mira expression set",
+                    "018f7848-1111-7000-9000-00000000b003",
+                    "mira-expression-002.png",
+                    "atelier://folder/mira-expression-set",
+                ),
+            ],
         },
         CkcCharacterRecord {
             public_id: "aria-demo".to_owned(),
@@ -275,8 +420,46 @@ fn seeded_ckc_characters() -> Vec<CkcCharacterRecord> {
             sheet_version_ref: Some(
                 "atelier://sheet/018f7848-1111-7000-9000-000000000002/018f7848-1111-7000-9000-000000000201".to_owned(),
             ),
+            media_albums: vec![seeded_ckc_media_album(
+                "018f7848-1111-7000-9000-00000000a002",
+                "Aria pose references",
+                "018f7848-1111-7000-9000-00000000b002",
+                "aria-pose-001.png",
+                "atelier://folder/aria-pose-set",
+            )],
         },
     ]
+}
+
+fn seeded_ckc_media_album(
+    collection_id: &str,
+    name: &str,
+    asset_id: &str,
+    media_label: &str,
+    source_path_ref: &str,
+) -> CkcMediaAlbumRecord {
+    CkcMediaAlbumRecord {
+        collection_id: collection_id.to_owned(),
+        collection_ref: format!("atelier://collection/{collection_id}"),
+        name: name.to_owned(),
+        description: "Seeded CKC linked-media album for Argus inspection and model workflows"
+            .to_owned(),
+        tags: vec!["reference".to_owned(), "training".to_owned()],
+        member_count: 1,
+        members_next_offset: None,
+        members: vec![CkcMediaMemberRecord {
+            asset_id: asset_id.to_owned(),
+            media_ref: format!("atelier://media/{asset_id}"),
+            display_label: media_label.to_owned(),
+            source_path_ref: Some(source_path_ref.to_owned()),
+            source_url_ref: None,
+            notes: format!(
+                "{media_label} image note stays separate from the character sheet notes"
+            ),
+            review_status: Some("approved".to_owned()),
+            tags_buffer: "face, reference, approved".to_owned(),
+        }],
+    }
 }
 
 fn slugify_public_id(label: &str, fallback_index: usize) -> String {
@@ -305,6 +488,58 @@ fn ckc_character_row_author_id(character_internal_id: &str) -> String {
     format!("atelier-ckc-character-{character_internal_id}")
 }
 
+pub fn ckc_media_album_row_author_id(collection_id: &str) -> String {
+    format!(
+        "atelier-ckc-album-{}",
+        stable_author_id_suffix(collection_id)
+    )
+}
+
+pub fn ckc_media_row_author_id(asset_id: &str) -> String {
+    format!("atelier-ckc-media-{}", stable_author_id_suffix(asset_id))
+}
+
+pub fn ckc_folder_row_author_id(folder_ref: &str) -> String {
+    format!("atelier-ckc-folder-{}", stable_author_id_suffix(folder_ref))
+}
+
+fn stable_author_id_suffix(value: &str) -> String {
+    let mut out = String::new();
+    let mut last_dash = false;
+    for ch in value.chars() {
+        if ch.is_ascii_alphanumeric() {
+            out.push(ch.to_ascii_lowercase());
+            last_dash = false;
+        } else if !last_dash && !out.is_empty() {
+            out.push('-');
+            last_dash = true;
+        }
+    }
+    while out.ends_with('-') {
+        out.pop();
+    }
+    if out.is_empty() {
+        "ref".to_owned()
+    } else {
+        out
+    }
+}
+
+fn ckc_tags_from_buffer(buffer: &str) -> Vec<String> {
+    let mut tags = Vec::new();
+    for tag in buffer
+        .split(',')
+        .map(str::trim)
+        .filter(|tag| !tag.is_empty())
+    {
+        let normalized = tag.to_ascii_lowercase();
+        if !tags.iter().any(|existing| existing == &normalized) {
+            tags.push(normalized);
+        }
+    }
+    tags
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum IngestDecision {
     Pass,
@@ -331,6 +566,7 @@ pub struct AtelierPanel {
     ckc_cell: AtelierCkcCell,
     ckc_create_cell: AtelierCkcCreateCell,
     ckc_append_cell: AtelierCkcAppendCell,
+    ckc_media_notes_cell: AtelierCkcMediaNotesCell,
 }
 
 impl AtelierPanel {
@@ -357,6 +593,7 @@ impl AtelierPanel {
             ckc_cell: Arc::new(Mutex::new(None)),
             ckc_create_cell: Arc::new(Mutex::new(None)),
             ckc_append_cell: Arc::new(Mutex::new(None)),
+            ckc_media_notes_cell: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -595,6 +832,45 @@ impl AtelierPanel {
                 }
             }
         }
+
+        let media_result = self
+            .ckc_media_notes_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        if let Some(result) = media_result {
+            if let Ok(mut state) = self.state.lock() {
+                state.ckc_media_save_pending = false;
+                match result {
+                    Ok(row) => {
+                        let asset_id = row.asset_id.clone();
+                        let mut applied = false;
+                        for character in &mut state.ckc_characters {
+                            for album in &mut character.media_albums {
+                                if let Some(member) =
+                                    album.members.iter_mut().find(|m| m.asset_id == asset_id)
+                                {
+                                    member.apply_notes_tags(&row);
+                                    applied = true;
+                                    break;
+                                }
+                            }
+                            if applied {
+                                break;
+                            }
+                        }
+                        state.ckc_error = if applied {
+                            None
+                        } else {
+                            Some(format!("saved media asset {asset_id} is no longer visible"))
+                        };
+                    }
+                    Err(err) => {
+                        state.ckc_error = Some(err);
+                    }
+                }
+            }
+        }
     }
 
     fn show_ckc(&self, ui: &mut egui::Ui, palette: &HsPalette) {
@@ -709,6 +985,7 @@ impl AtelierPanel {
                                         "name: {display_name}\nrole: reusable character/avatar\npipelines: ComfyUI, Unreal, Blender\nnotes: "
                                     ),
                                     sheet_version_ref: None,
+                                    media_albums: Vec::new(),
                                 });
                                 state.ckc_selected_index = state.ckc_characters.len() - 1;
                                 state.ckc_new_display_name = "New character".to_owned();
@@ -716,6 +993,44 @@ impl AtelierPanel {
                         }
                     }
                 });
+                ui.separator();
+                let selected_index = state
+                    .ckc_selected_index
+                    .min(state.ckc_characters.len().saturating_sub(1));
+                let media_save_pending = state.ckc_media_save_pending;
+                let selected_media_asset_id = state.ckc_selected_media_asset_id.clone();
+                let mut pending_media_save = None;
+                let mut pending_media_selection = None;
+                if let Some(character) = state.ckc_characters.get_mut(selected_index) {
+                    let (save, selection) = self.show_ckc_linked_media(
+                        ui,
+                        palette,
+                        character,
+                        media_save_pending,
+                        selected_media_asset_id.as_deref(),
+                    );
+                    pending_media_save = save;
+                    pending_media_selection = selection;
+                }
+                if let Some(asset_id) = pending_media_selection {
+                    state.ckc_selected_media_asset_id = Some(asset_id);
+                }
+                if let Some(request) = pending_media_save {
+                    if let Some(client) = self.ckc_client.as_ref() {
+                        state.ckc_media_save_pending = true;
+                        state.ckc_error = None;
+                        client.save_ckc_media_notes_tags(
+                            &request.asset_id,
+                            Some(&request.notes),
+                            Some(&request.tags),
+                            request.review_status.as_deref(),
+                            request.source_path_ref.as_deref(),
+                            request.source_url_ref.as_deref(),
+                            ATELIER_CKC_ACTOR_ID,
+                            self.ckc_media_notes_cell.clone(),
+                        );
+                    }
+                }
                 ui.separator();
                 if let Ok(mut side_panel) = self.side_panel.lock() {
                     side_panel.show(ui, palette);
@@ -879,6 +1194,169 @@ impl AtelierPanel {
                 }
             });
         });
+    }
+
+    fn show_ckc_linked_media(
+        &self,
+        ui: &mut egui::Ui,
+        palette: &HsPalette,
+        character: &mut CkcCharacterRecord,
+        media_save_pending: bool,
+        selected_media_asset_id: Option<&str>,
+    ) -> (Option<CkcMediaSaveRequest>, Option<String>) {
+        ui.heading(egui::RichText::new("Linked media").color(palette.text));
+        let resolved_selection = character
+            .selected_or_first_media_location(selected_media_asset_id)
+            .map(|(album_idx, member_idx)| {
+                character.media_albums[album_idx].members[member_idx]
+                    .asset_id
+                    .clone()
+            });
+        let mut pending_selection = None;
+        let list_response = ui
+            .vertical(|ui| {
+                if character.media_albums.is_empty() {
+                    ui.label(egui::RichText::new("No linked albums").color(palette.text_subtle));
+                }
+                for album in &character.media_albums {
+                    let album_ref = AtelierRef::media_album(&album.collection_ref, &album.name);
+                    debug_assert_eq!(album_ref.item_kind, AtelierItemKind::MediaAlbum);
+                    let album_row = ui.label(format!(
+                        "Album: {} ({} items)",
+                        album.name, album.member_count
+                    ));
+                    emit_node(
+                        ui.ctx(),
+                        album_row.id,
+                        accesskit::Role::ListItem,
+                        &ckc_media_album_row_author_id(&album.collection_id),
+                        &format!("{} {}", album_ref.ref_kind(), album.collection_ref),
+                        false,
+                    );
+                    if !album.description.is_empty() {
+                        ui.label(
+                            egui::RichText::new(&album.description).color(palette.text_subtle),
+                        );
+                    }
+                    if !album.tags.is_empty() {
+                        ui.label(
+                            egui::RichText::new(format!("album tags: {}", album.tags.join(", ")))
+                                .color(palette.text_subtle),
+                        );
+                    }
+                    if let Some(next_offset) = album.members_next_offset {
+                        ui.label(
+                            egui::RichText::new(format!(
+                                "showing {} of {}; next offset {}",
+                                album.members.len(),
+                                album.member_count,
+                                next_offset
+                            ))
+                            .color(palette.text_subtle),
+                        );
+                    }
+                    for member in &album.members {
+                        let selected =
+                            resolved_selection.as_deref() == Some(member.asset_id.as_str());
+                        let media_row = ui.add(egui::Button::selectable(
+                            selected,
+                            format!(
+                                "{} [{}]",
+                                member.display_label,
+                                member.review_status.as_deref().unwrap_or("unreviewed")
+                            ),
+                        ));
+                        emit_node(
+                            ui.ctx(),
+                            media_row.id,
+                            accesskit::Role::ListItem,
+                            &ckc_media_row_author_id(&member.asset_id),
+                            &member.media_ref,
+                            selected,
+                        );
+                        if media_row.clicked() {
+                            pending_selection = Some(member.asset_id.clone());
+                        }
+                        if let Some(folder_ref) = &member.source_path_ref {
+                            let folder = ui.label(format!("folder_ref: {folder_ref}"));
+                            emit_node(
+                                ui.ctx(),
+                                folder.id,
+                                accesskit::Role::ListItem,
+                                &ckc_folder_row_author_id(folder_ref),
+                                folder_ref,
+                                false,
+                            );
+                        }
+                    }
+                }
+            })
+            .response;
+        emit_node(
+            ui.ctx(),
+            list_response.id,
+            accesskit::Role::List,
+            ATELIER_CKC_LINKED_MEDIA_LIST_AUTHOR_ID,
+            "CKC linked images folders and albums",
+            false,
+        );
+
+        let selected_asset_id = pending_selection
+            .as_deref()
+            .or(resolved_selection.as_deref());
+        let Some((album_idx, member_idx)) =
+            character.selected_or_first_media_location(selected_asset_id)
+        else {
+            return (None, pending_selection);
+        };
+        let member = &mut character.media_albums[album_idx].members[member_idx];
+        ui.add_space(4.0);
+        let notes = ui.add(
+            egui::TextEdit::multiline(&mut member.notes)
+                .desired_rows(3)
+                .lock_focus(true),
+        );
+        emit_node(
+            ui.ctx(),
+            notes.id,
+            accesskit::Role::TextInput,
+            ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID,
+            "CKC image notes editor",
+            false,
+        );
+        let tags = ui.text_edit_singleline(&mut member.tags_buffer);
+        emit_node(
+            ui.ctx(),
+            tags.id,
+            accesskit::Role::TextInput,
+            ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID,
+            "CKC image tags editor",
+            false,
+        );
+        let save = ui.add_enabled(!media_save_pending, egui::Button::new("Save media notes"));
+        emit_node(
+            ui.ctx(),
+            save.id,
+            accesskit::Role::Button,
+            ATELIER_CKC_MEDIA_SAVE_AUTHOR_ID,
+            "Save CKC image notes and tags",
+            media_save_pending,
+        );
+        if save.clicked() {
+            (
+                Some(CkcMediaSaveRequest {
+                    asset_id: member.asset_id.clone(),
+                    notes: member.notes.clone(),
+                    tags: ckc_tags_from_buffer(&member.tags_buffer),
+                    review_status: member.review_status.clone(),
+                    source_path_ref: member.source_path_ref.clone(),
+                    source_url_ref: member.source_url_ref.clone(),
+                }),
+                pending_selection,
+            )
+        } else {
+            (None, pending_selection)
+        }
     }
 
     fn show_posekit(&self, ui: &mut egui::Ui, palette: &HsPalette) {
@@ -1235,7 +1713,10 @@ fn emit_node(
         }
         if matches!(
             role,
-            accesskit::Role::Tab | accesskit::Role::Button | accesskit::Role::CheckBox
+            accesskit::Role::Tab
+                | accesskit::Role::Button
+                | accesskit::Role::CheckBox
+                | accesskit::Role::ListItem
         ) {
             node.add_action(accesskit::Action::Click);
         }

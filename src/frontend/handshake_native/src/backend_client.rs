@@ -5263,11 +5263,57 @@ pub struct AtelierSheetVersionRow {
     pub sheet_version_ref: String,
 }
 
+/// One media asset linked through a CKC character album.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCkcMediaMemberRow {
+    pub asset_id: String,
+    pub media_ref: String,
+    pub file_name: String,
+    pub content_type: String,
+    pub source_path: Option<String>,
+    pub source_url: Option<String>,
+    pub source_path_ref: Option<String>,
+    pub source_url_ref: Option<String>,
+    pub notes: Option<String>,
+    pub review_status: Option<String>,
+    pub tags: Vec<String>,
+}
+
+/// One CKC media album/collection attached to a character and optionally a sheet version.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCkcMediaAlbumRow {
+    pub collection_id: String,
+    pub collection_ref: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub character_internal_id: String,
+    pub character_ref: String,
+    pub sheet_version_id: Option<String>,
+    pub sheet_version_ref: Option<String>,
+    pub tags: Vec<String>,
+    pub member_count: usize,
+    pub members_next_offset: Option<i64>,
+    pub members: Vec<AtelierCkcMediaMemberRow>,
+}
+
+/// Media note/tag write result for one asset.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCkcMediaNotesTagsRow {
+    pub asset_id: String,
+    pub media_ref: String,
+    pub notes: Option<String>,
+    pub review_status: Option<String>,
+    pub tags: Vec<String>,
+    pub source_path_ref: Option<String>,
+    pub source_url_ref: Option<String>,
+}
+
 /// One CKC character plus its current/latest sheet version, as the native panel needs it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AtelierCkcCharacterSheetRow {
     pub character: AtelierCharacterRow,
     pub latest_sheet: Option<AtelierSheetVersionRow>,
+    pub media_albums: Vec<AtelierCkcMediaAlbumRow>,
 }
 
 /// CKC character database projection loaded for the native Castkit Codex tab.
@@ -5349,6 +5395,9 @@ pub type AtelierCkcCreateCell = Arc<Mutex<Option<Result<AtelierCharacterRow, Str
 
 /// One-slot delivery cell for off-thread CKC sheet-version appends.
 pub type AtelierCkcAppendCell = Arc<Mutex<Option<Result<AtelierSheetVersionRow, String>>>>;
+
+/// One-slot delivery cell for off-thread CKC media notes/tags saves.
+pub type AtelierCkcMediaNotesCell = Arc<Mutex<Option<Result<AtelierCkcMediaNotesTagsRow, String>>>>;
 
 /// REST client for the VERIFIED atelier read surface the MT-033 AtelierSidePanel consumes.
 #[derive(Clone)]
@@ -5645,6 +5694,154 @@ impl AtelierClient {
         }
     }
 
+    /// Pure request builder for `GET /atelier/characters/{id}/media-albums`.
+    pub fn media_albums_request(&self, character_internal_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!(
+                "{}/atelier/characters/{}/media-albums",
+                self.base_url, character_internal_id
+            ),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for character-scoped CKC media album creation.
+    pub fn create_media_album_request(
+        &self,
+        character_internal_id: &str,
+        name: &str,
+        notes: Option<&str>,
+        sheet_version_id: Option<&str>,
+        tags: &[String],
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/characters/{}/media-albums",
+                self.base_url, character_internal_id
+            ),
+            body: Some(serde_json::json!({
+                "name": name,
+                "notes": notes,
+                "sheet_version_id": sheet_version_id,
+                "tags": tags,
+            })),
+        }
+    }
+
+    /// Actor-attributed request builder for CKC media album creation.
+    pub fn create_media_album_actor_request(
+        &self,
+        character_internal_id: &str,
+        name: &str,
+        notes: Option<&str>,
+        sheet_version_id: Option<&str>,
+        tags: &[String],
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.create_media_album_request(
+            character_internal_id,
+            name,
+            notes,
+            sheet_version_id,
+            tags,
+        );
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for adding existing media assets to a CKC album.
+    pub fn add_media_album_items_request(
+        &self,
+        collection_id: &str,
+        asset_ids: &[String],
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/media-albums/{}/items",
+                self.base_url, collection_id
+            ),
+            body: Some(serde_json::json!({
+                "asset_ids": asset_ids,
+            })),
+        }
+    }
+
+    /// Actor-attributed request builder for adding existing media assets to a CKC album.
+    pub fn add_media_album_items_actor_request(
+        &self,
+        collection_id: &str,
+        asset_ids: &[String],
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.add_media_album_items_request(collection_id, asset_ids);
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for image-level CKC notes/tags/provenance.
+    pub fn media_notes_tags_request(
+        &self,
+        asset_id: &str,
+        notes: Option<&str>,
+        tags: Option<&[String]>,
+        review_status: Option<&str>,
+        source_path_ref: Option<&str>,
+        source_url_ref: Option<&str>,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/media-assets/{}/notes-tags",
+                self.base_url, asset_id
+            ),
+            body: Some(serde_json::json!({
+                "notes": notes,
+                "tags": tags,
+                "review_status": review_status,
+                "source_path_ref": source_path_ref,
+                "source_url_ref": source_url_ref,
+            })),
+        }
+    }
+
+    /// Actor-attributed request builder for image-level CKC notes/tags/provenance.
+    pub fn media_notes_tags_actor_request(
+        &self,
+        asset_id: &str,
+        notes: Option<&str>,
+        tags: Option<&[String]>,
+        review_status: Option<&str>,
+        source_path_ref: Option<&str>,
+        source_url_ref: Option<&str>,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.media_notes_tags_request(
+            asset_id,
+            notes,
+            tags,
+            review_status,
+            source_path_ref,
+            source_url_ref,
+        );
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
     /// Load the batches + command corpus off the UI thread, delivering the parsed projection into `cell`.
     /// A failure of EITHER read fails the whole load (the panel surfaces the error text, never a blank
     /// half-loaded panel). The two reads run concurrently on the runtime.
@@ -5743,6 +5940,43 @@ impl AtelierClient {
                 .and_then(|value| {
                     parse_atelier_sheet_version_row(&value).ok_or_else(|| {
                         AppError::Parse("missing sheet version row in append response".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Save image-level CKC notes/tags off the UI thread.
+    pub fn save_ckc_media_notes_tags(
+        &self,
+        asset_id: &str,
+        notes: Option<&str>,
+        tags: Option<&[String]>,
+        review_status: Option<&str>,
+        source_path_ref: Option<&str>,
+        source_url_ref: Option<&str>,
+        actor_id: &str,
+        cell: AtelierCkcMediaNotesCell,
+    ) {
+        let spec = self.media_notes_tags_actor_request(
+            asset_id,
+            notes,
+            tags,
+            review_status,
+            source_path_ref,
+            source_url_ref,
+            actor_id,
+        );
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_media_notes_tags_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing media notes/tags row in save response".to_owned())
                     })
                 })
                 .map_err(|e| e.to_string());
@@ -5933,9 +6167,15 @@ async fn load_atelier_ckc(
             .await?
             .into_iter()
             .max_by_key(|row| row.seq);
+        let albums_url = format!(
+            "{}/atelier/characters/{}/media-albums",
+            base_url, character.internal_id
+        );
+        let media_albums = fetch_atelier_media_albums(client, &albums_url).await?;
         rows.push(AtelierCkcCharacterSheetRow {
             character,
             latest_sheet,
+            media_albums,
         });
     }
     Ok(AtelierCkcData { characters: rows })
@@ -5960,6 +6200,38 @@ async fn fetch_atelier_sheet_versions(
         .iter()
         .filter_map(parse_atelier_sheet_version_row)
         .collect())
+}
+
+async fn fetch_atelier_media_albums(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Vec<AtelierCkcMediaAlbumRow>, AppError> {
+    let value = get_json(client, url, &[]).await?;
+    let arr = value.as_array().cloned().unwrap_or_default();
+    Ok(arr
+        .iter()
+        .filter_map(parse_atelier_media_album_row)
+        .collect())
+}
+
+fn json_string(row: &serde_json::Value, field: &str) -> Option<String> {
+    row.get(field)
+        .and_then(|x| x.as_str())
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+}
+
+fn json_string_vec(row: &serde_json::Value, field: &str) -> Vec<String> {
+    row.get(field)
+        .and_then(|x| x.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|value| value.as_str())
+                .filter(|value| !value.is_empty())
+                .map(ToOwned::to_owned)
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 fn parse_atelier_character_row(row: &serde_json::Value) -> Option<AtelierCharacterRow> {
@@ -6028,6 +6300,95 @@ fn parse_atelier_sheet_version_row(row: &serde_json::Value) -> Option<AtelierShe
             .and_then(|x| x.as_str())
             .unwrap_or("")
             .to_owned(),
+    })
+}
+
+fn parse_atelier_media_album_row(row: &serde_json::Value) -> Option<AtelierCkcMediaAlbumRow> {
+    let collection_id = json_string(row, "collection_id")?;
+    if collection_id.is_empty() {
+        return None;
+    }
+    let members = row
+        .get("members")
+        .and_then(|x| x.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(parse_atelier_media_member_row)
+                .collect()
+        })
+        .unwrap_or_default();
+    Some(AtelierCkcMediaAlbumRow {
+        collection_id: collection_id.clone(),
+        collection_ref: json_string(row, "collection_ref")
+            .unwrap_or_else(|| format!("atelier://collection/{collection_id}")),
+        name: row
+            .get("name")
+            .and_then(|x| x.as_str())
+            .unwrap_or("(unnamed album)")
+            .to_owned(),
+        description: json_string(row, "notes"),
+        character_internal_id: json_string(row, "character_internal_id").unwrap_or_default(),
+        character_ref: json_string(row, "character_ref").unwrap_or_default(),
+        sheet_version_id: json_string(row, "sheet_version_id"),
+        sheet_version_ref: json_string(row, "sheet_version_ref"),
+        tags: json_string_vec(row, "tags"),
+        member_count: row
+            .get("member_count")
+            .and_then(|x| x.as_u64())
+            .unwrap_or(0) as usize,
+        members_next_offset: row.get("members_next_offset").and_then(|x| x.as_i64()),
+        members,
+    })
+}
+
+fn parse_atelier_media_member_row(row: &serde_json::Value) -> Option<AtelierCkcMediaMemberRow> {
+    let asset_id = json_string(row, "asset_id")?;
+    if asset_id.is_empty() {
+        return None;
+    }
+    let content_hash = json_string(row, "content_hash").unwrap_or_default();
+    Some(AtelierCkcMediaMemberRow {
+        asset_id: asset_id.clone(),
+        media_ref: json_string(row, "media_ref")
+            .unwrap_or_else(|| format!("atelier://media/{asset_id}")),
+        file_name: json_string(row, "file_name")
+            .or_else(|| {
+                if content_hash.len() > 12 {
+                    Some(format!("media {}", &content_hash[..12]))
+                } else if content_hash.is_empty() {
+                    None
+                } else {
+                    Some(format!("media {content_hash}"))
+                }
+            })
+            .unwrap_or_else(|| "(unnamed media)".to_owned()),
+        content_type: json_string(row, "content_type").unwrap_or_else(|| "image".to_owned()),
+        source_path: json_string(row, "source_path"),
+        source_url: json_string(row, "source_url"),
+        source_path_ref: json_string(row, "source_path_ref"),
+        source_url_ref: json_string(row, "source_url_ref"),
+        notes: json_string(row, "notes"),
+        review_status: json_string(row, "review_status"),
+        tags: json_string_vec(row, "tags"),
+    })
+}
+
+fn parse_atelier_media_notes_tags_row(
+    row: &serde_json::Value,
+) -> Option<AtelierCkcMediaNotesTagsRow> {
+    let asset_id = json_string(row, "asset_id")?;
+    if asset_id.is_empty() {
+        return None;
+    }
+    Some(AtelierCkcMediaNotesTagsRow {
+        asset_id: asset_id.clone(),
+        media_ref: json_string(row, "media_ref")
+            .unwrap_or_else(|| format!("atelier://media/{asset_id}")),
+        notes: json_string(row, "notes"),
+        review_status: json_string(row, "review_status"),
+        tags: json_string_vec(row, "tags"),
+        source_path_ref: json_string(row, "source_path_ref"),
+        source_url_ref: json_string(row, "source_url_ref"),
     })
 }
 

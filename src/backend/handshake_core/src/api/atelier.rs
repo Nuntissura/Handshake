@@ -16,33 +16,36 @@
 //! interpolated into SQL.
 
 use axum::{
-    Json, Router,
     extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post},
+    Json, Router,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use uuid::Uuid;
 
-use crate::AppState;
+use crate::atelier::collections::{Collection, NewCollection};
 use crate::atelier::intake::{
     IntakeBatchMode, IntakeLaneCounts, IntakeProfileMode, NewIntakeBatch,
 };
 use crate::atelier::search::{
-    AiTagSuggestion, AiTagSuggestionDecision, AiTagSuggestionStatus, NewAiTagSuggestion,
+    normalize_tag, AiTagSuggestion, AiTagSuggestionDecision, AiTagSuggestionStatus,
+    NewAiTagSuggestion,
 };
 use crate::atelier::stealth_window::ResolvedContentRef;
 use crate::atelier::{
-    AtelierError, AtelierStore, BulkOperationReceipt, CHARACTER_SHEET_V2_TEMPLATE_VERSION,
-    Character, ClipboardImageImportRequest, DEFAULT_SHEET_TOOL, DeletionArchiveRequest,
-    DeletionImpactPreview, DeletionImpactPreviewRequest, DeletionRestoreRequest, DeletionTargetRef,
-    ImageImportRecord, NewCharacter, NewSheetVersion, SheetVersion, UrlImageImportRequest,
-    builtin_character_sheet_template, builtin_safe_subset, character_ref,
-    default_character_sheet_text, sheet_version_ref, text_hash,
+    builtin_character_sheet_template, builtin_safe_subset, character_ref, collection_ref,
+    default_character_sheet_text, media_asset_ref, sheet_version_ref, text_hash, AtelierError,
+    AtelierStore, BulkOperationReceipt, Character, ClipboardImageImportRequest,
+    DeletionArchiveRequest, DeletionImpactPreview, DeletionImpactPreviewRequest,
+    DeletionRestoreRequest, DeletionTargetRef, ImageImportRecord, MediaReviewMetadataUpdate,
+    NewCharacter, NewSheetVersion, SetMediaSourceProvenanceRefs, SheetVersion,
+    UrlImageImportRequest, CHARACTER_SHEET_V2_TEMPLATE_VERSION, DEFAULT_SHEET_TOOL,
 };
+use crate::AppState;
 
 const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
 
@@ -62,8 +65,20 @@ pub fn routes(state: AppState) -> Router {
             get(list_sheet_versions).post(append_sheet_version),
         )
         .route(
+            "/atelier/characters/:character_internal_id/media-albums",
+            get(list_character_media_albums).post(create_character_media_album),
+        )
+        .route(
             "/atelier/characters/:character_internal_id/sheet-versions/import",
             post(import_sheet_version),
+        )
+        .route(
+            "/atelier/media-albums/:collection_id/items",
+            post(add_media_album_items),
+        )
+        .route(
+            "/atelier/media-assets/:asset_id/notes-tags",
+            post(update_media_notes_tags),
         )
         .route(
             "/atelier/sheet-versions/:version_id",
@@ -147,6 +162,10 @@ pub fn routes(state: AppState) -> Router {
 const OVERVIEW_TABLES: &[&str] = &[
     "atelier_character",
     "atelier_media_asset",
+    "atelier_collection",
+    "atelier_collection_item",
+    "atelier_media_asset_tag",
+    "atelier_media_review_metadata",
     "atelier_media_source_provenance_ref",
     "atelier_media_sidecar",
     "atelier_bulk_operation_receipt",
@@ -380,6 +399,86 @@ struct SheetFieldSuggestionsQuery {
     limit: Option<i64>,
 }
 
+#[derive(Debug, Deserialize)]
+struct CreateMediaAlbumRequest {
+    name: String,
+    notes: Option<String>,
+    tags: Option<Vec<String>>,
+    sheet_version_id: Option<Uuid>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AddMediaAlbumItemsRequest {
+    asset_ids: Vec<Uuid>,
+}
+
+#[derive(Debug, Serialize)]
+struct AddMediaAlbumItemsResponse {
+    collection_id: Uuid,
+    collection_ref: String,
+    requested: usize,
+    inserted: i64,
+    member_count: usize,
+    members_next_offset: Option<i64>,
+    members: Vec<MediaAlbumMemberResponse>,
+}
+
+#[derive(Debug, Serialize)]
+struct MediaAlbumResponse {
+    collection_id: Uuid,
+    collection_ref: String,
+    name: String,
+    notes: String,
+    tags: Vec<String>,
+    character_internal_id: Uuid,
+    character_ref: String,
+    sheet_version_id: Option<Uuid>,
+    sheet_version_ref: Option<String>,
+    member_count: usize,
+    members_next_offset: Option<i64>,
+    members: Vec<MediaAlbumMemberResponse>,
+    created_at_utc: DateTime<Utc>,
+    updated_at_utc: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize)]
+struct MediaAlbumMemberResponse {
+    asset_id: Uuid,
+    media_ref: String,
+    content_hash: String,
+    file_name: String,
+    content_type: String,
+    source_path: Option<String>,
+    source_url: Option<String>,
+    sort_order: i64,
+    added_at_utc: DateTime<Utc>,
+    notes: Option<String>,
+    review_status: Option<String>,
+    tags: Vec<String>,
+    source_path_ref: Option<String>,
+    source_url_ref: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct MediaNotesTagsRequest {
+    notes: Option<String>,
+    tags: Option<Vec<String>>,
+    review_status: Option<String>,
+    source_path_ref: Option<String>,
+    source_url_ref: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct MediaNotesTagsResponse {
+    asset_id: Uuid,
+    media_ref: String,
+    notes: Option<String>,
+    review_status: String,
+    tags: Vec<String>,
+    source_path_ref: Option<String>,
+    source_url_ref: Option<String>,
+}
+
 fn character_response(character: Character) -> CharacterResponse {
     CharacterResponse {
         internal_id: character.internal_id,
@@ -427,6 +526,244 @@ fn sheet_version_conflict_response(
         current_parent_version_id,
         current_sheet_version_ref: current_parent_version_id
             .map(|version_id| sheet_version_ref(character_internal_id, version_id)),
+    }
+}
+
+fn collection_tags_from_row(row: &sqlx::postgres::PgRow) -> Vec<String> {
+    let tags_json: serde_json::Value = row.get("tags_json");
+    tags_json
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|value| value.as_str().map(ToOwned::to_owned))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn collection_from_api_row(row: &sqlx::postgres::PgRow) -> Collection {
+    Collection {
+        collection_id: row.get("collection_id"),
+        name: row.get("name"),
+        notes: row.get("notes"),
+        tags: collection_tags_from_row(row),
+        character_internal_id: row.get("character_internal_id"),
+        sheet_version_id: row.get("sheet_version_id"),
+        created_at_utc: row.get("created_at_utc"),
+        updated_at_utc: row.get("updated_at_utc"),
+    }
+}
+
+fn normalize_media_tags_for_api(tags: &[String]) -> Vec<String> {
+    let mut normalized = Vec::new();
+    for tag in tags {
+        let tag = normalize_tag(tag);
+        if tag.is_empty() {
+            continue;
+        }
+        if !normalized.iter().any(|existing| existing == &tag) {
+            normalized.push(tag);
+        }
+    }
+    normalized
+}
+
+fn normalize_media_review_status_for_api(status: Option<&str>) -> String {
+    match status
+        .map(str::trim)
+        .filter(|status| !status.is_empty())
+        .map(str::to_ascii_lowercase)
+        .as_deref()
+    {
+        Some("pass" | "passed" | "approve" | "approved") => "approved".to_owned(),
+        Some("reject" | "rejected") => "rejected".to_owned(),
+        Some("unsure" | "hold" | "defer" | "deferred") => "deferred".to_owned(),
+        Some("review") => "review".to_owned(),
+        Some("unreviewed") | None => "unreviewed".to_owned(),
+        Some(other) => other.to_owned(),
+    }
+}
+
+async fn ensure_sheet_version_matches_character(
+    store: &AtelierStore,
+    character_internal_id: Uuid,
+    sheet_version_id: Option<Uuid>,
+) -> Result<(), (StatusCode, Json<ErrorResponse>)> {
+    if let Some(version_id) = sheet_version_id {
+        let version = store
+            .get_sheet_version(version_id)
+            .await
+            .map_err(atelier_error)?;
+        if version.character_internal_id != character_internal_id {
+            return Err(atelier_error(AtelierError::Validation(format!(
+                "sheet_version_id={version_id} does not belong to character_internal_id={character_internal_id}"
+            ))));
+        }
+    }
+    Ok(())
+}
+
+async fn list_character_collections(
+    store: &AtelierStore,
+    character_internal_id: Uuid,
+) -> Result<Vec<Collection>, (StatusCode, Json<ErrorResponse>)> {
+    let rows = sqlx::query(
+        r#"SELECT collection_id, name, notes, tags_json,
+                  character_internal_id, sheet_version_id,
+                  created_at_utc, updated_at_utc
+           FROM atelier_collection
+           WHERE character_internal_id = $1
+           ORDER BY updated_at_utc DESC, collection_id ASC
+           LIMIT $2"#,
+    )
+    .bind(character_internal_id)
+    .bind(LIST_CAP)
+    .fetch_all(store.pool())
+    .await
+    .map_err(internal_error)?;
+    Ok(rows.iter().map(collection_from_api_row).collect())
+}
+
+async fn media_album_members_response(
+    store: &AtelierStore,
+    collection_id: Uuid,
+) -> Result<(Vec<MediaAlbumMemberResponse>, usize, Option<i64>), (StatusCode, Json<ErrorResponse>)>
+{
+    let total_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM atelier_collection_item WHERE collection_id = $1")
+            .bind(collection_id)
+            .fetch_one(store.pool())
+            .await
+            .map_err(internal_error)?;
+    let rows = sqlx::query(
+        r#"SELECT ci.asset_id, ma.content_hash, ma.mime, ma.source_provenance,
+                  ci.sort_order, ci.added_at_utc
+           FROM atelier_collection_item ci
+           JOIN atelier_media_asset ma ON ma.asset_id = ci.asset_id
+           WHERE ci.collection_id = $1
+           ORDER BY ci.sort_order ASC, ci.added_at_utc ASC
+           LIMIT $2"#,
+    )
+    .bind(collection_id)
+    .bind(LIST_CAP)
+    .fetch_all(store.pool())
+    .await
+    .map_err(internal_error)?;
+
+    let mut members = Vec::with_capacity(rows.len());
+    for row in rows {
+        let asset_id: Uuid = row.get("asset_id");
+        let content_hash: String = row.get("content_hash");
+        let source_provenance: Option<String> = row.get("source_provenance");
+        let (source_path, source_url) = split_media_source_provenance(source_provenance.as_deref());
+        let metadata = store
+            .get_media_review_metadata(asset_id)
+            .await
+            .map_err(atelier_error)?;
+        let tags = store
+            .list_media_asset_tags(asset_id)
+            .await
+            .map_err(atelier_error)?
+            .into_iter()
+            .map(|tag| tag.text)
+            .collect();
+        let provenance = store
+            .get_media_source_provenance_refs(asset_id)
+            .await
+            .map_err(atelier_error)?;
+        members.push(MediaAlbumMemberResponse {
+            asset_id,
+            media_ref: media_asset_ref(asset_id),
+            file_name: media_display_file_name(source_provenance.as_deref(), &content_hash),
+            content_hash,
+            content_type: row.get("mime"),
+            source_path,
+            source_url,
+            sort_order: row.get("sort_order"),
+            added_at_utc: row.get("added_at_utc"),
+            notes: metadata.as_ref().and_then(|row| row.notes.clone()),
+            review_status: metadata.as_ref().map(|row| row.review_status.clone()),
+            tags,
+            source_path_ref: provenance
+                .as_ref()
+                .and_then(|row| row.source_path_ref.clone()),
+            source_url_ref: provenance
+                .as_ref()
+                .and_then(|row| row.source_url_ref.clone()),
+        });
+    }
+    let members_next_offset = if total_count as usize > members.len() {
+        Some(members.len() as i64)
+    } else {
+        None
+    };
+    Ok((members, total_count.max(0) as usize, members_next_offset))
+}
+
+async fn media_album_response(
+    store: &AtelierStore,
+    collection: Collection,
+) -> Result<MediaAlbumResponse, (StatusCode, Json<ErrorResponse>)> {
+    let Some(character_internal_id) = collection.character_internal_id else {
+        return Err(atelier_error(AtelierError::Validation(format!(
+            "collection_id={} is not linked to a CKC character",
+            collection.collection_id
+        ))));
+    };
+    let (members, member_count, members_next_offset) =
+        media_album_members_response(store, collection.collection_id).await?;
+    Ok(MediaAlbumResponse {
+        collection_id: collection.collection_id,
+        collection_ref: collection_ref(collection.collection_id),
+        name: collection.name,
+        notes: collection.notes,
+        tags: collection.tags,
+        character_internal_id,
+        character_ref: character_ref(character_internal_id),
+        sheet_version_id: collection.sheet_version_id,
+        sheet_version_ref: collection
+            .sheet_version_id
+            .map(|version_id| sheet_version_ref(character_internal_id, version_id)),
+        member_count,
+        members_next_offset,
+        members,
+        created_at_utc: collection.created_at_utc,
+        updated_at_utc: collection.updated_at_utc,
+    })
+}
+
+fn split_media_source_provenance(source: Option<&str>) -> (Option<String>, Option<String>) {
+    let Some(source) = source.map(str::trim).filter(|value| !value.is_empty()) else {
+        return (None, None);
+    };
+    if source.starts_with("http://") || source.starts_with("https://") {
+        (None, Some(source.to_owned()))
+    } else {
+        (Some(source.to_owned()), None)
+    }
+}
+
+fn media_display_file_name(source: Option<&str>, content_hash: &str) -> String {
+    if let Some(source) = source.map(str::trim).filter(|value| !value.is_empty()) {
+        if let Some(name) = source
+            .trim_end_matches(['/', '\\'])
+            .rsplit(['/', '\\'])
+            .next()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            return name.to_owned();
+        }
+    }
+    let suffix: String = content_hash
+        .trim_start_matches("sha256:")
+        .chars()
+        .take(12)
+        .collect();
+    if suffix.is_empty() {
+        "media".to_owned()
+    } else {
+        format!("media-{suffix}")
     }
 }
 
@@ -516,6 +853,251 @@ async fn list_sheet_versions(
     Ok(Json(
         versions.into_iter().map(sheet_version_response).collect(),
     ))
+}
+
+/// GET /atelier/characters/:character_internal_id/media-albums — character-scoped CKC albums.
+async fn list_character_media_albums(
+    State(state): State<AppState>,
+    Path(character_internal_id): Path<Uuid>,
+) -> Result<Json<Vec<MediaAlbumResponse>>, (StatusCode, Json<ErrorResponse>)> {
+    let store = atelier_store(&state);
+    store
+        .get_character_by_internal_id(character_internal_id)
+        .await
+        .map_err(atelier_error)?;
+    let collections = list_character_collections(&store, character_internal_id).await?;
+    let mut out = Vec::with_capacity(collections.len());
+    for collection in collections {
+        out.push(media_album_response(&store, collection).await?);
+    }
+    Ok(Json(out))
+}
+
+/// POST /atelier/characters/:character_internal_id/media-albums — create a CKC album over existing media.
+async fn create_character_media_album(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(character_internal_id): Path<Uuid>,
+    Json(payload): Json<CreateMediaAlbumRequest>,
+) -> Result<(StatusCode, Json<MediaAlbumResponse>), (StatusCode, Json<ErrorResponse>)> {
+    let actor = calling_actor(&headers)?;
+    let store = atelier_store(&state);
+    store
+        .get_character_by_internal_id(character_internal_id)
+        .await
+        .map_err(atelier_error)?;
+    ensure_sheet_version_matches_character(&store, character_internal_id, payload.sheet_version_id)
+        .await?;
+    let collection = store
+        .create_collection_attributed(
+            &NewCollection {
+                name: payload.name,
+                notes: payload.notes.unwrap_or_default(),
+                tags: payload.tags.unwrap_or_default(),
+                character_internal_id: Some(character_internal_id),
+                sheet_version_id: payload.sheet_version_id,
+            },
+            &actor,
+        )
+        .await
+        .map_err(atelier_error)?;
+    tracing::info!(
+        target: "handshake_core::atelier",
+        route = "/atelier/characters/:character_internal_id/media-albums",
+        status = "created",
+        actor = %actor,
+        character_internal_id = %character_internal_id,
+        collection_id = %collection.collection_id,
+        "create CKC media album"
+    );
+    Ok((
+        StatusCode::CREATED,
+        Json(media_album_response(&store, collection).await?),
+    ))
+}
+
+/// POST /atelier/media-albums/:collection_id/items — append existing media assets to an album.
+async fn add_media_album_items(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(collection_id): Path<Uuid>,
+    Json(payload): Json<AddMediaAlbumItemsRequest>,
+) -> Result<Json<AddMediaAlbumItemsResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let actor = calling_actor(&headers)?;
+    let store = atelier_store(&state);
+    let collection = store
+        .get_collection(collection_id)
+        .await
+        .map_err(atelier_error)?;
+    if collection.character_internal_id.is_none() {
+        return Err(atelier_error(AtelierError::Validation(format!(
+            "collection_id={collection_id} is not a CKC character album"
+        ))));
+    }
+    let requested = payload.asset_ids.len();
+    let inserted = store
+        .add_images_to_collection_attributed(collection_id, &payload.asset_ids, &actor)
+        .await
+        .map_err(atelier_error)?;
+    let (members, member_count, members_next_offset) =
+        media_album_members_response(&store, collection_id).await?;
+    tracing::info!(
+        target: "handshake_core::atelier",
+        route = "/atelier/media-albums/:collection_id/items",
+        status = "ok",
+        actor = %actor,
+        collection_id = %collection_id,
+        requested = requested,
+        inserted = inserted,
+        "add CKC media album items"
+    );
+    Ok(Json(AddMediaAlbumItemsResponse {
+        collection_id,
+        collection_ref: collection_ref(collection_id),
+        requested,
+        inserted,
+        member_count,
+        members_next_offset,
+        members,
+    }))
+}
+
+/// POST /atelier/media-assets/:asset_id/notes-tags — save image notes/tags separate from sheet text.
+async fn update_media_notes_tags(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(asset_id): Path<Uuid>,
+    Json(payload): Json<MediaNotesTagsRequest>,
+) -> Result<Json<MediaNotesTagsResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let actor = calling_actor(&headers)?;
+    let store = atelier_store(&state);
+    let existing_metadata = store
+        .get_media_review_metadata(asset_id)
+        .await
+        .map_err(atelier_error)?;
+    let review_status =
+        normalize_media_review_status_for_api(payload.review_status.as_deref().or_else(|| {
+            existing_metadata
+                .as_ref()
+                .map(|row| row.review_status.as_str())
+        }));
+    let updated = store
+        .bulk_update_media_review_metadata(
+            &[MediaReviewMetadataUpdate {
+                asset_id,
+                favorite: existing_metadata
+                    .as_ref()
+                    .map(|row| row.favorite)
+                    .unwrap_or(false),
+                rating: existing_metadata
+                    .as_ref()
+                    .map(|row| row.rating)
+                    .unwrap_or(0),
+                frontpage: existing_metadata
+                    .as_ref()
+                    .map(|row| row.frontpage)
+                    .unwrap_or(false),
+                carousel: existing_metadata
+                    .as_ref()
+                    .map(|row| row.carousel)
+                    .unwrap_or(false),
+                notes: payload
+                    .notes
+                    .or_else(|| existing_metadata.as_ref().and_then(|row| row.notes.clone())),
+                review_status,
+            }],
+            &actor,
+        )
+        .await
+        .map_err(atelier_error)?;
+    let metadata = updated
+        .metadata
+        .into_iter()
+        .next()
+        .ok_or_else(|| internal_error("media notes/tags update returned no metadata row"))?;
+
+    if let Some(requested_tags) = payload.tags {
+        let desired = normalize_media_tags_for_api(&requested_tags);
+        let existing_tags = store
+            .list_media_asset_tags(asset_id)
+            .await
+            .map_err(atelier_error)?;
+        for tag in existing_tags {
+            if !desired.iter().any(|value| value == &tag.text) {
+                store
+                    .untag_media_asset(asset_id, &tag.text)
+                    .await
+                    .map_err(atelier_error)?;
+            }
+        }
+        for tag in &desired {
+            store
+                .tag_media_asset(asset_id, tag, &actor)
+                .await
+                .map_err(atelier_error)?;
+        }
+    }
+
+    if payload.source_path_ref.is_some() || payload.source_url_ref.is_some() {
+        let existing_refs = store
+            .get_media_source_provenance_refs(asset_id)
+            .await
+            .map_err(atelier_error)?;
+        store
+            .set_media_source_provenance_refs(&SetMediaSourceProvenanceRefs {
+                asset_id,
+                source_url_ref: payload.source_url_ref.or_else(|| {
+                    existing_refs
+                        .as_ref()
+                        .and_then(|row| row.source_url_ref.clone())
+                }),
+                source_path_ref: payload.source_path_ref.or_else(|| {
+                    existing_refs
+                        .as_ref()
+                        .and_then(|row| row.source_path_ref.clone())
+                }),
+                source_note_ref: existing_refs
+                    .as_ref()
+                    .and_then(|row| row.source_note_ref.clone()),
+                contact_sheet_ref: existing_refs
+                    .as_ref()
+                    .and_then(|row| row.contact_sheet_ref.clone()),
+                task_ref: existing_refs.as_ref().and_then(|row| row.task_ref.clone()),
+                run_ref: existing_refs.as_ref().and_then(|row| row.run_ref.clone()),
+                updated_by: actor.clone(),
+            })
+            .await
+            .map_err(atelier_error)?;
+    }
+
+    let tags = store
+        .list_media_asset_tags(asset_id)
+        .await
+        .map_err(atelier_error)?
+        .into_iter()
+        .map(|tag| tag.text)
+        .collect();
+    let refs = store
+        .get_media_source_provenance_refs(asset_id)
+        .await
+        .map_err(atelier_error)?;
+    tracing::info!(
+        target: "handshake_core::atelier",
+        route = "/atelier/media-assets/:asset_id/notes-tags",
+        status = "ok",
+        actor = %actor,
+        asset_id = %asset_id,
+        "update CKC media notes/tags"
+    );
+    Ok(Json(MediaNotesTagsResponse {
+        asset_id,
+        media_ref: media_asset_ref(asset_id),
+        notes: metadata.notes,
+        review_status: metadata.review_status,
+        tags,
+        source_path_ref: refs.as_ref().and_then(|row| row.source_path_ref.clone()),
+        source_url_ref: refs.as_ref().and_then(|row| row.source_url_ref.clone()),
+    }))
 }
 
 /// POST /atelier/characters/:character_internal_id/sheet-versions — append a guarded sheet edit.
@@ -686,16 +1268,16 @@ async fn export_sheet_version(
 }
 
 /// GET /atelier/sheet-templates/default — bundled CKC v2.00 template metadata + raw text.
-async fn get_default_sheet_template()
--> Result<Json<crate::atelier::BuiltInSheetTemplate>, (StatusCode, Json<ErrorResponse>)> {
+async fn get_default_sheet_template(
+) -> Result<Json<crate::atelier::BuiltInSheetTemplate>, (StatusCode, Json<ErrorResponse>)> {
     builtin_character_sheet_template()
         .map(Json)
         .map_err(atelier_error)
 }
 
 /// GET /atelier/sheet-templates/default/safe-subset — original LLM-safe v2.00 field whitelist.
-async fn get_default_sheet_template_safe_subset()
--> Result<Json<crate::atelier::BuiltInSafeSubset>, (StatusCode, Json<ErrorResponse>)> {
+async fn get_default_sheet_template_safe_subset(
+) -> Result<Json<crate::atelier::BuiltInSafeSubset>, (StatusCode, Json<ErrorResponse>)> {
     builtin_safe_subset().map(Json).map_err(atelier_error)
 }
 

@@ -26,10 +26,10 @@
 
 use std::path::{Path, PathBuf};
 
-use egui_kittest::Harness;
 use egui_kittest::kittest::NodeT;
+use egui_kittest::Harness;
 
-use handshake_native::accessibility::{UiTreeSnapshot, collect_ui_tree_snapshot};
+use handshake_native::accessibility::{collect_ui_tree_snapshot, UiTreeSnapshot};
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::atelier_panel::{
     ATELIER_CONTENT_CKC_AUTHOR_ID, ATELIER_CONTENT_INGEST_AUTHOR_ID,
@@ -37,20 +37,21 @@ use handshake_native::atelier_panel::{
     ATELIER_TAB_INGEST_AUTHOR_ID, ATELIER_TAB_POSEKIT_AUTHOR_ID,
 };
 use handshake_native::atelier_side_panel::{
-    AtelierSidePanel, PANEL_AUTHOR_ID, REFRESH_AUTHOR_ID, item_author_id,
+    item_author_id, AtelierSidePanel, PANEL_AUTHOR_ID, REFRESH_AUTHOR_ID,
 };
 use handshake_native::backend_client::{AtelierBatchRow, AtelierItemRow, HealthInfo};
 use handshake_native::interop::{
-    AtelierItemKind, AtelierRef, CMD_ROUTE_TO_STAGE, DragPayload, InteractionBus,
+    AtelierItemKind, AtelierRef, DragPayload, InteractionBus, ATELIER_EMBED_REF_KINDS,
+    CMD_ROUTE_TO_STAGE,
 };
 use handshake_native::mcp::{
-    ActionChannel, McpRequest, ScreenshotError, SessionToken, dispatch_request,
+    dispatch_request, ActionChannel, McpRequest, ScreenshotError, SessionToken,
 };
 use handshake_native::module_switcher::ModuleId;
 use handshake_native::rich_editor::renderer::rich_editor_widget::{
     RichEditorState, RichEditorWidget,
 };
-use handshake_native::stage_pane::{STAGE_PANE_AUTHOR_ID, StageContent, StagePane};
+use handshake_native::stage_pane::{StageContent, StagePane, STAGE_PANE_AUTHOR_ID};
 use handshake_native::theme::HsTheme;
 
 /// The crate-relative path to the EXTERNAL artifacts root (CX-212E), disk-agnostic. Used by the
@@ -411,11 +412,9 @@ fn ac4_route_to_stage_displays_routed_selection() {
     harness.run();
 
     // Before routing: the Stage pane shows the empty prompt; its Region value summarizes "nothing routed".
-    assert!(
-        stage_value(&harness)
-            .unwrap_or_default()
-            .contains("nothing routed")
-    );
+    assert!(stage_value(&harness)
+        .unwrap_or_default()
+        .contains("nothing routed"));
 
     // The context-menu path: register the command, stage a selection, dispatch — exactly as the shell
     // does on a right-click "Route to Stage" of a rich-text selection.
@@ -800,8 +799,8 @@ fn ac4_route_to_stage_in_live_shell_shows_stage_pane() {
 #[test]
 fn ac4_explorer_context_menu_route_to_stage_item_routes_document() {
     use handshake_native::context_menu_surfaces::{
-        ExplorerMenuAction, ExplorerRowKind, explorer_action_for_id, explorer_context_items,
-        explorer_ids,
+        explorer_action_for_id, explorer_context_items, explorer_ids, ExplorerMenuAction,
+        ExplorerRowKind,
     };
 
     // The "Route to Stage" item is present + enabled on a Document row and maps to the RouteToStage action
@@ -890,6 +889,28 @@ fn atelier_panel_screenshot() {
 fn no_local_artifact_dir_in_default_suite() {
     let _ = wgpu_guard; // keep the guard referenced even when the screenshot feature is off
     assert_no_local_artifact_dir();
+}
+
+#[test]
+fn ckc_media_album_ref_is_a_reference_chip_not_renderable_media_album() {
+    let payload = DragPayload::AtelierRef(AtelierRef::media_album(
+        "atelier://collection/album-7",
+        "Mira reference album",
+    ));
+    let link = payload
+        .to_hs_link()
+        .expect("media album ref becomes an hsLink chip");
+    assert_eq!(link.ref_kind, "media_album");
+    assert_ne!(
+        link.ref_kind, "album",
+        "CKC media-album refs must not collide with renderable rich-editor album embeds"
+    );
+    assert!(
+        ATELIER_EMBED_REF_KINDS.contains(&link.ref_kind.as_str()),
+        "media_album refKind must be in the CKC/Atelier ref family"
+    );
+    assert_eq!(link.ref_value, "atelier://collection/album-7");
+    assert_eq!(link.label, "Mira reference album");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1013,6 +1034,67 @@ fn atelier_client_builds_verified_routes() {
         c.field_suggestions_request("CHAR-ID-006", 5).url,
         "http://127.0.0.1:37501/atelier/sheet-field-suggestions?field_id=CHAR-ID-006&limit=5",
         "MT-009: the verified field suggestion route"
+    );
+    assert_eq!(
+        c.media_albums_request("char-7").url,
+        "http://127.0.0.1:37501/atelier/characters/char-7/media-albums",
+        "MT-010: the verified CKC character media-albums route"
+    );
+    let album_actor = c.create_media_album_actor_request(
+        "char-7",
+        "Reference Set",
+        Some("face refs"),
+        Some("sheet-7"),
+        &["face".to_owned(), "training".to_owned()],
+        "agent-a",
+    );
+    assert_eq!(
+        album_actor.url, "http://127.0.0.1:37501/atelier/characters/char-7/media-albums",
+        "MT-010: create media album targets character-scoped route"
+    );
+    assert_eq!(
+        album_actor.body.as_ref().unwrap()["sheet_version_id"],
+        "sheet-7",
+        "MT-010: media album body links to the inspected sheet version"
+    );
+    assert_eq!(
+        album_actor.headers,
+        vec![(HSK_HEADER_ACTOR_ID.to_owned(), "agent-a".to_owned())],
+        "MT-010: media album creation carries backend actor attribution"
+    );
+    let add_items =
+        c.add_media_album_items_actor_request("album-7", &["asset-1".to_owned()], "agent-a");
+    assert_eq!(
+        add_items.url, "http://127.0.0.1:37501/atelier/media-albums/album-7/items",
+        "MT-010: album member add route"
+    );
+    assert_eq!(
+        add_items.body.as_ref().unwrap()["asset_ids"],
+        serde_json::json!(["asset-1"]),
+        "MT-010: album member body carries asset ids without creating media duplicates"
+    );
+    let notes = c.media_notes_tags_actor_request(
+        "asset-1",
+        Some("image note"),
+        Some(&["face".to_owned(), "approved".to_owned()]),
+        Some("pass"),
+        Some("atelier://folder/ref-set-a"),
+        None,
+        "agent-a",
+    );
+    assert_eq!(
+        notes.url, "http://127.0.0.1:37501/atelier/media-assets/asset-1/notes-tags",
+        "MT-010: media note/tag route"
+    );
+    assert_eq!(
+        notes.body.as_ref().unwrap()["notes"],
+        "image note",
+        "MT-010: image notes are sent through media metadata, not sheet text"
+    );
+    assert_eq!(
+        notes.body.as_ref().unwrap()["source_path_ref"],
+        "atelier://folder/ref-set-a",
+        "MT-010: folder provenance refs are preserved as typed refs"
     );
     println!(
         "AC-5/MT-009: AtelierClient builds verified /atelier routes for intake and CKC sheets"

@@ -8,6 +8,14 @@ pub fn sheet_version_ref(character_internal_id: Uuid, version_id: Uuid) -> Strin
     format!("atelier://sheet/{character_internal_id}/{version_id}")
 }
 
+pub fn media_asset_ref(asset_id: Uuid) -> String {
+    format!("atelier://media/{asset_id}")
+}
+
+pub fn collection_ref(collection_id: Uuid) -> String {
+    format!("atelier://collection/{collection_id}")
+}
+
 pub fn parse_character_ref(value: &str) -> Option<Uuid> {
     value
         .strip_prefix("atelier://character/")
@@ -22,10 +30,30 @@ pub fn parse_sheet_version_ref(value: &str) -> Option<(Uuid, Uuid)> {
     Some((character, version))
 }
 
+pub fn parse_media_asset_ref(value: &str) -> Option<Uuid> {
+    value
+        .strip_prefix("atelier://media/")
+        .and_then(|id| Uuid::parse_str(id).ok())
+}
+
+pub fn parse_collection_ref(value: &str) -> Option<Uuid> {
+    value
+        .strip_prefix("atelier://collection/")
+        .and_then(|id| Uuid::parse_str(id).ok())
+}
+
 pub fn validate_character_ref(value: &str) -> bool {
     parse_character_ref(value).is_some()
 }
 
 pub fn validate_sheet_version_ref(value: &str) -> bool {
     parse_sheet_version_ref(value).is_some()
+}
+
+pub fn validate_media_asset_ref(value: &str) -> bool {
+    parse_media_asset_ref(value).is_some()
+}
+
+pub fn validate_collection_ref(value: &str) -> bool {
+    parse_collection_ref(value).is_some()
 }

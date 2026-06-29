@@ -82,8 +82,9 @@ pub use self::media::{
     SetMediaSourceProvenanceRefs,
 };
 pub use self::refs::{
-    character_ref, parse_character_ref, parse_sheet_version_ref, sheet_version_ref,
-    validate_character_ref, validate_sheet_version_ref,
+    character_ref, collection_ref, media_asset_ref, parse_character_ref, parse_collection_ref,
+    parse_media_asset_ref, parse_sheet_version_ref, sheet_version_ref, validate_character_ref,
+    validate_collection_ref, validate_media_asset_ref, validate_sheet_version_ref,
 };
 pub use self::relationships::{
     CharacterRelationship, CharacterRelationshipGraph, CharacterRelationshipGraphEdge,

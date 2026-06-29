@@ -41,17 +41,29 @@ use serde::{Deserialize, Serialize};
 /// render as the non-media `hsLink` CHIP (a labelled reference), not an inline image, so an unresolved or
 /// remote CKC item never blocks the editor on an asset fetch. All four are valid `refKind` strings the
 /// opaque-JSONB `content_json` round-trips losslessly.
-pub const ATELIER_EMBED_REF_KINDS: [&str; 4] = ["atelier", "media", "character", "moodboard"];
+pub const ATELIER_EMBED_REF_KINDS: [&str; 6] = [
+    "atelier",
+    "media",
+    "media_album",
+    "character",
+    "character_sheet",
+    "moodboard",
+];
 
-/// Which CKC/Atelier artifact kind a [`DragPayload::AtelierRef`] references. The variant set is exactly
-/// the MT-033 contract list (`Media | Character | Moodboard`); the [`AtelierItemKind::ref_kind`] mapping
-/// is the `hsLink` `refKind` the embed atom carries so a save/reload round-trip preserves the kind.
+/// Which CKC/Atelier artifact kind a [`DragPayload::AtelierRef`] references. It starts from the MT-033
+/// drag-in list and adds the MT-009 versioned `CharacterSheet` ref so downstream modules can target a
+/// specific inspected sheet version. The [`AtelierItemKind::ref_kind`] mapping is the `hsLink` `refKind`
+/// the embed atom carries so a save/reload round-trip preserves the kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AtelierItemKind {
     /// A media asset (image/video/album from the atelier intake store).
     Media,
+    /// A CKC/Atelier media collection reference. This is a chip, not a renderable rich-editor `album`.
+    MediaAlbum,
     /// A character (atelier character record).
     Character,
+    /// A versioned character sheet (`atelier://sheet/{character}/{version}`).
+    CharacterSheet,
     /// A moodboard / collection.
     Moodboard,
 }
@@ -62,7 +74,9 @@ impl AtelierItemKind {
     pub fn ref_kind(self) -> &'static str {
         match self {
             AtelierItemKind::Media => "media",
+            AtelierItemKind::MediaAlbum => "media_album",
             AtelierItemKind::Character => "character",
+            AtelierItemKind::CharacterSheet => "character_sheet",
             AtelierItemKind::Moodboard => "moodboard",
         }
     }
@@ -73,7 +87,9 @@ impl AtelierItemKind {
     pub fn from_ref_kind(ref_kind: &str) -> Option<Self> {
         match ref_kind {
             "media" | "atelier" => Some(AtelierItemKind::Media),
+            "media_album" | "collection" => Some(AtelierItemKind::MediaAlbum),
             "character" => Some(AtelierItemKind::Character),
+            "character_sheet" | "sheet" | "sheet_version" => Some(AtelierItemKind::CharacterSheet),
             "moodboard" => Some(AtelierItemKind::Moodboard),
             _ => None,
         }
@@ -84,7 +100,9 @@ impl AtelierItemKind {
     pub fn badge(self) -> &'static str {
         match self {
             AtelierItemKind::Media => "Media",
+            AtelierItemKind::MediaAlbum => "Album",
             AtelierItemKind::Character => "Character",
+            AtelierItemKind::CharacterSheet => "Sheet",
             AtelierItemKind::Moodboard => "Moodboard",
         }
     }
@@ -139,6 +157,30 @@ impl AtelierRef {
             label: label.into(),
             loom_block_id: Some(loom_block_id.into()),
         }
+    }
+
+    /// Build a versioned CKC character-sheet reference. The `item_id`/`refValue`
+    /// is the portable sheet address, not a copied block of sheet text.
+    pub fn character_sheet_version(
+        character_internal_id: impl AsRef<str>,
+        sheet_version_id: impl AsRef<str>,
+        label: impl Into<String>,
+    ) -> Self {
+        Self::new(
+            format!(
+                "atelier://sheet/{}/{}",
+                character_internal_id.as_ref(),
+                sheet_version_id.as_ref()
+            ),
+            AtelierItemKind::CharacterSheet,
+            label,
+        )
+    }
+
+    /// Build a CKC media-album/collection reference. The `media_album`
+    /// refKind is deliberately distinct from rich-editor `album` embeds.
+    pub fn media_album(collection_ref: impl Into<String>, label: impl Into<String>) -> Self {
+        Self::new(collection_ref, AtelierItemKind::MediaAlbum, label)
     }
 
     /// The `hsLink` `refKind` this reference's embed atom carries (the `item_kind` mapping).
@@ -230,9 +272,9 @@ impl DragPayload {
                     title: Some(r.display_label()),
                 }
             }),
-            DragPayload::LoomBlockRef(b) => {
-                Some(crate::graph::canvas_board::CanvasDragPayload::new(b.block_id.clone()))
-            }
+            DragPayload::LoomBlockRef(b) => Some(
+                crate::graph::canvas_board::CanvasDragPayload::new(b.block_id.clone()),
+            ),
             DragPayload::PlainText(_) => None,
         }
     }
@@ -279,13 +321,23 @@ mod tests {
     /// The `item_kind` -> `refKind` mapping is in the CKC family and round-trips through `from_ref_kind`.
     #[test]
     fn item_kind_ref_kind_mapping_is_ckc_family() {
-        for kind in [AtelierItemKind::Media, AtelierItemKind::Character, AtelierItemKind::Moodboard] {
+        for kind in [
+            AtelierItemKind::Media,
+            AtelierItemKind::MediaAlbum,
+            AtelierItemKind::Character,
+            AtelierItemKind::CharacterSheet,
+            AtelierItemKind::Moodboard,
+        ] {
             let rk = kind.ref_kind();
             assert!(
                 ATELIER_EMBED_REF_KINDS.contains(&rk),
                 "refKind '{rk}' must be in the CKC family {ATELIER_EMBED_REF_KINDS:?}"
             );
-            assert_eq!(AtelierItemKind::from_ref_kind(rk), Some(kind), "round-trips refKind '{rk}'");
+            assert_eq!(
+                AtelierItemKind::from_ref_kind(rk),
+                Some(kind),
+                "round-trips refKind '{rk}'"
+            );
         }
         // The CKC refKinds are DISTINCT from the media-render kinds (so a CKC chip is never routed to the
         // image/video renderer).
@@ -295,6 +347,25 @@ mod tests {
                 "CKC refKinds must not collide with media-render kinds (collision on '{media}')"
             );
         }
+    }
+
+    /// A versioned CKC sheet ref serializes as an hsLink atom whose refKind is
+    /// distinct from generic character refs, so downstream tools can request
+    /// exactly the sheet version a model inspected.
+    #[test]
+    fn character_sheet_ref_becomes_hs_link_atom() {
+        let payload = DragPayload::AtelierRef(AtelierRef::character_sheet_version(
+            "char-uuid",
+            "sheet-uuid",
+            "Mira sheet v4",
+        ));
+        let link = payload
+            .to_hs_link()
+            .expect("character sheet ref becomes hsLink");
+        assert_eq!(link.ref_kind, "character_sheet");
+        assert_eq!(link.ref_value, "atelier://sheet/char-uuid/sheet-uuid");
+        assert_eq!(link.label, "Mira sheet v4");
+        assert!(link.resolved);
     }
 
     /// AC (unit): an `AtelierRef` payload becomes an `hsLink` atom with the CKC `refKind`, `refValue =
@@ -310,10 +381,15 @@ mod tests {
         assert_eq!(link.ref_kind, "character");
         assert_eq!(link.ref_value, "char-9");
         assert_eq!(link.label, "Mira");
-        assert!(link.resolved, "a deliberately dropped item is a resolved reference");
+        assert!(
+            link.resolved,
+            "a deliberately dropped item is a resolved reference"
+        );
         // A non-atelier payload does NOT become an embed atom.
         assert!(DragPayload::PlainText("x".into()).to_hs_link().is_none());
-        assert!(DragPayload::LoomBlockRef(LoomBlockRef::new("b", "w")).to_hs_link().is_none());
+        assert!(DragPayload::LoomBlockRef(LoomBlockRef::new("b", "w"))
+            .to_hs_link()
+            .is_none());
     }
 
     /// RISK-3 / MC-3: an UNRESOLVED atelier item (no `loom_block_id`) is NOT placeable on the canvas
@@ -322,7 +398,8 @@ mod tests {
     #[test]
     fn canvas_drag_payload_requires_a_loom_block_id() {
         // Unresolved atelier item -> no canvas placement.
-        let unresolved = DragPayload::AtelierRef(AtelierRef::new("item-1", AtelierItemKind::Media, "Pic"));
+        let unresolved =
+            DragPayload::AtelierRef(AtelierRef::new("item-1", AtelierItemKind::Media, "Pic"));
         assert!(
             unresolved.canvas_drag_payload().is_none(),
             "RISK-3: an atelier item with no loom_block_id cannot be placed (no fake atelier_item_id POST)"
@@ -334,14 +411,21 @@ mod tests {
             "Pic",
             "blk-7",
         ));
-        let cdp = resolved.canvas_drag_payload().expect("resolved item is placeable");
-        assert_eq!(cdp.block_id, "blk-7", "placed_block_id is the loom block id, not the atelier item id");
+        let cdp = resolved
+            .canvas_drag_payload()
+            .expect("resolved item is placeable");
+        assert_eq!(
+            cdp.block_id, "blk-7",
+            "placed_block_id is the loom block id, not the atelier item id"
+        );
         assert_eq!(cdp.title.as_deref(), Some("Pic"));
         // A LoomBlockRef is always placeable.
         let block = DragPayload::LoomBlockRef(LoomBlockRef::new("blk-9", "ws-1"));
         assert_eq!(block.canvas_drag_payload().unwrap().block_id, "blk-9");
         // Plain text is not a block reference.
-        assert!(DragPayload::PlainText("hi".into()).canvas_drag_payload().is_none());
+        assert!(DragPayload::PlainText("hi".into())
+            .canvas_drag_payload()
+            .is_none());
     }
 
     /// A blank label falls back to `"{refKind}:{item_id}"` so a chip/card is never empty.

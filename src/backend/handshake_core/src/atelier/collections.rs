@@ -464,6 +464,24 @@ impl AtelierStore {
     /// are trimmed and de-duplicated. Optional character/sheet links are FK
     /// validated by the database.
     pub async fn create_collection(&self, new: &NewCollection) -> AtelierResult<Collection> {
+        self.create_collection_inner(new, None).await
+    }
+
+    /// Create a named collection and include the requesting actor in the
+    /// durable EventLedger payload.
+    pub async fn create_collection_attributed(
+        &self,
+        new: &NewCollection,
+        requested_by: &str,
+    ) -> AtelierResult<Collection> {
+        self.create_collection_inner(new, Some(requested_by)).await
+    }
+
+    async fn create_collection_inner(
+        &self,
+        new: &NewCollection,
+        requested_by: Option<&str>,
+    ) -> AtelierResult<Collection> {
         let name = new.name.trim();
         if name.is_empty() {
             return Err(AtelierError::Validation(
@@ -496,6 +514,7 @@ impl AtelierStore {
                 "name": collection.name,
                 "tags": collection.tags,
                 "character_scoped": collection.character_internal_id.is_some(),
+                "requested_by": requested_by,
             }),
         )
         .await?;
@@ -590,10 +609,42 @@ impl AtelierStore {
         collection_id: Uuid,
         asset_ids: &[Uuid],
     ) -> AtelierResult<i64> {
-        // Validate the collection exists (clear error vs. an FK violation).
-        self.get_collection(collection_id).await?;
+        self.add_images_to_collection_inner(collection_id, asset_ids, None)
+            .await
+    }
 
+    /// Append media assets and include the requesting actor in the durable
+    /// EventLedger payload.
+    pub async fn add_images_to_collection_attributed(
+        &self,
+        collection_id: Uuid,
+        asset_ids: &[Uuid],
+        requested_by: &str,
+    ) -> AtelierResult<i64> {
+        self.add_images_to_collection_inner(collection_id, asset_ids, Some(requested_by))
+            .await
+    }
+
+    async fn add_images_to_collection_inner(
+        &self,
+        collection_id: Uuid,
+        asset_ids: &[Uuid],
+        requested_by: Option<&str>,
+    ) -> AtelierResult<i64> {
         let mut tx = self.pool().begin().await?;
+        let exists: Option<Uuid> = sqlx::query_scalar(
+            "SELECT collection_id FROM atelier_collection WHERE collection_id = $1 FOR UPDATE",
+        )
+        .bind(collection_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        if exists.is_none() {
+            tx.rollback().await?;
+            return Err(AtelierError::NotFound(format!(
+                "collection_id={collection_id}"
+            )));
+        }
+
         let mut next_order: i64 = sqlx::query_scalar(
             "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM atelier_collection_item WHERE collection_id = $1",
         )
@@ -637,6 +688,7 @@ impl AtelierStore {
             serde_json::json!({
                 "requested": asset_ids.len(),
                 "inserted": inserted,
+                "requested_by": requested_by,
             }),
         )
         .await?;

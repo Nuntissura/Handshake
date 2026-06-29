@@ -39,7 +39,7 @@
 //! activity-span route, and the Locus read route return a typed `EndpointMissing`/gated empty-state).
 //! The manual states this as a typed blocker rather than fabricating live cross-edge behavior.
 
-use crate::accessibility::editor_action_registry::{CODE_ACTION_CATALOG, rich_action_catalog};
+use crate::accessibility::editor_action_registry::{rich_action_catalog, CODE_ACTION_CATALOG};
 use crate::accessibility::{
     CANVAS_CONTROL_CATALOG, COLLECTION_CONTROL_CATALOG, GRAPH_CONTROL_CATALOG,
 };
@@ -306,7 +306,18 @@ the current head before retrying. After Argus edits or clicks CKC controls, drai
 re-inspect the panel, and verify the editor text or visible sheet_version_ref changed before claiming \
 the UI was steered.\n\
 \n\
-CKC also keeps the character/media intake and drag-source workflow. \
+CKC also keeps linked images, folders, albums, and image-level notes/tags attached to character sheets. \
+Inspect atelier-ckc-linked-media-list to see album rows (`atelier-ckc-album-*`), media rows \
+(`atelier-ckc-media-*`), and folder provenance rows (`atelier-ckc-folder-*`). Album refs use hsLink \
+refKind media_album so they remain CKC collection chips and do not collide with renderable rich-editor \
+album embeds. Edit image notes in atelier-ckc-media-notes-editor and image tags in \
+atelier-ckc-media-tags-editor, then click atelier-ckc-media-save. These image notes and image tags are \
+stored on media metadata and must stay separate from the character sheet notes in \
+atelier-ckc-sheet-editor. The matching backend routes are GET/POST \
+/atelier/characters/{character_internal_id}/media-albums, POST \
+/atelier/media-albums/{collection_id}/items, and POST /atelier/media-assets/{asset_id}/notes-tags; POST \
+writes require x-hsk-actor-id. Folder links are source_path_ref/source_url_ref typed refs, and image refs \
+are atelier://media/{asset_id}. \
 Posekit starts from atelier-content-posekit and exposes model-addressable controls for the current \
 placeholder split-view workflow: atelier-pose-yaw-minus, atelier-pose-yaw-plus, atelier-pose-reset, \
 atelier-pose-face-toggle, atelier-pose-body-toggle, atelier-pose-hands-toggle, \
@@ -466,6 +477,38 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         mcp_tool: "argus.inspect",
         description:
             "argus.inspect reads atelier://sheet/{character_internal_id}/{sheet_version_id}.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_LINKED_MEDIA_LIST_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Inspect CKC linked media",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads CKC album rows, media rows, folder refs, and image metadata.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Edit CKC image notes",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-media-notes-editor', value:'<image notes>'}.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Edit CKC image tags",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-media-tags-editor', value:'tag, tag'} edits image tags.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_MEDIA_SAVE_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Save CKC image notes/tags",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-media-save'} writes media notes/tags with actor attribution.",
     });
 
     // ── Code editor: every CODE_ACTION_CATALOG entry as editor.code.<action> ─────────────────────────

@@ -22,21 +22,21 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
+use egui_kittest::Harness;
 
 use handshake_native::accessibility::editor_action_registry::{
-    CODE_ACTION_CATALOG, rich_action_catalog,
+    rich_action_catalog, CODE_ACTION_CATALOG,
 };
 use handshake_native::accessibility::{
     CANVAS_CONTROL_CATALOG, COLLECTION_CONTROL_CATALOG, DECLARED_IDENTITIES, GRAPH_CONTROL_CATALOG,
     PALETTE_AUTHOR_IDS,
 };
 use handshake_native::manual_content_editors::{
-    INTEROP_EDGES, REQUIRED_HEADINGS, agent_tool_rows, editors_manual_section,
+    agent_tool_rows, editors_manual_section, INTEROP_EDGES, REQUIRED_HEADINGS,
 };
 use handshake_native::manual_pane::{
-    MANUAL_SEARCH_AUTHOR_ID, ManualPane, ManualPaneState, ManualRegistry, ManualSurface,
+    ManualPane, ManualPaneState, ManualRegistry, ManualSurface, MANUAL_SEARCH_AUTHOR_ID,
 };
 use handshake_native::theme::HsPalette;
 
@@ -189,6 +189,10 @@ fn live_author_id_set() -> HashSet<String> {
         handshake_native::atelier_panel::ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_SHEET_SAVE_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_TYPED_REF_KIND_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_LINKED_MEDIA_LIST_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_MEDIA_SAVE_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_POSE_YAW_MINUS_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_POSE_YAW_PLUS_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_POSE_RESET_AUTHOR_ID,
@@ -287,6 +291,14 @@ fn manual_documents_atelier_tabs_and_argus_control_ids() {
         "atelier-ckc-sheet-editor",
         "atelier-ckc-sheet-save-version",
         "atelier-ckc-sheet-version-ref",
+        "atelier-ckc-linked-media-list",
+        "atelier-ckc-media-notes-editor",
+        "atelier-ckc-media-tags-editor",
+        "atelier-ckc-media-save",
+        "atelier-ckc-album-",
+        "atelier-ckc-media-",
+        "atelier-ckc-folder-",
+        "media_album",
         "character_sheet",
         "x-hsk-actor-id",
         "expected_parent_version_id",
@@ -300,6 +312,8 @@ fn manual_documents_atelier_tabs_and_argus_control_ids() {
         "/sheet-versions/import",
         "/export?format=txt|json",
         "/atelier/sheet-field-suggestions",
+        "/media-albums",
+        "/notes-tags",
         "Field ID",
         "atelier-pose-yaw-minus",
         "atelier-pose-reset",
