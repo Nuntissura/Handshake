@@ -25,9 +25,11 @@ use std::path::{Path, PathBuf};
 use egui_kittest::kittest::Queryable;
 use egui_kittest::Harness;
 
-use handshake_native::accessibility::editor_action_registry::{rich_action_catalog, CODE_ACTION_CATALOG};
+use handshake_native::accessibility::editor_action_registry::{
+    rich_action_catalog, CODE_ACTION_CATALOG,
+};
 use handshake_native::accessibility::{
-    DECLARED_IDENTITIES, CANVAS_CONTROL_CATALOG, COLLECTION_CONTROL_CATALOG, GRAPH_CONTROL_CATALOG,
+    CANVAS_CONTROL_CATALOG, COLLECTION_CONTROL_CATALOG, DECLARED_IDENTITIES, GRAPH_CONTROL_CATALOG,
     PALETTE_AUTHOR_IDS,
 };
 use handshake_native::manual_content_editors::{
@@ -130,19 +132,29 @@ fn live_author_id_set() -> HashSet<String> {
     set.insert(handshake_native::stage_pane::STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID.to_owned());
 
     // Calendar (daily-journal) fixed ids.
-    set.insert(handshake_native::graph::daily_journal_panel::DAILY_JOURNAL_PANEL_AUTHOR_ID.to_owned());
-    set.insert(handshake_native::graph::daily_journal_panel::DAILY_JOURNAL_DATE_HEADER_AUTHOR_ID.to_owned());
     set.insert(
-        handshake_native::graph::daily_journal_panel::DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID.to_owned(),
+        handshake_native::graph::daily_journal_panel::DAILY_JOURNAL_PANEL_AUTHOR_ID.to_owned(),
     );
     set.insert(
-        handshake_native::graph::daily_journal_panel::DAILY_JOURNAL_ACTIVITY_STRIP_AUTHOR_ID.to_owned(),
+        handshake_native::graph::daily_journal_panel::DAILY_JOURNAL_DATE_HEADER_AUTHOR_ID
+            .to_owned(),
+    );
+    set.insert(
+        handshake_native::graph::daily_journal_panel::DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID
+            .to_owned(),
+    );
+    set.insert(
+        handshake_native::graph::daily_journal_panel::DAILY_JOURNAL_ACTIVITY_STRIP_AUTHOR_ID
+            .to_owned(),
     );
 
     // Locus (outgoing-links) fixed ids.
-    set.insert(handshake_native::rich_editor::wikilinks::outgoing_links_panel::PANEL_AUTHOR_ID.to_owned());
     set.insert(
-        handshake_native::rich_editor::wikilinks::outgoing_links_panel::RESOLVED_SECTION_AUTHOR_ID.to_owned(),
+        handshake_native::rich_editor::wikilinks::outgoing_links_panel::PANEL_AUTHOR_ID.to_owned(),
+    );
+    set.insert(
+        handshake_native::rich_editor::wikilinks::outgoing_links_panel::RESOLVED_SECTION_AUTHOR_ID
+            .to_owned(),
     );
     set.insert(
         handshake_native::rich_editor::wikilinks::outgoing_links_panel::UNRESOLVED_SECTION_AUTHOR_ID
@@ -151,6 +163,11 @@ fn live_author_id_set() -> HashSet<String> {
 
     // Manual pane's own search box id (documented as a Knowledge surface row).
     set.insert(MANUAL_SEARCH_AUTHOR_ID.to_owned());
+    // Runtime Chat fixed ids.
+    set.insert(handshake_native::runtime_chat::RUNTIME_CHAT_PANEL_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::runtime_chat::RUNTIME_CHAT_STATUS_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::runtime_chat::RUNTIME_CHAT_INPUT_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::runtime_chat::RUNTIME_CHAT_SEND_AUTHOR_ID.to_owned());
 
     set
 }
@@ -162,7 +179,9 @@ fn manual_loads_section_with_all_eight_required_headings() {
     reg.register_section(editors_manual_section());
     assert_eq!(reg.len(), 1, "the editors section registered into the pane");
 
-    let section = reg.section("native-editors").expect("editors section is registered");
+    let section = reg
+        .section("native-editors")
+        .expect("editors section is registered");
     for heading in REQUIRED_HEADINGS {
         assert!(
             section.topic(heading).is_some(),
@@ -176,17 +195,55 @@ fn manual_loads_section_with_all_eight_required_headings() {
             body.len()
         );
     }
-    assert_eq!(REQUIRED_HEADINGS.len(), 8, "exactly the eight GLOBAL-BUILD-MANUAL headings");
+    assert_eq!(
+        REQUIRED_HEADINGS.len(),
+        8,
+        "exactly the eight GLOBAL-BUILD-MANUAL headings"
+    );
+}
+
+#[test]
+fn manual_documents_runtime_chat_endpoint_missing_surface() {
+    let section = editors_manual_section();
+    let all_text = section
+        .topics
+        .iter()
+        .map(|t| t.body.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    for needle in [
+        "Runtime Chat",
+        "EndpointMissing",
+        "runtime-chat-status",
+        "runtime-chat-input",
+        "runtime-chat-send",
+    ] {
+        assert!(
+            all_text.contains(needle),
+            "manual must document Runtime Chat behavior/control {needle}"
+        );
+    }
 }
 
 // ── AC-002 / PT-002: every agent-tool row has a non-empty author_id + a REAL mcp_tool ─────────────────
 #[test]
 fn agent_tool_reference_rows_are_complete_and_use_real_tools() {
     let rows = agent_tool_rows();
-    assert!(rows.len() >= 30, "the reference covers every editor/knowledge/FEMS/interop action (got {})", rows.len());
+    assert!(
+        rows.len() >= 30,
+        "the reference covers every editor/knowledge/FEMS/interop action (got {})",
+        rows.len()
+    );
     for row in &rows {
-        assert!(!row.author_id.is_empty(), "AC-002: a row has an empty author_id");
-        assert!(!row.mcp_tool.is_empty(), "AC-002: row '{}' has an empty mcp_tool", row.author_id);
+        assert!(
+            !row.author_id.is_empty(),
+            "AC-002: a row has an empty author_id"
+        );
+        assert!(
+            !row.mcp_tool.is_empty(),
+            "AC-002: row '{}' has an empty mcp_tool",
+            row.author_id
+        );
         assert!(
             REAL_MCP_TOOLS.contains(&row.mcp_tool),
             "AC-002/RISK-002: row '{}' uses non-real MCP tool '{}' (must be one of {:?})",
@@ -203,10 +260,14 @@ fn agent_tool_reference_rows_are_complete_and_use_real_tools() {
         ManualSurface::Graph,
         ManualSurface::Canvas,
         ManualSurface::Knowledge,
+        ManualSurface::Chat,
         ManualSurface::Fems,
         ManualSurface::Interop,
     ] {
-        assert!(surfaces.contains(&required), "AC-002: surface {required:?} has no agent-tool rows");
+        assert!(
+            surfaces.contains(&required),
+            "AC-002: surface {required:?} has no agent-tool rows"
+        );
     }
 }
 
@@ -215,7 +276,11 @@ fn agent_tool_reference_rows_are_complete_and_use_real_tools() {
 fn id_audit_no_documented_author_id_missing_from_live_registry() {
     let live = live_author_id_set();
     // Sanity: the live set is non-trivial (guards against a false-green empty-registry pass).
-    assert!(live.len() > 40, "live author_id set is suspiciously small ({})", live.len());
+    assert!(
+        live.len() > 40,
+        "live author_id set is suspiciously small ({})",
+        live.len()
+    );
 
     let rows = agent_tool_rows();
     let mut orphans: Vec<&str> = Vec::new();
@@ -248,23 +313,44 @@ fn interop_edges_all_documented_with_author_id_and_tool() {
 
     // Each edge has at least one agent-tool row carrying a non-empty author_id + mcp_tool.
     let rows = agent_tool_rows();
-    let interop_rows: Vec<_> = rows.iter().filter(|r| r.surface == ManualSurface::Interop).collect();
+    let interop_rows: Vec<_> = rows
+        .iter()
+        .filter(|r| r.surface == ManualSurface::Interop)
+        .collect();
     assert!(
         interop_rows.len() >= 4,
         "AC-005: at least one interop row per edge (got {})",
         interop_rows.len()
     );
     // FEMS rows are the dedicated Fems surface (the FEMS edge); assert it too.
-    let fems_rows: Vec<_> = rows.iter().filter(|r| r.surface == ManualSurface::Fems).collect();
-    assert!(!fems_rows.is_empty(), "AC-005: the FEMS edge has agent-tool rows");
+    let fems_rows: Vec<_> = rows
+        .iter()
+        .filter(|r| r.surface == ManualSurface::Fems)
+        .collect();
+    assert!(
+        !fems_rows.is_empty(),
+        "AC-005: the FEMS edge has agent-tool rows"
+    );
 
     // Concretely assert each edge's signature author_id appears among the rows (Stage/Calendar/Locus on
     // the Interop surface; FEMS on the Fems surface).
     let row_ids: HashSet<&str> = rows.iter().map(|r| r.author_id).collect();
-    assert!(row_ids.contains("stage-pane"), "Stage edge author_id present");
-    assert!(row_ids.contains("daily-journal-panel"), "Calendar edge author_id present");
-    assert!(row_ids.contains("outgoing.panel"), "Locus edge author_id present");
-    assert!(row_ids.contains("relevant-memory-panel"), "FEMS edge author_id present");
+    assert!(
+        row_ids.contains("stage-pane"),
+        "Stage edge author_id present"
+    );
+    assert!(
+        row_ids.contains("daily-journal-panel"),
+        "Calendar edge author_id present"
+    );
+    assert!(
+        row_ids.contains("outgoing.panel"),
+        "Locus edge author_id present"
+    );
+    assert!(
+        row_ids.contains("relevant-memory-panel"),
+        "FEMS edge author_id present"
+    );
 }
 
 // ── MC-006: the manual content names NO SQLite and no direct-DB-write language ────────────────────────
@@ -278,13 +364,19 @@ fn manual_content_has_no_sqlite_and_no_direct_db_writes() {
         .collect::<Vec<_>>()
         .join("\n");
     let lower = all_text.to_lowercase();
-    assert!(!lower.contains("sqlite"), "MC-006: the manual must not mention SQLite");
+    assert!(
+        !lower.contains("sqlite"),
+        "MC-006: the manual must not mention SQLite"
+    );
     // Persistence must be described as PostgreSQL/EventLedger via handshake_core.
     assert!(
         lower.contains("postgresql") || lower.contains("eventledger"),
         "MC-006: persistence must be described as PostgreSQL/EventLedger"
     );
-    assert!(lower.contains("handshake_core"), "MC-006: persistence routes through handshake_core");
+    assert!(
+        lower.contains("handshake_core"),
+        "MC-006: persistence routes through handshake_core"
+    );
     // No "direct DB write" affirmation (the manual states persistence is NOT direct).
     assert!(
         !lower.contains("write directly to the database") && !lower.contains("direct db write"),
@@ -317,7 +409,9 @@ fn manual_search_box_finds_editor_topic_by_keyword() {
     let search = harness.get_by_label("Search Manual");
     search.focus();
     harness.run();
-    harness.get_by_label("Search Manual").type_text("command palette");
+    harness
+        .get_by_label("Search Manual")
+        .type_text("command palette");
     harness.run();
     harness.run();
 
@@ -332,7 +426,9 @@ fn manual_search_box_finds_editor_topic_by_keyword() {
 
     // A non-matching keyword filters it OUT (proves the search actually filters, not always-passes).
     // Appending more text makes the query no longer a substring of the topic, so the row disappears.
-    harness.get_by_label("Search Manual").type_text(" zzznotarealtopiczzz");
+    harness
+        .get_by_label("Search Manual")
+        .type_text(" zzznotarealtopiczzz");
     harness.run();
     harness.run();
     let after_count = harness.query_all_by_label("Core Workflows").count();
@@ -354,7 +450,10 @@ fn manual_pane_renders_and_screenshots() {
     let palette: &'static HsPalette = Box::leak(Box::new(HsPalette::dark()));
     // Pre-select the agent-tool reference so the screenshot shows the steering table.
     let mut state = ManualPaneState {
-        selected: Some(("native-editors".to_owned(), "Agent Tool Reference".to_owned())),
+        selected: Some((
+            "native-editors".to_owned(),
+            "Agent Tool Reference".to_owned(),
+        )),
         ..Default::default()
     };
 
@@ -382,8 +481,14 @@ fn manual_pane_renders_and_screenshots() {
             let out_path = out_dir.join("manual_pane_editors.png");
             let saved = image.save(&out_path).is_ok();
             let abs = std::fs::canonicalize(&out_path).unwrap_or(out_path.clone());
-            println!("PT-005 manual-pane screenshot: {w}x{h}, saved={saved} ({})", abs.display());
-            assert!(saved, "HBR-VIS: the manual pane screenshot PNG saved to the external root");
+            println!(
+                "PT-005 manual-pane screenshot: {w}x{h}, saved={saved} ({})",
+                abs.display()
+            );
+            assert!(
+                saved,
+                "HBR-VIS: the manual pane screenshot PNG saved to the external root"
+            );
         }
         Err(e) => {
             println!(

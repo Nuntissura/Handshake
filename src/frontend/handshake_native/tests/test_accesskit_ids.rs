@@ -20,29 +20,42 @@ use handshake_native::accessibility::{
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
 
-/// The two notes-first default panes seeded by the shell, by kebab-case author_id.
-/// Mirrors `app::default_panes()`: pane-a is the code editor, pane-b is the rich Notes editor.
-const EXPECTED_PANE_AUTHOR_IDS: [&str; 2] = ["pane-a", "pane-b"];
+/// The editor + Runtime Chat default panes seeded by the shell, by kebab-case author_id.
+/// Mirrors `app::default_panes()`: pane-a is code, pane-b is rich Notes, pane-c is Runtime Chat.
+const EXPECTED_PANE_AUTHOR_IDS: [&str; 3] = ["pane-a", "pane-b", "pane-c"];
 const EXPECTED_CHROME_AUTHOR_IDS: [&str; 2] = ["shell.chrome.title-bar", "shell.chrome.status-bar"];
-/// The MT-097 fresh default is a two-column editor surface, so only the vertical divider is live.
+/// The MT-098 fresh default is a three-column editor/chat surface, so only the vertical divider is live.
 const EXPECTED_DIVIDER_AUTHOR_IDS: [&str; 1] = ["divider-vertical"];
 /// MT-007 per-pane tab bars. The fresh-seed shell opens ONE tab per default editor pane.
-const EXPECTED_TABBAR_AUTHOR_IDS: [&str; 2] = ["tabbar-pane-a", "tabbar-pane-b"];
-const EXPECTED_TAB_AUTHOR_IDS: [&str; 2] = ["tab-pane-a-0", "tab-pane-b-0"];
-const EXPECTED_TAB_CLOSE_AUTHOR_IDS: [&str; 2] = ["tab-close-pane-a-0", "tab-close-pane-b-0"];
+const EXPECTED_TABBAR_AUTHOR_IDS: [&str; 3] = ["tabbar-pane-a", "tabbar-pane-b", "tabbar-pane-c"];
+const EXPECTED_TAB_AUTHOR_IDS: [&str; 3] = ["tab-pane-a-0", "tab-pane-b-0", "tab-pane-c-0"];
+const EXPECTED_TAB_CLOSE_AUTHOR_IDS: [&str; 3] = [
+    "tab-close-pane-a-0",
+    "tab-close-pane-b-0",
+    "tab-close-pane-c-0",
+];
 /// MT-013 per-pane LOCK buttons. The pane header (MT-013) adds one `Role::Button` lock control per
 /// pane (`pane-{pane_id}-lock`), so each default pane contributes a lock node. These are LIVE
 /// nodes the MT-025 snapshot now includes alongside chrome / panes / dividers / tab nodes. The header
 /// TITLE is a presentational `Role::Label` (no author_id), so it is intentionally absent here.
-const EXPECTED_LOCK_AUTHOR_IDS: [&str; 2] = ["pane-pane-a-lock", "pane-pane-b-lock"];
+const EXPECTED_LOCK_AUTHOR_IDS: [&str; 3] =
+    ["pane-pane-a-lock", "pane-pane-b-lock", "pane-pane-c-lock"];
 /// MT-013 per-pane header TITLE labels. The pane header binds its title to the pane's ACTIVE tab and
 /// emits it as an addressable `Role::Label` node (`pane-{pane_id}-title`), so a model reads the
 /// binding by a stable id. One per pane in the live tree.
-const EXPECTED_TITLE_AUTHOR_IDS: [&str; 2] = ["pane-pane-a-title", "pane-pane-b-title"];
+const EXPECTED_TITLE_AUTHOR_IDS: [&str; 3] = [
+    "pane-pane-a-title",
+    "pane-pane-b-title",
+    "pane-pane-c-title",
+];
 /// MT-020 per-pane header right-click TARGET (`pane-{pane_id}-header`, `Role::Group` + `Action::Click`).
 /// The header strip is the MT-020 pane-header context-menu surface; it is a DYNAMIC interactive node
 /// (egui hashed id space, like the MT-007 tabs), so it is present + named in the live default frame.
-const EXPECTED_HEADER_AUTHOR_IDS: [&str; 2] = ["pane-pane-a-header", "pane-pane-b-header"];
+const EXPECTED_HEADER_AUTHOR_IDS: [&str; 3] = [
+    "pane-pane-a-header",
+    "pane-pane-b-header",
+    "pane-pane-c-header",
+];
 
 fn ok_app() -> HandshakeApp {
     HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
@@ -135,6 +148,7 @@ fn live_tree_contains_chrome_and_panes_by_author_id() {
     let expected_panes = [
         ("pane-a", "GenericContainer", "Code Symbol"),
         ("pane-b", "TextInput", "Loom Wiki Page"),
+        ("pane-c", "Region", "Chat"),
     ];
     for (pane_id, expected_role, expected_label) in expected_panes {
         let (_, role, label) = nodes
@@ -339,7 +353,7 @@ fn assert_no_unnamed_interactive_fires_on_deliberately_unnamed_widget() {
 fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     // Closes the snapshot test gap: `collect_tree_snapshot` was previously only proven against a
     // hand-built TreeUpdate. Here it runs over the REAL shell's one-frame live tree and must contain
-    // the chrome + MT-097 two-pane default author_id nodes plus the theme toggle, sorted by author_id.
+    // the chrome + MT-098 three-pane default author_id nodes plus the theme toggle, sorted by author_id.
     let update = live_tree_update();
     let snapshot: AccessTreeSnapshot = collect_tree_snapshot(&update);
 
@@ -415,18 +429,13 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
         "snapshot order remains stable/sorted by author_id"
     );
 
-    // MT-097 default contract: retired feature panes and the right-side Atelier panel are not live in
-    // a fresh shell, while the two editor panes and their first tabs are live.
+    // MT-098 default contract: retired feature panes and the right-side Atelier panel are not live in
+    // a fresh shell, while the two editor panes, Runtime Chat, and their first tabs are live.
     for absent in [
-        "pane-c",
         "pane-d",
-        "tabbar-pane-c",
         "tabbar-pane-d",
-        "tab-pane-c-0",
         "tab-pane-d-0",
-        "pane-pane-c-header",
         "pane-pane-d-header",
-        "quick-links.pane-c.0",
         "quick-links.pane-d.0",
         "divider-horizontal",
         "atelier-side-panel",
@@ -434,7 +443,7 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     ] {
         assert!(
             snapshot.by_author_id(absent).is_none(),
-            "retired default surface '{absent}' must be absent from the MT-097 fresh frame"
+            "retired default surface '{absent}' must be absent from the MT-098 fresh frame"
         );
     }
 

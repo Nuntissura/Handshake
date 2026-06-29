@@ -57,6 +57,8 @@ pub enum PaneType {
     LoomSearchV2,
     /// WP-KERNEL-012 MT-029: the native Find-in-Files + Replace-in-Files surface (E4 Search).
     FindInFiles,
+    /// WP-KERNEL-012 MT-098: native Runtime Chat pane beside the editor work surface.
+    RuntimeChat,
     /// A surface with no dedicated variant yet; the carried string is the display label.
     Placeholder(String),
 }
@@ -87,6 +89,7 @@ impl PaneType {
             PaneType::VisualDebugger => "Visual Debugger".to_owned(),
             PaneType::LoomSearchV2 => "Loom Search".to_owned(),
             PaneType::FindInFiles => "Find in Files".to_owned(),
+            PaneType::RuntimeChat => "Chat".to_owned(),
             PaneType::Placeholder(name) => name.clone(),
         }
     }
@@ -120,6 +123,7 @@ impl PaneType {
             PaneType::VisualDebugger => "Visual Debugger",
             PaneType::LoomSearchV2 => "Loom Search",
             PaneType::FindInFiles => "Find in Files",
+            PaneType::RuntimeChat => "Chat",
             PaneType::Placeholder(name) => name.as_str(),
         }
     }

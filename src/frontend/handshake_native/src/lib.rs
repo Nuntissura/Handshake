@@ -49,11 +49,11 @@ pub mod event_emitter;
 // WP-KERNEL-012 MT-036 (E5 — flight recorder pane): the native port of FlightRecorderView.tsx listing the
 // native editor events the ledger holds (HBR-VIS/HBR-SWARM). No perpetual spinner; theme tokens only;
 // flight-recorder-pane(Region) + fr-event-{id}(ListItem) AccessKit nodes.
+pub mod event_bus;
 pub mod flight_recorder_pane;
 pub mod graph;
 pub mod loom_graph;
 pub mod source_control;
-pub mod event_bus;
 // WP-KERNEL-012 MT-063 (E9 — FEMS interop): the editors' READ-ONLY consumer of the Pillar 12 FEMS
 // retrieval capsule (MemoryPack). `fems::memory_client` is the typed read client + deserialized
 // MemoryPack model (3 kinds, provenance-first source, <=24 items hard-capped client-side, <=500 token
@@ -92,10 +92,11 @@ pub mod popout_window;
 pub mod project_tabs;
 pub mod project_tree;
 pub mod quick_links;
-pub mod quiet_mode;
 pub mod quick_switcher;
+pub mod quiet_mode;
 pub mod rails;
 pub mod rich_editor;
+pub mod runtime_chat;
 pub mod search_rail;
 pub mod settings_dialog;
 // WP-KERNEL-012 MT-072 (E12 — structured settings): the editor-specific Settings sections (Editor prefs,

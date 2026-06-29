@@ -80,13 +80,13 @@ use handshake_native::theme::HsTheme;
 
 use proof_report::{artifact_dir, ProofReport, ScenarioResult};
 
-/// The two default editor panes seeded by the shell (`app::default_panes()` / `PaneRegistry` seeds
-/// `Arc::from("pane-a")` and `"pane-b"`). The crate exposes NO standalone `pub const` for the bare pane
-/// id string (the panes derive their AccessKit ids dynamically from `PANE_NODE_ID_BASE`), so — like
-/// the sibling MT-025 `test_accesskit_ids.rs` — these are the harness's declared expected contract.
-/// They drive the per-pane registry helpers (`tabbar_author_id`, `tab_author_id`, `pane_*_author_id`)
-/// below, so a single source feeds every derived id and nothing is independently hardcoded.
-const SEEDED_PANE_IDS: [&str; 2] = ["pane-a", "pane-b"];
+/// The default editor/chat panes seeded by the shell (`app::default_panes()` / `PaneRegistry` seeds
+/// `pane-a`, `pane-b`, and `pane-c`). The crate exposes NO standalone `pub const` for the bare pane id
+/// string (the panes derive their AccessKit ids dynamically from `PANE_NODE_ID_BASE`), so — like the
+/// sibling MT-025 `test_accesskit_ids.rs` — these are the harness's declared expected contract. They
+/// drive the per-pane registry helpers (`tabbar_author_id`, `tab_author_id`, `pane_*_author_id`) below,
+/// so a single source feeds every derived id and nothing is independently hardcoded.
+const SEEDED_PANE_IDS: [&str; 3] = ["pane-a", "pane-b", "pane-c"];
 
 /// The two chrome bar author_ids. The crate emits these as inline `DeclaredIdentity` strings in the
 /// registry (`shell.chrome.title-bar` / `shell.chrome.status-bar`) and exposes NO standalone
@@ -111,7 +111,7 @@ fn c7_default_frame_ids() -> Vec<String> {
         CHROME_TITLE_BAR_AUTHOR_ID.to_owned(),
         CHROME_STATUS_BAR_AUTHOR_ID.to_owned(),
         THEME_TOGGLE_AUTHOR_ID.to_owned(),
-        // MT-006/MT-097: the fresh two-column default exposes only the vertical divider. The
+        // MT-006/MT-098: the fresh three-column default exposes only the vertical divider. The
         // horizontal divider remains covered by legacy four-pane split-layout tests.
         DIVIDER_V_AUTHOR_ID.to_owned(),
         // MT-011 project-tab strip.

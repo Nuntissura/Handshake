@@ -9,7 +9,8 @@
 //! Four-pane/restored layouts use the original 2x2 shape: `pane-a` (top-left), `pane-b` (top-right),
 //! `pane-c` (bottom-left), `pane-d` (bottom-right) from the MT-005 [`PaneRegistry`]. MT-097's fresh
 //! notes-only default contains only `pane-a` and `pane-b`, so that case uses a full-height two-column
-//! layout and renders only the vertical divider; it does not leave empty lower cells. Each live divider is:
+//! layout. MT-098's default contains `pane-a`, `pane-b`, and `pane-c`, so that case uses full-height
+//! code/notes/chat columns instead of falling back to a half-empty 2x2 grid. Each live divider is:
 //! - draggable by pointer (drag delta -> weight delta, clamped),
 //! - resizable by keyboard (Arrow keys, ±[`SPLIT_STEP`]) **only when the divider is focused**,
 //! - addressable out-of-process as an AccessKit [`accesskit::Role::Splitter`] node with a stable
@@ -166,6 +167,35 @@ pub struct SplitRects {
     pub divider_h: egui::Rect,
     /// Full-height hit rect for the vertical divider (centered on the left/right boundary).
     pub divider_v: egui::Rect,
+}
+
+/// The three full-height pane rects used by the MT-098 editor + Runtime Chat default. The existing
+/// persisted `vertical` weight controls the boundary between the editor pair and chat; the two editor
+/// panes split the editor group equally so no second persisted divider is introduced.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ThreeColumnRects {
+    pub left: egui::Rect,
+    pub middle: egui::Rect,
+    pub right: egui::Rect,
+    pub divider_v: egui::Rect,
+}
+
+pub fn compute_three_column_rects(area: egui::Rect, weights: SplitWeights) -> ThreeColumnRects {
+    let split_x = area.left() + area.width() * weights.vertical;
+    let editor_mid_x = area.left() + (split_x - area.left()) * 0.5;
+    let half_hit = DIVIDER_HIT_THICKNESS / 2.0;
+    ThreeColumnRects {
+        left: egui::Rect::from_min_max(area.min, egui::pos2(editor_mid_x, area.bottom())),
+        middle: egui::Rect::from_min_max(
+            egui::pos2(editor_mid_x, area.top()),
+            egui::pos2(split_x, area.bottom()),
+        ),
+        right: egui::Rect::from_min_max(egui::pos2(split_x, area.top()), area.max),
+        divider_v: egui::Rect::from_min_max(
+            egui::pos2(split_x - half_hit, area.top()),
+            egui::pos2(split_x + half_hit, area.bottom()),
+        ),
+    }
 }
 
 /// Compute the four pane rects and the two divider hit-rects from an available `area` and the
@@ -348,7 +378,9 @@ impl SplitLayoutWidget {
         // Each pane is looked up by its spatial id and rendered into its rect. A missing pane in the
         // legacy 2x2 shape degrades to an empty rect rather than a panic. MT-097's fresh notes-only
         // registry has exactly pane-a/pane-b; render that as full-height columns so the work surface
-        // is not visually half blank.
+        // is not visually half blank. MT-098's editor+chat default has pane-a/pane-b/pane-c; render it
+        // as full-height columns so Runtime Chat sits beside the editors instead of in the legacy
+        // bottom-left slot.
         // A TAB_BAR_HEIGHT-tall strip is carved off the TOP of each pane rect for the MT-007 tab bar;
         // the pane body renders in the remaining rect below it. Tab interactions are collected here and
         // reconciled into `tab_bars` AFTER the loop (a drop needs two distinct &mut bars, which is not
@@ -363,6 +395,11 @@ impl SplitLayoutWidget {
             && registry_guard.get(&pane_b).is_some()
             && registry_guard.get(&pane_c).is_none()
             && registry_guard.get(&pane_d).is_none();
+        let three_column_default = registry_guard.len() == 3
+            && registry_guard.get(&pane_a).is_some()
+            && registry_guard.get(&pane_b).is_some()
+            && registry_guard.get(&pane_c).is_some()
+            && registry_guard.get(&pane_d).is_none();
         let pane_slots: Vec<(&str, egui::Rect)> = if two_column_default {
             let split_x = area.left() + area.width() * weights.vertical;
             vec![
@@ -374,6 +411,13 @@ impl SplitLayoutWidget {
                     PANE_B,
                     egui::Rect::from_min_max(egui::pos2(split_x, area.top()), area.max),
                 ),
+            ]
+        } else if three_column_default {
+            let three = compute_three_column_rects(area, *weights);
+            vec![
+                (PANE_A, three.left),
+                (PANE_B, three.middle),
+                (PANE_C, three.right),
             ]
         } else {
             vec![
@@ -599,7 +643,7 @@ impl SplitLayoutWidget {
         // CANONICAL (React): the horizontal LINE controls `weights.horizontal` (top/bottom row split,
         // Y); the vertical LINE controls `weights.vertical` (left/right column split, X). Line-name
         // and weight-name match — see `SplitAxis` doc and `app/src/App.tsx`.
-        if !two_column_default {
+        if !two_column_default && !three_column_default {
             Self::divider(
                 ui,
                 SplitAxis::Horizontal,
@@ -614,7 +658,11 @@ impl SplitLayoutWidget {
             ui,
             SplitAxis::Vertical,
             area,
-            rects.divider_v,
+            if three_column_default {
+                compute_three_column_rects(area, *weights).divider_v
+            } else {
+                rects.divider_v
+            },
             &mut weights.vertical,
             &mut drag_state.dragging_vertical,
             divider_colors,

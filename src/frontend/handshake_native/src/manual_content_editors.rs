@@ -39,7 +39,9 @@
 //! The manual states this as a typed blocker rather than fabricating live cross-edge behavior.
 
 use crate::accessibility::editor_action_registry::{rich_action_catalog, CODE_ACTION_CATALOG};
-use crate::accessibility::{CANVAS_CONTROL_CATALOG, COLLECTION_CONTROL_CATALOG, GRAPH_CONTROL_CATALOG};
+use crate::accessibility::{
+    CANVAS_CONTROL_CATALOG, COLLECTION_CONTROL_CATALOG, GRAPH_CONTROL_CATALOG,
+};
 use crate::command_palette::{PALETTE_LIST_AUTHOR_ID, PALETTE_SEARCH_AUTHOR_ID};
 use crate::manual_pane::{
     AgentToolReference, AgentToolRow, ManualSection, ManualSurface, ManualTopic,
@@ -72,18 +74,45 @@ pub const INTEROP_EDGES: &[&str] = &["FEMS", "Stage", "Calendar", "Locus"];
 /// naming all four cross-pillar edges, and the `author_id -> MCP tool` agent-tool reference.
 pub fn editors_manual_section() -> ManualSection {
     let mut topics = vec![
-        ManualTopic { heading: "Purpose", body: purpose_body() },
-        ManualTopic { heading: "Core Workflows", body: core_workflows_body() },
-        ManualTopic { heading: "Startup and Run", body: startup_and_run_body() },
-        ManualTopic { heading: "Inputs and Outputs", body: inputs_and_outputs_body() },
-        ManualTopic { heading: "Navigation Paths", body: navigation_paths_body() },
-        ManualTopic { heading: "Safety Constraints", body: safety_constraints_body() },
-        ManualTopic { heading: "Common Failure Modes", body: common_failure_modes_body() },
-        ManualTopic { heading: "Recovery Steps", body: recovery_steps_body() },
+        ManualTopic {
+            heading: "Purpose",
+            body: purpose_body(),
+        },
+        ManualTopic {
+            heading: "Core Workflows",
+            body: core_workflows_body(),
+        },
+        ManualTopic {
+            heading: "Startup and Run",
+            body: startup_and_run_body(),
+        },
+        ManualTopic {
+            heading: "Inputs and Outputs",
+            body: inputs_and_outputs_body(),
+        },
+        ManualTopic {
+            heading: "Navigation Paths",
+            body: navigation_paths_body(),
+        },
+        ManualTopic {
+            heading: "Safety Constraints",
+            body: safety_constraints_body(),
+        },
+        ManualTopic {
+            heading: "Common Failure Modes",
+            body: common_failure_modes_body(),
+        },
+        ManualTopic {
+            heading: "Recovery Steps",
+            body: recovery_steps_body(),
+        },
     ];
     // The interop topic (its own addressable topic). AC-005/MC-007 assert all four edge names + an
     // author_id + mcp_tool appear in this topic's body.
-    topics.push(ManualTopic { heading: "Interop Edges", body: interop_edges_body() });
+    topics.push(ManualTopic {
+        heading: "Interop Edges",
+        body: interop_edges_body(),
+    });
     // The agent-tool reference is also a searchable/selectable topic (so the search box surfaces it), and
     // its structured rows live in `agent_tools`.
     topics.push(ManualTopic {
@@ -110,10 +139,12 @@ fn purpose_body() -> String {
     "The native editors are Handshake's Notes pillar. They REPLACE the legacy React/Monaco/Excalidraw/\
 graph surfaces (kept read-only under app/src as the parity reference) with native egui + AccessKit panes \
 that share ONE selection, ONE clipboard, ONE command bus, and ONE undo scope — the WP-012 melt-together \
-substrate built on command_registry.rs + event_bus.rs. The panes are: the VS-Code-class CODE editor, the \
-Obsidian/Notion-class RICH-TEXT editor, the Loom GRAPH view, the CANVAS board, and the knowledge surfaces \
-(folder tree / backlinks / outgoing links / collections). Every pane is addressable by a stable AccessKit \
-author_id and steerable by the MCP swarm tools. A swarm agent discovers controls with list_widgets, drives \
+substrate built on command_registry.rs + event_bus.rs. The default work surface opens the CODE editor, the \
+RICH-TEXT Notes editor, and Runtime Chat side by side; secondary panes include the Loom GRAPH view, the \
+CANVAS board, and the knowledge surfaces (folder tree / backlinks / outgoing links / collections). Runtime \
+Chat is input-ready but backend-blocked in this build: sending returns ChatSendError::EndpointMissing and \
+does not append a fabricated assistant reply. Every pane is addressable by a stable AccessKit author_id and \
+steerable by the MCP swarm tools. A swarm agent discovers controls with list_widgets, drives \
 a button with click_widget{target:<author_id>}, types into a field with set_value{target,value}, and sees \
 the pixels with screenshot — no screen-scraping and no keyboard simulation."
         .to_owned()
@@ -132,7 +163,9 @@ fems-propose-confirm (NEVER an editor-direct commit). Move a selection between p
 copy (Ctrl+C), focus the rich pane, paste (Ctrl+V) — the shared clipboard + command/event bus carries it. \
 Jump from a knowledge backlink to its target: click a wikilink chip or an outgoing.resolved.* row. Open \
 the command palette (Ctrl+Shift+P, command-palette.dialog) and run a command by typing into \
-command-palette.search."
+command-palette.search. Use Runtime Chat: read runtime-chat-status for the current EndpointMissing \
+blocker, type into runtime-chat-input, then click runtime-chat-send; no assistant turn is generated \
+until a real native HTTP chat route exists."
         .to_owned()
 }
 
@@ -146,8 +179,10 @@ native frontend from the crate directory src/frontend/handshake_native with:\n\
 The cargo package is 'handshake-native' and the binary target is also 'handshake-native' (verified \
 against src/frontend/handshake_native/Cargo.toml [[bin]] name). For a swarm/headless session the MCP \
 steering surface (mcp/server.rs) speaks the JSON-RPC tools list_widgets / click_widget / set_value / \
-screenshot over the per-session token written into the binding file. To open the manual itself, surface \
-the manual-pane and type a keyword into manual-search."
+screenshot over the per-session token written into the binding file. A fresh MT-098 layout seeds pane-a \
+as Code, pane-b as Notes, and pane-c as Runtime Chat; a stale two-pane persisted layout is rejected by the \
+canonical-pane validator and falls back to this default. To open the manual itself, surface the manual-pane \
+and type a keyword into manual-search."
         .to_owned()
 }
 
@@ -161,6 +196,8 @@ events (event_bus.rs + the Flight Recorder) that record each editor action. A ri
 to the knowledge-documents route family; the code editor saves the buffer through the same backend \
 client. Nothing the editors emit bypasses handshake_core."
         .to_owned()
+        + " Runtime Chat input is local UI state only in this build; a send probes the planned native chat route \
+and returns EndpointMissing because no assistant chat HTTP endpoint is present."
 }
 
 fn navigation_paths_body() -> String {
@@ -196,7 +233,8 @@ signalled by ABSENCE from the AccessKit tree, not a tombstone). An AccessKit nod
 because its backing widget is not rendered this frame (a transient control like find-next while the find \
 panel is closed is marked present=false and suppressed). The backend persistence API returns a typed error \
 (e.g. a knowledge-document save conflict, or a FEMS/Stage/Calendar/Locus route that is EndpointMissing in \
-the current handshake_core build)."
+the current handshake_core build). Runtime Chat send also returns EndpointMissing in this build; this is the \
+expected typed blocker, not a spinner or silent failure."
         .to_owned()
 }
 
@@ -208,8 +246,9 @@ for a node after a layout change — never reuse a stale id; the canonical id so
 accessibility/registry.rs + the live editor/knowledge action registries. Retry persistence after the \
 typed backend error clears (a save conflict resolves once the newer revision is loaded). Where a step \
 needs a backend capability that does not yet exist — the FEMS read route, the Stage embed-back route, the \
-Calendar activity-span route, or the Locus read route — the editor surfaces a typed blocker and a visible \
-empty-state rather than fabricating behavior; the cross-edge completes once the backend packet lands."
+Calendar activity-span route, the Locus read route, or Runtime Chat assistant generation — the editor \
+surfaces a typed blocker and a visible empty-state rather than fabricating behavior; the cross-edge or chat \
+round-trip completes once the backend packet lands."
         .to_owned()
 }
 
@@ -266,7 +305,8 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         surface: ManualSurface::Code,
         action_label: "Type a command into the palette",
         mcp_tool: "set_value",
-        description: "set_value{target:'command-palette.search', value:'<command>'} filters the palette.",
+        description:
+            "set_value{target:'command-palette.search', value:'<command>'} filters the palette.",
     });
     rows.push(AgentToolRow {
         author_id: PALETTE_LIST_AUTHOR_ID,
@@ -281,6 +321,36 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         action_label: "Search the manual",
         mcp_tool: "set_value",
         description: "set_value{target:'manual-search', value:'<keyword>'} filters manual topics.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::runtime_chat::RUNTIME_CHAT_PANEL_AUTHOR_ID,
+        surface: ManualSurface::Chat,
+        action_label: "Read Runtime Chat state",
+        mcp_tool: "list_widgets",
+        description: "list_widgets surfaces the Runtime Chat pane container.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::runtime_chat::RUNTIME_CHAT_STATUS_AUTHOR_ID,
+        surface: ManualSurface::Chat,
+        action_label: "Read Runtime Chat endpoint status",
+        mcp_tool: "list_widgets",
+        description:
+            "list_widgets surfaces runtime-chat-status with EndpointMissing and the probed route.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::runtime_chat::RUNTIME_CHAT_INPUT_AUTHOR_ID,
+        surface: ManualSurface::Chat,
+        action_label: "Type a Runtime Chat message",
+        mcp_tool: "set_value",
+        description:
+            "set_value{target:'runtime-chat-input', value:'<message>'} fills the chat draft.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::runtime_chat::RUNTIME_CHAT_SEND_AUTHOR_ID,
+        surface: ManualSurface::Chat,
+        action_label: "Send Runtime Chat message",
+        mcp_tool: "click_widget",
+        description: "click_widget{target:'runtime-chat-send'} is enabled after text is entered and returns EndpointMissing until the backend route exists.",
     });
 
     // ── Code editor: every CODE_ACTION_CATALOG entry as editor.code.<action> ─────────────────────────
@@ -348,14 +418,16 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         surface: ManualSurface::Fems,
         action_label: "Read the FEMS retrieval capsule",
         mcp_tool: "list_widgets",
-        description: "list_widgets surfaces the relevant-memory-panel + its items for the agent to read.",
+        description:
+            "list_widgets surfaces the relevant-memory-panel + its items for the agent to read.",
     });
     rows.push(AgentToolRow {
         author_id: crate::fems::RELEVANT_MEMORY_LIST_AUTHOR_ID,
         surface: ManualSurface::Fems,
         action_label: "Enumerate memory items",
         mcp_tool: "list_widgets",
-        description: "list_widgets reveals the relevant-memory-list rows (provenance-first capsule items).",
+        description:
+            "list_widgets reveals the relevant-memory-list rows (provenance-first capsule items).",
     });
     rows.push(AgentToolRow {
         author_id: crate::fems::FEMS_PROPOSE_DIALOG_AUTHOR_ID,
@@ -369,7 +441,8 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         surface: ManualSurface::Fems,
         action_label: "Confirm the memory-write proposal",
         mcp_tool: "click_widget",
-        description: "click_widget{target:'fems-propose-confirm'} submits the review-gated proposal.",
+        description:
+            "click_widget{target:'fems-propose-confirm'} submits the review-gated proposal.",
     });
 
     // ── Stage interop edge (Pillar 17) ───────────────────────────────────────────────────────────────
@@ -378,7 +451,8 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         surface: ManualSurface::Interop,
         action_label: "Stage edge: the Stage pane container",
         mcp_tool: "list_widgets",
-        description: "list_widgets surfaces the stage-pane; an agent reads what was routed to Stage.",
+        description:
+            "list_widgets surfaces the stage-pane; an agent reads what was routed to Stage.",
     });
     rows.push(AgentToolRow {
         author_id: crate::stage_pane::STAGE_ROUTED_CONTENT_AUTHOR_ID,
@@ -401,7 +475,8 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         surface: ManualSurface::Interop,
         action_label: "Calendar edge: the daily-journal panel",
         mcp_tool: "list_widgets",
-        description: "list_widgets surfaces the daily-journal-panel (daily-note <-> CalendarEvent binding).",
+        description:
+            "list_widgets surfaces the daily-journal-panel (daily-note <-> CalendarEvent binding).",
     });
     rows.push(AgentToolRow {
         author_id: crate::graph::daily_journal_panel::DAILY_JOURNAL_DATE_HEADER_AUTHOR_ID,
@@ -415,7 +490,8 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         surface: ManualSurface::Interop,
         action_label: "Calendar edge: a bound CalendarEvent chip",
         mcp_tool: "click_widget",
-        description: "click_widget{target:'daily-journal-calendar-event-chip'} opens the bound event.",
+        description:
+            "click_widget{target:'daily-journal-calendar-event-chip'} opens the bound event.",
     });
     rows.push(AgentToolRow {
         author_id: crate::graph::daily_journal_panel::DAILY_JOURNAL_ACTIVITY_STRIP_AUTHOR_ID,
@@ -431,21 +507,25 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         surface: ManualSurface::Interop,
         action_label: "Locus edge: the outgoing-links pane",
         mcp_tool: "list_widgets",
-        description: "list_widgets surfaces the outgoing.panel listing locus:// and wikilink references.",
+        description:
+            "list_widgets surfaces the outgoing.panel listing locus:// and wikilink references.",
     });
     rows.push(AgentToolRow {
         author_id: crate::rich_editor::wikilinks::outgoing_links_panel::RESOLVED_SECTION_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Locus edge: resolved references section",
         mcp_tool: "list_widgets",
-        description: "list_widgets reveals outgoing.section.resolved rows (each navigable by click_widget).",
+        description:
+            "list_widgets reveals outgoing.section.resolved rows (each navigable by click_widget).",
     });
     rows.push(AgentToolRow {
-        author_id: crate::rich_editor::wikilinks::outgoing_links_panel::UNRESOLVED_SECTION_AUTHOR_ID,
+        author_id:
+            crate::rich_editor::wikilinks::outgoing_links_panel::UNRESOLVED_SECTION_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Locus edge: unresolved (dangling) references section",
         mcp_tool: "list_widgets",
-        description: "list_widgets reveals outgoing.section.unresolved rows (Locus read route gated).",
+        description:
+            "list_widgets reveals outgoing.section.unresolved rows (Locus read route gated).",
     });
 
     rows
@@ -473,7 +553,9 @@ fn code_author_id_static(action_id: &str) -> &'static str {
         "multi-cursor-clear" => "editor.code.multi-cursor-clear",
         "command-palette-open" => "editor.code.command-palette-open",
         "language-picker-open" => "editor.code.language-picker-open",
-        other => panic!("code action_id '{other}' has no static editor.code.* literal — add it here"),
+        other => {
+            panic!("code action_id '{other}' has no static editor.code.* literal — add it here")
+        }
     }
 }
 
@@ -501,7 +583,9 @@ fn rich_author_id_static(action_id: &str) -> &'static str {
         "format-heading-6" => "editor.rich.format-heading-6",
         "insert-slash-command" => "editor.rich.insert-slash-command",
         "command-palette-open" => "editor.rich.command-palette-open",
-        other => panic!("rich action_id '{other}' has no static editor.rich.* literal — add it here"),
+        other => {
+            panic!("rich action_id '{other}' has no static editor.rich.* literal — add it here")
+        }
     }
 }
 

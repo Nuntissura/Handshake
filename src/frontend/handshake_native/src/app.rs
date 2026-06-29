@@ -255,6 +255,10 @@ pub struct HandshakeApp {
     /// id + live palette pushed IN) and the shell drains (clicked hits pulled OUT into the open path).
     /// Same role as `loom_search_v2_shared` for the Find-in-Files pane.
     find_in_files_shared: Arc<Mutex<crate::find_in_files::FindInFilesPaneShared>>,
+    /// MT-098: shared Runtime Chat panel state rendered by the `PaneType::RuntimeChat` factory. The shell
+    /// pushes the live theme palette into it each frame; send attempts return a typed EndpointMissing
+    /// blocker until a real native HTTP chat route exists.
+    runtime_chat_panel: Arc<Mutex<crate::runtime_chat::RuntimeChatPanel>>,
     /// WP-KERNEL-012 MT-079 (E11 host-mount): the live handles for the MOUNTED native editors (the
     /// session-context cell the shell pushes the active workspace into each frame, the Arc-shared code
     /// panel + rich state behind the mounted panes, the code command channel the shell drains into the
@@ -674,8 +678,9 @@ pub struct HandshakeApp {
     /// real `/atelier` backend off the UI thread); the headless/test shell has no runtime, so the panel
     /// stays idle/neutral (no perpetual spinner) until a test injects rows.
     atelier_side_panel: AtelierSidePanel,
-    /// MT-033: whether the right-edge Atelier/CKC side panel is expanded. MT-097 defaults it closed so
-    /// a fresh shell is notes-only; tests or an affordance can open it when the drag source is needed.
+    /// MT-033: whether the right-edge Atelier/CKC side panel is expanded. The fresh shell keeps it
+    /// closed so the default work surface stays editor/chat-focused; tests or an affordance can open it
+    /// when the drag source is needed.
     atelier_panel_open: bool,
     /// MT-033: the live Stage pane (the route-to-Stage DISPLAY surface). Held by the shell and mounted as
     /// a bottom panel; the per-frame bus drain (`take_pending_stage_content`) sets its content when a
@@ -707,12 +712,13 @@ pub struct PendingRename {
     pub text: String,
 }
 
-/// The two seed panes for a fresh notes-first work surface. MT-097 keeps feature pane factories
-/// registered, but the default live work surface starts with only the code editor and Notes editor.
+/// The seed panes for a fresh editor-first work surface. MT-098 keeps feature pane factories registered,
+/// but the default live work surface starts with code, Notes, and the typed-blocked Runtime Chat pane.
 fn default_panes() -> Vec<PaneRecord> {
-    let seeds: [(&str, PaneType); 2] = [
+    let seeds: [(&str, PaneType); 3] = [
         ("pane-a", PaneType::CodeSymbol),
         ("pane-b", PaneType::LoomWikiPage),
+        ("pane-c", PaneType::RuntimeChat),
     ];
     seeds
         .into_iter()
@@ -756,6 +762,7 @@ fn build_default_factories() -> HashMap<PaneType, Box<dyn PaneFactory>> {
         PaneType::VisualDebugger,
         PaneType::LoomSearchV2,
         PaneType::FindInFiles,
+        PaneType::RuntimeChat,
         PaneType::Placeholder(String::new()),
     ];
     let mut map: HashMap<PaneType, Box<dyn PaneFactory>> = HashMap::new();
@@ -772,6 +779,7 @@ type FactoriesWithSharedCells = (
     HashMap<PaneType, Box<dyn PaneFactory>>,
     Arc<Mutex<crate::loom_search_v2::LoomSearchV2PaneShared>>,
     Arc<Mutex<crate::find_in_files::FindInFilesPaneShared>>,
+    Arc<Mutex<crate::runtime_chat::RuntimeChatPanel>>,
     EditorMountHandles,
 );
 
@@ -859,7 +867,7 @@ fn build_factories_with_loom_search_v2(
     // "Find in Files" pane renders the REAL panel, wired to the verified graph-search + bookmark +
     // rich-document save routes. Mirrors the LoomSearchV2 factory wiring exactly.
     let fif_shared = Arc::new(Mutex::new(
-        crate::find_in_files::FindInFilesPaneShared::new(palette),
+        crate::find_in_files::FindInFilesPaneShared::new(palette.clone()),
     ));
     let search_client = crate::backend_client::WorkspaceSearchClient::production(runtime.clone());
     let doc_client = crate::backend_client::RichDocClient::production(runtime);
@@ -870,6 +878,19 @@ fn build_factories_with_loom_search_v2(
     );
     map.insert(PaneType::FindInFiles, Box::new(fif_factory));
 
+    // MT-098: install the concrete Runtime Chat pane beside the editor work surface. The production
+    // client returns a typed EndpointMissing blocker until the native HTTP chat route exists; it does not
+    // target the Flight Recorder ingestion route as a fake assistant backend.
+    let runtime_chat_panel = Arc::new(Mutex::new(
+        crate::runtime_chat::RuntimeChatPanel::production(palette.clone()),
+    ));
+    map.insert(
+        PaneType::RuntimeChat,
+        Box::new(crate::runtime_chat::ChatPaneFactory::new(Arc::clone(
+            &runtime_chat_panel,
+        ))),
+    );
+
     // WP-KERNEL-012 MT-079 (E11 host-mount, CORE): install the REAL editor pane factories over their
     // PlaceholderPaneFactory entries so the native code + rich-text editors render LIVE in the running
     // app. PaneType::CodeSymbol -> the code editor; PaneType::LoomWikiPage -> the Notes/rich editor (the
@@ -878,7 +899,7 @@ fn build_factories_with_loom_search_v2(
     // the SAME shared-cell pattern (the `session` cell the shell overwrites each frame).
     let editor_mounts = install_editor_mounts(&mut map);
 
-    (map, shared, fif_shared, editor_mounts)
+    (map, shared, fif_shared, runtime_chat_panel, editor_mounts)
 }
 
 /// WP-KERNEL-012 MT-079: build the session-threaded editor mount factories, install them over the
@@ -1371,8 +1392,13 @@ impl HandshakeApp {
         // MT-028 + MT-029: install the CONCRETE LoomSearchV2 + FindInFiles pane factories over their
         // placeholders so opening the "Loom Search" / "Find in Files" panes renders the REAL panels,
         // wired to the verified search/save/bookmark routes.
-        let (factories, loom_search_v2_shared, find_in_files_shared, editor_mounts) =
-            build_factories_with_loom_search_v2(rt_handle.clone(), HsTheme::Dark.palette());
+        let (
+            factories,
+            loom_search_v2_shared,
+            find_in_files_shared,
+            runtime_chat_panel,
+            editor_mounts,
+        ) = build_factories_with_loom_search_v2(rt_handle.clone(), HsTheme::Dark.palette());
         // WP-KERNEL-012 MT-082 (D2 — internal_diagnostics, Tier 2): create the MT-081 shared-memory ring
         // for this session and install its writer onto the process-global diagnostics recorder, so any
         // feature can `diagnostics::record(..)` and Palmistry (Tier 3) can map the ring. Ring creation is
@@ -1425,6 +1451,7 @@ impl HandshakeApp {
             factories,
             loom_search_v2_shared,
             find_in_files_shared,
+            runtime_chat_panel,
             editor_mounts,
             last_editor_command: None,
             split_weights: SplitWeights::default(),
@@ -1551,8 +1578,8 @@ impl HandshakeApp {
             capturing_snapshot: false,
             ime_allowed_sent: false,
             // MT-033: the production Atelier/CKC side panel loads from the real `/atelier` backend off the
-            // UI thread (the same runtime handle every other off-thread client uses). MT-097 keeps the
-            // feature mounted but CLOSED by default so a fresh launch is notes-only.
+            // UI thread (the same runtime handle every other off-thread client uses). The feature stays
+            // mounted but CLOSED by default so a fresh launch is editor/chat-focused.
             atelier_side_panel: AtelierSidePanel::production(rt_handle.clone()),
             atelier_panel_open: false,
             stage_pane: StagePane::new(),
@@ -1846,8 +1873,13 @@ impl HandshakeApp {
         // headless/test shell opens the REAL panel via the registry-dispatched pane (AC-9). The
         // current-thread runtime handle bridges the (no-backend) search/save spawns; with no live
         // backend the request simply never delivers (the panel stays idle/neutral — no perpetual spinner).
-        let (factories, loom_search_v2_shared, find_in_files_shared, editor_mounts) =
-            build_factories_with_loom_search_v2(rt.handle().clone(), HsTheme::Dark.palette());
+        let (
+            factories,
+            loom_search_v2_shared,
+            find_in_files_shared,
+            runtime_chat_panel,
+            editor_mounts,
+        ) = build_factories_with_loom_search_v2(rt.handle().clone(), HsTheme::Dark.palette());
         Self {
             health_status: state,
             rt,
@@ -1880,6 +1912,7 @@ impl HandshakeApp {
             factories,
             loom_search_v2_shared,
             find_in_files_shared,
+            runtime_chat_panel,
             editor_mounts,
             last_editor_command: None,
             split_weights: SplitWeights::default(),
@@ -2009,8 +2042,8 @@ impl HandshakeApp {
             ime_allowed_sent: false,
             // MT-033: headless/test shell — no runtime to bridge the atelier client onto, so the panel has
             // no client (it renders no rows + never touches the network; a test injects rows via the
-            // `atelier_side_panel_mut` accessor + `with_rows`-style state if it wants seeded rows). MT-097
-            // leaves it mounted but CLOSED by default so the fresh default frame stays notes-only.
+            // `atelier_side_panel_mut` accessor + `with_rows`-style state if it wants seeded rows). The
+            // panel stays mounted but CLOSED by default so the fresh default frame is editor/chat-focused.
             atelier_side_panel: AtelierSidePanel::with_client(None),
             atelier_panel_open: false,
             stage_pane: StagePane::new(),
@@ -2045,7 +2078,7 @@ impl HandshakeApp {
         self.pane_registry.clone()
     }
 
-    /// Whether the shell can still open `pane_type` through the factory map. MT-097 proves stripped
+    /// Whether the shell can still open `pane_type` through the factory map. MT-098 proves stripped
     /// feature panes were removed only from the default seed, not from registration.
     pub fn pane_factory_registered(&self, pane_type: &PaneType) -> bool {
         self.factories.contains_key(pane_type)
@@ -7014,7 +7047,12 @@ impl HandshakeApp {
             // search targets the active workspace and its highlight tracks the live theme.
             if let Ok(mut shared) = self.find_in_files_shared.lock() {
                 shared.workspace_id = workspace_id.clone();
-                shared.palette = palette;
+                shared.palette = palette.clone();
+            }
+            // MT-098: keep Runtime Chat visually aligned with the live app theme. This is a pure palette
+            // overwrite; send attempts remain typed-blocked by RuntimeChatClient::production.
+            if let Ok(mut panel) = self.runtime_chat_panel.lock() {
+                panel.set_palette(palette.clone());
             }
             // WP-KERNEL-012 MT-079 (AC-079-2): push the live workspace id + runtime handle into the
             // editor mounts' session-context cell BEFORE the pane host renders, so a mounted code/rich
@@ -7036,7 +7074,7 @@ impl HandshakeApp {
             // theme toggle), the same per-frame push the search panes use. Safe in a capture pass too (it is
             // a pure palette overwrite with no off-thread side effect).
             if let Ok(mut p) = self.editor_mounts.secondary.palette.lock() {
-                *p = self.current_theme.palette();
+                *p = palette;
             }
         }
 

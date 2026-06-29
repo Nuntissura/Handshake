@@ -429,6 +429,8 @@ pub fn pane_type_tab_id(pane_type: &PaneType) -> &'static str {
         // WP-KERNEL-012 MT-029: the native Find-in-Files surface (a KERNEL-012 native addition, not
         // part of the React MODULE_DEFINITIONS tab list).
         PaneType::FindInFiles => "find-in-files",
+        // WP-KERNEL-012 MT-098: Runtime Chat is a native addition, not part of the React tab list.
+        PaneType::RuntimeChat => "runtime-chat",
         // Placeholder has no React PaneTabId; it is not part of any MODULE_DEFINITIONS tab list.
         PaneType::Placeholder(_) => "placeholder",
     }

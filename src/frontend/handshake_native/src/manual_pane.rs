@@ -59,6 +59,8 @@ pub enum ManualSurface {
     Fems,
     /// The Obsidian-class knowledge surface (folder tree / backlinks / outgoing / collections / FEMS).
     Knowledge,
+    /// The Runtime Chat pane beside the editor work surface.
+    Chat,
     /// A cross-pillar interop edge (FEMS / Stage / Calendar / Locus).
     Interop,
 }
@@ -73,6 +75,7 @@ impl ManualSurface {
             ManualSurface::Canvas => "canvas",
             ManualSurface::Fems => "fems",
             ManualSurface::Knowledge => "knowledge",
+            ManualSurface::Chat => "chat",
             ManualSurface::Interop => "interop",
         }
     }

@@ -235,9 +235,9 @@ fn load_blob_missing_pane_falls_back_to_default() {
         !applied,
         "a schema-valid but pane-incomplete blob must fall back to default, not be applied"
     );
-    // The default seed has both canonical panes; prove the corrupt one-pane layout was not applied.
+    // The default seed has all canonical panes; prove the corrupt short layout was not applied.
     let app2 = h2.state();
-    for id in ["pane-a", "pane-b"] {
+    for id in ["pane-a", "pane-b", "pane-c"] {
         assert!(
             app2.tab_bar_states().contains_key(&pid(id)),
             "default layout (with {id}) kept, corrupt one-pane layout rejected"
@@ -247,6 +247,76 @@ fn load_blob_missing_pane_falls_back_to_default() {
         app2.split_weights(),
         SplitWeights::default(),
         "fallback keeps the seeded default split weights"
+    );
+}
+
+#[test]
+fn load_mt097_two_pane_snapshot_rejects_and_restores_runtime_chat_default() {
+    let transport = MemoryTransport::new();
+
+    let mut h1 = shell(transport.clone());
+    h1.run();
+    let mut snap = h1.state().capture_layout_snapshot();
+    assert!(
+        snap.panes.contains_key(&pid("pane-c")),
+        "MT-098 snapshot should seed Runtime Chat before we simulate an MT-097 layout"
+    );
+    snap.panes.remove(&pid("pane-c"));
+    snap.tab_bars.remove(&pid("pane-c"));
+    transport
+        .store
+        .lock()
+        .unwrap()
+        .insert(DEFAULT_PROJECT_ID.to_owned(), snap.to_layout_state());
+
+    let mut h2 = shell(transport.clone());
+    h2.run();
+    let applied = h2
+        .state_mut()
+        .load_layout(DEFAULT_PROJECT_ID, big_desktop());
+    assert!(
+        !applied,
+        "stale MT-097 two-pane snapshot must be rejected, not applied over Runtime Chat"
+    );
+    assert!(
+        h2.state().tab_bar_states().contains_key(&pid("pane-c")),
+        "fallback default restores pane-c Runtime Chat"
+    );
+}
+
+#[test]
+fn load_snapshot_missing_runtime_chat_tab_bar_rejects_and_restores_default() {
+    let transport = MemoryTransport::new();
+
+    let mut h1 = shell(transport.clone());
+    h1.run();
+    let mut snap = h1.state().capture_layout_snapshot();
+    assert!(
+        snap.panes.contains_key(&pid("pane-c")),
+        "test setup: pane-c Runtime Chat remains present"
+    );
+    assert!(
+        snap.tab_bars.remove(&pid("pane-c")).is_some(),
+        "test setup removes only the pane-c tab/status surface"
+    );
+    transport
+        .store
+        .lock()
+        .unwrap()
+        .insert(DEFAULT_PROJECT_ID.to_owned(), snap.to_layout_state());
+
+    let mut h2 = shell(transport.clone());
+    h2.run();
+    let applied = h2
+        .state_mut()
+        .load_layout(DEFAULT_PROJECT_ID, big_desktop());
+    assert!(
+        !applied,
+        "a pane-c snapshot missing tabbar-pane-c must be rejected, not silently restored"
+    );
+    assert!(
+        h2.state().tab_bar_states().contains_key(&pid("pane-c")),
+        "fallback default restores pane-c tab/status state"
     );
 }
 

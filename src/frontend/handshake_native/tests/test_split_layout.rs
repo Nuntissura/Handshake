@@ -20,8 +20,8 @@ use handshake_native::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
 };
 use handshake_native::split_layout::{
-    DIVIDER_H_AUTHOR_ID, DIVIDER_H_NODE_ID, DIVIDER_V_AUTHOR_ID, DIVIDER_V_NODE_ID, SPLIT_MAX,
-    SPLIT_MIN, SPLIT_STEP,
+    compute_three_column_rects, SplitWeights, DIVIDER_H_AUTHOR_ID, DIVIDER_H_NODE_ID,
+    DIVIDER_V_AUTHOR_ID, DIVIDER_V_NODE_ID, SPLIT_MAX, SPLIT_MIN, SPLIT_STEP,
 };
 use handshake_native::tab_bar::{TabBarState, TabState};
 
@@ -107,6 +107,29 @@ fn horizontal_divider_grab(harness: &Harness<'_, HandshakeApp>) -> egui::Pos2 {
     use egui_kittest::kittest::Queryable;
     let rect = harness.get_by_label("Horizontal split divider").rect();
     egui::pos2(rect.left() + rect.width() * 0.2, rect.center().y)
+}
+
+#[test]
+fn three_column_rects_place_runtime_chat_beside_editors() {
+    let area = egui::Rect::from_min_size(egui::pos2(10.0, 20.0), egui::vec2(1200.0, 700.0));
+    let rects = compute_three_column_rects(
+        area,
+        SplitWeights {
+            vertical: 0.6,
+            horizontal: 0.55,
+        },
+    );
+    assert_eq!(rects.left.top(), area.top());
+    assert_eq!(rects.middle.top(), area.top());
+    assert_eq!(rects.right.top(), area.top());
+    assert_eq!(rects.left.bottom(), area.bottom());
+    assert_eq!(rects.middle.bottom(), area.bottom());
+    assert_eq!(rects.right.bottom(), area.bottom());
+    assert_eq!(rects.left.right(), rects.middle.left());
+    assert_eq!(rects.middle.right(), rects.right.left());
+    assert!(rects.left.center().x < rects.middle.center().x);
+    assert!(rects.middle.center().x < rects.right.center().x);
+    assert!(rects.right.width() > 100.0, "chat column is not starved");
 }
 
 #[test]

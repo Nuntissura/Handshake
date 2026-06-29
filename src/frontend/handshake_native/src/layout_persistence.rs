@@ -57,12 +57,13 @@ pub const LAYOUT_SCHEMA_ID: &str = "hsk.native_worksurface_layout@1";
 pub const LAYOUT_SNAPSHOT_VERSION: u32 = 1;
 
 /// The single source of truth for the canonical pane ids the native shell seeds for a fresh work
-/// surface. Must stay aligned with [`crate::app`]'s `default_panes` (`pane-a`, `pane-b`, the
-/// notes-first MT-097 default). [`LayoutSnapshot::validate`] uses this list for the pane-completeness
-/// and active-pane-membership checks, so a structurally-corrupt-but-schema-valid blob missing a seeded
-/// pane is rejected and falls back to last-known-good / default instead of being applied as a
-/// short-paned layout. Older stored layouts may carry extra panes; those remain valid.
-pub const CANONICAL_PANE_IDS: [&str; 2] = ["pane-a", "pane-b"];
+/// surface. Must stay aligned with [`crate::app`]'s `default_panes` (`pane-a`, `pane-b`, `pane-c`, the
+/// MT-098 editor + Runtime Chat default). [`LayoutSnapshot::validate`] uses this list for canonical
+/// pane and tab-bar completeness, so a structurally-corrupt-but-schema-valid blob missing a seeded
+/// pane or its status/tab surface is rejected and falls back to last-known-good / default instead of
+/// being applied as a short-paned or short-tabbed layout. Older stored layouts may carry extra panes;
+/// those remain valid.
+pub const CANONICAL_PANE_IDS: [&str; 3] = ["pane-a", "pane-b", "pane-c"];
 
 /// The default active module (`MAIN`) used when a layout blob predates MT-012 and carries no
 /// `active_module` key. Mirrors the React default module for a fresh pane (`DEFAULT_PANES[0].module`).
@@ -215,9 +216,12 @@ impl LayoutSnapshot {
             if !self.panes.contains_key(&PaneId::from(id)) {
                 return Err(LayoutError::MissingPane { id: id.to_owned() });
             }
+            if !self.tab_bars.contains_key(&PaneId::from(id)) {
+                return Err(LayoutError::MissingTabBar { id: id.to_owned() });
+            }
         }
         // Active-pane membership: a dangling `active_pane` (one not present in the snapshot registry)
-        // is a corrupt reference. Legacy four-pane snapshots may still focus pane-c/pane-d, so validate
+        // is a corrupt reference. Custom restored layouts may still focus non-default panes, so validate
         // against the restored pane set rather than only the current canonical default seed.
         if let Some(active) = &self.active_pane {
             if !self.panes.contains_key(active) {
@@ -275,10 +279,13 @@ pub enum LayoutError {
     VersionMismatch { found: u32, expected: u32 },
     /// The backend blob's `project_id` did not match the requested workspace id.
     ProjectMismatch { requested: String, snapshot: String },
-    /// A canonical pane id (`pane-a`/`pane-b`) is absent from the blob's `panes` registry. A
+    /// A canonical pane id (`pane-a`/`pane-b`/`pane-c`) is absent from the blob's `panes` registry. A
     /// structurally-corrupt-but-schema-valid blob that dropped a pane would otherwise be applied as a
     /// short-paned layout; this PERMANENT data error forces the LKG/default fallback instead.
     MissingPane { id: String },
+    /// A canonical pane id is present in `panes` but absent from the per-pane tab-bar map. A pane
+    /// without its tab/status surface is not a recoverable work-surface state.
+    MissingTabBar { id: String },
     /// The blob's `active_pane` points at a pane id that is not one of the canonical panes — i.e. a
     /// dangling active-pane reference. PERMANENT data error -> LKG/default fallback.
     UnknownActivePane { id: String },
@@ -321,6 +328,9 @@ impl std::fmt::Display for LayoutError {
             ),
             LayoutError::MissingPane { id } => {
                 write!(f, "layout missing canonical pane: {id:?}")
+            }
+            LayoutError::MissingTabBar { id } => {
+                write!(f, "layout missing canonical tab bar: {id:?}")
             }
             LayoutError::UnknownActivePane { id } => {
                 write!(f, "layout active_pane references unknown pane: {id:?}")
@@ -710,8 +720,8 @@ mod tests {
 
     #[test]
     fn validate_accepts_legacy_extra_active_panes() {
-        // MT-097's default seed is two panes, but older saved 2x2 layouts can legitimately keep focus
-        // on legacy pane-c/pane-d as long as those panes are still present in the saved registry.
+        // Custom saved layouts can legitimately keep focus on non-default panes as long as those panes
+        // are still present in the saved registry.
         let mut snap = sample_snapshot();
         snap.active_pane = Some(pid("pane-c"));
         assert!(snap.validate().is_ok());
