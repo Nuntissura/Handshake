@@ -142,6 +142,8 @@ pub enum SettingsOutcome {
     EditorKeybindingChanged { action_id: String, chord: String },
     /// MT-072: an editor keybinding override was reset to its built-in default (override removed). WIRED.
     EditorKeybindingReset { action_id: String },
+    /// MT-102: Settings -> Diagnostics requested a Visual Debugger worksurface JSON dump.
+    WorksurfaceInspectorDumpRequested,
     /// The user dismissed the dialog (Escape, the Close button, or a backdrop click). The shell clears
     /// the open flag.
     Close,
@@ -166,6 +168,8 @@ pub struct SettingsView<'a> {
     /// WP-KERNEL-012 MT-087: the active resolved palette (theme tokens) the Diagnostics panel paints
     /// with, so the panel reads a theme token for every colour and never a literal (CONTROL-4).
     pub palette: &'a crate::theme::HsPalette,
+    /// MT-102 Visual Debugger: transient status for the last Settings -> Diagnostics worksurface dump.
+    pub worksurface_inspector_last_dump: Option<&'a str>,
 }
 
 /// MT-072: the read-only auto-save interval string surfaced (NOT owned) inside the Editor section so the
@@ -868,8 +872,14 @@ fn render_sections(
                 let diag_view = crate::settings_diagnostics_section::DiagnosticsSettingsView {
                     diagnostics: view.diagnostics,
                     palette: view.palette,
+                    worksurface_inspector_last_dump: view.worksurface_inspector_last_dump,
                 };
-                crate::settings_diagnostics_section::render(ui, &diag_view);
+                let o = crate::settings_diagnostics_section::render(ui, &diag_view);
+                if outcome == SettingsOutcome::None
+                    && o == crate::settings_diagnostics_section::DiagnosticsSectionOutcome::WorksurfaceInspectorDumpRequested
+                {
+                    outcome = SettingsOutcome::WorksurfaceInspectorDumpRequested;
+                }
             });
         set_author_id(
             ui,

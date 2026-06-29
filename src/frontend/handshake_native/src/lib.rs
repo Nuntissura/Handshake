@@ -121,6 +121,7 @@ pub mod stash_shelf;
 // object-safe; #[allow(dead_code)] — no production code calls it at runtime (the contract's explicit seam).
 pub mod surface_extension_seam;
 pub mod tab_bar;
+pub mod visual_debugger;
 // WP-KERNEL-012 MT-077 (E13 — i18n text segmentation): the SHARED Unicode-correct text-mechanics module
 // reused by BOTH editors (NOT duplicated). `text_intl::grapheme` = UAX#29 grapheme-cluster caret movement
 // (family ZWJ emoji / combining marks / flags / Hangul move as one cluster), LOCAL to the caret for perf;

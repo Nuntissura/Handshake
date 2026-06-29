@@ -31,6 +31,9 @@
 
 use crate::diagnostics::{DiagnosticsPanel, DiagnosticsView};
 use crate::theme::HsPalette;
+use crate::visual_debugger::{
+    WORKSURFACE_INSPECTOR_DUMP_BUTTON_AUTHOR_ID, WORKSURFACE_INSPECTOR_STATUS_AUTHOR_ID,
+};
 
 /// The search keywords that surface the Diagnostics section in the settings search box (so a model /
 /// operator typing "diagnostics", "frame", "heartbeat", "cpu", "palmistry"... finds it). Exposed so the
@@ -53,7 +56,19 @@ pub const DIAGNOSTICS_SEARCH_KEYWORDS: &[&str] = &[
     "freeze",
     "crash",
     "internal",
+    "visual",
+    "debugger",
+    "inspector",
+    "worksurface",
+    "widget",
+    "layout",
 ];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiagnosticsSectionOutcome {
+    None,
+    WorksurfaceInspectorDumpRequested,
+}
 
 /// Read-only inputs the Diagnostics section renders from: the live diagnostics view (the shell rebuilds
 /// it each frame from the `HandshakeApp` producers) + the active palette (so the panel reads theme
@@ -65,13 +80,52 @@ pub struct DiagnosticsSettingsView<'a> {
     pub diagnostics: &'a DiagnosticsView,
     /// The active resolved palette (theme tokens) the panel paints with.
     pub palette: &'a HsPalette,
+    /// MT-102 Visual Debugger: transient last-dump status owned by the shell.
+    pub worksurface_inspector_last_dump: Option<&'a str>,
 }
 
 /// Render the Diagnostics section: just host the [`DiagnosticsPanel`] widget over the read-only view.
 /// The panel emits its own AccessKit subtree (`diagnostics_panel` Region + child Groups) and projects
 /// the live state. Returns nothing — the section changes no setting (pure observability).
-pub fn render(ui: &mut egui::Ui, view: &DiagnosticsSettingsView<'_>) {
+pub fn render(ui: &mut egui::Ui, view: &DiagnosticsSettingsView<'_>) -> DiagnosticsSectionOutcome {
     DiagnosticsPanel.show(ui, view.diagnostics, view.palette);
+
+    ui.separator();
+    let mut outcome = DiagnosticsSectionOutcome::None;
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new("Worksurface Inspector").strong());
+        let dump = ui.button("Dump JSON");
+        set_author_id_and_label(
+            ui,
+            dump.id,
+            WORKSURFACE_INSPECTOR_DUMP_BUTTON_AUTHOR_ID,
+            "Dump worksurface snapshot JSON",
+        );
+        if dump.clicked() {
+            outcome = DiagnosticsSectionOutcome::WorksurfaceInspectorDumpRequested;
+        }
+    });
+
+    if let Some(status) = view.worksurface_inspector_last_dump {
+        let response = ui.label(status);
+        set_author_id_and_label(
+            ui,
+            response.id,
+            WORKSURFACE_INSPECTOR_STATUS_AUTHOR_ID,
+            status,
+        );
+    }
+
+    outcome
+}
+
+fn set_author_id_and_label(ui: &egui::Ui, widget_id: egui::Id, author_id: &str, label: &str) {
+    let author_id = author_id.to_owned();
+    let label = label.to_owned();
+    ui.ctx().accesskit_node_builder(widget_id, move |node| {
+        node.set_author_id(author_id);
+        node.set_label(label);
+    });
 }
 
 #[cfg(test)]
@@ -80,7 +134,17 @@ mod tests {
 
     #[test]
     fn search_keywords_include_the_obvious_terms() {
-        for term in ["diagnostics", "heartbeat", "frame", "cpu", "palmistry", "events"] {
+        for term in [
+            "diagnostics",
+            "heartbeat",
+            "frame",
+            "cpu",
+            "palmistry",
+            "events",
+            "visual",
+            "debugger",
+            "inspector",
+        ] {
             assert!(
                 DIAGNOSTICS_SEARCH_KEYWORDS.contains(&term),
                 "the Diagnostics section must be findable by '{term}'"

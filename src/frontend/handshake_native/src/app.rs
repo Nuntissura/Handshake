@@ -6,6 +6,8 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
+use base64::Engine as _;
+
 use crate::accessibility::{self, ChromeWidget};
 use crate::atelier_side_panel::AtelierSidePanel;
 use crate::backend_client::{self, HealthInfo, WorkbenchLayoutClient, HEALTH_URL};
@@ -530,6 +532,9 @@ pub struct HandshakeApp {
     settings_io_in_flight: Arc<std::sync::atomic::AtomicBool>,
     /// The last transient settings persistence error, surfaced on the dialog status row (HBR: visible).
     settings_persist_error: Option<String>,
+    /// MT-102 Visual Debugger: transient status for the last Settings -> Diagnostics worksurface dump.
+    /// This is not persisted and owns no diagnostic authority; it only makes the button result visible.
+    worksurface_inspector_last_dump: Option<String>,
     /// A pending theme flip to apply at the START of the next frame, BEFORE any panel renders (red-team
     /// R4/MC4): applying egui `Visuals` mid-frame would leave already-rendered widgets on the old theme
     /// for one frame. The settings ComboBox / the menu toggle set this; `ui()` applies it at the top.
@@ -1548,6 +1553,7 @@ impl HandshakeApp {
             settings_save_due_at: None,
             settings_io_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             settings_persist_error: None,
+            worksurface_inspector_last_dump: None,
             pending_theme_change: None,
             about_open: false,
             reset_layout_pending: false,
@@ -2023,6 +2029,7 @@ impl HandshakeApp {
             settings_save_due_at: None,
             settings_io_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             settings_persist_error: None,
+            worksurface_inspector_last_dump: None,
             pending_theme_change: None,
             about_open: false,
             reset_layout_pending: false,
@@ -2100,6 +2107,126 @@ impl HandshakeApp {
     /// The shared MCP snapshot slot (MT-027): the live UI-tree the server's `list_widgets` reads.
     pub fn mcp_snapshot_slot(&self) -> Arc<Mutex<crate::accessibility::UiTreeSnapshot>> {
         self.mcp_snapshot.clone()
+    }
+
+    /// MT-102 Visual Debugger: compose a live worksurface/window-structure snapshot and write it to
+    /// an external artifact directory. This is the runtime seam behind Settings -> Diagnostics; tests
+    /// pass an explicit root, while the Settings button uses [`crate::visual_debugger::default_artifact_root`].
+    pub fn capture_worksurface_snapshot_to(
+        &mut self,
+        artifact_root: impl AsRef<std::path::Path>,
+    ) -> std::io::Result<crate::visual_debugger::SnapshotWriteReceipt> {
+        let artifact_root =
+            crate::visual_debugger::validate_external_artifact_root(artifact_root.as_ref())?;
+        let capture_id = crate::visual_debugger::WorksurfaceInspector::new_capture_id();
+        self.refresh_mcp_snapshot();
+
+        let widget_tree = match self.mcp_snapshot.lock() {
+            Ok(slot) => slot.clone(),
+            Err(poisoned) => poisoned.into_inner().clone(),
+        };
+        let pane_accesskit_ids = {
+            let guard = self
+                .pane_registry
+                .lock()
+                .expect("pane registry mutex poisoned");
+            guard
+                .iter()
+                .map(|(pane_id, _)| {
+                    (
+                        pane_id.as_ref().to_owned(),
+                        guard.accesskit_id(pane_id).map(|node_id| node_id.0),
+                    )
+                })
+                .collect::<std::collections::BTreeMap<_, _>>()
+        };
+
+        let snapshot = crate::visual_debugger::WorksurfaceInspector::capture(
+            capture_id.clone(),
+            self.capture_layout_snapshot(),
+            pane_accesskit_ids,
+            widget_tree,
+            Self::capture_worksurface_screenshot_to(&artifact_root, &capture_id),
+        );
+
+        let receipt =
+            crate::visual_debugger::WorksurfaceInspector::write_json(&snapshot, &artifact_root)?;
+        crate::diagnostics::record_with(
+            handshake_diag_ring::DiagEventCode::Other,
+            handshake_diag_ring::DiagPhase::End,
+            handshake_diag_ring::DiagSeverity::Info,
+            0,
+            snapshot.internal_diagnostics.timestamp_nanos,
+            snapshot.internal_diagnostics.counter_a_value,
+            snapshot.internal_diagnostics.counter_b_value,
+            0,
+            snapshot.internal_diagnostics.timestamp_nanos,
+        );
+
+        self.worksurface_inspector_last_dump = Some(format!(
+            "Wrote worksurface snapshot: {} ({} bytes)",
+            receipt
+                .path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("worksurface-snapshot.json"),
+            receipt.bytes
+        ));
+        Ok(receipt)
+    }
+
+    fn capture_worksurface_screenshot_to(
+        artifact_root: &std::path::Path,
+        capture_id: &str,
+    ) -> crate::visual_debugger::ScreenshotEvidence {
+        let screenshot = match crate::mcp::screenshot::capture_handshake_window() {
+            Ok(screenshot) => screenshot,
+            Err(err) => {
+                return crate::visual_debugger::ScreenshotEvidence::deferred_from_mcp_error(err)
+            }
+        };
+
+        let bytes = match base64::engine::general_purpose::STANDARD
+            .decode(screenshot.png_base64.as_bytes())
+        {
+            Ok(bytes) => bytes,
+            Err(err) => {
+                return crate::visual_debugger::ScreenshotEvidence::Deferred {
+                    marker: "screenshot_capture_decode_failed".to_owned(),
+                    reason: format!("existing MCP screenshot result could not decode: {err}"),
+                };
+            }
+        };
+        if let Err(err) = std::fs::create_dir_all(artifact_root) {
+            return crate::visual_debugger::ScreenshotEvidence::Deferred {
+                marker: "screenshot_capture_write_failed".to_owned(),
+                reason: format!(
+                    "could not create screenshot artifact root {}: {err}",
+                    artifact_root.display()
+                ),
+            };
+        }
+
+        let path = artifact_root.join(format!(
+            "worksurface-screenshot-{}.png",
+            crate::visual_debugger::safe_capture_id(capture_id)
+        ));
+        if let Err(err) = std::fs::write(&path, bytes) {
+            return crate::visual_debugger::ScreenshotEvidence::Deferred {
+                marker: "screenshot_capture_write_failed".to_owned(),
+                reason: format!("could not write {}: {err}", path.display()),
+            };
+        }
+
+        crate::visual_debugger::ScreenshotEvidence::Captured {
+            path,
+            width: screenshot.width,
+            height: screenshot.height,
+        }
+    }
+
+    pub fn worksurface_inspector_last_dump(&self) -> Option<&str> {
+        self.worksurface_inspector_last_dump.as_deref()
     }
 
     /// The per-session MCP token (MT-027) gating every request.
@@ -4557,6 +4684,17 @@ impl HandshakeApp {
                 }
                 false
             }
+            O::WorksurfaceInspectorDumpRequested => {
+                let root = crate::visual_debugger::default_artifact_root();
+                match self.capture_worksurface_snapshot_to(root) {
+                    Ok(_) => true,
+                    Err(err) => {
+                        self.worksurface_inspector_last_dump =
+                            Some(format!("Worksurface snapshot failed: {err}"));
+                        true
+                    }
+                }
+            }
         }
     }
 
@@ -4670,6 +4808,7 @@ impl HandshakeApp {
             persist_error: self.settings_persist_error.as_deref(),
             diagnostics: &diagnostics_view,
             palette: &palette,
+            worksurface_inspector_last_dump: self.worksurface_inspector_last_dump.as_deref(),
         };
         let outcome = crate::settings_dialog::show(ctx, view);
         if self.apply_settings_outcome(outcome) {
