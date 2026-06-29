@@ -3,7 +3,7 @@
 //! a central work-surface placeholder. Render logic lives in `ui()` (no eframe::Frame) so it is
 //! driveable headlessly by egui_kittest.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
 use crate::accessibility::{self, ChromeWidget};
@@ -173,6 +173,11 @@ type LayoutLoadResult = (
     Result<Option<LayoutSnapshot>, crate::layout_persistence::LayoutError>,
 );
 
+/// MT-099 Notes end-to-end load delivery:
+/// `(load_generation, document_id, loaded document or typed error)`.
+/// The document GET runs off the egui UI thread and the frame path drains this cell without blocking.
+type RichDocumentLoadResult = (u64, String, Result<backend_client::RichDocBody, String>);
+
 pub struct HandshakeApp {
     health_status: HealthDisplayState,
     rt: tokio::runtime::Runtime,
@@ -265,6 +270,26 @@ pub struct HandshakeApp {
     /// command bus + unified undo, and the rich-pane event queue the shell routes to the nav bus). The
     /// editor analogue of `loom_search_v2_shared` / `find_in_files_shared`.
     editor_mounts: EditorMountHandles,
+    /// MT-099 Notes end-to-end: base URL for the mounted Notes editor's authoritative
+    /// `/knowledge/documents/*` load/save/draft route family. Production uses the normal backend base;
+    /// tests can point it at a localhost capture server via `set_backend_base_url_for_test`.
+    rich_doc_base_url: String,
+    /// MT-099 Notes end-to-end: FIFO delivery queue for off-frame document loads. The UI thread drains
+    /// completed GETs once per frame and applies only the current in-flight document, so a stale request
+    /// cannot overwrite/drop a newer active-document completion.
+    rich_doc_load_cell: Arc<Mutex<VecDeque<RichDocumentLoadResult>>>,
+    /// The document id currently being loaded into the mounted rich editor, if any.
+    rich_doc_loading_id: Option<String>,
+    /// Monotonic generation for Notes document loads. Reopening the same document invalidates any older
+    /// in-flight GET for that id, so stale same-id responses cannot apply over a fresh reload.
+    rich_doc_load_generation: u64,
+    /// The document id currently installed in the mounted rich editor, if any.
+    rich_doc_loaded_id: Option<String>,
+    /// The installed document version; used only as a fallback if a host Save is invoked after a reload
+    /// but before the editor has a fresh SaveManager.
+    rich_doc_loaded_version: Option<u64>,
+    /// Last transient Notes load error, surfaced through tests/manual diagnostics rather than a spinner.
+    rich_doc_load_error: Option<String>,
     /// WP-KERNEL-012 MT-079: the last code-editor host-routed command the shell drained
     /// (`Save`/`OpenCommandPalette` — Undo/Redo dispatch directly to the bus). Exposed via
     /// [`last_editor_command`](Self::last_editor_command) so the dispatch is perceivable + testable (the
@@ -1453,6 +1478,13 @@ impl HandshakeApp {
             find_in_files_shared,
             runtime_chat_panel,
             editor_mounts,
+            rich_doc_base_url: backend_client::BACKEND_BASE_URL.to_owned(),
+            rich_doc_load_cell: Arc::new(Mutex::new(VecDeque::new())),
+            rich_doc_loading_id: None,
+            rich_doc_load_generation: 0,
+            rich_doc_loaded_id: None,
+            rich_doc_loaded_version: None,
+            rich_doc_load_error: None,
             last_editor_command: None,
             split_weights: SplitWeights::default(),
             split_drag: SplitDragState::default(),
@@ -1914,6 +1946,13 @@ impl HandshakeApp {
             find_in_files_shared,
             runtime_chat_panel,
             editor_mounts,
+            rich_doc_base_url: backend_client::BACKEND_BASE_URL.to_owned(),
+            rich_doc_load_cell: Arc::new(Mutex::new(VecDeque::new())),
+            rich_doc_loading_id: None,
+            rich_doc_load_generation: 0,
+            rich_doc_loaded_id: None,
+            rich_doc_loaded_version: None,
+            rich_doc_load_error: None,
             last_editor_command: None,
             split_weights: SplitWeights::default(),
             split_drag: SplitDragState::default(),
@@ -2632,26 +2671,77 @@ impl HandshakeApp {
     /// current-thread shell with no runtime — the honest "save not yet wireable" path; the leaf is still
     /// enabled because an editor pane is present, and the code-pane channel still carries the intent).
     fn invoke_editor_save(&mut self) -> bool {
+        let active_doc_id = self.active_rich_document_id();
+        let active_doc_version = active_doc_id.as_deref().and_then(|id| {
+            (self.rich_doc_loaded_id.as_deref() == Some(id))
+                .then_some(self.rich_doc_loaded_version)
+                .flatten()
+        });
         let rich = Arc::clone(&self.editor_mounts.rich_state);
         let mut state = match rich.lock() {
             Ok(s) => s,
             Err(p) => p.into_inner(),
         };
+        if let Some(active_doc_id) = active_doc_id.as_deref() {
+            let save_mismatch = state
+                .save
+                .as_ref()
+                .map(|save| save.document_id() != active_doc_id)
+                .unwrap_or(false);
+            let draft_mismatch = state
+                .draft
+                .as_ref()
+                .map(|draft| draft.document_id() != active_doc_id)
+                .unwrap_or(false);
+            if save_mismatch || draft_mismatch {
+                state.save = None;
+                state.draft = None;
+            }
+            if active_doc_version.is_none() {
+                tracing::debug!(
+                    document_id = ?active_doc_id,
+                    "editor Save skipped: active Notes document is not loaded yet"
+                );
+                return false;
+            }
+        }
         // Install the MT-020 save context on first save if the mount has not (the mount threads embed +
         // wikilink context but not save context). Use the live bound runtime + active workspace so the
         // SaveManager spawns the real backend call off the frame thread (HBR-QUIET).
         if !state.has_save_context() {
             if let Some(rt) = self.runtime_handle.clone() {
-                // The mounted Notes pane binds to the workspace root until a document is opened; the save
-                // entry's document target is the active workspace document id (the mount's bound id, falling
-                // back to the active project). doc_version 0 is the unsaved/new-document base; the first save
-                // result rebases it (SaveManager bumps `doc_version` on a successful save — never hardcoded).
-                let doc_id = if self.active_project_id.is_empty() {
-                    DEFAULT_PROJECT_ID.to_owned()
-                } else {
-                    self.active_project_id.clone()
-                };
-                state.set_save_context(doc_id, 0, rt);
+                // MT-099: when a knowledge document tab is active, Save MUST target that document id and
+                // its loaded version. The old workspace-id fallback remains only for the fresh unsaved/demo
+                // Notes pane where no document id exists yet.
+                let doc_id = active_doc_id.clone().unwrap_or_else(|| {
+                    if self.active_project_id.is_empty() {
+                        DEFAULT_PROJECT_ID.to_owned()
+                    } else {
+                        self.active_project_id.clone()
+                    }
+                });
+                let doc_version = active_doc_version.unwrap_or(0);
+                let base_content =
+                    crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+                state.save = Some(crate::rich_editor::save::save_manager::SaveManager::new(
+                    Arc::new(crate::backend_client::RichDocSaveBackend::new(
+                        self.rich_doc_base_url.clone(),
+                    )),
+                    Some(rt.clone()),
+                    doc_id.clone(),
+                    doc_version,
+                ));
+                let mut draft = crate::rich_editor::save::draft_manager::DraftManager::new(
+                    Arc::new(crate::backend_client::RichDocDraftBackend::new(
+                        self.rich_doc_base_url.clone(),
+                    )),
+                    Some(rt),
+                    doc_id,
+                    doc_version,
+                    &base_content,
+                );
+                draft.check_on_mount();
+                state.draft = Some(draft);
             } else {
                 // No runtime bound (headless current-thread shell): the save path is not wireable this run.
                 tracing::debug!("editor Save: no runtime bound; MT-020 save context not installed");
@@ -2660,6 +2750,251 @@ impl HandshakeApp {
         }
         // Reach the REAL SaveManager save entry (request_save -> SaveState::Saving + backend PUT).
         state.request_save_for_host()
+    }
+
+    /// MT-099: the active Notes tab's authoritative document id, if the current active pane is a
+    /// `LoomWikiPage` tab with a non-empty `content_id`.
+    fn active_rich_document_id(&self) -> Option<String> {
+        let pane_id = self.active_pane.as_ref()?;
+        let tab = self.tab_bar_states.get(pane_id)?.active()?;
+        if !matches!(tab.pane_type, PaneType::LoomWikiPage) {
+            return None;
+        }
+        tab.content_id
+            .as_ref()
+            .filter(|id| !id.trim().is_empty())
+            .cloned()
+    }
+
+    /// MT-099: force the next frame to re-GET a document. Used when opening/reopening a Notes tab so a
+    /// stale mounted editor cannot masquerade as authoritative backend state.
+    fn invalidate_rich_document_load(&mut self, document_id: &str) {
+        self.rich_doc_load_generation = self.rich_doc_load_generation.wrapping_add(1);
+        self.rich_doc_loaded_id = None;
+        self.rich_doc_loaded_version = None;
+        if self.rich_doc_loading_id.as_deref() == Some(document_id) {
+            self.rich_doc_loading_id = None;
+        }
+        if let Ok(mut state) = self.editor_mounts.rich_state.lock() {
+            state.save = None;
+            state.draft = None;
+        }
+        if let Ok(mut slot) = self.rich_doc_load_cell.lock() {
+            slot.retain(|(_, id, _)| id != document_id);
+        }
+        self.rich_doc_load_error = None;
+    }
+
+    fn clear_rich_document_context_if_mismatch(&self, expected_document_id: &str) {
+        let mut state = self
+            .editor_mounts
+            .rich_state
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        let save_mismatch = state
+            .save
+            .as_ref()
+            .map(|save| save.document_id() != expected_document_id)
+            .unwrap_or(false);
+        let draft_mismatch = state
+            .draft
+            .as_ref()
+            .map(|draft| draft.document_id() != expected_document_id)
+            .unwrap_or(false);
+        if save_mismatch || draft_mismatch {
+            state.save = None;
+            state.draft = None;
+        }
+    }
+
+    /// MT-099: mirror each pane's active tab into the pane registry record immediately before the central
+    /// pane host renders. The tab bar remains the operator-visible navigation source; the registry remains
+    /// the render source that `SplitLayoutWidget` passes into each pane factory.
+    fn sync_active_tab_records(&mut self) {
+        let active_tabs: Vec<(PaneId, PaneType, Option<String>, DirtyState)> = self
+            .tab_bar_states
+            .iter()
+            .filter_map(|(pane_id, bar)| {
+                bar.active().map(|tab| {
+                    (
+                        pane_id.clone(),
+                        tab.pane_type.clone(),
+                        tab.content_id.clone(),
+                        if tab.dirty {
+                            DirtyState::Dirty
+                        } else {
+                            DirtyState::Clean
+                        },
+                    )
+                })
+            })
+            .collect();
+        if active_tabs.is_empty() {
+            return;
+        }
+        let Ok(mut registry) = self.pane_registry.lock() else {
+            return;
+        };
+        for (pane_id, pane_type, content_id, dirty) in active_tabs {
+            if let Some(record) = registry.get_mut(&pane_id) {
+                if record.pane_type != pane_type
+                    || record.content_id != content_id
+                    || record.dirty != dirty
+                {
+                    record.pane_type = pane_type;
+                    record.content_id = content_id;
+                    record.dirty = dirty;
+                    record.last_update = std::time::Instant::now();
+                }
+            }
+        }
+    }
+
+    /// MT-099: drive the active Notes document GET lifecycle. Network work runs on the app runtime and
+    /// delivers into `rich_doc_load_cell`; this frame path only drains a completed result and starts at
+    /// most one missing load.
+    fn drive_rich_document_load(&mut self, ctx: &egui::Context) {
+        if self.capturing_snapshot {
+            return;
+        }
+
+        let delivered: Vec<RichDocumentLoadResult> = self
+            .rich_doc_load_cell
+            .lock()
+            .ok()
+            .map(|mut slot| slot.drain(..).collect())
+            .unwrap_or_default();
+        if !delivered.is_empty() {
+            let mut did_update = false;
+            for (generation, document_id, result) in delivered {
+                let is_current_delivery = generation == self.rich_doc_load_generation
+                    && self.rich_doc_loading_id.as_deref() == Some(document_id.as_str());
+                if is_current_delivery {
+                    self.rich_doc_loading_id = None;
+                }
+                match result {
+                    Ok(doc) => {
+                        if is_current_delivery
+                            && self.active_rich_document_id().as_deref()
+                                == Some(document_id.as_str())
+                        {
+                            match self.apply_loaded_rich_document(doc) {
+                                Ok(()) => {
+                                    self.rich_doc_load_error = None;
+                                    did_update = true;
+                                }
+                                Err(message) => {
+                                    self.rich_doc_load_error = Some(message);
+                                    did_update = true;
+                                }
+                            }
+                        }
+                    }
+                    Err(message) => {
+                        if is_current_delivery
+                            && self.active_rich_document_id().as_deref()
+                                == Some(document_id.as_str())
+                        {
+                            self.rich_doc_load_error = Some(message);
+                            did_update = true;
+                        }
+                    }
+                }
+            }
+            if did_update {
+                ctx.request_repaint();
+            }
+        }
+
+        let Some(document_id) = self.active_rich_document_id() else {
+            return;
+        };
+        self.clear_rich_document_context_if_mismatch(&document_id);
+        if self.rich_doc_loaded_id.as_deref() == Some(document_id.as_str())
+            || self.rich_doc_loading_id.as_deref() == Some(document_id.as_str())
+        {
+            return;
+        }
+        let Some(runtime) = self.runtime_handle.clone() else {
+            self.rich_doc_load_error =
+                Some("Notes document load blocked: no runtime handle is bound.".to_owned());
+            return;
+        };
+
+        self.rich_doc_load_generation = self.rich_doc_load_generation.wrapping_add(1);
+        let load_generation = self.rich_doc_load_generation;
+        self.rich_doc_loading_id = Some(document_id.clone());
+        self.rich_doc_load_error = None;
+        let base_url = self.rich_doc_base_url.clone();
+        let cell = Arc::clone(&self.rich_doc_load_cell);
+        let repaint = ctx.clone();
+        let client_runtime = runtime.clone();
+        runtime.spawn(async move {
+            let client = backend_client::RichDocClient::new(base_url, client_runtime);
+            let loaded = client
+                .load_document(&document_id)
+                .await
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                slot.push_back((load_generation, document_id, loaded));
+            }
+            repaint.request_repaint();
+        });
+    }
+
+    /// MT-099: install a freshly loaded backend document into the mounted rich editor and bind its
+    /// SaveManager/DraftManager to the same knowledge-documents route family used for the GET.
+    fn apply_loaded_rich_document(
+        &mut self,
+        doc: backend_client::RichDocBody,
+    ) -> Result<(), String> {
+        let runtime = self
+            .runtime_handle
+            .clone()
+            .ok_or_else(|| "Notes document load blocked: no runtime handle is bound.".to_owned())?;
+        let parsed =
+            crate::rich_editor::document_model::doc_json::from_json_value(&doc.content_json)
+                .map_err(|e| e.to_string())?;
+        let base_content =
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&parsed);
+        let document_id = doc.document_id.clone();
+        let doc_version = doc.doc_version;
+        let mut state = self
+            .editor_mounts
+            .rich_state
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        state.doc = parsed;
+        state.selection = crate::rich_editor::document_model::selection::Selection::caret(
+            crate::rich_editor::document_model::position::DocPosition::new(vec![0, 0], 0),
+        );
+        state.undo = crate::rich_editor::document_model::history::UndoManager::new();
+        state.pending_events.clear();
+        state.find_replace = None;
+        state.save = Some(crate::rich_editor::save::save_manager::SaveManager::new(
+            Arc::new(crate::backend_client::RichDocSaveBackend::new(
+                self.rich_doc_base_url.clone(),
+            )),
+            Some(runtime.clone()),
+            document_id.clone(),
+            doc_version,
+        ));
+        let mut draft = crate::rich_editor::save::draft_manager::DraftManager::new(
+            Arc::new(crate::backend_client::RichDocDraftBackend::new(
+                self.rich_doc_base_url.clone(),
+            )),
+            Some(runtime.clone()),
+            document_id.clone(),
+            doc_version,
+            &base_content,
+        );
+        draft.check_on_mount();
+        state.draft = Some(draft);
+        state.set_embed_context(self.active_project_id.clone(), runtime.clone());
+        state.set_wikilink_context(self.active_project_id.clone(), document_id.clone(), runtime);
+        self.rich_doc_loaded_id = Some(document_id);
+        self.rich_doc_loaded_version = Some(doc_version);
+        Ok(())
     }
 
     /// WP-KERNEL-012 MT-069 test seam: dispatch a command id through the REAL `dispatch_palette_action`
@@ -2955,6 +3290,15 @@ impl HandshakeApp {
             base_url,
             handle.clone(),
         ));
+        self.rich_doc_base_url = base_url.to_owned();
+        if let Ok(mut slot) = self.rich_doc_load_cell.lock() {
+            slot.clear();
+        }
+        self.rich_doc_loading_id = None;
+        self.rich_doc_load_generation = self.rich_doc_load_generation.wrapping_add(1);
+        self.rich_doc_loaded_id = None;
+        self.rich_doc_loaded_version = None;
+        self.rich_doc_load_error = None;
         self.runtime_handle = Some(handle);
     }
 
@@ -3027,7 +3371,15 @@ impl HandshakeApp {
         label: &str,
     ) -> Option<String> {
         let surface = pane_type.label();
-        let pane_id = self.module_target_pane()?;
+        let pane_id = self
+            .navigator_existing_tab_pane(&pane_type, &content_id)
+            .or_else(|| self.navigator_target_pane(&pane_type))?;
+        let doc_to_reload = if matches!(pane_type, PaneType::LoomWikiPage) && !content_id.is_empty()
+        {
+            Some(content_id.clone())
+        } else {
+            None
+        };
         if let Some(bar) = self.tab_bar_states.get_mut(&pane_id) {
             let tab = TabState {
                 pane_type,
@@ -3040,7 +3392,70 @@ impl HandshakeApp {
             bar.activate(idx);
         }
         self.active_pane = Some(pane_id);
+        if let Some(document_id) = doc_to_reload.as_deref() {
+            self.invalidate_rich_document_load(document_id);
+        }
         Some(surface)
+    }
+
+    /// Target pane for navigation-bus opens. If the operator has focused a pane, route there. If no
+    /// active pane exists yet (fresh launch / model-open path), prefer a pane that already hosts the
+    /// requested surface so "open document" uses the seeded Notes pane and "open symbol" uses the seeded
+    /// code pane instead of duplicating a second editor in pane-a. Falls back to the existing deterministic
+    /// module target when no matching surface is open.
+    fn navigator_target_pane(&self, pane_type: &PaneType) -> Option<PaneId> {
+        if let Some(active) = &self.active_pane {
+            if self
+                .tab_bar_states
+                .get(active)
+                .and_then(|bar| bar.active())
+                .is_some_and(|tab| tab.pane_type == *pane_type)
+            {
+                return Some(active.clone());
+            }
+        }
+        if matches!(pane_type, PaneType::LoomWikiPage) {
+            if let Some(pane_id) = self.navigator_existing_surface_pane(pane_type) {
+                return Some(pane_id);
+            }
+        }
+        if let Some(active) = &self.active_pane {
+            if self.tab_bar_states.contains_key(active) {
+                return Some(active.clone());
+            }
+        }
+        self.navigator_existing_surface_pane(pane_type)
+            .or_else(|| self.module_target_pane())
+    }
+
+    fn navigator_existing_tab_pane(
+        &self,
+        pane_type: &PaneType,
+        content_id: &str,
+    ) -> Option<PaneId> {
+        let mut candidates: Vec<PaneId> = self
+            .tab_bar_states
+            .iter()
+            .filter(|(_, bar)| {
+                bar.tabs.iter().any(|tab| {
+                    tab.pane_type == *pane_type && tab.content_id.as_deref() == Some(content_id)
+                })
+            })
+            .map(|(pane_id, _)| pane_id.clone())
+            .collect();
+        candidates.sort_by(|a, b| a.as_ref().cmp(b.as_ref()));
+        candidates.into_iter().next()
+    }
+
+    fn navigator_existing_surface_pane(&self, pane_type: &PaneType) -> Option<PaneId> {
+        let mut candidates: Vec<PaneId> = self
+            .tab_bar_states
+            .iter()
+            .filter(|(_, bar)| bar.tabs.iter().any(|tab| tab.pane_type == *pane_type))
+            .map(|(pane_id, _)| pane_id.clone())
+            .collect();
+        candidates.sort_by(|a, b| a.as_ref().cmp(b.as_ref()));
+        candidates.into_iter().next()
     }
 
     /// Open a selected Loom-graph hit (MT-017 jump, refactored through the MT-030 [`ShellNavigator`]
@@ -5735,11 +6150,19 @@ impl HandshakeApp {
         let Some(target) = self.module_target_pane() else {
             return false;
         };
+        let doc_to_reload = if matches!(pane_type, PaneType::LoomWikiPage) {
+            content_id.as_ref().filter(|id| !id.is_empty()).cloned()
+        } else {
+            None
+        };
         self.active_pane = Some(target.clone());
         if let Some(bar) = self.tab_bar_states.get_mut(&target) {
             let mut tab = TabState::new(pane_type);
             tab.content_id = content_id;
             bar.insert_tab(tab);
+            if let Some(document_id) = doc_to_reload.as_deref() {
+                self.invalidate_rich_document_load(document_id);
+            }
             return true;
         }
         false
@@ -5918,7 +6341,7 @@ impl HandshakeApp {
         handle: tokio::task::JoinHandle<T>,
     ) {
         handle.abort();
-        let _ = rt.block_on(async move { handle.await });
+        let _ = rt.block_on(handle);
     }
 
     fn replace_health_handle(
@@ -7142,6 +7565,17 @@ impl HandshakeApp {
             ctx.request_repaint();
         }
 
+        // MT-099: route the platform Save chord through the same editor command arm as FILE > Save, so
+        // keyboard and menu saves share the mounted RichEditor SaveManager and the knowledge-documents
+        // backend adapter. The rich editor also handles Ctrl+S when focused; consuming here keeps one
+        // app-level save path and avoids a double PUT.
+        let save_chord = !suppress_global_chords
+            && ctx.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::S));
+        if save_chord {
+            self.dispatch_palette_action(ctx, crate::command_registry::CMD_EDITOR_FILE_SAVE);
+            ctx.request_repaint();
+        }
+
         let menu_state = self.menu_bar_state(ctx);
         let menu_action = egui::TopBottomPanel::top("handshake_menu_bar")
             .show(ctx, |ui| MenuBar::new(menu_state).show(ui))
@@ -7376,6 +7810,8 @@ impl HandshakeApp {
         // product (not only in standalone test harnesses): the drag source can be dragged FROM, and a
         // dispatched Route-to-Stage command (palette or context menu) is DRAINED into the visible pane.
         self.drive_ckc_interop(ctx);
+        self.drive_rich_document_load(ctx);
+        self.sync_active_tab_records();
 
         // Split the borrow of `self` up-front so the CentralPanel closure can hold a `&mut` to the
         // split state (weights/drag/active pane) AND a `&` to the factories + registry at the same
@@ -7508,7 +7944,7 @@ impl HandshakeApp {
             // Prefer a rich-document open when the hit resolves to a KRD- document; otherwise open the
             // Loom block by its ref id (file/tag_hub/loom_block all open as a Loom block reference).
             if let Some(document_id) = crate::find_in_files::document_id_from_hit(&hit) {
-                self.open_content_on_active_pane(PaneType::LoomBlock, Some(document_id));
+                self.open_content_on_active_pane(PaneType::LoomWikiPage, Some(document_id));
             } else if !hit.ref_id.trim().is_empty() {
                 self.open_content_on_active_pane(PaneType::LoomBlock, Some(hit.ref_id.clone()));
             }

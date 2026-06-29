@@ -153,8 +153,14 @@ the pixels with screenshot — no screen-scraping and no keyboard simulation."
 fn core_workflows_body() -> String {
     "Open a file in the code editor: select it in the project tree (left rail 'files' button \
 left-rail.activity.files), then the file mounts in the code pane; save with editor.code.save (Ctrl+S). \
-Edit rich-text/knowledge notes: type in the rich pane; toggle bold with editor.rich.format-bold (Ctrl+B), \
-insert a block with editor.rich.insert-slash-command ('/'). Build a graph: pan with graph.pan-left/\
+Open an existing knowledge note through the project tree or quick switcher: the shell opens a \
+LoomWikiPage tab carrying the document id, performs GET /knowledge/documents/:id, and installs that \
+backend content into the mounted rich-editor-surface. Edit rich-text/knowledge notes by typing in the \
+rich pane; toggle bold with editor.rich.format-bold (Ctrl+B), insert a block with \
+editor.rich.insert-slash-command ('/'), then save with FILE > Save, Ctrl+S, or editor.rich.save. The \
+save path is the MT-020 SaveManager backed by PUT /knowledge/documents/:id/save with the loaded \
+doc_version; reopening the same note invalidates the mounted state and forces a fresh GET before the \
+editor is considered current. Build a graph: pan with graph.pan-left/\
 graph.pan-right, zoom with graph.zoom-in/graph.zoom-out, open a node with graph.open-node, connect blocks \
 with graph.add-edge. Sketch on the canvas: add a card with canvas.add-card, place a Loom block with \
 canvas.place-block, connect with canvas.add-edge. Drive FEMS: the relevant-memory-panel shows the \
@@ -193,8 +199,11 @@ loom_address.rs), an atelier:// CKC ref dragged in from the atelier_side_panel, 
 handshake_core APIs — PostgreSQL/EventLedger is the only durable authority, and the editors never write \
 to a database directly; clipboard payloads on the shared clipboard; and command-bus / event-ledger \
 events (event_bus.rs + the Flight Recorder) that record each editor action. A rich-text document saves \
-to the knowledge-documents route family; the code editor saves the buffer through the same backend \
-client. Nothing the editors emit bypasses handshake_core."
+to the knowledge-documents route family: GET /knowledge/documents/:id loads content_json/doc_version, \
+PUT /knowledge/documents/:id/save writes {expected_version, content_json}, GET/PUT/DELETE \
+/knowledge/documents/:id/draft owns crash recovery, and reopening a note re-GETs the authoritative \
+document instead of trusting a cached mounted editor. The code editor saves the buffer through the same \
+backend client. Nothing the editors emit bypasses handshake_core."
         .to_owned()
         + " Runtime Chat input is local UI state only in this build; a send probes the planned native chat route \
 and returns EndpointMissing because no assistant chat HTTP endpoint is present."
@@ -243,12 +252,14 @@ fn recovery_steps_body() -> String {
 layout from Settings. Re-run with a present display + clipboard (a GPU/clipboard host) when a headless \
 runner lacked them. Re-query the live AccessKit registry with list_widgets to get the CURRENT author_id \
 for a node after a layout change — never reuse a stale id; the canonical id source is \
-accessibility/registry.rs + the live editor/knowledge action registries. Retry persistence after the \
-typed backend error clears (a save conflict resolves once the newer revision is loaded). Where a step \
-needs a backend capability that does not yet exist — the FEMS read route, the Stage embed-back route, the \
-Calendar activity-span route, the Locus read route, or Runtime Chat assistant generation — the editor \
-surfaces a typed blocker and a visible empty-state rather than fabricating behavior; the cross-edge or chat \
-round-trip completes once the backend packet lands."
+accessibility/registry.rs + the live editor/knowledge action registries. For a note that appears stale or \
+unusable, reopen its document tab through the project tree/quick switcher; the shell invalidates the \
+mounted rich state and issues a fresh GET /knowledge/documents/:id before rebinding SaveManager/DraftManager \
+to that id. Retry persistence after the typed backend error clears (a save conflict resolves once the newer \
+revision is loaded). Where a step needs a backend capability that does not yet exist — the FEMS read route, \
+the Stage embed-back route, the Calendar activity-span route, the Locus read route, or Runtime Chat \
+assistant generation — the editor surfaces a typed blocker and a visible empty-state rather than fabricating \
+behavior; the cross-edge or chat round-trip completes once the backend packet lands."
         .to_owned()
 }
 
@@ -292,66 +303,65 @@ row is author_id -> mcp_tool for a real, live-registered control."
 /// (Stage / Calendar / Locus / FEMS). Every `author_id` is a LIVE registered id (the id-audit asserts no
 /// orphan); every `mcp_tool` is a real `mcp/tools.rs` method.
 pub fn agent_tool_rows() -> Vec<AgentToolRow> {
-    let mut rows: Vec<AgentToolRow> = Vec::new();
-
     // ── Shell chrome (the panes a swarm agent first reaches) ─────────────────────────────────────────
     // The LIVE command palette (command_palette.rs) emits the DOT-form ids (PALETTE_SEARCH_AUTHOR_ID =
     // "command-palette.search", PALETTE_LIST_AUTHOR_ID = "command-palette.list"), registered in
     // DECLARED_IDENTITIES + PALETTE_AUTHOR_IDS. Source the row author_ids from those consts so the steering
     // index always tracks the id the running app actually exposes (the interop hyphen-form
     // "command-palette-search" is emitted only inside a unit-test harness, never the live render loop).
-    rows.push(AgentToolRow {
-        author_id: PALETTE_SEARCH_AUTHOR_ID,
-        surface: ManualSurface::Code,
-        action_label: "Type a command into the palette",
-        mcp_tool: "set_value",
-        description:
-            "set_value{target:'command-palette.search', value:'<command>'} filters the palette.",
-    });
-    rows.push(AgentToolRow {
-        author_id: PALETTE_LIST_AUTHOR_ID,
-        surface: ManualSurface::Code,
-        action_label: "Read palette results",
-        mcp_tool: "list_widgets",
-        description: "list_widgets reveals the command-palette.list rows for the agent to click.",
-    });
-    rows.push(AgentToolRow {
-        author_id: "manual-search",
-        surface: ManualSurface::Knowledge,
-        action_label: "Search the manual",
-        mcp_tool: "set_value",
-        description: "set_value{target:'manual-search', value:'<keyword>'} filters manual topics.",
-    });
-    rows.push(AgentToolRow {
-        author_id: crate::runtime_chat::RUNTIME_CHAT_PANEL_AUTHOR_ID,
-        surface: ManualSurface::Chat,
-        action_label: "Read Runtime Chat state",
-        mcp_tool: "list_widgets",
-        description: "list_widgets surfaces the Runtime Chat pane container.",
-    });
-    rows.push(AgentToolRow {
-        author_id: crate::runtime_chat::RUNTIME_CHAT_STATUS_AUTHOR_ID,
-        surface: ManualSurface::Chat,
-        action_label: "Read Runtime Chat endpoint status",
-        mcp_tool: "list_widgets",
-        description:
-            "list_widgets surfaces runtime-chat-status with EndpointMissing and the probed route.",
-    });
-    rows.push(AgentToolRow {
-        author_id: crate::runtime_chat::RUNTIME_CHAT_INPUT_AUTHOR_ID,
-        surface: ManualSurface::Chat,
-        action_label: "Type a Runtime Chat message",
-        mcp_tool: "set_value",
-        description:
-            "set_value{target:'runtime-chat-input', value:'<message>'} fills the chat draft.",
-    });
-    rows.push(AgentToolRow {
-        author_id: crate::runtime_chat::RUNTIME_CHAT_SEND_AUTHOR_ID,
-        surface: ManualSurface::Chat,
-        action_label: "Send Runtime Chat message",
-        mcp_tool: "click_widget",
-        description: "click_widget{target:'runtime-chat-send'} is enabled after text is entered and returns EndpointMissing until the backend route exists.",
-    });
+    let mut rows: Vec<AgentToolRow> = vec![
+        AgentToolRow {
+            author_id: PALETTE_SEARCH_AUTHOR_ID,
+            surface: ManualSurface::Code,
+            action_label: "Type a command into the palette",
+            mcp_tool: "set_value",
+            description:
+                "set_value{target:'command-palette.search', value:'<command>'} filters the palette.",
+        },
+        AgentToolRow {
+            author_id: PALETTE_LIST_AUTHOR_ID,
+            surface: ManualSurface::Code,
+            action_label: "Read palette results",
+            mcp_tool: "list_widgets",
+            description: "list_widgets reveals the command-palette.list rows for the agent to click.",
+        },
+        AgentToolRow {
+            author_id: "manual-search",
+            surface: ManualSurface::Knowledge,
+            action_label: "Search the manual",
+            mcp_tool: "set_value",
+            description: "set_value{target:'manual-search', value:'<keyword>'} filters manual topics.",
+        },
+        AgentToolRow {
+            author_id: crate::runtime_chat::RUNTIME_CHAT_PANEL_AUTHOR_ID,
+            surface: ManualSurface::Chat,
+            action_label: "Read Runtime Chat state",
+            mcp_tool: "list_widgets",
+            description: "list_widgets surfaces the Runtime Chat pane container.",
+        },
+        AgentToolRow {
+            author_id: crate::runtime_chat::RUNTIME_CHAT_STATUS_AUTHOR_ID,
+            surface: ManualSurface::Chat,
+            action_label: "Read Runtime Chat endpoint status",
+            mcp_tool: "list_widgets",
+            description:
+                "list_widgets surfaces runtime-chat-status with EndpointMissing and the probed route.",
+        },
+        AgentToolRow {
+            author_id: crate::runtime_chat::RUNTIME_CHAT_INPUT_AUTHOR_ID,
+            surface: ManualSurface::Chat,
+            action_label: "Type a Runtime Chat message",
+            mcp_tool: "set_value",
+            description: "set_value{target:'runtime-chat-input', value:'<message>'} fills the chat draft.",
+        },
+        AgentToolRow {
+            author_id: crate::runtime_chat::RUNTIME_CHAT_SEND_AUTHOR_ID,
+            surface: ManualSurface::Chat,
+            action_label: "Send Runtime Chat message",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'runtime-chat-send'} is enabled after text is entered and returns EndpointMissing until the backend route exists.",
+        },
+    ];
 
     // ── Code editor: every CODE_ACTION_CATALOG entry as editor.code.<action> ─────────────────────────
     // Both momentary Buttons and ToggleButtons are ACTIVATED by a click (a toggle carries its toggled

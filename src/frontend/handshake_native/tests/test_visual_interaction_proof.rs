@@ -499,29 +499,28 @@ fn scenario_split(dir: &std::path::Path, id: &str, w: f32, h: f32) -> ScenarioRe
     };
 
     // The default divider must have finite, non-zero bounds within the viewport (layout actually resolved).
-    for divider in [DIVIDER_V_AUTHOR_ID] {
-        let node = snapshot.find_by_author_id(divider).unwrap();
-        match &node.bounds {
-            Some(b) => {
-                if b.w <= 0.0 || b.h <= 0.0 {
-                    return ScenarioResult::fail(
-                        id,
-                        format!("{divider} has a zero-size bound at {w}x{h}: {b:?}"),
-                    );
-                }
-                if b.x < -1.0 || b.y < -1.0 || b.x + b.w > w + 1.0 || b.y + b.h > h + 1.0 {
-                    return ScenarioResult::fail(
-                        id,
-                        format!("{divider} bound {b:?} overflows the {w}x{h} viewport"),
-                    );
-                }
-            }
-            None => {
+    let divider = DIVIDER_V_AUTHOR_ID;
+    let node = snapshot.find_by_author_id(divider).unwrap();
+    match &node.bounds {
+        Some(b) => {
+            if b.w <= 0.0 || b.h <= 0.0 {
                 return ScenarioResult::fail(
                     id,
-                    format!("{divider} has no resolved bounds at {w}x{h}"),
+                    format!("{divider} has a zero-size bound at {w}x{h}: {b:?}"),
                 );
             }
+            if b.x < -1.0 || b.y < -1.0 || b.x + b.w > w + 1.0 || b.y + b.h > h + 1.0 {
+                return ScenarioResult::fail(
+                    id,
+                    format!("{divider} bound {b:?} overflows the {w}x{h} viewport"),
+                );
+            }
+        }
+        None => {
+            return ScenarioResult::fail(
+                id,
+                format!("{divider} has no resolved bounds at {w}x{h}"),
+            );
         }
     }
 
