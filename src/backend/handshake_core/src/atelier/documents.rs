@@ -361,6 +361,52 @@ impl AtelierStore {
         document_id: Uuid,
         update: &AppendCharacterDocumentVersion,
     ) -> AtelierResult<CharacterDocumentVersion> {
+        self.append_character_document_version_with_guard(document_id, update, None)
+            .await
+            .map(|(_document, version)| version)
+    }
+
+    /// Append a new character-document version only if the caller's selected
+    /// base version is still the current head. `expected_parent_version_id =
+    /// None` means the caller expects this to be the first version.
+    pub async fn append_character_document_version_if_current(
+        &self,
+        document_id: Uuid,
+        update: &AppendCharacterDocumentVersion,
+        expected_parent_version_id: Option<Uuid>,
+    ) -> AtelierResult<CharacterDocumentVersion> {
+        self.append_character_document_version_with_guard(
+            document_id,
+            update,
+            Some(expected_parent_version_id),
+        )
+        .await
+        .map(|(_document, version)| version)
+    }
+
+    /// Append a guarded character-document version and return the document row
+    /// updated in the same transaction as the appended version. API callers use
+    /// this to avoid re-reading mutable document metadata after a later writer.
+    pub async fn append_character_document_version_and_document_if_current(
+        &self,
+        document_id: Uuid,
+        update: &AppendCharacterDocumentVersion,
+        expected_parent_version_id: Option<Uuid>,
+    ) -> AtelierResult<(CharacterDocument, CharacterDocumentVersion)> {
+        self.append_character_document_version_with_guard(
+            document_id,
+            update,
+            Some(expected_parent_version_id),
+        )
+        .await
+    }
+
+    async fn append_character_document_version_with_guard(
+        &self,
+        document_id: Uuid,
+        update: &AppendCharacterDocumentVersion,
+        expected_parent_version_id: Option<Option<Uuid>>,
+    ) -> AtelierResult<(CharacterDocument, CharacterDocumentVersion)> {
         let title = require_non_empty_trimmed("title", &update.title)?;
         let author = require_non_empty_trimmed("author", &update.author)?;
         let tags = clean_document_tags(&update.tags);
@@ -379,6 +425,15 @@ impl AtelierStore {
         .ok_or_else(|| AtelierError::NotFound(format!("character document {document_id}")))?;
         let parent_version_id: Option<Uuid> = doc_row.get("current_version_id");
         let current_version_seq: i64 = doc_row.get("current_version_seq");
+        if let Some(expected_parent_version_id) = expected_parent_version_id {
+            if parent_version_id != expected_parent_version_id {
+                tx.rollback().await?;
+                return Err(AtelierError::Conflict(format!(
+                    "stale_character_document_version: expected parent {:?}, current head {:?}",
+                    expected_parent_version_id, parent_version_id
+                )));
+            }
+        }
         let next_version_seq = current_version_seq + 1;
 
         let version_row = sqlx::query(
@@ -400,22 +455,26 @@ impl AtelierStore {
         .await?;
         let version = version_from_row(&version_row);
 
-        sqlx::query(
+        let document_row = sqlx::query(
             r#"UPDATE atelier_character_document
                SET title = $2,
                    tags_json = $3,
                    current_version_id = $4,
                    current_version_seq = $5,
                    updated_at_utc = NOW()
-               WHERE document_id = $1"#,
+               WHERE document_id = $1
+               RETURNING document_id, character_internal_id, doc_type, title,
+                         tags_json, current_version_id, current_version_seq,
+                         created_at_utc, updated_at_utc"#,
         )
         .bind(document_id)
         .bind(&title)
         .bind(&tags_json)
         .bind(version.version_id)
         .bind(version.version_seq)
-        .execute(&mut *tx)
+        .fetch_one(&mut *tx)
         .await?;
+        let document = document_from_row(&document_row)?;
 
         tx.commit().await?;
         self.record_event(
@@ -432,7 +491,7 @@ impl AtelierStore {
             }),
         )
         .await?;
-        Ok(version)
+        Ok((document, version))
     }
 
     pub async fn latest_character_document_version(

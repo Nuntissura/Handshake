@@ -1416,6 +1416,417 @@ async fn atelier_ckc_media_album_api_links_assets_notes_tags_and_refs(
 }
 
 #[tokio::test]
+async fn atelier_ckc_story_and_moodboard_api_links_native_documents(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let state = test_app_state_from_database_url()
+        .await
+        .expect("MT-012 CKC story/moodboard API proof requires managed PostgreSQL; no silent skip");
+    let (base_url, server) = start_atelier_api_server(state).await?;
+    let client = reqwest::Client::new();
+    let actor = format!("mt012-story-agent-{}", Uuid::new_v4());
+    let public_id = format!("mt012-story-char-{}", Uuid::new_v4());
+
+    let created = client
+        .post(format!("{base_url}/atelier/characters"))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "public_id": public_id,
+            "display_name": "MT-012 Story Character",
+        }))
+        .send()
+        .await?;
+    assert_eq!(created.status(), reqwest::StatusCode::CREATED);
+    let character: serde_json::Value = created.json().await?;
+    let character_internal_id = character["internal_id"]
+        .as_str()
+        .expect("character internal_id");
+    let expected_character_ref = format!("atelier://character/{character_internal_id}");
+
+    let story = client
+        .post(format!(
+            "{base_url}/atelier/characters/{character_internal_id}/documents"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "doc_type": "story",
+            "title": "Origin scenes",
+            "body_raw_text": "Scene one: CKC story text stays separate from sheet notes.",
+            "tags": [" story ", "origin", "story"],
+        }))
+        .send()
+        .await?;
+    assert_eq!(story.status(), reqwest::StatusCode::CREATED);
+    let story: serde_json::Value = story.json().await?;
+    let story_document_id = story["document_id"].as_str().expect("story document id");
+    let expected_story_ref = format!("atelier://document/{story_document_id}");
+    assert_eq!(story["doc_type"].as_str(), Some("story"));
+    assert_eq!(
+        story["document_ref"].as_str(),
+        Some(expected_story_ref.as_str())
+    );
+    assert_eq!(
+        story["character_ref"].as_str(),
+        Some(expected_character_ref.as_str())
+    );
+    assert_eq!(story["tags"], serde_json::json!(["story", "origin"]));
+    assert_eq!(
+        story["current_version"]["body_raw_text"].as_str(),
+        Some("Scene one: CKC story text stays separate from sheet notes.")
+    );
+    let first_story_version_id = story["current_version_id"]
+        .as_str()
+        .expect("story current version id");
+    let expected_first_story_version_ref =
+        format!("atelier://document/{story_document_id}/version/{first_story_version_id}");
+
+    let story_append = client
+        .post(format!(
+            "{base_url}/atelier/character-documents/{story_document_id}/versions"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "title": "Origin scenes",
+            "body_raw_text": "Scene two: guarded append from the active story version.",
+            "tags": ["story", "origin", "append"],
+            "expected_parent_version_id": first_story_version_id,
+        }))
+        .send()
+        .await?;
+    assert_eq!(story_append.status(), reqwest::StatusCode::CREATED);
+    let story_append: serde_json::Value = story_append.json().await?;
+    let second_story_version_id = story_append["current_version_id"]
+        .as_str()
+        .expect("second story current version id");
+    let expected_second_story_version_ref =
+        format!("atelier://document/{story_document_id}/version/{second_story_version_id}");
+    assert_eq!(
+        story_append["current_version"]["parent_version_id"].as_str(),
+        Some(first_story_version_id),
+        "CKC story document append must link to the caller's expected parent"
+    );
+    assert_eq!(story_append["current_version_seq"], 2);
+
+    let stale_story_append = client
+        .post(format!(
+            "{base_url}/atelier/character-documents/{story_document_id}/versions"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "title": "Origin scenes",
+            "body_raw_text": "This stale write must not become the story head.",
+            "tags": ["story", "stale"],
+            "expected_parent_version_id": first_story_version_id,
+        }))
+        .send()
+        .await?;
+    assert_eq!(
+        stale_story_append.status(),
+        reqwest::StatusCode::CONFLICT,
+        "stale CKC story document append must not advance the current document head"
+    );
+    let stale_story_append: serde_json::Value = stale_story_append.json().await?;
+    assert_eq!(
+        stale_story_append["error"].as_str(),
+        Some("stale_character_document_version")
+    );
+    assert_eq!(
+        stale_story_append["document_ref"].as_str(),
+        Some(expected_story_ref.as_str())
+    );
+    assert_eq!(
+        stale_story_append["expected_parent_version_id"].as_str(),
+        Some(first_story_version_id)
+    );
+    assert_eq!(
+        stale_story_append["expected_parent_document_version_ref"].as_str(),
+        Some(expected_first_story_version_ref.as_str())
+    );
+    assert_eq!(
+        stale_story_append["expected_document_version_ref"].as_str(),
+        Some(expected_first_story_version_ref.as_str())
+    );
+    assert_eq!(
+        stale_story_append["current_head_version_id"].as_str(),
+        Some(second_story_version_id)
+    );
+    assert_eq!(
+        stale_story_append["current_head_document_version_ref"].as_str(),
+        Some(expected_second_story_version_ref.as_str())
+    );
+
+    let moodboard_doc = client
+        .post(format!(
+            "{base_url}/atelier/characters/{character_internal_id}/documents"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "doc_type": "moodboard",
+            "title": "Visual continuity board",
+            "body_raw_text": "Moodboard document links the native canvas-style board.",
+            "tags": ["moodboard", "visual"],
+        }))
+        .send()
+        .await?;
+    assert_eq!(moodboard_doc.status(), reqwest::StatusCode::CREATED);
+    let moodboard_doc: serde_json::Value = moodboard_doc.json().await?;
+    let moodboard_document_id = moodboard_doc["document_id"]
+        .as_str()
+        .expect("moodboard document id");
+    let first_moodboard_version_id = moodboard_doc["current_version_id"]
+        .as_str()
+        .expect("moodboard document first version id");
+    let expected_moodboard_document_ref = format!("atelier://document/{moodboard_document_id}");
+    assert_eq!(moodboard_doc["doc_type"].as_str(), Some("moodboard"));
+    assert_eq!(
+        moodboard_doc["document_ref"].as_str(),
+        Some(expected_moodboard_document_ref.as_str())
+    );
+
+    let story_list = client
+        .get(format!(
+            "{base_url}/atelier/characters/{character_internal_id}/documents?doc_type=story"
+        ))
+        .send()
+        .await?;
+    assert_eq!(story_list.status(), reqwest::StatusCode::OK);
+    let story_list: Vec<serde_json::Value> = story_list.json().await?;
+    assert_eq!(story_list.len(), 1, "doc_type filter keeps story separate");
+    assert_eq!(
+        story_list[0]["document_ref"].as_str(),
+        Some(expected_story_ref.as_str())
+    );
+
+    let card = client
+        .post(format!(
+            "{base_url}/atelier/character-documents/{story_document_id}/story-cards"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "title": "Meet-cute beat card",
+            "body_raw_text": "First reusable scene card.",
+            "tags": ["scene", "setup", "scene"],
+        }))
+        .send()
+        .await?;
+    assert_eq!(card.status(), reqwest::StatusCode::CREATED);
+    let card: serde_json::Value = card.json().await?;
+    let card_id = card["card_id"].as_str().expect("story card id");
+    assert_eq!(
+        card["story_document_ref"].as_str(),
+        Some(expected_story_ref.as_str())
+    );
+    assert_eq!(card["tags"], serde_json::json!(["scene", "setup"]));
+
+    let beat = client
+        .post(format!(
+            "{base_url}/atelier/character-documents/{story_document_id}/story-beats"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "card_id": card_id,
+            "beat_text": "Argus can target this beat without reading the character sheet.",
+        }))
+        .send()
+        .await?;
+    assert_eq!(beat.status(), reqwest::StatusCode::CREATED);
+    let beat: serde_json::Value = beat.json().await?;
+    assert_eq!(
+        beat["story_document_ref"].as_str(),
+        Some(expected_story_ref.as_str())
+    );
+    assert_eq!(beat["card_id"].as_str(), Some(card_id));
+
+    let wrong_doc_beat = client
+        .post(format!(
+            "{base_url}/atelier/character-documents/{moodboard_document_id}/story-beats"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "card_id": null,
+            "beat_text": "This must not attach to a moodboard document.",
+        }))
+        .send()
+        .await?;
+    assert_eq!(
+        wrong_doc_beat.status(),
+        reqwest::StatusCode::BAD_REQUEST,
+        "story beats must reject non-story documents instead of mixing story/moodboard state"
+    );
+
+    let layer_id = Uuid::new_v4();
+    let moodboard_snapshot = serde_json::json!({
+        "schema_id": "hsk.atelier.moodboard@1",
+        "schema_version": 1,
+        "moodboard_id": moodboard_document_id,
+        "name": "Visual continuity board",
+        "description": "Native Handshake moodboard snapshot, not Excalidraw.",
+        "canvas": {
+            "width": 1600.0,
+            "height": 1000.0,
+            "background_color": "#101418"
+        },
+        "layers": [{
+            "layer_id": layer_id,
+            "name": "Reference layer",
+            "order": 1,
+            "visible": true,
+            "locked": false,
+            "opacity": 1.0,
+            "parent_layer_id": null
+        }],
+        "images": [],
+        "text": [],
+        "shapes": [],
+        "connectors": [],
+        "folders": [],
+        "guides": [],
+        "flags": {
+            "locked": false,
+            "archived": false,
+            "operator_reviewed": false
+        },
+        "style": {
+            "dominant_colors": ["#101418"],
+            "mood_keywords": ["continuity"],
+            "style_description": "native moodboard",
+            "suggested_presets": []
+        },
+        "history": [{
+            "history_id": Uuid::new_v4(),
+            "at": "2026-06-29T00:00:00Z",
+            "actor": actor,
+            "operation": "created",
+            "summary": "Initial CKC moodboard snapshot"
+        }]
+    });
+    let snapshot = client
+        .post(format!(
+            "{base_url}/atelier/character-documents/{moodboard_document_id}/moodboard/snapshots"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "raw_json_text": serde_json::to_string(&moodboard_snapshot)?,
+            "expected_document_version_id": first_moodboard_version_id,
+        }))
+        .send()
+        .await?;
+    assert_eq!(snapshot.status(), reqwest::StatusCode::CREATED);
+    let snapshot: serde_json::Value = snapshot.json().await?;
+    let snapshot_id = snapshot["snapshot_id"].as_str().expect("snapshot id");
+    let expected_moodboard_ref = format!("atelier://moodboard/{snapshot_id}");
+    assert_eq!(
+        snapshot["document_ref"].as_str(),
+        Some(expected_moodboard_document_ref.as_str())
+    );
+    assert_eq!(
+        snapshot["moodboard_ref"].as_str(),
+        Some(expected_moodboard_ref.as_str())
+    );
+    assert_eq!(
+        snapshot["moodboard"]["name"].as_str(),
+        Some("Visual continuity board")
+    );
+
+    let latest = client
+        .get(format!(
+            "{base_url}/atelier/character-documents/{moodboard_document_id}/moodboard/latest"
+        ))
+        .send()
+        .await?;
+    assert_eq!(latest.status(), reqwest::StatusCode::OK);
+    let latest: serde_json::Value = latest.json().await?;
+    assert_eq!(
+        latest["moodboard_ref"].as_str(),
+        Some(expected_moodboard_ref.as_str()),
+        "latest moodboard route returns the reusable snapshot ref"
+    );
+
+    let moodboard_append = client
+        .post(format!(
+            "{base_url}/atelier/character-documents/{moodboard_document_id}/versions"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "title": "Visual continuity board",
+            "body_raw_text": serde_json::to_string(&moodboard_snapshot)?,
+            "tags": ["moodboard", "visual", "second"],
+            "expected_parent_version_id": first_moodboard_version_id,
+        }))
+        .send()
+        .await?;
+    assert_eq!(moodboard_append.status(), reqwest::StatusCode::CREATED);
+    let moodboard_append: serde_json::Value = moodboard_append.json().await?;
+    let second_moodboard_version_id = moodboard_append["current_version_id"]
+        .as_str()
+        .expect("second moodboard document version id");
+    let expected_first_moodboard_version_ref =
+        format!("atelier://document/{moodboard_document_id}/version/{first_moodboard_version_id}");
+    let expected_second_moodboard_version_ref =
+        format!("atelier://document/{moodboard_document_id}/version/{second_moodboard_version_id}");
+
+    let stale_snapshot = client
+        .post(format!(
+            "{base_url}/atelier/character-documents/{moodboard_document_id}/moodboard/snapshots"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "raw_json_text": serde_json::to_string(&moodboard_snapshot)?,
+            "expected_document_version_id": first_moodboard_version_id,
+        }))
+        .send()
+        .await?;
+    assert_eq!(
+        stale_snapshot.status(),
+        reqwest::StatusCode::CONFLICT,
+        "stale CKC moodboard snapshot writes must not attach to a newer document head"
+    );
+    let stale_snapshot: serde_json::Value = stale_snapshot.json().await?;
+    assert_eq!(
+        stale_snapshot["error"].as_str(),
+        Some("stale_moodboard_document_version")
+    );
+    assert_eq!(
+        stale_snapshot["expected_document_version_ref"].as_str(),
+        Some(expected_first_moodboard_version_ref.as_str())
+    );
+    assert_eq!(
+        stale_snapshot["current_head_document_version_ref"].as_str(),
+        Some(expected_second_moodboard_version_ref.as_str())
+    );
+
+    let wrong_doc_snapshot = client
+        .post(format!(
+            "{base_url}/atelier/character-documents/{story_document_id}/moodboard/snapshots"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "raw_json_text": serde_json::to_string(&moodboard_snapshot)?,
+        }))
+        .send()
+        .await?;
+    assert_eq!(
+        wrong_doc_snapshot.status(),
+        reqwest::StatusCode::BAD_REQUEST,
+        "moodboard snapshots must reject story documents"
+    );
+
+    let wrong_doc_latest = client
+        .get(format!(
+            "{base_url}/atelier/character-documents/{story_document_id}/moodboard/latest"
+        ))
+        .send()
+        .await?;
+    assert_eq!(
+        wrong_doc_latest.status(),
+        reqwest::StatusCode::BAD_REQUEST,
+        "latest moodboard route must reject story documents, not report a missing snapshot"
+    );
+
+    server.abort();
+    Ok(())
+}
+
+#[tokio::test]
 async fn atelier_ckc_search_api_returns_fuzzy_vector_combined_refs_and_tag_notes(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {

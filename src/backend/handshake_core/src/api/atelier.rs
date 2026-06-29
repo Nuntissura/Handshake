@@ -29,9 +29,15 @@ use std::collections::HashSet;
 use uuid::Uuid;
 
 use crate::atelier::collections::{Collection, NewCollection};
+use crate::atelier::documents::{
+    AppendCharacterDocumentVersion, CharacterDocument, CharacterDocumentType,
+    CharacterDocumentVersion, NewCharacterDocument, NewStoryBeat, NewStoryCard, StoryBeat,
+    StoryCard,
+};
 use crate::atelier::intake::{
     IntakeBatchMode, IntakeLaneCounts, IntakeProfileMode, NewIntakeBatch,
 };
+use crate::atelier::moodboards::{MoodboardSnapshot, NewMoodboardSnapshot};
 use crate::atelier::search::{
     normalize_tag, AiTagSuggestion, AiTagSuggestionDecision, AiTagSuggestionStatus, CkcSearchMode,
     CkcSearchRequest, CkcSearchResponse, CkcTagNote, NewAiTagSuggestion, UpsertCkcTagNote,
@@ -73,8 +79,36 @@ pub fn routes(state: AppState) -> Router {
             get(list_character_media_albums).post(create_character_media_album),
         )
         .route(
+            "/atelier/characters/:character_internal_id/documents",
+            get(list_character_documents).post(create_character_document),
+        )
+        .route(
             "/atelier/characters/:character_internal_id/sheet-versions/import",
             post(import_sheet_version),
+        )
+        .route(
+            "/atelier/character-documents/:document_id",
+            get(get_character_document),
+        )
+        .route(
+            "/atelier/character-documents/:document_id/versions",
+            get(list_character_document_versions).post(append_character_document_version),
+        )
+        .route(
+            "/atelier/character-documents/:document_id/story-cards",
+            get(list_story_cards).post(add_story_card),
+        )
+        .route(
+            "/atelier/character-documents/:document_id/story-beats",
+            get(list_story_beats).post(add_story_beat),
+        )
+        .route(
+            "/atelier/character-documents/:document_id/moodboard/snapshots",
+            post(record_moodboard_snapshot),
+        )
+        .route(
+            "/atelier/character-documents/:document_id/moodboard/latest",
+            get(latest_moodboard_snapshot),
         )
         .route(
             "/atelier/media-albums/:collection_id/items",
@@ -408,6 +442,146 @@ struct SheetFieldSuggestionsQuery {
 }
 
 #[derive(Debug, Deserialize)]
+struct CharacterDocumentsQuery {
+    doc_type: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CreateCharacterDocumentRequest {
+    doc_type: String,
+    title: String,
+    body_raw_text: String,
+    tags: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AppendCharacterDocumentVersionRequest {
+    title: String,
+    body_raw_text: String,
+    tags: Option<Vec<String>>,
+    expected_parent_version_id: Option<Uuid>,
+}
+
+#[derive(Debug, Serialize)]
+struct CharacterDocumentVersionResponse {
+    version_id: Uuid,
+    document_id: Uuid,
+    document_ref: String,
+    version_seq: i64,
+    title: String,
+    body_raw_text: String,
+    tags: Vec<String>,
+    author: String,
+    parent_version_id: Option<Uuid>,
+    created_at_utc: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize)]
+struct CharacterDocumentVersionConflictResponse {
+    error: &'static str,
+    document_id: Uuid,
+    document_ref: String,
+    expected_parent_version_id: Option<Uuid>,
+    expected_parent_document_version_ref: Option<String>,
+    expected_document_version_ref: Option<String>,
+    current_head_version_id: Option<Uuid>,
+    current_head_document_version_ref: Option<String>,
+    current_parent_version_id: Option<Uuid>,
+    current_document_version_ref: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct CharacterDocumentResponse {
+    document_id: Uuid,
+    document_ref: String,
+    character_internal_id: Uuid,
+    character_ref: String,
+    doc_type: String,
+    title: String,
+    tags: Vec<String>,
+    current_version_id: Uuid,
+    current_version_seq: i64,
+    current_version: Option<CharacterDocumentVersionResponse>,
+    created_at_utc: DateTime<Utc>,
+    updated_at_utc: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AddStoryCardRequest {
+    title: String,
+    body_raw_text: String,
+    tags: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize)]
+struct StoryCardResponse {
+    card_id: Uuid,
+    card_ref: String,
+    story_document_id: Uuid,
+    story_document_ref: String,
+    seq: i64,
+    title: String,
+    body_raw_text: String,
+    tags: Vec<String>,
+    created_at_utc: DateTime<Utc>,
+    updated_at_utc: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AddStoryBeatRequest {
+    card_id: Option<Uuid>,
+    beat_text: String,
+}
+
+#[derive(Debug, Serialize)]
+struct StoryBeatResponse {
+    beat_id: Uuid,
+    beat_ref: String,
+    story_document_id: Uuid,
+    story_document_ref: String,
+    card_id: Option<Uuid>,
+    card_ref: Option<String>,
+    seq: i64,
+    beat_text: String,
+    created_at_utc: DateTime<Utc>,
+    updated_at_utc: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RecordMoodboardSnapshotRequest {
+    raw_json_text: String,
+    expected_document_version_id: Option<Uuid>,
+}
+
+#[derive(Debug, Serialize)]
+struct MoodboardSnapshotResponse {
+    snapshot_id: Uuid,
+    moodboard_ref: String,
+    document_id: Uuid,
+    document_ref: String,
+    document_version_id: Uuid,
+    schema_id: String,
+    schema_version: i64,
+    raw_json_text: String,
+    moodboard_json: serde_json::Value,
+    moodboard: crate::atelier::moodboards::MoodboardDocument,
+    content_sha256: String,
+    author: String,
+    created_at_utc: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize)]
+struct MoodboardSnapshotConflictResponse {
+    error: &'static str,
+    document_id: Uuid,
+    document_ref: String,
+    expected_document_version_id: Option<Uuid>,
+    expected_document_version_ref: Option<String>,
+    current_head_version_id: Option<Uuid>,
+    current_head_document_version_ref: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
 struct CreateMediaAlbumRequest {
     name: String,
     notes: Option<String>,
@@ -550,6 +724,138 @@ fn sheet_version_response(version: SheetVersion) -> SheetVersionResponse {
     }
 }
 
+fn character_document_ref(document_id: Uuid) -> String {
+    format!("atelier://document/{document_id}")
+}
+
+fn character_document_version_ref(document_id: Uuid, version_id: Uuid) -> String {
+    format!("atelier://document/{document_id}/version/{version_id}")
+}
+
+fn story_card_ref(card_id: Uuid) -> String {
+    format!("atelier://story-card/{card_id}")
+}
+
+fn story_beat_ref(beat_id: Uuid) -> String {
+    format!("atelier://story-beat/{beat_id}")
+}
+
+fn moodboard_ref(snapshot_id: Uuid) -> String {
+    format!("atelier://moodboard/{snapshot_id}")
+}
+
+fn character_document_version_response(
+    version: CharacterDocumentVersion,
+) -> CharacterDocumentVersionResponse {
+    CharacterDocumentVersionResponse {
+        version_id: version.version_id,
+        document_id: version.document_id,
+        document_ref: character_document_ref(version.document_id),
+        version_seq: version.version_seq,
+        title: version.title,
+        body_raw_text: version.body_raw_text,
+        tags: version.tags,
+        author: version.author,
+        parent_version_id: version.parent_version_id,
+        created_at_utc: version.created_at_utc,
+    }
+}
+
+fn character_document_response_with_current_version(
+    document: CharacterDocument,
+    current_version: CharacterDocumentVersion,
+) -> CharacterDocumentResponse {
+    let current_version_id = current_version.version_id;
+    let current_version_seq = current_version.version_seq;
+    CharacterDocumentResponse {
+        document_id: document.document_id,
+        document_ref: character_document_ref(document.document_id),
+        character_internal_id: document.character_internal_id,
+        character_ref: character_ref(document.character_internal_id),
+        doc_type: document.doc_type.as_token().to_owned(),
+        title: document.title,
+        tags: document.tags,
+        current_version_id,
+        current_version_seq,
+        current_version: Some(character_document_version_response(current_version)),
+        created_at_utc: document.created_at_utc,
+        updated_at_utc: document.updated_at_utc,
+    }
+}
+
+async fn character_document_response(
+    store: &AtelierStore,
+    document: CharacterDocument,
+) -> Result<CharacterDocumentResponse, (StatusCode, Json<ErrorResponse>)> {
+    let current_version = store
+        .latest_character_document_version(document.document_id)
+        .await
+        .map_err(atelier_error)?
+        .map(character_document_version_response);
+    Ok(CharacterDocumentResponse {
+        document_id: document.document_id,
+        document_ref: character_document_ref(document.document_id),
+        character_internal_id: document.character_internal_id,
+        character_ref: character_ref(document.character_internal_id),
+        doc_type: document.doc_type.as_token().to_owned(),
+        title: document.title,
+        tags: document.tags,
+        current_version_id: document.current_version_id,
+        current_version_seq: document.current_version_seq,
+        current_version,
+        created_at_utc: document.created_at_utc,
+        updated_at_utc: document.updated_at_utc,
+    })
+}
+
+fn story_card_response(card: StoryCard) -> StoryCardResponse {
+    StoryCardResponse {
+        card_id: card.card_id,
+        card_ref: story_card_ref(card.card_id),
+        story_document_id: card.story_document_id,
+        story_document_ref: character_document_ref(card.story_document_id),
+        seq: card.seq,
+        title: card.title,
+        body_raw_text: card.body_raw_text,
+        tags: card.tags,
+        created_at_utc: card.created_at_utc,
+        updated_at_utc: card.updated_at_utc,
+    }
+}
+
+fn story_beat_response(beat: StoryBeat) -> StoryBeatResponse {
+    StoryBeatResponse {
+        beat_id: beat.beat_id,
+        beat_ref: story_beat_ref(beat.beat_id),
+        story_document_id: beat.story_document_id,
+        story_document_ref: character_document_ref(beat.story_document_id),
+        card_id: beat.card_id,
+        card_ref: beat.card_id.map(story_card_ref),
+        seq: beat.seq,
+        beat_text: beat.beat_text,
+        created_at_utc: beat.created_at_utc,
+        updated_at_utc: beat.updated_at_utc,
+    }
+}
+
+fn moodboard_snapshot_response(snapshot: MoodboardSnapshot) -> MoodboardSnapshotResponse {
+    MoodboardSnapshotResponse {
+        snapshot_id: snapshot.snapshot_id,
+        moodboard_ref: moodboard_ref(snapshot.snapshot_id),
+        document_id: snapshot.document_id,
+        document_ref: character_document_ref(snapshot.document_id),
+        document_version_id: snapshot.document_version_id,
+        schema_id: snapshot.schema_id,
+        schema_version: snapshot.schema_version,
+        raw_json_text: snapshot.raw_json_text,
+        moodboard_json: snapshot.moodboard_json,
+        moodboard: snapshot.moodboard,
+        content_sha256: snapshot.content_sha256,
+        author: snapshot.author,
+        created_at_utc: snapshot.created_at_utc,
+    }
+}
+
 fn sheet_version_conflict_response(
     character_internal_id: Uuid,
     expected_parent_version_id: Option<Uuid>,
@@ -571,6 +877,48 @@ fn sheet_version_conflict_response(
         current_parent_version_id,
         current_sheet_version_ref: current_parent_version_id
             .map(|version_id| sheet_version_ref(character_internal_id, version_id)),
+    }
+}
+
+fn character_document_version_conflict_response(
+    document_id: Uuid,
+    expected_parent_version_id: Option<Uuid>,
+    current: Option<CharacterDocumentVersion>,
+) -> CharacterDocumentVersionConflictResponse {
+    let current_parent_version_id = current.as_ref().map(|version| version.version_id);
+    CharacterDocumentVersionConflictResponse {
+        error: "stale_character_document_version",
+        document_id,
+        document_ref: character_document_ref(document_id),
+        expected_parent_version_id,
+        expected_parent_document_version_ref: expected_parent_version_id
+            .map(|version_id| character_document_version_ref(document_id, version_id)),
+        expected_document_version_ref: expected_parent_version_id
+            .map(|version_id| character_document_version_ref(document_id, version_id)),
+        current_head_version_id: current_parent_version_id,
+        current_head_document_version_ref: current_parent_version_id
+            .map(|version_id| character_document_version_ref(document_id, version_id)),
+        current_parent_version_id,
+        current_document_version_ref: current_parent_version_id
+            .map(|version_id| character_document_version_ref(document_id, version_id)),
+    }
+}
+
+fn moodboard_snapshot_conflict_response(
+    document_id: Uuid,
+    expected_document_version_id: Option<Uuid>,
+    current_head_version_id: Option<Uuid>,
+) -> MoodboardSnapshotConflictResponse {
+    MoodboardSnapshotConflictResponse {
+        error: "stale_moodboard_document_version",
+        document_id,
+        document_ref: character_document_ref(document_id),
+        expected_document_version_id,
+        expected_document_version_ref: expected_document_version_id
+            .map(|version_id| character_document_version_ref(document_id, version_id)),
+        current_head_version_id,
+        current_head_document_version_ref: current_head_version_id
+            .map(|version_id| character_document_version_ref(document_id, version_id)),
     }
 }
 
@@ -1083,6 +1431,346 @@ async fn list_sheet_versions(
     Ok(Json(
         versions.into_iter().map(sheet_version_response).collect(),
     ))
+}
+
+fn parse_character_document_type(
+    raw: &str,
+) -> Result<CharacterDocumentType, (StatusCode, Json<ErrorResponse>)> {
+    CharacterDocumentType::from_token(raw.trim()).map_err(atelier_error)
+}
+
+/// GET /atelier/characters/:character_internal_id/documents — CKC story/moodboard/note document refs.
+async fn list_character_documents(
+    State(state): State<AppState>,
+    Path(character_internal_id): Path<Uuid>,
+    Query(query): Query<CharacterDocumentsQuery>,
+) -> Result<Json<Vec<CharacterDocumentResponse>>, (StatusCode, Json<ErrorResponse>)> {
+    let store = atelier_store(&state);
+    store
+        .get_character_by_internal_id(character_internal_id)
+        .await
+        .map_err(atelier_error)?;
+    let doc_type = match query.doc_type {
+        Some(raw) => Some(parse_character_document_type(&raw)?),
+        None => None,
+    };
+    let documents = store
+        .list_character_documents(character_internal_id, doc_type)
+        .await
+        .map_err(atelier_error)?;
+    let mut out = Vec::with_capacity(documents.len());
+    for document in documents {
+        out.push(character_document_response(&store, document).await?);
+    }
+    Ok(Json(out))
+}
+
+/// POST /atelier/characters/:character_internal_id/documents — create a CKC story/moodboard/note document.
+async fn create_character_document(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(character_internal_id): Path<Uuid>,
+    Json(payload): Json<CreateCharacterDocumentRequest>,
+) -> Result<(StatusCode, Json<CharacterDocumentResponse>), (StatusCode, Json<ErrorResponse>)> {
+    let actor = calling_actor(&headers)?;
+    let store = atelier_store(&state);
+    store
+        .get_character_by_internal_id(character_internal_id)
+        .await
+        .map_err(atelier_error)?;
+    let doc_type = parse_character_document_type(&payload.doc_type)?;
+    let version = store
+        .create_character_document(&NewCharacterDocument {
+            character_internal_id,
+            doc_type,
+            title: payload.title,
+            body_raw_text: payload.body_raw_text,
+            tags: payload.tags.unwrap_or_default(),
+            author: actor.clone(),
+        })
+        .await
+        .map_err(atelier_error)?;
+    let document = store
+        .get_character_document(version.document_id)
+        .await
+        .map_err(atelier_error)?;
+    tracing::info!(
+        target: "handshake_core::atelier",
+        route = "/atelier/characters/:character_internal_id/documents",
+        status = "created",
+        actor = %actor,
+        character_internal_id = %character_internal_id,
+        document_id = %document.document_id,
+        doc_type = %document.doc_type.as_token(),
+        "create CKC character document"
+    );
+    Ok((
+        StatusCode::CREATED,
+        Json(character_document_response(&store, document).await?),
+    ))
+}
+
+/// GET /atelier/character-documents/:document_id — read one CKC character document.
+async fn get_character_document(
+    State(state): State<AppState>,
+    Path(document_id): Path<Uuid>,
+) -> Result<Json<CharacterDocumentResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let store = atelier_store(&state);
+    let document = store
+        .get_character_document(document_id)
+        .await
+        .map_err(atelier_error)?;
+    Ok(Json(character_document_response(&store, document).await?))
+}
+
+/// GET /atelier/character-documents/:document_id/versions — append-only story/moodboard/note history.
+async fn list_character_document_versions(
+    State(state): State<AppState>,
+    Path(document_id): Path<Uuid>,
+) -> Result<Json<Vec<CharacterDocumentVersionResponse>>, (StatusCode, Json<ErrorResponse>)> {
+    let store = atelier_store(&state);
+    store
+        .get_character_document(document_id)
+        .await
+        .map_err(atelier_error)?;
+    let versions = store
+        .character_document_history(document_id)
+        .await
+        .map_err(atelier_error)?;
+    Ok(Json(
+        versions
+            .into_iter()
+            .map(character_document_version_response)
+            .collect(),
+    ))
+}
+
+/// POST /atelier/character-documents/:document_id/versions — append story/moodboard/note text.
+async fn append_character_document_version(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(document_id): Path<Uuid>,
+    Json(payload): Json<AppendCharacterDocumentVersionRequest>,
+) -> Result<Response, (StatusCode, Json<ErrorResponse>)> {
+    let actor = calling_actor(&headers)?;
+    let store = atelier_store(&state);
+    let expected_parent_version_id = payload.expected_parent_version_id;
+    let (document, appended_version) = match store
+        .append_character_document_version_and_document_if_current(
+            document_id,
+            &AppendCharacterDocumentVersion {
+                title: payload.title,
+                body_raw_text: payload.body_raw_text,
+                tags: payload.tags.unwrap_or_default(),
+                author: actor.clone(),
+            },
+            expected_parent_version_id,
+        )
+        .await
+    {
+        Ok((document, version)) => (document, version),
+        Err(AtelierError::Conflict(detail)) => {
+            tracing::warn!(
+                target: "handshake_core::atelier",
+                %detail,
+                document_id = %document_id,
+                "stale CKC character document version write"
+            );
+            let current = store
+                .latest_character_document_version(document_id)
+                .await
+                .map_err(atelier_error)?;
+            let response = character_document_version_conflict_response(
+                document_id,
+                expected_parent_version_id,
+                current,
+            );
+            return Ok((StatusCode::CONFLICT, Json(response)).into_response());
+        }
+        Err(err) => return Err(atelier_error(err)),
+    };
+    tracing::info!(
+        target: "handshake_core::atelier",
+        route = "/atelier/character-documents/:document_id/versions",
+        status = "ok",
+        actor = %actor,
+        document_id = %document_id,
+        "append CKC character document version"
+    );
+    Ok((
+        StatusCode::CREATED,
+        Json(character_document_response_with_current_version(
+            document,
+            appended_version,
+        )),
+    )
+        .into_response())
+}
+
+/// GET /atelier/character-documents/:document_id/story-cards — list reusable story cards.
+async fn list_story_cards(
+    State(state): State<AppState>,
+    Path(document_id): Path<Uuid>,
+) -> Result<Json<Vec<StoryCardResponse>>, (StatusCode, Json<ErrorResponse>)> {
+    let store = atelier_store(&state);
+    let cards = store
+        .list_story_cards(document_id)
+        .await
+        .map_err(atelier_error)?;
+    Ok(Json(cards.into_iter().map(story_card_response).collect()))
+}
+
+/// POST /atelier/character-documents/:document_id/story-cards — add a story card.
+async fn add_story_card(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(document_id): Path<Uuid>,
+    Json(payload): Json<AddStoryCardRequest>,
+) -> Result<(StatusCode, Json<StoryCardResponse>), (StatusCode, Json<ErrorResponse>)> {
+    let actor = calling_actor(&headers)?;
+    let store = atelier_store(&state);
+    let card = store
+        .add_story_card(&NewStoryCard {
+            story_document_id: document_id,
+            title: payload.title,
+            body_raw_text: payload.body_raw_text,
+            tags: payload.tags.unwrap_or_default(),
+        })
+        .await
+        .map_err(atelier_error)?;
+    tracing::info!(
+        target: "handshake_core::atelier",
+        route = "/atelier/character-documents/:document_id/story-cards",
+        status = "created",
+        actor = %actor,
+        document_id = %document_id,
+        card_id = %card.card_id,
+        "add CKC story card"
+    );
+    Ok((StatusCode::CREATED, Json(story_card_response(card))))
+}
+
+/// GET /atelier/character-documents/:document_id/story-beats — list reusable story beats.
+async fn list_story_beats(
+    State(state): State<AppState>,
+    Path(document_id): Path<Uuid>,
+) -> Result<Json<Vec<StoryBeatResponse>>, (StatusCode, Json<ErrorResponse>)> {
+    let store = atelier_store(&state);
+    let beats = store
+        .list_story_beats(document_id)
+        .await
+        .map_err(atelier_error)?;
+    Ok(Json(beats.into_iter().map(story_beat_response).collect()))
+}
+
+/// POST /atelier/character-documents/:document_id/story-beats — add a story beat.
+async fn add_story_beat(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(document_id): Path<Uuid>,
+    Json(payload): Json<AddStoryBeatRequest>,
+) -> Result<(StatusCode, Json<StoryBeatResponse>), (StatusCode, Json<ErrorResponse>)> {
+    let actor = calling_actor(&headers)?;
+    let store = atelier_store(&state);
+    let beat = store
+        .add_story_beat(&NewStoryBeat {
+            story_document_id: document_id,
+            card_id: payload.card_id,
+            beat_text: payload.beat_text,
+        })
+        .await
+        .map_err(atelier_error)?;
+    tracing::info!(
+        target: "handshake_core::atelier",
+        route = "/atelier/character-documents/:document_id/story-beats",
+        status = "created",
+        actor = %actor,
+        document_id = %document_id,
+        beat_id = %beat.beat_id,
+        "add CKC story beat"
+    );
+    Ok((StatusCode::CREATED, Json(story_beat_response(beat))))
+}
+
+/// POST /atelier/character-documents/:document_id/moodboard/snapshots — record a native moodboard snapshot.
+async fn record_moodboard_snapshot(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(document_id): Path<Uuid>,
+    Json(payload): Json<RecordMoodboardSnapshotRequest>,
+) -> Result<Response, (StatusCode, Json<ErrorResponse>)> {
+    let actor = calling_actor(&headers)?;
+    let store = atelier_store(&state);
+    let expected_document_version_id = payload.expected_document_version_id;
+    let snapshot = match store
+        .record_moodboard_snapshot(&NewMoodboardSnapshot {
+            document_id,
+            raw_json_text: payload.raw_json_text,
+            expected_document_version_id,
+            author: actor.clone(),
+        })
+        .await
+    {
+        Ok(snapshot) => snapshot,
+        Err(AtelierError::Conflict(detail)) => {
+            tracing::warn!(
+                target: "handshake_core::atelier",
+                %detail,
+                document_id = %document_id,
+                "stale CKC moodboard snapshot write"
+            );
+            let current_head_version_id = store
+                .latest_character_document_version(document_id)
+                .await
+                .map_err(atelier_error)?
+                .map(|version| version.version_id);
+            let response = moodboard_snapshot_conflict_response(
+                document_id,
+                expected_document_version_id,
+                current_head_version_id,
+            );
+            return Ok((StatusCode::CONFLICT, Json(response)).into_response());
+        }
+        Err(err) => return Err(atelier_error(err)),
+    };
+    tracing::info!(
+        target: "handshake_core::atelier",
+        route = "/atelier/character-documents/:document_id/moodboard/snapshots",
+        status = "created",
+        actor = %actor,
+        document_id = %document_id,
+        snapshot_id = %snapshot.snapshot_id,
+        "record CKC moodboard snapshot"
+    );
+    Ok((
+        StatusCode::CREATED,
+        Json(moodboard_snapshot_response(snapshot)),
+    )
+        .into_response())
+}
+
+/// GET /atelier/character-documents/:document_id/moodboard/latest — open the latest native moodboard snapshot.
+async fn latest_moodboard_snapshot(
+    State(state): State<AppState>,
+    Path(document_id): Path<Uuid>,
+) -> Result<Json<MoodboardSnapshotResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let store = atelier_store(&state);
+    let document = store
+        .get_character_document(document_id)
+        .await
+        .map_err(atelier_error)?;
+    if document.doc_type != CharacterDocumentType::Moodboard {
+        return Err(atelier_error(AtelierError::Validation(format!(
+            "document {document_id} is {}, expected moodboard",
+            document.doc_type.as_token()
+        ))));
+    }
+    let snapshot = store
+        .latest_moodboard_snapshot(document_id)
+        .await
+        .map_err(atelier_error)?
+        .ok_or_else(|| atelier_error(AtelierError::NotFound(format!("moodboard {document_id}"))))?;
+    Ok(Json(moodboard_snapshot_response(snapshot)))
 }
 
 /// GET /atelier/characters/:character_internal_id/media-albums — character-scoped CKC albums.

@@ -1114,6 +1114,107 @@ fn atelier_client_builds_verified_routes() {
             && notes.body.as_ref().unwrap().get("source_url_ref").is_none(),
         "MT-010: media note/tag route must not carry album-link provenance refs"
     );
+    let story_documents = c.character_documents_request("char-7", Some("story"));
+    assert_eq!(
+        story_documents.url, "http://127.0.0.1:37501/atelier/characters/char-7/documents",
+        "MT-012: story documents are listed through character-scoped Atelier document routes"
+    );
+    assert_eq!(
+        story_documents.query,
+        vec![("doc_type".to_owned(), "story".to_owned())],
+        "MT-012: doc_type lives in the typed query vector, not duplicated in the URL"
+    );
+    let story_doc = c.create_character_document_actor_request(
+        "char-7",
+        "story",
+        "Origin scenes",
+        "story body",
+        &["origin".to_owned()],
+        "agent-a",
+    );
+    assert_eq!(
+        story_doc.url, "http://127.0.0.1:37501/atelier/characters/char-7/documents",
+        "MT-012: create story document targets the character document route"
+    );
+    assert_eq!(story_doc.body.as_ref().unwrap()["doc_type"], "story");
+    assert_eq!(
+        story_doc.headers,
+        vec![(HSK_HEADER_ACTOR_ID.to_owned(), "agent-a".to_owned())],
+        "MT-012: story document writes carry backend actor attribution"
+    );
+    let story_doc_append = c.append_character_document_version_actor_request(
+        "doc-7",
+        "Origin scenes",
+        "updated story body",
+        &["origin".to_owned(), "continuity".to_owned()],
+        Some("doc-7-v1"),
+        "agent-a",
+    );
+    assert_eq!(
+        story_doc_append.url, "http://127.0.0.1:37501/atelier/character-documents/doc-7/versions",
+        "MT-012: story document save appends a native document version"
+    );
+    assert_eq!(
+        story_doc_append.body.as_ref().unwrap()["body_raw_text"],
+        "updated story body"
+    );
+    assert_eq!(
+        story_doc_append.body.as_ref().unwrap()["expected_parent_version_id"],
+        "doc-7-v1",
+        "MT-012: story document appends carry the active version as the stale-write guard"
+    );
+    let story_card = c.add_story_card_actor_request(
+        "doc-7",
+        "Scene card",
+        "first beat body",
+        &["scene".to_owned()],
+        "agent-a",
+    );
+    assert_eq!(
+        story_card.url, "http://127.0.0.1:37501/atelier/character-documents/doc-7/story-cards",
+        "MT-012: story cards are document-scoped"
+    );
+    let story_beat = c.add_story_beat_actor_request(
+        "doc-7",
+        Some("card-7"),
+        "Argus-steerable story beat",
+        "agent-a",
+    );
+    assert_eq!(
+        story_beat.url, "http://127.0.0.1:37501/atelier/character-documents/doc-7/story-beats",
+        "MT-012: story beats are document-scoped"
+    );
+    assert_eq!(
+        story_beat.body.as_ref().unwrap()["card_id"],
+        "card-7",
+        "MT-012: beats can attach to a specific story card"
+    );
+    assert_eq!(
+        c.latest_moodboard_snapshot_request("doc-8").url,
+        "http://127.0.0.1:37501/atelier/character-documents/doc-8/moodboard/latest",
+        "MT-012: latest moodboard snapshot route exposes reusable moodboard refs"
+    );
+    let moodboard_snapshot = c.record_moodboard_snapshot_actor_request(
+        "doc-8",
+        r#"{"schema_id":"hsk.atelier.moodboard@1"}"#,
+        Some("doc-8-v2"),
+        "agent-a",
+    );
+    assert_eq!(
+        moodboard_snapshot.url,
+        "http://127.0.0.1:37501/atelier/character-documents/doc-8/moodboard/snapshots",
+        "MT-012: moodboard snapshots reuse native Atelier moodboard primitives"
+    );
+    assert_eq!(
+        moodboard_snapshot.headers,
+        vec![(HSK_HEADER_ACTOR_ID.to_owned(), "agent-a".to_owned())],
+        "MT-012: moodboard snapshot writes carry backend actor attribution"
+    );
+    assert_eq!(
+        moodboard_snapshot.body.as_ref().unwrap()["expected_document_version_id"],
+        "doc-8-v2",
+        "MT-012: moodboard snapshot writes carry the exact document version guard"
+    );
     println!(
         "AC-5/MT-009: AtelierClient builds verified /atelier routes for intake and CKC sheets"
     );

@@ -165,10 +165,16 @@ async fn mt061_character_sheet_fixture_corpus_round_trips() {
             fixture_char.sheet_versions.len(),
             "all fixture sheet versions preserved (append-only)"
         );
-        for (idx, (persisted, fixture_sv)) in
-            history.iter().zip(fixture_char.sheet_versions.iter()).enumerate()
+        for (idx, (persisted, fixture_sv)) in history
+            .iter()
+            .zip(fixture_char.sheet_versions.iter())
+            .enumerate()
         {
-            assert_eq!(persisted.seq, (idx as i64) + 1, "seq is 1-based and ordered");
+            assert_eq!(
+                persisted.seq,
+                (idx as i64) + 1,
+                "seq is 1-based and ordered"
+            );
             assert_eq!(
                 persisted.raw_text, fixture_sv.raw_text,
                 "raw sheet bytes round-trip exactly"
@@ -176,7 +182,10 @@ async fn mt061_character_sheet_fixture_corpus_round_trips() {
             assert_eq!(persisted.author, fixture_sv.author);
             assert_eq!(persisted.tool, fixture_sv.tool);
             if idx == 0 {
-                assert_eq!(persisted.parent_version_id, None, "first version has no parent");
+                assert_eq!(
+                    persisted.parent_version_id, None,
+                    "first version has no parent"
+                );
             } else {
                 assert_eq!(
                     persisted.parent_version_id,
@@ -512,10 +521,16 @@ async fn mt063_collection_contact_sheet_fixture_corpus_round_trips() {
     assert_eq!(members.len(), member_assets.len());
     for (member, expected_asset) in members.iter().zip(member_assets.iter()) {
         assert_eq!(member.collection_id, collection.collection_id);
-        assert_eq!(member.asset_id, *expected_asset, "membership order preserved");
+        assert_eq!(
+            member.asset_id, *expected_asset,
+            "membership order preserved"
+        );
     }
     for (idx, member) in members.iter().enumerate() {
-        assert_eq!(member.sort_order, idx as i64, "membership sort order is dense");
+        assert_eq!(
+            member.sort_order, idx as i64,
+            "membership sort order is dense"
+        );
     }
 
     // Contact sheet snapshots membership by content hash (immutable manifest).
@@ -768,6 +783,7 @@ async fn mt064_docs_moodboard_relations_fixture_corpus_round_trips() {
                     .record_moodboard_snapshot(&NewMoodboardSnapshot {
                         document_id,
                         raw_json_text: resolved.clone(),
+                        expected_document_version_id: None,
                         author: fixture_doc.author.clone(),
                     })
                     .await
@@ -800,7 +816,10 @@ async fn mt064_docs_moodboard_relations_fixture_corpus_round_trips() {
             .await
             .expect("create relationship from fixture");
         // Store trims kind/label/notes; round-trip is the trimmed value.
-        assert_eq!(created.relationship_kind, fixture_rel.relationship_kind.trim());
+        assert_eq!(
+            created.relationship_kind,
+            fixture_rel.relationship_kind.trim()
+        );
         assert_eq!(created.label.as_deref(), Some(fixture_rel.label.trim()));
         assert_eq!(created.notes, fixture_rel.notes.trim());
 
@@ -817,7 +836,10 @@ async fn mt064_docs_moodboard_relations_fixture_corpus_round_trips() {
             fetched.target_character_id,
             character_ids[fixture_rel.target_character_index]
         );
-        assert_eq!(fetched.relationship_kind, fixture_rel.relationship_kind.trim());
+        assert_eq!(
+            fetched.relationship_kind,
+            fixture_rel.relationship_kind.trim()
+        );
     }
 }
 
@@ -948,8 +970,9 @@ async fn mt065_search_tags_similarity_fixture_corpus_round_trips() {
 
         let rules = store.list_tag_rules().await.expect("list tag rules");
         assert!(
-            rules.iter().any(|r| r.rule_id == created.rule_id
-                && r.emit_tag == emit_tag.to_ascii_lowercase()),
+            rules.iter().any(
+                |r| r.rule_id == created.rule_id && r.emit_tag == emit_tag.to_ascii_lowercase()
+            ),
             "created tag rule round-trips in the rule list"
         );
     }
@@ -1086,7 +1109,10 @@ async fn mt065_search_tags_similarity_fixture_corpus_round_trips() {
         .expect("reload near similarity projection")
         .expect("near projection present");
     assert_eq!(near_projection.asset_internal_id, near_asset.asset_id);
-    assert_eq!(near_projection.dhash_hex.as_deref(), Some(near_dhash.as_str()));
+    assert_eq!(
+        near_projection.dhash_hex.as_deref(),
+        Some(near_dhash.as_str())
+    );
     assert_eq!(
         near_projection.palette_json["dominant"][0]["hex"]
             .as_str()
@@ -1098,7 +1124,10 @@ async fn mt065_search_tags_similarity_fixture_corpus_round_trips() {
         .await
         .expect("reload far similarity projection")
         .expect("far projection present");
-    assert_eq!(far_projection.dhash_hex.as_deref(), Some(far_dhash.as_str()));
+    assert_eq!(
+        far_projection.dhash_hex.as_deref(),
+        Some(far_dhash.as_str())
+    );
 }
 
 // =====================================================================
@@ -1345,7 +1374,10 @@ async fn mt066_reset_orphan_fixture_corpus_round_trips() {
         .iter()
         .find(|row| row.reset_id == preferences_reset.reset_id)
         .expect("preferences-only reset row persisted");
-    assert_eq!(persisted_pref_reset.mode, fixture.preferences_only_reset.mode);
+    assert_eq!(
+        persisted_pref_reset.mode,
+        fixture.preferences_only_reset.mode
+    );
     assert_eq!(
         persisted_pref_reset.requested_by,
         fixture.preferences_only_reset.requested_by
@@ -1367,7 +1399,10 @@ async fn mt066_reset_orphan_fixture_corpus_round_trips() {
         })
         .await
         .expect("adopt orphan manifest item from fixture");
-    assert_eq!(adoption.manifest_item.adoption_status, OrphanAdoptionStatus::Adopted);
+    assert_eq!(
+        adoption.manifest_item.adoption_status,
+        OrphanAdoptionStatus::Adopted
+    );
     assert_eq!(
         adoption.item.content_hash.as_deref(),
         Some(adopt_target.content_hash.as_str()),
@@ -1553,7 +1588,10 @@ async fn mt076_web_portfolio_export_fixture_corpus_round_trips() {
         .map(|(asset, fixture_media)| WebPortfolioManifestItem {
             asset_id: asset.asset_id,
             artifact_ref: asset.artifact_ref.clone(),
-            pack_path: format!("images/{}-{}", asset.asset_id, fixture_media.pack_path_suffix),
+            pack_path: format!(
+                "images/{}-{}",
+                asset.asset_id, fixture_media.pack_path_suffix
+            ),
             content_hash: asset.content_hash.clone(),
             byte_len: asset.byte_len,
         })
@@ -2137,8 +2175,7 @@ async fn mt078_llm_evidence_pack_fixture_corpus_round_trips() {
 
     // Machine-local .GOV anchor paths are forbidden.
     let mut gov_files = files.clone();
-    gov_files[0].source_anchors[0].source_path =
-        fixture.invalid_machine_local_pack_path.clone();
+    gov_files[0].source_anchors[0].source_path = fixture.invalid_machine_local_pack_path.clone();
     let gov_err =
         build_llm_evidence_pack_manifest(Uuid::new_v4(), fixture.requested_by.clone(), gov_files)
             .expect_err(".GOV machine-local anchor paths are rejected");

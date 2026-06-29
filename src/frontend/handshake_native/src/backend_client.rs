@@ -5342,6 +5342,79 @@ pub struct AtelierCkcMediaNotesTagsRow {
     pub source_url_ref: Option<String>,
 }
 
+/// One append-only version of a CKC character document.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCkcDocumentVersionRow {
+    pub version_id: String,
+    pub document_id: String,
+    pub document_ref: String,
+    pub version_seq: i64,
+    pub title: String,
+    pub body_raw_text: String,
+    pub tags: Vec<String>,
+    pub author: String,
+}
+
+/// One CKC story/note/moodboard character document with its current version.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCkcCharacterDocumentRow {
+    pub document_id: String,
+    pub document_ref: String,
+    pub character_internal_id: String,
+    pub character_ref: String,
+    pub doc_type: String,
+    pub title: String,
+    pub tags: Vec<String>,
+    pub current_version_id: String,
+    pub current_version_seq: i64,
+    pub current_version: Option<AtelierCkcDocumentVersionRow>,
+    pub story_cards: Vec<AtelierCkcStoryCardRow>,
+    pub story_beats: Vec<AtelierCkcStoryBeatRow>,
+}
+
+/// One reusable story card inside a CKC story document.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCkcStoryCardRow {
+    pub card_id: String,
+    pub card_ref: String,
+    pub story_document_id: String,
+    pub story_document_ref: String,
+    pub seq: i64,
+    pub title: String,
+    pub body_raw_text: String,
+    pub tags: Vec<String>,
+}
+
+/// One reusable story beat inside a CKC story document.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCkcStoryBeatRow {
+    pub beat_id: String,
+    pub beat_ref: String,
+    pub story_document_id: String,
+    pub story_document_ref: String,
+    pub card_id: Option<String>,
+    pub card_ref: Option<String>,
+    pub seq: i64,
+    pub beat_text: String,
+}
+
+/// Latest native Handshake moodboard snapshot for one CKC moodboard document.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AtelierCkcMoodboardSnapshotRow {
+    pub snapshot_id: String,
+    pub moodboard_ref: String,
+    pub document_id: String,
+    pub document_ref: String,
+    pub document_version_id: String,
+    pub schema_id: String,
+    pub schema_version: i64,
+    pub raw_json_text: String,
+    pub moodboard_name: String,
+    pub moodboard_json: serde_json::Value,
+    pub content_sha256: String,
+    pub author: String,
+}
+
 /// One rich tag note attached to a CKC tag and optionally scoped to a character/sheet/album/media ref.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AtelierCkcTagNoteRow {
@@ -5383,15 +5456,18 @@ pub struct AtelierCkcSearchResponse {
 }
 
 /// One CKC character plus its current/latest sheet version, as the native panel needs it.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct AtelierCkcCharacterSheetRow {
     pub character: AtelierCharacterRow,
     pub latest_sheet: Option<AtelierSheetVersionRow>,
     pub media_albums: Vec<AtelierCkcMediaAlbumRow>,
+    pub story_documents: Vec<AtelierCkcCharacterDocumentRow>,
+    pub moodboard_documents: Vec<AtelierCkcCharacterDocumentRow>,
+    pub moodboard_snapshots: Vec<AtelierCkcMoodboardSnapshotRow>,
 }
 
 /// CKC character database projection loaded for the native Castkit Codex tab.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct AtelierCkcData {
     pub characters: Vec<AtelierCkcCharacterSheetRow>,
 }
@@ -5482,6 +5558,30 @@ pub type AtelierCkcMediaAlbumCreateCell =
 /// One-slot delivery cell for off-thread CKC media album item linking.
 pub type AtelierCkcMediaAlbumItemsCell =
     Arc<Mutex<Option<Result<AtelierCkcMediaAlbumItemsRow, String>>>>;
+
+/// One-slot delivery cell for off-thread CKC story document/list operations.
+pub type AtelierCkcDocumentsCell =
+    Arc<Mutex<Option<Result<Vec<AtelierCkcCharacterDocumentRow>, String>>>>;
+
+/// One-slot delivery cell for off-thread CKC character-document write operations.
+pub type AtelierCkcCharacterDocumentCell =
+    Arc<Mutex<Option<Result<AtelierCkcCharacterDocumentRow, String>>>>;
+
+/// One-slot delivery cell for off-thread CKC story-card operations.
+pub type AtelierCkcStoryCardsCell = Arc<Mutex<Option<Result<Vec<AtelierCkcStoryCardRow>, String>>>>;
+
+/// One-slot delivery cell for one off-thread CKC story-card write.
+pub type AtelierCkcStoryCardCell = Arc<Mutex<Option<Result<AtelierCkcStoryCardRow, String>>>>;
+
+/// One-slot delivery cell for off-thread CKC story-beat operations.
+pub type AtelierCkcStoryBeatsCell = Arc<Mutex<Option<Result<Vec<AtelierCkcStoryBeatRow>, String>>>>;
+
+/// One-slot delivery cell for one off-thread CKC story-beat write.
+pub type AtelierCkcStoryBeatCell = Arc<Mutex<Option<Result<AtelierCkcStoryBeatRow, String>>>>;
+
+/// One-slot delivery cell for off-thread CKC moodboard snapshot operations.
+pub type AtelierCkcMoodboardSnapshotCell =
+    Arc<Mutex<Option<Result<AtelierCkcMoodboardSnapshotRow, String>>>>;
 
 /// One-slot delivery cell for off-thread CKC fuzzy/vector/combined search.
 pub type AtelierCkcSearchCell = Arc<Mutex<Option<Result<AtelierCkcSearchResponse, String>>>>;
@@ -5814,6 +5914,590 @@ impl AtelierClient {
                 ("limit".to_owned(), limit.to_string()),
             ],
         }
+    }
+
+    /// Pure request builder for `GET /atelier/characters/{id}/documents`.
+    pub fn character_documents_request(
+        &self,
+        character_internal_id: &str,
+        doc_type: Option<&str>,
+    ) -> GetRequestSpec {
+        let query = doc_type
+            .filter(|value| !value.trim().is_empty())
+            .map(|value| vec![("doc_type".to_owned(), value.trim().to_owned())])
+            .unwrap_or_default();
+        let url = format!(
+            "{}/atelier/characters/{}/documents",
+            self.base_url, character_internal_id
+        );
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url,
+            query,
+        }
+    }
+
+    /// Pure request builder for CKC story/moodboard character-document creation.
+    pub fn create_character_document_request(
+        &self,
+        character_internal_id: &str,
+        doc_type: &str,
+        title: &str,
+        body_raw_text: &str,
+        tags: &[String],
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/characters/{}/documents",
+                self.base_url, character_internal_id
+            ),
+            body: Some(serde_json::json!({
+                "doc_type": doc_type,
+                "title": title,
+                "body_raw_text": body_raw_text,
+                "tags": tags,
+            })),
+        }
+    }
+
+    /// Actor-attributed request builder for CKC story/moodboard document creation.
+    pub fn create_character_document_actor_request(
+        &self,
+        character_internal_id: &str,
+        doc_type: &str,
+        title: &str,
+        body_raw_text: &str,
+        tags: &[String],
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.create_character_document_request(
+            character_internal_id,
+            doc_type,
+            title,
+            body_raw_text,
+            tags,
+        );
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for appending one CKC character-document version.
+    pub fn append_character_document_version_request(
+        &self,
+        document_id: &str,
+        title: &str,
+        body_raw_text: &str,
+        tags: &[String],
+        expected_parent_version_id: Option<&str>,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/character-documents/{}/versions",
+                self.base_url, document_id
+            ),
+            body: Some(serde_json::json!({
+                "title": title,
+                "body_raw_text": body_raw_text,
+                "tags": tags,
+                "expected_parent_version_id": expected_parent_version_id,
+            })),
+        }
+    }
+
+    /// Actor-attributed request builder for appending one CKC character-document version.
+    pub fn append_character_document_version_actor_request(
+        &self,
+        document_id: &str,
+        title: &str,
+        body_raw_text: &str,
+        tags: &[String],
+        expected_parent_version_id: Option<&str>,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.append_character_document_version_request(
+            document_id,
+            title,
+            body_raw_text,
+            tags,
+            expected_parent_version_id,
+        );
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for CKC story-card list.
+    pub fn story_cards_request(&self, document_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!(
+                "{}/atelier/character-documents/{}/story-cards",
+                self.base_url, document_id
+            ),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for CKC story-card creation.
+    pub fn add_story_card_request(
+        &self,
+        document_id: &str,
+        title: &str,
+        body_raw_text: &str,
+        tags: &[String],
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/character-documents/{}/story-cards",
+                self.base_url, document_id
+            ),
+            body: Some(serde_json::json!({
+                "title": title,
+                "body_raw_text": body_raw_text,
+                "tags": tags,
+            })),
+        }
+    }
+
+    /// Actor-attributed request builder for CKC story-card creation.
+    pub fn add_story_card_actor_request(
+        &self,
+        document_id: &str,
+        title: &str,
+        body_raw_text: &str,
+        tags: &[String],
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.add_story_card_request(document_id, title, body_raw_text, tags);
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for CKC story-beat list.
+    pub fn story_beats_request(&self, document_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!(
+                "{}/atelier/character-documents/{}/story-beats",
+                self.base_url, document_id
+            ),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for CKC story-beat creation.
+    pub fn add_story_beat_request(
+        &self,
+        document_id: &str,
+        card_id: Option<&str>,
+        beat_text: &str,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/character-documents/{}/story-beats",
+                self.base_url, document_id
+            ),
+            body: Some(serde_json::json!({
+                "card_id": card_id,
+                "beat_text": beat_text,
+            })),
+        }
+    }
+
+    /// Actor-attributed request builder for CKC story-beat creation.
+    pub fn add_story_beat_actor_request(
+        &self,
+        document_id: &str,
+        card_id: Option<&str>,
+        beat_text: &str,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.add_story_beat_request(document_id, card_id, beat_text);
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for `GET /atelier/character-documents/{id}/moodboard/latest`.
+    pub fn latest_moodboard_snapshot_request(&self, document_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!(
+                "{}/atelier/character-documents/{}/moodboard/latest",
+                self.base_url, document_id
+            ),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for native CKC moodboard snapshot recording.
+    pub fn record_moodboard_snapshot_request(
+        &self,
+        document_id: &str,
+        raw_json_text: &str,
+        expected_document_version_id: Option<&str>,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/character-documents/{}/moodboard/snapshots",
+                self.base_url, document_id
+            ),
+            body: Some(serde_json::json!({
+                "raw_json_text": raw_json_text,
+                "expected_document_version_id": expected_document_version_id,
+            })),
+        }
+    }
+
+    /// Actor-attributed request builder for native CKC moodboard snapshot recording.
+    pub fn record_moodboard_snapshot_actor_request(
+        &self,
+        document_id: &str,
+        raw_json_text: &str,
+        expected_document_version_id: Option<&str>,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let spec = self.record_moodboard_snapshot_request(
+            document_id,
+            raw_json_text,
+            expected_document_version_id,
+        );
+        ActorRequestSpec {
+            method: spec.method,
+            url: spec.url,
+            body: spec.body,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Create a CKC character document off the UI thread.
+    pub fn create_ckc_character_document(
+        &self,
+        character_internal_id: &str,
+        doc_type: &str,
+        title: &str,
+        body_raw_text: &str,
+        tags: &[String],
+        actor_id: &str,
+        cell: AtelierCkcCharacterDocumentCell,
+    ) {
+        let spec = self.create_character_document_actor_request(
+            character_internal_id,
+            doc_type,
+            title,
+            body_raw_text,
+            tags,
+            actor_id,
+        );
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_ckc_document_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing CKC document row in create response".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Create a pending CKC moodboard document, then record its first native
+    /// moodboard snapshot against the exact version returned by the create call.
+    pub fn create_ckc_moodboard_document_snapshot(
+        &self,
+        character_internal_id: &str,
+        title: &str,
+        raw_json_text: &str,
+        tags: &[String],
+        actor_id: &str,
+        document_cell: AtelierCkcCharacterDocumentCell,
+        snapshot_cell: AtelierCkcMoodboardSnapshotCell,
+    ) {
+        let create_spec = self.create_character_document_actor_request(
+            character_internal_id,
+            "moodboard",
+            title,
+            raw_json_text,
+            tags,
+            actor_id,
+        );
+        let base_url = self.base_url.clone();
+        let raw_json_text = raw_json_text.to_owned();
+        let actor_id = actor_id.to_owned();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let document_result = post_json_with_actor(&client, &create_spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_ckc_document_row(&value).ok_or_else(|| {
+                        AppError::Parse(
+                            "missing CKC moodboard document row in create response".to_owned(),
+                        )
+                    })
+                });
+
+            match document_result {
+                Ok(document_row) => {
+                    let document_id = document_row.document_id.clone();
+                    let expected_document_version_id = document_row.current_version_id.clone();
+                    if let Ok(mut slot) = document_cell.lock() {
+                        *slot = Some(Ok(document_row));
+                    }
+                    let snapshot_spec = ActorRequestSpec {
+                        method: HttpMethod::Post,
+                        url: format!(
+                            "{base_url}/atelier/character-documents/{document_id}/moodboard/snapshots"
+                        ),
+                        body: Some(serde_json::json!({
+                            "raw_json_text": raw_json_text,
+                            "expected_document_version_id": expected_document_version_id,
+                        })),
+                        headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id)],
+                    };
+                    let snapshot_result = post_json_with_actor(&client, &snapshot_spec)
+                        .await
+                        .and_then(|value| {
+                            parse_atelier_ckc_moodboard_snapshot_row(&value).ok_or_else(|| {
+                                AppError::Parse(
+                                    "missing CKC moodboard snapshot row in create response"
+                                        .to_owned(),
+                                )
+                            })
+                        })
+                        .map_err(|e| e.to_string());
+                    if let Ok(mut slot) = snapshot_cell.lock() {
+                        *slot = Some(snapshot_result);
+                    }
+                }
+                Err(err) => {
+                    let message = err.to_string();
+                    if let Ok(mut slot) = document_cell.lock() {
+                        *slot = Some(Err(message.clone()));
+                    }
+                    if let Ok(mut slot) = snapshot_cell.lock() {
+                        *slot = Some(Err(format!(
+                            "CKC moodboard snapshot create skipped because document create failed: {message}"
+                        )));
+                    }
+                }
+            }
+        });
+    }
+
+    /// Append a CKC character-document version off the UI thread.
+    pub fn append_ckc_character_document_version(
+        &self,
+        document_id: &str,
+        title: &str,
+        body_raw_text: &str,
+        tags: &[String],
+        expected_parent_version_id: Option<&str>,
+        actor_id: &str,
+        cell: AtelierCkcCharacterDocumentCell,
+    ) {
+        let spec = self.append_character_document_version_actor_request(
+            document_id,
+            title,
+            body_raw_text,
+            tags,
+            expected_parent_version_id,
+            actor_id,
+        );
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_ckc_document_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing CKC document row in append response".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Add a CKC story card off the UI thread.
+    pub fn add_ckc_story_card(
+        &self,
+        document_id: &str,
+        title: &str,
+        body_raw_text: &str,
+        tags: &[String],
+        actor_id: &str,
+        cell: AtelierCkcStoryCardCell,
+    ) {
+        let spec =
+            self.add_story_card_actor_request(document_id, title, body_raw_text, tags, actor_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_ckc_story_card_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing CKC story-card row in add response".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Add a CKC story beat off the UI thread.
+    pub fn add_ckc_story_beat(
+        &self,
+        document_id: &str,
+        card_id: Option<&str>,
+        beat_text: &str,
+        actor_id: &str,
+        cell: AtelierCkcStoryBeatCell,
+    ) {
+        let spec = self.add_story_beat_actor_request(document_id, card_id, beat_text, actor_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_ckc_story_beat_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing CKC story-beat row in add response".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Fetch the latest CKC moodboard snapshot off the UI thread.
+    pub fn fetch_ckc_latest_moodboard_snapshot(
+        &self,
+        document_id: &str,
+        cell: AtelierCkcMoodboardSnapshotCell,
+    ) {
+        let spec = self.latest_moodboard_snapshot_request(document_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = fetch_atelier_moodboard_snapshot(&client, &spec.url)
+                .await
+                .map_err(|e| e.to_string())
+                .and_then(|snapshot| {
+                    snapshot.ok_or_else(|| "CKC moodboard has no native snapshot yet".to_owned())
+                });
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Append the moodboard document body, then record a native moodboard snapshot
+    /// against the new backend head. The sequence keeps snapshot refs tied to the
+    /// version Argus just saved instead of racing the append.
+    pub fn save_ckc_moodboard_document_snapshot(
+        &self,
+        document_id: &str,
+        title: &str,
+        raw_json_text: &str,
+        tags: &[String],
+        expected_parent_version_id: Option<&str>,
+        actor_id: &str,
+        document_cell: AtelierCkcCharacterDocumentCell,
+        snapshot_cell: AtelierCkcMoodboardSnapshotCell,
+    ) {
+        let append_spec = self.append_character_document_version_actor_request(
+            document_id,
+            title,
+            raw_json_text,
+            tags,
+            expected_parent_version_id,
+            actor_id,
+        );
+        let base_url = self.base_url.clone();
+        let document_id = document_id.to_owned();
+        let raw_json_text = raw_json_text.to_owned();
+        let actor_id = actor_id.to_owned();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let document_result = post_json_with_actor(&client, &append_spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_ckc_document_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing CKC moodboard document row in save response".to_owned())
+                    })
+                });
+
+            match document_result {
+                Ok(document_row) => {
+                    let expected_document_version_id = document_row.current_version_id.clone();
+                    if let Ok(mut slot) = document_cell.lock() {
+                        *slot = Some(Ok(document_row));
+                    }
+                    let snapshot_spec = ActorRequestSpec {
+                        method: HttpMethod::Post,
+                        url: format!(
+                            "{base_url}/atelier/character-documents/{document_id}/moodboard/snapshots"
+                        ),
+                        body: Some(serde_json::json!({
+                            "raw_json_text": raw_json_text,
+                            "expected_document_version_id": expected_document_version_id,
+                        })),
+                        headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id)],
+                    };
+                    let snapshot_result = post_json_with_actor(&client, &snapshot_spec)
+                        .await
+                        .and_then(|value| {
+                            parse_atelier_ckc_moodboard_snapshot_row(&value).ok_or_else(|| {
+                                AppError::Parse(
+                                    "missing CKC moodboard snapshot row in save response"
+                                        .to_owned(),
+                                )
+                            })
+                        })
+                        .map_err(|e| e.to_string());
+                    if let Ok(mut slot) = snapshot_cell.lock() {
+                        *slot = Some(snapshot_result);
+                    }
+                }
+                Err(err) => {
+                    let message = err.to_string();
+                    if let Ok(mut slot) = document_cell.lock() {
+                        *slot = Some(Err(message.clone()));
+                    }
+                    if let Ok(mut slot) = snapshot_cell.lock() {
+                        *slot = Some(Err(format!(
+                            "CKC moodboard snapshot save skipped because document append failed: {message}"
+                        )));
+                    }
+                }
+            }
+        });
     }
 
     /// Pure request builder for `GET /atelier/characters/{id}/media-albums`.
@@ -6599,15 +7283,36 @@ fn actor_post_error_detail(text: &str) -> String {
     let Some(error) = value.get("error").and_then(|error| error.as_str()) else {
         return text.to_owned();
     };
-    if error == "stale_sheet_version" {
+    if error == "stale_sheet_version"
+        || error == "stale_character_document_version"
+        || error == "stale_moodboard_document_version"
+    {
         let mut detail = vec![error.to_owned()];
-        for key in [
-            "character_ref",
-            "expected_parent_version_id",
-            "expected_parent_sheet_version_ref",
-            "current_head_version_id",
-            "current_head_sheet_version_ref",
-        ] {
+        let keys: &[&str] = match error {
+            "stale_sheet_version" => &[
+                "character_ref",
+                "expected_parent_version_id",
+                "expected_parent_sheet_version_ref",
+                "current_head_version_id",
+                "current_head_sheet_version_ref",
+            ],
+            "stale_character_document_version" => &[
+                "document_ref",
+                "expected_parent_version_id",
+                "expected_parent_document_version_ref",
+                "current_head_version_id",
+                "current_head_document_version_ref",
+            ],
+            "stale_moodboard_document_version" => &[
+                "document_ref",
+                "expected_document_version_id",
+                "expected_document_version_ref",
+                "current_head_version_id",
+                "current_head_document_version_ref",
+            ],
+            _ => &[],
+        };
+        for key in keys {
             if let Some(raw) = value.get(key) {
                 if raw.is_null() {
                     continue;
@@ -6677,10 +7382,50 @@ async fn load_atelier_ckc(
             base_url, character.internal_id
         );
         let media_albums = fetch_atelier_media_albums(client, &albums_url).await?;
+        let story_url = format!(
+            "{}/atelier/characters/{}/documents",
+            base_url, character.internal_id
+        );
+        let story_query = vec![("doc_type".to_owned(), "story".to_owned())];
+        let mut story_documents =
+            fetch_atelier_character_documents(client, &story_url, &story_query).await?;
+        for document in &mut story_documents {
+            let cards_url = format!(
+                "{}/atelier/character-documents/{}/story-cards",
+                base_url, document.document_id
+            );
+            document.story_cards = fetch_atelier_story_cards(client, &cards_url).await?;
+            let beats_url = format!(
+                "{}/atelier/character-documents/{}/story-beats",
+                base_url, document.document_id
+            );
+            document.story_beats = fetch_atelier_story_beats(client, &beats_url).await?;
+        }
+        let moodboard_url = format!(
+            "{}/atelier/characters/{}/documents",
+            base_url, character.internal_id
+        );
+        let moodboard_query = vec![("doc_type".to_owned(), "moodboard".to_owned())];
+        let moodboard_documents =
+            fetch_atelier_character_documents(client, &moodboard_url, &moodboard_query).await?;
+        let mut moodboard_snapshots = Vec::new();
+        for document in &moodboard_documents {
+            let snapshot_url = format!(
+                "{}/atelier/character-documents/{}/moodboard/latest",
+                base_url, document.document_id
+            );
+            match fetch_atelier_moodboard_snapshot(client, &snapshot_url).await? {
+                Some(snapshot) => moodboard_snapshots.push(snapshot),
+                None => {}
+            }
+        }
         rows.push(AtelierCkcCharacterSheetRow {
             character,
             latest_sheet,
             media_albums,
+            story_documents,
+            moodboard_documents,
+            moodboard_snapshots,
         });
     }
     Ok(AtelierCkcData { characters: rows })
@@ -6719,11 +7464,122 @@ async fn fetch_atelier_media_albums(
         .collect())
 }
 
+async fn fetch_atelier_character_documents(
+    client: &reqwest::Client,
+    url: &str,
+    query: &[(String, String)],
+) -> Result<Vec<AtelierCkcCharacterDocumentRow>, AppError> {
+    let value = get_json(client, url, query).await?;
+    let arr = value.as_array().ok_or_else(|| {
+        AppError::Parse("CKC character documents response was not an array".to_owned())
+    })?;
+    arr.iter()
+        .enumerate()
+        .map(|(idx, row)| {
+            parse_atelier_ckc_document_row(row).ok_or_else(|| {
+                AppError::Parse(format!(
+                    "malformed CKC character document row at index {idx}"
+                ))
+            })
+        })
+        .collect()
+}
+
+async fn fetch_atelier_story_cards(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Vec<AtelierCkcStoryCardRow>, AppError> {
+    let value = get_json(client, url, &[]).await?;
+    let arr = value
+        .as_array()
+        .ok_or_else(|| AppError::Parse("CKC story cards response was not an array".to_owned()))?;
+    arr.iter()
+        .enumerate()
+        .map(|(idx, row)| {
+            parse_atelier_ckc_story_card_row(row).ok_or_else(|| {
+                AppError::Parse(format!("malformed CKC story-card row at index {idx}"))
+            })
+        })
+        .collect()
+}
+
+async fn fetch_atelier_story_beats(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Vec<AtelierCkcStoryBeatRow>, AppError> {
+    let value = get_json(client, url, &[]).await?;
+    let arr = value
+        .as_array()
+        .ok_or_else(|| AppError::Parse("CKC story beats response was not an array".to_owned()))?;
+    arr.iter()
+        .enumerate()
+        .map(|(idx, row)| {
+            parse_atelier_ckc_story_beat_row(row).ok_or_else(|| {
+                AppError::Parse(format!("malformed CKC story-beat row at index {idx}"))
+            })
+        })
+        .collect()
+}
+
+async fn fetch_atelier_moodboard_snapshot(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Option<AtelierCkcMoodboardSnapshotRow>, AppError> {
+    let resp = client
+        .get(url)
+        .timeout(Duration::from_secs(5))
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if status == reqwest::StatusCode::NOT_FOUND {
+        let value = serde_json::from_str::<serde_json::Value>(&text).ok();
+        let expected_not_found = value
+            .as_ref()
+            .and_then(|value| value.get("error"))
+            .and_then(|value| value.as_str())
+            == Some("not_found");
+        if expected_not_found {
+            return Ok(None);
+        }
+        return Err(AppError::Http(format!(
+            "GET latest CKC moodboard snapshot unexpected 404 body: {text}"
+        )));
+    }
+    if !status.is_success() {
+        return Err(AppError::Http(format!(
+            "GET latest CKC moodboard snapshot non-success status {status}: {text}"
+        )));
+    }
+    let value = serde_json::from_str::<serde_json::Value>(&text)
+        .map_err(|e| AppError::Parse(e.to_string()))?;
+    parse_atelier_ckc_moodboard_snapshot_row(&value)
+        .map(Some)
+        .ok_or_else(|| {
+            AppError::Parse("malformed CKC moodboard snapshot row in latest response".to_owned())
+        })
+}
+
 fn json_string(row: &serde_json::Value, field: &str) -> Option<String> {
     row.get(field)
         .and_then(|x| x.as_str())
         .filter(|value| !value.is_empty())
         .map(ToOwned::to_owned)
+}
+
+fn json_string_field(row: &serde_json::Value, field: &str) -> Option<String> {
+    row.get(field)
+        .and_then(|x| x.as_str())
+        .map(ToOwned::to_owned)
+}
+
+fn json_required_nonempty_string(row: &serde_json::Value, field: &str) -> Option<String> {
+    json_string_field(row, field).filter(|value| !value.is_empty())
+}
+
+fn json_required_i64(row: &serde_json::Value, field: &str) -> Option<i64> {
+    row.get(field).and_then(|x| x.as_i64())
 }
 
 fn json_string_vec(row: &serde_json::Value, field: &str) -> Vec<String> {
@@ -6737,6 +7593,16 @@ fn json_string_vec(row: &serde_json::Value, field: &str) -> Vec<String> {
                 .collect()
         })
         .unwrap_or_default()
+}
+
+fn json_required_string_vec(row: &serde_json::Value, field: &str) -> Option<Vec<String>> {
+    row.get(field).and_then(|x| x.as_array()).map(|arr| {
+        arr.iter()
+            .filter_map(|value| value.as_str())
+            .filter(|value| !value.is_empty())
+            .map(ToOwned::to_owned)
+            .collect()
+    })
 }
 
 fn parse_atelier_character_row(row: &serde_json::Value) -> Option<AtelierCharacterRow> {
@@ -6805,6 +7671,107 @@ fn parse_atelier_sheet_version_row(row: &serde_json::Value) -> Option<AtelierShe
             .and_then(|x| x.as_str())
             .unwrap_or("")
             .to_owned(),
+    })
+}
+
+fn parse_atelier_ckc_document_version_row(
+    row: &serde_json::Value,
+) -> Option<AtelierCkcDocumentVersionRow> {
+    let version_id = json_required_nonempty_string(row, "version_id")?;
+    let document_id = json_required_nonempty_string(row, "document_id")?;
+    Some(AtelierCkcDocumentVersionRow {
+        version_id,
+        document_id: document_id.clone(),
+        document_ref: json_required_nonempty_string(row, "document_ref")?,
+        version_seq: json_required_i64(row, "version_seq")?,
+        title: json_string_field(row, "title")?,
+        body_raw_text: json_string_field(row, "body_raw_text")?,
+        tags: json_required_string_vec(row, "tags")?,
+        author: json_string_field(row, "author")?,
+    })
+}
+
+fn parse_atelier_ckc_document_row(
+    row: &serde_json::Value,
+) -> Option<AtelierCkcCharacterDocumentRow> {
+    let document_id = json_required_nonempty_string(row, "document_id")?;
+    Some(AtelierCkcCharacterDocumentRow {
+        document_id: document_id.clone(),
+        document_ref: json_required_nonempty_string(row, "document_ref")?,
+        character_internal_id: json_required_nonempty_string(row, "character_internal_id")?,
+        character_ref: json_required_nonempty_string(row, "character_ref")?,
+        doc_type: json_required_nonempty_string(row, "doc_type")?,
+        title: json_string_field(row, "title")?,
+        tags: json_required_string_vec(row, "tags")?,
+        current_version_id: json_required_nonempty_string(row, "current_version_id")?,
+        current_version_seq: json_required_i64(row, "current_version_seq")?,
+        current_version: Some(
+            row.get("current_version")
+                .and_then(parse_atelier_ckc_document_version_row)?,
+        ),
+        story_cards: Vec::new(),
+        story_beats: Vec::new(),
+    })
+}
+
+fn parse_atelier_ckc_story_card_row(row: &serde_json::Value) -> Option<AtelierCkcStoryCardRow> {
+    let card_id = json_required_nonempty_string(row, "card_id")?;
+    let story_document_id = json_required_nonempty_string(row, "story_document_id")?;
+    Some(AtelierCkcStoryCardRow {
+        card_id: card_id.clone(),
+        card_ref: json_required_nonempty_string(row, "card_ref")?,
+        story_document_id: story_document_id.clone(),
+        story_document_ref: json_required_nonempty_string(row, "story_document_ref")?,
+        seq: json_required_i64(row, "seq")?,
+        title: json_string_field(row, "title")?,
+        body_raw_text: json_string_field(row, "body_raw_text")?,
+        tags: json_required_string_vec(row, "tags")?,
+    })
+}
+
+fn parse_atelier_ckc_story_beat_row(row: &serde_json::Value) -> Option<AtelierCkcStoryBeatRow> {
+    let beat_id = json_required_nonempty_string(row, "beat_id")?;
+    let story_document_id = json_required_nonempty_string(row, "story_document_id")?;
+    Some(AtelierCkcStoryBeatRow {
+        beat_id: beat_id.clone(),
+        beat_ref: json_required_nonempty_string(row, "beat_ref")?,
+        story_document_id: story_document_id.clone(),
+        story_document_ref: json_required_nonempty_string(row, "story_document_ref")?,
+        card_id: json_string(row, "card_id"),
+        card_ref: json_string(row, "card_ref"),
+        seq: json_required_i64(row, "seq")?,
+        beat_text: json_string_field(row, "beat_text")?,
+    })
+}
+
+fn parse_atelier_ckc_moodboard_snapshot_row(
+    row: &serde_json::Value,
+) -> Option<AtelierCkcMoodboardSnapshotRow> {
+    let snapshot_id = json_required_nonempty_string(row, "snapshot_id")?;
+    let document_id = json_required_nonempty_string(row, "document_id")?;
+    let moodboard_json = row.get("moodboard_json")?.clone();
+    if !moodboard_json.is_object() {
+        return None;
+    }
+    let moodboard_name = row
+        .get("moodboard")
+        .and_then(|value| value.get("name"))
+        .and_then(|value| value.as_str())
+        .or_else(|| moodboard_json.get("name").and_then(|value| value.as_str()))
+        .map(ToOwned::to_owned)?;
+    Some(AtelierCkcMoodboardSnapshotRow {
+        snapshot_id: snapshot_id.clone(),
+        moodboard_ref: json_required_nonempty_string(row, "moodboard_ref")?,
+        document_id: document_id.clone(),
+        document_ref: json_required_nonempty_string(row, "document_ref")?,
+        document_version_id: json_required_nonempty_string(row, "document_version_id")?,
+        schema_id: json_required_nonempty_string(row, "schema_id")?,
+        schema_version: json_required_i64(row, "schema_version")?,
+        raw_json_text: json_string_field(row, "raw_json_text")?,
+        moodboard_name,
+        moodboard_json,
+        content_sha256: json_required_nonempty_string(row, "content_sha256")?,
+        author: json_string_field(row, "author")?,
     })
 }
 
@@ -7071,6 +8038,8 @@ fn parse_atelier_sheet_export_row(row: &serde_json::Value) -> Option<AtelierShee
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
 
     /// A current-thread runtime whose handle the clients bridge onto. Kept alive for the test scope.
     fn rt() -> tokio::runtime::Runtime {
@@ -7081,6 +8050,47 @@ mod tests {
     }
 
     const BASE: &str = "http://test.local:1234";
+
+    fn read_request_line(stream: &mut std::net::TcpStream) -> String {
+        let mut buf = Vec::new();
+        let mut tmp = [0u8; 4096];
+        loop {
+            let n = stream.read(&mut tmp).unwrap_or(0);
+            if n == 0 {
+                break;
+            }
+            buf.extend_from_slice(&tmp[..n]);
+            if String::from_utf8_lossy(&buf).contains("\r\n\r\n") {
+                break;
+            }
+        }
+        let text = String::from_utf8_lossy(&buf).to_string();
+        text.lines().next().unwrap_or("").to_owned()
+    }
+
+    fn spawn_json_server(
+        status_line: &'static str,
+        body: serde_json::Value,
+    ) -> (String, std::thread::JoinHandle<String>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind mock server");
+        let addr = listener.local_addr().expect("mock server local addr");
+        let base_url = format!("http://{addr}");
+        let handle = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept mock request");
+            let request_line = read_request_line(&mut stream);
+            let body_str = body.to_string();
+            let response = format!(
+                "{status_line}\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body_str}",
+                body_str.len()
+            );
+            stream
+                .write_all(response.as_bytes())
+                .expect("write mock response");
+            stream.flush().expect("flush mock response");
+            request_line
+        });
+        (base_url, handle)
+    }
 
     #[test]
     fn actor_post_error_detail_preserves_stale_sheet_refs() {
@@ -7101,6 +8111,50 @@ mod tests {
         assert!(
             detail.contains("current_head_sheet_version_ref=atelier://sheet/char-1/new-version")
         );
+    }
+
+    #[test]
+    fn actor_post_error_detail_preserves_stale_document_refs() {
+        let detail = actor_post_error_detail(
+            r#"{
+                "error":"stale_character_document_version",
+                "document_ref":"atelier://document/doc-1",
+                "expected_parent_version_id":"old-version",
+                "expected_parent_document_version_ref":"atelier://document/doc-1/version/old-version",
+                "current_head_version_id":"new-version",
+                "current_head_document_version_ref":"atelier://document/doc-1/version/new-version"
+            }"#,
+        );
+        assert!(detail.contains("stale_character_document_version"));
+        assert!(detail.contains("document_ref=atelier://document/doc-1"));
+        assert!(detail.contains(
+            "expected_parent_document_version_ref=atelier://document/doc-1/version/old-version"
+        ));
+        assert!(detail.contains(
+            "current_head_document_version_ref=atelier://document/doc-1/version/new-version"
+        ));
+    }
+
+    #[test]
+    fn actor_post_error_detail_preserves_stale_moodboard_refs() {
+        let detail = actor_post_error_detail(
+            r#"{
+                "error":"stale_moodboard_document_version",
+                "document_ref":"atelier://document/doc-1",
+                "expected_document_version_id":"old-version",
+                "expected_document_version_ref":"atelier://document/doc-1/version/old-version",
+                "current_head_version_id":"new-version",
+                "current_head_document_version_ref":"atelier://document/doc-1/version/new-version"
+            }"#,
+        );
+        assert!(detail.contains("stale_moodboard_document_version"));
+        assert!(detail.contains("document_ref=atelier://document/doc-1"));
+        assert!(detail.contains(
+            "expected_document_version_ref=atelier://document/doc-1/version/old-version"
+        ));
+        assert!(detail.contains(
+            "current_head_document_version_ref=atelier://document/doc-1/version/new-version"
+        ));
     }
 
     #[test]
@@ -7205,6 +8259,183 @@ mod tests {
         assert_eq!(
             parsed.results[0].match_modes,
             vec!["vector", "image_similarity"]
+        );
+    }
+
+    #[test]
+    fn latest_moodboard_fetch_rejects_malformed_200_response() {
+        let rt = rt();
+        let (base_url, server) = spawn_json_server(
+            "HTTP/1.1 200 OK",
+            serde_json::json!({
+                "document_id": "doc-1",
+                "moodboard_ref": "atelier://moodboard/missing-snapshot-id"
+            }),
+        );
+        let client = reqwest::Client::new();
+        let result = rt.block_on(fetch_atelier_moodboard_snapshot(
+            &client,
+            &format!("{base_url}/atelier/character-documents/doc-1/moodboard/latest"),
+        ));
+        let request_line = server.join().expect("mock request captured");
+        assert!(
+            request_line.contains("GET /atelier/character-documents/doc-1/moodboard/latest"),
+            "latest moodboard fetch must call the native latest route; got {request_line}"
+        );
+        let err = result.expect_err("malformed 200 latest moodboard response must fail");
+        assert!(
+            err.to_string()
+                .contains("malformed CKC moodboard snapshot row"),
+            "malformed latest response must surface as parse error, got {err}"
+        );
+    }
+
+    #[test]
+    fn latest_moodboard_fetch_maps_only_backend_not_found_to_none() {
+        let rt = rt();
+        let client = reqwest::Client::new();
+        let (base_url, server) = spawn_json_server(
+            "HTTP/1.1 404 Not Found",
+            serde_json::json!({ "error": "not_found" }),
+        );
+        let result = rt
+            .block_on(fetch_atelier_moodboard_snapshot(
+                &client,
+                &format!("{base_url}/atelier/character-documents/doc-1/moodboard/latest"),
+            ))
+            .expect("backend not_found is the only no-snapshot response");
+        assert!(result.is_none());
+        let request_line = server.join().expect("mock request captured");
+        assert!(request_line.contains("GET /atelier/character-documents/doc-1/moodboard/latest"));
+
+        let (base_url, server) = spawn_json_server(
+            "HTTP/1.1 404 Not Found",
+            serde_json::json!({ "error": "route_missing" }),
+        );
+        let result = rt.block_on(fetch_atelier_moodboard_snapshot(
+            &client,
+            &format!("{base_url}/atelier/character-documents/doc-1/moodboard/latest"),
+        ));
+        let request_line = server.join().expect("mock request captured");
+        assert!(request_line.contains("GET /atelier/character-documents/doc-1/moodboard/latest"));
+        let err = result.expect_err("unexpected 404 bodies must not become no-snapshot");
+        assert!(
+            err.to_string().contains("unexpected 404 body"),
+            "unexpected 404 must stay actionable, got {err}"
+        );
+    }
+
+    #[test]
+    fn ckc_document_story_and_moodboard_parsers_reject_missing_required_fields() {
+        let document = serde_json::json!({
+            "document_id": "doc-1",
+            "document_ref": "atelier://document/doc-1",
+            "character_internal_id": "char-1",
+            "character_ref": "atelier://character/char-1",
+            "doc_type": "story",
+            "title": "Story",
+            "tags": ["story"],
+            "current_version_id": "ver-1",
+            "current_version_seq": 1,
+            "current_version": {
+                "version_id": "ver-1",
+                "document_id": "doc-1",
+                "document_ref": "atelier://document/doc-1",
+                "version_seq": 1,
+                "title": "Story",
+                "body_raw_text": "",
+                "tags": ["story"],
+                "author": "agent-a"
+            }
+        });
+        assert!(
+            parse_atelier_ckc_document_row(&document).is_some(),
+            "empty text is valid when the required field exists"
+        );
+        let mut missing_current = document.clone();
+        missing_current
+            .as_object_mut()
+            .expect("object")
+            .remove("current_version");
+        assert!(
+            parse_atelier_ckc_document_row(&missing_current).is_none(),
+            "document rows must include the current version payload"
+        );
+        let mut missing_doc_type = document.clone();
+        missing_doc_type
+            .as_object_mut()
+            .expect("object")
+            .remove("doc_type");
+        assert!(
+            parse_atelier_ckc_document_row(&missing_doc_type).is_none(),
+            "document rows must include doc_type"
+        );
+
+        let story_card = serde_json::json!({
+            "card_id": "card-1",
+            "card_ref": "atelier://story-card/card-1",
+            "story_document_id": "doc-1",
+            "story_document_ref": "atelier://document/doc-1",
+            "seq": 1,
+            "title": "Card",
+            "body_raw_text": "",
+            "tags": []
+        });
+        assert!(parse_atelier_ckc_story_card_row(&story_card).is_some());
+        let mut missing_card_body = story_card.clone();
+        missing_card_body
+            .as_object_mut()
+            .expect("object")
+            .remove("body_raw_text");
+        assert!(
+            parse_atelier_ckc_story_card_row(&missing_card_body).is_none(),
+            "story-card rows must include body_raw_text"
+        );
+
+        let story_beat = serde_json::json!({
+            "beat_id": "beat-1",
+            "beat_ref": "atelier://story-beat/beat-1",
+            "story_document_id": "doc-1",
+            "story_document_ref": "atelier://document/doc-1",
+            "card_id": null,
+            "card_ref": null,
+            "seq": 1,
+            "beat_text": ""
+        });
+        assert!(parse_atelier_ckc_story_beat_row(&story_beat).is_some());
+        let mut missing_beat_seq = story_beat.clone();
+        missing_beat_seq
+            .as_object_mut()
+            .expect("object")
+            .remove("seq");
+        assert!(
+            parse_atelier_ckc_story_beat_row(&missing_beat_seq).is_none(),
+            "story-beat rows must include seq"
+        );
+
+        let snapshot = serde_json::json!({
+            "snapshot_id": "snap-1",
+            "moodboard_ref": "atelier://moodboard/snap-1",
+            "document_id": "doc-1",
+            "document_ref": "atelier://document/doc-1",
+            "document_version_id": "ver-1",
+            "schema_id": "hsk.atelier.moodboard@1",
+            "schema_version": 1,
+            "raw_json_text": "{}",
+            "moodboard": { "name": "Board" },
+            "moodboard_json": { "name": "Board" },
+            "content_sha256": "abc123",
+            "author": "agent-a"
+        });
+        assert!(parse_atelier_ckc_moodboard_snapshot_row(&snapshot).is_some());
+        let mut missing_hash = snapshot.clone();
+        missing_hash
+            .as_object_mut()
+            .expect("object")
+            .remove("content_sha256");
+        assert!(
+            parse_atelier_ckc_moodboard_snapshot_row(&missing_hash).is_none(),
+            "moodboard snapshots must include content_sha256"
         );
     }
 

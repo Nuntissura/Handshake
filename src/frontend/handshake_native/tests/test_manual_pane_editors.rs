@@ -21,8 +21,9 @@
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
-use egui_kittest::kittest::Queryable;
+use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 
 use handshake_native::accessibility::editor_action_registry::{
@@ -233,6 +234,21 @@ fn live_author_id_set() -> HashSet<String> {
         handshake_native::atelier_panel::ATELIER_CKC_TAG_NOTE_SCOPE_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_TAG_NOTE_EDITOR_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_TAG_NOTE_SAVE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_STORY_DOC_REF_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_STORY_EDITOR_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_STORY_SAVE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_STORY_CARD_LIST_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_STORY_CARD_TITLE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_STORY_CARD_BODY_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_STORY_CARD_SAVE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_STORY_BEAT_EDITOR_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_STORY_BEAT_SAVE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_MOODBOARD_DOC_REF_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_MOODBOARD_LATEST_REF_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_MOODBOARD_EDITOR_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_MOODBOARD_SAVE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_MOODBOARD_OPEN_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_POSE_YAW_MINUS_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_POSE_YAW_PLUS_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_POSE_RESET_AUTHOR_ID,
@@ -254,6 +270,81 @@ fn live_author_id_set() -> HashSet<String> {
     set.insert(MANUAL_SEARCH_AUTHOR_ID.to_owned());
 
     set
+}
+
+fn rendered_ckc_panel_author_id_set() -> HashSet<String> {
+    let side_panel = Arc::new(Mutex::new(
+        handshake_native::atelier_side_panel::AtelierSidePanel::with_rows(
+            vec![handshake_native::backend_client::AtelierBatchRow {
+                batch_id: "batch-1".to_owned(),
+                source_label: "Manual Audit Batch".to_owned(),
+                status: "open".to_owned(),
+            }],
+            vec![],
+            Some((
+                "batch-1".to_owned(),
+                vec![handshake_native::backend_client::AtelierItemRow {
+                    item_id: "item-aaa".to_owned(),
+                    file_name: "manual-audit.png".to_owned(),
+                    source_path: "/intake/manual-audit.png".to_owned(),
+                    lane: "accept".to_owned(),
+                }],
+            )),
+        ),
+    ));
+    let panel = handshake_native::atelier_panel::AtelierPanel::new(
+        side_panel,
+        Arc::new(Mutex::new(
+            handshake_native::graph::canvas_board::LoomCanvasBoard::new("ws-test", "canvas-1"),
+        )),
+        Arc::new(Mutex::new(Vec::<
+            handshake_native::graph::canvas_board::CanvasEvent,
+        >::new())),
+    );
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 760.0))
+        .build_state(
+            |ctx, panel: &mut handshake_native::atelier_panel::AtelierPanel| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    panel.show(ui, &handshake_native::theme::HsTheme::Dark.palette());
+                });
+            },
+            panel,
+        );
+    harness.run();
+    harness.run();
+    let mut ids: HashSet<String> = harness
+        .root()
+        .children_recursive()
+        .filter_map(|node| node.accesskit_node().author_id().map(str::to_owned))
+        .collect();
+
+    let export_txt_node_id = harness
+        .root()
+        .children_recursive()
+        .find(|node| {
+            node.accesskit_node().author_id()
+                == Some(handshake_native::atelier_panel::ATELIER_CKC_EXPORT_TXT_AUTHOR_ID)
+        })
+        .expect("CKC export txt button present in rendered Atelier panel")
+        .accesskit_node()
+        .id();
+    harness.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action: egui::accesskit::Action::Click,
+            target: export_txt_node_id,
+            data: None,
+        },
+    ));
+    harness.run();
+    harness.run();
+    ids.extend(
+        harness
+            .root()
+            .children_recursive()
+            .filter_map(|node| node.accesskit_node().author_id().map(str::to_owned)),
+    );
+    ids
 }
 
 // ── AC-001 / PT-001: all eight GLOBAL-BUILD-MANUAL headings present as topics ─────────────────────────
@@ -380,6 +471,32 @@ fn manual_documents_atelier_tabs_and_argus_control_ids() {
         "atelier-ckc-tag-note-editor",
         "atelier-ckc-tag-note-save",
         "POST /atelier/ckc/tag-notes",
+        "/atelier/characters/{character_internal_id}/documents?doc_type=story",
+        "atelier://document/{document_id}",
+        "atelier-ckc-story-doc-ref",
+        "atelier-ckc-story-editor",
+        "atelier-ckc-story-save",
+        "/atelier/character-documents/{document_id}/story-cards",
+        "/atelier/character-documents/{document_id}/story-beats",
+        "atelier-ckc-story-card-list",
+        "atelier-ckc-story-card-title",
+        "atelier-ckc-story-card-body",
+        "atelier-ckc-story-card-save",
+        "atelier-ckc-story-beat-editor",
+        "atelier-ckc-story-beat-save",
+        "/atelier/characters/{character_internal_id}/documents?doc_type=moodboard",
+        "/atelier/character-documents/{document_id}/moodboard/snapshots",
+        "/atelier/character-documents/{document_id}/moodboard/latest",
+        "atelier://moodboard/{snapshot_id}",
+        "atelier-ckc-moodboard-doc-ref",
+        "atelier-ckc-moodboard-latest-ref",
+        "atelier-ckc-moodboard-editor",
+        "atelier-ckc-moodboard-save",
+        "atelier-ckc-moodboard-open",
+        "atelier-ckc-moodboard-canvas",
+        "Story, sheet notes, image notes, tag notes, and moodboards stay distinct but cross-linked",
+        "inspect/click/set_value the story and moodboard controls",
+        "technical debt",
         "atelier-ckc-album-",
         "atelier-ckc-media-",
         "atelier-ckc-folder-",
@@ -502,6 +619,31 @@ fn id_audit_no_documented_author_id_missing_from_live_registry() {
     assert!(
         orphans.is_empty(),
         "AC-004/MC-001: documented author_id(s) absent from the live AccessKit registry (ORPHANS): {orphans:?}"
+    );
+}
+
+#[test]
+fn id_audit_documented_ckc_author_ids_are_rendered_in_live_atelier_panel() {
+    let live = rendered_ckc_panel_author_id_set();
+    assert!(
+        live.contains(handshake_native::atelier_panel::ATELIER_CKC_MOODBOARD_EDITOR_AUTHOR_ID),
+        "runtime Atelier panel must expose the CKC moodboard editor"
+    );
+    assert!(
+        live.contains(handshake_native::atelier_panel::ATELIER_CKC_MOODBOARD_SAVE_AUTHOR_ID),
+        "runtime Atelier panel must expose the CKC moodboard save control"
+    );
+
+    let rows = agent_tool_rows();
+    let mut orphans: Vec<&str> = Vec::new();
+    for row in &rows {
+        if row.author_id.starts_with("atelier-ckc-") && !live.contains(row.author_id) {
+            orphans.push(row.author_id);
+        }
+    }
+    assert!(
+        orphans.is_empty(),
+        "AC-004/MC-001: documented CKC author_id(s) absent from the rendered Atelier AccessKit tree: {orphans:?}"
     );
 }
 

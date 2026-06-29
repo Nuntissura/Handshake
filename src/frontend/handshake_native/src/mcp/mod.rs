@@ -38,15 +38,16 @@
 //! focus-safe by construction) to prove a real, decodable PNG flows through the tool. See the handoff
 //! DEVIATION notes for what is and is not provable in this headless environment.
 //!
-//! ## Why `set_value` is Focus + characters, NOT `Action::SetValue`
+//! ## Why `set_value` is Focus + select-all + characters, NOT `Action::SetValue`
 //!
 //! The contract body asked the `set_value` tool to dispatch `accesskit::Action::SetValue`. MT-026
 //! already proved (and its test asserts) that **egui 0.33 text inputs do not emit `SetValue`** — they
 //! are steered out-of-process by FOCUSING the field and feeding synthetic characters (the path the
 //! MT-001 toolkit spike proved: "typed 10 synthetic chars"). Dispatching `SetValue` to an egui text
-//! input is a no-op. So [`UiAction::SetValue`] resolves to a Focus action plus a text payload the
-//! caller feeds as `egui::Event::Text`; this is the steering path that actually changes the widget,
-//! honoring the contract's INTENT (set a text widget's value by stable id) over its mistaken mechanic.
+//! input is a no-op. So [`UiAction::SetValue`] is accepted only for `TextInput` nodes and resolves to
+//! a Focus action plus select-all and text payload events; this is the steering path that actually
+//! replaces the widget value, honoring the contract's INTENT (set a text widget's value by stable id)
+//! over its mistaken mechanic.
 
 pub mod action;
 pub mod argus;

@@ -40,6 +40,7 @@ pub mod moodboard_event_family {
 pub struct NewMoodboardSnapshot {
     pub document_id: Uuid,
     pub raw_json_text: String,
+    pub expected_document_version_id: Option<Uuid>,
     pub author: String,
 }
 
@@ -1069,6 +1070,15 @@ impl AtelierStore {
                     new.document_id
                 ))
             })?;
+        if let Some(expected_document_version_id) = new.expected_document_version_id {
+            if document_version_id != expected_document_version_id {
+                tx.rollback().await?;
+                return Err(AtelierError::Conflict(format!(
+                    "stale_moodboard_document_version: expected document version {:?}, current head {:?}",
+                    expected_document_version_id, document_version_id
+                )));
+            }
+        }
 
         let inserted_row = sqlx::query(
             r#"INSERT INTO atelier_moodboard

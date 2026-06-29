@@ -3683,6 +3683,7 @@ async fn atelier_moodboard_schema_layer_model_round_trips_full_structure() {
         .record_moodboard_snapshot(&NewMoodboardSnapshot {
             document_id: moodboard_doc.document_id,
             raw_json_text: raw_moodboard_json.clone(),
+            expected_document_version_id: None,
             author: "mt-042-author".to_string(),
         })
         .await
@@ -3721,6 +3722,7 @@ async fn atelier_moodboard_schema_layer_model_round_trips_full_structure() {
         .record_moodboard_snapshot(&NewMoodboardSnapshot {
             document_id: moodboard_doc.document_id,
             raw_json_text: snapshot.raw_json_text.clone(),
+            expected_document_version_id: None,
             author: "mt-042-author".to_string(),
         })
         .await
@@ -3783,6 +3785,7 @@ async fn atelier_moodboard_schema_layer_model_round_trips_full_structure() {
         .record_moodboard_snapshot(&NewMoodboardSnapshot {
             document_id: moodboard_doc.document_id,
             raw_json_text: serde_json::to_string(&missing_history).expect("serialize invalid"),
+            expected_document_version_id: None,
             author: "mt-042-author".to_string(),
         })
         .await;
@@ -3798,6 +3801,7 @@ async fn atelier_moodboard_schema_layer_model_round_trips_full_structure() {
         .record_moodboard_snapshot(&NewMoodboardSnapshot {
             document_id: moodboard_doc.document_id,
             raw_json_text: serde_json::to_string(&bad_layer_ref).expect("serialize invalid"),
+            expected_document_version_id: None,
             author: "mt-042-author".to_string(),
         })
         .await;
@@ -3810,6 +3814,7 @@ async fn atelier_moodboard_schema_layer_model_round_trips_full_structure() {
         .record_moodboard_snapshot(&NewMoodboardSnapshot {
             document_id: note_doc.document_id,
             raw_json_text: snapshot.raw_json_text.clone(),
+            expected_document_version_id: None,
             author: "mt-042-author".to_string(),
         })
         .await;
@@ -4031,6 +4036,7 @@ async fn atelier_moodboard_operations_and_export_hooks_produce_receipts_without_
         .record_moodboard_snapshot(&NewMoodboardSnapshot {
             document_id: moodboard_doc.document_id,
             raw_json_text: minimal_moodboard_fixture(layer_id, text_id),
+            expected_document_version_id: None,
             author: "mt-043-author".to_string(),
         })
         .await
@@ -5810,6 +5816,7 @@ async fn atelier_global_search_returns_snippets_and_jump_targets_without_sqlite_
         .record_moodboard_snapshot(&NewMoodboardSnapshot {
             document_id: moodboard_doc.document_id,
             raw_json_text: moodboard_json,
+            expected_document_version_id: None,
             author: "mt-045-author".to_string(),
         })
         .await
@@ -8339,9 +8346,15 @@ async fn mt067_core_data_integration_smoke_path() {
         )
         .await
         .expect("create contact sheet");
-    assert_eq!(contact_sheet.image_count, 1, "contact sheet captured the asset");
     assert_eq!(
-        contact_sheet.manifest.get("schema").and_then(|v| v.as_str()),
+        contact_sheet.image_count, 1,
+        "contact sheet captured the asset"
+    );
+    assert_eq!(
+        contact_sheet
+            .manifest
+            .get("schema")
+            .and_then(|v| v.as_str()),
         Some("hsk.atelier.contact_sheet@1"),
         "contact sheet uses the Handshake schema namespace"
     );
@@ -8406,8 +8419,7 @@ async fn mt067_core_data_integration_smoke_path() {
     assert!(
         manifest
             .iter()
-            .any(|m| m.kind == ManifestItemKind::Media
-                && m.artifact_ref == artifact.artifact_ref),
+            .any(|m| m.kind == ManifestItemKind::Media && m.artifact_ref == artifact.artifact_ref),
         "export manifest references the same media artifact that flowed through intake"
     );
 }
@@ -8594,7 +8606,11 @@ CHAR-ID-003 — Alias: <string>
         .sheet_version_history(character.internal_id)
         .await
         .expect("load sheet version history");
-    assert_eq!(history.len(), 1, "denied stale edits must not append versions");
+    assert_eq!(
+        history.len(),
+        1,
+        "denied stale edits must not append versions"
+    );
     assert_eq!(history[0].raw_text, raw_sheet);
 }
 

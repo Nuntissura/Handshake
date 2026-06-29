@@ -50,9 +50,9 @@ pub enum UiAction {
     /// Move keyboard focus to the widget (egui `Action::Focus`).
     Focus,
     /// Set a text widget's value. egui 0.33 has no `SetValue` action for text inputs (see the module
-    /// docs); this resolves to a Focus action plus the `text` payload the frame loop feeds as
-    /// `egui::Event::Text` after the field is focused. The `text` is carried here so the caller has a
-    /// single typed action to dispatch.
+    /// docs); this is accepted only for `TextInput` nodes and resolves to a Focus action plus
+    /// select-all and `egui::Event::Text` events after the field is focused. The `text` is carried
+    /// here so the caller has a single typed action to dispatch.
     SetValue { text: String },
     /// Scroll the widget (or its scroll container) into view (egui `Action::ScrollIntoView`).
     Scroll,
@@ -67,7 +67,9 @@ impl UiAction {
     pub fn accesskit_action(&self) -> accesskit::Action {
         match self {
             UiAction::Click => accesskit::Action::Click,
-            UiAction::Focus | UiAction::SetValue { .. } | UiAction::Select => accesskit::Action::Focus,
+            UiAction::Focus | UiAction::SetValue { .. } | UiAction::Select => {
+                accesskit::Action::Focus
+            }
             UiAction::Scroll => accesskit::Action::ScrollIntoView,
         }
     }
@@ -93,10 +95,7 @@ pub enum ActionError {
     /// drive a control the model must not touch).
     DisabledTarget { author_id: String },
     /// The target exists but does not support the requested action (e.g. `Click` on a static label).
-    UnsupportedAction {
-        author_id: String,
-        action: String,
-    },
+    UnsupportedAction { author_id: String, action: String },
     /// The bounded queue is full; the caller should retry after the frame loop drains it (back-pressure).
     QueueFull,
 }
@@ -151,6 +150,13 @@ pub fn resolve_target(
     if node.disabled {
         return Err(ActionError::DisabledTarget {
             author_id: author_id.to_owned(),
+        });
+    }
+
+    if matches!(action, UiAction::SetValue { .. }) && node.role != "TextInput" {
+        return Err(ActionError::UnsupportedAction {
+            author_id: author_id.to_owned(),
+            action: "SetValue".to_owned(),
         });
     }
 
@@ -239,7 +245,8 @@ impl ActionChannel {
 
     /// Drain up to [`MAX_ACTIONS_PER_BURST`] pending actions into a list of `egui::Event`s the frame
     /// loop feeds to egui this frame. For each drained action: the `AccessKitActionRequest` event,
-    /// followed (for `SetValue`) by the `Text` event so the focused field receives the characters.
+    /// followed (for `SetValue`) by a select-all key event and the `Text` event so the focused field
+    /// replaces its existing contents.
     ///
     /// Returns the events in dispatch order. The frame loop calls this at the start of
     /// `eframe::App::update` (or a test feeds the events to the kittest harness). The burst cap bounds
@@ -253,10 +260,25 @@ impl ActionChannel {
             };
             events.push(egui::Event::AccessKitActionRequest(outcome.request));
             if let Some(text) = outcome.text_payload {
+                events.push(select_all_key_event());
                 events.push(egui::Event::Text(text));
             }
         }
         events
+    }
+}
+
+fn select_all_key_event() -> egui::Event {
+    egui::Event::Key {
+        key: egui::Key::A,
+        physical_key: None,
+        pressed: true,
+        repeat: false,
+        modifiers: egui::Modifiers {
+            ctrl: true,
+            command: true,
+            ..Default::default()
+        },
     }
 }
 
@@ -277,7 +299,12 @@ mod tests {
             value: None,
             disabled: false,
             actions: vec!["Click".to_owned(), "Focus".to_owned()],
-            bounds: Some(UiNodeBounds { x: 0.0, y: 0.0, w: 10.0, h: 10.0 }),
+            bounds: Some(UiNodeBounds {
+                x: 0.0,
+                y: 0.0,
+                w: 10.0,
+                h: 10.0,
+            }),
             children: Vec::new(),
         };
         let input = UiTreeNode {
@@ -334,14 +361,24 @@ mod tests {
     fn unknown_target_is_rejected() {
         let snap = fixture_snapshot();
         let err = resolve_target(&snap, "nope", &UiAction::Click).unwrap_err();
-        assert_eq!(err, ActionError::UnknownTarget { author_id: "nope".to_owned() });
+        assert_eq!(
+            err,
+            ActionError::UnknownTarget {
+                author_id: "nope".to_owned()
+            }
+        );
     }
 
     #[test]
     fn disabled_target_is_rejected() {
         let snap = fixture_snapshot();
         let err = resolve_target(&snap, "off", &UiAction::Click).unwrap_err();
-        assert_eq!(err, ActionError::DisabledTarget { author_id: "off".to_owned() });
+        assert_eq!(
+            err,
+            ActionError::DisabledTarget {
+                author_id: "off".to_owned()
+            }
+        );
     }
 
     #[test]
@@ -357,20 +394,45 @@ mod tests {
         let err = resolve_target(&snap, "field", &UiAction::Click).unwrap_err();
         assert_eq!(
             err,
-            ActionError::UnsupportedAction { author_id: "field".to_owned(), action: "Click".to_owned() }
+            ActionError::UnsupportedAction {
+                author_id: "field".to_owned(),
+                action: "Click".to_owned()
+            }
         );
     }
 
     #[test]
     fn set_value_resolves_to_focus_and_carries_text() {
         let snap = fixture_snapshot();
-        let action = UiAction::SetValue { text: "hello swarm".to_owned() };
+        let action = UiAction::SetValue {
+            text: "hello swarm".to_owned(),
+        };
         // The input supports Focus, so SetValue (which dispatches Focus) resolves.
         let id = resolve_target(&snap, "field", &action).expect("field resolves via Focus");
         assert_eq!(id, accesskit::NodeId(11));
         let outcome = build_action_request(id, &action);
         assert_eq!(outcome.request.action, accesskit::Action::Focus);
         assert_eq!(outcome.text_payload.as_deref(), Some("hello swarm"));
+    }
+
+    #[test]
+    fn set_value_rejects_non_text_targets_even_when_focusable() {
+        let snap = fixture_snapshot();
+        let err = resolve_target(
+            &snap,
+            "btn",
+            &UiAction::SetValue {
+                text: "not a text input".to_owned(),
+            },
+        )
+        .unwrap_err();
+        assert_eq!(
+            err,
+            ActionError::UnsupportedAction {
+                author_id: "btn".to_owned(),
+                action: "SetValue".to_owned()
+            }
+        );
     }
 
     #[test]
@@ -386,25 +448,52 @@ mod tests {
     }
 
     #[test]
-    fn drain_emits_request_then_text_and_respects_burst_cap() {
+    fn drain_emits_focus_then_select_all_then_text_and_respects_burst_cap() {
         let snap = fixture_snapshot();
         let mut chan = ActionChannel::new();
-        chan.enqueue(&snap, "field", UiAction::SetValue { text: "abc".to_owned() })
-            .expect("enqueue set_value");
+        chan.enqueue(
+            &snap,
+            "field",
+            UiAction::SetValue {
+                text: "abc".to_owned(),
+            },
+        )
+        .expect("enqueue set_value");
         let events = chan.drain_into_events();
-        // One AccessKitActionRequest (Focus) followed by one Text event.
-        assert_eq!(events.len(), 2);
+        // Focus the field, select all existing content, then type the replacement text.
+        assert_eq!(events.len(), 3);
         assert!(matches!(events[0], egui::Event::AccessKitActionRequest(_)));
-        assert!(matches!(&events[1], egui::Event::Text(t) if t == "abc"));
+        assert!(
+            matches!(
+                &events[1],
+                egui::Event::Key {
+                    key: egui::Key::A,
+                    pressed: true,
+                    modifiers,
+                    ..
+                } if modifiers.command && modifiers.ctrl
+            ),
+            "set_value must select existing text before typing replacement text"
+        );
+        assert!(matches!(&events[2], egui::Event::Text(t) if t == "abc"));
         assert_eq!(chan.pending(), 0, "drained");
 
         // Burst cap: enqueue more than MAX_ACTIONS_PER_BURST clicks; one drain takes at most the cap.
         let mut chan = ActionChannel::new();
         for _ in 0..(MAX_ACTIONS_PER_BURST + 5) {
-            chan.enqueue(&snap, "btn", UiAction::Click).expect("enqueue click");
+            chan.enqueue(&snap, "btn", UiAction::Click)
+                .expect("enqueue click");
         }
         let drained = chan.drain_into_events();
-        assert_eq!(drained.len(), MAX_ACTIONS_PER_BURST, "one drain bounded by burst cap");
-        assert_eq!(chan.pending(), 5, "remainder stays queued for the next frame");
+        assert_eq!(
+            drained.len(),
+            MAX_ACTIONS_PER_BURST,
+            "one drain bounded by burst cap"
+        );
+        assert_eq!(
+            chan.pending(),
+            5,
+            "remainder stays queued for the next frame"
+        );
     }
 }

@@ -7,7 +7,7 @@
 //! |---------------------|---------------------------------------------|---------------------------------------------------|
 //! | `argus.inspect`    | `{}`                                        | the MT-026 [`UiTreeSnapshot`] JSON                 |
 //! | `argus.click`      | `{ "target": "<author_id>" }`               | `{ "queued": true, "action": "Click", "node_id": N }` |
-//! | `argus.set_value`  | `{ "target": "<author_id>", "value": "…" }` | `{ "queued": true, "action": "Focus", "node_id": N }` (Focus + text — see [`super::action`]) |
+//! | `argus.set_value`  | `{ "target": "<TextInput author_id>", "value": "…" }` | `{ "queued": true, "action": "Focus", "node_id": N }` (TextInput only; Focus + select-all + text — see [`super::action`]) |
 //! | `argus.screenshot` | `{}`                                        | `{ png_base64, width, height, captured_at_utc }`  |
 //!
 //! `list_widgets`, `click_widget`, `set_value`, and `screenshot` remain compatibility aliases for older
@@ -535,6 +535,18 @@ mod tests {
             bounds: None,
             children: Vec::new(),
         };
+        let input = UiTreeNode {
+            id: "field".to_owned(),
+            author_id: Some("field".to_owned()),
+            node_id: 11,
+            role: "TextInput".to_owned(),
+            label: None,
+            value: Some(String::new()),
+            disabled: false,
+            actions: vec!["Click".to_owned(), "Focus".to_owned()],
+            bounds: None,
+            children: Vec::new(),
+        };
         let root = UiTreeNode {
             id: "node:1".to_owned(),
             author_id: None,
@@ -545,12 +557,12 @@ mod tests {
             disabled: false,
             actions: Vec::new(),
             bounds: None,
-            children: vec![button],
+            children: vec![button, input],
         };
         UiTreeSnapshot {
             root,
             captured_at_utc: "0Z".to_owned(),
-            widget_count: 2,
+            widget_count: 3,
         }
     }
 
@@ -599,7 +611,7 @@ mod tests {
         );
         assert!(r.is_error_code(ERR_UNAUTHORIZED));
         let v = r.to_json();
-        assert_eq!(v["error"]["code"], -32001);
+        assert_eq!(v["error"]["code"], ERR_UNAUTHORIZED);
         assert_eq!(v["error"]["message"], "Unauthorized");
     }
 
@@ -615,7 +627,7 @@ mod tests {
             ok_capture,
         );
         let v = r.to_json();
-        assert_eq!(v["result"]["widget_count"], 2);
+        assert_eq!(v["result"]["widget_count"], 3);
         assert_eq!(v["result"]["root"]["role"], "Window");
     }
 
@@ -690,7 +702,7 @@ mod tests {
         let r = dispatch_request(
             &req(
                 "argus.set_value",
-                serde_json::json!({"target": "btn", "value": "typed"}),
+                serde_json::json!({"target": "field", "value": "typed"}),
                 "secret",
             ),
             &token,
@@ -701,10 +713,37 @@ mod tests {
         let v = r.to_json();
         assert_eq!(v["result"]["queued"], true);
         assert_eq!(v["result"]["action"], "Focus");
-        assert_eq!(v["result"]["node_id"], 10);
+        assert_eq!(v["result"]["node_id"], 11);
         assert_eq!(v["result"]["argus"]["method"], "argus.set_value");
         assert_eq!(v["result"]["argus"]["primitive"], "set_value");
         assert_eq!(chan.pending(), 1);
+    }
+
+    #[test]
+    fn argus_set_value_rejects_non_text_targets() {
+        let token = SessionToken::from_hex("secret");
+        let mut chan = ActionChannel::new();
+        let r = dispatch_request(
+            &req(
+                "argus.set_value",
+                serde_json::json!({"target": "btn", "value": "typed"}),
+                "secret",
+            ),
+            &token,
+            &snap(),
+            &mut chan,
+            ok_capture,
+        );
+        let v = r.to_json();
+        assert_eq!(v["error"]["code"], ERR_TOOL_FAILED);
+        assert!(
+            v["error"]["message"]
+                .as_str()
+                .unwrap_or_default()
+                .contains("SetValue"),
+            "set_value rejection must name the unsupported SetValue action: {v}"
+        );
+        assert_eq!(chan.pending(), 0);
     }
 
     #[test]

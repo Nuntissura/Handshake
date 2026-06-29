@@ -152,8 +152,8 @@ substrate built on command_registry.rs + event_bus.rs. The panes are: the VS-Cod
 Obsidian/Notion-class RICH-TEXT editor, the Loom GRAPH view, the CANVAS board, and the knowledge surfaces \
 (folder tree / backlinks / outgoing links / collections). Every pane is addressable by a stable AccessKit \
 author_id and steerable by Argus. A swarm agent discovers controls with argus.inspect, drives a button \
-with argus.click{target:<author_id>}, types into a field with argus.set_value{target,value}, and sees \
-the pixels with argus.screenshot — no screen-scraping and no keyboard simulation."
+with argus.click{target:<author_id>}, replaces a field value with argus.set_value{target,value}, and \
+sees the pixels with argus.screenshot — no screen-scraping and no foreground keyboard simulation."
         .to_owned()
 }
 
@@ -237,11 +237,12 @@ argus.screenshot. The compatibility primitives remain list_widgets, click_widget
 screenshot.\n\
 \n\
 Use Argus first for GUI validation. The required loop is: inspect widgets -> use stable ids/author ids \
--> click/set value -> inspect again -> take screenshot/snapshot evidence. Start with argus.inspect, \
-assert the exact stable author_id values, then use argus.screenshot as the visual companion for layout, \
-overlap, readability, and rendered pixels. For parallel agents, include a top-level agent_label such as \
-codex-a or worker-3, share Argus snapshot reads, and use the existing MCP lease/receipt path for \
-mutations instead of coordinating through screen coordinates or hidden chat context.\n\
+-> click/set value -> inspect again -> take screenshot/snapshot evidence. argus.set_value replaces the \
+target text field value; it is not an append operation. Start with argus.inspect, assert the exact stable \
+author_id values, then use argus.screenshot as the visual companion for layout, overlap, readability, \
+and rendered pixels. For parallel agents, include a top-level agent_label such as codex-a or worker-3, \
+share Argus snapshot reads, and use the existing MCP lease/receipt path for mutations instead of \
+coordinating through screen coordinates or hidden chat context.\n\
 \n\
 Argus must be quiet. It must not bring Handshake to the foreground, must not steal keyboard focus, must \
 not steal mouse input, must not move the cursor, must not bring the app foreground, and must not steal \
@@ -250,7 +251,7 @@ unclaimed until a non-intrusive proof path exists. If Argus cannot see or steer 
 technical debt and accepted scope for remediation in the active WP.\n\
 \n\
 Verification proof for this surface is Argus evidence, not a foreground manual look: run argus.inspect, \
-drive argus.click or argus.set_value, re-run argus.inspect, and pair that structured tree with \
+drive argus.click or argus.set_value on TextInput targets, re-run argus.inspect, and pair that structured tree with \
 argus.screenshot when layout/readability/pixels matter. The current native proof commands are the \
 focused Argus MCP tests and TCP steer-loop tests in the handshake-native crate; their successful path \
 returns Argus metadata plus agent_id/agent_label receipts and appends mutating calls to the MCP \
@@ -315,6 +316,31 @@ expected_parent_sheet_version_ref, current_head_version_id, and current_head_she
 the current head before retrying. After Argus edits or clicks CKC controls, drain the queued action, \
 re-inspect the panel, and verify the editor text or visible sheet_version_ref changed before claiming \
 the UI was steered.\n\
+\n\
+CKC story documents are native character documents under \
+/atelier/characters/{character_internal_id}/documents?doc_type=story, and their reusable refs are \
+atelier://document/{document_id}. Plural story rows use atelier-ckc-story-document-{document_id}; \
+click a row to make atelier-ckc-story-doc-ref and atelier-ckc-story-editor target that document. \
+Inspect atelier-ckc-story-doc-ref, edit the story body in atelier-ckc-story-editor, and click \
+atelier-ckc-story-save. Story cards and beats live under \
+/atelier/character-documents/{document_id}/story-cards and \
+/atelier/character-documents/{document_id}/story-beats: inspect atelier-ckc-story-card-list, set \
+atelier-ckc-story-card-title and atelier-ckc-story-card-body, click atelier-ckc-story-card-save, set \
+atelier-ckc-story-beat-editor, and click atelier-ckc-story-beat-save. CKC moodboards are also native \
+character documents, under /atelier/characters/{character_internal_id}/documents?doc_type=moodboard. \
+Moodboard snapshots use /atelier/character-documents/{document_id}/moodboard/snapshots, the latest \
+snapshot uses /atelier/character-documents/{document_id}/moodboard/latest, and reusable refs are \
+atelier://moodboard/{snapshot_id}. Plural moodboard rows use \
+atelier-ckc-moodboard-document-{document_id}; click a row to make atelier-ckc-moodboard-doc-ref, \
+atelier-ckc-moodboard-latest-ref, atelier-ckc-moodboard-editor, atelier-ckc-moodboard-save, and \
+atelier-ckc-moodboard-open target that document. Inspect atelier-ckc-moodboard-doc-ref and \
+atelier-ckc-moodboard-latest-ref, set native snapshot JSON in atelier-ckc-moodboard-editor, click \
+atelier-ckc-moodboard-save, inspect atelier-ckc-moodboard-canvas, then click \
+atelier-ckc-moodboard-open to reload the selected latest snapshot into the native canvas board. \
+Story, sheet notes, image notes, tag \
+notes, and moodboards stay distinct but cross-linked; do not merge their storage or refs. Argus must \
+inspect/click/set_value the story and moodboard controls. If Argus cannot see or steer them, that is \
+technical debt and must be treated as a product gap before claiming the workflow works.\n\
 \n\
 CKC also keeps linked images, folders, albums, and image-level notes/tags attached to character sheets. \
 Inspect atelier-ckc-linked-media-list to see album rows (`atelier-ckc-album-*`), media rows \
@@ -420,7 +446,7 @@ fn agent_tool_reference_body() -> String {
     "The agent-vision / steering index pairs every addressable editor/knowledge/FEMS/interop action with \
 the real native Argus/MCP swarm tool that drives it. Use the Argus methods first: argus.inspect \
 (discover the live AccessKit tree), argus.click{target:<author_id>} (activate a button/toggle/row), \
-argus.set_value{target,value} (type into a text field), and argus.screenshot (capture the pixels). \
+argus.set_value{target,value} (replace a text field value), and argus.screenshot (capture the pixels). \
 The compatibility primitives list_widgets, click_widget, set_value, and screenshot still work for older \
 clients. Read the structured rows in the pane below; each row is author_id -> mcp_tool for a real, \
 live-registered control. When multiple models share the live binding token, each request should include \
@@ -862,6 +888,125 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         mcp_tool: "argus.click",
         description:
             "argus.click{target:'atelier-ckc-tag-note-save'} writes a CKC tag note with actor attribution.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_STORY_DOC_REF_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Inspect the CKC story document ref",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads atelier-ckc-story-doc-ref as atelier://document/{document_id}.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_STORY_EDITOR_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Edit the CKC story document body",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-story-editor', value:'<story>'} edits the native story document.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_STORY_SAVE_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Save the CKC story document",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-story-save'} persists the native story document.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_STORY_CARD_LIST_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Inspect CKC story cards",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads atelier-ckc-story-card-list for cards under the selected story document.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_STORY_CARD_TITLE_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Type a CKC story card title",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-story-card-title', value:'<title>'} edits the story-card title.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_STORY_CARD_BODY_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Type a CKC story card body",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-story-card-body', value:'<body>'} edits the story-card body.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_STORY_CARD_SAVE_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Save a CKC story card",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-story-card-save'} writes a story card under the selected document.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_STORY_BEAT_EDITOR_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Edit CKC story beats",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-story-beat-editor', value:'<beat>'} edits a story beat.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_STORY_BEAT_SAVE_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Save a CKC story beat",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-story-beat-save'} writes a story beat under the selected document.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_MOODBOARD_DOC_REF_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Inspect the CKC moodboard document ref",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads atelier-ckc-moodboard-doc-ref for the native moodboard document.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_MOODBOARD_LATEST_REF_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Inspect the latest CKC moodboard snapshot ref",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads atelier-ckc-moodboard-latest-ref as atelier://moodboard/{snapshot_id}.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_MOODBOARD_EDITOR_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Edit CKC moodboard snapshot JSON",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-moodboard-editor', value:'<snapshot-json>'} edits the selected native CKC moodboard snapshot.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_MOODBOARD_SAVE_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Save a CKC moodboard snapshot",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-moodboard-save'} appends the selected moodboard document and records a native moodboard snapshot.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_MOODBOARD_OPEN_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Open the CKC moodboard",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-moodboard-open'} opens the native moodboard surface.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Inspect the CKC moodboard canvas",
+        mcp_tool: "argus.inspect",
+        description: "argus.inspect reads atelier-ckc-moodboard-canvas for native moodboard state.",
     });
 
     // ── Code editor: every CODE_ACTION_CATALOG entry as editor.code.<action> ─────────────────────────
