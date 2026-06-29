@@ -42,12 +42,12 @@ use crate::atelier::sheet::{
 use crate::atelier::stealth_window::ResolvedContentRef;
 use crate::atelier::{
     builtin_character_sheet_template, builtin_safe_subset, character_ref, collection_ref,
-    default_character_sheet_text, media_asset_ref, sheet_version_ref, text_hash, AtelierError,
-    AtelierStore, BulkOperationReceipt, Character, ClipboardImageImportRequest,
-    DeletionArchiveRequest, DeletionImpactPreview, DeletionImpactPreviewRequest,
-    DeletionRestoreRequest, DeletionTargetRef, ImageImportRecord, MediaReviewMetadataUpdate,
-    NewCharacter, NewSheetVersion, SetMediaSourceProvenanceRefs, SheetVersion,
-    UrlImageImportRequest, CHARACTER_SHEET_V2_TEMPLATE_VERSION, DEFAULT_SHEET_TOOL,
+    default_character_sheet_text, media_asset_ref, reject_legacy_runtime_ref, sheet_version_ref,
+    text_hash, AtelierError, AtelierStore, BulkOperationReceipt, Character,
+    ClipboardImageImportRequest, DeletionArchiveRequest, DeletionImpactPreview,
+    DeletionImpactPreviewRequest, DeletionRestoreRequest, DeletionTargetRef, ImageImportRecord,
+    MediaReviewMetadataUpdate, NewCharacter, NewSheetVersion, SetMediaSourceProvenanceRefs,
+    SheetVersion, UrlImageImportRequest, CHARACTER_SHEET_V2_TEMPLATE_VERSION, DEFAULT_SHEET_TOOL,
 };
 use crate::AppState;
 
@@ -78,7 +78,7 @@ pub fn routes(state: AppState) -> Router {
         )
         .route(
             "/atelier/media-albums/:collection_id/items",
-            post(add_media_album_items),
+            get(list_media_album_items).post(add_media_album_items),
         )
         .route(
             "/atelier/media-assets/:asset_id/notes-tags",
@@ -418,6 +418,14 @@ struct CreateMediaAlbumRequest {
 #[derive(Debug, Deserialize)]
 struct AddMediaAlbumItemsRequest {
     asset_ids: Vec<Uuid>,
+    source_path_ref: Option<String>,
+    source_url_ref: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct MediaAlbumItemsQuery {
+    offset: Option<i64>,
+    limit: Option<i64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -426,6 +434,15 @@ struct AddMediaAlbumItemsResponse {
     collection_ref: String,
     requested: usize,
     inserted: i64,
+    member_count: usize,
+    members_next_offset: Option<i64>,
+    members: Vec<MediaAlbumMemberResponse>,
+}
+
+#[derive(Debug, Serialize)]
+struct MediaAlbumItemsPageResponse {
+    collection_id: Uuid,
+    collection_ref: String,
     member_count: usize,
     members_next_offset: Option<i64>,
     members: Vec<MediaAlbumMemberResponse>,
@@ -612,6 +629,32 @@ fn normalize_media_review_status_for_api(status: Option<&str>) -> String {
     }
 }
 
+fn validate_optional_provenance_ref_for_api(
+    field: &str,
+    value: Option<&str>,
+) -> Result<(), (StatusCode, Json<ErrorResponse>)> {
+    let Some(raw) = value else {
+        return Ok(());
+    };
+    let trimmed = raw.trim();
+    if trimmed.is_empty() || trimmed != raw {
+        return Err(atelier_error(AtelierError::Validation(format!(
+            "{field} must not be empty or padded"
+        ))));
+    }
+    match reject_legacy_runtime_ref(field, raw) {
+        Ok(()) => Ok(()),
+        Err(AtelierError::ForbiddenStorage(message)) => {
+            Err(atelier_error(AtelierError::Validation(message)))
+        }
+        Err(err) => Err(atelier_error(err)),
+    }
+}
+
+fn portable_optional_provenance_ref_for_api(field: &str, value: Option<String>) -> Option<String> {
+    value.filter(|raw| reject_legacy_runtime_ref(field, raw).is_ok())
+}
+
 async fn ensure_sheet_version_matches_character(
     store: &AtelierStore,
     character_internal_id: Uuid,
@@ -657,6 +700,16 @@ async fn media_album_members_response(
     collection_id: Uuid,
 ) -> Result<(Vec<MediaAlbumMemberResponse>, usize, Option<i64>), (StatusCode, Json<ErrorResponse>)>
 {
+    media_album_members_page_response(store, collection_id, 0, LIST_CAP).await
+}
+
+async fn media_album_members_page_response(
+    store: &AtelierStore,
+    collection_id: Uuid,
+    offset: i64,
+    limit: i64,
+) -> Result<(Vec<MediaAlbumMemberResponse>, usize, Option<i64>), (StatusCode, Json<ErrorResponse>)>
+{
     let total_count: i64 =
         sqlx::query_scalar("SELECT COUNT(*) FROM atelier_collection_item WHERE collection_id = $1")
             .bind(collection_id)
@@ -665,15 +718,18 @@ async fn media_album_members_response(
             .map_err(internal_error)?;
     let rows = sqlx::query(
         r#"SELECT ci.asset_id, ma.content_hash, ma.mime, ma.source_provenance,
-                  ci.sort_order, ci.added_at_utc
+                  ci.sort_order, ci.added_at_utc,
+                  ci.source_path_ref AS link_source_path_ref,
+                  ci.source_url_ref AS link_source_url_ref
            FROM atelier_collection_item ci
            JOIN atelier_media_asset ma ON ma.asset_id = ci.asset_id
            WHERE ci.collection_id = $1
            ORDER BY ci.sort_order ASC, ci.added_at_utc ASC
-           LIMIT $2"#,
+           LIMIT $2 OFFSET $3"#,
     )
     .bind(collection_id)
-    .bind(LIST_CAP)
+    .bind(limit)
+    .bind(offset)
     .fetch_all(store.pool())
     .await
     .map_err(internal_error)?;
@@ -699,6 +755,14 @@ async fn media_album_members_response(
             .get_media_source_provenance_refs(asset_id)
             .await
             .map_err(atelier_error)?;
+        let link_source_path_ref: Option<String> = portable_optional_provenance_ref_for_api(
+            "source_path_ref",
+            row.get("link_source_path_ref"),
+        );
+        let link_source_url_ref: Option<String> = portable_optional_provenance_ref_for_api(
+            "source_url_ref",
+            row.get("link_source_url_ref"),
+        );
         members.push(MediaAlbumMemberResponse {
             asset_id,
             media_ref: media_asset_ref(asset_id),
@@ -712,20 +776,49 @@ async fn media_album_members_response(
             notes: metadata.as_ref().and_then(|row| row.notes.clone()),
             review_status: metadata.as_ref().map(|row| row.review_status.clone()),
             tags,
-            source_path_ref: provenance
-                .as_ref()
-                .and_then(|row| row.source_path_ref.clone()),
-            source_url_ref: provenance
-                .as_ref()
-                .and_then(|row| row.source_url_ref.clone()),
+            source_path_ref: link_source_path_ref.or_else(|| {
+                provenance.as_ref().and_then(|row| {
+                    portable_optional_provenance_ref_for_api(
+                        "source_path_ref",
+                        row.source_path_ref.clone(),
+                    )
+                })
+            }),
+            source_url_ref: link_source_url_ref.or_else(|| {
+                provenance.as_ref().and_then(|row| {
+                    portable_optional_provenance_ref_for_api(
+                        "source_url_ref",
+                        row.source_url_ref.clone(),
+                    )
+                })
+            }),
         });
     }
-    let members_next_offset = if total_count as usize > members.len() {
-        Some(members.len() as i64)
+    let next_offset = offset.saturating_add(members.len() as i64);
+    let members_next_offset = if total_count > next_offset {
+        Some(next_offset)
     } else {
         None
     };
     Ok((members, total_count.max(0) as usize, members_next_offset))
+}
+
+fn normalize_media_album_items_page_query(
+    query: MediaAlbumItemsQuery,
+) -> Result<(i64, i64), (StatusCode, Json<ErrorResponse>)> {
+    let offset = query.offset.unwrap_or(0);
+    if offset < 0 {
+        return Err(atelier_error(AtelierError::Validation(
+            "offset must be >= 0".to_owned(),
+        )));
+    }
+    let limit = query.limit.unwrap_or(LIST_CAP);
+    if limit < 1 {
+        return Err(atelier_error(AtelierError::Validation(
+            "limit must be >= 1".to_owned(),
+        )));
+    }
+    Ok((offset, limit.min(LIST_CAP)))
 }
 
 async fn media_album_response(
@@ -1053,6 +1146,34 @@ async fn create_character_media_album(
     ))
 }
 
+/// GET /atelier/media-albums/:collection_id/items — fetch a page of album media members.
+async fn list_media_album_items(
+    State(state): State<AppState>,
+    Path(collection_id): Path<Uuid>,
+    Query(query): Query<MediaAlbumItemsQuery>,
+) -> Result<Json<MediaAlbumItemsPageResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let store = atelier_store(&state);
+    let collection = store
+        .get_collection(collection_id)
+        .await
+        .map_err(atelier_error)?;
+    if collection.character_internal_id.is_none() {
+        return Err(atelier_error(AtelierError::Validation(format!(
+            "collection_id={collection_id} is not a CKC character album"
+        ))));
+    }
+    let (offset, limit) = normalize_media_album_items_page_query(query)?;
+    let (members, member_count, members_next_offset) =
+        media_album_members_page_response(&store, collection_id, offset, limit).await?;
+    Ok(Json(MediaAlbumItemsPageResponse {
+        collection_id,
+        collection_ref: collection_ref(collection_id),
+        member_count,
+        members_next_offset,
+        members,
+    }))
+}
+
 /// POST /atelier/media-albums/:collection_id/items — append existing media assets to an album.
 async fn add_media_album_items(
     State(state): State<AppState>,
@@ -1071,9 +1192,20 @@ async fn add_media_album_items(
             "collection_id={collection_id} is not a CKC character album"
         ))));
     }
+    validate_optional_provenance_ref_for_api(
+        "source_path_ref",
+        payload.source_path_ref.as_deref(),
+    )?;
+    validate_optional_provenance_ref_for_api("source_url_ref", payload.source_url_ref.as_deref())?;
     let requested = payload.asset_ids.len();
     let inserted = store
-        .add_images_to_collection_attributed(collection_id, &payload.asset_ids, &actor)
+        .add_images_to_collection_with_link_refs_attributed(
+            collection_id,
+            &payload.asset_ids,
+            payload.source_path_ref.as_deref(),
+            payload.source_url_ref.as_deref(),
+            &actor,
+        )
         .await
         .map_err(atelier_error)?;
     let (members, member_count, members_next_offset) =
@@ -1108,6 +1240,11 @@ async fn update_media_notes_tags(
 ) -> Result<Json<MediaNotesTagsResponse>, (StatusCode, Json<ErrorResponse>)> {
     let actor = calling_actor(&headers)?;
     let store = atelier_store(&state);
+    validate_optional_provenance_ref_for_api(
+        "source_path_ref",
+        payload.source_path_ref.as_deref(),
+    )?;
+    validate_optional_provenance_ref_for_api("source_url_ref", payload.source_url_ref.as_deref())?;
     let existing_metadata = store
         .get_media_review_metadata(asset_id)
         .await

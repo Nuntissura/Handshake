@@ -318,15 +318,27 @@ the UI was steered.\n\
 \n\
 CKC also keeps linked images, folders, albums, and image-level notes/tags attached to character sheets. \
 Inspect atelier-ckc-linked-media-list to see album rows (`atelier-ckc-album-*`), media rows \
-(`atelier-ckc-media-*`), and folder provenance rows (`atelier-ckc-folder-*`). Album refs use hsLink \
+(`atelier-ckc-media-*`), folder provenance rows (`atelier-ckc-folder-*`), and source URL rows \
+(`atelier-ckc-source-url-*`). Album refs use hsLink \
 refKind media_album so they remain CKC collection chips and do not collide with renderable rich-editor \
-album embeds. Edit image notes in atelier-ckc-media-notes-editor and image tags in \
+album embeds. Media rows use hsLink refKind media and folder provenance rows use hsLink refKind folder; \
+source URL rows use hsLink refKind source_url. Argus descriptions must include draggable atelier-ref \
+metadata before a model treats a row as reusable. \
+Create albums with atelier-ckc-album-create-name, atelier-ckc-album-create-tags, \
+atelier-ckc-album-create-notes, and atelier-ckc-album-create. Select an album row, paste existing \
+atelier://media/{asset_id} refs or raw UUIDs into atelier-ckc-album-link-asset-ids, optionally set \
+atelier-ckc-album-link-source-path and atelier-ckc-album-link-source-url for per-album link provenance, \
+then click atelier-ckc-album-link-assets; atelier-ckc-album-status reports create/link results. When an album \
+shows members_next_offset, click its dynamic atelier-ckc-album-load-more-* row to fetch the next page \
+through GET /atelier/media-albums/{collection_id}/items?offset=...&limit=200. Link requests \
+may carry link-scoped source_path_ref/source_url_ref through POST /atelier/media-albums/{collection_id}/items \
+so the same image asset can belong to different albums without losing per-link provenance. Edit image notes in atelier-ckc-media-notes-editor and image tags in \
 atelier-ckc-media-tags-editor, then click atelier-ckc-media-save. These image notes and image tags are \
 stored on media metadata and must stay separate from the character sheet notes in \
 atelier-ckc-sheet-editor. The matching backend routes are GET/POST \
 /atelier/characters/{character_internal_id}/media-albums, POST \
 /atelier/media-albums/{collection_id}/items, and POST /atelier/media-assets/{asset_id}/notes-tags; POST \
-writes require x-hsk-actor-id. Folder links are source_path_ref/source_url_ref typed refs, and image refs \
+writes require x-hsk-actor-id. Folder and source URL links are source_path_ref/source_url_ref typed refs, and image refs \
 are atelier://media/{asset_id}. CKC search lives in the same tab: set atelier-ckc-search-query, optional \
 rich tag filters in atelier-ckc-search-tags, optionally toggle selected-character/album/media scope \
 with atelier-ckc-search-filter-character, atelier-ckc-search-filter-collection, and \
@@ -627,6 +639,77 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         mcp_tool: "argus.inspect",
         description:
             "argus.inspect reads CKC album rows, media rows, folder refs, and image metadata.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_ALBUM_STATUS_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Read CKC album status",
+        mcp_tool: "argus.inspect",
+        description: "argus.inspect reads atelier-ckc-album-status for album create/link results.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_ALBUM_CREATE_NAME_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Name a CKC album",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-album-create-name', value:'<album name>'}.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_ALBUM_CREATE_TAGS_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Tag a CKC album",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-album-create-tags', value:'tag, tag'} edits album tags.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_ALBUM_CREATE_NOTES_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Write CKC album notes",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-album-create-notes', value:'<album notes>'}.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_ALBUM_CREATE_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Create a CKC album",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-album-create'} creates an album for the selected character.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_ALBUM_LINK_ASSET_IDS_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Enter media IDs to link",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-album-link-asset-ids', value:'atelier://media/<asset_id>'}.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_ALBUM_LINK_SOURCE_PATH_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Set CKC album link source path",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-album-link-source-path', value:'atelier://folder/<source>'} sets per-link folder provenance.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_ALBUM_LINK_SOURCE_URL_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Set CKC album link source URL",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-album-link-source-url', value:'https://...'} sets per-link source URL provenance.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_ALBUM_LINK_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Link media to CKC album",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-album-link-assets'} links existing media assets into the selected album.",
     });
     rows.push(AgentToolRow {
         author_id: crate::atelier_panel::ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID,

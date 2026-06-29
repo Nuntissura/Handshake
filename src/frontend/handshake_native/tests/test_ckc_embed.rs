@@ -1062,8 +1062,13 @@ fn atelier_client_builds_verified_routes() {
         vec![(HSK_HEADER_ACTOR_ID.to_owned(), "agent-a".to_owned())],
         "MT-010: media album creation carries backend actor attribution"
     );
-    let add_items =
-        c.add_media_album_items_actor_request("album-7", &["asset-1".to_owned()], "agent-a");
+    let add_items = c.add_media_album_items_actor_request(
+        "album-7",
+        &["asset-1".to_owned()],
+        Some("atelier://folder/ref-set-a"),
+        Some("https://example.invalid/ref-set-a"),
+        "agent-a",
+    );
     assert_eq!(
         add_items.url, "http://127.0.0.1:37501/atelier/media-albums/album-7/items",
         "MT-010: album member add route"
@@ -1073,13 +1078,21 @@ fn atelier_client_builds_verified_routes() {
         serde_json::json!(["asset-1"]),
         "MT-010: album member body carries asset ids without creating media duplicates"
     );
+    assert_eq!(
+        add_items.body.as_ref().unwrap()["source_path_ref"],
+        "atelier://folder/ref-set-a",
+        "MT-010: folder provenance refs are preserved as typed album-link refs"
+    );
+    assert_eq!(
+        add_items.body.as_ref().unwrap()["source_url_ref"],
+        "https://example.invalid/ref-set-a",
+        "MT-010: source URL provenance refs are preserved as typed album-link refs"
+    );
     let notes = c.media_notes_tags_actor_request(
         "asset-1",
         Some("image note"),
         Some(&["face".to_owned(), "approved".to_owned()]),
         Some("pass"),
-        Some("atelier://folder/ref-set-a"),
-        None,
         "agent-a",
     );
     assert_eq!(
@@ -1091,10 +1104,15 @@ fn atelier_client_builds_verified_routes() {
         "image note",
         "MT-010: image notes are sent through media metadata, not sheet text"
     );
-    assert_eq!(
-        notes.body.as_ref().unwrap()["source_path_ref"],
-        "atelier://folder/ref-set-a",
-        "MT-010: folder provenance refs are preserved as typed refs"
+    assert!(
+        notes
+            .body
+            .as_ref()
+            .unwrap()
+            .get("source_path_ref")
+            .is_none()
+            && notes.body.as_ref().unwrap().get("source_url_ref").is_none(),
+        "MT-010: media note/tag route must not carry album-link provenance refs"
     );
     println!(
         "AC-5/MT-009: AtelierClient builds verified /atelier routes for intake and CKC sheets"

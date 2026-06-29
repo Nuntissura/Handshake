@@ -1745,6 +1745,11 @@ impl AtelierStore {
             ))
             .execute(&mut *tx)
             .await?;
+            sqlx::raw_sql(include_str!(
+                "../../migrations/0339_atelier_ckc_media_album_link_scope.sql"
+            ))
+            .execute(&mut *tx)
+            .await?;
             tx.commit().await?;
             self.repair_contact_sheet_manifest_schema_namespace()
                 .await?;
@@ -2190,6 +2195,11 @@ impl AtelierStore {
         .await?;
         sqlx::raw_sql(include_str!(
             "../../migrations/0338_atelier_ckc_sheet_field_projection.sql"
+        ))
+        .execute(&mut *tx)
+        .await?;
+        sqlx::raw_sql(include_str!(
+            "../../migrations/0339_atelier_ckc_media_album_link_scope.sql"
         ))
         .execute(&mut *tx)
         .await?;

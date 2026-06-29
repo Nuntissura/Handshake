@@ -1021,13 +1021,14 @@ async fn atelier_ckc_media_album_api_links_assets_notes_tags_and_refs(
     let hero_asset = fresh_api_media_asset(&store, "mt010-hero").await;
     let detail_asset = fresh_api_media_asset(&store, "mt010-detail").await;
 
+    let album_name = format!("Hero reference album {}", Uuid::new_v4());
     let created_album = client
         .post(format!(
             "{base_url}/atelier/characters/{character_internal_id}/media-albums"
         ))
         .header("x-hsk-actor-id", &actor)
         .json(&serde_json::json!({
-            "name": format!("Hero reference album {}", Uuid::new_v4()),
+            "name": album_name,
             "notes": "Album notes stay separate from per-image notes.",
             "tags": [" hero ", "portrait", "hero"],
             "sheet_version_id": sheet_version_id,
@@ -1167,6 +1168,247 @@ async fn atelier_ckc_media_album_api_links_assets_notes_tags_and_refs(
     assert_eq!(
         album["notes"].as_str(),
         Some("Album notes stay separate from per-image notes.")
+    );
+
+    let page = client
+        .get(format!(
+            "{base_url}/atelier/media-albums/{album_id}/items?offset=1&limit=9999"
+        ))
+        .send()
+        .await?;
+    assert_eq!(page.status(), reqwest::StatusCode::OK);
+    let page: serde_json::Value = page.json().await?;
+    assert_eq!(
+        page["member_count"].as_i64(),
+        Some(2),
+        "GET item pages report the canonical album member count"
+    );
+    assert!(
+        page["members_next_offset"].is_null(),
+        "offset one in a two-item album has no next page even when limit is over cap"
+    );
+    let page_members = page["members"].as_array().expect("paged album members");
+    let expected_detail_asset_id = detail_asset.to_string();
+    assert_eq!(
+        page_members.len(),
+        1,
+        "GET item pages honor the requested offset while capping the over-large limit"
+    );
+    assert_eq!(
+        page_members[0]["asset_id"].as_str(),
+        Some(expected_detail_asset_id.as_str()),
+        "offset one returns the second linked media asset"
+    );
+
+    let invalid_note_tags = client
+        .post(format!(
+            "{base_url}/atelier/media-assets/{hero_asset}/notes-tags"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "notes": "this invalid provenance write must not persist",
+            "tags": ["badtag"],
+            "review_status": "reject",
+            "source_path_ref": " atelier://folder/padded-invalid ",
+        }))
+        .send()
+        .await?;
+    assert_eq!(
+        invalid_note_tags.status(),
+        reqwest::StatusCode::BAD_REQUEST,
+        "invalid provenance refs must be rejected before mutating media metadata"
+    );
+    let albums_after_invalid = client
+        .get(format!(
+            "{base_url}/atelier/characters/{character_internal_id}/media-albums"
+        ))
+        .send()
+        .await?;
+    assert_eq!(albums_after_invalid.status(), reqwest::StatusCode::OK);
+    let albums_after_invalid: Vec<serde_json::Value> = albums_after_invalid.json().await?;
+    let album_after_invalid = albums_after_invalid
+        .iter()
+        .find(|row| row["collection_id"].as_str() == Some(album_id))
+        .expect("created album still listed after invalid provenance write");
+    let members_after_invalid = album_after_invalid["members"]
+        .as_array()
+        .expect("album members after invalid provenance write");
+    assert_eq!(
+        members_after_invalid[0]["notes"].as_str(),
+        Some("close-up face note for image only"),
+        "invalid provenance writes must not partially replace media notes"
+    );
+    assert_eq!(
+        members_after_invalid[0]["tags"],
+        serde_json::json!(["face", "lighting"]),
+        "invalid provenance writes must not partially replace media tags"
+    );
+    let invalid_local_note_tags = client
+        .post(format!(
+            "{base_url}/atelier/media-assets/{hero_asset}/notes-tags"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "notes": "this local provenance write must not persist",
+            "tags": ["localbad"],
+            "review_status": "reject",
+            "source_url_ref": "file://operator/reference-set",
+        }))
+        .send()
+        .await?;
+    assert_eq!(
+        invalid_local_note_tags.status(),
+        reqwest::StatusCode::BAD_REQUEST,
+        "machine-local provenance refs must be rejected as validation errors before mutating media metadata"
+    );
+    let albums_after_local_invalid = client
+        .get(format!(
+            "{base_url}/atelier/characters/{character_internal_id}/media-albums"
+        ))
+        .send()
+        .await?;
+    assert_eq!(albums_after_local_invalid.status(), reqwest::StatusCode::OK);
+    let albums_after_local_invalid: Vec<serde_json::Value> =
+        albums_after_local_invalid.json().await?;
+    let album_after_local_invalid = albums_after_local_invalid
+        .iter()
+        .find(|row| row["collection_id"].as_str() == Some(album_id))
+        .expect("created album still listed after local provenance rejection");
+    let members_after_local_invalid = album_after_local_invalid["members"]
+        .as_array()
+        .expect("album members after local provenance rejection");
+    assert_eq!(
+        members_after_local_invalid[0]["notes"].as_str(),
+        Some("close-up face note for image only"),
+        "machine-local provenance rejection must not partially replace media notes"
+    );
+    assert_eq!(
+        members_after_local_invalid[0]["tags"],
+        serde_json::json!(["face", "lighting"]),
+        "machine-local provenance rejection must not partially replace media tags"
+    );
+
+    let missing_asset = Uuid::new_v4();
+    let missing_add = client
+        .post(format!("{base_url}/atelier/media-albums/{album_id}/items"))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "asset_ids": [missing_asset],
+        }))
+        .send()
+        .await?;
+    assert_eq!(
+        missing_add.status(),
+        reqwest::StatusCode::NOT_FOUND,
+        "CKC album linking must reject UUIDs that are not Atelier media assets instead of leaking an FK failure"
+    );
+    let invalid_album_item_ref = client
+        .post(format!("{base_url}/atelier/media-albums/{album_id}/items"))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "asset_ids": [hero_asset],
+            "source_path_ref": "file://operator/reference-set",
+        }))
+        .send()
+        .await?;
+    assert_eq!(
+        invalid_album_item_ref.status(),
+        reqwest::StatusCode::BAD_REQUEST,
+        "machine-local source refs on album membership writes must be rejected as validation errors"
+    );
+
+    let duplicate_public_id = format!("mt010-media-char-dup-{}", Uuid::new_v4());
+    let duplicate_character = client
+        .post(format!("{base_url}/atelier/characters"))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "public_id": duplicate_public_id,
+            "display_name": "MT-010 Duplicate Album Scope Character",
+        }))
+        .send()
+        .await?;
+    assert_eq!(duplicate_character.status(), reqwest::StatusCode::CREATED);
+    let duplicate_character: serde_json::Value = duplicate_character.json().await?;
+    let duplicate_character_internal_id = duplicate_character["internal_id"]
+        .as_str()
+        .expect("duplicate character internal id");
+    let duplicate_album = client
+        .post(format!(
+            "{base_url}/atelier/characters/{duplicate_character_internal_id}/media-albums"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "name": created_album["name"].as_str().expect("created album name"),
+            "notes": "Same album name on another character must be allowed.",
+            "tags": ["cross-character"],
+            "sheet_version_id": null,
+        }))
+        .send()
+        .await?;
+    assert_eq!(
+        duplicate_album.status(),
+        reqwest::StatusCode::CREATED,
+        "CKC album names must be character-scoped, not globally unique"
+    );
+    let duplicate_album: serde_json::Value = duplicate_album.json().await?;
+    let duplicate_album_id = duplicate_album["collection_id"]
+        .as_str()
+        .expect("duplicate album id");
+    let duplicate_add = client
+        .post(format!(
+            "{base_url}/atelier/media-albums/{duplicate_album_id}/items"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "asset_ids": [hero_asset],
+            "source_path_ref": "atelier://folder/reference-set-b",
+        }))
+        .send()
+        .await?;
+    assert_eq!(duplicate_add.status(), reqwest::StatusCode::OK);
+    let duplicate_albums = client
+        .get(format!(
+            "{base_url}/atelier/characters/{duplicate_character_internal_id}/media-albums"
+        ))
+        .send()
+        .await?;
+    assert_eq!(duplicate_albums.status(), reqwest::StatusCode::OK);
+    let duplicate_albums: Vec<serde_json::Value> = duplicate_albums.json().await?;
+    let duplicate_album_row = duplicate_albums
+        .iter()
+        .find(|row| row["collection_id"].as_str() == Some(duplicate_album_id))
+        .expect("duplicate character album listed");
+    let duplicate_members = duplicate_album_row["members"]
+        .as_array()
+        .expect("duplicate album members");
+    assert_eq!(
+        duplicate_members[0]["source_path_ref"].as_str(),
+        Some("atelier://folder/reference-set-b"),
+        "link-scoped provenance must override asset-global provenance for that album membership"
+    );
+    let first_albums_after_duplicate = client
+        .get(format!(
+            "{base_url}/atelier/characters/{character_internal_id}/media-albums"
+        ))
+        .send()
+        .await?;
+    assert_eq!(
+        first_albums_after_duplicate.status(),
+        reqwest::StatusCode::OK
+    );
+    let first_albums_after_duplicate: Vec<serde_json::Value> =
+        first_albums_after_duplicate.json().await?;
+    let first_album_after_duplicate = first_albums_after_duplicate
+        .iter()
+        .find(|row| row["collection_id"].as_str() == Some(album_id))
+        .expect("first character album still listed");
+    let first_members_after_duplicate = first_album_after_duplicate["members"]
+        .as_array()
+        .expect("first album members after duplicate link");
+    assert_eq!(
+        first_members_after_duplicate[0]["source_path_ref"].as_str(),
+        Some("atelier://folder/reference-set-a"),
+        "link-scoped provenance in another album must not overwrite the first album's visible source ref"
     );
 
     server.abort();

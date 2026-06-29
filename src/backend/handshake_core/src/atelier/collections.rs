@@ -192,6 +192,13 @@ fn require_collection_ref_text<'a>(field: &str, value: &'a str) -> AtelierResult
     Ok(trimmed)
 }
 
+fn optional_collection_item_ref(field: &str, value: Option<&str>) -> AtelierResult<Option<String>> {
+    match value {
+        Some(raw) => Ok(Some(require_collection_ref_text(field, raw)?.to_owned())),
+        None => Ok(None),
+    }
+}
+
 fn collection_from_row(row: &sqlx::postgres::PgRow) -> Collection {
     let tags_json: serde_json::Value = row.get("tags_json");
     let tags = tags_json
@@ -609,7 +616,7 @@ impl AtelierStore {
         collection_id: Uuid,
         asset_ids: &[Uuid],
     ) -> AtelierResult<i64> {
-        self.add_images_to_collection_inner(collection_id, asset_ids, None)
+        self.add_images_to_collection_inner(collection_id, asset_ids, None, None, None)
             .await
     }
 
@@ -621,8 +628,34 @@ impl AtelierStore {
         asset_ids: &[Uuid],
         requested_by: &str,
     ) -> AtelierResult<i64> {
-        self.add_images_to_collection_inner(collection_id, asset_ids, Some(requested_by))
-            .await
+        self.add_images_to_collection_inner(
+            collection_id,
+            asset_ids,
+            Some(requested_by),
+            None,
+            None,
+        )
+        .await
+    }
+
+    /// Append media assets and persist optional link-scoped provenance on the
+    /// collection membership, not on the asset identity.
+    pub async fn add_images_to_collection_with_link_refs_attributed(
+        &self,
+        collection_id: Uuid,
+        asset_ids: &[Uuid],
+        source_path_ref: Option<&str>,
+        source_url_ref: Option<&str>,
+        requested_by: &str,
+    ) -> AtelierResult<i64> {
+        self.add_images_to_collection_inner(
+            collection_id,
+            asset_ids,
+            Some(requested_by),
+            source_path_ref,
+            source_url_ref,
+        )
+        .await
     }
 
     async fn add_images_to_collection_inner(
@@ -630,7 +663,11 @@ impl AtelierStore {
         collection_id: Uuid,
         asset_ids: &[Uuid],
         requested_by: Option<&str>,
+        source_path_ref: Option<&str>,
+        source_url_ref: Option<&str>,
     ) -> AtelierResult<i64> {
+        let source_path_ref = optional_collection_item_ref("source_path_ref", source_path_ref)?;
+        let source_url_ref = optional_collection_item_ref("source_url_ref", source_url_ref)?;
         let mut tx = self.pool().begin().await?;
         let exists: Option<Uuid> = sqlx::query_scalar(
             "SELECT collection_id FROM atelier_collection WHERE collection_id = $1 FOR UPDATE",
@@ -645,6 +682,34 @@ impl AtelierStore {
             )));
         }
 
+        let mut unique_asset_ids = Vec::new();
+        for asset_id in asset_ids {
+            if !unique_asset_ids.iter().any(|existing| existing == asset_id) {
+                unique_asset_ids.push(*asset_id);
+            }
+        }
+        if !unique_asset_ids.is_empty() {
+            let existing: Vec<Uuid> = sqlx::query_scalar(
+                "SELECT asset_id FROM atelier_media_asset WHERE asset_id = ANY($1)",
+            )
+            .bind(&unique_asset_ids)
+            .fetch_all(&mut *tx)
+            .await?;
+            if existing.len() != unique_asset_ids.len() {
+                let existing: std::collections::HashSet<Uuid> = existing.into_iter().collect();
+                let missing: Vec<String> = unique_asset_ids
+                    .iter()
+                    .filter(|asset_id| !existing.contains(asset_id))
+                    .map(Uuid::to_string)
+                    .collect();
+                tx.rollback().await?;
+                return Err(AtelierError::NotFound(format!(
+                    "collection media targets missing from atelier_media_asset: {}",
+                    missing.join(", ")
+                )));
+            }
+        }
+
         let mut next_order: i64 = sqlx::query_scalar(
             "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM atelier_collection_item WHERE collection_id = $1",
         )
@@ -653,25 +718,48 @@ impl AtelierStore {
         .await?;
 
         let mut inserted: i64 = 0;
+        let mut updated_refs: i64 = 0;
         for asset_id in asset_ids {
             let affected = sqlx::query(
-                r#"INSERT INTO atelier_collection_item (collection_id, asset_id, sort_order)
-                   VALUES ($1, $2, $3)
+                r#"INSERT INTO atelier_collection_item
+                     (collection_id, asset_id, sort_order, source_path_ref, source_url_ref)
+                   VALUES ($1, $2, $3, $4, $5)
                    ON CONFLICT (collection_id, asset_id) DO NOTHING"#,
             )
             .bind(collection_id)
             .bind(asset_id)
             .bind(next_order)
+            .bind(source_path_ref.as_deref())
+            .bind(source_url_ref.as_deref())
             .execute(&mut *tx)
             .await?
             .rows_affected();
             if affected > 0 {
                 inserted += 1;
                 next_order += 1;
+            } else if source_path_ref.is_some() || source_url_ref.is_some() {
+                let changed = sqlx::query(
+                    r#"UPDATE atelier_collection_item
+                       SET source_path_ref = COALESCE($3, source_path_ref),
+                           source_url_ref = COALESCE($4, source_url_ref)
+                       WHERE collection_id = $1 AND asset_id = $2
+                         AND (
+                           ($3::text IS NOT NULL AND source_path_ref IS DISTINCT FROM $3::text)
+                           OR ($4::text IS NOT NULL AND source_url_ref IS DISTINCT FROM $4::text)
+                         )"#,
+                )
+                .bind(collection_id)
+                .bind(asset_id)
+                .bind(source_path_ref.as_deref())
+                .bind(source_url_ref.as_deref())
+                .execute(&mut *tx)
+                .await?
+                .rows_affected();
+                updated_refs += changed as i64;
             }
         }
 
-        if inserted > 0 {
+        if inserted > 0 || updated_refs > 0 {
             sqlx::query(
                 "UPDATE atelier_collection SET updated_at_utc = NOW() WHERE collection_id = $1",
             )
@@ -688,6 +776,7 @@ impl AtelierStore {
             serde_json::json!({
                 "requested": asset_ids.len(),
                 "inserted": inserted,
+                "updated_refs": updated_refs,
                 "requested_by": requested_by,
             }),
         )

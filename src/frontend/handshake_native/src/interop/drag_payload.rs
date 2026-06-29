@@ -39,12 +39,14 @@ use serde::{Deserialize, Serialize};
 /// is discriminable from the media-render kinds (`images`/`video`/`album`/`slideshow`,
 /// [`crate::rich_editor::embeds::asset_resolver::MEDIA_EMBED_REF_KINDS`]) and from wikilink kinds. These
 /// render as the non-media `hsLink` CHIP (a labelled reference), not an inline image, so an unresolved or
-/// remote CKC item never blocks the editor on an asset fetch. All four are valid `refKind` strings the
+/// remote CKC item never blocks the editor on an asset fetch. These are valid `refKind` strings the
 /// opaque-JSONB `content_json` round-trips losslessly.
-pub const ATELIER_EMBED_REF_KINDS: [&str; 6] = [
+pub const ATELIER_EMBED_REF_KINDS: [&str; 8] = [
     "atelier",
     "media",
     "media_album",
+    "folder",
+    "source_url",
     "character",
     "character_sheet",
     "moodboard",
@@ -60,6 +62,10 @@ pub enum AtelierItemKind {
     Media,
     /// A CKC/Atelier media collection reference. This is a chip, not a renderable rich-editor `album`.
     MediaAlbum,
+    /// A CKC/Atelier source-folder provenance reference.
+    Folder,
+    /// A CKC/Atelier source-URL provenance reference.
+    SourceUrl,
     /// A character (atelier character record).
     Character,
     /// A versioned character sheet (`atelier://sheet/{character}/{version}`).
@@ -75,6 +81,8 @@ impl AtelierItemKind {
         match self {
             AtelierItemKind::Media => "media",
             AtelierItemKind::MediaAlbum => "media_album",
+            AtelierItemKind::Folder => "folder",
+            AtelierItemKind::SourceUrl => "source_url",
             AtelierItemKind::Character => "character",
             AtelierItemKind::CharacterSheet => "character_sheet",
             AtelierItemKind::Moodboard => "moodboard",
@@ -88,6 +96,8 @@ impl AtelierItemKind {
         match ref_kind {
             "media" | "atelier" => Some(AtelierItemKind::Media),
             "media_album" | "collection" => Some(AtelierItemKind::MediaAlbum),
+            "folder" | "source_folder" => Some(AtelierItemKind::Folder),
+            "source_url" | "url" => Some(AtelierItemKind::SourceUrl),
             "character" => Some(AtelierItemKind::Character),
             "character_sheet" | "sheet" | "sheet_version" => Some(AtelierItemKind::CharacterSheet),
             "moodboard" => Some(AtelierItemKind::Moodboard),
@@ -101,6 +111,8 @@ impl AtelierItemKind {
         match self {
             AtelierItemKind::Media => "Media",
             AtelierItemKind::MediaAlbum => "Album",
+            AtelierItemKind::Folder => "Folder",
+            AtelierItemKind::SourceUrl => "URL",
             AtelierItemKind::Character => "Character",
             AtelierItemKind::CharacterSheet => "Sheet",
             AtelierItemKind::Moodboard => "Moodboard",
@@ -324,6 +336,8 @@ mod tests {
         for kind in [
             AtelierItemKind::Media,
             AtelierItemKind::MediaAlbum,
+            AtelierItemKind::Folder,
+            AtelierItemKind::SourceUrl,
             AtelierItemKind::Character,
             AtelierItemKind::CharacterSheet,
             AtelierItemKind::Moodboard,
