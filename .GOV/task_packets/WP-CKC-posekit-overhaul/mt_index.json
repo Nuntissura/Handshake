@@ -2,7 +2,7 @@
   "schema_id": "hsk.microtask_index@1",
   "schema_version": "microtask_index_v1",
   "wp_id": "WP-CKC-posekit-overhaul",
-  "updated_at_utc": "2026-06-28T23:28:00.301Z",
+  "updated_at_utc": "2026-06-29T09:27:30.976Z",
   "active_mt_id": "MT-009",
   "next_mt_id": "MT-025",
   "microtask_contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
@@ -105,11 +105,12 @@
     },
     {
       "mt_id": "MT-011",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "title": "Restore CKC fuzzy, vector, combination search and rich tags",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-011.json",
       "product_edit_allowed": true,
-      "started_at_utc": null
+      "started_at_utc": "2026-06-29T09:27:30.976Z",
+      "product_commit": "91a12ce0"
     },
     {
       "mt_id": "MT-012",
