@@ -5,13 +5,13 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use sqlx::Row;
+use sqlx::{Postgres, Row};
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 use super::{
-    AtelierResult, AtelierStore, BulkOperationReceipt, character_ref, event_family,
-    reject_legacy_runtime_ref, sheet_version_ref,
+    character_ref, event_family, reject_legacy_runtime_ref, sheet_version_ref, AtelierResult,
+    AtelierStore, BulkOperationReceipt,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -1070,7 +1070,24 @@ fn split_field_line(line: &str) -> Option<(String, String, String)> {
     }
 }
 
-fn field_value_for_suggestion(raw_text: &str, target_field_id: &str) -> Option<String> {
+pub(crate) fn sheet_field_id_from_line(line: &str) -> Option<String> {
+    split_field_line(line.trim()).map(|(field_id, _, _)| field_id.to_ascii_uppercase())
+}
+
+pub(crate) fn sheet_line_looks_like_field(line: &str) -> bool {
+    let Some(colon) = line.find(':') else {
+        return false;
+    };
+    let before_colon = line[..colon].trim();
+    let Some(id_end) = field_id_end(before_colon) else {
+        return false;
+    };
+    before_colon[id_end..]
+        .chars()
+        .any(|ch| matches!(ch, '\u{2014}' | '\u{2013}' | '-'))
+}
+
+pub(crate) fn sheet_field_value(raw_text: &str, target_field_id: &str) -> Option<String> {
     for line in raw_text.lines().map(str::trim) {
         let Some((field_id, _, value)) = split_field_line(line) else {
             continue;
@@ -1080,6 +1097,40 @@ fn field_value_for_suggestion(raw_text: &str, target_field_id: &str) -> Option<S
         }
     }
     None
+}
+
+pub(crate) fn sheet_field_values(raw_text: &str, target_field_id: &str) -> Vec<String> {
+    let mut values = Vec::new();
+    for line in raw_text.lines().map(str::trim) {
+        let Some((field_id, _, value)) = split_field_line(line) else {
+            continue;
+        };
+        if !field_id.eq_ignore_ascii_case(target_field_id) {
+            continue;
+        }
+        if let Some(value) = normalize_field_suggestion_value(&value) {
+            values.push(value);
+        }
+    }
+    values
+}
+
+fn sheet_field_values_for_projection(raw_text: &str) -> Vec<(String, String)> {
+    let mut seen = HashSet::new();
+    let mut values = Vec::new();
+    for line in raw_text.lines().map(str::trim) {
+        let Some((field_id, _, value)) = split_field_line(line) else {
+            continue;
+        };
+        let Some(value) = normalize_field_suggestion_value(&value) else {
+            continue;
+        };
+        let field_id = field_id.to_ascii_uppercase();
+        if seen.insert((field_id.clone(), value.clone())) {
+            values.push((field_id, value));
+        }
+    }
+    values
 }
 
 fn normalize_field_suggestion_value(value: &str) -> Option<String> {
@@ -1738,6 +1789,30 @@ pub(crate) fn parse_sheet_template_ast(
 }
 
 impl AtelierStore {
+    async fn record_sheet_field_value_projection_in_tx(
+        &self,
+        tx: &mut sqlx::Transaction<'_, Postgres>,
+        version: &SheetVersion,
+    ) -> AtelierResult<()> {
+        for (field_id, value) in sheet_field_values_for_projection(&version.raw_text) {
+            sqlx::query(
+                r#"INSERT INTO atelier_sheet_field_value_projection
+                       (projection_id, field_id, value, character_internal_id, sheet_version_id)
+                   VALUES ($1, $2, $3, $4, $5)
+                   ON CONFLICT (field_id, value, character_internal_id, sheet_version_id)
+                   DO NOTHING"#,
+            )
+            .bind(Uuid::now_v7())
+            .bind(field_id)
+            .bind(value)
+            .bind(version.character_internal_id)
+            .bind(version.version_id)
+            .execute(&mut **tx)
+            .await?;
+        }
+        Ok(())
+    }
+
     async fn record_sheet_field_edit_rejection(
         &self,
         source_version_id: Uuid,
@@ -1904,6 +1979,8 @@ impl AtelierStore {
         .await?;
 
         let version = version_from_row(&row);
+        self.record_sheet_field_value_projection_in_tx(&mut tx, &version)
+            .await?;
         if let Err(err) = self
             .record_event_in_tx(
                 &mut tx,
@@ -1991,21 +2068,20 @@ impl AtelierStore {
                 "field_id must not be empty".to_string(),
             ));
         }
-        let limit = limit.clamp(1, 50) as usize;
+        let field_id = field_id.to_ascii_uppercase();
+        let limit = limit.clamp(1, 50);
         let rows = sqlx::query(
             r#"SELECT version_id, character_internal_id, raw_text
                FROM atelier_sheet_version
-               ORDER BY created_at_utc DESC, seq DESC
-               LIMIT 2000"#,
+               ORDER BY created_at_utc DESC, seq DESC"#,
         )
         .fetch_all(self.pool())
         .await?;
-
         let mut suggestions = Vec::<SheetFieldSuggestion>::new();
         let mut value_index = HashMap::<String, usize>::new();
         for row in rows {
             let raw_text: String = row.get("raw_text");
-            let Some(value) = field_value_for_suggestion(&raw_text, field_id) else {
+            let Some(value) = sheet_field_value(&raw_text, &field_id) else {
                 continue;
             };
             if let Some(index) = value_index.get(&value).copied() {
@@ -2025,7 +2101,7 @@ impl AtelierStore {
                 latest_character_ref: character_ref(character_internal_id),
             });
         }
-        suggestions.truncate(limit);
+        suggestions.truncate(limit as usize);
         Ok(suggestions)
     }
 
@@ -2262,6 +2338,8 @@ impl AtelierStore {
         .fetch_one(&mut *tx)
         .await?;
         let version = version_from_row(&row);
+        self.record_sheet_field_value_projection_in_tx(&mut tx, &version)
+            .await?;
 
         let event_result = self
             .record_event_in_tx(
@@ -2447,6 +2525,8 @@ impl AtelierStore {
             .fetch_one(&mut *tx)
             .await?;
             let version = version_from_row(&row);
+            self.record_sheet_field_value_projection_in_tx(&mut tx, &version)
+                .await?;
             self.record_event_in_tx(
                 &mut tx,
                 event_family::SHEET_FIELD_EDITS_APPLIED,
@@ -2622,6 +2702,8 @@ impl AtelierStore {
         .fetch_one(&mut *tx)
         .await?;
         let version = version_from_row(&row);
+        self.record_sheet_field_value_projection_in_tx(&mut tx, &version)
+            .await?;
 
         let event_result = self
             .record_event_in_tx(

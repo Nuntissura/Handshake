@@ -16,37 +16,40 @@
 //! interpolated into SQL.
 
 use axum::{
-    Json, Router,
     extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post},
+    Json, Router,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
+use std::collections::HashSet;
 use uuid::Uuid;
 
-use crate::AppState;
 use crate::atelier::collections::{Collection, NewCollection};
 use crate::atelier::intake::{
     IntakeBatchMode, IntakeLaneCounts, IntakeProfileMode, NewIntakeBatch,
 };
 use crate::atelier::search::{
-    AiTagSuggestion, AiTagSuggestionDecision, AiTagSuggestionStatus, CkcSearchMode,
+    normalize_tag, AiTagSuggestion, AiTagSuggestionDecision, AiTagSuggestionStatus, CkcSearchMode,
     CkcSearchRequest, CkcSearchResponse, CkcTagNote, NewAiTagSuggestion, UpsertCkcTagNote,
-    normalize_tag,
+};
+use crate::atelier::sheet::{
+    sheet_field_id_from_line, sheet_field_values, sheet_line_looks_like_field,
 };
 use crate::atelier::stealth_window::ResolvedContentRef;
 use crate::atelier::{
-    AtelierError, AtelierStore, BulkOperationReceipt, CHARACTER_SHEET_V2_TEMPLATE_VERSION,
-    Character, ClipboardImageImportRequest, DEFAULT_SHEET_TOOL, DeletionArchiveRequest,
-    DeletionImpactPreview, DeletionImpactPreviewRequest, DeletionRestoreRequest, DeletionTargetRef,
-    ImageImportRecord, MediaReviewMetadataUpdate, NewCharacter, NewSheetVersion,
-    SetMediaSourceProvenanceRefs, SheetVersion, UrlImageImportRequest,
     builtin_character_sheet_template, builtin_safe_subset, character_ref, collection_ref,
-    default_character_sheet_text, media_asset_ref, sheet_version_ref, text_hash,
+    default_character_sheet_text, media_asset_ref, sheet_version_ref, text_hash, AtelierError,
+    AtelierStore, BulkOperationReceipt, Character, ClipboardImageImportRequest,
+    DeletionArchiveRequest, DeletionImpactPreview, DeletionImpactPreviewRequest,
+    DeletionRestoreRequest, DeletionTargetRef, ImageImportRecord, MediaReviewMetadataUpdate,
+    NewCharacter, NewSheetVersion, SetMediaSourceProvenanceRefs, SheetVersion,
+    UrlImageImportRequest, CHARACTER_SHEET_V2_TEMPLATE_VERSION, DEFAULT_SHEET_TOOL,
 };
+use crate::AppState;
 
 const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
 
@@ -792,6 +795,116 @@ fn media_display_file_name(source: Option<&str>, content_hash: &str) -> String {
     }
 }
 
+fn safe_subset_sheet_text(raw_text: &str) -> Result<String, (StatusCode, Json<ErrorResponse>)> {
+    let safe_subset = builtin_safe_subset().map_err(atelier_error)?;
+    let safe_ids = safe_subset
+        .field_ids
+        .into_iter()
+        .map(|field_id| field_id.to_ascii_uppercase())
+        .collect::<HashSet<_>>();
+    let mut out = String::with_capacity(raw_text.len());
+    for segment in raw_text.split_inclusive('\n') {
+        let trimmed_line = segment.trim_end_matches(['\r', '\n']);
+        match sheet_field_id_from_line(trimmed_line) {
+            Some(field_id) if safe_ids.contains(&field_id) => out.push_str(segment),
+            Some(_) => {}
+            None if sheet_line_looks_like_field(trimmed_line) => {}
+            None => out.push_str(segment),
+        }
+    }
+    Ok(out)
+}
+
+fn export_sheet_json(
+    version: &SheetVersion,
+    raw_text: &str,
+    export_format: &str,
+) -> Result<String, (StatusCode, Json<ErrorResponse>)> {
+    serde_json::to_string_pretty(&serde_json::json!({
+        "export_format": export_format,
+        "template_version": CHARACTER_SHEET_V2_TEMPLATE_VERSION,
+        "version_id": version.version_id,
+        "character_internal_id": version.character_internal_id,
+        "parent_version_id": version.parent_version_id,
+        "seq": version.seq,
+        "author": &version.author,
+        "tool": &version.tool,
+        "character_ref": character_ref(version.character_internal_id),
+        "sheet_version_ref": sheet_version_ref(
+            version.character_internal_id,
+            version.version_id,
+        ),
+        "raw_text": raw_text,
+        "created_at_utc": version.created_at_utc,
+    }))
+    .map_err(|err| internal_error(format!("serialize CKC sheet export JSON failed: {err}")))
+}
+
+fn raw_text_from_export_json(value: &serde_json::Value) -> Option<String> {
+    if let Some(raw_text) = value.get("raw_text").and_then(|value| value.as_str()) {
+        return Some(raw_text.to_owned());
+    }
+    let content = value.get("content").and_then(|value| value.as_str())?;
+    if content.trim_start().starts_with('{') {
+        serde_json::from_str::<serde_json::Value>(content)
+            .ok()
+            .and_then(|nested| raw_text_from_export_json(&nested))
+            .or_else(|| Some(content.to_owned()))
+    } else {
+        Some(content.to_owned())
+    }
+}
+
+fn import_sheet_raw_text(raw_text: &str) -> Result<String, (StatusCode, Json<ErrorResponse>)> {
+    let trimmed = raw_text.trim();
+    if trimmed.is_empty() {
+        return Err(atelier_error(AtelierError::Validation(
+            "CKC sheet import raw_text must not be empty".to_owned(),
+        )));
+    }
+    if trimmed.starts_with('{') {
+        let value = serde_json::from_str::<serde_json::Value>(trimmed).map_err(|err| {
+            atelier_error(AtelierError::Validation(format!(
+                "CKC sheet import JSON is invalid: {err}"
+            )))
+        })?;
+        return raw_text_from_export_json(&value).ok_or_else(|| {
+            atelier_error(AtelierError::Validation(
+                "CKC sheet import JSON must contain raw_text or content".to_owned(),
+            ))
+        });
+    }
+    Ok(raw_text.to_owned())
+}
+
+fn validate_ckc_sheet_owner(
+    character: &Character,
+    raw_text: &str,
+    require_character_id: bool,
+) -> Result<(), (StatusCode, Json<ErrorResponse>)> {
+    let character_ids = sheet_field_values(raw_text, "CHAR-ID-001");
+    if require_character_id && character_ids.is_empty() {
+        return Err(atelier_error(AtelierError::Validation(
+            "CKC sheet write must include CHAR-ID-001 for character ownership".to_owned(),
+        )));
+    }
+    if character_ids.len() > 1 {
+        return Err(atelier_error(AtelierError::Validation(format!(
+            "CKC sheet write must include exactly one CHAR-ID-001 for character ownership; found {}",
+            character_ids.len()
+        ))));
+    }
+    if let Some(character_id) = character_ids.into_iter().next() {
+        if character_id != character.public_id {
+            return Err(atelier_error(AtelierError::Validation(format!(
+                "CKC sheet CHAR-ID-001={character_id} does not match character public_id={}",
+                character.public_id
+            ))));
+        }
+    }
+    Ok(())
+}
+
 /// GET /atelier/characters — stable CKC character list for model/operator selection.
 async fn list_characters(
     State(state): State<AppState>,
@@ -812,17 +925,16 @@ async fn create_character(
 ) -> Result<(StatusCode, Json<CharacterResponse>), (StatusCode, Json<ErrorResponse>)> {
     let actor = calling_actor(&headers)?;
     let store = atelier_store(&state);
-    let public_id = payload.public_id;
     let display_name = payload.display_name;
     let character = store
         .create_character(&NewCharacter {
-            public_id: public_id.clone(),
+            public_id: payload.public_id,
             display_name: display_name.clone(),
         })
         .await
         .map_err(atelier_error)?;
     if payload.create_default_sheet.unwrap_or(false) {
-        let raw_text = default_character_sheet_text(&public_id, &display_name);
+        let raw_text = default_character_sheet_text(&character.public_id, &character.display_name);
         store
             .append_sheet_version_if_current(
                 &NewSheetVersion {
@@ -1249,16 +1361,24 @@ async fn append_sheet_version_for_character(
 ) -> Result<Response, (StatusCode, Json<ErrorResponse>)> {
     let actor = calling_actor(headers)?;
     let store = atelier_store(state);
-    store
+    let character = store
         .get_character_by_internal_id(character_internal_id)
         .await
         .map_err(atelier_error)?;
+    let raw_text = if route.ends_with("/import") {
+        let raw_text = import_sheet_raw_text(&payload.raw_text)?;
+        validate_ckc_sheet_owner(&character, &raw_text, true)?;
+        raw_text
+    } else {
+        validate_ckc_sheet_owner(&character, &payload.raw_text, true)?;
+        payload.raw_text
+    };
     let expected_parent_version_id = payload.expected_parent_version_id;
     let version = match store
         .append_sheet_version_if_current(
             &NewSheetVersion {
                 character_internal_id,
-                raw_text: payload.raw_text,
+                raw_text,
                 author: actor.clone(),
                 tool: payload.tool,
             },
@@ -1330,29 +1450,24 @@ async fn export_sheet_version(
         .unwrap_or("txt")
         .trim()
         .to_ascii_lowercase();
-    let (file_ext, content) = match format.as_str() {
-        "txt" | "text" => ("txt", version.raw_text.clone()),
-        "json" => {
-            let content = serde_json::to_string_pretty(&serde_json::json!({
-                "template_version": CHARACTER_SHEET_V2_TEMPLATE_VERSION,
-                "version_id": version.version_id,
-                "character_internal_id": version.character_internal_id,
-                "parent_version_id": version.parent_version_id,
-                "seq": version.seq,
-                "author": &version.author,
-                "tool": &version.tool,
-                "character_ref": character_ref(version.character_internal_id),
-                "sheet_version_ref": sheet_version_ref(
-                    version.character_internal_id,
-                    version.version_id,
-                ),
-                "raw_text": &version.raw_text,
-                "created_at_utc": version.created_at_utc,
-            }))
-            .map_err(|err| {
-                internal_error(format!("serialize CKC sheet export JSON failed: {err}"))
-            })?;
-            ("json", content)
+    let (format_label, file_ext, content) = match format.as_str() {
+        "txt" | "text" => ("txt", "txt", version.raw_text.clone()),
+        "json" => (
+            "json",
+            "json",
+            export_sheet_json(&version, &version.raw_text, "ckc-sheet-export.v1")?,
+        ),
+        "safe-txt" | "safe_text" | "safe_txt" => {
+            let safe_text = safe_subset_sheet_text(&version.raw_text)?;
+            ("safe-txt", "safe.txt", safe_text)
+        }
+        "safe-json" | "safe_json" => {
+            let safe_text = safe_subset_sheet_text(&version.raw_text)?;
+            (
+                "safe-json",
+                "safe.json",
+                export_sheet_json(&version, &safe_text, "ckc-sheet-safe-export.v1")?,
+            )
         }
         _ => {
             return Err(atelier_error(AtelierError::Validation(format!(
@@ -1364,7 +1479,7 @@ async fn export_sheet_version(
     Ok(Json(SheetVersionExportResponse {
         version_id: version.version_id,
         character_internal_id: version.character_internal_id,
-        format: file_ext.to_owned(),
+        format: format_label.to_owned(),
         file_name: format!("ckc-sheet-{}.{}", version.version_id, file_ext),
         content_hash,
         content,
@@ -1374,16 +1489,16 @@ async fn export_sheet_version(
 }
 
 /// GET /atelier/sheet-templates/default — bundled CKC v2.00 template metadata + raw text.
-async fn get_default_sheet_template()
--> Result<Json<crate::atelier::BuiltInSheetTemplate>, (StatusCode, Json<ErrorResponse>)> {
+async fn get_default_sheet_template(
+) -> Result<Json<crate::atelier::BuiltInSheetTemplate>, (StatusCode, Json<ErrorResponse>)> {
     builtin_character_sheet_template()
         .map(Json)
         .map_err(atelier_error)
 }
 
 /// GET /atelier/sheet-templates/default/safe-subset — original LLM-safe v2.00 field whitelist.
-async fn get_default_sheet_template_safe_subset()
--> Result<Json<crate::atelier::BuiltInSafeSubset>, (StatusCode, Json<ErrorResponse>)> {
+async fn get_default_sheet_template_safe_subset(
+) -> Result<Json<crate::atelier::BuiltInSafeSubset>, (StatusCode, Json<ErrorResponse>)> {
     builtin_safe_subset().map(Json).map_err(atelier_error)
 }
 
@@ -1496,6 +1611,14 @@ async fn create_intake_batch(
             ));
         }
     };
+    if let Some(target_character_id) = payload.target_character_id {
+        ensure_sheet_version_matches_character(
+            &store,
+            target_character_id,
+            payload.target_sheet_version_id,
+        )
+        .await?;
+    }
     let batch = store
         .open_intake_batch(&NewIntakeBatch {
             idempotency_key: payload.idempotency_key,

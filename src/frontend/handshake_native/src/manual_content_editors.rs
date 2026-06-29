@@ -287,17 +287,27 @@ atelier-ckc-typed-ref-kind exposes the hsLink refKind character_sheet. The match
 GET/POST /atelier/characters, GET /atelier/characters/{character_internal_id}, GET/POST \
 /atelier/characters/{character_internal_id}/sheet-versions, POST \
 /atelier/characters/{character_internal_id}/sheet-versions/import, GET \
-/atelier/sheet-versions/{version_id}, GET /atelier/sheet-versions/{version_id}/export?format=txt|json, \
+/atelier/sheet-versions/{version_id}, GET \
+/atelier/sheet-versions/{version_id}/export?format=txt|json|safe-txt|safe-json, \
 GET /atelier/sheet-templates/default, GET /atelier/sheet-templates/default/safe-subset, and GET \
 /atelier/sheet-field-suggestions?field_id=CHAR-ID-006&limit=20; \
-POST writes require x-hsk-actor-id so parallel agents are attributable. New CKC characters created from \
-the native panel request the built-in CHARACTER_SHEET__v2.00.txt template and create the first append-only \
+POST writes require x-hsk-actor-id so parallel agents are attributable; the native Atelier client can \
+be created with an explicit actor id instead of relying on the fallback CKC actor. New CKC characters created from \
+the native panel request the built-in CHARACTER_SHEET__v2.00.txt template, normalize public_id to a single line, and create the first append-only \
 sheet version with CHAR-ID-001 set to public_id and CHAR-ID-002 set to display_name. The short/SFW-safe \
 sheet surface is LLM_SAFE_SUBSET__v2.00.json: a curated Field ID whitelist for the same v2.00 template, \
-not a separate replacement sheet. Import uses the /sheet-versions/import route and appends the supplied \
-raw sheet text as a new version. Export returns deterministic txt or json content plus content_hash and \
-sheet refs; it does not open a foreground file dialog. Field suggestions remember prior non-empty values \
-per exact Field ID, ignore template placeholders such as <string>, and never auto-fill or rewrite input. \
+not a separate replacement sheet. Argus-visible sheet utility controls are atelier-ckc-template-status, \
+atelier-ckc-template-load, atelier-ckc-safe-subset-load, atelier-ckc-import-editor, \
+atelier-ckc-import-sheet-version, atelier-ckc-export-txt, atelier-ckc-export-json, \
+atelier-ckc-export-safe-txt, atelier-ckc-export-safe-json, atelier-ckc-export-status, \
+atelier-ckc-export-ref, atelier-ckc-export-preview, atelier-ckc-field-suggestion-field, atelier-ckc-field-suggestions-load, and \
+atelier-ckc-field-suggestions-list. Import uses the /sheet-versions/import route and appends supplied \
+raw sheet text or a JSON export envelope as a new version after checking CHAR-ID-001 against the selected \
+character. Export returns deterministic txt, json, safe-txt, or safe-json content plus content_hash and \
+sheet refs; it does not open a foreground file dialog. After export, Argus should inspect \
+atelier-ckc-export-ref for the file/version/hash and atelier-ckc-export-preview for the exported content. \
+Field suggestions remember prior non-empty values \
+per exact Field ID, ignore template placeholders such as <string>, render stable atelier-ckc-field-suggestion-* rows, and never auto-fill or rewrite input. \
 Sheet appends use \
 expected_parent_version_id as the stale-head guard for parallel agents. A stale append returns \
 error=stale_sheet_version plus character_ref, expected_parent_version_id, \
@@ -493,6 +503,122 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         mcp_tool: "argus.inspect",
         description:
             "argus.inspect reads atelier://sheet/{character_internal_id}/{sheet_version_id}.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_TEMPLATE_STATUS_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Read CKC template status",
+        mcp_tool: "argus.inspect",
+        description: "argus.inspect reads the bundled CHARACTER_SHEET__v2.00.txt load/hash status.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_TEMPLATE_LOAD_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Load CKC full template metadata",
+        mcp_tool: "argus.click",
+        description: "argus.click{target:'atelier-ckc-template-load'} loads template metadata.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SAFE_SUBSET_LOAD_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Load CKC safe subset metadata",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-safe-subset-load'} loads the LLM-safe Field ID subset.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_IMPORT_EDITOR_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Paste CKC sheet import text",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-import-editor', value:'<raw sheet or JSON export>'}.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_IMPORT_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Import a CKC sheet version",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-import-sheet-version'} appends the import with stale-head guard.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_EXPORT_TXT_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Export CKC sheet txt",
+        mcp_tool: "argus.click",
+        description: "argus.click{target:'atelier-ckc-export-txt'} exports deterministic full txt.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_EXPORT_JSON_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Export CKC sheet json",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-export-json'} exports deterministic JSON that can be imported back.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_EXPORT_SAFE_TXT_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Export CKC safe txt",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-export-safe-txt'} exports the short/SFW Field ID subset as txt.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_EXPORT_SAFE_JSON_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Export CKC safe json",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-export-safe-json'} exports the short/SFW Field ID subset as JSON.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_EXPORT_STATUS_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Read CKC export/import status",
+        mcp_tool: "argus.inspect",
+        description: "argus.inspect reads the latest CKC import/export status and content hash.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_EXPORT_REF_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Read CKC export ref",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads atelier-ckc-export-ref for export file, version id, and hash.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_EXPORT_PREVIEW_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Inspect CKC export content",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads atelier-ckc-export-preview for the exported sheet content.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_FIELD_SUGGESTION_FIELD_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Type a CKC Field ID",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-field-suggestion-field', value:'CHAR-ID-006'}.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_FIELD_SUGGESTIONS_LOAD_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Load CKC field suggestions",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-field-suggestions-load'} loads prior values for the exact Field ID.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_FIELD_SUGGESTIONS_LIST_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Inspect CKC field suggestions",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads atelier-ckc-field-suggestions-list without auto-filling the sheet.",
     });
     rows.push(AgentToolRow {
         author_id: crate::atelier_panel::ATELIER_CKC_LINKED_MEDIA_LIST_AUTHOR_ID,

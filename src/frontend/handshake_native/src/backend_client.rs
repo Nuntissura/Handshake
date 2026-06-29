@@ -3242,6 +3242,28 @@ pub const DOC_ACTOR_KIND: &str = "operator";
 /// `x-hsk-actor-id` so parallel agents and operators can attribute mutations.
 pub const ATELIER_CKC_ACTOR_ID: &str = "handshake-native-atelier-ckc";
 
+fn default_atelier_actor_id() -> String {
+    for key in ["HSK_ACTOR_ID", "HANDSHAKE_ACTOR_ID", "CODEX_AGENT_ID"] {
+        if let Ok(value) = std::env::var(key) {
+            let trimmed = value.trim();
+            if !trimmed.is_empty() {
+                return trimmed.to_owned();
+            }
+        }
+    }
+    ATELIER_CKC_ACTOR_ID.to_owned()
+}
+
+fn normalize_atelier_actor_id(actor_id: impl Into<String>) -> String {
+    let actor_id = actor_id.into();
+    let actor_id = actor_id.trim();
+    if actor_id.is_empty() {
+        ATELIER_CKC_ACTOR_ID.to_owned()
+    } else {
+        actor_id.to_owned()
+    }
+}
+
 /// `GET {url}?{query}` against the code-nav API with the four required backend-nav identity headers
 /// attached, returning the parsed JSON body. `run_id` is folded into the per-request run ids so each
 /// editor nav action is individually traceable (it never reaches the wrong field — the headers are
@@ -5399,6 +5421,8 @@ pub struct AtelierSheetExportRow {
     pub file_name: String,
     pub content_hash: String,
     pub content: String,
+    pub character_ref: String,
+    pub sheet_version_ref: String,
 }
 
 /// One command-corpus entry row (the verified subset of `CommandCorpusEntryResponse`). `action_id` is the
@@ -5445,27 +5469,59 @@ pub type AtelierCkcSearchCell = Arc<Mutex<Option<Result<AtelierCkcSearchResponse
 /// One-slot delivery cell for off-thread CKC rich tag-note saves.
 pub type AtelierCkcTagNoteCell = Arc<Mutex<Option<Result<AtelierCkcTagNoteRow, String>>>>;
 
+/// One-slot delivery cell for the bundled CKC full character-sheet template.
+pub type AtelierCkcTemplateCell = Arc<Mutex<Option<Result<AtelierSheetTemplateRow, String>>>>;
+
+/// One-slot delivery cell for the bundled CKC short/SFW-safe field subset.
+pub type AtelierCkcSafeSubsetCell = Arc<Mutex<Option<Result<AtelierSafeSubsetRow, String>>>>;
+
+/// One-slot delivery cell for guarded CKC sheet imports.
+pub type AtelierCkcImportCell = Arc<Mutex<Option<Result<AtelierSheetVersionRow, String>>>>;
+
+/// One-slot delivery cell for deterministic CKC sheet exports.
+pub type AtelierCkcExportCell = Arc<Mutex<Option<Result<AtelierSheetExportRow, String>>>>;
+
+/// One-slot delivery cell for CKC per-field prior-value suggestions.
+pub type AtelierCkcFieldSuggestionsCell =
+    Arc<Mutex<Option<Result<Vec<AtelierSheetFieldSuggestionRow>, String>>>>;
+
 /// REST client for the VERIFIED atelier read surface the MT-033 AtelierSidePanel consumes.
 #[derive(Clone)]
 pub struct AtelierClient {
     client: reqwest::Client,
     base_url: String,
     runtime: tokio::runtime::Handle,
+    actor_id: String,
 }
 
 impl AtelierClient {
     /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self::new_with_actor_id(base_url, runtime, default_atelier_actor_id())
+    }
+
+    /// Build a client with an explicit actor id for agent/operator-attributed writes.
+    pub fn new_with_actor_id(
+        base_url: impl Into<String>,
+        runtime: tokio::runtime::Handle,
+        actor_id: impl Into<String>,
+    ) -> Self {
         Self {
             client: reqwest::Client::new(),
             base_url: base_url.into(),
             runtime,
+            actor_id: normalize_atelier_actor_id(actor_id),
         }
     }
 
     /// The production client: the hardcoded backend base URL, bridging onto the app's runtime handle.
     pub fn production(runtime: tokio::runtime::Handle) -> Self {
         Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    /// Actor id used for CKC/Atelier write routes when the caller does not pass a narrower id.
+    pub fn actor_id(&self) -> &str {
+        &self.actor_id
     }
 
     /// Pure request builder for `GET /atelier/intake/batches`.
@@ -6027,6 +6083,42 @@ impl AtelierClient {
         });
     }
 
+    /// Load the bundled CKC v2.00 full character-sheet template off the UI thread.
+    pub fn fetch_ckc_template(&self, cell: AtelierCkcTemplateCell) {
+        let spec = self.default_sheet_template_request();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &spec.url, &[])
+                .await
+                .and_then(|value| {
+                    parse_atelier_sheet_template_row(&value)
+                        .ok_or_else(|| AppError::Parse("missing CKC sheet template row".to_owned()))
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Load the bundled CKC short/SFW-safe field subset off the UI thread.
+    pub fn fetch_ckc_safe_subset(&self, cell: AtelierCkcSafeSubsetCell) {
+        let spec = self.safe_sheet_subset_request();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &spec.url, &[])
+                .await
+                .and_then(|value| {
+                    parse_atelier_safe_subset_row(&value)
+                        .ok_or_else(|| AppError::Parse("missing CKC safe subset row".to_owned()))
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
     /// Append a guarded CKC sheet version with backend actor attribution.
     pub fn append_ckc_sheet_version(
         &self,
@@ -6052,6 +6144,90 @@ impl AtelierClient {
                     parse_atelier_sheet_version_row(&value).ok_or_else(|| {
                         AppError::Parse("missing sheet version row in append response".to_owned())
                     })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Import raw CKC sheet text as a guarded append-only version.
+    pub fn import_ckc_sheet_version(
+        &self,
+        character_internal_id: &str,
+        raw_text: &str,
+        expected_parent_version_id: Option<&str>,
+        tool: Option<&str>,
+        actor_id: &str,
+        cell: AtelierCkcImportCell,
+    ) {
+        let spec = self.import_sheet_version_actor_request(
+            character_internal_id,
+            raw_text,
+            expected_parent_version_id,
+            tool,
+            actor_id,
+        );
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_sheet_version_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing sheet version row in import response".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Export the current CKC sheet version as deterministic txt/json content.
+    pub fn export_ckc_sheet_version(
+        &self,
+        version_id: &str,
+        format: &str,
+        cell: AtelierCkcExportCell,
+    ) {
+        let spec = self.export_sheet_version_request(version_id, format);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &spec.url, &[])
+                .await
+                .and_then(|value| {
+                    parse_atelier_sheet_export_row(&value)
+                        .ok_or_else(|| AppError::Parse("missing CKC sheet export row".to_owned()))
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// Load prior values for one exact CKC Field ID.
+    pub fn fetch_ckc_field_suggestions(
+        &self,
+        field_id: &str,
+        limit: usize,
+        cell: AtelierCkcFieldSuggestionsCell,
+    ) {
+        let spec = self.field_suggestions_request(field_id, limit);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &spec.url, &[])
+                .await
+                .map(|value| {
+                    value
+                        .as_array()
+                        .cloned()
+                        .unwrap_or_default()
+                        .iter()
+                        .filter_map(parse_atelier_sheet_field_suggestion_row)
+                        .collect::<Vec<_>>()
                 })
                 .map_err(|e| e.to_string());
             if let Ok(mut slot) = cell.lock() {
@@ -6290,6 +6466,38 @@ async fn fetch_atelier_items(
     Ok(rows)
 }
 
+fn actor_post_error_detail(text: &str) -> String {
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(text) else {
+        return text.to_owned();
+    };
+    let Some(error) = value.get("error").and_then(|error| error.as_str()) else {
+        return text.to_owned();
+    };
+    if error == "stale_sheet_version" {
+        let mut detail = vec![error.to_owned()];
+        for key in [
+            "character_ref",
+            "expected_parent_version_id",
+            "expected_parent_sheet_version_ref",
+            "current_head_version_id",
+            "current_head_sheet_version_ref",
+        ] {
+            if let Some(raw) = value.get(key) {
+                if raw.is_null() {
+                    continue;
+                }
+                let rendered = raw
+                    .as_str()
+                    .map(ToOwned::to_owned)
+                    .unwrap_or_else(|| raw.to_string());
+                detail.push(format!("{key}={rendered}"));
+            }
+        }
+        return detail.join("; ");
+    }
+    error.to_owned()
+}
+
 async fn post_json_with_actor(
     client: &reqwest::Client,
     spec: &ActorRequestSpec,
@@ -6312,16 +6520,7 @@ async fn post_json_with_actor(
     if !resp.status().is_success() {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
-        let detail = serde_json::from_str::<serde_json::Value>(&text)
-            .ok()
-            .and_then(|value| {
-                value
-                    .get("error")
-                    .and_then(|error| error.as_str())
-                    .map(ToOwned::to_owned)
-            })
-            .filter(|value| !value.is_empty())
-            .unwrap_or(text);
+        let detail = actor_post_error_detail(&text);
         return Err(AppError::Http(format!(
             "POST non-success status {status}: {detail}"
         )));
@@ -6652,6 +6851,56 @@ fn parse_atelier_ckc_search_response(row: &serde_json::Value) -> Option<AtelierC
     })
 }
 
+fn parse_atelier_sheet_template_row(row: &serde_json::Value) -> Option<AtelierSheetTemplateRow> {
+    Some(AtelierSheetTemplateRow {
+        template_id: json_string(row, "template_id")?,
+        template_version: json_string(row, "template_version")?,
+        file_name: json_string(row, "file_name")?,
+        template_hash: json_string(row, "template_hash")?,
+        field_count: row.get("field_count").and_then(|value| value.as_u64())? as usize,
+        section_count: row.get("section_count").and_then(|value| value.as_u64())? as usize,
+        raw_text: json_string(row, "raw_text")?,
+    })
+}
+
+fn parse_atelier_safe_subset_row(row: &serde_json::Value) -> Option<AtelierSafeSubsetRow> {
+    let field_ids = json_string_vec(row, "field_ids");
+    if field_ids.is_empty() {
+        return None;
+    }
+    Some(AtelierSafeSubsetRow {
+        template_id: json_string(row, "template_id")?,
+        template_version: json_string(row, "template_version")?,
+        file_name: json_string(row, "file_name")?,
+        field_ids,
+    })
+}
+
+fn parse_atelier_sheet_field_suggestion_row(
+    row: &serde_json::Value,
+) -> Option<AtelierSheetFieldSuggestionRow> {
+    Some(AtelierSheetFieldSuggestionRow {
+        field_id: json_string(row, "field_id")?,
+        value: json_string(row, "value")?,
+        occurrences: row
+            .get("occurrences")
+            .and_then(|value| value.as_i64())
+            .unwrap_or(1),
+    })
+}
+
+fn parse_atelier_sheet_export_row(row: &serde_json::Value) -> Option<AtelierSheetExportRow> {
+    Some(AtelierSheetExportRow {
+        version_id: json_string(row, "version_id")?,
+        format: json_string(row, "format")?,
+        file_name: json_string(row, "file_name")?,
+        content_hash: json_string(row, "content_hash")?,
+        content: json_string(row, "content")?,
+        character_ref: json_string(row, "character_ref")?,
+        sheet_version_ref: json_string(row, "sheet_version_ref")?,
+    })
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // MT-021 hardening tests (MAJOR #1/#2/#3): prove every menu-action backend call constructs the EXACT
 // verified URL + JSON body. Two layers:
@@ -6675,6 +6924,59 @@ mod tests {
     }
 
     const BASE: &str = "http://test.local:1234";
+
+    #[test]
+    fn actor_post_error_detail_preserves_stale_sheet_refs() {
+        let detail = actor_post_error_detail(
+            r#"{
+                "error":"stale_sheet_version",
+                "character_ref":"atelier://character/char-1",
+                "expected_parent_version_id":"old-version",
+                "expected_parent_sheet_version_ref":"atelier://sheet/char-1/old-version",
+                "current_head_version_id":"new-version",
+                "current_head_sheet_version_ref":"atelier://sheet/char-1/new-version"
+            }"#,
+        );
+        assert!(detail.contains("stale_sheet_version"));
+        assert!(
+            detail.contains("expected_parent_sheet_version_ref=atelier://sheet/char-1/old-version")
+        );
+        assert!(
+            detail.contains("current_head_sheet_version_ref=atelier://sheet/char-1/new-version")
+        );
+    }
+
+    #[test]
+    fn atelier_client_accepts_explicit_actor_id_for_parallel_agent_writes() {
+        let rt = rt();
+        let c =
+            AtelierClient::new_with_actor_id(BASE, rt.handle().clone(), "ckc-overhaul-agent-17");
+        assert_eq!(c.actor_id(), "ckc-overhaul-agent-17");
+        let spec = c.create_character_actor_request("mira", "Mira", c.actor_id());
+        assert_eq!(
+            spec.headers,
+            vec![(
+                HSK_HEADER_ACTOR_ID.to_owned(),
+                "ckc-overhaul-agent-17".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn atelier_sheet_export_parser_preserves_refs_for_argus() {
+        let parsed = parse_atelier_sheet_export_row(&serde_json::json!({
+            "version_id": "sheet-1",
+            "format": "safe-json",
+            "file_name": "ckc-sheet-sheet-1.safe.json",
+            "content_hash": "abc123",
+            "content": "{}",
+            "character_ref": "atelier://character/char-1",
+            "sheet_version_ref": "atelier://sheet/char-1/sheet-1"
+        }))
+        .expect("parse export row");
+        assert_eq!(parsed.character_ref, "atelier://character/char-1");
+        assert_eq!(parsed.sheet_version_ref, "atelier://sheet/char-1/sheet-1");
+    }
 
     #[test]
     fn atelier_ckc_search_request_targets_native_search_route() {

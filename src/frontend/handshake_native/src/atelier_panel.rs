@@ -11,10 +11,12 @@ use egui::accesskit;
 use crate::atelier_side_panel::AtelierSidePanel;
 use crate::backend_client::{
     AtelierCharacterRow, AtelierCkcAppendCell, AtelierCkcCell, AtelierCkcCharacterSheetRow,
-    AtelierCkcCreateCell, AtelierCkcMediaAlbumRow, AtelierCkcMediaMemberRow,
-    AtelierCkcMediaNotesCell, AtelierCkcMediaNotesTagsRow, AtelierCkcSearchCell,
-    AtelierCkcSearchResponse, AtelierCkcSearchResultRow, AtelierCkcTagNoteCell,
-    AtelierCkcTagNoteRow, AtelierClient, AtelierSheetVersionRow, ATELIER_CKC_ACTOR_ID,
+    AtelierCkcCreateCell, AtelierCkcExportCell, AtelierCkcFieldSuggestionsCell,
+    AtelierCkcImportCell, AtelierCkcMediaAlbumRow, AtelierCkcMediaMemberRow,
+    AtelierCkcMediaNotesCell, AtelierCkcMediaNotesTagsRow, AtelierCkcSafeSubsetCell,
+    AtelierCkcSearchCell, AtelierCkcSearchResponse, AtelierCkcSearchResultRow,
+    AtelierCkcTagNoteCell, AtelierCkcTagNoteRow, AtelierCkcTemplateCell, AtelierClient,
+    AtelierSheetExportRow, AtelierSheetFieldSuggestionRow, AtelierSheetVersionRow,
 };
 use crate::editor_pane_factories::SharedPalette;
 use crate::graph::canvas_board::{CanvasEvent, LoomCanvasBoard};
@@ -22,6 +24,11 @@ use crate::interop::{AtelierItemKind, AtelierRef};
 use crate::pane_registry::{PaneFactory, PaneRenderContext, PaneType};
 use crate::theme::HsPalette;
 use uuid::Uuid;
+
+const LOCAL_CKC_SAFE_SUBSET_V2_JSON: &str = include_str!(
+    "../../../backend/handshake_core/src/atelier/templates/LLM_SAFE_SUBSET__v2.00.json"
+);
+const LOCAL_CKC_TEMPLATE_VERSION: &str = "v2.00";
 
 pub const ATELIER_PANEL_AUTHOR_ID: &str = "atelier-main-panel";
 pub const ATELIER_TABLIST_AUTHOR_ID: &str = "atelier-tab-list";
@@ -40,6 +47,21 @@ pub const ATELIER_CKC_SHEET_VERSION_REF_AUTHOR_ID: &str = "atelier-ckc-sheet-ver
 pub const ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID: &str = "atelier-ckc-sheet-editor";
 pub const ATELIER_CKC_SHEET_SAVE_AUTHOR_ID: &str = "atelier-ckc-sheet-save-version";
 pub const ATELIER_CKC_TYPED_REF_KIND_AUTHOR_ID: &str = "atelier-ckc-typed-ref-kind";
+pub const ATELIER_CKC_TEMPLATE_STATUS_AUTHOR_ID: &str = "atelier-ckc-template-status";
+pub const ATELIER_CKC_TEMPLATE_LOAD_AUTHOR_ID: &str = "atelier-ckc-template-load";
+pub const ATELIER_CKC_SAFE_SUBSET_LOAD_AUTHOR_ID: &str = "atelier-ckc-safe-subset-load";
+pub const ATELIER_CKC_IMPORT_EDITOR_AUTHOR_ID: &str = "atelier-ckc-import-editor";
+pub const ATELIER_CKC_IMPORT_AUTHOR_ID: &str = "atelier-ckc-import-sheet-version";
+pub const ATELIER_CKC_EXPORT_TXT_AUTHOR_ID: &str = "atelier-ckc-export-txt";
+pub const ATELIER_CKC_EXPORT_JSON_AUTHOR_ID: &str = "atelier-ckc-export-json";
+pub const ATELIER_CKC_EXPORT_SAFE_TXT_AUTHOR_ID: &str = "atelier-ckc-export-safe-txt";
+pub const ATELIER_CKC_EXPORT_SAFE_JSON_AUTHOR_ID: &str = "atelier-ckc-export-safe-json";
+pub const ATELIER_CKC_EXPORT_STATUS_AUTHOR_ID: &str = "atelier-ckc-export-status";
+pub const ATELIER_CKC_EXPORT_PREVIEW_AUTHOR_ID: &str = "atelier-ckc-export-preview";
+pub const ATELIER_CKC_EXPORT_REF_AUTHOR_ID: &str = "atelier-ckc-export-ref";
+pub const ATELIER_CKC_FIELD_SUGGESTION_FIELD_AUTHOR_ID: &str = "atelier-ckc-field-suggestion-field";
+pub const ATELIER_CKC_FIELD_SUGGESTIONS_LOAD_AUTHOR_ID: &str = "atelier-ckc-field-suggestions-load";
+pub const ATELIER_CKC_FIELD_SUGGESTIONS_LIST_AUTHOR_ID: &str = "atelier-ckc-field-suggestions-list";
 pub const ATELIER_CKC_LINKED_MEDIA_LIST_AUTHOR_ID: &str = "atelier-ckc-linked-media-list";
 pub const ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID: &str = "atelier-ckc-media-notes-editor";
 pub const ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID: &str = "atelier-ckc-media-tags-editor";
@@ -747,6 +769,343 @@ fn seeded_local_tag_notes(album: &CkcMediaAlbumRecord) -> Vec<CkcTagNoteRecord> 
         .collect()
 }
 
+fn local_import_ckc_sheet(state: &mut AtelierPanelState, selected_index: usize) {
+    let import_text = match local_import_raw_text(&state.ckc_import_text) {
+        Ok(raw_text) => raw_text,
+        Err(err) => {
+            state.ckc_export_status = err;
+            return;
+        }
+    };
+    let next_seq = {
+        let Some(character) = state.ckc_characters.get_mut(selected_index) else {
+            state.ckc_export_status = "No CKC character selected for import.".to_owned();
+            return;
+        };
+        if let Err(err) = local_validate_ckc_sheet_owner(character, &import_text) {
+            state.ckc_export_status = err;
+            return;
+        }
+        character.parent_sheet_version_id = character.sheet_version_id.clone();
+        let next_sheet_version_id = Uuid::new_v4().to_string();
+        character.sheet_version_id = Some(next_sheet_version_id.clone());
+        character.sheet_seq += 1;
+        character.sheet_editor_text = import_text;
+        character.sheet_version_ref = Some(format!(
+            "atelier://sheet/{}/{}",
+            character.character_internal_id, next_sheet_version_id
+        ));
+        character.sheet_seq
+    };
+    state.ckc_last_export = None;
+    state.ckc_export_status = format!(
+        "Imported CKC sheet locally as append-only version v{}",
+        next_seq
+    );
+}
+
+fn local_import_raw_text(import_text: &str) -> Result<String, String> {
+    let trimmed = import_text.trim();
+    if trimmed.is_empty() {
+        return Err("CKC import text is empty.".to_owned());
+    }
+    if !trimmed.starts_with('{') {
+        return Ok(import_text.to_owned());
+    }
+    let value: serde_json::Value = serde_json::from_str(trimmed)
+        .map_err(|err| format!("CKC sheet import JSON is invalid: {err}"))?;
+    local_raw_text_from_export_json(&value)
+        .ok_or_else(|| "CKC sheet import JSON must contain raw_text or content.".to_owned())
+}
+
+fn local_raw_text_from_export_json(value: &serde_json::Value) -> Option<String> {
+    if let Some(raw_text) = value.get("raw_text").and_then(|value| value.as_str()) {
+        return Some(raw_text.to_owned());
+    }
+    let content = value.get("content").and_then(|value| value.as_str())?;
+    if content.trim_start().starts_with('{') {
+        serde_json::from_str::<serde_json::Value>(content)
+            .ok()
+            .and_then(|nested| local_raw_text_from_export_json(&nested))
+            .or_else(|| Some(content.to_owned()))
+    } else {
+        Some(content.to_owned())
+    }
+}
+
+fn local_validate_ckc_sheet_owner(
+    character: &CkcCharacterRecord,
+    raw_text: &str,
+) -> Result<(), String> {
+    let character_ids = sheet_field_values(raw_text, "CHAR-ID-001");
+    if character_ids.is_empty() {
+        return Err(
+            "CKC sheet import must include CHAR-ID-001 for character ownership.".to_owned(),
+        );
+    }
+    if character_ids.len() > 1 {
+        return Err(format!(
+            "CKC sheet import must include exactly one CHAR-ID-001 for character ownership; found {}",
+            character_ids.len()
+        ));
+    }
+    let Some(character_id) = character_ids.into_iter().next() else {
+        return Err(
+            "CKC sheet import must include CHAR-ID-001 for character ownership.".to_owned(),
+        );
+    };
+    if character_id != character.public_id {
+        return Err(format!(
+            "CKC sheet CHAR-ID-001={character_id} does not match character public_id={}",
+            character.public_id
+        ));
+    }
+    Ok(())
+}
+
+fn local_content_hash(content: &str) -> String {
+    use sha2::{Digest, Sha256};
+
+    let mut hasher = Sha256::new();
+    hasher.update(content.as_bytes());
+    hasher
+        .finalize()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
+}
+
+fn local_export_ckc_sheet(character: &CkcCharacterRecord, format: &str) -> AtelierSheetExportRow {
+    let version_id = character
+        .sheet_version_id
+        .clone()
+        .unwrap_or_else(|| "local-unsaved-sheet".to_owned());
+    let sheet_version_ref = character.sheet_version_ref.clone().unwrap_or_else(|| {
+        format!(
+            "atelier://sheet/{}/{}",
+            character.character_internal_id, version_id
+        )
+    });
+    let (format_label, file_ext, raw_text) = match format {
+        "json" => ("json", "json", character.sheet_editor_text.clone()),
+        "safe-txt" => (
+            "safe-txt",
+            "safe.txt",
+            local_safe_subset_sheet_text(&character.sheet_editor_text),
+        ),
+        "safe-json" => (
+            "safe-json",
+            "safe.json",
+            local_safe_subset_sheet_text(&character.sheet_editor_text),
+        ),
+        _ => ("txt", "txt", character.sheet_editor_text.clone()),
+    };
+    let content = if format_label.ends_with("json") {
+        local_export_sheet_json(
+            character,
+            &version_id,
+            &sheet_version_ref,
+            &raw_text,
+            format_label,
+        )
+    } else {
+        raw_text
+    };
+    AtelierSheetExportRow {
+        version_id: version_id.clone(),
+        format: format_label.to_owned(),
+        file_name: format!("ckc-sheet-{version_id}.{file_ext}"),
+        content_hash: local_content_hash(&content),
+        content,
+        character_ref: character.character_ref.clone(),
+        sheet_version_ref,
+    }
+}
+
+fn local_export_sheet_json(
+    character: &CkcCharacterRecord,
+    version_id: &str,
+    sheet_version_ref: &str,
+    raw_text: &str,
+    format_label: &str,
+) -> String {
+    let export_format = if format_label == "safe-json" {
+        "ckc-sheet-safe-export.v1"
+    } else {
+        "ckc-sheet-export.v1"
+    };
+    serde_json::to_string_pretty(&serde_json::json!({
+        "export_format": export_format,
+        "template_version": LOCAL_CKC_TEMPLATE_VERSION,
+        "version_id": version_id,
+        "character_internal_id": &character.character_internal_id,
+        "parent_version_id": &character.parent_sheet_version_id,
+        "seq": character.sheet_seq,
+        "author": "handshake-native-atelier-ckc-local",
+        "tool": "handshake-native-atelier-local-export",
+        "character_ref": &character.character_ref,
+        "sheet_version_ref": sheet_version_ref,
+        "raw_text": raw_text,
+        "created_at_utc": "local-no-backend",
+    }))
+    .unwrap_or_else(|_| raw_text.to_owned())
+}
+
+fn local_safe_subset_sheet_text(raw_text: &str) -> String {
+    let safe_ids = local_safe_subset_ids();
+    let mut out = String::with_capacity(raw_text.len());
+    for segment in raw_text.split_inclusive('\n') {
+        let trimmed_line = segment.trim_end_matches(['\r', '\n']);
+        match local_sheet_field_id_from_line(trimmed_line) {
+            Some(field_id) if safe_ids.contains(&field_id) => out.push_str(segment),
+            Some(_) => {}
+            None if local_sheet_line_looks_like_field(trimmed_line) => {}
+            None => out.push_str(segment),
+        }
+    }
+    out
+}
+
+fn local_safe_subset_ids() -> std::collections::HashSet<String> {
+    serde_json::from_str::<Vec<String>>(LOCAL_CKC_SAFE_SUBSET_V2_JSON)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|field_id| field_id.to_ascii_uppercase())
+        .collect()
+}
+
+fn local_field_suggestions(
+    characters: &[CkcCharacterRecord],
+    field_id: &str,
+) -> Vec<AtelierSheetFieldSuggestionRow> {
+    let mut out = Vec::new();
+    let field_id = field_id.trim().to_ascii_uppercase();
+    for character in characters {
+        if let Some(value) = sheet_field_value(&character.sheet_editor_text, &field_id) {
+            if let Some(index) = out
+                .iter()
+                .position(|row: &AtelierSheetFieldSuggestionRow| row.value == value)
+            {
+                out[index].occurrences += 1;
+            } else {
+                out.push(AtelierSheetFieldSuggestionRow {
+                    field_id: field_id.clone(),
+                    value,
+                    occurrences: 1,
+                });
+            }
+        }
+    }
+    out.truncate(8);
+    out
+}
+
+fn sheet_field_value(raw_text: &str, field_id: &str) -> Option<String> {
+    sheet_field_values(raw_text, field_id).into_iter().next()
+}
+
+fn sheet_field_values(raw_text: &str, field_id: &str) -> Vec<String> {
+    let field_id = field_id.trim();
+    if field_id.is_empty() {
+        return Vec::new();
+    }
+    let mut values = Vec::new();
+    for line in raw_text.lines().map(str::trim) {
+        let Some((parsed_field_id, value)) = local_split_field_line(line) else {
+            continue;
+        };
+        if parsed_field_id.eq_ignore_ascii_case(field_id) {
+            values.push(value);
+        }
+    }
+    values
+}
+
+fn local_sheet_field_id_from_line(line: &str) -> Option<String> {
+    let (field_id, _) = local_split_field_line(line.trim())?;
+    Some(field_id)
+}
+
+fn local_sheet_line_looks_like_field(line: &str) -> bool {
+    let Some(colon) = line.find(':') else {
+        return false;
+    };
+    let before_colon = line[..colon].trim();
+    let Some(id_end) = local_field_id_end(before_colon) else {
+        return false;
+    };
+    before_colon[id_end..]
+        .chars()
+        .any(|ch| matches!(ch, '\u{2014}' | '\u{2013}' | '-'))
+}
+
+fn local_split_field_line(line: &str) -> Option<(String, String)> {
+    let colon = line.find(':')?;
+    let before_colon = line[..colon].trim();
+    let descriptor = line[colon + 1..].trim();
+    let id_end = local_field_id_end(before_colon)?;
+    let id = before_colon[..id_end].trim();
+    let after_id = before_colon[id_end..].trim_start();
+    let separator = after_id.chars().next()?;
+    if !matches!(separator, '\u{2014}' | '\u{2013}' | '-') {
+        return None;
+    }
+    let label = after_id[separator.len_utf8()..].trim();
+    if label.is_empty() {
+        return None;
+    }
+    let value = local_normalize_field_value(descriptor)?;
+    Some((id.to_ascii_uppercase(), value))
+}
+
+fn local_field_id_end(before_colon: &str) -> Option<usize> {
+    let mut idx = 0usize;
+    for segment_idx in 0..3 {
+        let segment_start = idx;
+        while let Some(ch) = before_colon[idx..].chars().next() {
+            if ch.is_ascii_uppercase() || ch.is_ascii_digit() {
+                idx += ch.len_utf8();
+            } else {
+                break;
+            }
+        }
+        if idx == segment_start {
+            return None;
+        }
+        if segment_idx < 2 {
+            if before_colon[idx..].starts_with('-') {
+                idx += 1;
+            } else {
+                return None;
+            }
+        }
+    }
+    Some(idx)
+}
+
+fn local_normalize_field_value(value: &str) -> Option<String> {
+    let value = value.trim();
+    if value.is_empty() || value.len() > 500 {
+        return None;
+    }
+    if value.starts_with('<') && value.ends_with('>') {
+        return None;
+    }
+    Some(value.to_owned())
+}
+
+fn short_hash(hash: &str) -> &str {
+    hash.get(..hash.len().min(12)).unwrap_or(hash)
+}
+
+pub fn ckc_field_suggestion_row_author_id(field_id: &str, value: &str) -> String {
+    format!(
+        "atelier-ckc-field-suggestion-{}-{}",
+        stable_author_id_suffix(field_id),
+        stable_author_id_suffix(value)
+    )
+}
+
 fn ckc_search_status_from_response(response: &AtelierCkcSearchResponse) -> String {
     let modes = if response.modes.is_empty() {
         "fuzzy".to_owned()
@@ -799,6 +1158,18 @@ struct AtelierPanelState {
     ckc_loading: bool,
     ckc_create_pending: bool,
     ckc_append_pending: bool,
+    ckc_template_pending: bool,
+    ckc_safe_subset_pending: bool,
+    ckc_template_status: String,
+    ckc_import_text: String,
+    ckc_import_pending: bool,
+    ckc_export_pending: bool,
+    ckc_export_status: String,
+    ckc_last_export: Option<AtelierSheetExportRow>,
+    ckc_field_suggestion_id: String,
+    ckc_field_suggestion_pending: bool,
+    ckc_field_suggestion_status: String,
+    ckc_field_suggestions: Vec<AtelierSheetFieldSuggestionRow>,
     ckc_media_save_pending: bool,
     ckc_selected_media_asset_id: Option<String>,
     ckc_search_query: String,
@@ -840,6 +1211,19 @@ impl Default for AtelierPanelState {
             ckc_loading: false,
             ckc_create_pending: false,
             ckc_append_pending: false,
+            ckc_template_pending: false,
+            ckc_safe_subset_pending: false,
+            ckc_template_status:
+                "Built-in CKC template: not loaded; use Load template or Safe subset.".to_owned(),
+            ckc_import_text: String::new(),
+            ckc_import_pending: false,
+            ckc_export_pending: false,
+            ckc_export_status: "No CKC sheet export requested.".to_owned(),
+            ckc_last_export: None,
+            ckc_field_suggestion_id: "CHAR-ID-006".to_owned(),
+            ckc_field_suggestion_pending: false,
+            ckc_field_suggestion_status: "No CKC field suggestions loaded.".to_owned(),
+            ckc_field_suggestions: Vec::new(),
             ckc_media_save_pending: false,
             ckc_selected_media_asset_id: None,
             ckc_search_query: String::new(),
@@ -881,7 +1265,7 @@ fn seeded_ckc_characters() -> Vec<CkcCharacterRecord> {
             sheet_version_id: Some("018f7848-1111-7000-9000-000000000101".to_owned()),
             parent_sheet_version_id: None,
             sheet_seq: 1,
-            sheet_editor_text: "name: Mira Demo\nrole: reusable character/avatar\npipelines: ComfyUI, Unreal, Blender\nnotes: seed CKC sheet for Argus and model workflow proof".to_owned(),
+            sheet_editor_text: "CHAR-ID-001 — Character_ID: mira-demo\nCHAR-ID-002 — Name: Mira Demo\nCHAR-ID-006 — Primary_Role: reusable character/avatar\nPIPELINES\npipelines: ComfyUI, Unreal, Blender\nnotes: seed CKC sheet for Argus and model workflow proof".to_owned(),
             sheet_version_ref: Some(
                 "atelier://sheet/018f7848-1111-7000-9000-000000000001/018f7848-1111-7000-9000-000000000101".to_owned(),
             ),
@@ -910,7 +1294,7 @@ fn seeded_ckc_characters() -> Vec<CkcCharacterRecord> {
             sheet_version_id: Some("018f7848-1111-7000-9000-000000000201".to_owned()),
             parent_sheet_version_id: None,
             sheet_seq: 1,
-            sheet_editor_text: "name: Aria Demo\nrole: production avatar reference\npipelines: CKC albums, Posekit, ComfyUI\nnotes: second selectable sheet proves CKC is a database surface".to_owned(),
+            sheet_editor_text: "CHAR-ID-001 — Character_ID: aria-demo\nCHAR-ID-002 — Name: Aria Demo\nCHAR-ID-006 — Primary_Role: production avatar reference\nPIPELINES\npipelines: CKC albums, Posekit, ComfyUI\nnotes: second selectable sheet proves CKC is a database surface".to_owned(),
             sheet_version_ref: Some(
                 "atelier://sheet/018f7848-1111-7000-9000-000000000002/018f7848-1111-7000-9000-000000000201".to_owned(),
             ),
@@ -1067,6 +1451,11 @@ pub struct AtelierPanel {
     ckc_cell: AtelierCkcCell,
     ckc_create_cell: AtelierCkcCreateCell,
     ckc_append_cell: AtelierCkcAppendCell,
+    ckc_template_cell: AtelierCkcTemplateCell,
+    ckc_safe_subset_cell: AtelierCkcSafeSubsetCell,
+    ckc_import_cell: AtelierCkcImportCell,
+    ckc_export_cell: AtelierCkcExportCell,
+    ckc_field_suggestions_cell: AtelierCkcFieldSuggestionsCell,
     ckc_media_notes_cell: AtelierCkcMediaNotesCell,
     ckc_search_cell: AtelierCkcSearchCell,
     ckc_tag_note_cell: AtelierCkcTagNoteCell,
@@ -1103,6 +1492,11 @@ impl AtelierPanel {
             ckc_cell: Arc::new(Mutex::new(None)),
             ckc_create_cell: Arc::new(Mutex::new(None)),
             ckc_append_cell: Arc::new(Mutex::new(None)),
+            ckc_template_cell: Arc::new(Mutex::new(None)),
+            ckc_safe_subset_cell: Arc::new(Mutex::new(None)),
+            ckc_import_cell: Arc::new(Mutex::new(None)),
+            ckc_export_cell: Arc::new(Mutex::new(None)),
+            ckc_field_suggestions_cell: Arc::new(Mutex::new(None)),
             ckc_media_notes_cell: Arc::new(Mutex::new(None)),
             ckc_search_cell: Arc::new(Mutex::new(None)),
             ckc_tag_note_cell: Arc::new(Mutex::new(None)),
@@ -1265,6 +1659,7 @@ impl AtelierPanel {
                         state.ckc_backend_loaded = true;
                         state.ckc_error = None;
                         state.ckc_search_results.clear();
+                        state.ckc_last_export = None;
                         let filters = selected_ckc_search_filter_refs(&state);
                         state.ckc_tag_note_scope_ref = filters
                             .collection_ref
@@ -1314,6 +1709,7 @@ impl AtelierPanel {
                         state.ckc_new_display_name = "New character".to_owned();
                         state.ckc_backend_loaded = true;
                         state.ckc_loading = self.ckc_client.is_some();
+                        state.ckc_last_export = None;
                         state.ckc_error = None;
                         refresh_after_create = self.ckc_client.is_some();
                     }
@@ -1347,10 +1743,148 @@ impl AtelierPanel {
                         {
                             row.apply_sheet_version(sheet);
                         }
+                        state.ckc_last_export = None;
                         state.ckc_error = None;
                     }
                     Err(err) => {
                         state.ckc_error = Some(err);
+                    }
+                }
+            }
+        }
+
+        let template_result = self
+            .ckc_template_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        if let Some(result) = template_result {
+            if let Ok(mut state) = self.state.lock() {
+                state.ckc_template_pending = false;
+                match result {
+                    Ok(template) => {
+                        let hash = short_hash(&template.template_hash);
+                        state.ckc_template_status = format!(
+                            "{} {} loaded: {} fields, {} sections, hash {}",
+                            template.file_name,
+                            template.template_version,
+                            template.field_count,
+                            template.section_count,
+                            hash
+                        );
+                        state.ckc_error = None;
+                    }
+                    Err(err) => {
+                        state.ckc_template_status = format!("Template load failed: {err}");
+                    }
+                }
+            }
+        }
+
+        let safe_subset_result = self
+            .ckc_safe_subset_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        if let Some(result) = safe_subset_result {
+            if let Ok(mut state) = self.state.lock() {
+                state.ckc_safe_subset_pending = false;
+                match result {
+                    Ok(subset) => {
+                        state.ckc_template_status = format!(
+                            "{} {} loaded: {} Field IDs in short/SFW-safe subset",
+                            subset.file_name,
+                            subset.template_version,
+                            subset.field_ids.len()
+                        );
+                        state.ckc_error = None;
+                    }
+                    Err(err) => {
+                        state.ckc_template_status = format!("Safe subset load failed: {err}");
+                    }
+                }
+            }
+        }
+
+        let import_result = self
+            .ckc_import_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        if let Some(result) = import_result {
+            if let Ok(mut state) = self.state.lock() {
+                state.ckc_import_pending = false;
+                match result {
+                    Ok(sheet) => {
+                        let character_internal_id = sheet.character_internal_id.clone();
+                        let seq = sheet.seq;
+                        if let Some(row) = state
+                            .ckc_characters
+                            .iter_mut()
+                            .find(|row| row.character_internal_id == character_internal_id)
+                        {
+                            row.apply_sheet_version(sheet);
+                        }
+                        state.ckc_export_status =
+                            format!("Imported CKC sheet as append-only version v{seq}");
+                        state.ckc_last_export = None;
+                        state.ckc_error = None;
+                    }
+                    Err(err) => {
+                        state.ckc_export_status = format!("CKC sheet import failed: {err}");
+                    }
+                }
+            }
+        }
+
+        let export_result = self
+            .ckc_export_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        if let Some(result) = export_result {
+            if let Ok(mut state) = self.state.lock() {
+                state.ckc_export_pending = false;
+                match result {
+                    Ok(export) => {
+                        state.ckc_export_status = format!(
+                            "Exported {} as {} ({} bytes, hash {})",
+                            export.file_name,
+                            export.format,
+                            export.content.len(),
+                            short_hash(&export.content_hash)
+                        );
+                        state.ckc_last_export = Some(export);
+                        state.ckc_error = None;
+                    }
+                    Err(err) => {
+                        state.ckc_export_status = format!("CKC sheet export failed: {err}");
+                    }
+                }
+            }
+        }
+
+        let suggestions_result = self
+            .ckc_field_suggestions_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        if let Some(result) = suggestions_result {
+            if let Ok(mut state) = self.state.lock() {
+                state.ckc_field_suggestion_pending = false;
+                match result {
+                    Ok(rows) => {
+                        let field_id = state.ckc_field_suggestion_id.clone();
+                        let count = rows.len();
+                        state.ckc_field_suggestions = rows;
+                        state.ckc_field_suggestion_status =
+                            format!("Loaded {count} prior value(s) for {field_id}");
+                        state.ckc_error = None;
+                    }
+                    Err(err) => {
+                        state.ckc_field_suggestions.clear();
+                        state.ckc_field_suggestion_status =
+                            format!("CKC field suggestions failed: {err}");
                     }
                 }
             }
@@ -1504,7 +2038,10 @@ impl AtelierPanel {
                             }
                         }
                         if let Some(idx) = pending_selection {
-                            state.ckc_selected_index = idx;
+                            if state.ckc_selected_index != idx {
+                                state.ckc_selected_index = idx;
+                                state.ckc_last_export = None;
+                            }
                         }
                     })
                     .response;
@@ -1548,14 +2085,14 @@ impl AtelierPanel {
                                     client.create_ckc_character(
                                         &public_id,
                                         &display_name,
-                                        ATELIER_CKC_ACTOR_ID,
+                                        client.actor_id(),
                                         self.ckc_create_cell.clone(),
                                     );
                                 }
                             } else {
                                 let character_internal_id = Uuid::new_v4().to_string();
                                 state.ckc_characters.push(CkcCharacterRecord {
-                                    public_id,
+                                    public_id: public_id.clone(),
                                     display_name: display_name.clone(),
                                     character_internal_id: character_internal_id.clone(),
                                     character_ref: format!("atelier://character/{character_internal_id}"),
@@ -1563,12 +2100,13 @@ impl AtelierPanel {
                                     parent_sheet_version_id: None,
                                     sheet_seq: 0,
                                     sheet_editor_text: format!(
-                                        "name: {display_name}\nrole: reusable character/avatar\npipelines: ComfyUI, Unreal, Blender\nnotes: "
+                                        "CHAR-ID-001 \u{2014} Character_ID: {public_id}\nCHAR-ID-002 \u{2014} Name: {display_name}\nCHAR-ID-006 \u{2014} Primary_Role: reusable character/avatar\nPIPELINES\npipelines: ComfyUI, Unreal, Blender\nnotes: "
                                     ),
                                     sheet_version_ref: None,
                                     media_albums: Vec::new(),
                                 });
                                 state.ckc_selected_index = state.ckc_characters.len() - 1;
+                                state.ckc_last_export = None;
                                 state.ckc_new_display_name = "New character".to_owned();
                             }
                         }
@@ -1607,7 +2145,7 @@ impl AtelierPanel {
                             request.review_status.as_deref(),
                             request.source_path_ref.as_deref(),
                             request.source_url_ref.as_deref(),
-                            ATELIER_CKC_ACTOR_ID,
+                            client.actor_id(),
                             self.ckc_media_notes_cell.clone(),
                         );
                     }
@@ -1735,6 +2273,7 @@ impl AtelierPanel {
                                 "atelier://sheet/{}/{}",
                                 character.character_internal_id, next_sheet_version_id
                             ));
+                            state.ckc_last_export = None;
                         }
                     }
                 } else {
@@ -1751,11 +2290,13 @@ impl AtelierPanel {
                             &raw_text,
                             expected_parent_version_id.as_deref(),
                             Some("handshake-native-atelier"),
-                            ATELIER_CKC_ACTOR_ID,
+                            client.actor_id(),
                             self.ckc_append_cell.clone(),
                         );
                     }
                 }
+                ui.separator();
+                self.show_ckc_sheet_tools(ui, palette, &mut state, selected_index);
                 ui.separator();
                 ui.heading(egui::RichText::new("Moodboard").color(palette.text));
                 ui.add_space(4.0);
@@ -1776,6 +2317,336 @@ impl AtelierPanel {
                 }
             });
         });
+    }
+
+    fn show_ckc_sheet_tools(
+        &self,
+        ui: &mut egui::Ui,
+        palette: &HsPalette,
+        state: &mut AtelierPanelState,
+        selected_index: usize,
+    ) {
+        ui.heading(egui::RichText::new("Sheet tools").color(palette.text));
+        let template_status = ui.label(&state.ckc_template_status);
+        emit_node(
+            ui.ctx(),
+            template_status.id,
+            accesskit::Role::Label,
+            ATELIER_CKC_TEMPLATE_STATUS_AUTHOR_ID,
+            &state.ckc_template_status,
+            state.ckc_template_pending || state.ckc_safe_subset_pending,
+        );
+        ui.horizontal_wrapped(|ui| {
+            let load_template = ui.add_enabled(
+                !state.ckc_template_pending,
+                egui::Button::new("Load template"),
+            );
+            emit_node(
+                ui.ctx(),
+                load_template.id,
+                accesskit::Role::Button,
+                ATELIER_CKC_TEMPLATE_LOAD_AUTHOR_ID,
+                "Load bundled CKC CHARACTER_SHEET__v2.00.txt metadata",
+                state.ckc_template_pending,
+            );
+            if load_template.clicked() {
+                if let Some(client) = self.ckc_client.as_ref() {
+                    state.ckc_template_pending = true;
+                    state.ckc_template_status = "Loading CHARACTER_SHEET__v2.00.txt".to_owned();
+                    client.fetch_ckc_template(self.ckc_template_cell.clone());
+                } else {
+                    state.ckc_template_status =
+                        "CHARACTER_SHEET__v2.00.txt is bundled locally; live backend not connected."
+                            .to_owned();
+                }
+            }
+
+            let load_safe = ui.add_enabled(
+                !state.ckc_safe_subset_pending,
+                egui::Button::new("Safe subset"),
+            );
+            emit_node(
+                ui.ctx(),
+                load_safe.id,
+                accesskit::Role::Button,
+                ATELIER_CKC_SAFE_SUBSET_LOAD_AUTHOR_ID,
+                "Load CKC LLM_SAFE_SUBSET__v2.00.json short/SFW-safe Field ID subset",
+                state.ckc_safe_subset_pending,
+            );
+            if load_safe.clicked() {
+                if let Some(client) = self.ckc_client.as_ref() {
+                    state.ckc_safe_subset_pending = true;
+                    state.ckc_template_status = "Loading LLM_SAFE_SUBSET__v2.00.json".to_owned();
+                    client.fetch_ckc_safe_subset(self.ckc_safe_subset_cell.clone());
+                } else {
+                    state.ckc_template_status =
+                        "LLM_SAFE_SUBSET__v2.00.json is a bundled Field ID whitelist for short/SFW-safe use."
+                            .to_owned();
+                }
+            }
+        });
+
+        ui.label(egui::RichText::new("Import raw sheet text").color(palette.text_subtle));
+        let import_editor = ui.add(
+            egui::TextEdit::multiline(&mut state.ckc_import_text)
+                .desired_rows(3)
+                .lock_focus(true),
+        );
+        emit_node(
+            ui.ctx(),
+            import_editor.id,
+            accesskit::Role::TextInput,
+            ATELIER_CKC_IMPORT_EDITOR_AUTHOR_ID,
+            "CKC raw character sheet import text",
+            false,
+        );
+
+        let selected_sheet = state.ckc_characters.get(selected_index).map(|character| {
+            (
+                character.character_internal_id.clone(),
+                character.sheet_version_id.clone(),
+            )
+        });
+        ui.horizontal_wrapped(|ui| {
+            let import_enabled = !state.ckc_import_pending
+                && selected_sheet.is_some()
+                && !state.ckc_import_text.trim().is_empty();
+            let import = ui.add_enabled(import_enabled, egui::Button::new("Import sheet"));
+            emit_node(
+                ui.ctx(),
+                import.id,
+                accesskit::Role::Button,
+                ATELIER_CKC_IMPORT_AUTHOR_ID,
+                "Import CKC raw sheet text as a guarded append-only version",
+                state.ckc_import_pending || !import_enabled,
+            );
+            if import.clicked() {
+                if let Some((character_internal_id, expected_parent_version_id)) =
+                    selected_sheet.clone()
+                {
+                    if let Some(client) = self.ckc_client.as_ref() {
+                        state.ckc_import_pending = true;
+                        state.ckc_export_status =
+                            "Importing CKC sheet as append-only version".to_owned();
+                        client.import_ckc_sheet_version(
+                            &character_internal_id,
+                            &state.ckc_import_text,
+                            expected_parent_version_id.as_deref(),
+                            Some("handshake-native-atelier-import"),
+                            client.actor_id(),
+                            self.ckc_import_cell.clone(),
+                        );
+                    } else {
+                        local_import_ckc_sheet(state, selected_index);
+                    }
+                }
+            }
+
+            let selected_version_id = selected_sheet
+                .as_ref()
+                .and_then(|(_, version_id)| version_id.clone());
+            let export_enabled = !state.ckc_export_pending && selected_version_id.is_some();
+            let export_txt = ui.add_enabled(export_enabled, egui::Button::new("Export txt"));
+            emit_node(
+                ui.ctx(),
+                export_txt.id,
+                accesskit::Role::Button,
+                ATELIER_CKC_EXPORT_TXT_AUTHOR_ID,
+                "Export CKC sheet version as deterministic txt content",
+                state.ckc_export_pending || !export_enabled,
+            );
+            if export_txt.clicked() {
+                self.request_ckc_sheet_export(state, selected_index, "txt");
+            }
+            let export_json = ui.add_enabled(export_enabled, egui::Button::new("Export json"));
+            emit_node(
+                ui.ctx(),
+                export_json.id,
+                accesskit::Role::Button,
+                ATELIER_CKC_EXPORT_JSON_AUTHOR_ID,
+                "Export CKC sheet version as deterministic json content",
+                state.ckc_export_pending || !export_enabled,
+            );
+            if export_json.clicked() {
+                self.request_ckc_sheet_export(state, selected_index, "json");
+            }
+            let export_safe_txt =
+                ui.add_enabled(export_enabled, egui::Button::new("Export safe txt"));
+            emit_node(
+                ui.ctx(),
+                export_safe_txt.id,
+                accesskit::Role::Button,
+                ATELIER_CKC_EXPORT_SAFE_TXT_AUTHOR_ID,
+                "Export CKC sheet version as short/SFW-safe txt content",
+                state.ckc_export_pending || !export_enabled,
+            );
+            if export_safe_txt.clicked() {
+                self.request_ckc_sheet_export(state, selected_index, "safe-txt");
+            }
+            let export_safe_json =
+                ui.add_enabled(export_enabled, egui::Button::new("Export safe json"));
+            emit_node(
+                ui.ctx(),
+                export_safe_json.id,
+                accesskit::Role::Button,
+                ATELIER_CKC_EXPORT_SAFE_JSON_AUTHOR_ID,
+                "Export CKC sheet version as short/SFW-safe json content",
+                state.ckc_export_pending || !export_enabled,
+            );
+            if export_safe_json.clicked() {
+                self.request_ckc_sheet_export(state, selected_index, "safe-json");
+            }
+        });
+        let export_status = ui.label(&state.ckc_export_status);
+        emit_node(
+            ui.ctx(),
+            export_status.id,
+            accesskit::Role::Label,
+            ATELIER_CKC_EXPORT_STATUS_AUTHOR_ID,
+            &state.ckc_export_status,
+            state.ckc_export_pending || state.ckc_import_pending,
+        );
+        if let Some(export) = state.ckc_last_export.as_ref() {
+            let export_ref_label = format!(
+                "{} {} {} {} {}",
+                export.file_name,
+                export.version_id,
+                short_hash(&export.content_hash),
+                export.character_ref,
+                export.sheet_version_ref
+            );
+            let export_ref = ui.label(&export_ref_label);
+            emit_node(
+                ui.ctx(),
+                export_ref.id,
+                accesskit::Role::Label,
+                ATELIER_CKC_EXPORT_REF_AUTHOR_ID,
+                &export_ref_label,
+                false,
+            );
+            let mut preview = export.content.clone();
+            let preview_response = ui.add(
+                egui::TextEdit::multiline(&mut preview)
+                    .desired_rows(4)
+                    .interactive(false),
+            );
+            emit_value_node(
+                ui.ctx(),
+                preview_response.id,
+                accesskit::Role::TextInput,
+                ATELIER_CKC_EXPORT_PREVIEW_AUTHOR_ID,
+                "CKC deterministic sheet export preview",
+                &export.content,
+            );
+        }
+
+        ui.horizontal_wrapped(|ui| {
+            ui.label("Field ID");
+            let field = ui.text_edit_singleline(&mut state.ckc_field_suggestion_id);
+            emit_node(
+                ui.ctx(),
+                field.id,
+                accesskit::Role::TextInput,
+                ATELIER_CKC_FIELD_SUGGESTION_FIELD_AUTHOR_ID,
+                "CKC Field ID for prior-value suggestions",
+                false,
+            );
+            let load = ui.add_enabled(
+                !state.ckc_field_suggestion_pending
+                    && !state.ckc_field_suggestion_id.trim().is_empty(),
+                egui::Button::new("Load suggestions"),
+            );
+            emit_node(
+                ui.ctx(),
+                load.id,
+                accesskit::Role::Button,
+                ATELIER_CKC_FIELD_SUGGESTIONS_LOAD_AUTHOR_ID,
+                "Load CKC prior values for the exact Field ID",
+                state.ckc_field_suggestion_pending,
+            );
+            if load.clicked() {
+                let field_id = state.ckc_field_suggestion_id.trim().to_owned();
+                if let Some(client) = self.ckc_client.as_ref() {
+                    state.ckc_field_suggestion_pending = true;
+                    state.ckc_field_suggestion_status =
+                        format!("Loading prior CKC values for {field_id}");
+                    client.fetch_ckc_field_suggestions(
+                        &field_id,
+                        8,
+                        self.ckc_field_suggestions_cell.clone(),
+                    );
+                } else {
+                    state.ckc_field_suggestions =
+                        local_field_suggestions(&state.ckc_characters, &field_id);
+                    state.ckc_field_suggestion_status = format!(
+                        "Loaded {} local prior value(s) for {field_id}",
+                        state.ckc_field_suggestions.len()
+                    );
+                }
+            }
+        });
+        let suggestion_response = ui
+            .vertical(|ui| {
+                ui.label(&state.ckc_field_suggestion_status);
+                for suggestion in &state.ckc_field_suggestions {
+                    let label = format!(
+                        "{} = {} ({})",
+                        suggestion.field_id, suggestion.value, suggestion.occurrences
+                    );
+                    let row = ui.label(&label);
+                    let author_id =
+                        ckc_field_suggestion_row_author_id(&suggestion.field_id, &suggestion.value);
+                    emit_node(
+                        ui.ctx(),
+                        row.id,
+                        accesskit::Role::ListItem,
+                        &author_id,
+                        &label,
+                        false,
+                    );
+                }
+            })
+            .response;
+        emit_node(
+            ui.ctx(),
+            suggestion_response.id,
+            accesskit::Role::List,
+            ATELIER_CKC_FIELD_SUGGESTIONS_LIST_AUTHOR_ID,
+            &state.ckc_field_suggestion_status,
+            state.ckc_field_suggestion_pending,
+        );
+    }
+
+    fn request_ckc_sheet_export(
+        &self,
+        state: &mut AtelierPanelState,
+        selected_index: usize,
+        format: &'static str,
+    ) {
+        let Some(character) = state.ckc_characters.get(selected_index) else {
+            state.ckc_export_status = "No CKC character selected for export.".to_owned();
+            return;
+        };
+        let Some(version_id) = character.sheet_version_id.clone() else {
+            state.ckc_export_status =
+                "Selected CKC character has no sheet version to export.".to_owned();
+            return;
+        };
+        if let Some(client) = self.ckc_client.as_ref() {
+            state.ckc_export_pending = true;
+            state.ckc_export_status = format!("Exporting CKC sheet as {format}");
+            client.export_ckc_sheet_version(&version_id, format, self.ckc_export_cell.clone());
+        } else {
+            let export = local_export_ckc_sheet(character, format);
+            state.ckc_export_status = format!(
+                "Local export {} as {} ({} bytes, hash {})",
+                export.file_name,
+                export.format,
+                export.content.len(),
+                short_hash(&export.content_hash)
+            );
+            state.ckc_last_export = Some(export);
+        }
     }
 
     fn show_ckc_search(
@@ -2076,7 +2947,7 @@ impl AtelierPanel {
                         &request.tag_text,
                         request.scope_ref.as_deref(),
                         &request.note,
-                        ATELIER_CKC_ACTOR_ID,
+                        client.actor_id(),
                         self.ckc_tag_note_cell.clone(),
                     );
                 } else {
@@ -2624,6 +3495,28 @@ fn emit_node(
     });
 }
 
+fn emit_value_node(
+    ctx: &egui::Context,
+    id: egui::Id,
+    role: accesskit::Role,
+    author_id: &str,
+    label: &str,
+    value: &str,
+) {
+    let author = author_id.to_owned();
+    let label = label.to_owned();
+    let value = value.to_owned();
+    ctx.accesskit_node_builder(id, move |node| {
+        node.set_role(role);
+        node.set_author_id(author.clone());
+        node.set_label(label.clone());
+        node.set_value(value.clone());
+        if matches!(role, accesskit::Role::TextInput | accesskit::Role::Slider) {
+            node.add_action(accesskit::Action::Focus);
+        }
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2681,6 +3574,69 @@ mod tests {
             .map(|note| note.note.as_str())
             .collect();
         assert_eq!(notes, vec!["global training note", "matching album note"]);
+    }
+
+    #[test]
+    fn local_ckc_field_parser_rejects_prefix_owner_ids_and_placeholders() {
+        let invalid_prefix = "CHAR-ID-001X \u{2014} Character_ID: mira-demo";
+        assert_eq!(sheet_field_value(invalid_prefix, "CHAR-ID-001"), None);
+        let invalid_digit_prefix = "CHAR-ID-0010 \u{2014} Character_ID: mira-demo";
+        assert_eq!(sheet_field_value(invalid_digit_prefix, "CHAR-ID-001"), None);
+        let lowercase = "char-id-001 \u{2014} Character_ID: mira-demo";
+        assert_eq!(sheet_field_value(lowercase, "CHAR-ID-001"), None);
+        let placeholder = "CHAR-ID-001 \u{2014} Character_ID: <string>";
+        assert_eq!(sheet_field_value(placeholder, "CHAR-ID-001"), None);
+
+        let valid = "CHAR-ID-001\u{2014}Character_ID: mira-demo";
+        assert_eq!(
+            sheet_field_value(valid, "CHAR-ID-001").as_deref(),
+            Some("mira-demo")
+        );
+    }
+
+    #[test]
+    fn local_ckc_export_matches_backend_format_shapes() {
+        let mut character = seeded_ckc_characters()
+            .into_iter()
+            .next()
+            .expect("seeded character");
+        character.sheet_editor_text.push_str(
+            "\nCHAR-SEX-001\u{2014}Sex_Model: private-field\nCHAR-ID-001X \u{2014} Character_ID: wrong",
+        );
+
+        let json = local_export_ckc_sheet(&character, "json");
+        assert_eq!(json.format, "json");
+        let json_value: serde_json::Value =
+            serde_json::from_str(&json.content).expect("json export envelope");
+        assert_eq!(
+            json_value["raw_text"].as_str(),
+            Some(character.sheet_editor_text.as_str())
+        );
+        assert_eq!(
+            json_value["sheet_version_ref"].as_str(),
+            character.sheet_version_ref.as_deref()
+        );
+        assert_eq!(
+            json.sheet_version_ref,
+            character.sheet_version_ref.clone().unwrap()
+        );
+
+        let safe_txt = local_export_ckc_sheet(&character, "safe-txt");
+        assert_eq!(safe_txt.format, "safe-txt");
+        assert!(safe_txt.content.contains("CHAR-ID-001"));
+        assert!(!safe_txt.content.contains("CHAR-SEX-001"));
+        assert!(!safe_txt.content.contains("CHAR-ID-001X"));
+
+        let safe_json = local_export_ckc_sheet(&character, "safe-json");
+        let safe_json_value: serde_json::Value =
+            serde_json::from_str(&safe_json.content).expect("safe json export envelope");
+        let safe_raw = safe_json_value["raw_text"]
+            .as_str()
+            .expect("safe json raw_text");
+        assert!(safe_raw.contains("CHAR-ID-001"));
+        assert!(!safe_raw.contains("CHAR-SEX-001"));
+        assert!(!safe_raw.contains("CHAR-ID-001X"));
+        assert_eq!(safe_json.character_ref, character.character_ref);
     }
 
     #[test]

@@ -99,10 +99,10 @@ pub use self::sheet::{
     SheetVersionRevertRequest, SheetVersionRevertResult,
 };
 pub use self::sheet_templates::{
+    builtin_character_sheet_template, builtin_safe_subset, default_character_sheet_text, text_hash,
     BuiltInSafeSubset, BuiltInSheetTemplate, CHARACTER_SHEET_V2_FILE_NAME,
     CHARACTER_SHEET_V2_TEMPLATE_ID, CHARACTER_SHEET_V2_TEMPLATE_VERSION, DEFAULT_SHEET_TOOL,
-    LLM_SAFE_SUBSET_V2_FILE_NAME, builtin_character_sheet_template, builtin_safe_subset,
-    default_character_sheet_text, text_hash,
+    LLM_SAFE_SUBSET_V2_FILE_NAME,
 };
 
 /// Errors surfaced by the atelier domain.
@@ -1735,6 +1735,16 @@ impl AtelierStore {
         .fetch_one(&mut *tx)
         .await?;
         if ready_after_lock {
+            sqlx::raw_sql(include_str!(
+                "../../migrations/0337_atelier_ckc_search_tag_notes.sql"
+            ))
+            .execute(&mut *tx)
+            .await?;
+            sqlx::raw_sql(include_str!(
+                "../../migrations/0338_atelier_ckc_sheet_field_projection.sql"
+            ))
+            .execute(&mut *tx)
+            .await?;
             tx.commit().await?;
             self.repair_contact_sheet_manifest_schema_namespace()
                 .await?;
@@ -2175,6 +2185,11 @@ impl AtelierStore {
         .await?;
         sqlx::raw_sql(include_str!(
             "../../migrations/0337_atelier_ckc_search_tag_notes.sql"
+        ))
+        .execute(&mut *tx)
+        .await?;
+        sqlx::raw_sql(include_str!(
+            "../../migrations/0338_atelier_ckc_sheet_field_projection.sql"
         ))
         .execute(&mut *tx)
         .await?;

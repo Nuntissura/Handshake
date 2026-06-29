@@ -22,10 +22,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use handshake_core::AppState;
 use handshake_core::api::atelier as atelier_api;
-use handshake_core::atelier::search::TagType;
 use handshake_core::atelier::search::search_event_family;
+use handshake_core::atelier::search::TagType;
 use handshake_core::atelier::stealth_window::stealth_ref_event_family::{
     STEALTH_REF_ADDED, STEALTH_REF_CAPTURED, STEALTH_REF_REMOVED, STEALTH_REF_REORDERED,
     STEALTH_REF_WINDOW_CLOSED, STEALTH_REF_WINDOW_CREATED,
@@ -34,8 +33,9 @@ use handshake_core::atelier::stealth_window::{
     ContentRefKind, NewContentRef, NewStealthWindow, QuietFlags, StealthRefStatus, VisibilityFlag,
 };
 use handshake_core::atelier::{
-    AtelierStore, MediaSidecarRelationKind, NewCharacter, NewMediaAsset, NewMediaSidecarRelation,
-    NewSheetVersion, character_ref, collection_ref, event_family, media_asset_ref,
+    character_ref, collection_ref, event_family, media_asset_ref, AtelierStore,
+    MediaSidecarRelationKind, NewCharacter, NewMediaAsset, NewMediaSidecarRelation,
+    NewSheetVersion,
 };
 use handshake_core::capabilities::CapabilityRegistry;
 use handshake_core::diagnostics::{DiagFilter, Diagnostic, DiagnosticsStore, ProblemGroup};
@@ -48,6 +48,7 @@ use handshake_core::llm::{
 };
 use handshake_core::storage::tests::optional_postgres_backend_with_pool_from_env;
 use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
+use handshake_core::AppState;
 use sqlx::Row;
 use uuid::Uuid;
 
@@ -375,8 +376,8 @@ fn assert_uuid_v7(id: Uuid, label: &str) {
 }
 
 #[tokio::test]
-async fn atelier_character_sheet_api_round_trips_refs_and_conflicts()
--> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_character_sheet_api_round_trips_refs_and_conflicts(
+) -> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -385,6 +386,25 @@ async fn atelier_character_sheet_api_round_trips_refs_and_conflicts()
     let client = reqwest::Client::new();
     let actor = format!("mt009-agent-{}", Uuid::new_v4());
     let public_id = format!("mt009-char-{}", Uuid::new_v4());
+    let projection_exists: bool = sqlx::query_scalar(
+        "SELECT to_regclass('atelier_sheet_field_value_projection') IS NOT NULL",
+    )
+    .fetch_one(&pool)
+    .await?;
+    assert!(
+        projection_exists,
+        "schema bootstrap must create the CKC field-value projection even on already-ready DBs"
+    );
+    let tag_note_exists: bool = sqlx::query_scalar(
+        "SELECT to_regclass('atelier_tag_note') IS NOT NULL
+              AND to_regclass('atelier_ckc_search_projection') IS NOT NULL",
+    )
+    .fetch_one(&pool)
+    .await?;
+    assert!(
+        tag_note_exists,
+        "schema bootstrap must replay CKC search/tag-note migration on already-ready DBs"
+    );
 
     let created = client
         .post(format!("{base_url}/atelier/characters"))
@@ -423,13 +443,49 @@ async fn atelier_character_sheet_api_round_trips_refs_and_conflicts()
     let duplicate_body: serde_json::Value = duplicate.json().await?;
     assert_eq!(duplicate_body["error"].as_str(), Some("conflict"));
 
-    let first = client
+    let missing_owner = client
         .post(format!(
             "{base_url}/atelier/characters/{character_internal_id}/sheet-versions"
         ))
         .header("x-hsk-actor-id", &actor)
         .json(&serde_json::json!({
             "raw_text": "name: MT-009\nrole: route proof",
+            "expected_parent_version_id": null,
+            "tool": "argus",
+        }))
+        .send()
+        .await?;
+    assert_eq!(
+        missing_owner.status(),
+        reqwest::StatusCode::BAD_REQUEST,
+        "full CKC sheet append must include CHAR-ID-001 so ownership is deterministic"
+    );
+
+    let duplicate_owner = client
+        .post(format!(
+            "{base_url}/atelier/characters/{character_internal_id}/sheet-versions"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "raw_text": format!("CHAR-ID-001 — Character_ID: {public_id}\nCHAR-ID-002 — Name: MT-009\nCHAR-ID-001 — Character_ID: wrong-character-id"),
+            "expected_parent_version_id": null,
+            "tool": "argus",
+        }))
+        .send()
+        .await?;
+    assert_eq!(
+        duplicate_owner.status(),
+        reqwest::StatusCode::BAD_REQUEST,
+        "CKC sheet append must reject ambiguous duplicate CHAR-ID-001 ownership lines"
+    );
+
+    let first = client
+        .post(format!(
+            "{base_url}/atelier/characters/{character_internal_id}/sheet-versions"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "raw_text": format!("CHAR-ID-001 — Character_ID: {public_id}\nCHAR-ID-002 — Name: MT-009\nCHAR-ID-006 — Primary_Role: route proof"),
             "expected_parent_version_id": null,
             "tool": "argus",
         }))
@@ -446,6 +502,20 @@ async fn atelier_character_sheet_api_round_trips_refs_and_conflicts()
         first["sheet_version_ref"].as_str(),
         Some(expected_first_sheet_ref.as_str())
     );
+    let first_projection_count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*)
+           FROM atelier_sheet_field_value_projection
+          WHERE sheet_version_id = $1
+            AND field_id = 'CHAR-ID-006'
+            AND value = 'route proof'",
+    )
+    .bind(Uuid::parse_str(first_version_id)?)
+    .fetch_one(&pool)
+    .await?;
+    assert_eq!(
+        first_projection_count, 1,
+        "append-only CKC sheet writes must populate the field-value projection"
+    );
 
     let second = client
         .post(format!(
@@ -453,7 +523,7 @@ async fn atelier_character_sheet_api_round_trips_refs_and_conflicts()
         ))
         .header("x-hsk-actor-id", &actor)
         .json(&serde_json::json!({
-            "raw_text": "name: MT-009\nrole: updated route proof",
+            "raw_text": format!("CHAR-ID-001 — Character_ID: {public_id}\nCHAR-ID-002 — Name: MT-009\nCHAR-ID-006 — Primary_Role: updated route proof"),
             "expected_parent_version_id": first_version_id,
             "tool": "argus",
         }))
@@ -477,7 +547,7 @@ async fn atelier_character_sheet_api_round_trips_refs_and_conflicts()
         ))
         .header("x-hsk-actor-id", &actor)
         .json(&serde_json::json!({
-            "raw_text": "name: stale write",
+            "raw_text": format!("CHAR-ID-001 — Character_ID: {public_id}\nCHAR-ID-002 — Name: stale write"),
             "expected_parent_version_id": first_version_id,
             "tool": "argus",
         }))
@@ -570,8 +640,8 @@ async fn atelier_character_sheet_api_round_trips_refs_and_conflicts()
 }
 
 #[tokio::test]
-async fn atelier_ckc_bundled_template_import_export_and_field_suggestions()
--> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_ckc_bundled_template_import_export_and_field_suggestions(
+) -> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -619,13 +689,11 @@ async fn atelier_ckc_bundled_template_import_export_and_field_suggestions()
         safe_subset["file_name"].as_str(),
         Some("LLM_SAFE_SUBSET__v2.00.json")
     );
-    assert!(
-        safe_subset["field_ids"]
-            .as_array()
-            .expect("safe subset field ids")
-            .iter()
-            .any(|value| value.as_str() == Some("CHAR-ID-006"))
-    );
+    assert!(safe_subset["field_ids"]
+        .as_array()
+        .expect("safe subset field ids")
+        .iter()
+        .any(|value| value.as_str() == Some("CHAR-ID-006")));
 
     let created = client
         .post(format!("{base_url}/atelier/characters"))
@@ -671,12 +739,10 @@ async fn atelier_ckc_bundled_template_import_export_and_field_suggestions()
     let txt_export: serde_json::Value = txt_export.json().await?;
     assert_eq!(txt_export["format"].as_str(), Some("txt"));
     assert_eq!(txt_export["content"].as_str(), Some(first_raw));
-    assert!(
-        txt_export["file_name"]
-            .as_str()
-            .expect("export file name")
-            .ends_with(".txt")
-    );
+    assert!(txt_export["file_name"]
+        .as_str()
+        .expect("export file name")
+        .ends_with(".txt"));
 
     let imported_raw = first_raw.replace(
         "CHAR-ID-006 — Primary_Role: <string>",
@@ -718,11 +784,136 @@ async fn atelier_ckc_bundled_template_import_export_and_field_suggestions()
     assert_eq!(json_export.status(), reqwest::StatusCode::OK);
     let json_export: serde_json::Value = json_export.json().await?;
     assert_eq!(json_export["format"].as_str(), Some("json"));
+    let json_export_content = json_export["content"]
+        .as_str()
+        .expect("json export content");
+    assert!(json_export_content.contains("proof-primary-role"));
+
+    let round_trip = client
+        .post(format!(
+            "{base_url}/atelier/characters/{character_internal_id}/sheet-versions/import"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "raw_text": json_export_content,
+            "expected_parent_version_id": imported_version_id,
+            "tool": "ckc-template-json-round-trip-test",
+        }))
+        .send()
+        .await?;
+    assert_eq!(
+        round_trip.status(),
+        reqwest::StatusCode::CREATED,
+        "CKC JSON export content must be importable as the next sheet version"
+    );
+    let round_trip: serde_json::Value = round_trip.json().await?;
+    let round_trip_version_id = round_trip["version_id"]
+        .as_str()
+        .expect("round-trip version id");
+    assert_eq!(
+        round_trip["parent_version_id"].as_str(),
+        Some(imported_version_id)
+    );
+
+    let mismatched_raw = first_raw.replace(
+        &format!("CHAR-ID-001 — Character_ID: {public_id}"),
+        "CHAR-ID-001 — Character_ID: wrong-character-id",
+    );
+    let mismatched = client
+        .post(format!(
+            "{base_url}/atelier/characters/{character_internal_id}/sheet-versions/import"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "raw_text": mismatched_raw,
+            "expected_parent_version_id": round_trip_version_id,
+            "tool": "ckc-template-mismatch-test",
+        }))
+        .send()
+        .await?;
+    assert_eq!(
+        mismatched.status(),
+        reqwest::StatusCode::BAD_REQUEST,
+        "CKC import must reject a sheet whose CHAR-ID-001 belongs to another character"
+    );
+
+    let duplicate_owner_raw =
+        format!("{first_raw}\nCHAR-ID-001 — Character_ID: wrong-character-id\n");
+    let duplicate_owner = client
+        .post(format!(
+            "{base_url}/atelier/characters/{character_internal_id}/sheet-versions/import"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "raw_text": duplicate_owner_raw,
+            "expected_parent_version_id": round_trip_version_id,
+            "tool": "ckc-template-duplicate-owner-test",
+        }))
+        .send()
+        .await?;
+    assert_eq!(
+        duplicate_owner.status(),
+        reqwest::StatusCode::BAD_REQUEST,
+        "CKC import must reject sheets with duplicate CHAR-ID-001 ownership lines"
+    );
+
+    let safe_export = client
+        .get(format!(
+            "{base_url}/atelier/sheet-versions/{round_trip_version_id}/export?format=safe-txt"
+        ))
+        .send()
+        .await?;
+    assert_eq!(safe_export.status(), reqwest::StatusCode::OK);
+    let safe_export: serde_json::Value = safe_export.json().await?;
+    assert_eq!(safe_export["format"].as_str(), Some("safe-txt"));
+    let safe_content = safe_export["content"]
+        .as_str()
+        .expect("safe export content");
+    assert!(safe_content.contains("CHAR-ID-001 — Character_ID"));
     assert!(
-        json_export["content"]
-            .as_str()
-            .expect("json export content")
-            .contains("proof-primary-role")
+        !safe_content.contains("CHAR-SEX-001"),
+        "short/SFW-safe export must remove fields outside the LLM-safe subset"
+    );
+
+    let unsafe_variant_raw =
+        first_raw.replace("CHAR-SEX-001 — Sex_Model:", "CHAR-SEX-001—Sex_Model:");
+    assert!(
+        unsafe_variant_raw.contains("CHAR-SEX-001—Sex_Model:"),
+        "fixture must exercise no-space CKC field separator parsing"
+    );
+    let unsafe_variant = client
+        .post(format!(
+            "{base_url}/atelier/characters/{character_internal_id}/sheet-versions/import"
+        ))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "raw_text": unsafe_variant_raw,
+            "expected_parent_version_id": round_trip_version_id,
+            "tool": "ckc-template-safe-export-variant-test",
+        }))
+        .send()
+        .await?;
+    assert_eq!(unsafe_variant.status(), reqwest::StatusCode::CREATED);
+    let unsafe_variant: serde_json::Value = unsafe_variant.json().await?;
+    let unsafe_variant_version_id = unsafe_variant["version_id"]
+        .as_str()
+        .expect("unsafe variant version id");
+
+    let safe_json_export = client
+        .get(format!(
+            "{base_url}/atelier/sheet-versions/{unsafe_variant_version_id}/export?format=safe-json"
+        ))
+        .send()
+        .await?;
+    assert_eq!(safe_json_export.status(), reqwest::StatusCode::OK);
+    let safe_json_export: serde_json::Value = safe_json_export.json().await?;
+    assert_eq!(safe_json_export["format"].as_str(), Some("safe-json"));
+    let safe_json_content = safe_json_export["content"]
+        .as_str()
+        .expect("safe json export content");
+    assert!(
+        !safe_json_content.contains("CHAR-SEX-001"),
+        "safe-json export must remove unsafe fields even when the separator has no spaces"
     );
 
     let suggestions = client
@@ -741,13 +932,50 @@ async fn atelier_ckc_bundled_template_import_export_and_field_suggestions()
         "CKC should remember prior input values per field for future sheet suggestions"
     );
 
+    let normalized_public_id = format!("mt009-normalized-{}", Uuid::new_v4());
+    let normalized_created = client
+        .post(format!("{base_url}/atelier/characters"))
+        .header("x-hsk-actor-id", &actor)
+        .json(&serde_json::json!({
+            "public_id": format!("  {normalized_public_id}\n"),
+            "display_name": "MT-009 Normalized Public ID",
+            "create_default_sheet": true,
+        }))
+        .send()
+        .await?;
+    assert_eq!(normalized_created.status(), reqwest::StatusCode::CREATED);
+    let normalized_character: serde_json::Value = normalized_created.json().await?;
+    assert_eq!(
+        normalized_character["public_id"].as_str(),
+        Some(normalized_public_id.as_str()),
+        "CKC public_id must normalize before storage and default-sheet creation"
+    );
+    let normalized_character_internal_id = normalized_character["internal_id"]
+        .as_str()
+        .expect("normalized character internal id");
+    let normalized_history = client
+        .get(format!(
+            "{base_url}/atelier/characters/{normalized_character_internal_id}/sheet-versions"
+        ))
+        .send()
+        .await?;
+    assert_eq!(normalized_history.status(), reqwest::StatusCode::OK);
+    let normalized_history: Vec<serde_json::Value> = normalized_history.json().await?;
+    let normalized_raw = normalized_history[0]["raw_text"]
+        .as_str()
+        .expect("normalized default sheet raw text");
+    assert!(normalized_raw.contains(&format!(
+        "CHAR-ID-001 — Character_ID: {normalized_public_id}"
+    )));
+    assert!(!normalized_raw.contains(&format!("  {normalized_public_id}")));
+
     server.abort();
     Ok(())
 }
 
 #[tokio::test]
-async fn atelier_ckc_media_album_api_links_assets_notes_tags_and_refs()
--> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_ckc_media_album_api_links_assets_notes_tags_and_refs(
+) -> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -779,7 +1007,7 @@ async fn atelier_ckc_media_album_api_links_assets_notes_tags_and_refs()
         ))
         .header("x-hsk-actor-id", &actor)
         .json(&serde_json::json!({
-            "raw_text": "name: MT-010\nrole: media album route proof",
+            "raw_text": format!("CHAR-ID-001 — Character_ID: {public_id}\nCHAR-ID-002 — Name: MT-010\nCHAR-ID-006 — Primary_Role: media album route proof"),
             "expected_parent_version_id": null,
             "tool": "argus",
         }))
@@ -946,8 +1174,8 @@ async fn atelier_ckc_media_album_api_links_assets_notes_tags_and_refs()
 }
 
 #[tokio::test]
-async fn atelier_ckc_search_api_returns_fuzzy_vector_combined_refs_and_tag_notes()
--> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_ckc_search_api_returns_fuzzy_vector_combined_refs_and_tag_notes(
+) -> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -980,7 +1208,7 @@ async fn atelier_ckc_search_api_returns_fuzzy_vector_combined_refs_and_tag_notes
         ))
         .header("x-hsk-actor-id", &actor)
         .json(&serde_json::json!({
-            "raw_text": "CHAR-ID-002 — Name: Silver Bob Reference\nCHAR-ID-006 — Primary_Role: facial close-up training avatar\nnotes: silver bob hair, green eyes, soft backlight",
+            "raw_text": format!("CHAR-ID-001 — Character_ID: {public_id}\nCHAR-ID-002 — Name: Silver Bob Reference\nCHAR-ID-006 — Primary_Role: facial close-up training avatar\nnotes: silver bob hair, green eyes, soft backlight"),
             "expected_parent_version_id": null,
             "tool": "argus",
         }))
@@ -1121,21 +1349,17 @@ async fn atelier_ckc_search_api_returns_fuzzy_vector_combined_refs_and_tag_notes
     assert_eq!(fuzzy.status(), reqwest::StatusCode::OK);
     let fuzzy: serde_json::Value = fuzzy.json().await?;
     assert_eq!(fuzzy["query"].as_str(), Some("silvr bob"));
-    assert!(
-        fuzzy["search_modes"]
-            .as_array()
-            .expect("fuzzy modes")
-            .iter()
-            .any(|mode| mode.as_str() == Some("fuzzy"))
-    );
-    assert!(
-        fuzzy["results"]
-            .as_array()
-            .expect("fuzzy results")
-            .iter()
-            .any(|hit| hit["target_kind"].as_str() == Some("character")
-                && hit["target_ref"].as_str() == Some(expected_character_ref.as_str()))
-    );
+    assert!(fuzzy["search_modes"]
+        .as_array()
+        .expect("fuzzy modes")
+        .iter()
+        .any(|mode| mode.as_str() == Some("fuzzy")));
+    assert!(fuzzy["results"]
+        .as_array()
+        .expect("fuzzy results")
+        .iter()
+        .any(|hit| hit["target_kind"].as_str() == Some("character")
+            && hit["target_ref"].as_str() == Some(expected_character_ref.as_str())));
 
     let vector = client
         .post(format!("{base_url}/atelier/ckc/search"))
@@ -1154,24 +1378,22 @@ async fn atelier_ckc_search_api_returns_fuzzy_vector_combined_refs_and_tag_notes
         vector["vector_source"].as_str(),
         Some("llm_embedding+pgvector_projection+dhash_similarity")
     );
-    assert!(
-        vector["results"]
-            .as_array()
-            .expect("vector results")
-            .iter()
-            .any(|hit| hit["target_kind"].as_str() == Some("media")
-                && hit["target_ref"].as_str() == Some(media_asset_ref(hero_asset).as_str())
-                && hit["match_modes"]
-                    .as_array()
-                    .expect("match modes")
-                    .iter()
-                    .any(|mode| mode.as_str() == Some("vector"))
-                && hit["match_modes"]
-                    .as_array()
-                    .expect("match modes")
-                    .iter()
-                    .any(|mode| mode.as_str() == Some("image_similarity")))
-    );
+    assert!(vector["results"]
+        .as_array()
+        .expect("vector results")
+        .iter()
+        .any(|hit| hit["target_kind"].as_str() == Some("media")
+            && hit["target_ref"].as_str() == Some(media_asset_ref(hero_asset).as_str())
+            && hit["match_modes"]
+                .as_array()
+                .expect("match modes")
+                .iter()
+                .any(|mode| mode.as_str() == Some("vector"))
+            && hit["match_modes"]
+                .as_array()
+                .expect("match modes")
+                .iter()
+                .any(|mode| mode.as_str() == Some("image_similarity"))));
 
     let combined = client
         .post(format!("{base_url}/atelier/ckc/search"))
@@ -1266,8 +1488,8 @@ fn stealth_ref_tauri_commands_are_registered_and_postgres_backed() {
 }
 
 #[tokio::test]
-async fn stealth_window_api_list_is_scoped_to_calling_actor()
--> Result<(), Box<dyn std::error::Error>> {
+async fn stealth_window_api_list_is_scoped_to_calling_actor(
+) -> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -1323,8 +1545,8 @@ async fn stealth_window_api_list_is_scoped_to_calling_actor()
 }
 
 #[tokio::test]
-async fn atelier_filesystem_health_api_records_read_only_check()
--> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_filesystem_health_api_records_read_only_check(
+) -> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -1453,8 +1675,8 @@ async fn atelier_filesystem_health_api_records_read_only_check()
 }
 
 #[tokio::test]
-async fn atelier_deletion_controls_api_preview_archive_and_restore()
--> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_deletion_controls_api_preview_archive_and_restore(
+) -> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -1526,18 +1748,14 @@ async fn atelier_deletion_controls_api_preview_archive_and_restore()
     let archive: serde_json::Value = archive_response.json().await?;
     assert_eq!(archive["operation"], "archive_deletion_targets");
     assert_eq!(archive["target_count"], 2);
-    assert!(
-        store
-            .is_media_asset_trashed(asset_id)
-            .await
-            .expect("media marker after API archive")
-    );
-    assert!(
-        store
-            .is_sheet_version_trashed(sheet.version_id)
-            .await
-            .expect("sheet marker after API archive")
-    );
+    assert!(store
+        .is_media_asset_trashed(asset_id)
+        .await
+        .expect("media marker after API archive"));
+    assert!(store
+        .is_sheet_version_trashed(sheet.version_id)
+        .await
+        .expect("sheet marker after API archive"));
 
     let restore_response = client
         .post(format!("{base_url}/atelier/deletion/restore"))
@@ -1552,26 +1770,22 @@ async fn atelier_deletion_controls_api_preview_archive_and_restore()
     let restore: serde_json::Value = restore_response.json().await?;
     assert_eq!(restore["operation"], "restore_deletion_targets");
     assert_eq!(restore["target_count"], 2);
-    assert!(
-        !store
-            .is_media_asset_trashed(asset_id)
-            .await
-            .expect("media marker after API restore")
-    );
-    assert!(
-        !store
-            .is_sheet_version_trashed(sheet.version_id)
-            .await
-            .expect("sheet marker after API restore")
-    );
+    assert!(!store
+        .is_media_asset_trashed(asset_id)
+        .await
+        .expect("media marker after API restore"));
+    assert!(!store
+        .is_sheet_version_trashed(sheet.version_id)
+        .await
+        .expect("sheet marker after API restore"));
     server.abort();
 
     Ok(())
 }
 
 #[tokio::test]
-async fn atelier_image_import_api_records_clipboard_and_url_imports()
--> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_image_import_api_records_clipboard_and_url_imports(
+) -> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -1687,8 +1901,8 @@ async fn atelier_image_import_api_records_clipboard_and_url_imports()
 }
 
 #[tokio::test]
-async fn atelier_image_import_api_rejects_caller_supplied_artifact_workspace_root()
--> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_image_import_api_rejects_caller_supplied_artifact_workspace_root(
+) -> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -1763,8 +1977,8 @@ async fn atelier_image_import_api_rejects_caller_supplied_artifact_workspace_roo
 }
 
 #[tokio::test]
-async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle()
--> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle(
+) -> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };
@@ -1905,8 +2119,8 @@ async fn atelier_ai_tag_suggestion_api_exposes_review_lifecycle()
 }
 
 #[tokio::test]
-async fn atelier_ai_tag_suggestion_api_rejects_non_receipt_refs()
--> Result<(), Box<dyn std::error::Error>> {
+async fn atelier_ai_tag_suggestion_api_rejects_non_receipt_refs(
+) -> Result<(), Box<dyn std::error::Error>> {
     let Some(state) = test_app_state_from_database_url().await else {
         return Ok(());
     };

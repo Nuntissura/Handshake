@@ -3,43 +3,51 @@
 use std::sync::{Arc, Mutex};
 
 use egui::accesskit;
-use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable};
+use egui_kittest::Harness;
 
 use handshake_native::accessibility::{UiNodeBounds, UiTreeNode, UiTreeSnapshot};
 use handshake_native::atelier_panel::{
+    ckc_field_suggestion_row_author_id, ckc_folder_row_author_id, ckc_media_album_row_author_id,
+    ckc_media_row_author_id, ckc_search_result_row_author_id, AtelierPanel,
     ATELIER_CKC_CHARACTER_CREATE_AUTHOR_ID, ATELIER_CKC_CHARACTER_CREATE_NAME_AUTHOR_ID,
     ATELIER_CKC_CHARACTER_LIST_AUTHOR_ID, ATELIER_CKC_CHARACTER_REF_AUTHOR_ID,
+    ATELIER_CKC_EXPORT_JSON_AUTHOR_ID, ATELIER_CKC_EXPORT_PREVIEW_AUTHOR_ID,
+    ATELIER_CKC_EXPORT_REF_AUTHOR_ID, ATELIER_CKC_EXPORT_SAFE_JSON_AUTHOR_ID,
+    ATELIER_CKC_EXPORT_SAFE_TXT_AUTHOR_ID, ATELIER_CKC_EXPORT_STATUS_AUTHOR_ID,
+    ATELIER_CKC_EXPORT_TXT_AUTHOR_ID, ATELIER_CKC_FIELD_SUGGESTIONS_LIST_AUTHOR_ID,
+    ATELIER_CKC_FIELD_SUGGESTIONS_LOAD_AUTHOR_ID, ATELIER_CKC_FIELD_SUGGESTION_FIELD_AUTHOR_ID,
+    ATELIER_CKC_IMPORT_AUTHOR_ID, ATELIER_CKC_IMPORT_EDITOR_AUTHOR_ID,
     ATELIER_CKC_LINKED_MEDIA_LIST_AUTHOR_ID, ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID,
     ATELIER_CKC_MEDIA_SAVE_AUTHOR_ID, ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID,
-    ATELIER_CKC_SEARCH_FILTER_CHARACTER_AUTHOR_ID, ATELIER_CKC_SEARCH_FILTER_COLLECTION_AUTHOR_ID,
-    ATELIER_CKC_SEARCH_FILTER_MEDIA_AUTHOR_ID, ATELIER_CKC_SEARCH_FILTER_SIMILARITY_AUTHOR_ID,
-    ATELIER_CKC_SEARCH_MODE_COMBINED_AUTHOR_ID, ATELIER_CKC_SEARCH_MODE_FUZZY_AUTHOR_ID,
-    ATELIER_CKC_SEARCH_MODE_VECTOR_AUTHOR_ID, ATELIER_CKC_SEARCH_QUERY_AUTHOR_ID,
-    ATELIER_CKC_SEARCH_RESULTS_AUTHOR_ID, ATELIER_CKC_SEARCH_RUN_AUTHOR_ID,
-    ATELIER_CKC_SEARCH_STATUS_AUTHOR_ID, ATELIER_CKC_SEARCH_TAGS_AUTHOR_ID,
-    ATELIER_CKC_SELECTED_CHARACTER_AUTHOR_ID, ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID,
-    ATELIER_CKC_SHEET_SAVE_AUTHOR_ID, ATELIER_CKC_SHEET_VERSION_REF_AUTHOR_ID,
-    ATELIER_CKC_TAG_NOTE_EDITOR_AUTHOR_ID, ATELIER_CKC_TAG_NOTE_SAVE_AUTHOR_ID,
-    ATELIER_CKC_TAG_NOTE_SCOPE_AUTHOR_ID, ATELIER_CKC_TAG_NOTE_TAG_AUTHOR_ID,
-    ATELIER_CKC_TYPED_REF_KIND_AUTHOR_ID, ATELIER_CONTENT_CKC_AUTHOR_ID,
-    ATELIER_CONTENT_INGEST_AUTHOR_ID, ATELIER_CONTENT_POSEKIT_AUTHOR_ID,
-    ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID, ATELIER_INGEST_PASS_AUTHOR_ID,
-    ATELIER_INGEST_REJECT_AUTHOR_ID, ATELIER_INGEST_UNSURE_AUTHOR_ID, ATELIER_PANEL_AUTHOR_ID,
-    ATELIER_POSE_BODY_TOGGLE_AUTHOR_ID, ATELIER_POSE_FACE_TOGGLE_AUTHOR_ID,
-    ATELIER_POSE_HANDS_TOGGLE_AUTHOR_ID, ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID,
-    ATELIER_POSE_RESET_AUTHOR_ID, ATELIER_POSE_YAW_MINUS_AUTHOR_ID,
-    ATELIER_POSE_YAW_PLUS_AUTHOR_ID, ATELIER_POSE_YAW_SLIDER_AUTHOR_ID,
-    ATELIER_POSE_ZOOM_SLIDER_AUTHOR_ID, ATELIER_TAB_CKC_AUTHOR_ID, ATELIER_TAB_INGEST_AUTHOR_ID,
-    ATELIER_TAB_POSEKIT_AUTHOR_ID, ATELIER_TABLIST_AUTHOR_ID, AtelierPanel,
-    ckc_folder_row_author_id, ckc_media_album_row_author_id, ckc_media_row_author_id,
-    ckc_search_result_row_author_id,
+    ATELIER_CKC_SAFE_SUBSET_LOAD_AUTHOR_ID, ATELIER_CKC_SEARCH_FILTER_CHARACTER_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_FILTER_COLLECTION_AUTHOR_ID, ATELIER_CKC_SEARCH_FILTER_MEDIA_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_FILTER_SIMILARITY_AUTHOR_ID, ATELIER_CKC_SEARCH_MODE_COMBINED_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_MODE_FUZZY_AUTHOR_ID, ATELIER_CKC_SEARCH_MODE_VECTOR_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_QUERY_AUTHOR_ID, ATELIER_CKC_SEARCH_RESULTS_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_RUN_AUTHOR_ID, ATELIER_CKC_SEARCH_STATUS_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_TAGS_AUTHOR_ID, ATELIER_CKC_SELECTED_CHARACTER_AUTHOR_ID,
+    ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID, ATELIER_CKC_SHEET_SAVE_AUTHOR_ID,
+    ATELIER_CKC_SHEET_VERSION_REF_AUTHOR_ID, ATELIER_CKC_TAG_NOTE_EDITOR_AUTHOR_ID,
+    ATELIER_CKC_TAG_NOTE_SAVE_AUTHOR_ID, ATELIER_CKC_TAG_NOTE_SCOPE_AUTHOR_ID,
+    ATELIER_CKC_TAG_NOTE_TAG_AUTHOR_ID, ATELIER_CKC_TEMPLATE_LOAD_AUTHOR_ID,
+    ATELIER_CKC_TEMPLATE_STATUS_AUTHOR_ID, ATELIER_CKC_TYPED_REF_KIND_AUTHOR_ID,
+    ATELIER_CONTENT_CKC_AUTHOR_ID, ATELIER_CONTENT_INGEST_AUTHOR_ID,
+    ATELIER_CONTENT_POSEKIT_AUTHOR_ID, ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID,
+    ATELIER_INGEST_PASS_AUTHOR_ID, ATELIER_INGEST_REJECT_AUTHOR_ID,
+    ATELIER_INGEST_UNSURE_AUTHOR_ID, ATELIER_PANEL_AUTHOR_ID, ATELIER_POSE_BODY_TOGGLE_AUTHOR_ID,
+    ATELIER_POSE_FACE_TOGGLE_AUTHOR_ID, ATELIER_POSE_HANDS_TOGGLE_AUTHOR_ID,
+    ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID, ATELIER_POSE_RESET_AUTHOR_ID,
+    ATELIER_POSE_YAW_MINUS_AUTHOR_ID, ATELIER_POSE_YAW_PLUS_AUTHOR_ID,
+    ATELIER_POSE_YAW_SLIDER_AUTHOR_ID, ATELIER_POSE_ZOOM_SLIDER_AUTHOR_ID,
+    ATELIER_TABLIST_AUTHOR_ID, ATELIER_TAB_CKC_AUTHOR_ID, ATELIER_TAB_INGEST_AUTHOR_ID,
+    ATELIER_TAB_POSEKIT_AUTHOR_ID,
 };
-use handshake_native::atelier_side_panel::{AtelierSidePanel, PANEL_AUTHOR_ID, item_author_id};
+use handshake_native::atelier_side_panel::{item_author_id, AtelierSidePanel, PANEL_AUTHOR_ID};
 use handshake_native::backend_client::{AtelierBatchRow, AtelierItemRow};
-use handshake_native::graph::canvas_board::{ADD_CARD_AUTHOR_ID, CanvasEvent, LoomCanvasBoard};
+use handshake_native::graph::canvas_board::{CanvasEvent, LoomCanvasBoard, ADD_CARD_AUTHOR_ID};
 use handshake_native::mcp::{
-    ActionChannel, McpRequest, ScreenshotError, SessionToken, dispatch_request,
+    dispatch_request, ActionChannel, McpRequest, ScreenshotError, SessionToken,
 };
 use handshake_native::theme::HsTheme;
 
@@ -185,6 +193,19 @@ fn atelier_main_panel_exposes_ckc_posekit_ingest_tabs() {
         ATELIER_CKC_TYPED_REF_KIND_AUTHOR_ID,
         ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID,
         ATELIER_CKC_SHEET_SAVE_AUTHOR_ID,
+        ATELIER_CKC_TEMPLATE_STATUS_AUTHOR_ID,
+        ATELIER_CKC_TEMPLATE_LOAD_AUTHOR_ID,
+        ATELIER_CKC_SAFE_SUBSET_LOAD_AUTHOR_ID,
+        ATELIER_CKC_IMPORT_EDITOR_AUTHOR_ID,
+        ATELIER_CKC_IMPORT_AUTHOR_ID,
+        ATELIER_CKC_EXPORT_TXT_AUTHOR_ID,
+        ATELIER_CKC_EXPORT_JSON_AUTHOR_ID,
+        ATELIER_CKC_EXPORT_SAFE_TXT_AUTHOR_ID,
+        ATELIER_CKC_EXPORT_SAFE_JSON_AUTHOR_ID,
+        ATELIER_CKC_EXPORT_STATUS_AUTHOR_ID,
+        ATELIER_CKC_FIELD_SUGGESTION_FIELD_AUTHOR_ID,
+        ATELIER_CKC_FIELD_SUGGESTIONS_LOAD_AUTHOR_ID,
+        ATELIER_CKC_FIELD_SUGGESTIONS_LIST_AUTHOR_ID,
         ATELIER_CKC_LINKED_MEDIA_LIST_AUTHOR_ID,
         ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID,
         ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID,
@@ -272,6 +293,8 @@ fn ckc_character_sheet_surface_is_model_addressable() {
     for expected in [
         ATELIER_CKC_CHARACTER_CREATE_NAME_AUTHOR_ID,
         ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID,
+        ATELIER_CKC_IMPORT_EDITOR_AUTHOR_ID,
+        ATELIER_CKC_FIELD_SUGGESTION_FIELD_AUTHOR_ID,
         ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID,
         ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID,
         ATELIER_CKC_SEARCH_QUERY_AUTHOR_ID,
@@ -295,6 +318,24 @@ fn ckc_character_sheet_surface_is_model_addressable() {
             .supports_action(egui::accesskit::Action::Click),
         "CKC append-version control must be steerable by Argus click"
     );
+    for expected in [
+        ATELIER_CKC_TEMPLATE_LOAD_AUTHOR_ID,
+        ATELIER_CKC_SAFE_SUBSET_LOAD_AUTHOR_ID,
+        ATELIER_CKC_IMPORT_AUTHOR_ID,
+        ATELIER_CKC_EXPORT_TXT_AUTHOR_ID,
+        ATELIER_CKC_EXPORT_JSON_AUTHOR_ID,
+        ATELIER_CKC_EXPORT_SAFE_TXT_AUTHOR_ID,
+        ATELIER_CKC_EXPORT_SAFE_JSON_AUTHOR_ID,
+        ATELIER_CKC_FIELD_SUGGESTIONS_LOAD_AUTHOR_ID,
+    ] {
+        let node = harness.get_by(|node| node.author_id() == Some(expected));
+        assert!(
+            node.accesskit_node()
+                .data()
+                .supports_action(egui::accesskit::Action::Click),
+            "CKC template/import/export/suggestion control {expected} must be steerable by Argus click"
+        );
+    }
     let media_save =
         harness.get_by(|node| node.author_id() == Some(ATELIER_CKC_MEDIA_SAVE_AUTHOR_ID));
     assert!(
@@ -336,6 +377,10 @@ fn argus_inspects_and_steers_ckc_character_sheet_surface() {
         ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID,
         ATELIER_CKC_SHEET_SAVE_AUTHOR_ID,
         ATELIER_CKC_SHEET_VERSION_REF_AUTHOR_ID,
+        ATELIER_CKC_TEMPLATE_STATUS_AUTHOR_ID,
+        ATELIER_CKC_IMPORT_EDITOR_AUTHOR_ID,
+        ATELIER_CKC_EXPORT_STATUS_AUTHOR_ID,
+        ATELIER_CKC_FIELD_SUGGESTIONS_LIST_AUTHOR_ID,
     ] {
         assert!(
             snapshot.find_by_author_id(expected).is_some(),
@@ -371,12 +416,38 @@ fn argus_inspects_and_steers_ckc_character_sheet_surface() {
     assert_eq!(inspect_json["result"]["argus"]["headless"], true);
     assert_eq!(inspect_json["result"]["argus"]["non_intrusive"], true);
 
+    let load_suggestions = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_CKC_FIELD_SUGGESTIONS_LOAD_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &snapshot,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(load_suggestions.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let suggestions_snapshot = snapshot_harness(&mut harness);
+    let suggestion_row =
+        ckc_field_suggestion_row_author_id("CHAR-ID-006", "reusable character/avatar");
+    assert!(
+        suggestions_snapshot
+            .find_by_author_id(&suggestion_row)
+            .is_some(),
+        "Argus click must load stable CKC field suggestion row {suggestion_row}"
+    );
+
     let set_value = dispatch_request(
         &argus_req(
             "argus.set_value",
             serde_json::json!({
                 "target": ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID,
-                "value": "name: Argus Proof\nworkflow: CKC sheet edit"
+                "value": "CHAR-ID-001 — Character_ID: mira-demo\nCHAR-ID-002 — Name: Argus Proof\nCHAR-ID-006 — Primary_Role: CKC sheet edit"
             }),
         ),
         &argus_token(),
@@ -442,6 +513,47 @@ fn argus_inspects_and_steers_ckc_character_sheet_surface() {
     assert_ne!(
         before_ref, after_ref,
         "Argus click must rerender a new visible CKC sheet_version_ref"
+    );
+
+    let export_snapshot = snapshot_harness(&mut harness);
+    let export_click = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_CKC_EXPORT_TXT_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &export_snapshot,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(export_click.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let exported_snapshot = snapshot_harness(&mut harness);
+    let export_ref = exported_snapshot
+        .find_by_author_id(ATELIER_CKC_EXPORT_REF_AUTHOR_ID)
+        .expect("Argus export click must reveal the CKC export ref/hash");
+    assert!(
+        export_ref
+            .label
+            .as_deref()
+            .unwrap_or_default()
+            .contains("atelier://sheet/"),
+        "CKC export ref must include the typed sheet ref; got {export_ref:?}"
+    );
+    let preview = exported_snapshot
+        .find_by_author_id(ATELIER_CKC_EXPORT_PREVIEW_AUTHOR_ID)
+        .expect("Argus export click must reveal CKC export preview");
+    assert!(
+        preview
+            .value
+            .as_deref()
+            .unwrap_or_default()
+            .contains("Argus Proof"),
+        "CKC export preview must carry the exported sheet content; got {preview:?}"
     );
 }
 

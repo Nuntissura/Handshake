@@ -22,21 +22,21 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
+use egui_kittest::Harness;
 
 use handshake_native::accessibility::editor_action_registry::{
-    CODE_ACTION_CATALOG, rich_action_catalog,
+    rich_action_catalog, CODE_ACTION_CATALOG,
 };
 use handshake_native::accessibility::{
     CANVAS_CONTROL_CATALOG, COLLECTION_CONTROL_CATALOG, DECLARED_IDENTITIES, GRAPH_CONTROL_CATALOG,
     PALETTE_AUTHOR_IDS,
 };
 use handshake_native::manual_content_editors::{
-    INTEROP_EDGES, REQUIRED_HEADINGS, agent_tool_rows, editors_manual_section,
+    agent_tool_rows, editors_manual_section, INTEROP_EDGES, REQUIRED_HEADINGS,
 };
 use handshake_native::manual_pane::{
-    MANUAL_SEARCH_AUTHOR_ID, ManualPane, ManualPaneState, ManualRegistry, ManualSurface,
+    ManualPane, ManualPaneState, ManualRegistry, ManualSurface, MANUAL_SEARCH_AUTHOR_ID,
 };
 use handshake_native::theme::HsPalette;
 
@@ -189,6 +189,21 @@ fn live_author_id_set() -> HashSet<String> {
         handshake_native::atelier_panel::ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_SHEET_SAVE_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_TYPED_REF_KIND_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_TEMPLATE_STATUS_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_TEMPLATE_LOAD_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SAFE_SUBSET_LOAD_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_IMPORT_EDITOR_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_IMPORT_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_EXPORT_TXT_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_EXPORT_JSON_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_EXPORT_SAFE_TXT_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_EXPORT_SAFE_JSON_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_EXPORT_STATUS_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_EXPORT_REF_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_EXPORT_PREVIEW_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_FIELD_SUGGESTION_FIELD_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_FIELD_SUGGESTIONS_LOAD_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_FIELD_SUGGESTIONS_LIST_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_LINKED_MEDIA_LIST_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID,
@@ -307,6 +322,21 @@ fn manual_documents_atelier_tabs_and_argus_control_ids() {
         "atelier-ckc-sheet-editor",
         "atelier-ckc-sheet-save-version",
         "atelier-ckc-sheet-version-ref",
+        "atelier-ckc-template-status",
+        "atelier-ckc-template-load",
+        "atelier-ckc-safe-subset-load",
+        "atelier-ckc-import-editor",
+        "atelier-ckc-import-sheet-version",
+        "atelier-ckc-export-txt",
+        "atelier-ckc-export-json",
+        "atelier-ckc-export-safe-txt",
+        "atelier-ckc-export-safe-json",
+        "atelier-ckc-export-status",
+        "atelier-ckc-export-ref",
+        "atelier-ckc-export-preview",
+        "atelier-ckc-field-suggestion-field",
+        "atelier-ckc-field-suggestions-load",
+        "atelier-ckc-field-suggestions-list",
         "atelier-ckc-linked-media-list",
         "atelier-ckc-media-notes-editor",
         "atelier-ckc-media-tags-editor",
@@ -347,7 +377,9 @@ fn manual_documents_atelier_tabs_and_argus_control_ids() {
         "CHARACTER_SHEET__v2.00.txt",
         "LLM_SAFE_SUBSET__v2.00.json",
         "/sheet-versions/import",
-        "/export?format=txt|json",
+        "/export?format=txt|json|safe-txt|safe-json",
+        "JSON export envelope",
+        "CHAR-ID-001",
         "/atelier/sheet-field-suggestions",
         "/media-albums",
         "/notes-tags",
