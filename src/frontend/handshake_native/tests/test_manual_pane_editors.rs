@@ -80,6 +80,9 @@ const REAL_MCP_TOOLS: &[&str] = &["list_widgets", "click_widget", "set_value", "
 /// - shell chrome: [`DECLARED_IDENTITIES`] + [`PALETTE_AUTHOR_IDS`] (the dot-form command-palette
 ///   container ids the live shell emits; quick-switcher / settings container ids live in
 ///   DECLARED_IDENTITIES);
+/// - dynamic top-menu and command-palette rows: [`handshake_native::top_menu_bar::SWARM_ACCESSIBLE_ACTIONS`]
+///   + generated `command-palette.option.<stable_id>` rows from
+///     [`handshake_native::command_registry::all_commands`];
 /// - code editor: `editor.code.<action>` for every [`CODE_ACTION_CATALOG`] entry;
 /// - rich editor: `editor.rich.<action>` for every `rich_action_catalog()` entry;
 /// - graph/canvas/collection: the three control catalogs;
@@ -100,7 +103,16 @@ fn live_author_id_set() -> HashSet<String> {
     for id in PALETTE_AUTHOR_IDS {
         set.insert((*id).to_owned());
     }
-
+    for id in handshake_native::top_menu_bar::SWARM_ACCESSIBLE_ACTIONS {
+        set.insert((*id).to_owned());
+    }
+    for command in handshake_native::command_registry::all_commands() {
+        set.insert(format!(
+            "{}{}",
+            handshake_native::command_palette::ROW_AUTHOR_ID_PREFIX,
+            command.stable_id
+        ));
+    }
     // Code editor canonical action ids.
     for entry in CODE_ACTION_CATALOG {
         set.insert(format!("editor.code.{}", entry.action_id));
@@ -168,6 +180,24 @@ fn live_author_id_set() -> HashSet<String> {
     set.insert(handshake_native::runtime_chat::RUNTIME_CHAT_STATUS_AUTHOR_ID.to_owned());
     set.insert(handshake_native::runtime_chat::RUNTIME_CHAT_INPUT_AUTHOR_ID.to_owned());
     set.insert(handshake_native::runtime_chat::RUNTIME_CHAT_SEND_AUTHOR_ID.to_owned());
+    // Settings-hosted diagnostics and MT-102 visual-debugger controls.
+    set.insert(handshake_native::settings_dialog::SETTINGS_SEARCH_AUTHOR_ID.to_owned());
+    set.insert(format!(
+        "{}diagnostics",
+        handshake_native::settings_dialog::SECTION_HEADER_AUTHOR_ID_PREFIX
+    ));
+    set.insert(handshake_native::diagnostics::DIAGNOSTICS_PANEL_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::diagnostics::DIAGNOSTICS_HEARTBEAT_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::diagnostics::DIAGNOSTICS_FRAME_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::diagnostics::DIAGNOSTICS_RESOURCE_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::diagnostics::DIAGNOSTICS_EVENTS_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::diagnostics::DIAGNOSTICS_PALMISTRY_AUTHOR_ID.to_owned());
+    set.insert(
+        handshake_native::visual_debugger::WORKSURFACE_INSPECTOR_DUMP_BUTTON_AUTHOR_ID.to_owned(),
+    );
+    set.insert(
+        handshake_native::visual_debugger::WORKSURFACE_INSPECTOR_STATUS_AUTHOR_ID.to_owned(),
+    );
 
     set
 }
@@ -261,6 +291,9 @@ fn agent_tool_reference_rows_are_complete_and_use_real_tools() {
         ManualSurface::Canvas,
         ManualSurface::Knowledge,
         ManualSurface::Chat,
+        ManualSurface::Terminal,
+        ManualSurface::Model,
+        ManualSurface::Diagnostics,
         ManualSurface::Fems,
         ManualSurface::Interop,
     ] {
@@ -285,6 +318,13 @@ fn id_audit_no_documented_author_id_missing_from_live_registry() {
     let rows = agent_tool_rows();
     let mut orphans: Vec<&str> = Vec::new();
     for row in &rows {
+        if row.author_id == handshake_native::manual_content_editors::TERMINAL_MENU_AUTHOR_ID {
+            // The disabled terminal leaf is dynamic: it exists only while the RUN menu is open and is
+            // intentionally absent from SWARM_ACCESSIBLE_ACTIONS because it is not dispatchable. MT-104
+            // proves it with a live Run-menu kittest in test_manual_content.rs instead of seeding this
+            // static registry audit with the same literal the manual row documents.
+            continue;
+        }
         if !live.contains(row.author_id) {
             orphans.push(row.author_id);
         }

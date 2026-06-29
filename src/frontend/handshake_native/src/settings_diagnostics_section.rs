@@ -106,15 +106,16 @@ pub fn render(ui: &mut egui::Ui, view: &DiagnosticsSettingsView<'_>) -> Diagnost
         }
     });
 
-    if let Some(status) = view.worksurface_inspector_last_dump {
-        let response = ui.label(status);
-        set_author_id_and_label(
-            ui,
-            response.id,
-            WORKSURFACE_INSPECTOR_STATUS_AUTHOR_ID,
-            status,
-        );
-    }
+    let status = view
+        .worksurface_inspector_last_dump
+        .unwrap_or("No worksurface inspector dump yet.");
+    let response = ui.label(status);
+    set_author_id_and_label(
+        ui,
+        response.id,
+        WORKSURFACE_INSPECTOR_STATUS_AUTHOR_ID,
+        status,
+    );
 
     outcome
 }

@@ -70,6 +70,31 @@ pub const REQUIRED_HEADINGS: &[&str] = &[
 /// mcp_tool (AC-005 / MC-007).
 pub const INTEROP_EDGES: &[&str] = &["FEMS", "Stage", "Calendar", "Locus"];
 
+/// WP-KERNEL-012 MT-104 product-manual topics added after the notes+chat, diagnostics, visual-debugger,
+/// and foreground-safe navigation work landed.
+pub const WP104_PRODUCT_HEADINGS: &[&str] = &[
+    "Notes Worksurface and Chat",
+    "Opening Editing and Saving Notes",
+    "Terminal Launch",
+    "Model Session Launch",
+    "Settings Diagnostics",
+    "Visual Debugger",
+    "Foreground-Safe Navigation",
+];
+
+/// Dedicated diagnostic-tool topics. These are deliberately separate topics so a no-context model can
+/// choose the correct tier without reading a long mixed diagnostics blob.
+pub const DIAGNOSTIC_TOOL_HEADINGS: &[&str] =
+    &["Flight Recorder", "internal_diagnostics", "Palmistry"];
+
+pub const TERMINAL_MENU_AUTHOR_ID: &str = "menu.run.terminal";
+pub const INFERENCE_LAB_MENU_AUTHOR_ID: &str = "menu.run.inference-lab";
+pub const INFERENCE_LAB_PALETTE_AUTHOR_ID: &str =
+    "command-palette.option.hs-inference-palette-open";
+pub const FLIGHT_RECORDER_MENU_AUTHOR_ID: &str = "menu.run.flight-recorder";
+pub const FLIGHT_RECORDER_PALETTE_AUTHOR_ID: &str = "command-palette.option.hs-flight-palette-open";
+pub const SETTINGS_DIAGNOSTICS_SECTION_AUTHOR_ID: &str = "settings.section.diagnostics";
+
 /// Build the native-editors manual section: the eight GLOBAL-BUILD-MANUAL topics, an interop topic
 /// naming all four cross-pillar edges, and the `author_id -> MCP tool` agent-tool reference.
 pub fn editors_manual_section() -> ManualSection {
@@ -113,6 +138,29 @@ pub fn editors_manual_section() -> ManualSection {
         heading: "Interop Edges",
         body: interop_edges_body(),
     });
+    for (heading, body) in [
+        (
+            "Notes Worksurface and Chat",
+            notes_worksurface_and_chat_body(),
+        ),
+        (
+            "Opening Editing and Saving Notes",
+            opening_editing_saving_notes_body(),
+        ),
+        ("Terminal Launch", terminal_launch_body()),
+        ("Model Session Launch", model_session_launch_body()),
+        ("Settings Diagnostics", settings_diagnostics_body()),
+        ("Visual Debugger", visual_debugger_body()),
+        (
+            "Foreground-Safe Navigation",
+            foreground_safe_navigation_body(),
+        ),
+        ("Flight Recorder", flight_recorder_body()),
+        ("internal_diagnostics", internal_diagnostics_body()),
+        ("Palmistry", palmistry_body()),
+    ] {
+        topics.push(ManualTopic { heading, body });
+    }
     // The agent-tool reference is also a searchable/selectable topic (so the search box surfaces it), and
     // its structured rows live in `agent_tools`.
     topics.push(ManualTopic {
@@ -284,6 +332,140 @@ click_widget / list_widgets."
         .to_owned()
 }
 
+fn notes_worksurface_and_chat_body() -> String {
+    "The default WP-KERNEL-012 worksurface is editor-first and minimal: pane-a is the Code editor, \
+pane-b is the Notes rich editor (LoomWikiPage / loom.wikipage class), and pane-c is Runtime Chat beside \
+the editors. The manual and diagnostics are not docked into this default worksurface. A model discovers \
+the current panes with list_widgets and addresses the seeded panes by pane-a / pane-b / pane-c, then uses \
+the stable widget ids inside them: editor.code.* for code actions, editor.rich.* for Notes actions, \
+runtime-chat-panel for the chat pane container, runtime-chat-status for the current chat route state, \
+runtime-chat-input for the draft, and runtime-chat-send for the send button. Runtime Chat is honest in \
+this build: no native HTTP assistant-chat endpoint exists, so a send probes the planned route and returns \
+EndpointMissing instead of fabricating an assistant reply. Keep the main screen quiet and work-focused; \
+advanced diagnostics stay behind Settings -> Diagnostics."
+        .to_owned()
+}
+
+fn opening_editing_saving_notes_body() -> String {
+    "Open an existing note from the project tree, quick switcher, a wikilink, or a graph/outgoing-link row. \
+The shell opens a LoomWikiPage tab with the document id, performs GET /knowledge/documents/:id, parses \
+content_json into the rich-editor document model, and binds SaveManager / DraftManager to that id and \
+doc_version. Editing is live in the rich editor: type into the Notes pane, use editor.rich.format-bold, \
+editor.rich.format-italic, editor.rich.insert-slash-command, wikilinks, backlinks, and properties exactly \
+like the Obsidian-class note surface. Save through Ctrl+S, FILE > Save, or editor.rich.save. The authoritative \
+save route is PUT /knowledge/documents/:id/save with expected_version and content_json; drafts use \
+GET/PUT/DELETE /knowledge/documents/:id/draft for crash recovery. Reopening the same note invalidates stale \
+mounted state and issues a fresh GET, so a no-context model should trust the reopened document and the \
+EventLedger receipt, not an old widget value or cached editor state."
+        .to_owned()
+}
+
+fn terminal_launch_body() -> String {
+    "Terminal launch is documented as an honest typed blocker in this native frontend build. The top-menu \
+Run item menu.run.terminal is visible as 'Open Terminal' but disabled, with the disclosed reason 'No native \
+terminal panel yet'. The backend PTY runtime exists in handshake_core terminal/** and its TerminalRequest \
+carries cwd plus command/args for the shell wrapper, but native Handshake currently has no reachable HTTP \
+/terminal spawn route and no native terminal client; the typed native reach is EndpointMissing / IPC-only, \
+with Tauri IPC as the existing working reach in the legacy app path. A model should use list_widgets on \
+menu.run.terminal to read the disabled state and blocker. Do \
+not claim a terminal opened, do not expect fake terminal output, and do not synthesize a cwd. The correct \
+future behavior is 'Terminal: Open in Workspace Folder' issuing a real spawn in the repo folder through a \
+native HTTP route or bridge, using the configured platform wrapper such as pwsh/cmd on Windows."
+        .to_owned()
+}
+
+fn model_session_launch_body() -> String {
+    "Model/session launch is split. The reachable native concept today is the Inference Lab surface: open \
+it with menu.run.inference-lab or the generated command-palette row \
+command-palette.option.hs-inference-palette-open (command id inferencelab.open). The backend POST /jobs \
+family exists for reachable HTTP job creation and can represent a workspace-scoped model_run request, but \
+live local/cloud model execution requires a managed handshake_core and remains NEEDS_MANAGED_RESOURCE_PROOF \
+in this frontend-only manual context. The direct repo-folder-bound session spawn with wrapper is still \
+IPC-only via kernel_swarm_spawn_session / cloud escalation commands in the legacy Tauri layer, so the native \
+frontend must describe that half as EndpointMissing / IPC-only rather than a running model. A no-context \
+model should open Inference Lab to inspect available launch/status UI, but it must not fabricate a session \
+id, 'model running' state, local GGUF load, or cloud run result unless the real /jobs path returns one."
+        .to_owned()
+}
+
+fn settings_diagnostics_body() -> String {
+    "Diagnostics live in Settings -> Diagnostics, not in the notes+chat worksurface. Open Settings from \
+Help -> Open Settings, command palette settings.open, or the settings chrome, then search for diagnostics \
+with settings.search and expand settings.section.diagnostics. The Diagnostics panel itself is the \
+diagnostics_panel AccessKit region with child groups diagnostics_heartbeat, diagnostics_frame, \
+diagnostics_resource, diagnostics_events, and diagnostics_palmistry. It is a read-only projection over \
+internal_diagnostics state: heartbeat, frame-time, resource/GPU, last-N diagnostic events, ring-writer \
+status, and Tier-3 Palmistry survivor records. The section changes no settings and owns no durable state. \
+If a model is debugging a UI freeze, crash, backend-down condition, or slow frame, it should first open \
+Settings -> Diagnostics and read the appropriate group instead of looking for a diagnostics pane in the \
+main worksurface."
+        .to_owned()
+}
+
+fn visual_debugger_body() -> String {
+    "The Visual Debugger is the MT-102 Worksurface Inspector inside Settings -> Diagnostics. Use \
+click_widget on settings.diagnostics.worksurface-inspector.dump to write a JSON artifact outside the repo. \
+The dump schema is hsk.native_worksurface_inspector@1 and includes pane_tree, widget_inventory, layout_tree, \
+screenshot evidence, and an internal_diagnostics event summary. The status row \
+settings.diagnostics.worksurface-inspector.status reports the last dump filename/size. Screenshot capture is \
+best-effort in headless GPU environments: the JSON still records screenshot_deferred_headless_gpu when \
+pixel readback is unavailable, so a model should rely on the pane tree and widget inventory rather than \
+pretending a missing screenshot is visual proof. Use this tool when the model needs to inspect mounted panes, \
+author_ids, layout state, or whether the worksurface matches the expected minimal notes+chat design."
+        .to_owned()
+}
+
+fn foreground_safe_navigation_body() -> String {
+    "Foreground-safe navigation is the MT-103 path for model-driven GUI work without stealing the operator's \
+mouse, keyboard, or foreground window. A model discovers controls with list_widgets, resolves stable \
+author_id targets, then drives each step through NavigationSequence::dispatch_step: open a pane by clicking \
+a known quick-link/menu id, click a widget by author_id, set_value into a text input by author_id, and focus \
+a pane through ActionChannel. The driver composes the real MCP click_widget/set_value path and egui \
+AccessKit/Text events; it never calls SendInput, mouse_event, keybd_event, SetForegroundWindow, or similar \
+Win32 APIs. Use a fresh snapshot between steps and read back the live tree after each action, especially \
+runtime-chat-input values and focused pane author_ids. Unknown, disabled, unauthorized, and queue-full paths \
+return typed NavigationError values instead of panicking, so a parallel model can recover without guessing."
+        .to_owned()
+}
+
+fn flight_recorder_body() -> String {
+    "Flight Recorder is Tier 1: the backend business-event ledger. It is the canonical replay/audit record \
+for application-level events that successfully reached the backend while the system is healthy enough to \
+emit them. Use it for questions like 'what editor/save/job/event happened' and for replay/audit trails, \
+not for detecting a frozen UI thread. In the native shell it is opened from Run -> Open Flight Recorder \
+(menu.run.flight-recorder) or the generated command-palette row \
+command-palette.option.hs-flight-palette-open, and it surfaces the native editor event stream as a readable \
+pane. Backend routes such as GET /events are the durable authority for ledger reads. Flight Recorder is kept \
+as-is by the diagnostics MTs; internal_diagnostics supplements it with in-app health, and Palmistry survives \
+cases where the app cannot emit events."
+        .to_owned()
+}
+
+fn internal_diagnostics_body() -> String {
+    "internal_diagnostics is Tier 2: the in-app self-diagnostics layer. It owns the process-global \
+diagnostic-event API, the bounded last-N event buffer, the optional shared-memory ring writer, heartbeat, \
+frame-time, CPU/RSS/GPU/resource counters, panic hook, backend-down events, and the Settings -> Diagnostics \
+projection. Use it when the app is still running and you need to understand UI health, slow frames, resource \
+pressure, backend reachability, or a typed diagnostic event emitted by a feature. A model reads it through \
+Settings -> Diagnostics: diagnostics_panel for the surface, diagnostics_heartbeat for liveness, \
+diagnostics_frame for slow-frame stats, diagnostics_resource for CPU/RSS/GPU, diagnostics_events for recent \
+events, and diagnostics_palmistry for Tier-3 survivor projection. It does not replace Flight Recorder's \
+business ledger and it cannot by itself survive a fully dead process."
+        .to_owned()
+}
+
+fn palmistry_body() -> String {
+    "Palmistry is Tier 3: the external out-of-process watcher. It exists for the failures the app cannot \
+reliably report about itself: UI-thread freeze, crash, heavy CPU, or dead process. Palmistry reads the \
+shared-memory ring, watches heartbeat staleness, persists freeze/crash survivor records, captures crash \
+minidump/debris metadata where available, and the recovered app projects those durable records in the \
+diagnostics_palmistry section of Settings -> Diagnostics. Use Palmistry when the app is frozen, crashed, or \
+too busy to update internal_diagnostics. The three-tier choice is: Flight Recorder for business events while \
+healthy, internal_diagnostics for in-app health/stalls while the app still runs, and Palmistry for \
+freeze/crash survival when the app itself is not trustworthy."
+        .to_owned()
+}
+
 fn agent_tool_reference_body() -> String {
     "The agent-vision / steering index pairs every addressable editor/knowledge/FEMS/interop action with \
 the REAL MCP swarm tool that drives it. The four tools are: list_widgets (discover the live AccessKit \
@@ -360,6 +542,111 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             action_label: "Send Runtime Chat message",
             mcp_tool: "click_widget",
             description: "click_widget{target:'runtime-chat-send'} is enabled after text is entered and returns EndpointMissing until the backend route exists.",
+        },
+        AgentToolRow {
+            author_id: TERMINAL_MENU_AUTHOR_ID,
+            surface: ManualSurface::Terminal,
+            action_label: "Read disabled terminal launch blocker",
+            mcp_tool: "list_widgets",
+            description: "list_widgets surfaces menu.run.terminal as disabled: native terminal launch has no HTTP route/client; current reach is legacy Tauri IPC / IPC-only.",
+        },
+        AgentToolRow {
+            author_id: INFERENCE_LAB_MENU_AUTHOR_ID,
+            surface: ManualSurface::Model,
+            action_label: "Open Inference Lab from the Run menu",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu.run.inference-lab'} opens the current model/inference surface.",
+        },
+        AgentToolRow {
+            author_id: INFERENCE_LAB_PALETTE_AUTHOR_ID,
+            surface: ManualSurface::Model,
+            action_label: "Open Inference Lab from the command palette",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'command-palette.option.hs-inference-palette-open'} opens Inference Lab after filtering the command palette.",
+        },
+        AgentToolRow {
+            author_id: FLIGHT_RECORDER_MENU_AUTHOR_ID,
+            surface: ManualSurface::Diagnostics,
+            action_label: "Open Flight Recorder from the Run menu",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu.run.flight-recorder'} opens the Tier-1 Flight Recorder pane.",
+        },
+        AgentToolRow {
+            author_id: FLIGHT_RECORDER_PALETTE_AUTHOR_ID,
+            surface: ManualSurface::Diagnostics,
+            action_label: "Open Flight Recorder from the command palette",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'command-palette.option.hs-flight-palette-open'} opens the Tier-1 Flight Recorder pane after palette filtering.",
+        },
+        AgentToolRow {
+            author_id: crate::settings_dialog::SETTINGS_SEARCH_AUTHOR_ID,
+            surface: ManualSurface::Diagnostics,
+            action_label: "Search Settings for Diagnostics",
+            mcp_tool: "set_value",
+            description: "set_value{target:'settings.search', value:'diagnostics'} filters Settings to the Diagnostics section.",
+        },
+        AgentToolRow {
+            author_id: SETTINGS_DIAGNOSTICS_SECTION_AUTHOR_ID,
+            surface: ManualSurface::Diagnostics,
+            action_label: "Expand Settings Diagnostics",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'settings.section.diagnostics'} expands the Settings->Diagnostics section.",
+        },
+        AgentToolRow {
+            author_id: crate::diagnostics::DIAGNOSTICS_PANEL_AUTHOR_ID,
+            surface: ManualSurface::Diagnostics,
+            action_label: "Read Diagnostics panel",
+            mcp_tool: "list_widgets",
+            description: "list_widgets surfaces diagnostics_panel, the Settings-hosted diagnostics region.",
+        },
+        AgentToolRow {
+            author_id: crate::diagnostics::DIAGNOSTICS_HEARTBEAT_AUTHOR_ID,
+            surface: ManualSurface::Diagnostics,
+            action_label: "Read diagnostics heartbeat",
+            mcp_tool: "list_widgets",
+            description: "list_widgets reads diagnostics_heartbeat for Tier-2 UI liveness.",
+        },
+        AgentToolRow {
+            author_id: crate::diagnostics::DIAGNOSTICS_FRAME_AUTHOR_ID,
+            surface: ManualSurface::Diagnostics,
+            action_label: "Read diagnostics frame timing",
+            mcp_tool: "list_widgets",
+            description: "list_widgets reads diagnostics_frame for slow-frame/p50/p95 timing.",
+        },
+        AgentToolRow {
+            author_id: crate::diagnostics::DIAGNOSTICS_RESOURCE_AUTHOR_ID,
+            surface: ManualSurface::Diagnostics,
+            action_label: "Read diagnostics resources",
+            mcp_tool: "list_widgets",
+            description: "list_widgets reads diagnostics_resource for CPU/RSS/GPU state.",
+        },
+        AgentToolRow {
+            author_id: crate::diagnostics::DIAGNOSTICS_EVENTS_AUTHOR_ID,
+            surface: ManualSurface::Diagnostics,
+            action_label: "Read recent diagnostic events",
+            mcp_tool: "list_widgets",
+            description: "list_widgets reads diagnostics_events for the Tier-2 last-N event projection.",
+        },
+        AgentToolRow {
+            author_id: crate::diagnostics::DIAGNOSTICS_PALMISTRY_AUTHOR_ID,
+            surface: ManualSurface::Diagnostics,
+            action_label: "Read Palmistry survivor projection",
+            mcp_tool: "list_widgets",
+            description: "list_widgets reads diagnostics_palmistry for Tier-3 freeze/crash survivor records.",
+        },
+        AgentToolRow {
+            author_id: crate::visual_debugger::WORKSURFACE_INSPECTOR_DUMP_BUTTON_AUTHOR_ID,
+            surface: ManualSurface::Diagnostics,
+            action_label: "Dump the visual-debugger worksurface JSON",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'settings.diagnostics.worksurface-inspector.dump'} writes the MT-102 JSON artifact.",
+        },
+        AgentToolRow {
+            author_id: crate::visual_debugger::WORKSURFACE_INSPECTOR_STATUS_AUTHOR_ID,
+            surface: ManualSurface::Diagnostics,
+            action_label: "Read the visual-debugger dump status",
+            mcp_tool: "list_widgets",
+            description: "list_widgets reads settings.diagnostics.worksurface-inspector.status for the last dump filename/size.",
         },
     ];
 
