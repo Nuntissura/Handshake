@@ -41,7 +41,8 @@ use handshake_core::atelier::exports::{
 };
 use handshake_core::atelier::intake::{
     intake_event_family, ApplyIntakeClassificationRequest, AtelierResetMode, AtelierResetRequest,
-    BatchStatus, IntakeBatchMode, IntakeLane, IntakeProfileMode, NewIntakeBatch, NewIntakeItem,
+    BatchStatus, IntakeBatchMode, IntakeClassificationContactSheetMetadata,
+    IntakeClassificationMetadata, IntakeLane, IntakeProfileMode, NewIntakeBatch, NewIntakeItem,
     OrphanAdoptionRequest, OrphanAdoptionStatus,
 };
 use handshake_core::atelier::links::{links_event_family, BracketLinkTargetKind};
@@ -1947,6 +1948,8 @@ async fn atelier_intake_classification_apply_links_media_and_rolls_back_invalid_
             item_id: accepted_item.item_id,
             lane: IntakeLane::Accepted,
             reason: Some("accepted into target collection".to_string()),
+            requested_by: None,
+            metadata: None,
         })
         .await
         .expect("apply accepted classification to media target");
@@ -1970,6 +1973,8 @@ async fn atelier_intake_classification_apply_links_media_and_rolls_back_invalid_
             item_id: accepted_item.item_id,
             lane: IntakeLane::Accepted,
             reason: Some("accepted into target collection".to_string()),
+            requested_by: None,
+            metadata: None,
         })
         .await
         .expect("reapply accepted classification idempotently");
@@ -1979,6 +1984,138 @@ async fn atelier_intake_classification_apply_links_media_and_rolls_back_invalid_
     assert!(
         !applied_again.collection_inserted,
         "reapplying accepted classification must not duplicate target collection membership"
+    );
+    let event_count_before_metadata_apply = store
+        .count_events_for_aggregate(
+            intake_event_family::INTAKE_ITEM_CLASSIFIED,
+            "atelier_intake_item",
+            &accepted_item.item_id.to_string(),
+        )
+        .await
+        .expect("count apply events before metadata retry");
+    let metadata_request_id = format!("mt-031-ingest-request-{}", Uuid::new_v4());
+    let metadata = IntakeClassificationMetadata {
+        request_id: Some(metadata_request_id),
+        batch_id: Some(batch.batch_id.to_string()),
+        dataset_ref: Some("dataset://mt-031/loaded-rows".to_string()),
+        character_ref: Some(format!("atelier://character/{}", character.public_id)),
+        link_passed: true,
+        tags: vec!["event".to_string(), "identity".to_string()],
+        note: Some("same-state metadata retry proof".to_string()),
+        event: Some("mt-031".to_string()),
+        date: Some("2026-06-30".to_string()),
+        location: Some("test".to_string()),
+        facial_profile: Some("quality+dedupe+identity".to_string()),
+        loaded_item_count: Some(1),
+        contact_sheet: Some(IntakeClassificationContactSheetMetadata {
+            rows: Some(3),
+            columns: Some(4),
+            dpi: Some(300),
+            cells: Some(12),
+        }),
+    };
+    let metadata_applied = store
+        .apply_intake_classification(&ApplyIntakeClassificationRequest {
+            item_id: accepted_item.item_id,
+            lane: IntakeLane::Accepted,
+            reason: Some("accepted into target collection".to_string()),
+            requested_by: Some("ingest-agent-004".to_string()),
+            metadata: Some(metadata.clone()),
+        })
+        .await
+        .expect("same-state metadata apply records recovery event");
+    assert_eq!(metadata_applied.item, applied.item);
+    let event_count_after_metadata_apply = store
+        .count_events_for_aggregate(
+            intake_event_family::INTAKE_ITEM_CLASSIFIED,
+            "atelier_intake_item",
+            &accepted_item.item_id.to_string(),
+        )
+        .await
+        .expect("count apply events after first metadata apply");
+    assert_eq!(
+        event_count_after_metadata_apply,
+        event_count_before_metadata_apply + 1,
+        "same-state metadata apply should write one recovery event"
+    );
+    let metadata_event_payload: serde_json::Value = sqlx::query_scalar(
+        r#"SELECT payload
+           FROM atelier_event
+           WHERE event_family = $1
+             AND aggregate_type = 'atelier_intake_item'
+             AND aggregate_id = $2
+             AND payload->'metadata'->>'request_id' = $3
+           ORDER BY created_at_utc DESC
+           LIMIT 1"#,
+    )
+    .bind(intake_event_family::INTAKE_ITEM_CLASSIFIED)
+    .bind(accepted_item.item_id.to_string())
+    .bind(metadata_request_id.as_str())
+    .fetch_one(store.pool())
+    .await
+    .expect("metadata request_id event payload should be stored directly on atelier_event");
+    assert_eq!(
+        metadata_event_payload["metadata"]["request_id"],
+        serde_json::json!(metadata_request_id),
+        "request_id lookup must use atelier_event.payload.metadata, not kernel wrapper payload"
+    );
+    store
+        .apply_intake_classification(&ApplyIntakeClassificationRequest {
+            item_id: accepted_item.item_id,
+            lane: IntakeLane::Accepted,
+            reason: Some("accepted into target collection".to_string()),
+            requested_by: Some("ingest-agent-004".to_string()),
+            metadata: Some(metadata.clone()),
+        })
+        .await
+        .expect("same request_id retry is idempotent");
+    let event_count_after_metadata_retry = store
+        .count_events_for_aggregate(
+            intake_event_family::INTAKE_ITEM_CLASSIFIED,
+            "atelier_intake_item",
+            &accepted_item.item_id.to_string(),
+        )
+        .await
+        .expect("count apply events after metadata retry");
+    assert_eq!(
+        event_count_after_metadata_retry, event_count_after_metadata_apply,
+        "repeating the same metadata.request_id must not duplicate classification events"
+    );
+    let conflicting_retry = store
+        .apply_intake_classification(&ApplyIntakeClassificationRequest {
+            item_id: accepted_item.item_id,
+            lane: IntakeLane::Rejected,
+            reason: Some("conflicting duplicate request".to_string()),
+            requested_by: Some("ingest-agent-004".to_string()),
+            metadata: Some(metadata.clone()),
+        })
+        .await
+        .expect_err("same request_id with a different lane/reason must be rejected");
+    assert!(
+        conflicting_retry.to_string().contains("request_id"),
+        "duplicate conflict should name request_id, got {conflicting_retry}"
+    );
+    let event_count_after_conflicting_retry = store
+        .count_events_for_aggregate(
+            intake_event_family::INTAKE_ITEM_CLASSIFIED,
+            "atelier_intake_item",
+            &accepted_item.item_id.to_string(),
+        )
+        .await
+        .expect("count apply events after conflicting retry");
+    assert_eq!(
+        event_count_after_conflicting_retry, event_count_after_metadata_apply,
+        "conflicting request_id retry must not write another classification event"
+    );
+    let accepted_after_conflict = store
+        .get_intake_item(batch.batch_id, &accepted_item.source_path)
+        .await
+        .expect("reload item after conflicting retry")
+        .expect("accepted item still exists");
+    assert_eq!(
+        accepted_after_conflict.lane,
+        IntakeLane::Accepted,
+        "conflicting duplicate request must not mutate the persisted lane"
     );
 
     let rejected_item = store
@@ -1998,6 +2135,8 @@ async fn atelier_intake_classification_apply_links_media_and_rolls_back_invalid_
             item_id: rejected_item.item_id,
             lane: IntakeLane::Rejected,
             reason: Some("operator rejected".to_string()),
+            requested_by: None,
+            metadata: None,
         })
         .await
         .expect("apply rejected classification");
@@ -2038,6 +2177,8 @@ async fn atelier_intake_classification_apply_links_media_and_rolls_back_invalid_
             item_id: invalid_item.item_id,
             lane: IntakeLane::Accepted,
             reason: Some("invalid target should rollback".to_string()),
+            requested_by: None,
+            metadata: None,
         })
         .await
         .expect_err("accepted apply with missing target media asset must reject");
@@ -8308,6 +8449,8 @@ async fn mt067_core_data_integration_smoke_path() {
             item_id: item.item_id,
             lane: IntakeLane::Accepted,
             reason: Some("mt-067 accepted into target collection".to_string()),
+            requested_by: None,
+            metadata: None,
         })
         .await
         .expect("apply accepted intake classification");

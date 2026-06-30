@@ -4,7 +4,7 @@
 //! existing Atelier intake/drag-source widget and canvas board; Posekit and Ingest expose stable,
 //! nonblank native control surfaces so agents can address and inspect them before deeper parity work.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 
 use egui::accesskit;
@@ -21,7 +21,8 @@ use crate::backend_client::{
     AtelierCkcSearchCell, AtelierCkcSearchResponse, AtelierCkcSearchResultRow,
     AtelierCkcStoryBeatCell, AtelierCkcStoryBeatRow, AtelierCkcStoryCardCell,
     AtelierCkcStoryCardRow, AtelierCkcTagNoteCell, AtelierCkcTagNoteRow, AtelierCkcTemplateCell,
-    AtelierClient, AtelierPosekitExportCell, AtelierPosekitExportRow, AtelierSheetExportRow,
+    AtelierClient, AtelierIntakeClassificationCell, AtelierIntakeClassificationDecision,
+    AtelierItemRow, AtelierPosekitExportCell, AtelierPosekitExportRow, AtelierSheetExportRow,
     AtelierSheetFieldSuggestionRow, AtelierSheetVersionRow,
 };
 use crate::editor_pane_factories::SharedPalette;
@@ -173,6 +174,50 @@ pub const ATELIER_INGEST_PASS_AUTHOR_ID: &str = "atelier-ingest-pass";
 pub const ATELIER_INGEST_REJECT_AUTHOR_ID: &str = "atelier-ingest-reject";
 pub const ATELIER_INGEST_UNSURE_AUTHOR_ID: &str = "atelier-ingest-unsure";
 pub const ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID: &str = "atelier-ingest-batch-tags";
+pub const ATELIER_INGEST_DATASET_REF_AUTHOR_ID: &str = "atelier-ingest-dataset-ref";
+pub const ATELIER_INGEST_CHARACTER_REF_AUTHOR_ID: &str = "atelier-ingest-character-ref";
+pub const ATELIER_INGEST_BATCH_NOTE_AUTHOR_ID: &str = "atelier-ingest-batch-note";
+pub const ATELIER_INGEST_EVENT_AUTHOR_ID: &str = "atelier-ingest-event";
+pub const ATELIER_INGEST_DATE_AUTHOR_ID: &str = "atelier-ingest-date";
+pub const ATELIER_INGEST_LOCATION_AUTHOR_ID: &str = "atelier-ingest-location";
+pub const ATELIER_INGEST_LINK_PASSED_AUTHOR_ID: &str = "atelier-ingest-link-passed";
+pub const ATELIER_INGEST_APPLY_BATCH_AUTHOR_ID: &str = "atelier-ingest-apply-batch";
+pub const ATELIER_INGEST_CONTACT_ROWS_AUTHOR_ID: &str = "atelier-ingest-contact-rows";
+pub const ATELIER_INGEST_CONTACT_COLUMNS_AUTHOR_ID: &str = "atelier-ingest-contact-columns";
+pub const ATELIER_INGEST_CONTACT_DPI_AUTHOR_ID: &str = "atelier-ingest-contact-dpi";
+pub const ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID: &str = "atelier-ingest-contact-export";
+pub const ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID: &str = "atelier-ingest-facial-profile";
+pub const ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID: &str = "atelier-ingest-queue-readout";
+pub const ATELIER_INGEST_STATUS_AUTHOR_ID: &str = "atelier-ingest-status";
+pub const ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID: &str = "atelier-ingest-last-receipt";
+
+pub fn ingest_item_row_author_id(item_id: &str) -> String {
+    format!(
+        "atelier-ingest-item-{}",
+        crate::project_tree::stable_part(item_id)
+    )
+}
+
+pub fn ingest_item_pass_author_id(item_id: &str) -> String {
+    format!(
+        "atelier-ingest-item-{}-pass",
+        crate::project_tree::stable_part(item_id)
+    )
+}
+
+pub fn ingest_item_reject_author_id(item_id: &str) -> String {
+    format!(
+        "atelier-ingest-item-{}-reject",
+        crate::project_tree::stable_part(item_id)
+    )
+}
+
+pub fn ingest_item_unsure_author_id(item_id: &str) -> String {
+    format!(
+        "atelier-ingest-item-{}-unsure",
+        crate::project_tree::stable_part(item_id)
+    )
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AtelierPanelTab {
@@ -2071,7 +2116,25 @@ struct AtelierPanelState {
     pose_export_status: String,
     pose_last_export: Option<PosekitExportSnapshot>,
     ingest_decision: IngestDecision,
+    ingest_dataset_ref: String,
+    ingest_character_ref: String,
     ingest_tag_buffer: String,
+    ingest_batch_note: String,
+    ingest_event: String,
+    ingest_date: String,
+    ingest_location: String,
+    ingest_link_passed: bool,
+    ingest_contact_rows: String,
+    ingest_contact_columns: String,
+    ingest_contact_dpi: String,
+    ingest_facial_profile: String,
+    ingest_status: String,
+    ingest_item_decisions: BTreeMap<String, IngestDecision>,
+    ingest_persisted_item_ids: BTreeSet<String>,
+    ingest_apply_pending: bool,
+    ingest_apply_request_id: Option<String>,
+    ingest_apply_batch_id: Option<String>,
+    ingest_last_apply_receipt: String,
 }
 
 impl Default for AtelierPanelState {
@@ -2176,7 +2239,28 @@ impl Default for AtelierPanelState {
             pose_export_status: "No Posekit OpenPose export requested.".to_owned(),
             pose_last_export: None,
             ingest_decision: IngestDecision::Unsure,
+            ingest_dataset_ref: "dataset://atelier/inbox".to_owned(),
+            ingest_character_ref: "atelier://character/mira-demo".to_owned(),
             ingest_tag_buffer: "event, outfit, source".to_owned(),
+            ingest_batch_note:
+                "Batch note applied to selected/pass/reject/unsure image review rows.".to_owned(),
+            ingest_event: "source mining".to_owned(),
+            ingest_date: "2026-06-30".to_owned(),
+            ingest_location: "atelier intake".to_owned(),
+            ingest_link_passed: false,
+            ingest_contact_rows: "3".to_owned(),
+            ingest_contact_columns: "4".to_owned(),
+            ingest_contact_dpi: "300".to_owned(),
+            ingest_facial_profile: "quality+dedupe+identity".to_owned(),
+            ingest_status:
+                "Ingest ready: stage dataset metadata, triage loaded rows, contact sheet settings, and Facial profile hints."
+                    .to_owned(),
+            ingest_item_decisions: BTreeMap::new(),
+            ingest_persisted_item_ids: BTreeSet::new(),
+            ingest_apply_pending: false,
+            ingest_apply_request_id: None,
+            ingest_apply_batch_id: None,
+            ingest_last_apply_receipt: "No backend apply receipt yet.".to_owned(),
         }
     }
 }
@@ -3707,6 +3791,131 @@ impl IngestDecision {
             Self::Unsure => "Unsure",
         }
     }
+
+    fn machine_label(self) -> &'static str {
+        match self {
+            Self::Pass => "pass",
+            Self::Reject => "reject",
+            Self::Unsure => "unsure",
+        }
+    }
+
+    fn backend_lane(self) -> &'static str {
+        match self {
+            Self::Pass => "accepted",
+            Self::Reject => "rejected",
+            Self::Unsure => "deferred",
+        }
+    }
+
+    fn from_lane(raw: &str) -> Self {
+        match raw.trim().to_ascii_lowercase().as_str() {
+            "accepted" | "accept" | "pass" => Self::Pass,
+            "rejected" | "reject" => Self::Reject,
+            _ => Self::Unsure,
+        }
+    }
+}
+
+fn ingest_bounded_number(value: &str, fallback: usize, min: usize, max: usize) -> usize {
+    value
+        .trim()
+        .parse::<usize>()
+        .ok()
+        .map(|parsed| parsed.clamp(min, max))
+        .unwrap_or(fallback)
+}
+
+fn ingest_contact_sheet_shape(state: &AtelierPanelState) -> (usize, usize, usize, usize) {
+    let rows = ingest_bounded_number(&state.ingest_contact_rows, 3, 1, 24);
+    let columns = ingest_bounded_number(&state.ingest_contact_columns, 4, 1, 24);
+    let dpi = ingest_bounded_number(&state.ingest_contact_dpi, 300, 72, 1200);
+    (rows, columns, dpi, rows.saturating_mul(columns))
+}
+
+fn ingest_queue_readout(state: &AtelierPanelState) -> String {
+    let (rows, columns, dpi, cells) = ingest_contact_sheet_shape(state);
+    format!(
+        "dataset_ref={} character_ref={} decision={} link_passed={} tags={} note={} event={} date={} location={} contact_sheet={}x{}@{}dpi cells={} facial_profile={}",
+        state.ingest_dataset_ref.trim(),
+        state.ingest_character_ref.trim(),
+        state.ingest_decision.machine_label(),
+        state.ingest_link_passed,
+        state.ingest_tag_buffer.trim(),
+        state.ingest_batch_note.trim(),
+        state.ingest_event.trim(),
+        state.ingest_date.trim(),
+        state.ingest_location.trim(),
+        rows,
+        columns,
+        dpi,
+        cells,
+        state.ingest_facial_profile.trim()
+    )
+}
+
+fn ingest_tag_values(state: &AtelierPanelState) -> Vec<String> {
+    state
+        .ingest_tag_buffer
+        .split([',', ';'])
+        .map(str::trim)
+        .filter(|tag| !tag.is_empty())
+        .map(ToOwned::to_owned)
+        .collect()
+}
+
+fn ingest_optional_string(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    (!trimmed.is_empty()).then(|| trimmed.to_owned())
+}
+
+fn ingest_metadata_payload(
+    state: &AtelierPanelState,
+    request_id: &str,
+    batch_id: Option<&str>,
+    loaded_item_count: usize,
+) -> serde_json::Value {
+    let (rows, columns, dpi, cells) = ingest_contact_sheet_shape(state);
+    serde_json::json!({
+        "request_id": request_id,
+        "batch_id": batch_id,
+        "dataset_ref": ingest_optional_string(&state.ingest_dataset_ref),
+        "character_ref": ingest_optional_string(&state.ingest_character_ref),
+        "link_passed": state.ingest_link_passed,
+        "tags": ingest_tag_values(state),
+        "note": ingest_optional_string(&state.ingest_batch_note),
+        "event": ingest_optional_string(&state.ingest_event),
+        "date": ingest_optional_string(&state.ingest_date),
+        "location": ingest_optional_string(&state.ingest_location),
+        "facial_profile": ingest_optional_string(&state.ingest_facial_profile),
+        "loaded_item_count": loaded_item_count,
+        "contact_sheet": {
+            "rows": rows,
+            "columns": columns,
+            "dpi": dpi,
+            "cells": cells,
+        },
+    })
+}
+
+fn ingest_receipt_applied_item_ids(
+    rows: &[crate::backend_client::AtelierIntakeClassificationRow],
+) -> String {
+    if rows.is_empty() {
+        return "<none>".to_owned();
+    }
+    rows.iter()
+        .map(|row| row.item.item_id.as_str())
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+fn ingest_item_decision(state: &AtelierPanelState, item: &AtelierItemRow) -> IngestDecision {
+    state
+        .ingest_item_decisions
+        .get(&item.item_id)
+        .copied()
+        .unwrap_or_else(|| IngestDecision::from_lane(&item.lane))
 }
 
 pub struct AtelierPanel {
@@ -3734,6 +3943,7 @@ pub struct AtelierPanel {
     ckc_search_cell: AtelierCkcSearchCell,
     ckc_tag_note_cell: AtelierCkcTagNoteCell,
     pose_export_cell: AtelierPosekitExportCell,
+    ingest_classification_cell: AtelierIntakeClassificationCell,
 }
 
 impl AtelierPanel {
@@ -3783,6 +3993,7 @@ impl AtelierPanel {
             ckc_search_cell: Arc::new(Mutex::new(None)),
             ckc_tag_note_cell: Arc::new(Mutex::new(None)),
             pose_export_cell: Arc::new(Mutex::new(None)),
+            ingest_classification_cell: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -4578,6 +4789,74 @@ impl AtelierPanel {
                     Err(err) => {
                         state.pose_export_status = format!("Posekit OpenPose export failed: {err}");
                     }
+                }
+            }
+        }
+    }
+
+    fn drain_ingest_classification_backend(&self) {
+        let outcome = self
+            .ingest_classification_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        if let Some(outcome) = outcome {
+            if let Ok(mut state) = self.state.lock() {
+                if state.ingest_apply_request_id.as_deref() != Some(outcome.request_id.as_str())
+                    || state.ingest_apply_batch_id.as_deref() != outcome.batch_id.as_deref()
+                {
+                    state.ingest_status = format!(
+                        "Ignored stale ingest classification response request_id={} batch_id={:?}.",
+                        outcome.request_id, outcome.batch_id
+                    );
+                    return;
+                }
+
+                state.ingest_apply_pending = false;
+                state.ingest_apply_request_id = None;
+                state.ingest_apply_batch_id = None;
+
+                let request_id = outcome.request_id.clone();
+                let batch_id = outcome
+                    .batch_id
+                    .clone()
+                    .unwrap_or_else(|| "<none>".to_owned());
+                let applied_count = outcome.applied.len();
+                let applied_ids = ingest_receipt_applied_item_ids(&outcome.applied);
+                for row in &outcome.applied {
+                    let decision = IngestDecision::from_lane(&row.item.lane);
+                    state
+                        .ingest_item_decisions
+                        .insert(row.item.item_id.clone(), decision);
+                    state
+                        .ingest_persisted_item_ids
+                        .insert(row.item.item_id.clone());
+                }
+
+                if let Some(failed) = outcome.failed {
+                    state.ingest_last_apply_receipt = format!(
+                        "request_id={request_id} batch_id={batch_id} applied_count={applied_count} applied_item_ids={applied_ids} failed_item_id={} failed_row={} failed_error={}",
+                        failed.item_id,
+                        failed.index + 1,
+                        failed.error
+                    );
+                    state.ingest_status = format!(
+                        "Persisted {applied_count} loaded intake item classification(s); failed item {} at row {}: {}",
+                        failed.item_id,
+                        failed.index + 1,
+                        failed.error
+                    );
+                } else {
+                    state.ingest_last_apply_receipt = format!(
+                        "request_id={request_id} batch_id={batch_id} applied_count={applied_count} applied_item_ids={applied_ids} failed_item_id=<none>"
+                    );
+                    state.ingest_status = format!(
+                        "Persisted {applied_count} loaded intake item classification(s) through backend actor {}.",
+                        self.ckc_client
+                            .as_ref()
+                            .map(|client| client.actor_id())
+                            .unwrap_or("atelier")
+                    );
                 }
             }
         }
@@ -7881,9 +8160,38 @@ impl AtelierPanel {
     }
 
     fn show_ingest(&self, ui: &mut egui::Ui, palette: &HsPalette) {
+        self.drain_ingest_classification_backend();
+        let expanded_items = self
+            .side_panel
+            .lock()
+            .ok()
+            .and_then(|panel| panel.expanded().cloned());
         let Ok(mut state) = self.state.lock() else {
             return;
         };
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new("Dataset").color(palette.text));
+            let dataset = ui.text_edit_singleline(&mut state.ingest_dataset_ref);
+            emit_value_node(
+                ui.ctx(),
+                dataset.id,
+                accesskit::Role::TextInput,
+                ATELIER_INGEST_DATASET_REF_AUTHOR_ID,
+                "Ingest dataset or source folder ref",
+                &state.ingest_dataset_ref,
+            );
+            ui.label(egui::RichText::new("Character").color(palette.text));
+            let character = ui.text_edit_singleline(&mut state.ingest_character_ref);
+            emit_value_node(
+                ui.ctx(),
+                character.id,
+                accesskit::Role::TextInput,
+                ATELIER_INGEST_CHARACTER_REF_AUTHOR_ID,
+                "CKC character ref for passed image links",
+                &state.ingest_character_ref,
+            );
+        });
+        ui.add_space(6.0);
         ui.horizontal(|ui| {
             for decision in [
                 IngestDecision::Pass,
@@ -7907,35 +8215,377 @@ impl AtelierPanel {
                 );
                 if button.clicked() {
                     state.ingest_decision = decision;
+                    let loaded_count = expanded_items.as_ref().map_or(0, |(_, items)| {
+                        for item in items {
+                            state
+                                .ingest_item_decisions
+                                .insert(item.item_id.clone(), decision);
+                            state.ingest_persisted_item_ids.remove(&item.item_id);
+                        }
+                        items.len()
+                    });
+                    state.ingest_status = if loaded_count > 0 {
+                        format!(
+                            "Ingest {} staged for {} loaded rows",
+                            decision.machine_label(),
+                            loaded_count
+                        )
+                    } else {
+                        format!(
+                            "Ingest default decision staged: {}",
+                            decision.machine_label()
+                        )
+                    };
                 }
             }
+            let link = ui.checkbox(&mut state.ingest_link_passed, "CKC link intent");
+            emit_node(
+                ui.ctx(),
+                link.id,
+                accesskit::Role::CheckBox,
+                ATELIER_INGEST_LINK_PASSED_AUTHOR_ID,
+                "Persist CKC link intent metadata for passed images",
+                state.ingest_link_passed,
+            );
         });
         ui.add_space(6.0);
         ui.horizontal(|ui| {
             ui.label(egui::RichText::new("Batch tags").color(palette.text));
             let tags = ui.text_edit_singleline(&mut state.ingest_tag_buffer);
-            emit_node(
+            emit_value_node(
                 ui.ctx(),
                 tags.id,
                 accesskit::Role::TextInput,
                 ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID,
                 "Batch tags",
-                false,
+                &state.ingest_tag_buffer,
+            );
+            ui.label(egui::RichText::new("Facial").color(palette.text));
+            let facial = ui.text_edit_singleline(&mut state.ingest_facial_profile);
+            emit_value_node(
+                ui.ctx(),
+                facial.id,
+                accesskit::Role::TextInput,
+                ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID,
+                "Facial quality, dedupe, and identity profile hint",
+                &state.ingest_facial_profile,
             );
         });
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new("Note").color(palette.text));
+            let note = ui.text_edit_singleline(&mut state.ingest_batch_note);
+            emit_value_node(
+                ui.ctx(),
+                note.id,
+                accesskit::Role::TextInput,
+                ATELIER_INGEST_BATCH_NOTE_AUTHOR_ID,
+                "Batch note applied to reviewed images",
+                &state.ingest_batch_note,
+            );
+        });
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new("Event").color(palette.text));
+            let event = ui.text_edit_singleline(&mut state.ingest_event);
+            emit_value_node(
+                ui.ctx(),
+                event.id,
+                accesskit::Role::TextInput,
+                ATELIER_INGEST_EVENT_AUTHOR_ID,
+                "Batch event metadata",
+                &state.ingest_event,
+            );
+            ui.label(egui::RichText::new("Date").color(palette.text));
+            let date = ui.text_edit_singleline(&mut state.ingest_date);
+            emit_value_node(
+                ui.ctx(),
+                date.id,
+                accesskit::Role::TextInput,
+                ATELIER_INGEST_DATE_AUTHOR_ID,
+                "Batch date metadata",
+                &state.ingest_date,
+            );
+            ui.label(egui::RichText::new("Location").color(palette.text));
+            let location = ui.text_edit_singleline(&mut state.ingest_location);
+            emit_value_node(
+                ui.ctx(),
+                location.id,
+                accesskit::Role::TextInput,
+                ATELIER_INGEST_LOCATION_AUTHOR_ID,
+                "Batch location metadata",
+                &state.ingest_location,
+            );
+        });
+        ui.horizontal(|ui| {
+            let apply = ui.add_enabled(
+                !state.ingest_apply_pending,
+                egui::Button::new("Apply loaded rows"),
+            );
+            emit_node(
+                ui.ctx(),
+                apply.id,
+                accesskit::Role::Button,
+                ATELIER_INGEST_APPLY_BATCH_AUTHOR_ID,
+                "Apply loaded intake row classifications with structured ingest metadata",
+                state.ingest_apply_pending,
+            );
+            if apply.clicked() {
+                let readout = ingest_queue_readout(&state);
+                if let (Some(client), Some((batch_id, items))) =
+                    (self.ckc_client.as_ref(), expanded_items.as_ref())
+                {
+                    let request_id = format!("atelier-ingest-{}", Uuid::new_v4());
+                    let metadata = ingest_metadata_payload(
+                        &state,
+                        &request_id,
+                        Some(batch_id.as_str()),
+                        items.len(),
+                    );
+                    let decisions: Vec<AtelierIntakeClassificationDecision> = items
+                        .iter()
+                        .map(|item| {
+                            let decision = ingest_item_decision(&state, item);
+                            let reason = format!(
+                                "dataset_ref={} character_ref={} link_passed={} tags={} note={} event={} date={} location={} facial_profile={}",
+                                state.ingest_dataset_ref.trim(),
+                                state.ingest_character_ref.trim(),
+                                state.ingest_link_passed,
+                                state.ingest_tag_buffer.trim(),
+                                state.ingest_batch_note.trim(),
+                                state.ingest_event.trim(),
+                                state.ingest_date.trim(),
+                                state.ingest_location.trim(),
+                                state.ingest_facial_profile.trim()
+                            );
+                            AtelierIntakeClassificationDecision {
+                                item_id: item.item_id.clone(),
+                                lane: decision.backend_lane().to_owned(),
+                                reason: Some(reason),
+                                metadata: metadata.clone(),
+                            }
+                        })
+                        .collect();
+                    if decisions.is_empty() {
+                        state.ingest_status =
+                            format!("No loaded intake items to classify: {readout}");
+                    } else {
+                        let count = decisions.len();
+                        state.ingest_apply_pending = true;
+                        state.ingest_apply_request_id = Some(request_id.clone());
+                        state.ingest_apply_batch_id = Some(batch_id.clone());
+                        state.ingest_status = format!(
+                            "Dispatching {count} loaded intake item classification(s) to backend with request_id={request_id}: {readout}"
+                        );
+                        client.apply_intake_classifications(
+                            request_id,
+                            Some(batch_id.clone()),
+                            decisions,
+                            client.actor_id(),
+                            self.ingest_classification_cell.clone(),
+                        );
+                    }
+                } else {
+                    state.ingest_status = format!("Loaded-row metadata staged locally: {readout}");
+                }
+            }
+        });
+        ui.separator();
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new("Contact sheet").color(palette.text));
+            let rows = ui.add(
+                egui::TextEdit::singleline(&mut state.ingest_contact_rows).desired_width(42.0),
+            );
+            emit_value_node(
+                ui.ctx(),
+                rows.id,
+                accesskit::Role::TextInput,
+                ATELIER_INGEST_CONTACT_ROWS_AUTHOR_ID,
+                "Contact sheet rows",
+                &state.ingest_contact_rows,
+            );
+            ui.label("x");
+            let columns = ui.add(
+                egui::TextEdit::singleline(&mut state.ingest_contact_columns).desired_width(42.0),
+            );
+            emit_value_node(
+                ui.ctx(),
+                columns.id,
+                accesskit::Role::TextInput,
+                ATELIER_INGEST_CONTACT_COLUMNS_AUTHOR_ID,
+                "Contact sheet columns",
+                &state.ingest_contact_columns,
+            );
+            ui.label("@");
+            let dpi = ui
+                .add(egui::TextEdit::singleline(&mut state.ingest_contact_dpi).desired_width(58.0));
+            emit_value_node(
+                ui.ctx(),
+                dpi.id,
+                accesskit::Role::TextInput,
+                ATELIER_INGEST_CONTACT_DPI_AUTHOR_ID,
+                "Contact sheet DPI",
+                &state.ingest_contact_dpi,
+            );
+            ui.label("dpi");
+            let export = ui.button("Stage contact settings");
+            emit_node(
+                ui.ctx(),
+                export.id,
+                accesskit::Role::Button,
+                ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID,
+                "Stage contact sheet settings",
+                false,
+            );
+            if export.clicked() {
+                let (rows, columns, dpi, cells) = ingest_contact_sheet_shape(&state);
+                state.ingest_status = format!(
+                    "Contact sheet staged: {rows}x{columns}@{dpi}dpi with {cells} cells for {}",
+                    state.ingest_dataset_ref.trim()
+                );
+            }
+        });
+        ui.add_space(6.0);
+        let queue_readout = ingest_queue_readout(&state);
+        let queue = ui.label(egui::RichText::new(&queue_readout).color(palette.text_subtle));
+        emit_value_node(
+            ui.ctx(),
+            queue.id,
+            accesskit::Role::Label,
+            ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID,
+            "Ingest queue readout",
+            &queue_readout,
+        );
+        let status = ui.label(egui::RichText::new(&state.ingest_status).color(palette.text));
+        emit_value_node(
+            ui.ctx(),
+            status.id,
+            accesskit::Role::Label,
+            ATELIER_INGEST_STATUS_AUTHOR_ID,
+            "Ingest status",
+            &state.ingest_status,
+        );
+        let receipt = ui.label(
+            egui::RichText::new(&state.ingest_last_apply_receipt).color(palette.text_subtle),
+        );
+        emit_value_node(
+            ui.ctx(),
+            receipt.id,
+            accesskit::Role::Label,
+            ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID,
+            "Last Ingest backend apply receipt",
+            &state.ingest_last_apply_receipt,
+        );
         ui.separator();
         egui::Grid::new("atelier-ingest-grid")
             .striped(true)
             .min_col_width(110.0)
             .show(ui, |ui| {
                 ui.strong("Asset");
+                ui.strong("Source");
                 ui.strong("Decision");
+                ui.strong("Apply state");
+                ui.strong("Set");
                 ui.strong("Tags");
+                ui.strong("CKC link");
                 ui.end_row();
-                for name in ["frame_0001.png", "frame_0002.png", "contact_sheet_a.jpg"] {
-                    ui.label(name);
+                let Some((batch_id, items)) = expanded_items.as_ref() else {
+                    ui.label("No expanded intake batch.");
+                    ui.label("-");
                     ui.label(state.ingest_decision.label());
+                    ui.label("-");
+                    ui.label("-");
                     ui.label(&state.ingest_tag_buffer);
+                    ui.label("-");
+                    ui.end_row();
+                    return;
+                };
+                if items.is_empty() {
+                    ui.label(format!("Batch {batch_id} has no loaded items."));
+                    ui.label("-");
+                    ui.label(state.ingest_decision.label());
+                    ui.label("-");
+                    ui.label("-");
+                    ui.label(&state.ingest_tag_buffer);
+                    ui.label("-");
+                    ui.end_row();
+                    return;
+                }
+                for item in items {
+                    let item_decision = ingest_item_decision(&state, item);
+                    let persisted_state = if state.ingest_persisted_item_ids.contains(&item.item_id)
+                    {
+                        "persisted"
+                    } else {
+                        "staged"
+                    };
+                    let item_ref = format!(
+                        "item_id={} file_name={} source_path={} source_lane={} staged_decision={} apply_state={}",
+                        item.item_id,
+                        item.file_name,
+                        item.source_path,
+                        item.lane,
+                        item_decision.machine_label(),
+                        persisted_state
+                    );
+                    let item_label = ui.label(&item.file_name);
+                    let row_author_id = ingest_item_row_author_id(&item.item_id);
+                    emit_value_node(
+                        ui.ctx(),
+                        item_label.id,
+                        accesskit::Role::ListItem,
+                        &row_author_id,
+                        &format!("Ingest item {}", item.file_name),
+                        &item_ref,
+                    );
+                    ui.label(&item.source_path);
+                    ui.label(item_decision.label());
+                    ui.label(persisted_state);
+                    ui.horizontal(|ui| {
+                        for decision in [
+                            IngestDecision::Pass,
+                            IngestDecision::Reject,
+                            IngestDecision::Unsure,
+                        ] {
+                            let selected = item_decision == decision;
+                            let button = ui
+                                .add(egui::Button::selectable(selected, decision.machine_label()));
+                            let author_id = match decision {
+                                IngestDecision::Pass => ingest_item_pass_author_id(&item.item_id),
+                                IngestDecision::Reject => {
+                                    ingest_item_reject_author_id(&item.item_id)
+                                }
+                                IngestDecision::Unsure => {
+                                    ingest_item_unsure_author_id(&item.item_id)
+                                }
+                            };
+                            emit_node(
+                                ui.ctx(),
+                                button.id,
+                                accesskit::Role::Button,
+                                &author_id,
+                                &format!("Set {} to {}", item.file_name, decision.machine_label()),
+                                selected,
+                            );
+                            if button.clicked() {
+                                state
+                                    .ingest_item_decisions
+                                    .insert(item.item_id.clone(), decision);
+                                state.ingest_persisted_item_ids.remove(&item.item_id);
+                                state.ingest_status = format!(
+                                    "Ingest item staged: {} -> {}",
+                                    item.file_name,
+                                    decision.machine_label()
+                                );
+                            }
+                        }
+                    });
+                    ui.label(&state.ingest_tag_buffer);
+                    ui.label(
+                        if state.ingest_link_passed && item_decision == IngestDecision::Pass {
+                            state.ingest_character_ref.as_str()
+                        } else {
+                            "-"
+                        },
+                    );
                     ui.end_row();
                 }
             });

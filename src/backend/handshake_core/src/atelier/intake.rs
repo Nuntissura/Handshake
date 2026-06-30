@@ -298,11 +298,40 @@ pub struct NewIntakeItem {
 /// change into the media-facing workflow: accepted items resolve their media
 /// asset by `content_hash` and are attached to the batch target collection when
 /// one exists.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct IntakeClassificationContactSheetMetadata {
+    pub rows: Option<i64>,
+    pub columns: Option<i64>,
+    pub dpi: Option<i64>,
+    pub cells: Option<i64>,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct IntakeClassificationMetadata {
+    pub request_id: Option<String>,
+    pub batch_id: Option<String>,
+    pub dataset_ref: Option<String>,
+    pub character_ref: Option<String>,
+    #[serde(default)]
+    pub link_passed: bool,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    pub note: Option<String>,
+    pub event: Option<String>,
+    pub date: Option<String>,
+    pub location: Option<String>,
+    pub facial_profile: Option<String>,
+    pub loaded_item_count: Option<i64>,
+    pub contact_sheet: Option<IntakeClassificationContactSheetMetadata>,
+}
+
 #[derive(Clone, Debug)]
 pub struct ApplyIntakeClassificationRequest {
     pub item_id: Uuid,
     pub lane: IntakeLane,
     pub reason: Option<String>,
+    pub requested_by: Option<String>,
+    pub metadata: Option<IntakeClassificationMetadata>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -571,6 +600,32 @@ fn normalize_lane_reason(lane: IntakeLane, reason: Option<&str>) -> AtelierResul
         ))),
         None => Ok(None),
     }
+}
+
+async fn recorded_request_payload_in_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    item_id: Uuid,
+    request_id: Option<&str>,
+) -> AtelierResult<Option<serde_json::Value>> {
+    let Some(request_id) = request_id.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(None);
+    };
+    let recorded: Option<serde_json::Value> = sqlx::query_scalar(
+        r#"SELECT payload
+           FROM atelier_event
+           WHERE event_family = $1
+             AND aggregate_type = 'atelier_intake_item'
+             AND aggregate_id = $2
+             AND payload->'metadata'->>'request_id' = $3
+           ORDER BY created_at_utc ASC
+           LIMIT 1"#,
+    )
+    .bind(intake_event_family::INTAKE_ITEM_CLASSIFIED)
+    .bind(item_id.to_string())
+    .bind(request_id)
+    .fetch_optional(&mut **tx)
+    .await?;
+    Ok(recorded)
 }
 
 fn normalize_batch_source_refs(new: &NewIntakeBatch) -> AtelierResult<(Option<String>, String)> {
@@ -2075,6 +2130,47 @@ impl AtelierStore {
         .await?
         .ok_or_else(|| AtelierError::NotFound(format!("intake item {}", request.item_id)))?;
         let existing = item_from_row(&existing_row)?;
+        let changed = existing.lane != request.lane || existing.lane_reason != normalized_reason;
+        let has_request_context = request
+            .requested_by
+            .as_ref()
+            .map_or(false, |value| !value.trim().is_empty())
+            || request.metadata.is_some();
+        let recorded_request_payload = recorded_request_payload_in_tx(
+            &mut tx,
+            existing.item_id,
+            request.metadata.as_ref().and_then(|metadata| {
+                metadata
+                    .request_id
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+            }),
+        )
+        .await?;
+        let duplicate_request_id = recorded_request_payload.is_some();
+        if let Some(recorded_payload) = recorded_request_payload.as_ref() {
+            let recorded_lane = recorded_payload
+                .get("lane")
+                .and_then(|value| value.as_str());
+            let recorded_reason = recorded_payload
+                .get("reason")
+                .and_then(|value| value.as_str())
+                .map(ToOwned::to_owned);
+            if recorded_lane != Some(request.lane.as_str()) || recorded_reason != normalized_reason
+            {
+                return Err(AtelierError::Validation(
+                    "duplicate intake classification request_id conflicts with recorded lane/reason"
+                        .into(),
+                ));
+            }
+        }
+        if duplicate_request_id && changed {
+            return Err(AtelierError::Validation(
+                "duplicate intake classification request_id is stale against current lane/reason"
+                    .into(),
+            ));
+        }
 
         let batch_row = sqlx::query(
             r#"SELECT batch_id, target_collection_id
@@ -2091,7 +2187,7 @@ impl AtelierStore {
         let mut asset_id = None;
         let mut collection_id = None;
         let mut collection_inserted = false;
-        if request.lane == IntakeLane::Accepted {
+        if request.lane == IntakeLane::Accepted && !duplicate_request_id {
             let content_hash = existing.content_hash.as_deref().ok_or_else(|| {
                 AtelierError::Validation(
                     "accepted intake item requires target media asset content_hash".into(),
@@ -2112,18 +2208,19 @@ impl AtelierStore {
             asset_id = Some(resolved_asset_id);
 
             if let Some(target_collection_id) = target_collection_id {
-                let collection_exists: bool = sqlx::query_scalar(
-                    "SELECT EXISTS (SELECT 1 FROM atelier_collection WHERE collection_id = $1)",
+                let collection_exists: Option<Uuid> = sqlx::query_scalar(
+                    "SELECT collection_id FROM atelier_collection WHERE collection_id = $1 FOR UPDATE",
                 )
                 .bind(target_collection_id)
-                .fetch_one(&mut *tx)
+                .fetch_optional(&mut *tx)
                 .await?;
-                if !collection_exists {
+                if collection_exists.is_none() {
                     return Err(AtelierError::NotFound(format!(
                         "target collection {target_collection_id}"
                     )));
                 }
 
+                let source_path_ref = event_ref_for_text(&existing.source_path);
                 let next_order: i64 = sqlx::query_scalar(
                     "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM atelier_collection_item WHERE collection_id = $1",
                 )
@@ -2131,20 +2228,40 @@ impl AtelierStore {
                 .fetch_one(&mut *tx)
                 .await?;
                 let inserted = sqlx::query(
-                    r#"INSERT INTO atelier_collection_item (collection_id, asset_id, sort_order)
-                       VALUES ($1, $2, $3)
+                    r#"INSERT INTO atelier_collection_item
+                         (collection_id, asset_id, sort_order, source_path_ref)
+                       VALUES ($1, $2, $3, $4)
                        ON CONFLICT (collection_id, asset_id) DO NOTHING"#,
                 )
                 .bind(target_collection_id)
                 .bind(resolved_asset_id)
                 .bind(next_order)
+                .bind(&source_path_ref)
                 .execute(&mut *tx)
                 .await?
                 .rows_affected()
                     > 0;
+                let updated_refs = if inserted {
+                    false
+                } else {
+                    sqlx::query(
+                        r#"UPDATE atelier_collection_item
+                           SET source_path_ref = $3
+                           WHERE collection_id = $1
+                             AND asset_id = $2
+                             AND source_path_ref IS DISTINCT FROM $3"#,
+                    )
+                    .bind(target_collection_id)
+                    .bind(resolved_asset_id)
+                    .bind(&source_path_ref)
+                    .execute(&mut *tx)
+                    .await?
+                    .rows_affected()
+                        > 0
+                };
                 collection_id = Some(target_collection_id);
                 collection_inserted = inserted;
-                if inserted {
+                if inserted || updated_refs {
                     sqlx::query(
                         "UPDATE atelier_collection SET updated_at_utc = NOW() WHERE collection_id = $1",
                     )
@@ -2158,9 +2275,16 @@ impl AtelierStore {
                         &target_collection_id.to_string(),
                         serde_json::json!({
                             "requested": 1,
-                            "inserted": 1,
+                            "inserted": if inserted { 1 } else { 0 },
+                            "updated_refs": if updated_refs { 1 } else { 0 },
                             "asset_id": resolved_asset_id,
                             "intake_item_id": existing.item_id,
+                            "source_path_ref": source_path_ref,
+                            "requested_by": request.requested_by.as_deref(),
+                            "request_id": request
+                                .metadata
+                                .as_ref()
+                                .and_then(|metadata| metadata.request_id.as_deref()),
                         }),
                     )
                     .await?;
@@ -2169,7 +2293,7 @@ impl AtelierStore {
         }
 
         let mut item = existing.clone();
-        let changed = existing.lane != request.lane || existing.lane_reason != normalized_reason;
+        let mut rejection_audit = None;
         if changed {
             let row = sqlx::query(
                 r#"UPDATE atelier_intake_item
@@ -2185,8 +2309,10 @@ impl AtelierStore {
             .await?;
 
             item = item_from_row(&row)?;
-            let audit = self.insert_rejection_audit_in_tx(&mut tx, &item).await?;
+            rejection_audit = self.insert_rejection_audit_in_tx(&mut tx, &item).await?;
+        }
 
+        if (changed || has_request_context) && !duplicate_request_id {
             sqlx::query(
                 "UPDATE atelier_intake_batch SET updated_at_utc = NOW() WHERE batch_id = $1",
             )
@@ -2207,11 +2333,14 @@ impl AtelierStore {
                     "asset_id": asset_id,
                     "collection_id": collection_id,
                     "apply_workflow": true,
+                    "changed": changed,
+                    "requested_by": request.requested_by.as_deref(),
+                    "metadata": request.metadata.as_ref(),
                 }),
             )
             .await?;
 
-            if let Some((audit, inserted)) = audit {
+            if let Some((audit, inserted)) = rejection_audit {
                 if inserted {
                     self.record_event_in_tx(
                         &mut tx,

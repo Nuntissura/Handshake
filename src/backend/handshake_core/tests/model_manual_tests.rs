@@ -442,6 +442,10 @@ fn manual_covers_atelier_core_data_surfaces() {
             "/atelier/intake/batches/:batch_id/items",
         ),
         (
+            "atelier_apply_intake_classification",
+            "/atelier/intake/items/:item_id/classification",
+        ),
+        (
             "atelier_record_ai_tag_suggestion",
             "/atelier/ai-tag-suggestions",
         ),
@@ -623,7 +627,10 @@ fn manual_covers_pose_comfy_surfaces() {
             CommandStatus::Planned,
             "{planned_id} must be Planned (no Axum route exists for it)"
         );
-        assert_eq!(command.ipc_channel, None, "{planned_id} must not claim a route");
+        assert_eq!(
+            command.ipc_channel, None,
+            "{planned_id} must not claim a route"
+        );
     }
 }
 
@@ -879,7 +886,9 @@ fn manual_covers_diagnostics_surfaces() {
             .command_reference
             .iter()
             .find(|command| command.id == wired_library_id)
-            .unwrap_or_else(|| panic!("missing diagnostics merge/guard command {wired_library_id}"));
+            .unwrap_or_else(|| {
+                panic!("missing diagnostics merge/guard command {wired_library_id}")
+            });
         assert_eq!(
             command.status,
             CommandStatus::Wired,

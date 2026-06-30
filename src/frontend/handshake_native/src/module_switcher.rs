@@ -143,8 +143,9 @@ pub struct ModuleDefinition {
 }
 
 /// Every work-surface module, in header display order. A const array (NOT config-loaded) so the
-/// snapshot test can prove completeness + non-drift at compile time, mirroring the React
-/// `MODULE_DEFINITIONS` const (`app/src/App.tsx` lines 197-267) exactly.
+/// snapshot test can prove completeness + non-drift at compile time. The native Atelier contract
+/// intentionally routes the legacy `INGEST` rail entry into the Atelier panel, where Ingest is an
+/// internal sibling tab of Castkit Codex and Posekit.
 pub const MODULE_DEFINITIONS: [ModuleDefinition; 6] = [
     ModuleDefinition {
         id: ModuleId::Main,
@@ -183,16 +184,15 @@ pub const MODULE_DEFINITIONS: [ModuleDefinition; 6] = [
     },
     ModuleDefinition {
         id: ModuleId::Ingest,
-        label: "INGEST",
+        label: "Atelier",
         data_id: "module-ingest",
         tabs: &[
-            PaneType::MediaDownloader,
-            PaneType::FontManager,
-            PaneType::FlightRecorder,
-            PaneType::VisualDebugger,
+            PaneType::AtelierEditor,
+            PaneType::UserManual,
             PaneType::Problems,
+            PaneType::Jobs,
         ],
-        default_tab: PaneType::MediaDownloader,
+        default_tab: PaneType::AtelierEditor,
     },
     ModuleDefinition {
         id: ModuleId::Stage,
@@ -478,13 +478,11 @@ mod tests {
         assert_eq!(MODULE_DEFINITIONS.len(), 6);
     }
 
-    /// MODULE_DEFINITIONS serializes to the SAME JSON object as the React `MODULE_DEFINITIONS` const
-    /// (`app/src/App.tsx` lines 197-267): each module's id, label, data_id, tab list (kebab-case ids),
-    /// and default tab. This is the contract's drift gate — if a tab list or default tab diverges from
-    /// React, this test fails. Tab ids are serialized to the React kebab-case `PaneTabId` strings via
-    /// `pane_type_tab_id`.
+    /// MODULE_DEFINITIONS serializes to the native module contract: each module's id, label, data_id,
+    /// tab list (kebab-case ids), and default tab. This is the contract's drift gate. Tab ids are
+    /// serialized to the kebab-case `PaneTabId` strings via `pane_type_tab_id`.
     #[test]
-    fn definitions_match_react() {
+    fn definitions_match_native_contract() {
         let actual: Vec<serde_json::Value> = MODULE_DEFINITIONS
             .iter()
             .map(|def| {
@@ -510,9 +508,9 @@ mod tests {
                 "defaultTab": "atelier"
             },
             {
-                "id": "INGEST", "label": "INGEST", "dataId": "module-ingest",
-                "tabs": ["media-downloader", "fonts", "flight-recorder", "visual-debugger", "problems"],
-                "defaultTab": "media-downloader"
+                "id": "INGEST", "label": "Atelier", "dataId": "module-ingest",
+                "tabs": ["atelier", "user-manual", "problems", "jobs"],
+                "defaultTab": "atelier"
             },
             {
                 "id": "STAGE", "label": "STAGE", "dataId": "module-stage",

@@ -429,13 +429,29 @@ backend ArtifactStore receipt JSON metadata. No-backend harnesses expose preview
 metadata only. Use argus.inspect on viewport/control IDs and \
 argus.screenshot{} for a full-frame visual proof; screenshot target cropping is not supported yet. Both \
 paths must be headless/non-intrusive: no foreground window, no keyboard capture, no mouse steal. Ingest starts from \
-atelier-content-ingest and exposes review controls atelier-ingest-pass, atelier-ingest-reject, \
-atelier-ingest-unsure, and atelier-ingest-batch-tags.\n\
+atelier-content-ingest. Set atelier-ingest-dataset-ref and atelier-ingest-character-ref, choose \
+atelier-ingest-pass, atelier-ingest-reject, or atelier-ingest-unsure, then add batch metadata with \
+atelier-ingest-batch-tags, atelier-ingest-batch-note, atelier-ingest-event, atelier-ingest-date, and \
+atelier-ingest-location. Toggle atelier-ingest-link-passed to persist link intent metadata for passed \
+rows; object-level CKC media linking occurs only when the backend intake batch already has a target \
+collection. Click atelier-ingest-apply-batch to apply the currently loaded rows, not the full canonical \
+batch, and inspect atelier-ingest-queue-readout, atelier-ingest-status, and \
+atelier-ingest-last-receipt for request id, partial-success, applied item ids, and stale-response status. \
+contact sheet staging uses atelier-ingest-contact-rows, \
+atelier-ingest-contact-columns, atelier-ingest-contact-dpi, and \
+atelier-ingest-contact-export. Facial quality/dedupe/identity profile hints live in \
+atelier-ingest-facial-profile so the future native Facial ingest bridge can reuse the same review queue. Real \
+expanded intake rows are exposed as atelier-ingest-item-{stable_item_id}; per-item triage buttons are \
+atelier-ingest-item-{stable_item_id}-pass, atelier-ingest-item-{stable_item_id}-reject, and \
+atelier-ingest-item-{stable_item_id}-unsure so parallel agents can inspect and stage row decisions without \
+relying on the visible row order.\n\
 \n\
 For models, the expected navigation path is module-ckc -> atelier-main-panel -> one of \
-atelier-tab-ckc / atelier-tab-posekit / atelier-tab-ingest -> the active content region. If a control \
-needed for CKC, Posekit, or Ingest cannot be found by stable author_id through Argus, treat that as a \
-product gap to remediate before claiming visual or behavioral completion."
+atelier-tab-ckc / atelier-tab-posekit / atelier-tab-ingest -> the active content region. module-ingest \
+is a compatibility shortcut that also opens the Atelier panel; still verify the internal \
+atelier-tab-ingest tab is selected before staging Ingest work. If a control needed for CKC, Posekit, or \
+Ingest cannot be found by stable author_id through Argus, treat that as a product gap to remediate \
+before claiming visual or behavioral completion."
         .to_owned()
 }
 
@@ -1376,6 +1392,126 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             "Inspect Posekit export preview",
             "argus.inspect",
             "argus.inspect reads the hsk.atelier.posekit.openpose_export@1 preview payload.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_DATASET_REF_AUTHOR_ID,
+            "Set Ingest dataset ref",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-dataset-ref', value:'dataset://...'} selects the image dataset or source folder to review.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_CHARACTER_REF_AUTHOR_ID,
+            "Set Ingest CKC character ref",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-character-ref', value:'atelier://character/...'} selects the CKC sheet target for passed-image links.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_PASS_AUTHOR_ID,
+            "Stage loaded Ingest rows as pass",
+            "argus.click",
+            "argus.click{target:'atelier-ingest-pass'} stages pass for every currently loaded Ingest row; use atelier-ingest-item-{stable_item_id}-pass for a single row.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_REJECT_AUTHOR_ID,
+            "Stage loaded Ingest rows as reject",
+            "argus.click",
+            "argus.click{target:'atelier-ingest-reject'} stages reject for every currently loaded Ingest row; use atelier-ingest-item-{stable_item_id}-reject for a single row.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_UNSURE_AUTHOR_ID,
+            "Stage loaded Ingest rows as unsure",
+            "argus.click",
+            "argus.click{target:'atelier-ingest-unsure'} stages unsure for every currently loaded Ingest row; use atelier-ingest-item-{stable_item_id}-unsure for a single row.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID,
+            "Set Ingest batch tags",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-batch-tags', value:'event:i76, outfit:...'} stages reusable tags for reviewed images.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_BATCH_NOTE_AUTHOR_ID,
+            "Set Ingest batch note",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-batch-note', value:'<note>'} stages review notes separately from CKC sheet notes and image notes.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_EVENT_AUTHOR_ID,
+            "Set Ingest event",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-event', value:'<event>'} stages event metadata for the dataset.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_DATE_AUTHOR_ID,
+            "Set Ingest date",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-date', value:'YYYY-MM-DD'} stages date metadata for the dataset.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_LOCATION_AUTHOR_ID,
+            "Set Ingest location",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-location', value:'<location>'} stages location metadata for the dataset.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_LINK_PASSED_AUTHOR_ID,
+            "Toggle CKC link intent",
+            "argus.click",
+            "argus.click{target:'atelier-ingest-link-passed'} toggles structured CKC link intent metadata; backend object linking requires a target collection on the intake batch.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_APPLY_BATCH_AUTHOR_ID,
+            "Apply loaded Ingest rows",
+            "argus.click",
+            "argus.click{target:'atelier-ingest-apply-batch'} applies the currently loaded intake rows with structured metadata and reports partial failures in atelier-ingest-status.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_CONTACT_ROWS_AUTHOR_ID,
+            "Set Ingest contact-sheet rows",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-contact-rows', value:'3'} sets contact-sheet rows.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_CONTACT_COLUMNS_AUTHOR_ID,
+            "Set Ingest contact-sheet columns",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-contact-columns', value:'4'} sets contact-sheet columns.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_CONTACT_DPI_AUTHOR_ID,
+            "Set Ingest contact-sheet DPI",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-contact-dpi', value:'300'} sets contact-sheet export DPI.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID,
+            "Stage Ingest contact-sheet settings",
+            "argus.click",
+            "argus.click{target:'atelier-ingest-contact-export'} stages contact-sheet export settings for the current dataset.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID,
+            "Set Ingest Facial profile",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-facial-profile', value:'quality+dedupe+identity'} stages Facial quality/dedupe/identity hints.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID,
+            "Inspect Ingest queue readout",
+            "argus.inspect",
+            "argus.inspect reads dataset, character, decision, batch metadata, contact-sheet shape, and Facial profile state.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_STATUS_AUTHOR_ID,
+            "Inspect Ingest status",
+            "argus.inspect",
+            "argus.inspect reads the last staged Ingest action and recovery/status message.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID,
+            "Inspect Ingest apply receipt",
+            "argus.inspect",
+            "argus.inspect reads the last backend request id, batch id, applied item ids, and failed row.",
         ),
     ] {
         rows.push(AgentToolRow {

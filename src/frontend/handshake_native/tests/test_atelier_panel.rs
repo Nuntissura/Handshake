@@ -13,8 +13,9 @@ use handshake_native::accessibility::{UiTreeNode, UiTreeSnapshot};
 use handshake_native::atelier_panel::{
     ckc_field_suggestion_row_author_id, ckc_folder_row_author_id, ckc_media_album_row_author_id,
     ckc_media_row_author_id, ckc_moodboard_document_row_author_id, ckc_search_result_row_author_id,
-    ckc_source_url_row_author_id, ckc_story_document_row_author_id, AtelierPanel,
-    ATELIER_CKC_ALBUM_CREATE_AUTHOR_ID, ATELIER_CKC_ALBUM_CREATE_NAME_AUTHOR_ID,
+    ckc_source_url_row_author_id, ckc_story_document_row_author_id, ingest_item_pass_author_id,
+    ingest_item_reject_author_id, ingest_item_row_author_id, ingest_item_unsure_author_id,
+    AtelierPanel, ATELIER_CKC_ALBUM_CREATE_AUTHOR_ID, ATELIER_CKC_ALBUM_CREATE_NAME_AUTHOR_ID,
     ATELIER_CKC_ALBUM_CREATE_NOTES_AUTHOR_ID, ATELIER_CKC_ALBUM_CREATE_TAGS_AUTHOR_ID,
     ATELIER_CKC_ALBUM_LINK_ASSET_IDS_AUTHOR_ID, ATELIER_CKC_ALBUM_LINK_AUTHOR_ID,
     ATELIER_CKC_ALBUM_LINK_SOURCE_PATH_AUTHOR_ID, ATELIER_CKC_ALBUM_LINK_SOURCE_URL_AUTHOR_ID,
@@ -55,8 +56,16 @@ use handshake_native::atelier_panel::{
     ATELIER_CKC_TEMPLATE_LOAD_AUTHOR_ID, ATELIER_CKC_TEMPLATE_STATUS_AUTHOR_ID,
     ATELIER_CKC_TYPED_REF_KIND_AUTHOR_ID, ATELIER_CONTENT_CKC_AUTHOR_ID,
     ATELIER_CONTENT_INGEST_AUTHOR_ID, ATELIER_CONTENT_POSEKIT_AUTHOR_ID,
-    ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID, ATELIER_INGEST_PASS_AUTHOR_ID,
-    ATELIER_INGEST_REJECT_AUTHOR_ID, ATELIER_INGEST_UNSURE_AUTHOR_ID, ATELIER_PANEL_AUTHOR_ID,
+    ATELIER_INGEST_APPLY_BATCH_AUTHOR_ID, ATELIER_INGEST_BATCH_NOTE_AUTHOR_ID,
+    ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID, ATELIER_INGEST_CHARACTER_REF_AUTHOR_ID,
+    ATELIER_INGEST_CONTACT_COLUMNS_AUTHOR_ID, ATELIER_INGEST_CONTACT_DPI_AUTHOR_ID,
+    ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID, ATELIER_INGEST_CONTACT_ROWS_AUTHOR_ID,
+    ATELIER_INGEST_DATASET_REF_AUTHOR_ID, ATELIER_INGEST_DATE_AUTHOR_ID,
+    ATELIER_INGEST_EVENT_AUTHOR_ID, ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID,
+    ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID, ATELIER_INGEST_LINK_PASSED_AUTHOR_ID,
+    ATELIER_INGEST_LOCATION_AUTHOR_ID, ATELIER_INGEST_PASS_AUTHOR_ID,
+    ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID, ATELIER_INGEST_REJECT_AUTHOR_ID,
+    ATELIER_INGEST_STATUS_AUTHOR_ID, ATELIER_INGEST_UNSURE_AUTHOR_ID, ATELIER_PANEL_AUTHOR_ID,
     ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID, ATELIER_POSE_BODY_TOGGLE_AUTHOR_ID,
     ATELIER_POSE_EXPORT_AUTHOR_ID, ATELIER_POSE_EXPORT_PREVIEW_AUTHOR_ID,
     ATELIER_POSE_EXPORT_REF_AUTHOR_ID, ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID,
@@ -120,12 +129,26 @@ fn seeded_side_panel() -> Arc<Mutex<AtelierSidePanel>> {
         vec![],
         Some((
             "batch-1".to_owned(),
-            vec![AtelierItemRow {
-                item_id: "item-aaa".to_owned(),
-                file_name: "sunset.png".to_owned(),
-                source_path: "/intake/sunset.png".to_owned(),
-                lane: "accept".to_owned(),
-            }],
+            vec![
+                AtelierItemRow {
+                    item_id: "item-aaa".to_owned(),
+                    file_name: "sunset.png".to_owned(),
+                    source_path: "/intake/sunset.png".to_owned(),
+                    lane: "accept".to_owned(),
+                },
+                AtelierItemRow {
+                    item_id: "item-bbb".to_owned(),
+                    file_name: "portrait.png".to_owned(),
+                    source_path: "/intake/portrait.png".to_owned(),
+                    lane: "pending".to_owned(),
+                },
+                AtelierItemRow {
+                    item_id: "item-ccc".to_owned(),
+                    file_name: "contact.png".to_owned(),
+                    source_path: "/intake/contact.png".to_owned(),
+                    lane: "pending".to_owned(),
+                },
+            ],
         )),
     )))
 }
@@ -1833,6 +1856,7 @@ fn atelier_internal_tabs_switch_visible_content_regions() {
         .get_by(|node| node.author_id() == Some(ATELIER_TAB_INGEST_AUTHOR_ID))
         .click();
     harness.run();
+    harness.run();
     let ids = author_ids(&harness);
     assert!(
         ids.contains(ATELIER_CONTENT_INGEST_AUTHOR_ID),
@@ -1893,11 +1917,26 @@ fn posekit_and_ingest_controls_are_model_addressable() {
         .get_by(|node| node.author_id() == Some(ATELIER_TAB_INGEST_AUTHOR_ID))
         .click();
     harness.run();
+    harness.run();
+    let ingest_ids = author_ids(&harness);
     for expected in [
+        ATELIER_INGEST_DATASET_REF_AUTHOR_ID,
+        ATELIER_INGEST_CHARACTER_REF_AUTHOR_ID,
         ATELIER_INGEST_PASS_AUTHOR_ID,
         ATELIER_INGEST_REJECT_AUTHOR_ID,
         ATELIER_INGEST_UNSURE_AUTHOR_ID,
         ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID,
+        ATELIER_INGEST_BATCH_NOTE_AUTHOR_ID,
+        ATELIER_INGEST_EVENT_AUTHOR_ID,
+        ATELIER_INGEST_DATE_AUTHOR_ID,
+        ATELIER_INGEST_LOCATION_AUTHOR_ID,
+        ATELIER_INGEST_LINK_PASSED_AUTHOR_ID,
+        ATELIER_INGEST_APPLY_BATCH_AUTHOR_ID,
+        ATELIER_INGEST_CONTACT_ROWS_AUTHOR_ID,
+        ATELIER_INGEST_CONTACT_COLUMNS_AUTHOR_ID,
+        ATELIER_INGEST_CONTACT_DPI_AUTHOR_ID,
+        ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID,
+        ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID,
     ] {
         let node = harness.get_by(|node| node.author_id() == Some(expected));
         assert!(
@@ -1909,6 +1948,249 @@ fn posekit_and_ingest_controls_are_model_addressable() {
                     .data()
                     .supports_action(egui::accesskit::Action::Focus),
             "Ingest control {expected} must be steerable by Argus/MCP"
+        );
+    }
+    for expected in [
+        ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID,
+        ATELIER_INGEST_STATUS_AUTHOR_ID,
+        ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID,
+    ] {
+        assert!(
+            ingest_ids.contains(expected),
+            "Ingest inspectable surface {expected} must be visible to Argus/MCP"
+        );
+    }
+}
+
+#[test]
+fn ingest_batch_metadata_and_contact_sheet_controls_update_argus_state() {
+    let mut harness = build_panel_harness();
+    harness.run();
+
+    let mut channel = ActionChannel::new();
+    let tab_click = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_TAB_INGEST_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &snapshot_harness(&mut harness),
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(tab_click.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+
+    for (target, value) in [
+        (
+            ATELIER_INGEST_DATASET_REF_AUTHOR_ID,
+            "dataset://leeseo/i76/full-suite",
+        ),
+        (
+            ATELIER_INGEST_CHARACTER_REF_AUTHOR_ID,
+            "atelier://character/mira",
+        ),
+        (
+            ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID,
+            "event:i76, outfit:school-uniform",
+        ),
+        (
+            ATELIER_INGEST_BATCH_NOTE_AUTHOR_ID,
+            "Use passed rows for LoRA shortlist and CKC album links.",
+        ),
+        (ATELIER_INGEST_EVENT_AUTHOR_ID, "i76 prompt stress"),
+        (ATELIER_INGEST_DATE_AUTHOR_ID, "2026-06-28"),
+        (ATELIER_INGEST_LOCATION_AUTHOR_ID, "studio intake"),
+        (ATELIER_INGEST_CONTACT_ROWS_AUTHOR_ID, "3"),
+        (ATELIER_INGEST_CONTACT_COLUMNS_AUTHOR_ID, "4"),
+        (ATELIER_INGEST_CONTACT_DPI_AUTHOR_ID, "300"),
+        (
+            ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID,
+            "quality+dedupe+identity",
+        ),
+    ] {
+        let result = dispatch_request(
+            &argus_req(
+                "argus.set_value",
+                serde_json::json!({ "target": target, "value": value }),
+            ),
+            &argus_token(),
+            &snapshot_harness(&mut harness),
+            &mut channel,
+            || Err(ScreenshotError("not used".to_owned())),
+        );
+        assert_eq!(
+            result.to_json()["result"]["queued"],
+            true,
+            "set_value must queue for {target}"
+        );
+        for event in channel.drain_into_events() {
+            harness.event(event);
+        }
+        harness.run();
+        harness.run();
+    }
+
+    for target in [
+        ATELIER_INGEST_PASS_AUTHOR_ID,
+        ATELIER_INGEST_LINK_PASSED_AUTHOR_ID,
+        ATELIER_INGEST_APPLY_BATCH_AUTHOR_ID,
+        ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID,
+    ] {
+        let result = dispatch_request(
+            &argus_req("argus.click", serde_json::json!({ "target": target })),
+            &argus_token(),
+            &snapshot_harness(&mut harness),
+            &mut channel,
+            || Err(ScreenshotError("not used".to_owned())),
+        );
+        assert_eq!(
+            result.to_json()["result"]["queued"],
+            true,
+            "click must queue for {target}"
+        );
+        for event in channel.drain_into_events() {
+            harness.event(event);
+        }
+        harness.run();
+        harness.run();
+    }
+
+    let snapshot = snapshot_harness(&mut harness);
+    let queue = snapshot
+        .find_by_author_id(ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("ingest queue readout visible");
+    assert!(
+        queue.contains("dataset://leeseo/i76/full-suite"),
+        "queue readout must include updated dataset ref; got {queue}"
+    );
+    assert!(
+        queue.contains("atelier://character/mira"),
+        "queue readout must include updated character ref; got {queue}"
+    );
+    assert!(
+        queue.contains("decision=pass"),
+        "queue readout must include updated decision; got {queue}"
+    );
+    for item_id in ["item-aaa", "item-bbb", "item-ccc"] {
+        let row_id = ingest_item_row_author_id(item_id);
+        let row_value = snapshot
+            .find_by_author_id(&row_id)
+            .and_then(|node| node.value.clone())
+            .unwrap_or_else(|| panic!("missing Ingest row {row_id}"));
+        assert!(
+            row_value.contains("staged_decision=pass"),
+            "global pass must stage loaded row {row_id} as pass; got {row_value}"
+        );
+    }
+    assert!(
+        queue.contains("link_passed=true"),
+        "queue readout must include CKC link toggle; got {queue}"
+    );
+    assert!(
+        queue.contains("contact_sheet=3x4@300dpi"),
+        "queue readout must include contact sheet shape; got {queue}"
+    );
+    assert!(
+        queue.contains("facial_profile=quality+dedupe+identity"),
+        "queue readout must include Facial profile; got {queue}"
+    );
+
+    let status = snapshot
+        .find_by_author_id(ATELIER_INGEST_STATUS_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("ingest status visible");
+    assert!(status.contains("Contact sheet staged"));
+    assert!(status.contains("12 cells"));
+}
+
+#[test]
+fn ingest_uses_real_intake_items_not_static_demo_rows() {
+    let mut harness = build_panel_harness();
+    harness.run();
+
+    harness
+        .get_by(|node| node.author_id() == Some(ATELIER_TAB_INGEST_AUTHOR_ID))
+        .click();
+    harness.run();
+    harness.run();
+
+    let labels: Vec<String> = harness
+        .root()
+        .children_recursive()
+        .filter_map(|node| node.accesskit_node().label())
+        .collect();
+    let joined = labels.join("\n");
+    assert!(
+        joined.contains("sunset.png"),
+        "Ingest must render seeded real intake item rows; labels were {joined}"
+    );
+    assert!(
+        !joined.contains("frame_0001.png"),
+        "Ingest must not render static demo rows when real intake items are available; labels were {joined}"
+    );
+}
+
+#[test]
+fn ingest_triage_is_per_item_not_global() {
+    let mut harness = build_panel_harness();
+    let mut channel = ActionChannel::new();
+    harness.run();
+
+    harness
+        .get_by(|node| node.author_id() == Some(ATELIER_TAB_INGEST_AUTHOR_ID))
+        .click();
+    harness.run();
+    harness.run();
+
+    for target in [
+        ingest_item_pass_author_id("item-aaa"),
+        ingest_item_reject_author_id("item-bbb"),
+        ingest_item_unsure_author_id("item-ccc"),
+    ] {
+        let before = snapshot_harness(&mut harness);
+        assert!(
+            before.find_by_author_id(&target).is_some(),
+            "dynamic Ingest item target {target} must be present in Argus snapshot before click"
+        );
+        let result = dispatch_request(
+            &argus_req("argus.click", serde_json::json!({ "target": target })),
+            &argus_token(),
+            &before,
+            &mut channel,
+            || Err(ScreenshotError("not used".to_owned())),
+        );
+        let result_json = result.to_json();
+        assert_eq!(
+            result_json["result"]["queued"],
+            true,
+            "Argus click must queue for dynamic Ingest item target {target}; response={result_json}"
+        );
+        for event in channel.drain_into_events() {
+            harness.event(event);
+        }
+        harness.run();
+        harness.run();
+    }
+
+    let snapshot = snapshot_harness(&mut harness);
+    for (item_id, expected) in [
+        ("item-aaa", "staged_decision=pass"),
+        ("item-bbb", "staged_decision=reject"),
+        ("item-ccc", "staged_decision=unsure"),
+    ] {
+        let row_id = ingest_item_row_author_id(item_id);
+        let row_value = snapshot
+            .find_by_author_id(&row_id)
+            .and_then(|node| node.value.clone())
+            .unwrap_or_else(|| panic!("missing Ingest row {row_id}"));
+        assert!(
+            row_value.contains(expected),
+            "Ingest row {row_id} must keep independent decision {expected}; got {row_value}"
         );
     }
 }

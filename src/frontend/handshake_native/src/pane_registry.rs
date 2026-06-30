@@ -116,7 +116,7 @@ impl PaneType {
             PaneType::LoomDailyJournal => "Journal",
             PaneType::LoomBlock => "Loom Block",
             PaneType::LoomWikiPage => "Wiki Page",
-            PaneType::AtelierEditor => "CKC",
+            PaneType::AtelierEditor => "Atelier",
             PaneType::VisualDebugger => "Visual Debugger",
             PaneType::LoomSearchV2 => "Loom Search",
             PaneType::FindInFiles => "Find in Files",

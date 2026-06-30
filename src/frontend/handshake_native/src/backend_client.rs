@@ -5262,6 +5262,46 @@ pub struct AtelierItemRow {
     pub lane: String,
 }
 
+/// Result from applying one durable intake item classification.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierIntakeClassificationRow {
+    pub item: AtelierItemRow,
+    pub asset_id: Option<String>,
+    pub media_ref: Option<String>,
+    pub collection_id: Option<String>,
+    pub collection_ref: Option<String>,
+    pub collection_inserted: bool,
+    pub requested_by: String,
+}
+
+/// Structured failure for a multi-row intake classification apply.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierIntakeClassificationFailure {
+    pub item_id: String,
+    pub index: usize,
+    pub error: String,
+}
+
+/// Delivery result for one model/operator apply request. This preserves partial
+/// success so Argus and parallel agents can recover without guessing which rows
+/// were already written before a backend error.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierIntakeClassificationOutcome {
+    pub request_id: String,
+    pub batch_id: Option<String>,
+    pub applied: Vec<AtelierIntakeClassificationRow>,
+    pub failed: Option<AtelierIntakeClassificationFailure>,
+}
+
+/// One row decision to send to the backend classification route.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AtelierIntakeClassificationDecision {
+    pub item_id: String,
+    pub lane: String,
+    pub reason: Option<String>,
+    pub metadata: serde_json::Value,
+}
+
 /// One CKC character row from `GET /atelier/characters`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AtelierCharacterRow {
@@ -5579,6 +5619,9 @@ pub type AtelierSidePanelCell = Arc<Mutex<Option<Result<AtelierSidePanelData, St
 /// response for a previously-expanded batch is discardable.
 pub type AtelierItemsCell = Arc<Mutex<Option<(String, Result<Vec<AtelierItemRow>, String>)>>>;
 
+/// One-slot delivery cell for off-thread intake classification writes over the currently loaded rows.
+pub type AtelierIntakeClassificationCell = Arc<Mutex<Option<AtelierIntakeClassificationOutcome>>>;
+
 /// One-slot delivery cell for off-thread CKC character/sheet loads.
 pub type AtelierCkcCell = Arc<Mutex<Option<Result<AtelierCkcData, String>>>>;
 
@@ -5715,6 +5758,30 @@ impl AtelierClient {
                 self.base_url, batch_id
             ),
             query: vec![],
+        }
+    }
+
+    /// Pure actor-attributed request builder for `POST /atelier/intake/items/{item_id}/classification`.
+    pub fn apply_intake_classification_actor_request(
+        &self,
+        item_id: &str,
+        lane: &str,
+        reason: Option<&str>,
+        metadata: serde_json::Value,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/intake/items/{}/classification",
+                self.base_url, item_id
+            ),
+            body: Some(serde_json::json!({
+                "lane": lane,
+                "reason": reason,
+                "metadata": metadata,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
         }
     }
 
@@ -6938,6 +7005,60 @@ impl AtelierClient {
         });
     }
 
+    /// Apply visible intake item classifications with backend actor attribution.
+    pub fn apply_intake_classifications(
+        &self,
+        request_id: String,
+        batch_id: Option<String>,
+        decisions: Vec<AtelierIntakeClassificationDecision>,
+        actor_id: &str,
+        cell: AtelierIntakeClassificationCell,
+    ) {
+        let client = self.client.clone();
+        let client_for_specs = self.clone();
+        let actor = actor_id.to_owned();
+        self.runtime.spawn(async move {
+            let mut applied = Vec::with_capacity(decisions.len());
+            let mut failed = None;
+            for (index, decision) in decisions.into_iter().enumerate() {
+                let spec = client_for_specs.apply_intake_classification_actor_request(
+                    &decision.item_id,
+                    &decision.lane,
+                    decision.reason.as_deref(),
+                    decision.metadata,
+                    &actor,
+                );
+                match post_json_with_actor(&client, &spec)
+                    .await
+                    .and_then(|value| {
+                        parse_atelier_intake_classification_row(&value).ok_or_else(|| {
+                            AppError::Parse(
+                                "missing intake classification row in apply response".to_owned(),
+                            )
+                        })
+                    }) {
+                    Ok(row) => applied.push(row),
+                    Err(err) => {
+                        failed = Some(AtelierIntakeClassificationFailure {
+                            item_id: decision.item_id,
+                            index,
+                            error: err.to_string(),
+                        });
+                        break;
+                    }
+                }
+            }
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(AtelierIntakeClassificationOutcome {
+                    request_id,
+                    batch_id,
+                    applied,
+                    failed,
+                });
+            }
+        });
+    }
+
     /// Load CKC characters plus each character's latest sheet version off the UI thread.
     pub fn fetch_ckc(&self, cell: AtelierCkcCell) {
         let characters_url = self.characters_request().url;
@@ -7397,6 +7518,79 @@ async fn fetch_atelier_items(
         })
         .collect();
     Ok(rows)
+}
+
+fn parse_atelier_intake_item_row(row: &serde_json::Value) -> Option<AtelierItemRow> {
+    let item_id = row.get("item_id").and_then(|x| x.as_str())?.to_owned();
+    if item_id.is_empty() {
+        return None;
+    }
+    Some(AtelierItemRow {
+        item_id,
+        file_name: row
+            .get("file_name")
+            .and_then(|x| x.as_str())
+            .unwrap_or("(unnamed item)")
+            .to_owned(),
+        source_path: row
+            .get("source_path")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_owned(),
+        lane: row
+            .get("lane")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_owned(),
+    })
+}
+
+fn parse_atelier_intake_classification_row(
+    value: &serde_json::Value,
+) -> Option<AtelierIntakeClassificationRow> {
+    let item = parse_atelier_intake_item_row(value.get("item")?)?;
+    if !matches!(
+        item.lane.as_str(),
+        "pending" | "accepted" | "rejected" | "deferred" | "skipped" | "failed"
+    ) {
+        return None;
+    }
+    let collection_inserted = value.get("collection_inserted")?.as_bool()?;
+    let requested_by = value.get("requested_by")?.as_str()?.trim();
+    if requested_by.is_empty() {
+        return None;
+    }
+    let asset_id = value
+        .get("asset_id")
+        .and_then(|x| x.as_str())
+        .map(ToOwned::to_owned);
+    let media_ref = value
+        .get("media_ref")
+        .and_then(|x| x.as_str())
+        .map(ToOwned::to_owned);
+    let collection_id = value
+        .get("collection_id")
+        .and_then(|x| x.as_str())
+        .map(ToOwned::to_owned);
+    let collection_ref = value
+        .get("collection_ref")
+        .and_then(|x| x.as_str())
+        .map(ToOwned::to_owned);
+    if item.lane == "accepted" && (asset_id.is_none() || media_ref.is_none()) {
+        return None;
+    }
+    if collection_inserted && (collection_id.is_none() || collection_ref.is_none()) {
+        return None;
+    }
+    Some(AtelierIntakeClassificationRow {
+        item,
+        asset_id,
+        media_ref,
+        collection_id,
+        collection_ref,
+        collection_inserted,
+        requested_by: requested_by.to_owned(),
+    })
 }
 
 fn actor_post_error_detail(text: &str) -> String {
@@ -8348,6 +8542,139 @@ mod tests {
                 HSK_HEADER_ACTOR_ID.to_owned(),
                 "ckc-overhaul-agent-17".to_owned()
             )]
+        );
+    }
+
+    #[test]
+    fn atelier_client_builds_actor_attributed_intake_classification_request() {
+        let rt = rt();
+        let c = AtelierClient::new_with_actor_id(BASE, rt.handle().clone(), "ingest-agent-004");
+        let spec = c.apply_intake_classification_actor_request(
+            "018f7848-1111-7000-9000-00000000e001",
+            "rejected",
+            Some("duplicate or weak training frame"),
+            serde_json::json!({
+                "request_id": "atelier-ingest-request-1",
+                "dataset_ref": "dataset://leeseo/mining",
+                "character_ref": "atelier://character/leeseo",
+                "link_passed": true,
+                "tags": ["event", "stage"],
+                "contact_sheet": {
+                    "rows": 3,
+                    "columns": 4,
+                    "dpi": 300,
+                    "cells": 12,
+                },
+                "facial_profile": "quality+dedupe+identity",
+            }),
+            c.actor_id(),
+        );
+        assert_eq!(spec.method, HttpMethod::Post);
+        assert_eq!(
+            spec.url,
+            format!(
+                "{BASE}/atelier/intake/items/018f7848-1111-7000-9000-00000000e001/classification"
+            )
+        );
+        assert_eq!(
+            spec.headers,
+            vec![(
+                HSK_HEADER_ACTOR_ID.to_owned(),
+                "ingest-agent-004".to_owned()
+            )]
+        );
+        let body = spec.body.expect("classification body");
+        assert_eq!(body["lane"], "rejected");
+        assert_eq!(body["reason"], "duplicate or weak training frame");
+        assert_eq!(body["metadata"]["request_id"], "atelier-ingest-request-1");
+        assert_eq!(body["metadata"]["dataset_ref"], "dataset://leeseo/mining");
+        assert_eq!(
+            body["metadata"]["character_ref"],
+            "atelier://character/leeseo"
+        );
+        assert_eq!(body["metadata"]["link_passed"], true);
+        assert_eq!(body["metadata"]["contact_sheet"]["cells"], 12);
+        assert_eq!(
+            body["metadata"]["facial_profile"],
+            "quality+dedupe+identity"
+        );
+    }
+
+    #[test]
+    fn atelier_intake_classification_parser_requires_receipt_fields() {
+        let valid = serde_json::json!({
+            "item": {
+                "item_id": "item-001",
+                "file_name": "frame.png",
+                "source_path": "dataset://frame.png",
+                "lane": "accepted",
+            },
+            "asset_id": "asset-001",
+            "media_ref": "atelier://media/asset-001",
+            "collection_id": null,
+            "collection_ref": null,
+            "collection_inserted": false,
+            "requested_by": "ingest-agent-004",
+        });
+        let row = parse_atelier_intake_classification_row(&valid).expect("valid apply response");
+        assert_eq!(row.item.item_id, "item-001");
+        assert_eq!(row.asset_id.as_deref(), Some("asset-001"));
+        assert_eq!(row.requested_by, "ingest-agent-004");
+
+        let mut missing_requested_by = valid.clone();
+        missing_requested_by
+            .as_object_mut()
+            .expect("object")
+            .remove("requested_by");
+        assert!(
+            parse_atelier_intake_classification_row(&missing_requested_by).is_none(),
+            "requested_by must be strict so malformed responses do not look successful"
+        );
+
+        let mut missing_asset_ref = valid.clone();
+        missing_asset_ref["asset_id"] = serde_json::Value::Null;
+        assert!(
+            parse_atelier_intake_classification_row(&missing_asset_ref).is_none(),
+            "accepted classification receipt must include asset_id and media_ref"
+        );
+
+        let mut missing_collection_ref = valid.clone();
+        missing_collection_ref["collection_inserted"] = serde_json::json!(true);
+        missing_collection_ref["collection_id"] = serde_json::json!("collection-001");
+        missing_collection_ref["collection_ref"] = serde_json::Value::Null;
+        assert!(
+            parse_atelier_intake_classification_row(&missing_collection_ref).is_none(),
+            "inserted collection membership receipt must include collection_id and collection_ref"
+        );
+
+        let mut missing_collection_inserted = valid;
+        missing_collection_inserted
+            .as_object_mut()
+            .expect("object")
+            .remove("collection_inserted");
+        assert!(
+            parse_atelier_intake_classification_row(&missing_collection_inserted).is_none(),
+            "collection_inserted must be strict so malformed responses do not look successful"
+        );
+
+        let mut missing_lane = serde_json::json!({
+            "item": {
+                "item_id": "item-001",
+                "file_name": "frame.png",
+                "source_path": "dataset://frame.png",
+            },
+            "collection_inserted": false,
+            "requested_by": "ingest-agent-004",
+        });
+        assert!(
+            parse_atelier_intake_classification_row(&missing_lane).is_none(),
+            "classification receipt must include the durable item lane"
+        );
+
+        missing_lane["item"]["lane"] = serde_json::json!("not-a-lane");
+        assert!(
+            parse_atelier_intake_classification_row(&missing_lane).is_none(),
+            "classification receipt must reject unknown item lanes"
         );
     }
 

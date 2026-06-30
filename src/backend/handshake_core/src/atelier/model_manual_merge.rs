@@ -467,6 +467,7 @@ impl RegisteredSurfaceIndex {
                 "kernel.distillation.review_candidate",
                 "/atelier/intake/batches",
                 "/atelier/intake/batches/:batch_id/items",
+                "/atelier/intake/items/:item_id/classification",
                 "/atelier/ai-tag-suggestions",
                 "/atelier/image-import/url",
             ])

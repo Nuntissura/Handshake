@@ -304,6 +304,22 @@ fn live_author_id_set() -> HashSet<String> {
         handshake_native::atelier_panel::ATELIER_INGEST_REJECT_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_INGEST_UNSURE_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_DATASET_REF_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_CHARACTER_REF_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_BATCH_NOTE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_EVENT_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_DATE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_LOCATION_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_LINK_PASSED_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_APPLY_BATCH_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_CONTACT_ROWS_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_CONTACT_COLUMNS_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_CONTACT_DPI_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_STATUS_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID,
     ] {
         set.insert(id.to_owned());
     }
@@ -681,11 +697,111 @@ fn manual_documents_atelier_tabs_and_argus_control_ids() {
         "no mouse steal",
         "atelier-ingest-pass",
         "atelier-ingest-batch-tags",
+        "atelier-ingest-dataset-ref",
+        "atelier-ingest-character-ref",
+        "atelier-ingest-batch-note",
+        "atelier-ingest-event",
+        "atelier-ingest-date",
+        "atelier-ingest-location",
+        "atelier-ingest-link-passed",
+        "atelier-ingest-apply-batch",
+        "atelier-ingest-contact-rows",
+        "atelier-ingest-contact-columns",
+        "atelier-ingest-contact-dpi",
+        "atelier-ingest-contact-export",
+        "atelier-ingest-facial-profile",
+        "atelier-ingest-queue-readout",
+        "atelier-ingest-status",
+        "atelier-ingest-last-receipt",
+        "Facial quality/dedupe/identity profile",
+        "contact sheet",
+        "link intent metadata",
+        "currently loaded rows",
         "Argus",
     ] {
         assert!(
             topic.body.contains(required),
             "Atelier manual topic missing required control/navigation guidance: {required}"
+        );
+    }
+}
+
+#[test]
+fn manual_agent_tool_rows_cover_ingest_dataset_contact_and_facial_controls() {
+    let rows = agent_tool_rows();
+    for (author_id, tool) in [
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_DATASET_REF_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_CHARACTER_REF_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_BATCH_NOTE_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_EVENT_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_DATE_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_LOCATION_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_LINK_PASSED_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_APPLY_BATCH_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_CONTACT_ROWS_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_CONTACT_COLUMNS_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_CONTACT_DPI_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID,
+            "argus.inspect",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_STATUS_AUTHOR_ID,
+            "argus.inspect",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID,
+            "argus.inspect",
+        ),
+    ] {
+        let row = rows
+            .iter()
+            .find(|row| row.author_id == author_id)
+            .unwrap_or_else(|| panic!("missing manual agent-tool row for {author_id}"));
+        assert_eq!(
+            row.mcp_tool, tool,
+            "manual row for {author_id} must use {tool}"
         );
     }
 }

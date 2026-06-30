@@ -36,7 +36,8 @@ use crate::atelier::documents::{
     StoryCard,
 };
 use crate::atelier::intake::{
-    IntakeBatchMode, IntakeLaneCounts, IntakeProfileMode, NewIntakeBatch,
+    ApplyIntakeClassificationRequest, IntakeBatchMode, IntakeClassificationMetadata, IntakeLane,
+    IntakeLaneCounts, IntakeProfileMode, NewIntakeBatch,
 };
 use crate::atelier::moodboards::{MoodboardSnapshot, NewMoodboardSnapshot};
 use crate::atelier::pose::{
@@ -163,6 +164,10 @@ pub fn routes(state: AppState) -> Router {
         .route(
             "/atelier/intake/batches/:batch_id/items",
             get(list_intake_batch_items),
+        )
+        .route(
+            "/atelier/intake/items/:item_id/classification",
+            post(apply_intake_item_classification),
         )
         .route("/atelier/command-corpus", get(list_command_corpus))
         .route(
@@ -3269,6 +3274,16 @@ struct IntakeItemResponse {
     byte_len: i64,
 }
 
+fn intake_item_response(item: crate::atelier::intake::IntakeItem) -> IntakeItemResponse {
+    IntakeItemResponse {
+        item_id: item.item_id,
+        source_path: item.source_path,
+        file_name: item.file_name,
+        lane: item.lane.as_str().to_owned(),
+        byte_len: item.byte_len,
+    }
+}
+
 #[derive(Debug, Serialize)]
 struct IntakeBatchItemsResponse {
     lane_counts: IntakeLaneCountsResponse,
@@ -3319,6 +3334,66 @@ async fn list_intake_batch_items(
     Ok(Json(IntakeBatchItemsResponse {
         lane_counts: lane_counts.into(),
         items,
+    }))
+}
+
+#[derive(Debug, Deserialize)]
+struct ApplyIntakeItemClassificationRequest {
+    lane: String,
+    reason: Option<String>,
+    metadata: Option<IntakeClassificationMetadata>,
+}
+
+#[derive(Debug, Serialize)]
+struct IntakeClassificationApplyResponse {
+    item: IntakeItemResponse,
+    asset_id: Option<Uuid>,
+    media_ref: Option<String>,
+    collection_id: Option<Uuid>,
+    collection_ref: Option<String>,
+    collection_inserted: bool,
+    requested_by: String,
+}
+
+/// POST /atelier/intake/items/:item_id/classification — persist one item triage decision.
+async fn apply_intake_item_classification(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(item_id): Path<Uuid>,
+    Json(payload): Json<ApplyIntakeItemClassificationRequest>,
+) -> Result<Json<IntakeClassificationApplyResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let actor = calling_actor(&headers)?;
+    let lane = IntakeLane::parse(&payload.lane).map_err(atelier_error)?;
+    let store = atelier_store(&state);
+    let applied = store
+        .apply_intake_classification(&ApplyIntakeClassificationRequest {
+            item_id,
+            lane,
+            reason: payload.reason,
+            requested_by: Some(actor.clone()),
+            metadata: payload.metadata,
+        })
+        .await
+        .map_err(atelier_error)?;
+
+    tracing::info!(
+        target: "handshake_core::atelier",
+        route = "/atelier/intake/items/:item_id/classification",
+        status = "ok",
+        actor = %actor,
+        item_id = %applied.item.item_id,
+        lane = applied.item.lane.as_str(),
+        "apply intake item classification"
+    );
+
+    Ok(Json(IntakeClassificationApplyResponse {
+        item: intake_item_response(applied.item),
+        asset_id: applied.asset_id,
+        media_ref: applied.asset_id.map(media_asset_ref),
+        collection_id: applied.collection_id,
+        collection_ref: applied.collection_id.map(collection_ref),
+        collection_inserted: applied.collection_inserted,
+        requested_by: actor,
     }))
 }
 
