@@ -5370,6 +5370,25 @@ pub struct AtelierCkcMediaAlbumItemsRow {
     pub members: Vec<AtelierCkcMediaMemberRow>,
 }
 
+/// One reusable Posekit/OpenPose or ComfyUI artifact linked to a CKC sheet version.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCkcSheetArtifactLinkRow {
+    pub link_id: String,
+    pub character_internal_id: String,
+    pub character_ref: String,
+    pub sheet_version_id: String,
+    pub sheet_version_ref: String,
+    pub typed_ref: String,
+    pub artifact_kind: String,
+    pub artifact_ref: String,
+    pub manifest_ref: Option<String>,
+    pub source_ref: Option<String>,
+    pub label: Option<String>,
+    pub reuse_role: Option<String>,
+    pub linked_by: String,
+    pub metadata: serde_json::Value,
+}
+
 /// Media note/tag write result for one asset.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AtelierCkcMediaNotesTagsRow {
@@ -5500,6 +5519,7 @@ pub struct AtelierCkcSearchResponse {
 pub struct AtelierCkcCharacterSheetRow {
     pub character: AtelierCharacterRow,
     pub latest_sheet: Option<AtelierSheetVersionRow>,
+    pub sheet_artifact_links: Vec<AtelierCkcSheetArtifactLinkRow>,
     pub media_albums: Vec<AtelierCkcMediaAlbumRow>,
     pub story_documents: Vec<AtelierCkcCharacterDocumentRow>,
     pub moodboard_documents: Vec<AtelierCkcCharacterDocumentRow>,
@@ -5641,6 +5661,10 @@ pub type AtelierCkcMediaAlbumCreateCell =
 /// One-slot delivery cell for off-thread CKC media album item linking.
 pub type AtelierCkcMediaAlbumItemsCell =
     Arc<Mutex<Option<Result<AtelierCkcMediaAlbumItemsRow, String>>>>;
+
+/// One-slot delivery cell for off-thread CKC sheet artifact attach/detach/list operations.
+pub type AtelierCkcSheetArtifactLinksCell =
+    Arc<Mutex<Option<(String, Result<Vec<AtelierCkcSheetArtifactLinkRow>, String>)>>>;
 
 /// One-slot delivery cell for off-thread CKC story document/list operations.
 pub type AtelierCkcDocumentsCell =
@@ -5997,6 +6021,73 @@ impl AtelierClient {
             method: HttpMethod::Get,
             url: format!("{}/atelier/sheet-versions/{}", self.base_url, version_id),
             query: vec![],
+        }
+    }
+
+    /// Pure request builder for active reusable artifact links on one CKC sheet version.
+    pub fn sheet_artifact_links_request(&self, version_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!(
+                "{}/atelier/sheet-versions/{}/artifact-links",
+                self.base_url, version_id
+            ),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for resolving one reusable sheet artifact typed ref.
+    pub fn sheet_artifact_link_request(&self, link_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/sheet-artifact-links/{}", self.base_url, link_id),
+            query: vec![],
+        }
+    }
+
+    /// Pure actor-attributed request builder for attaching a reusable artifact to a CKC sheet version.
+    pub fn attach_sheet_artifact_link_actor_request(
+        &self,
+        version_id: &str,
+        artifact_kind: &str,
+        artifact_ref: &str,
+        manifest_ref: Option<&str>,
+        source_ref: Option<&str>,
+        label: Option<&str>,
+        reuse_role: Option<&str>,
+        metadata: serde_json::Value,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/sheet-versions/{}/artifact-links",
+                self.base_url, version_id
+            ),
+            body: Some(serde_json::json!({
+                "artifact_kind": artifact_kind,
+                "artifact_ref": artifact_ref,
+                "manifest_ref": manifest_ref,
+                "source_ref": source_ref,
+                "label": label,
+                "reuse_role": reuse_role,
+                "metadata": metadata,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure actor-attributed request builder for soft-detaching a reusable sheet artifact link.
+    pub fn detach_sheet_artifact_link_actor_request(
+        &self,
+        link_id: &str,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Delete,
+            url: format!("{}/atelier/sheet-artifact-links/{}", self.base_url, link_id),
+            body: None,
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
         }
     }
 
@@ -7271,6 +7362,91 @@ impl AtelierClient {
         });
     }
 
+    /// Load active reusable artifacts for one CKC sheet version.
+    pub fn fetch_ckc_sheet_artifact_links(
+        &self,
+        version_id: &str,
+        cell: AtelierCkcSheetArtifactLinksCell,
+    ) {
+        let spec = self.sheet_artifact_links_request(version_id);
+        let version_id = version_id.to_owned();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = match get_json(&client, &spec.url, &[]).await {
+                Ok(value) => parse_atelier_sheet_artifact_link_rows(&value),
+                Err(err) => Err(err),
+            }
+            .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((version_id, result));
+            }
+        });
+    }
+
+    /// Attach a reusable artifact ref to a CKC sheet version.
+    pub fn attach_ckc_sheet_artifact_link(
+        &self,
+        version_id: &str,
+        artifact_kind: &str,
+        artifact_ref: &str,
+        manifest_ref: Option<&str>,
+        source_ref: Option<&str>,
+        label: Option<&str>,
+        reuse_role: Option<&str>,
+        metadata: serde_json::Value,
+        actor_id: &str,
+        cell: AtelierCkcSheetArtifactLinksCell,
+    ) {
+        let spec = self.attach_sheet_artifact_link_actor_request(
+            version_id,
+            artifact_kind,
+            artifact_ref,
+            manifest_ref,
+            source_ref,
+            label,
+            reuse_role,
+            metadata,
+            actor_id,
+        );
+        let list_spec = self.sheet_artifact_links_request(version_id);
+        let version_id = version_id.to_owned();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = match post_json_with_actor(&client, &spec).await {
+                Ok(_) => fetch_atelier_sheet_artifact_links(&client, &list_spec.url).await,
+                Err(err) => Err(err),
+            }
+            .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((version_id, result));
+            }
+        });
+    }
+
+    /// Soft-detach a reusable CKC sheet artifact link, then reload the sheet-version link list.
+    pub fn detach_ckc_sheet_artifact_link(
+        &self,
+        sheet_version_id: &str,
+        link_id: &str,
+        actor_id: &str,
+        cell: AtelierCkcSheetArtifactLinksCell,
+    ) {
+        let spec = self.detach_sheet_artifact_link_actor_request(link_id, actor_id);
+        let list_spec = self.sheet_artifact_links_request(sheet_version_id);
+        let sheet_version_id = sheet_version_id.to_owned();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = match delete_json_with_actor(&client, &spec).await {
+                Ok(_) => fetch_atelier_sheet_artifact_links(&client, &list_spec.url).await,
+                Err(err) => Err(err),
+            }
+            .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((sheet_version_id, result));
+            }
+        });
+    }
+
     /// Load prior values for one exact CKC Field ID.
     pub fn fetch_ckc_field_suggestions(
         &self,
@@ -7678,6 +7854,31 @@ async fn post_json_with_actor(
         .map_err(|e| AppError::Parse(e.to_string()))
 }
 
+async fn delete_json_with_actor(
+    client: &reqwest::Client,
+    spec: &ActorRequestSpec,
+) -> Result<serde_json::Value, AppError> {
+    let mut request = client.delete(&spec.url).timeout(Duration::from_secs(5));
+    for (name, value) in &spec.headers {
+        request = request.header(name.as_str(), value.as_str());
+    }
+    let resp = request
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        let detail = actor_post_error_detail(&text);
+        return Err(AppError::Http(format!(
+            "DELETE non-success status {status}: {detail}"
+        )));
+    }
+    resp.json()
+        .await
+        .map_err(|e| AppError::Parse(e.to_string()))
+}
+
 async fn load_atelier_ckc(
     client: &reqwest::Client,
     characters_url: &str,
@@ -7694,6 +7895,15 @@ async fn load_atelier_ckc(
             .await?
             .into_iter()
             .max_by_key(|row| row.seq);
+        let sheet_artifact_links = if let Some(sheet) = latest_sheet.as_ref() {
+            let links_url = format!(
+                "{}/atelier/sheet-versions/{}/artifact-links",
+                base_url, sheet.version_id
+            );
+            fetch_atelier_sheet_artifact_links(client, &links_url).await?
+        } else {
+            Vec::new()
+        };
         let albums_url = format!(
             "{}/atelier/characters/{}/media-albums",
             base_url, character.internal_id
@@ -7739,6 +7949,7 @@ async fn load_atelier_ckc(
         rows.push(AtelierCkcCharacterSheetRow {
             character,
             latest_sheet,
+            sheet_artifact_links,
             media_albums,
             story_documents,
             moodboard_documents,
@@ -7779,6 +7990,32 @@ async fn fetch_atelier_media_albums(
         .iter()
         .filter_map(parse_atelier_media_album_row)
         .collect())
+}
+
+async fn fetch_atelier_sheet_artifact_links(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Vec<AtelierCkcSheetArtifactLinkRow>, AppError> {
+    let value = get_json(client, url, &[]).await?;
+    parse_atelier_sheet_artifact_link_rows(&value)
+}
+
+fn parse_atelier_sheet_artifact_link_rows(
+    value: &serde_json::Value,
+) -> Result<Vec<AtelierCkcSheetArtifactLinkRow>, AppError> {
+    let arr = value.as_array().ok_or_else(|| {
+        AppError::Parse("CKC sheet artifact links response was not an array".to_owned())
+    })?;
+    arr.iter()
+        .enumerate()
+        .map(|(idx, row)| {
+            parse_atelier_sheet_artifact_link_row(row).ok_or_else(|| {
+                AppError::Parse(format!(
+                    "malformed CKC sheet artifact link row at index {idx}"
+                ))
+            })
+        })
+        .collect()
 }
 
 async fn fetch_atelier_character_documents(
@@ -8158,6 +8395,32 @@ fn parse_atelier_media_album_items_row(
             .unwrap_or(0) as usize,
         members_next_offset: row.get("members_next_offset").and_then(|x| x.as_i64()),
         members,
+    })
+}
+
+fn parse_atelier_sheet_artifact_link_row(
+    row: &serde_json::Value,
+) -> Option<AtelierCkcSheetArtifactLinkRow> {
+    let link_id = json_required_nonempty_string(row, "link_id")?;
+    Some(AtelierCkcSheetArtifactLinkRow {
+        link_id,
+        character_internal_id: json_required_nonempty_string(row, "character_internal_id")?,
+        character_ref: json_required_nonempty_string(row, "character_ref")?,
+        sheet_version_id: json_required_nonempty_string(row, "sheet_version_id")?,
+        sheet_version_ref: json_required_nonempty_string(row, "sheet_version_ref")?,
+        typed_ref: json_required_nonempty_string(row, "typed_ref")?,
+        artifact_kind: json_required_nonempty_string(row, "artifact_kind")?,
+        artifact_ref: json_required_nonempty_string(row, "artifact_ref")?,
+        manifest_ref: json_string(row, "manifest_ref"),
+        source_ref: json_string(row, "source_ref"),
+        label: json_string(row, "label"),
+        reuse_role: json_string(row, "reuse_role"),
+        linked_by: json_required_nonempty_string(row, "linked_by")?,
+        metadata: row
+            .get("metadata")
+            .cloned()
+            .filter(|value| value.is_object())
+            .unwrap_or_else(|| serde_json::json!({})),
     })
 }
 
@@ -8542,6 +8805,136 @@ mod tests {
                 HSK_HEADER_ACTOR_ID.to_owned(),
                 "ckc-overhaul-agent-17".to_owned()
             )]
+        );
+    }
+
+    #[test]
+    fn atelier_client_builds_actor_attributed_sheet_artifact_requests() {
+        let rt = rt();
+        let c = AtelierClient::new_with_actor_id(BASE, rt.handle().clone(), "ckc-artifact-agent");
+        let list = c.sheet_artifact_links_request("sheet-v1");
+        assert_eq!(list.method, HttpMethod::Get);
+        assert_eq!(
+            list.url,
+            format!("{BASE}/atelier/sheet-versions/sheet-v1/artifact-links")
+        );
+        let read = c.sheet_artifact_link_request("link-1");
+        assert_eq!(read.method, HttpMethod::Get);
+        assert_eq!(
+            read.url,
+            format!("{BASE}/atelier/sheet-artifact-links/link-1")
+        );
+
+        let attach = c.attach_sheet_artifact_link_actor_request(
+            "sheet-v1",
+            "openpose_png",
+            "artifact://atelier/posekit/openpose/a.png",
+            Some("manifest://atelier/posekit/openpose/a"),
+            Some("posekit://rig/a"),
+            Some("yaw +45"),
+            Some("cui_openpose_conditioning"),
+            serde_json::json!({ "yaw_deg": 45 }),
+            c.actor_id(),
+        );
+        assert_eq!(attach.method, HttpMethod::Post);
+        assert_eq!(
+            attach.url,
+            format!("{BASE}/atelier/sheet-versions/sheet-v1/artifact-links")
+        );
+        assert_eq!(
+            attach.headers,
+            vec![(
+                HSK_HEADER_ACTOR_ID.to_owned(),
+                "ckc-artifact-agent".to_owned()
+            )]
+        );
+        let body = attach.body.expect("attach body");
+        assert_eq!(body["artifact_kind"], "openpose_png");
+        assert_eq!(
+            body["artifact_ref"],
+            "artifact://atelier/posekit/openpose/a.png"
+        );
+        assert_eq!(body["reuse_role"], "cui_openpose_conditioning");
+        assert_eq!(body["metadata"]["yaw_deg"], 45);
+
+        let detach = c.detach_sheet_artifact_link_actor_request("link-1", c.actor_id());
+        assert_eq!(detach.method, HttpMethod::Delete);
+        assert_eq!(
+            detach.url,
+            format!("{BASE}/atelier/sheet-artifact-links/link-1")
+        );
+        assert_eq!(
+            detach.headers,
+            vec![(
+                HSK_HEADER_ACTOR_ID.to_owned(),
+                "ckc-artifact-agent".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn atelier_sheet_artifact_link_parser_requires_typed_ref_and_artifact_fields() {
+        let valid = serde_json::json!({
+            "link_id": "018f7848-1111-7000-9000-00000000e001",
+            "character_internal_id": "018f7848-1111-7000-9000-000000000001",
+            "character_ref": "atelier://character/018f7848-1111-7000-9000-000000000001",
+            "sheet_version_id": "018f7848-1111-7000-9000-000000000101",
+            "sheet_version_ref": "atelier://sheet/018f7848-1111-7000-9000-000000000001/018f7848-1111-7000-9000-000000000101",
+            "typed_ref": "atelier://sheet-artifact/018f7848-1111-7000-9000-00000000e001",
+            "artifact_kind": "openpose_png",
+            "artifact_ref": "artifact://atelier/posekit/openpose/mira.png",
+            "manifest_ref": "manifest://atelier/posekit/openpose/mira",
+            "source_ref": "posekit://rig/mira",
+            "label": "Mira OpenPose",
+            "reuse_role": "cui_openpose_conditioning",
+            "linked_by": "ckc-artifact-agent",
+            "metadata": { "yaw_deg": 45 }
+        });
+        let row = parse_atelier_sheet_artifact_link_row(&valid).expect("valid artifact row");
+        assert_eq!(row.artifact_kind, "openpose_png");
+        assert_eq!(row.reuse_role.as_deref(), Some("cui_openpose_conditioning"));
+        assert_eq!(
+            row.typed_ref,
+            "atelier://sheet-artifact/018f7848-1111-7000-9000-00000000e001"
+        );
+
+        let mut missing_typed_ref = valid.clone();
+        missing_typed_ref
+            .as_object_mut()
+            .expect("object")
+            .remove("typed_ref");
+        assert!(parse_atelier_sheet_artifact_link_row(&missing_typed_ref).is_none());
+
+        let mut missing_linked_by = valid.clone();
+        missing_linked_by
+            .as_object_mut()
+            .expect("object")
+            .remove("linked_by");
+        assert!(parse_atelier_sheet_artifact_link_row(&missing_linked_by).is_none());
+
+        let mut blank_linked_by = valid.clone();
+        blank_linked_by
+            .as_object_mut()
+            .expect("object")
+            .insert("linked_by".to_owned(), serde_json::json!(""));
+        assert!(parse_atelier_sheet_artifact_link_row(&blank_linked_by).is_none());
+
+        let malformed_rows = serde_json::json!([valid, missing_typed_ref]);
+        let err = parse_atelier_sheet_artifact_link_rows(&malformed_rows)
+            .expect_err("malformed sheet artifact rows must fail the fetch path");
+        assert!(
+            err.to_string()
+                .contains("malformed CKC sheet artifact link row at index 1"),
+            "malformed row should surface as parse error; got {err:?}"
+        );
+
+        let not_array = serde_json::json!({ "links": [] });
+        let err = parse_atelier_sheet_artifact_link_rows(&not_array)
+            .expect_err("non-array sheet artifact response must fail");
+        assert!(
+            err.to_string()
+                .contains("CKC sheet artifact links response was not an array"),
+            "non-array response should surface as parse error; got {err:?}"
         );
     }
 

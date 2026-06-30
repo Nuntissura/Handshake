@@ -19,11 +19,12 @@ use crate::backend_client::{
     AtelierCkcMediaMemberRow, AtelierCkcMediaNotesCell, AtelierCkcMediaNotesTagsRow,
     AtelierCkcMoodboardSnapshotCell, AtelierCkcMoodboardSnapshotRow, AtelierCkcSafeSubsetCell,
     AtelierCkcSearchCell, AtelierCkcSearchResponse, AtelierCkcSearchResultRow,
-    AtelierCkcStoryBeatCell, AtelierCkcStoryBeatRow, AtelierCkcStoryCardCell,
-    AtelierCkcStoryCardRow, AtelierCkcTagNoteCell, AtelierCkcTagNoteRow, AtelierCkcTemplateCell,
-    AtelierClient, AtelierIntakeClassificationCell, AtelierIntakeClassificationDecision,
-    AtelierItemRow, AtelierPosekitExportCell, AtelierPosekitExportRow, AtelierSheetExportRow,
-    AtelierSheetFieldSuggestionRow, AtelierSheetVersionRow,
+    AtelierCkcSheetArtifactLinkRow, AtelierCkcSheetArtifactLinksCell, AtelierCkcStoryBeatCell,
+    AtelierCkcStoryBeatRow, AtelierCkcStoryCardCell, AtelierCkcStoryCardRow, AtelierCkcTagNoteCell,
+    AtelierCkcTagNoteRow, AtelierCkcTemplateCell, AtelierClient, AtelierIntakeClassificationCell,
+    AtelierIntakeClassificationDecision, AtelierItemRow, AtelierPosekitExportCell,
+    AtelierPosekitExportRow, AtelierSheetExportRow, AtelierSheetFieldSuggestionRow,
+    AtelierSheetVersionRow,
 };
 use crate::editor_pane_factories::SharedPalette;
 use crate::graph::canvas_board::{
@@ -72,6 +73,21 @@ pub const ATELIER_CKC_FIELD_SUGGESTION_FIELD_AUTHOR_ID: &str = "atelier-ckc-fiel
 pub const ATELIER_CKC_FIELD_SUGGESTIONS_LOAD_AUTHOR_ID: &str = "atelier-ckc-field-suggestions-load";
 pub const ATELIER_CKC_FIELD_SUGGESTIONS_LIST_AUTHOR_ID: &str = "atelier-ckc-field-suggestions-list";
 pub const ATELIER_CKC_LINKED_MEDIA_LIST_AUTHOR_ID: &str = "atelier-ckc-linked-media-list";
+pub const ATELIER_CKC_SHEET_ARTIFACT_LIST_AUTHOR_ID: &str = "atelier-ckc-sheet-artifact-list";
+pub const ATELIER_CKC_SHEET_ARTIFACT_KIND_AUTHOR_ID: &str = "atelier-ckc-sheet-artifact-kind";
+pub const ATELIER_CKC_SHEET_ARTIFACT_REF_AUTHOR_ID: &str = "atelier-ckc-sheet-artifact-ref";
+pub const ATELIER_CKC_SHEET_ARTIFACT_MANIFEST_AUTHOR_ID: &str =
+    "atelier-ckc-sheet-artifact-manifest";
+pub const ATELIER_CKC_SHEET_ARTIFACT_LABEL_AUTHOR_ID: &str = "atelier-ckc-sheet-artifact-label";
+pub const ATELIER_CKC_SHEET_ARTIFACT_ROLE_AUTHOR_ID: &str = "atelier-ckc-sheet-artifact-role";
+pub const ATELIER_CKC_SHEET_ARTIFACT_ACTOR_AUTHOR_ID: &str = "atelier-ckc-sheet-artifact-actor";
+pub const ATELIER_CKC_SHEET_ARTIFACT_ATTACH_AUTHOR_ID: &str = "atelier-ckc-sheet-artifact-attach";
+pub const ATELIER_CKC_SHEET_ARTIFACT_ATTACH_POSE_AUTHOR_ID: &str =
+    "atelier-ckc-sheet-artifact-attach-posekit";
+pub const ATELIER_CKC_SHEET_ARTIFACT_DETACH_AUTHOR_ID: &str = "atelier-ckc-sheet-artifact-detach";
+pub const ATELIER_CKC_SHEET_ARTIFACT_REUSE_REF_AUTHOR_ID: &str =
+    "atelier-ckc-sheet-artifact-reuse-ref";
+pub const ATELIER_CKC_SHEET_ARTIFACT_STATUS_AUTHOR_ID: &str = "atelier-ckc-sheet-artifact-status";
 pub const ATELIER_CKC_ALBUM_STATUS_AUTHOR_ID: &str = "atelier-ckc-album-status";
 pub const ATELIER_CKC_ALBUM_CREATE_NAME_AUTHOR_ID: &str = "atelier-ckc-album-create-name";
 pub const ATELIER_CKC_ALBUM_CREATE_NOTES_AUTHOR_ID: &str = "atelier-ckc-album-create-notes";
@@ -351,9 +367,28 @@ struct CkcCharacterRecord {
     sheet_seq: i64,
     sheet_editor_text: String,
     sheet_version_ref: Option<String>,
+    sheet_artifact_links: Vec<CkcSheetArtifactLinkRecord>,
     media_albums: Vec<CkcMediaAlbumRecord>,
     story_documents: Vec<CkcStoryDocumentRecord>,
     moodboard_documents: Vec<CkcMoodboardDocumentRecord>,
+}
+
+#[derive(Debug, Clone)]
+struct CkcSheetArtifactLinkRecord {
+    link_id: String,
+    character_internal_id: String,
+    character_ref: String,
+    sheet_version_id: String,
+    sheet_version_ref: String,
+    typed_ref: String,
+    artifact_kind: String,
+    artifact_ref: String,
+    manifest_ref: Option<String>,
+    source_ref: Option<String>,
+    label: Option<String>,
+    reuse_role: Option<String>,
+    linked_by: String,
+    metadata: serde_json::Value,
 }
 
 #[derive(Debug, Clone)]
@@ -487,6 +522,26 @@ struct CkcAlbumLinkAssetsRequest {
 struct CkcAlbumPageRequest {
     collection_id: String,
     offset: i64,
+}
+
+#[derive(Debug, Clone)]
+struct CkcSheetArtifactAttachRequest {
+    sheet_version_id: String,
+    artifact_kind: String,
+    artifact_ref: String,
+    manifest_ref: Option<String>,
+    source_ref: Option<String>,
+    label: Option<String>,
+    reuse_role: Option<String>,
+    metadata: serde_json::Value,
+    actor_id: String,
+}
+
+#[derive(Debug, Clone)]
+struct CkcSheetArtifactDetachRequest {
+    sheet_version_id: String,
+    link_id: String,
+    actor_id: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -682,6 +737,7 @@ impl CkcCharacterRecord {
         let AtelierCkcCharacterSheetRow {
             character,
             latest_sheet,
+            sheet_artifact_links,
             media_albums,
             story_documents,
             moodboard_documents,
@@ -736,6 +792,10 @@ impl CkcCharacterRecord {
             sheet_seq,
             sheet_editor_text,
             sheet_version_ref,
+            sheet_artifact_links: sheet_artifact_links
+                .into_iter()
+                .map(CkcSheetArtifactLinkRecord::from_backend)
+                .collect(),
             media_albums: media_albums
                 .into_iter()
                 .map(CkcMediaAlbumRecord::from_backend)
@@ -759,6 +819,7 @@ impl CkcCharacterRecord {
                 character.display_name
             ),
             sheet_version_ref: None,
+            sheet_artifact_links: Vec::new(),
             media_albums: Vec::new(),
             story_documents: Vec::new(),
             moodboard_documents: Vec::new(),
@@ -773,6 +834,7 @@ impl CkcCharacterRecord {
         self.sheet_seq = sheet.seq;
         self.sheet_editor_text = sheet.raw_text;
         self.sheet_version_ref = Some(sheet.sheet_version_ref);
+        self.sheet_artifact_links.clear();
     }
 
     fn first_media_location(&self) -> Option<(usize, usize)> {
@@ -812,6 +874,144 @@ impl CkcCharacterRecord {
             Some(media_key) => self.media_location(media_key),
             None => self.first_media_location(),
         }
+    }
+}
+
+impl CkcSheetArtifactLinkRecord {
+    fn from_backend(row: AtelierCkcSheetArtifactLinkRow) -> Self {
+        Self {
+            link_id: row.link_id,
+            character_internal_id: row.character_internal_id,
+            character_ref: row.character_ref,
+            sheet_version_id: row.sheet_version_id,
+            sheet_version_ref: row.sheet_version_ref,
+            typed_ref: row.typed_ref,
+            artifact_kind: row.artifact_kind,
+            artifact_ref: row.artifact_ref,
+            manifest_ref: row.manifest_ref,
+            source_ref: row.source_ref,
+            label: row.label,
+            reuse_role: row.reuse_role,
+            linked_by: row.linked_by,
+            metadata: row.metadata,
+        }
+    }
+
+    fn local(
+        character: &CkcCharacterRecord,
+        artifact_kind: String,
+        artifact_ref: String,
+        manifest_ref: Option<String>,
+        source_ref: Option<String>,
+        label: Option<String>,
+        reuse_role: Option<String>,
+        metadata: serde_json::Value,
+        actor_id: String,
+    ) -> Option<Self> {
+        let sheet_version_id = character.sheet_version_id.clone()?;
+        let sheet_version_ref = character.sheet_version_ref()?;
+        let link_id = Uuid::new_v4().to_string();
+        Some(Self {
+            link_id: link_id.clone(),
+            character_internal_id: character.character_internal_id.clone(),
+            character_ref: character.character_ref(),
+            sheet_version_id,
+            sheet_version_ref,
+            typed_ref: format!("atelier://sheet-artifact/{link_id}"),
+            artifact_kind,
+            artifact_ref,
+            manifest_ref,
+            source_ref,
+            label,
+            reuse_role,
+            linked_by: actor_id,
+            metadata,
+        })
+    }
+
+    fn summary(&self) -> String {
+        format!(
+            "{} | {} | {} | {}",
+            self.artifact_kind,
+            self.reuse_role.as_deref().unwrap_or("reuse"),
+            self.typed_ref,
+            self.artifact_ref
+        )
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct CkcSheetArtifactApplyOutcome {
+    count: usize,
+    current_selection_owns_target: bool,
+    target_found: bool,
+}
+
+fn apply_ckc_sheet_artifact_link_rows_to_state(
+    state: &mut AtelierPanelState,
+    target_sheet_version_id: &str,
+    rows: Vec<AtelierCkcSheetArtifactLinkRow>,
+) -> CkcSheetArtifactApplyOutcome {
+    let selected_index = state.ckc_selected_index;
+    let current_selection_owns_target = state
+        .ckc_characters
+        .get(selected_index)
+        .and_then(|character| character.sheet_version_id.as_deref())
+        == Some(target_sheet_version_id);
+    let selected_link_id = state.ckc_selected_sheet_artifact_link_id.clone();
+    let records: Vec<CkcSheetArtifactLinkRecord> = rows
+        .into_iter()
+        .map(CkcSheetArtifactLinkRecord::from_backend)
+        .collect();
+    let count = records.len();
+    let mut next_selected_link_id = None;
+    let mut next_reuse_ref = String::new();
+    let target_index = state.ckc_characters.iter().position(|character| {
+        character.sheet_version_id.as_deref() == Some(target_sheet_version_id)
+    });
+    if let Some(target_index) = target_index {
+        let character = &mut state.ckc_characters[target_index];
+        character.sheet_artifact_links = records;
+        if current_selection_owns_target {
+            next_selected_link_id = if let Some(selected_link_id) = selected_link_id {
+                if character
+                    .sheet_artifact_links
+                    .iter()
+                    .any(|link| link.link_id == selected_link_id)
+                {
+                    Some(selected_link_id)
+                } else {
+                    character
+                        .sheet_artifact_links
+                        .first()
+                        .map(|link| link.link_id.clone())
+                }
+            } else {
+                character
+                    .sheet_artifact_links
+                    .first()
+                    .map(|link| link.link_id.clone())
+            };
+            next_reuse_ref = next_selected_link_id
+                .as_ref()
+                .and_then(|link_id| {
+                    character
+                        .sheet_artifact_links
+                        .iter()
+                        .find(|link| &link.link_id == link_id)
+                })
+                .map(|link| link.typed_ref.clone())
+                .unwrap_or_default();
+        }
+    }
+    if current_selection_owns_target {
+        state.ckc_selected_sheet_artifact_link_id = next_selected_link_id;
+        state.ckc_sheet_artifact_reuse_ref = next_reuse_ref;
+    }
+    CkcSheetArtifactApplyOutcome {
+        count,
+        current_selection_owns_target,
+        target_found: target_index.is_some(),
     }
 }
 
@@ -2053,6 +2253,16 @@ struct AtelierPanelState {
     ckc_field_suggestion_pending: bool,
     ckc_field_suggestion_status: String,
     ckc_field_suggestions: Vec<AtelierSheetFieldSuggestionRow>,
+    ckc_sheet_artifact_pending: bool,
+    ckc_sheet_artifact_status: String,
+    ckc_sheet_artifact_kind: String,
+    ckc_sheet_artifact_ref: String,
+    ckc_sheet_artifact_manifest_ref: String,
+    ckc_sheet_artifact_label: String,
+    ckc_sheet_artifact_reuse_role: String,
+    ckc_sheet_artifact_actor_id: String,
+    ckc_selected_sheet_artifact_link_id: Option<String>,
+    ckc_sheet_artifact_reuse_ref: String,
     ckc_media_save_pending: bool,
     ckc_selected_media_key: Option<String>,
     ckc_selected_album_collection_id: Option<String>,
@@ -2167,6 +2377,18 @@ impl Default for AtelierPanelState {
             ckc_field_suggestion_pending: false,
             ckc_field_suggestion_status: "No CKC field suggestions loaded.".to_owned(),
             ckc_field_suggestions: Vec::new(),
+            ckc_sheet_artifact_pending: false,
+            ckc_sheet_artifact_status:
+                "Sheet artifact links ready: attach Posekit/OpenPose or Comfy refs to the current sheet version."
+                    .to_owned(),
+            ckc_sheet_artifact_kind: "openpose_png".to_owned(),
+            ckc_sheet_artifact_ref: "artifact://atelier/comfy/render/example.png".to_owned(),
+            ckc_sheet_artifact_manifest_ref: "receipt://atelier/comfy/example".to_owned(),
+            ckc_sheet_artifact_label: "reusable CUI artifact".to_owned(),
+            ckc_sheet_artifact_reuse_role: "cui_identity_reference".to_owned(),
+            ckc_sheet_artifact_actor_id: String::new(),
+            ckc_selected_sheet_artifact_link_id: None,
+            ckc_sheet_artifact_reuse_ref: String::new(),
             ckc_media_save_pending: false,
             ckc_selected_media_key: None,
             ckc_selected_album_collection_id: None,
@@ -3267,6 +3489,17 @@ fn seeded_ckc_characters() -> Vec<CkcCharacterRecord> {
             sheet_version_ref: Some(
                 "atelier://sheet/018f7848-1111-7000-9000-000000000001/018f7848-1111-7000-9000-000000000101".to_owned(),
             ),
+            sheet_artifact_links: vec![seeded_ckc_sheet_artifact_link(
+                "018f7848-1111-7000-9000-00000000e001",
+                "018f7848-1111-7000-9000-000000000001",
+                "018f7848-1111-7000-9000-000000000101",
+                "openpose_png",
+                "artifact://atelier/posekit/openpose/mira-demo-yaw45.png",
+                "manifest://atelier/posekit/openpose/mira-demo-yaw45",
+                "posekit://rig/mira-demo-yaw45",
+                "Mira yaw +45 OpenPose",
+                "cui_openpose_conditioning",
+            )],
             media_albums: vec![
                 seeded_ckc_media_album(
                     "018f7848-1111-7000-9000-00000000a001",
@@ -3322,6 +3555,7 @@ fn seeded_ckc_characters() -> Vec<CkcCharacterRecord> {
             sheet_version_ref: Some(
                 "atelier://sheet/018f7848-1111-7000-9000-000000000002/018f7848-1111-7000-9000-000000000201".to_owned(),
             ),
+            sheet_artifact_links: Vec::new(),
             media_albums: vec![seeded_ckc_media_album(
                 "018f7848-1111-7000-9000-00000000a002",
                 "Aria pose references",
@@ -3342,6 +3576,38 @@ fn seeded_ckc_characters() -> Vec<CkcCharacterRecord> {
             )],
         },
     ]
+}
+
+fn seeded_ckc_sheet_artifact_link(
+    link_id: &str,
+    character_internal_id: &str,
+    sheet_version_id: &str,
+    artifact_kind: &str,
+    artifact_ref: &str,
+    manifest_ref: &str,
+    source_ref: &str,
+    label: &str,
+    reuse_role: &str,
+) -> CkcSheetArtifactLinkRecord {
+    CkcSheetArtifactLinkRecord {
+        link_id: link_id.to_owned(),
+        character_internal_id: character_internal_id.to_owned(),
+        character_ref: format!("atelier://character/{character_internal_id}"),
+        sheet_version_id: sheet_version_id.to_owned(),
+        sheet_version_ref: format!("atelier://sheet/{character_internal_id}/{sheet_version_id}"),
+        typed_ref: format!("atelier://sheet-artifact/{link_id}"),
+        artifact_kind: artifact_kind.to_owned(),
+        artifact_ref: artifact_ref.to_owned(),
+        manifest_ref: Some(manifest_ref.to_owned()),
+        source_ref: Some(source_ref.to_owned()),
+        label: Some(label.to_owned()),
+        reuse_role: Some(reuse_role.to_owned()),
+        linked_by: "seed".to_owned(),
+        metadata: serde_json::json!({
+            "seed": true,
+            "sheet_version_id": sheet_version_id,
+        }),
+    }
 }
 
 fn seeded_ckc_media_album(
@@ -3582,6 +3848,13 @@ pub fn ckc_media_album_load_more_author_id(collection_id: &str) -> String {
     )
 }
 
+pub fn ckc_sheet_artifact_row_author_id(link_id: &str) -> String {
+    format!(
+        "atelier-ckc-sheet-artifact-{}",
+        stable_author_id_suffix(link_id)
+    )
+}
+
 fn ckc_media_occurrence_key(collection_id: &str, asset_id: &str) -> String {
     format!("{collection_id}::{asset_id}")
 }
@@ -3723,6 +3996,15 @@ fn non_empty_trimmed(value: &str) -> Option<String> {
         None
     } else {
         Some(trimmed.to_owned())
+    }
+}
+
+fn actor_id_or_default(value: &str) -> String {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        "local-atelier-panel".to_owned()
+    } else {
+        trimmed.to_owned()
     }
 }
 
@@ -3945,6 +4227,7 @@ pub struct AtelierPanel {
     ckc_import_cell: AtelierCkcImportCell,
     ckc_export_cell: AtelierCkcExportCell,
     ckc_field_suggestions_cell: AtelierCkcFieldSuggestionsCell,
+    ckc_sheet_artifact_links_cell: AtelierCkcSheetArtifactLinksCell,
     ckc_media_album_create_cell: AtelierCkcMediaAlbumCreateCell,
     ckc_media_album_items_cell: AtelierCkcMediaAlbumItemsCell,
     ckc_media_album_page_cell: AtelierCkcMediaAlbumItemsCell,
@@ -3995,6 +4278,7 @@ impl AtelierPanel {
             ckc_import_cell: Arc::new(Mutex::new(None)),
             ckc_export_cell: Arc::new(Mutex::new(None)),
             ckc_field_suggestions_cell: Arc::new(Mutex::new(None)),
+            ckc_sheet_artifact_links_cell: Arc::new(Mutex::new(None)),
             ckc_media_album_create_cell: Arc::new(Mutex::new(None)),
             ckc_media_album_items_cell: Arc::new(Mutex::new(None)),
             ckc_media_album_page_cell: Arc::new(Mutex::new(None)),
@@ -4392,6 +4676,50 @@ impl AtelierPanel {
                         state.ckc_field_suggestions.clear();
                         state.ckc_field_suggestion_status =
                             format!("CKC field suggestions failed: {err}");
+                    }
+                }
+            }
+        }
+
+        let artifact_links_result = self
+            .ckc_sheet_artifact_links_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        if let Some((target_sheet_version_id, result)) = artifact_links_result {
+            if let Ok(mut state) = self.state.lock() {
+                state.ckc_sheet_artifact_pending = false;
+                match result {
+                    Ok(rows) => {
+                        let outcome = apply_ckc_sheet_artifact_link_rows_to_state(
+                            &mut state,
+                            &target_sheet_version_id,
+                            rows,
+                        );
+                        if outcome.current_selection_owns_target {
+                            state.ckc_sheet_artifact_status =
+                                format!("Loaded {} reusable sheet artifact link(s)", outcome.count);
+                            state.ckc_error = None;
+                        } else if !outcome.target_found {
+                            state.ckc_sheet_artifact_status = format!(
+                                "Ignored CKC sheet artifact result for stale sheet {target_sheet_version_id}"
+                            );
+                            state.ckc_error = Some(format!(
+                                "No CKC character owns sheet_version_id={target_sheet_version_id}"
+                            ));
+                        }
+                    }
+                    Err(err) => {
+                        let current_selection_owns_target = state
+                            .ckc_characters
+                            .get(state.ckc_selected_index)
+                            .and_then(|character| character.sheet_version_id.as_deref())
+                            == Some(target_sheet_version_id.as_str());
+                        if current_selection_owns_target {
+                            state.ckc_sheet_artifact_status =
+                                format!("CKC sheet artifact link operation failed: {err}");
+                            state.ckc_error = Some(err);
+                        }
                     }
                 }
             }
@@ -4939,14 +5267,17 @@ impl AtelierPanel {
                         let mut pending_selection = None;
                         for (idx, character) in state.ckc_characters.iter().enumerate() {
                             let selected = state.ckc_selected_index == idx;
-                            let row = ui.add(egui::Button::selectable(
-                                selected,
-                                if character.sheet_seq > 0 {
-                                    format!("{}  v{}", character.display_name, character.sheet_seq)
-                                } else {
-                                    format!("{}  no sheet", character.display_name)
-                                },
-                            ));
+                            let row_label = if character.sheet_seq > 0 {
+                                format!("{}  v{}", character.display_name, character.sheet_seq)
+                            } else {
+                                format!("{}  no sheet", character.display_name)
+                            };
+                            let row = ui
+                                .push_id(
+                                    ("ckc-character-row", character.character_internal_id.as_str()),
+                                    |ui| ui.add(egui::Button::new(row_label).selected(selected)),
+                                )
+                                .inner;
                             emit_node(
                                 ui.ctx(),
                                 row.id,
@@ -4968,6 +5299,8 @@ impl AtelierPanel {
                                 state.ckc_last_export = None;
                                 state.ckc_selected_media_key = None;
                                 state.ckc_selected_album_collection_id = None;
+                                state.ckc_selected_sheet_artifact_link_id = None;
+                                state.ckc_sheet_artifact_reuse_ref.clear();
                             }
                         }
                     })
@@ -5030,6 +5363,7 @@ impl AtelierPanel {
                                         "CHAR-ID-001 \u{2014} Character_ID: {public_id}\nCHAR-ID-002 \u{2014} Name: {display_name}\nCHAR-ID-006 \u{2014} Primary_Role: reusable character/avatar\nPIPELINES\npipelines: ComfyUI, Unreal, Blender\nnotes: "
                                     ),
                                     sheet_version_ref: None,
+                                    sheet_artifact_links: Vec::new(),
                                     media_albums: Vec::new(),
                                     story_documents: Vec::new(),
                                     moodboard_documents: Vec::new(),
@@ -5195,6 +5529,10 @@ impl AtelierPanel {
                             false,
                         );
                         ui.separator();
+                        let selected_index = state
+                            .ckc_selected_index
+                            .min(state.ckc_characters.len().saturating_sub(1));
+                        state.ckc_selected_index = selected_index;
                         if has_middle {
                             let middle_response = ui
                                 .scope_builder(
@@ -5244,6 +5582,13 @@ impl AtelierPanel {
                                             );
                                             ui.separator();
                                             self.show_ckc_sheet_tools(
+                                                ui,
+                                                palette,
+                                                &mut state,
+                                                selected_index,
+                                            );
+                                            ui.separator();
+                                            self.show_ckc_sheet_artifact_panel(
                                                 ui,
                                                 palette,
                                                 &mut state,
@@ -5315,7 +5660,6 @@ impl AtelierPanel {
         let append_pending = state.ckc_append_pending;
         let mut pending_append_request: Option<(String, String, Option<String>)> = None;
         let mut clear_last_export = false;
-        state.ckc_selected_index = selected_index;
         if let Some(character) = state.ckc_characters.get_mut(selected_index) {
             let selected_response = ui
                 .vertical(|ui| {
@@ -6948,6 +7292,500 @@ impl AtelierPanel {
                 }
             }
         }
+    }
+
+    fn show_ckc_sheet_artifact_panel(
+        &self,
+        ui: &mut egui::Ui,
+        palette: &HsPalette,
+        state: &mut AtelierPanelState,
+        selected_index: usize,
+    ) {
+        if let Some(selected_link_id) = state.ckc_selected_sheet_artifact_link_id.as_deref() {
+            let selected_link_still_belongs_to_character = state
+                .ckc_characters
+                .get(selected_index)
+                .is_some_and(|character| {
+                    character
+                        .sheet_artifact_links
+                        .iter()
+                        .any(|link| link.link_id == selected_link_id)
+                });
+            if !selected_link_still_belongs_to_character {
+                state.ckc_selected_sheet_artifact_link_id = None;
+                state.ckc_sheet_artifact_reuse_ref.clear();
+            }
+        }
+        let pending = state.ckc_sheet_artifact_pending;
+        let status = state.ckc_sheet_artifact_status.clone();
+        let selected_link_id = state.ckc_selected_sheet_artifact_link_id.clone();
+        let reuse_ref = state.ckc_sheet_artifact_reuse_ref.clone();
+        let latest_pose_export = state.pose_last_export.clone();
+        let backend_available = self.ckc_client.is_some();
+        let mut artifact_kind = std::mem::take(&mut state.ckc_sheet_artifact_kind);
+        let mut artifact_ref = std::mem::take(&mut state.ckc_sheet_artifact_ref);
+        let mut manifest_ref = std::mem::take(&mut state.ckc_sheet_artifact_manifest_ref);
+        let mut label = std::mem::take(&mut state.ckc_sheet_artifact_label);
+        let mut reuse_role = std::mem::take(&mut state.ckc_sheet_artifact_reuse_role);
+        if state.ckc_sheet_artifact_actor_id.trim().is_empty() {
+            state.ckc_sheet_artifact_actor_id = self
+                .ckc_client
+                .as_ref()
+                .map(|client| client.actor_id().to_owned())
+                .unwrap_or_else(|| "local-atelier-panel".to_owned());
+        }
+        let mut actor_id = std::mem::take(&mut state.ckc_sheet_artifact_actor_id);
+        let mut pending_attach = None;
+        let mut pending_detach = None;
+        let mut next_selection = None;
+        let mut next_reuse_ref = None;
+        let mut next_status = None;
+
+        if let Some(character) = state.ckc_characters.get_mut(selected_index) {
+            let (attach, detach, selection, reuse, status) = self.show_ckc_sheet_artifacts(
+                ui,
+                palette,
+                character,
+                pending,
+                &status,
+                &mut artifact_kind,
+                &mut artifact_ref,
+                &mut manifest_ref,
+                &mut label,
+                &mut reuse_role,
+                &mut actor_id,
+                selected_link_id.as_deref(),
+                &reuse_ref,
+                latest_pose_export.as_ref(),
+                backend_available,
+            );
+            pending_attach = attach;
+            pending_detach = detach;
+            next_selection = selection;
+            next_reuse_ref = reuse;
+            next_status = status;
+        }
+
+        state.ckc_sheet_artifact_kind = artifact_kind;
+        state.ckc_sheet_artifact_ref = artifact_ref;
+        state.ckc_sheet_artifact_manifest_ref = manifest_ref;
+        state.ckc_sheet_artifact_label = label;
+        state.ckc_sheet_artifact_reuse_role = reuse_role;
+        state.ckc_sheet_artifact_actor_id = actor_id;
+
+        if let Some(selection) = next_selection {
+            state.ckc_selected_sheet_artifact_link_id = Some(selection);
+        }
+        if let Some(reuse_ref) = next_reuse_ref {
+            state.ckc_sheet_artifact_reuse_ref = reuse_ref;
+        }
+        if let Some(status) = next_status {
+            state.ckc_sheet_artifact_status = status;
+            state.ckc_error = None;
+        }
+
+        if let Some(request) = pending_attach {
+            if let Some(client) = self.ckc_client.as_ref() {
+                let CkcSheetArtifactAttachRequest {
+                    sheet_version_id,
+                    artifact_kind,
+                    artifact_ref,
+                    manifest_ref,
+                    source_ref,
+                    label,
+                    reuse_role,
+                    metadata,
+                    actor_id,
+                } = request;
+                state.ckc_sheet_artifact_pending = true;
+                state.ckc_sheet_artifact_status = format!(
+                    "Attaching {artifact_kind} reusable artifact to sheet {sheet_version_id}"
+                );
+                state.ckc_error = None;
+                client.attach_ckc_sheet_artifact_link(
+                    &sheet_version_id,
+                    &artifact_kind,
+                    &artifact_ref,
+                    manifest_ref.as_deref(),
+                    source_ref.as_deref(),
+                    label.as_deref(),
+                    reuse_role.as_deref(),
+                    metadata,
+                    &actor_id,
+                    self.ckc_sheet_artifact_links_cell.clone(),
+                );
+            }
+        }
+
+        if let Some(request) = pending_detach {
+            if let Some(client) = self.ckc_client.as_ref() {
+                state.ckc_sheet_artifact_pending = true;
+                state.ckc_sheet_artifact_status = format!(
+                    "Detaching reusable artifact {} from sheet {}",
+                    request.link_id, request.sheet_version_id
+                );
+                state.ckc_error = None;
+                client.detach_ckc_sheet_artifact_link(
+                    &request.sheet_version_id,
+                    &request.link_id,
+                    &request.actor_id,
+                    self.ckc_sheet_artifact_links_cell.clone(),
+                );
+            }
+        }
+    }
+
+    fn show_ckc_sheet_artifacts(
+        &self,
+        ui: &mut egui::Ui,
+        palette: &HsPalette,
+        character: &mut CkcCharacterRecord,
+        pending: bool,
+        status: &str,
+        artifact_kind: &mut String,
+        artifact_ref: &mut String,
+        manifest_ref: &mut String,
+        label: &mut String,
+        reuse_role: &mut String,
+        actor_id: &mut String,
+        selected_link_id: Option<&str>,
+        reuse_ref: &str,
+        latest_pose_export: Option<&PosekitExportSnapshot>,
+        backend_available: bool,
+    ) -> (
+        Option<CkcSheetArtifactAttachRequest>,
+        Option<CkcSheetArtifactDetachRequest>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    ) {
+        ui.heading(egui::RichText::new("Reusable sheet artifacts").color(palette.text));
+        let status_response = ui.label(egui::RichText::new(status).color(palette.text_subtle));
+        emit_node(
+            ui.ctx(),
+            status_response.id,
+            accesskit::Role::Label,
+            ATELIER_CKC_SHEET_ARTIFACT_STATUS_AUTHOR_ID,
+            status,
+            pending,
+        );
+
+        let mut pending_attach = None;
+        let mut pending_detach = None;
+        let selected_link_id = selected_link_id
+            .filter(|link_id| {
+                character
+                    .sheet_artifact_links
+                    .iter()
+                    .any(|link| &link.link_id == link_id)
+            })
+            .map(ToOwned::to_owned)
+            .or_else(|| {
+                character
+                    .sheet_artifact_links
+                    .first()
+                    .map(|link| link.link_id.clone())
+            });
+        let mut pending_selection = selected_link_id.clone();
+        let mut pending_reuse_ref = None;
+        let mut pending_status = None;
+        let selected_link_id = selected_link_id.as_deref();
+
+        let list_response = ui
+            .vertical(|ui| {
+                if character.sheet_artifact_links.is_empty() {
+                    ui.label(
+                        egui::RichText::new("No reusable sheet artifacts linked yet.")
+                            .color(palette.text_subtle),
+                    );
+                }
+                for link in &character.sheet_artifact_links {
+                    let selected = selected_link_id == Some(link.link_id.as_str());
+                    let row_author_id = ckc_sheet_artifact_row_author_id(&link.link_id);
+                    let row = ui.selectable_label(selected, link.summary());
+                    emit_node(
+                        ui.ctx(),
+                        row.id,
+                        accesskit::Role::ListItem,
+                        &row_author_id,
+                        &format!(
+                            "{} {} {} {}",
+                            link.sheet_version_ref, link.typed_ref, link.artifact_kind, link.artifact_ref
+                        ),
+                        selected,
+                    );
+                    if row.clicked() {
+                        pending_selection = Some(link.link_id.clone());
+                        pending_reuse_ref = Some(link.typed_ref.clone());
+                    }
+                    if selected {
+                        ui.label(
+                            egui::RichText::new(format!(
+                                "sheet={} sheet_version_id={} character={} character_internal_id={} manifest={} source={} label={} linked_by={} metadata={}",
+                                link.sheet_version_ref,
+                                link.sheet_version_id,
+                                link.character_ref,
+                                link.character_internal_id,
+                                link.manifest_ref.as_deref().unwrap_or("<none>"),
+                                link.source_ref.as_deref().unwrap_or("<none>"),
+                                link.label.as_deref().unwrap_or("<none>"),
+                                link.linked_by,
+                                link.metadata
+                            ))
+                            .color(palette.text_subtle),
+                        );
+                    }
+                }
+            })
+            .response;
+        emit_node(
+            ui.ctx(),
+            list_response.id,
+            accesskit::Role::List,
+            ATELIER_CKC_SHEET_ARTIFACT_LIST_AUTHOR_ID,
+            "CKC reusable sheet artifact links",
+            pending,
+        );
+
+        let selected_reuse_ref = pending_reuse_ref
+            .as_deref()
+            .or_else(|| {
+                selected_link_id.and_then(|link_id| {
+                    character
+                        .sheet_artifact_links
+                        .iter()
+                        .find(|link| link.link_id == link_id)
+                        .map(|link| link.typed_ref.as_str())
+                })
+            })
+            .unwrap_or(reuse_ref);
+        let reuse_response = ui.label(format!("reuse typed_ref: {selected_reuse_ref}"));
+        emit_node(
+            ui.ctx(),
+            reuse_response.id,
+            accesskit::Role::Label,
+            ATELIER_CKC_SHEET_ARTIFACT_REUSE_REF_AUTHOR_ID,
+            selected_reuse_ref,
+            false,
+        );
+
+        ui.horizontal_wrapped(|ui| {
+            let kind = ui.text_edit_singleline(artifact_kind);
+            emit_node(
+                ui.ctx(),
+                kind.id,
+                accesskit::Role::TextInput,
+                ATELIER_CKC_SHEET_ARTIFACT_KIND_AUTHOR_ID,
+                "Sheet artifact kind",
+                false,
+            );
+            let artifact = ui.text_edit_singleline(artifact_ref);
+            emit_node(
+                ui.ctx(),
+                artifact.id,
+                accesskit::Role::TextInput,
+                ATELIER_CKC_SHEET_ARTIFACT_REF_AUTHOR_ID,
+                "Reusable artifact_ref to attach to the current CKC sheet version",
+                false,
+            );
+        });
+        ui.horizontal_wrapped(|ui| {
+            let manifest = ui.text_edit_singleline(manifest_ref);
+            emit_node(
+                ui.ctx(),
+                manifest.id,
+                accesskit::Role::TextInput,
+                ATELIER_CKC_SHEET_ARTIFACT_MANIFEST_AUTHOR_ID,
+                "Optional manifest_ref or Comfy receipt_ref",
+                false,
+            );
+            let label_response = ui.text_edit_singleline(label);
+            emit_node(
+                ui.ctx(),
+                label_response.id,
+                accesskit::Role::TextInput,
+                ATELIER_CKC_SHEET_ARTIFACT_LABEL_AUTHOR_ID,
+                "Human label for this reusable sheet artifact",
+                false,
+            );
+            let role = ui.text_edit_singleline(reuse_role);
+            emit_node(
+                ui.ctx(),
+                role.id,
+                accesskit::Role::TextInput,
+                ATELIER_CKC_SHEET_ARTIFACT_ROLE_AUTHOR_ID,
+                "Reuse role for downstream tools",
+                false,
+            );
+            let actor = ui.text_edit_singleline(actor_id);
+            emit_node(
+                ui.ctx(),
+                actor.id,
+                accesskit::Role::TextInput,
+                ATELIER_CKC_SHEET_ARTIFACT_ACTOR_AUTHOR_ID,
+                "Parallel agent actor_id for sheet artifact attach/detach writes",
+                false,
+            );
+        });
+
+        ui.horizontal_wrapped(|ui| {
+            let attach = ui.add_enabled(!pending, egui::Button::new("Attach artifact"));
+            emit_node(
+                ui.ctx(),
+                attach.id,
+                accesskit::Role::Button,
+                ATELIER_CKC_SHEET_ARTIFACT_ATTACH_AUTHOR_ID,
+                "Attach reusable artifact ref to current CKC sheet version",
+                pending,
+            );
+            if attach.clicked() {
+                if let Some(sheet_version_id) = character.sheet_version_id.clone() {
+                    let request = CkcSheetArtifactAttachRequest {
+                        sheet_version_id,
+                        artifact_kind: artifact_kind.trim().to_owned(),
+                        artifact_ref: artifact_ref.trim().to_owned(),
+                        manifest_ref: non_empty_trimmed(manifest_ref),
+                        source_ref: None,
+                        label: non_empty_trimmed(label),
+                        reuse_role: non_empty_trimmed(reuse_role),
+                        metadata: serde_json::json!({
+                            "attached_from": "atelier_ckc_manual",
+                        }),
+                        actor_id: actor_id_or_default(actor_id),
+                    };
+                    if !request.artifact_kind.is_empty() && !request.artifact_ref.is_empty() {
+                        if backend_available {
+                            pending_attach = Some(request);
+                        } else if let Some(link) = CkcSheetArtifactLinkRecord::local(
+                            character,
+                            request.artifact_kind,
+                            request.artifact_ref,
+                            request.manifest_ref,
+                            request.source_ref,
+                            request.label,
+                            request.reuse_role,
+                            request.metadata,
+                            request.actor_id,
+                        ) {
+                            pending_selection = Some(link.link_id.clone());
+                            pending_reuse_ref = Some(link.typed_ref.clone());
+                            character.sheet_artifact_links.push(link);
+                            pending_status =
+                                Some("Attached local reusable sheet artifact".to_owned());
+                        }
+                    }
+                }
+            }
+
+            let attach_pose = ui.add_enabled(
+                !pending && latest_pose_export.is_some(),
+                egui::Button::new("Attach Posekit export"),
+            );
+            emit_node(
+                ui.ctx(),
+                attach_pose.id,
+                accesskit::Role::Button,
+                ATELIER_CKC_SHEET_ARTIFACT_ATTACH_POSE_AUTHOR_ID,
+                "Attach latest Posekit OpenPose PNG export to current CKC sheet version",
+                pending || latest_pose_export.is_none(),
+            );
+            if attach_pose.clicked() {
+                if let (Some(sheet_version_id), Some(snapshot)) =
+                    (character.sheet_version_id.clone(), latest_pose_export)
+                {
+                    let source_ref = snapshot
+                        .rig_id
+                        .as_ref()
+                        .map(|rig_id| format!("posekit://rig/{rig_id}"))
+                        .unwrap_or_else(|| snapshot.source_ref.clone());
+                    let request = CkcSheetArtifactAttachRequest {
+                        sheet_version_id,
+                        artifact_kind: "openpose_png".to_owned(),
+                        artifact_ref: snapshot.png_artifact_ref.clone(),
+                        manifest_ref: Some(snapshot.png_manifest_ref.clone()),
+                        source_ref: Some(source_ref),
+                        label: Some(format!("Posekit yaw {:.0} OpenPose", snapshot.yaw_deg)),
+                        reuse_role: Some("cui_openpose_conditioning".to_owned()),
+                        metadata: serde_json::json!({
+                            "schema": "hsk.atelier.posekit.openpose_export@1",
+                            "yaw_deg": snapshot.yaw_deg,
+                            "pitch_deg": snapshot.pitch_deg,
+                            "zoom": snapshot.zoom,
+                            "receipt_ref": snapshot.receipt_ref,
+                            "json_artifact_ref": snapshot.json_artifact_ref,
+                            "json_manifest_ref": snapshot.json_manifest_ref,
+                            "content_hash": snapshot.content_hash,
+                        }),
+                        actor_id: actor_id_or_default(actor_id),
+                    };
+                    if backend_available {
+                        pending_attach = Some(request);
+                    } else if let Some(link) = CkcSheetArtifactLinkRecord::local(
+                        character,
+                        request.artifact_kind,
+                        request.artifact_ref,
+                        request.manifest_ref,
+                        request.source_ref,
+                        request.label,
+                        request.reuse_role,
+                        request.metadata,
+                        request.actor_id,
+                    ) {
+                        pending_selection = Some(link.link_id.clone());
+                        pending_reuse_ref = Some(link.typed_ref.clone());
+                        character.sheet_artifact_links.push(link);
+                        pending_status = Some("Attached local Posekit OpenPose export".to_owned());
+                    }
+                }
+            }
+
+            let detach = ui.add_enabled(
+                selected_link_id.is_some() && !pending,
+                egui::Button::new("Detach"),
+            );
+            emit_node(
+                ui.ctx(),
+                detach.id,
+                accesskit::Role::Button,
+                ATELIER_CKC_SHEET_ARTIFACT_DETACH_AUTHOR_ID,
+                "Soft-detach selected reusable sheet artifact",
+                pending || selected_link_id.is_none(),
+            );
+            if detach.clicked() {
+                if let (Some(sheet_version_id), Some(link_id)) =
+                    (character.sheet_version_id.clone(), selected_link_id)
+                {
+                    if backend_available {
+                        pending_detach = Some(CkcSheetArtifactDetachRequest {
+                            sheet_version_id,
+                            link_id: link_id.to_owned(),
+                            actor_id: actor_id_or_default(actor_id),
+                        });
+                    } else {
+                        character
+                            .sheet_artifact_links
+                            .retain(|link| link.link_id != link_id);
+                        pending_selection = character
+                            .sheet_artifact_links
+                            .first()
+                            .map(|link| link.link_id.clone());
+                        pending_reuse_ref = character
+                            .sheet_artifact_links
+                            .first()
+                            .map(|link| link.typed_ref.clone());
+                        pending_status = Some("Detached local reusable sheet artifact".to_owned());
+                    }
+                }
+            }
+        });
+
+        (
+            pending_attach,
+            pending_detach,
+            pending_selection,
+            pending_reuse_ref,
+            pending_status,
+        )
     }
 
     fn show_ckc_linked_media(
@@ -9003,7 +9841,10 @@ fn emit_value_node(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backend_client::{AtelierBatchRow, AtelierCkcDocumentVersionRow, AtelierItemRow};
+    use crate::backend_client::{
+        AtelierBatchRow, AtelierCkcDocumentVersionRow, AtelierCkcSheetArtifactLinkRow,
+        AtelierItemRow,
+    };
 
     fn empty_side_panel() -> Arc<Mutex<AtelierSidePanel>> {
         Arc::new(Mutex::new(AtelierSidePanel::with_rows(
@@ -9108,6 +9949,98 @@ mod tests {
             story_cards: Vec::new(),
             story_beats: Vec::new(),
         }
+    }
+
+    fn test_sheet_artifact_link_row(
+        link_id: &str,
+        character_internal_id: &str,
+        sheet_version_id: &str,
+    ) -> AtelierCkcSheetArtifactLinkRow {
+        AtelierCkcSheetArtifactLinkRow {
+            link_id: link_id.to_owned(),
+            character_internal_id: character_internal_id.to_owned(),
+            character_ref: format!("atelier://character/{character_internal_id}"),
+            sheet_version_id: sheet_version_id.to_owned(),
+            sheet_version_ref: format!(
+                "atelier://sheet/{character_internal_id}/{sheet_version_id}"
+            ),
+            typed_ref: format!("atelier://sheet-artifact/{link_id}"),
+            artifact_kind: "comfy_render".to_owned(),
+            artifact_ref: "artifact://atelier/comfy/render/mira-async.png".to_owned(),
+            manifest_ref: Some("receipt://atelier/comfy/mira-async".to_owned()),
+            source_ref: Some("comfy://workflow-run/mira-async".to_owned()),
+            label: Some("Mira async render".to_owned()),
+            reuse_role: Some("cui_identity_reference".to_owned()),
+            linked_by: "ckc-artifact-agent".to_owned(),
+            metadata: serde_json::json!({ "source": "unit-test" }),
+        }
+    }
+
+    #[test]
+    fn ckc_sheet_artifact_result_updates_origin_sheet_not_current_selection() {
+        let mut state = AtelierPanelState::default();
+        state.ckc_selected_index = 1;
+        state.ckc_selected_sheet_artifact_link_id = None;
+        state.ckc_sheet_artifact_reuse_ref.clear();
+        let mira_character_id = state.ckc_characters[0].character_internal_id.clone();
+        let mira_sheet_id = state.ckc_characters[0]
+            .sheet_version_id
+            .clone()
+            .expect("seeded Mira sheet id");
+        let aria_initial_link_count = state.ckc_characters[1].sheet_artifact_links.len();
+        let link_id = "018f7848-1111-7000-9000-00000000e777";
+
+        let hidden_outcome = apply_ckc_sheet_artifact_link_rows_to_state(
+            &mut state,
+            &mira_sheet_id,
+            vec![test_sheet_artifact_link_row(
+                link_id,
+                &mira_character_id,
+                &mira_sheet_id,
+            )],
+        );
+
+        assert_eq!(hidden_outcome.count, 1);
+        assert!(hidden_outcome.target_found);
+        assert!(!hidden_outcome.current_selection_owns_target);
+        assert_eq!(state.ckc_selected_index, 1);
+        assert_eq!(
+            state.ckc_characters[0].sheet_artifact_links[0].link_id,
+            link_id
+        );
+        assert_eq!(
+            state.ckc_characters[1].sheet_artifact_links.len(),
+            aria_initial_link_count,
+            "late Mira rows must not attach to the currently selected Aria sheet"
+        );
+        assert!(
+            state.ckc_selected_sheet_artifact_link_id.is_none(),
+            "hidden sheet result must not mutate selected visible artifact"
+        );
+        assert!(
+            state.ckc_sheet_artifact_reuse_ref.is_empty(),
+            "hidden sheet result must not expose a Mira reuse ref while Aria is selected"
+        );
+
+        state.ckc_selected_index = 0;
+        let visible_outcome = apply_ckc_sheet_artifact_link_rows_to_state(
+            &mut state,
+            &mira_sheet_id,
+            vec![test_sheet_artifact_link_row(
+                link_id,
+                &mira_character_id,
+                &mira_sheet_id,
+            )],
+        );
+        assert!(visible_outcome.current_selection_owns_target);
+        assert_eq!(
+            state.ckc_selected_sheet_artifact_link_id.as_deref(),
+            Some(link_id)
+        );
+        assert!(
+            state.ckc_sheet_artifact_reuse_ref.contains(link_id),
+            "visible Mira result should expose the reusable typed ref"
+        );
     }
 
     #[test]

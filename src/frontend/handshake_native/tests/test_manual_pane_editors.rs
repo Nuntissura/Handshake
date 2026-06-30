@@ -216,6 +216,18 @@ fn live_author_id_set() -> HashSet<String> {
         handshake_native::atelier_panel::ATELIER_CKC_FIELD_SUGGESTION_FIELD_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_FIELD_SUGGESTIONS_LOAD_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_FIELD_SUGGESTIONS_LIST_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_LIST_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_KIND_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_REF_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_MANIFEST_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_LABEL_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_ROLE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_ACTOR_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_ATTACH_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_ATTACH_POSE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_DETACH_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_REUSE_REF_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_STATUS_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_LINKED_MEDIA_LIST_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_ALBUM_STATUS_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_CKC_ALBUM_CREATE_NAME_AUTHOR_ID,
@@ -536,6 +548,29 @@ fn manual_documents_atelier_tabs_and_argus_control_ids() {
         "atelier-ckc-field-suggestion-field",
         "atelier-ckc-field-suggestions-load",
         "atelier-ckc-field-suggestions-list",
+        "GET/POST /atelier/sheet-versions/{version_id}/artifact-links",
+        "GET/DELETE /atelier/sheet-artifact-links/{link_id}",
+        "atelier-ckc-sheet-artifact-list",
+        "atelier-ckc-sheet-artifact-kind",
+        "atelier-ckc-sheet-artifact-ref",
+        "atelier-ckc-sheet-artifact-manifest",
+        "atelier-ckc-sheet-artifact-label",
+        "atelier-ckc-sheet-artifact-role",
+        "atelier-ckc-sheet-artifact-actor",
+        "atelier-ckc-sheet-artifact-attach",
+        "atelier-ckc-sheet-artifact-attach-posekit",
+        "atelier-ckc-sheet-artifact-detach",
+        "atelier-ckc-sheet-artifact-reuse-ref",
+        "atelier-ckc-sheet-artifact-status",
+        "atelier://sheet-artifact/{link_id}",
+        "openpose_json",
+        "openpose_png",
+        "conditioning_png",
+        "comfy_render",
+        "comfy_receipt",
+        "cui_openpose_conditioning",
+        "parallel agents must keep distinct actor ids",
+        "do not delete artifact files from CKC UI",
         "atelier-ckc-linked-media-list",
         "atelier-ckc-album-status",
         "atelier-ckc-album-create-name",
@@ -689,6 +724,8 @@ fn manual_documents_atelier_tabs_and_argus_control_ids() {
         "artifact_ref",
         "backend ArtifactStore receipt JSON metadata",
         "preview://atelier/posekit/openpose",
+        "Return to atelier-tab-ckc",
+        "reusable ComfyUI conditioning artifact",
         "argus.screenshot{} for a full-frame visual proof",
         "screenshot target cropping is not supported yet",
         "headless/non-intrusive",
@@ -792,6 +829,70 @@ fn manual_agent_tool_rows_cover_ingest_dataset_contact_and_facial_controls() {
         ),
         (
             handshake_native::atelier_panel::ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID,
+            "argus.inspect",
+        ),
+    ] {
+        let row = rows
+            .iter()
+            .find(|row| row.author_id == author_id)
+            .unwrap_or_else(|| panic!("missing manual agent-tool row for {author_id}"));
+        assert_eq!(
+            row.mcp_tool, tool,
+            "manual row for {author_id} must use {tool}"
+        );
+    }
+}
+
+#[test]
+fn manual_agent_tool_rows_cover_ckc_sheet_artifact_controls() {
+    let rows = agent_tool_rows();
+    for (author_id, tool) in [
+        (
+            handshake_native::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_LIST_AUTHOR_ID,
+            "argus.inspect",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_KIND_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_REF_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_MANIFEST_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_LABEL_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_ROLE_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_ACTOR_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_ATTACH_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_ATTACH_POSE_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_DETACH_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_REUSE_REF_AUTHOR_ID,
+            "argus.inspect",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_STATUS_AUTHOR_ID,
             "argus.inspect",
         ),
     ] {

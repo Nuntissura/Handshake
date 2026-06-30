@@ -15,76 +15,83 @@ use handshake_native::accessibility::{UiTreeNode, UiTreeSnapshot};
 use handshake_native::atelier_panel::{
     ckc_field_suggestion_row_author_id, ckc_folder_row_author_id, ckc_media_album_row_author_id,
     ckc_media_row_author_id, ckc_moodboard_document_row_author_id, ckc_search_result_row_author_id,
-    ckc_source_url_row_author_id, ckc_story_document_row_author_id, ingest_item_pass_author_id,
-    ingest_item_reject_author_id, ingest_item_row_author_id, ingest_item_unsure_author_id,
-    AtelierPanel, AtelierPanelTab, ATELIER_CKC_ALBUM_CREATE_AUTHOR_ID,
-    ATELIER_CKC_ALBUM_CREATE_NAME_AUTHOR_ID, ATELIER_CKC_ALBUM_CREATE_NOTES_AUTHOR_ID,
-    ATELIER_CKC_ALBUM_CREATE_TAGS_AUTHOR_ID, ATELIER_CKC_ALBUM_LINK_ASSET_IDS_AUTHOR_ID,
-    ATELIER_CKC_ALBUM_LINK_AUTHOR_ID, ATELIER_CKC_ALBUM_LINK_SOURCE_PATH_AUTHOR_ID,
-    ATELIER_CKC_ALBUM_LINK_SOURCE_URL_AUTHOR_ID, ATELIER_CKC_ALBUM_STATUS_AUTHOR_ID,
-    ATELIER_CKC_BOOK_LAYOUT_AUTHOR_ID, ATELIER_CKC_BOOK_LEFT_MEDIA_AUTHOR_ID,
-    ATELIER_CKC_BOOK_MIDDLE_AUTHOR_ID, ATELIER_CKC_BOOK_RIGHT_SHEET_AUTHOR_ID,
-    ATELIER_CKC_CHARACTER_CREATE_AUTHOR_ID, ATELIER_CKC_CHARACTER_CREATE_NAME_AUTHOR_ID,
-    ATELIER_CKC_CHARACTER_LIST_AUTHOR_ID, ATELIER_CKC_CHARACTER_NOTES_APPLY_AUTHOR_ID,
-    ATELIER_CKC_CHARACTER_NOTES_EDITOR_AUTHOR_ID, ATELIER_CKC_CHARACTER_REF_AUTHOR_ID,
-    ATELIER_CKC_EXPORT_JSON_AUTHOR_ID, ATELIER_CKC_EXPORT_PREVIEW_AUTHOR_ID,
-    ATELIER_CKC_EXPORT_REF_AUTHOR_ID, ATELIER_CKC_EXPORT_SAFE_JSON_AUTHOR_ID,
-    ATELIER_CKC_EXPORT_SAFE_TXT_AUTHOR_ID, ATELIER_CKC_EXPORT_STATUS_AUTHOR_ID,
-    ATELIER_CKC_EXPORT_TXT_AUTHOR_ID, ATELIER_CKC_FIELD_SUGGESTIONS_LIST_AUTHOR_ID,
-    ATELIER_CKC_FIELD_SUGGESTIONS_LOAD_AUTHOR_ID, ATELIER_CKC_FIELD_SUGGESTION_FIELD_AUTHOR_ID,
-    ATELIER_CKC_IMPORT_AUTHOR_ID, ATELIER_CKC_IMPORT_EDITOR_AUTHOR_ID,
-    ATELIER_CKC_LINKED_MEDIA_LIST_AUTHOR_ID, ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID,
-    ATELIER_CKC_MEDIA_SAVE_AUTHOR_ID, ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID,
-    ATELIER_CKC_MEDIA_VIEWER_AUTHOR_ID, ATELIER_CKC_MODE_MOODBOARD_AUTHOR_ID,
-    ATELIER_CKC_MODE_NOTES_AUTHOR_ID, ATELIER_CKC_MODE_SHEET_AUTHOR_ID,
-    ATELIER_CKC_MODE_STORY_AUTHOR_ID, ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID,
-    ATELIER_CKC_MOODBOARD_DOC_REF_AUTHOR_ID, ATELIER_CKC_MOODBOARD_EDITOR_AUTHOR_ID,
-    ATELIER_CKC_MOODBOARD_LATEST_REF_AUTHOR_ID, ATELIER_CKC_MOODBOARD_OPEN_AUTHOR_ID,
-    ATELIER_CKC_MOODBOARD_SAVE_AUTHOR_ID, ATELIER_CKC_SAFE_SUBSET_LOAD_AUTHOR_ID,
-    ATELIER_CKC_SEARCH_FILTER_CHARACTER_AUTHOR_ID, ATELIER_CKC_SEARCH_FILTER_COLLECTION_AUTHOR_ID,
-    ATELIER_CKC_SEARCH_FILTER_MEDIA_AUTHOR_ID, ATELIER_CKC_SEARCH_FILTER_SIMILARITY_AUTHOR_ID,
-    ATELIER_CKC_SEARCH_MODE_COMBINED_AUTHOR_ID, ATELIER_CKC_SEARCH_MODE_FUZZY_AUTHOR_ID,
-    ATELIER_CKC_SEARCH_MODE_VECTOR_AUTHOR_ID, ATELIER_CKC_SEARCH_QUERY_AUTHOR_ID,
-    ATELIER_CKC_SEARCH_RESULTS_AUTHOR_ID, ATELIER_CKC_SEARCH_RUN_AUTHOR_ID,
-    ATELIER_CKC_SEARCH_STATUS_AUTHOR_ID, ATELIER_CKC_SEARCH_TAGS_AUTHOR_ID,
-    ATELIER_CKC_SELECTED_CHARACTER_AUTHOR_ID, ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID,
-    ATELIER_CKC_SHEET_SAVE_AUTHOR_ID, ATELIER_CKC_SHEET_VERSION_REF_AUTHOR_ID,
-    ATELIER_CKC_STORY_BEAT_EDITOR_AUTHOR_ID, ATELIER_CKC_STORY_BEAT_SAVE_AUTHOR_ID,
-    ATELIER_CKC_STORY_CARD_BODY_AUTHOR_ID, ATELIER_CKC_STORY_CARD_LIST_AUTHOR_ID,
-    ATELIER_CKC_STORY_CARD_SAVE_AUTHOR_ID, ATELIER_CKC_STORY_CARD_TITLE_AUTHOR_ID,
-    ATELIER_CKC_STORY_DOC_REF_AUTHOR_ID, ATELIER_CKC_STORY_EDITOR_AUTHOR_ID,
-    ATELIER_CKC_STORY_SAVE_AUTHOR_ID, ATELIER_CKC_TAG_NOTE_EDITOR_AUTHOR_ID,
-    ATELIER_CKC_TAG_NOTE_SAVE_AUTHOR_ID, ATELIER_CKC_TAG_NOTE_SCOPE_AUTHOR_ID,
-    ATELIER_CKC_TAG_NOTE_TAG_AUTHOR_ID, ATELIER_CKC_TEMPLATE_LOAD_AUTHOR_ID,
-    ATELIER_CKC_TEMPLATE_STATUS_AUTHOR_ID, ATELIER_CKC_TYPED_REF_KIND_AUTHOR_ID,
-    ATELIER_CONTENT_CKC_AUTHOR_ID, ATELIER_CONTENT_INGEST_AUTHOR_ID,
-    ATELIER_CONTENT_POSEKIT_AUTHOR_ID, ATELIER_INGEST_APPLY_BATCH_AUTHOR_ID,
-    ATELIER_INGEST_BATCH_NOTE_AUTHOR_ID, ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID,
-    ATELIER_INGEST_CHARACTER_REF_AUTHOR_ID, ATELIER_INGEST_CONTACT_COLUMNS_AUTHOR_ID,
-    ATELIER_INGEST_CONTACT_DPI_AUTHOR_ID, ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID,
-    ATELIER_INGEST_CONTACT_ROWS_AUTHOR_ID, ATELIER_INGEST_DATASET_REF_AUTHOR_ID,
-    ATELIER_INGEST_DATE_AUTHOR_ID, ATELIER_INGEST_EVENT_AUTHOR_ID,
-    ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID, ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID,
-    ATELIER_INGEST_LINK_PASSED_AUTHOR_ID, ATELIER_INGEST_LOCATION_AUTHOR_ID,
-    ATELIER_INGEST_PASS_AUTHOR_ID, ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID,
-    ATELIER_INGEST_REJECT_AUTHOR_ID, ATELIER_INGEST_STATUS_AUTHOR_ID,
-    ATELIER_INGEST_UNSURE_AUTHOR_ID, ATELIER_PANEL_AUTHOR_ID, ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID,
-    ATELIER_POSE_BODY_TOGGLE_AUTHOR_ID, ATELIER_POSE_EXPORT_AUTHOR_ID,
-    ATELIER_POSE_EXPORT_PREVIEW_AUTHOR_ID, ATELIER_POSE_EXPORT_REF_AUTHOR_ID,
-    ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID, ATELIER_POSE_FACE_TOGGLE_AUTHOR_ID,
-    ATELIER_POSE_FRAMING_LENS_AUTHOR_ID, ATELIER_POSE_FRAMING_PADDING_BOTTOM_AUTHOR_ID,
-    ATELIER_POSE_FRAMING_PADDING_LEFT_AUTHOR_ID, ATELIER_POSE_FRAMING_PADDING_RIGHT_AUTHOR_ID,
-    ATELIER_POSE_FRAMING_PADDING_TOP_AUTHOR_ID, ATELIER_POSE_FRAMING_PRESET_AUTHOR_ID,
-    ATELIER_POSE_FRAMING_READOUT_AUTHOR_ID, ATELIER_POSE_HANDS_TOGGLE_AUTHOR_ID,
-    ATELIER_POSE_MARKER_ADD_AUTHOR_ID, ATELIER_POSE_MARKER_APPLY_AUTHOR_ID,
-    ATELIER_POSE_MARKER_CONFIDENCE_AUTHOR_ID, ATELIER_POSE_MARKER_FAMILY_AUTHOR_ID,
-    ATELIER_POSE_MARKER_INDEX_AUTHOR_ID, ATELIER_POSE_MARKER_NUDGE_DOWN_AUTHOR_ID,
-    ATELIER_POSE_MARKER_NUDGE_LEFT_AUTHOR_ID, ATELIER_POSE_MARKER_NUDGE_RIGHT_AUTHOR_ID,
-    ATELIER_POSE_MARKER_NUDGE_UP_AUTHOR_ID, ATELIER_POSE_MARKER_REMOVE_AUTHOR_ID,
-    ATELIER_POSE_MARKER_RESET_AUTHOR_ID, ATELIER_POSE_MARKER_STATUS_AUTHOR_ID,
-    ATELIER_POSE_MARKER_X_AUTHOR_ID, ATELIER_POSE_MARKER_Y_AUTHOR_ID,
-    ATELIER_POSE_OPENPOSE_VIEWPORT_AUTHOR_ID, ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID,
-    ATELIER_POSE_RESET_AUTHOR_ID, ATELIER_POSE_RIG_ID_AUTHOR_ID, ATELIER_POSE_SOURCE_REF_AUTHOR_ID,
+    ckc_sheet_artifact_row_author_id, ckc_source_url_row_author_id,
+    ckc_story_document_row_author_id, ingest_item_pass_author_id, ingest_item_reject_author_id,
+    ingest_item_row_author_id, ingest_item_unsure_author_id, AtelierPanel, AtelierPanelTab,
+    ATELIER_CKC_ALBUM_CREATE_AUTHOR_ID, ATELIER_CKC_ALBUM_CREATE_NAME_AUTHOR_ID,
+    ATELIER_CKC_ALBUM_CREATE_NOTES_AUTHOR_ID, ATELIER_CKC_ALBUM_CREATE_TAGS_AUTHOR_ID,
+    ATELIER_CKC_ALBUM_LINK_ASSET_IDS_AUTHOR_ID, ATELIER_CKC_ALBUM_LINK_AUTHOR_ID,
+    ATELIER_CKC_ALBUM_LINK_SOURCE_PATH_AUTHOR_ID, ATELIER_CKC_ALBUM_LINK_SOURCE_URL_AUTHOR_ID,
+    ATELIER_CKC_ALBUM_STATUS_AUTHOR_ID, ATELIER_CKC_BOOK_LAYOUT_AUTHOR_ID,
+    ATELIER_CKC_BOOK_LEFT_MEDIA_AUTHOR_ID, ATELIER_CKC_BOOK_MIDDLE_AUTHOR_ID,
+    ATELIER_CKC_BOOK_RIGHT_SHEET_AUTHOR_ID, ATELIER_CKC_CHARACTER_CREATE_AUTHOR_ID,
+    ATELIER_CKC_CHARACTER_CREATE_NAME_AUTHOR_ID, ATELIER_CKC_CHARACTER_LIST_AUTHOR_ID,
+    ATELIER_CKC_CHARACTER_NOTES_APPLY_AUTHOR_ID, ATELIER_CKC_CHARACTER_NOTES_EDITOR_AUTHOR_ID,
+    ATELIER_CKC_CHARACTER_REF_AUTHOR_ID, ATELIER_CKC_EXPORT_JSON_AUTHOR_ID,
+    ATELIER_CKC_EXPORT_PREVIEW_AUTHOR_ID, ATELIER_CKC_EXPORT_REF_AUTHOR_ID,
+    ATELIER_CKC_EXPORT_SAFE_JSON_AUTHOR_ID, ATELIER_CKC_EXPORT_SAFE_TXT_AUTHOR_ID,
+    ATELIER_CKC_EXPORT_STATUS_AUTHOR_ID, ATELIER_CKC_EXPORT_TXT_AUTHOR_ID,
+    ATELIER_CKC_FIELD_SUGGESTIONS_LIST_AUTHOR_ID, ATELIER_CKC_FIELD_SUGGESTIONS_LOAD_AUTHOR_ID,
+    ATELIER_CKC_FIELD_SUGGESTION_FIELD_AUTHOR_ID, ATELIER_CKC_IMPORT_AUTHOR_ID,
+    ATELIER_CKC_IMPORT_EDITOR_AUTHOR_ID, ATELIER_CKC_LINKED_MEDIA_LIST_AUTHOR_ID,
+    ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID, ATELIER_CKC_MEDIA_SAVE_AUTHOR_ID,
+    ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID, ATELIER_CKC_MEDIA_VIEWER_AUTHOR_ID,
+    ATELIER_CKC_MODE_MOODBOARD_AUTHOR_ID, ATELIER_CKC_MODE_NOTES_AUTHOR_ID,
+    ATELIER_CKC_MODE_SHEET_AUTHOR_ID, ATELIER_CKC_MODE_STORY_AUTHOR_ID,
+    ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID, ATELIER_CKC_MOODBOARD_DOC_REF_AUTHOR_ID,
+    ATELIER_CKC_MOODBOARD_EDITOR_AUTHOR_ID, ATELIER_CKC_MOODBOARD_LATEST_REF_AUTHOR_ID,
+    ATELIER_CKC_MOODBOARD_OPEN_AUTHOR_ID, ATELIER_CKC_MOODBOARD_SAVE_AUTHOR_ID,
+    ATELIER_CKC_SAFE_SUBSET_LOAD_AUTHOR_ID, ATELIER_CKC_SEARCH_FILTER_CHARACTER_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_FILTER_COLLECTION_AUTHOR_ID, ATELIER_CKC_SEARCH_FILTER_MEDIA_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_FILTER_SIMILARITY_AUTHOR_ID, ATELIER_CKC_SEARCH_MODE_COMBINED_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_MODE_FUZZY_AUTHOR_ID, ATELIER_CKC_SEARCH_MODE_VECTOR_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_QUERY_AUTHOR_ID, ATELIER_CKC_SEARCH_RESULTS_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_RUN_AUTHOR_ID, ATELIER_CKC_SEARCH_STATUS_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_TAGS_AUTHOR_ID, ATELIER_CKC_SELECTED_CHARACTER_AUTHOR_ID,
+    ATELIER_CKC_SHEET_ARTIFACT_ACTOR_AUTHOR_ID, ATELIER_CKC_SHEET_ARTIFACT_ATTACH_AUTHOR_ID,
+    ATELIER_CKC_SHEET_ARTIFACT_ATTACH_POSE_AUTHOR_ID, ATELIER_CKC_SHEET_ARTIFACT_DETACH_AUTHOR_ID,
+    ATELIER_CKC_SHEET_ARTIFACT_KIND_AUTHOR_ID, ATELIER_CKC_SHEET_ARTIFACT_LABEL_AUTHOR_ID,
+    ATELIER_CKC_SHEET_ARTIFACT_LIST_AUTHOR_ID, ATELIER_CKC_SHEET_ARTIFACT_MANIFEST_AUTHOR_ID,
+    ATELIER_CKC_SHEET_ARTIFACT_REF_AUTHOR_ID, ATELIER_CKC_SHEET_ARTIFACT_REUSE_REF_AUTHOR_ID,
+    ATELIER_CKC_SHEET_ARTIFACT_ROLE_AUTHOR_ID, ATELIER_CKC_SHEET_ARTIFACT_STATUS_AUTHOR_ID,
+    ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID, ATELIER_CKC_SHEET_SAVE_AUTHOR_ID,
+    ATELIER_CKC_SHEET_VERSION_REF_AUTHOR_ID, ATELIER_CKC_STORY_BEAT_EDITOR_AUTHOR_ID,
+    ATELIER_CKC_STORY_BEAT_SAVE_AUTHOR_ID, ATELIER_CKC_STORY_CARD_BODY_AUTHOR_ID,
+    ATELIER_CKC_STORY_CARD_LIST_AUTHOR_ID, ATELIER_CKC_STORY_CARD_SAVE_AUTHOR_ID,
+    ATELIER_CKC_STORY_CARD_TITLE_AUTHOR_ID, ATELIER_CKC_STORY_DOC_REF_AUTHOR_ID,
+    ATELIER_CKC_STORY_EDITOR_AUTHOR_ID, ATELIER_CKC_STORY_SAVE_AUTHOR_ID,
+    ATELIER_CKC_TAG_NOTE_EDITOR_AUTHOR_ID, ATELIER_CKC_TAG_NOTE_SAVE_AUTHOR_ID,
+    ATELIER_CKC_TAG_NOTE_SCOPE_AUTHOR_ID, ATELIER_CKC_TAG_NOTE_TAG_AUTHOR_ID,
+    ATELIER_CKC_TEMPLATE_LOAD_AUTHOR_ID, ATELIER_CKC_TEMPLATE_STATUS_AUTHOR_ID,
+    ATELIER_CKC_TYPED_REF_KIND_AUTHOR_ID, ATELIER_CONTENT_CKC_AUTHOR_ID,
+    ATELIER_CONTENT_INGEST_AUTHOR_ID, ATELIER_CONTENT_POSEKIT_AUTHOR_ID,
+    ATELIER_INGEST_APPLY_BATCH_AUTHOR_ID, ATELIER_INGEST_BATCH_NOTE_AUTHOR_ID,
+    ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID, ATELIER_INGEST_CHARACTER_REF_AUTHOR_ID,
+    ATELIER_INGEST_CONTACT_COLUMNS_AUTHOR_ID, ATELIER_INGEST_CONTACT_DPI_AUTHOR_ID,
+    ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID, ATELIER_INGEST_CONTACT_ROWS_AUTHOR_ID,
+    ATELIER_INGEST_DATASET_REF_AUTHOR_ID, ATELIER_INGEST_DATE_AUTHOR_ID,
+    ATELIER_INGEST_EVENT_AUTHOR_ID, ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID,
+    ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID, ATELIER_INGEST_LINK_PASSED_AUTHOR_ID,
+    ATELIER_INGEST_LOCATION_AUTHOR_ID, ATELIER_INGEST_PASS_AUTHOR_ID,
+    ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID, ATELIER_INGEST_REJECT_AUTHOR_ID,
+    ATELIER_INGEST_STATUS_AUTHOR_ID, ATELIER_INGEST_UNSURE_AUTHOR_ID, ATELIER_PANEL_AUTHOR_ID,
+    ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID, ATELIER_POSE_BODY_TOGGLE_AUTHOR_ID,
+    ATELIER_POSE_EXPORT_AUTHOR_ID, ATELIER_POSE_EXPORT_PREVIEW_AUTHOR_ID,
+    ATELIER_POSE_EXPORT_REF_AUTHOR_ID, ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID,
+    ATELIER_POSE_FACE_TOGGLE_AUTHOR_ID, ATELIER_POSE_FRAMING_LENS_AUTHOR_ID,
+    ATELIER_POSE_FRAMING_PADDING_BOTTOM_AUTHOR_ID, ATELIER_POSE_FRAMING_PADDING_LEFT_AUTHOR_ID,
+    ATELIER_POSE_FRAMING_PADDING_RIGHT_AUTHOR_ID, ATELIER_POSE_FRAMING_PADDING_TOP_AUTHOR_ID,
+    ATELIER_POSE_FRAMING_PRESET_AUTHOR_ID, ATELIER_POSE_FRAMING_READOUT_AUTHOR_ID,
+    ATELIER_POSE_HANDS_TOGGLE_AUTHOR_ID, ATELIER_POSE_MARKER_ADD_AUTHOR_ID,
+    ATELIER_POSE_MARKER_APPLY_AUTHOR_ID, ATELIER_POSE_MARKER_CONFIDENCE_AUTHOR_ID,
+    ATELIER_POSE_MARKER_FAMILY_AUTHOR_ID, ATELIER_POSE_MARKER_INDEX_AUTHOR_ID,
+    ATELIER_POSE_MARKER_NUDGE_DOWN_AUTHOR_ID, ATELIER_POSE_MARKER_NUDGE_LEFT_AUTHOR_ID,
+    ATELIER_POSE_MARKER_NUDGE_RIGHT_AUTHOR_ID, ATELIER_POSE_MARKER_NUDGE_UP_AUTHOR_ID,
+    ATELIER_POSE_MARKER_REMOVE_AUTHOR_ID, ATELIER_POSE_MARKER_RESET_AUTHOR_ID,
+    ATELIER_POSE_MARKER_STATUS_AUTHOR_ID, ATELIER_POSE_MARKER_X_AUTHOR_ID,
+    ATELIER_POSE_MARKER_Y_AUTHOR_ID, ATELIER_POSE_OPENPOSE_VIEWPORT_AUTHOR_ID,
+    ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID, ATELIER_POSE_RESET_AUTHOR_ID,
+    ATELIER_POSE_RIG_ID_AUTHOR_ID, ATELIER_POSE_SOURCE_REF_AUTHOR_ID,
     ATELIER_POSE_SPLIT_VIEW_AUTHOR_ID, ATELIER_POSE_STATE_READOUT_AUTHOR_ID,
     ATELIER_POSE_YAW_MINUS_AUTHOR_ID, ATELIER_POSE_YAW_PLUS_AUTHOR_ID,
     ATELIER_POSE_YAW_SLIDER_AUTHOR_ID, ATELIER_POSE_ZOOM_SLIDER_AUTHOR_ID,
@@ -113,6 +120,7 @@ const MIRA_DEMO_SECOND_SOURCE_URL_REF: &str =
 const MIRA_DEMO_SECOND_STORY_DOC_ID: &str = "018f7848-1111-7000-9000-00000000c002";
 const MIRA_DEMO_SECOND_MOODBOARD_DOC_ID: &str = "018f7848-1111-7000-9000-00000000d003";
 const MIRA_DEMO_SECOND_MOODBOARD_SNAPSHOT_ID: &str = "018f7848-1111-7000-9000-00000000d103";
+const MIRA_DEMO_SHEET_ARTIFACT_LINK_ID: &str = "018f7848-1111-7000-9000-00000000e001";
 const PROBE_ACTIONS: &[accesskit::Action] = &[
     accesskit::Action::Click,
     accesskit::Action::Focus,
@@ -1709,6 +1717,257 @@ fn argus_inspects_and_steers_ckc_character_sheet_surface() {
             .unwrap_or_default()
             .contains("Argus Proof"),
         "CKC export preview must carry the exported sheet content; got {preview:?}"
+    );
+}
+
+#[test]
+fn argus_inspects_ckc_sheet_artifact_links_and_reuse_ref() {
+    let mut harness = build_panel_harness();
+    harness.run();
+    harness.run();
+    let snapshot = snapshot_harness(&mut harness);
+
+    for expected in [
+        ATELIER_CKC_SHEET_ARTIFACT_LIST_AUTHOR_ID,
+        ATELIER_CKC_SHEET_ARTIFACT_KIND_AUTHOR_ID,
+        ATELIER_CKC_SHEET_ARTIFACT_REF_AUTHOR_ID,
+        ATELIER_CKC_SHEET_ARTIFACT_MANIFEST_AUTHOR_ID,
+        ATELIER_CKC_SHEET_ARTIFACT_LABEL_AUTHOR_ID,
+        ATELIER_CKC_SHEET_ARTIFACT_ROLE_AUTHOR_ID,
+        ATELIER_CKC_SHEET_ARTIFACT_ACTOR_AUTHOR_ID,
+        ATELIER_CKC_SHEET_ARTIFACT_ATTACH_AUTHOR_ID,
+        ATELIER_CKC_SHEET_ARTIFACT_ATTACH_POSE_AUTHOR_ID,
+        ATELIER_CKC_SHEET_ARTIFACT_DETACH_AUTHOR_ID,
+        ATELIER_CKC_SHEET_ARTIFACT_REUSE_REF_AUTHOR_ID,
+        ATELIER_CKC_SHEET_ARTIFACT_STATUS_AUTHOR_ID,
+    ] {
+        assert!(
+            snapshot.find_by_author_id(expected).is_some(),
+            "Argus inspect snapshot must include CKC sheet artifact author_id {expected}"
+        );
+    }
+
+    let row_author_id = ckc_sheet_artifact_row_author_id(MIRA_DEMO_SHEET_ARTIFACT_LINK_ID);
+    let artifact_row = snapshot
+        .find_by_author_id(&row_author_id)
+        .unwrap_or_else(|| panic!("seeded CKC sheet artifact row {row_author_id} must be visible"));
+    let row_label = artifact_row.label.as_deref().unwrap_or_default();
+    assert!(
+        row_label.contains("atelier://sheet-artifact/")
+            && row_label.contains("openpose_png")
+            && row_label.contains("artifact://atelier/posekit/openpose/mira-demo-yaw45.png"),
+        "CKC sheet artifact row must expose typed OpenPose reuse metadata; got {artifact_row:?}"
+    );
+
+    let reuse_ref = snapshot
+        .find_by_author_id(ATELIER_CKC_SHEET_ARTIFACT_REUSE_REF_AUTHOR_ID)
+        .expect("CKC sheet artifact reuse-ref readout visible");
+    assert!(
+        reuse_ref
+            .label
+            .as_deref()
+            .unwrap_or_default()
+            .contains(MIRA_DEMO_SHEET_ARTIFACT_LINK_ID),
+        "CKC sheet artifact reuse readout must expose selected typed ref; got {reuse_ref:?}"
+    );
+}
+
+#[test]
+fn argus_character_switch_clears_stale_ckc_sheet_artifact_selection() {
+    let mut harness = build_panel_harness();
+    harness.run();
+    harness.run();
+    let mut channel = ActionChannel::new();
+    let mira_snapshot = snapshot_harness(&mut harness);
+    assert!(
+        mira_snapshot
+            .find_by_author_id(ATELIER_CKC_SHEET_ARTIFACT_REUSE_REF_AUTHOR_ID)
+            .and_then(|node| node.label.as_deref())
+            .unwrap_or_default()
+            .contains(MIRA_DEMO_SHEET_ARTIFACT_LINK_ID),
+        "seeded Mira sheet artifact must be selected before switching characters"
+    );
+
+    let select_aria = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ARIA_DEMO_ROW_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &mira_snapshot,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(select_aria.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+
+    let aria_snapshot = snapshot_harness(&mut harness);
+    let selected_character = aria_snapshot
+        .find_by_author_id(ATELIER_CKC_SELECTED_CHARACTER_AUTHOR_ID)
+        .and_then(|node| node.label.as_deref())
+        .unwrap_or_default();
+    assert!(
+        selected_character.contains("Aria Demo"),
+        "Argus click should switch selected CKC character to Aria; got {selected_character}"
+    );
+    assert!(
+        aria_snapshot
+            .find_by_author_id(&ckc_sheet_artifact_row_author_id(
+                MIRA_DEMO_SHEET_ARTIFACT_LINK_ID
+            ))
+            .is_none(),
+        "Mira sheet artifact row must not remain visible after selecting Aria"
+    );
+    let reuse_ref = aria_snapshot
+        .find_by_author_id(ATELIER_CKC_SHEET_ARTIFACT_REUSE_REF_AUTHOR_ID)
+        .and_then(|node| node.label.as_deref())
+        .unwrap_or_default();
+    assert!(
+        !reuse_ref.contains(MIRA_DEMO_SHEET_ARTIFACT_LINK_ID),
+        "Aria must not inherit Mira's reusable sheet artifact ref; got {reuse_ref}"
+    );
+    let detach = aria_snapshot
+        .find_by_author_id(ATELIER_CKC_SHEET_ARTIFACT_DETACH_AUTHOR_ID)
+        .expect("CKC sheet artifact detach button remains inspectable");
+    assert!(
+        detach.disabled,
+        "Detach must be disabled after switching to a character with no selected sheet artifact"
+    );
+}
+
+#[test]
+fn argus_attaches_latest_posekit_export_to_ckc_sheet_artifacts_locally() {
+    let mut harness = build_panel_harness();
+    harness.run();
+    harness.run();
+    let mut channel = ActionChannel::new();
+
+    let open_posekit = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_TAB_POSEKIT_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &snapshot_harness(&mut harness),
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(open_posekit.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+
+    let export_pose = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_POSE_EXPORT_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &snapshot_harness(&mut harness),
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(export_pose.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let pose_exported = snapshot_harness(&mut harness);
+    assert!(
+        pose_exported
+            .find_by_author_id(ATELIER_POSE_EXPORT_REF_AUTHOR_ID)
+            .and_then(|node| node.value.clone())
+            .unwrap_or_default()
+            .contains("preview://atelier/posekit/openpose/"),
+        "Posekit local export must expose a reusable preview artifact before CKC attach"
+    );
+
+    let open_ckc = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_TAB_CKC_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &pose_exported,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(open_ckc.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+
+    let set_actor = dispatch_request(
+        &argus_req(
+            "argus.set_value",
+            serde_json::json!({
+                "target": ATELIER_CKC_SHEET_ARTIFACT_ACTOR_AUTHOR_ID,
+                "value": "argus-agent-17"
+            }),
+        ),
+        &argus_token(),
+        &snapshot_harness(&mut harness),
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(set_actor.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+
+    let attach_pose = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_CKC_SHEET_ARTIFACT_ATTACH_POSE_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &snapshot_harness(&mut harness),
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(attach_pose.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+
+    let attached = snapshot_harness(&mut harness);
+    let status = attached
+        .find_by_author_id(ATELIER_CKC_SHEET_ARTIFACT_STATUS_AUTHOR_ID)
+        .and_then(|node| node.label.as_deref())
+        .expect("CKC sheet artifact status visible after Posekit attach");
+    assert!(
+        status.contains("Attached local Posekit OpenPose export"),
+        "CKC attach-pose status must confirm the local reusable link; got {status}"
+    );
+    let reuse_ref = attached
+        .find_by_author_id(ATELIER_CKC_SHEET_ARTIFACT_REUSE_REF_AUTHOR_ID)
+        .and_then(|node| node.label.as_deref())
+        .expect("CKC sheet artifact reuse ref visible after Posekit attach");
+    assert!(
+        reuse_ref.contains("atelier://sheet-artifact/"),
+        "CKC attach-pose must expose a reusable sheet artifact typed ref; got {reuse_ref}"
+    );
+    assert!(
+        attached.iter_nodes().any(|node| {
+            node.label
+                .as_deref()
+                .unwrap_or_default()
+                .contains("linked_by=argus-agent-17")
+        }),
+        "CKC attach-pose must preserve the Argus/model actor on the local linked_by detail"
     );
 }
 

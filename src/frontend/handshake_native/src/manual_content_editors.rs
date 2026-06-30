@@ -304,6 +304,8 @@ GET/POST /atelier/characters, GET /atelier/characters/{character_internal_id}, G
 /atelier/characters/{character_internal_id}/sheet-versions/import, GET \
 /atelier/sheet-versions/{version_id}, GET \
 /atelier/sheet-versions/{version_id}/export?format=txt|json|safe-txt|safe-json, \
+GET/POST /atelier/sheet-versions/{version_id}/artifact-links, GET/DELETE \
+/atelier/sheet-artifact-links/{link_id}, \
 GET /atelier/sheet-templates/default, GET /atelier/sheet-templates/default/safe-subset, and GET \
 /atelier/sheet-field-suggestions?field_id=CHAR-ID-006&limit=20; \
 POST writes require x-hsk-actor-id so parallel agents are attributable; the native Atelier client can \
@@ -315,14 +317,22 @@ not a separate replacement sheet. Argus-visible sheet utility controls are ateli
 atelier-ckc-template-load, atelier-ckc-safe-subset-load, atelier-ckc-import-editor, \
 atelier-ckc-import-sheet-version, atelier-ckc-export-txt, atelier-ckc-export-json, \
 atelier-ckc-export-safe-txt, atelier-ckc-export-safe-json, atelier-ckc-export-status, \
-atelier-ckc-export-ref, atelier-ckc-export-preview, atelier-ckc-field-suggestion-field, atelier-ckc-field-suggestions-load, and \
-atelier-ckc-field-suggestions-list. Import uses the /sheet-versions/import route and appends supplied \
+atelier-ckc-export-ref, atelier-ckc-export-preview, atelier-ckc-field-suggestion-field, atelier-ckc-field-suggestions-load, \
+atelier-ckc-field-suggestions-list, atelier-ckc-sheet-artifact-list, atelier-ckc-sheet-artifact-kind, \
+atelier-ckc-sheet-artifact-ref, atelier-ckc-sheet-artifact-manifest, atelier-ckc-sheet-artifact-label, \
+atelier-ckc-sheet-artifact-role, atelier-ckc-sheet-artifact-actor, atelier-ckc-sheet-artifact-attach, atelier-ckc-sheet-artifact-attach-posekit, \
+atelier-ckc-sheet-artifact-detach, atelier-ckc-sheet-artifact-reuse-ref, and atelier-ckc-sheet-artifact-status. Import uses the /sheet-versions/import route and appends supplied \
 raw sheet text or a JSON export envelope as a new version after checking CHAR-ID-001 against the selected \
 character. Export returns deterministic txt, json, safe-txt, or safe-json content plus content_hash and \
 sheet refs; it does not open a foreground file dialog. After export, Argus should inspect \
 atelier-ckc-export-ref for the file/version/hash and atelier-ckc-export-preview for the exported content. \
 Field suggestions remember prior non-empty values \
 per exact Field ID, ignore template placeholders such as <string>, render stable atelier-ckc-field-suggestion-* rows, and never auto-fill or rewrite input. \
+Reusable sheet artifacts link ComfyUI renders, Comfy receipts, conditioning PNGs, OpenPose PNGs, and OpenPose JSON to the selected CKC sheet version. \
+The row typed_ref is atelier://sheet-artifact/{link_id}; resolve it with GET /atelier/sheet-artifact-links/{link_id}. artifact_kind is one of openpose_json, openpose_png, conditioning_png, comfy_render, or comfy_receipt. \
+Use atelier-ckc-sheet-artifact-list to inspect active links, set atelier-ckc-sheet-artifact-actor to the current Argus/model actor id, fill atelier-ckc-sheet-artifact-kind/ref/manifest/label/role, then click atelier-ckc-sheet-artifact-attach. \
+Click atelier-ckc-sheet-artifact-attach-posekit after a Posekit export to attach the latest OpenPose PNG as cui_openpose_conditioning. \
+Use atelier-ckc-sheet-artifact-reuse-ref as the model-readable reuse handle and atelier-ckc-sheet-artifact-detach for a soft detach; parallel agents must keep distinct actor ids so linked_by/detach_actor event metadata stays attributable. Do not delete artifact files from CKC UI. \
 Sheet appends use \
 expected_parent_version_id as the stale-head guard for parallel agents. A stale append returns \
 error=stale_sheet_version plus character_ref, expected_parent_version_id, \
@@ -426,7 +436,8 @@ atelier-pose-export-status, atelier-pose-export-ref, and atelier-pose-export-pre
 generator contract is hsk.atelier.posekit.openpose_export@1: image/png plus OpenPose JSON with body 18, \
 face 70, and hand 21 keypoint arrays, marker_edits, framing metadata, source_ref provenance, rig_id lineage, content_hash, artifact_ref, and \
 backend ArtifactStore receipt JSON metadata. Backend receipt JSON preserves the exact marker_edits payload and framing so \
-parallel-agent recovery can reconstruct the last intended marker operation instead of only the edit count. Backend exports expose png_artifact_ref and json_artifact_ref through Argus, plus their manifests and receipt_ref. Stored-rig backend exports must show \
+parallel-agent recovery can reconstruct the last intended marker operation instead of only the edit count. Backend exports expose png_artifact_ref and json_artifact_ref through Argus, plus their manifests and receipt_ref. \
+Return to atelier-tab-ckc and click atelier-ckc-sheet-artifact-attach-posekit to store the latest Posekit OpenPose PNG on the active CKC sheet as a reusable ComfyUI conditioning artifact. Stored-rig backend exports must show \
 pose_state.source_keypoint_projection.mode=native-rig-to-openpose and rerender OpenPose coordinates plus \
 PNG/hash evidence when yaw, pitch, or zoom changes; procedural or no-rig previews must identify as \
 procedural preview evidence, not source-rig projection. No-backend harnesses expose preview://atelier/posekit/openpose/.../receipt \
@@ -805,6 +816,100 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         mcp_tool: "argus.inspect",
         description:
             "argus.inspect reads atelier-ckc-field-suggestions-list without auto-filling the sheet.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_LIST_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Inspect CKC sheet artifacts",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads reusable sheet artifact rows with atelier://sheet-artifact/{link_id}.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_KIND_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Set CKC sheet artifact kind",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-sheet-artifact-kind', value:'openpose_png'}.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_REF_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Set CKC sheet artifact ref",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-sheet-artifact-ref', value:'artifact://...'} sets the reusable artifact ref.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_MANIFEST_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Set CKC sheet artifact manifest",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-sheet-artifact-manifest', value:'manifest://...'} sets optional manifest/receipt provenance.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_LABEL_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Label CKC sheet artifact",
+        mcp_tool: "argus.set_value",
+        description: "argus.set_value{target:'atelier-ckc-sheet-artifact-label', value:'<label>'}.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_ROLE_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Set CKC sheet artifact reuse role",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-sheet-artifact-role', value:'cui_openpose_conditioning'}.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_ACTOR_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Set CKC sheet artifact actor",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-sheet-artifact-actor', value:'<agent-or-model-id>'} sets write attribution before attach/detach.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_ATTACH_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Attach CKC sheet artifact",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-sheet-artifact-attach'} links the artifact to the active sheet version.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_ATTACH_POSE_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Attach latest Posekit export to CKC",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-sheet-artifact-attach-posekit'} links the latest Posekit OpenPose PNG as CUI conditioning.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_DETACH_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Detach CKC sheet artifact",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'atelier-ckc-sheet-artifact-detach'} soft-detaches the selected sheet artifact link.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_REUSE_REF_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Read CKC sheet artifact reuse ref",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads the selected atelier://sheet-artifact/{link_id} typed ref for downstream tools.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SHEET_ARTIFACT_STATUS_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Read CKC sheet artifact status",
+        mcp_tool: "argus.inspect",
+        description: "argus.inspect reads CKC sheet artifact attach/detach status.",
     });
     rows.push(AgentToolRow {
         author_id: crate::atelier_panel::ATELIER_CKC_LINKED_MEDIA_LIST_AUTHOR_ID,

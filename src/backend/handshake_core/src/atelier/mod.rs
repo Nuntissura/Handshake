@@ -52,6 +52,7 @@ pub mod scripts;
 pub mod search;
 pub mod settings;
 pub mod sheet;
+pub mod sheet_artifacts;
 pub mod sheet_templates;
 pub mod source_evidence;
 pub mod sourcing;
@@ -83,8 +84,9 @@ pub use self::media::{
 };
 pub use self::refs::{
     character_ref, collection_ref, media_asset_ref, parse_character_ref, parse_collection_ref,
-    parse_media_asset_ref, parse_sheet_version_ref, parse_tag_ref, sheet_version_ref, tag_ref,
-    validate_character_ref, validate_collection_ref, validate_media_asset_ref,
+    parse_media_asset_ref, parse_sheet_artifact_ref, parse_sheet_version_ref, parse_tag_ref,
+    sheet_artifact_ref, sheet_version_ref, tag_ref, validate_character_ref,
+    validate_collection_ref, validate_media_asset_ref, validate_sheet_artifact_ref,
     validate_sheet_version_ref, validate_tag_ref,
 };
 pub use self::relationships::{
@@ -97,6 +99,9 @@ pub use self::sheet::{
     SheetFieldEditRequest, SheetFieldEditResult, SheetFieldSelector, SheetFieldSuggestion,
     SheetTemplateAst, SheetTemplateField, SheetTemplateSection, SheetUnmappedLine, SheetVersion,
     SheetVersionRevertRequest, SheetVersionRevertResult,
+};
+pub use self::sheet_artifacts::{
+    NewSheetArtifactLink, SheetArtifactKind, SheetArtifactLink, SheetArtifactLinkWrite,
 };
 pub use self::sheet_templates::{
     builtin_character_sheet_template, builtin_safe_subset, default_character_sheet_text, text_hash,
@@ -164,6 +169,8 @@ pub mod event_family {
     pub const SHEET_FIELD_EDITS_APPLIED: &str = "atelier.sheet.field_edits_applied";
     pub const SHEET_FIELD_EDIT_REJECTED: &str = "atelier.sheet.field_edit_rejected";
     pub const SHEET_VERSION_REVERTED: &str = "atelier.sheet.version_reverted";
+    pub const SHEET_ARTIFACT_LINKED: &str = "atelier.sheet.artifact_linked";
+    pub const SHEET_ARTIFACT_DETACHED: &str = "atelier.sheet.artifact_detached";
     pub const MEDIA_ASSET_MATERIALIZED: &str = "atelier.media.asset_materialized";
     pub const MEDIA_DERIVATIVE_REQUESTED: &str = "atelier.media.derivative_requested";
     pub const MEDIA_DERIVATIVE_GENERATING: &str = "atelier.media.derivative_generating";
@@ -185,6 +192,8 @@ pub mod event_family {
         SHEET_FIELD_EDITS_APPLIED,
         SHEET_FIELD_EDIT_REJECTED,
         SHEET_VERSION_REVERTED,
+        SHEET_ARTIFACT_LINKED,
+        SHEET_ARTIFACT_DETACHED,
         MEDIA_ASSET_MATERIALIZED,
         MEDIA_DERIVATIVE_REQUESTED,
         MEDIA_DERIVATIVE_GENERATING,
@@ -1750,6 +1759,11 @@ impl AtelierStore {
             ))
             .execute(&mut *tx)
             .await?;
+            sqlx::raw_sql(include_str!(
+                "../../migrations/0340_atelier_sheet_artifact_links.sql"
+            ))
+            .execute(&mut *tx)
+            .await?;
             tx.commit().await?;
             self.repair_contact_sheet_manifest_schema_namespace()
                 .await?;
@@ -2200,6 +2214,11 @@ impl AtelierStore {
         .await?;
         sqlx::raw_sql(include_str!(
             "../../migrations/0339_atelier_ckc_media_album_link_scope.sql"
+        ))
+        .execute(&mut *tx)
+        .await?;
+        sqlx::raw_sql(include_str!(
+            "../../migrations/0340_atelier_sheet_artifact_links.sql"
         ))
         .execute(&mut *tx)
         .await?;

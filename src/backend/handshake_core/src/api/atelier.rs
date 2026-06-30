@@ -60,8 +60,8 @@ use crate::atelier::{
     sheet_version_ref, text_hash, AtelierError, AtelierStore, BulkOperationReceipt, Character,
     ClipboardImageImportRequest, DeletionArchiveRequest, DeletionImpactPreview,
     DeletionImpactPreviewRequest, DeletionRestoreRequest, DeletionTargetRef, ImageImportRecord,
-    NewCharacter, NewSheetVersion, SheetVersion, UrlImageImportRequest,
-    CHARACTER_SHEET_V2_TEMPLATE_VERSION, DEFAULT_SHEET_TOOL,
+    NewCharacter, NewSheetArtifactLink, NewSheetVersion, SheetArtifactKind, SheetArtifactLink,
+    SheetVersion, UrlImageImportRequest, CHARACTER_SHEET_V2_TEMPLATE_VERSION, DEFAULT_SHEET_TOOL,
 };
 use crate::storage::artifacts::{
     artifact_root_rel, resolve_workspace_root, validate_artifact_content_hash, write_file_artifact,
@@ -140,6 +140,14 @@ pub fn routes(state: AppState) -> Router {
         .route(
             "/atelier/sheet-versions/:version_id",
             get(get_sheet_version),
+        )
+        .route(
+            "/atelier/sheet-versions/:version_id/artifact-links",
+            get(list_sheet_artifact_links).post(attach_sheet_artifact_link),
+        )
+        .route(
+            "/atelier/sheet-artifact-links/:link_id",
+            get(get_sheet_artifact_link).delete(detach_sheet_artifact_link),
         )
         .route(
             "/atelier/sheet-versions/:version_id/export",
@@ -315,6 +323,15 @@ fn atelier_error(err: crate::atelier::AtelierError) -> (StatusCode, Json<ErrorRe
                 }),
             )
         }
+        AtelierError::ForbiddenStorage(detail) => {
+            tracing::warn!(target: "handshake_core::atelier", %detail, "bad_request");
+            (
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponse {
+                    error: "bad_request",
+                }),
+            )
+        }
         AtelierError::Conflict(detail) => {
             tracing::warn!(target: "handshake_core::atelier", %detail, "conflict");
             (
@@ -454,6 +471,38 @@ struct SheetVersionExportResponse {
     content: String,
     character_ref: String,
     sheet_version_ref: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct AttachSheetArtifactLinkRequest {
+    artifact_kind: String,
+    artifact_ref: String,
+    manifest_ref: Option<String>,
+    source_ref: Option<String>,
+    label: Option<String>,
+    reuse_role: Option<String>,
+    metadata: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Serialize)]
+struct SheetArtifactLinkResponse {
+    link_id: Uuid,
+    character_internal_id: Uuid,
+    character_ref: String,
+    sheet_version_id: Uuid,
+    sheet_version_ref: String,
+    typed_ref: String,
+    artifact_kind: SheetArtifactKind,
+    artifact_ref: String,
+    manifest_ref: Option<String>,
+    source_ref: Option<String>,
+    label: Option<String>,
+    reuse_role: Option<String>,
+    linked_by: String,
+    metadata: serde_json::Value,
+    created_at_utc: DateTime<Utc>,
+    detached_at_utc: Option<DateTime<Utc>>,
+    detached_by: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -785,6 +834,28 @@ fn sheet_version_response(version: SheetVersion) -> SheetVersionResponse {
         character_ref: character_ref(version.character_internal_id),
         sheet_version_ref: sheet_version_ref(version.character_internal_id, version.version_id),
         created_at_utc: version.created_at_utc,
+    }
+}
+
+fn sheet_artifact_link_response(link: SheetArtifactLink) -> SheetArtifactLinkResponse {
+    SheetArtifactLinkResponse {
+        link_id: link.link_id,
+        character_internal_id: link.character_internal_id,
+        character_ref: character_ref(link.character_internal_id),
+        sheet_version_id: link.sheet_version_id,
+        sheet_version_ref: link.sheet_version_ref,
+        typed_ref: link.typed_ref,
+        artifact_kind: link.artifact_kind,
+        artifact_ref: link.artifact_ref,
+        manifest_ref: link.manifest_ref,
+        source_ref: link.source_ref,
+        label: link.label,
+        reuse_role: link.reuse_role,
+        linked_by: link.linked_by,
+        metadata: link.metadata,
+        created_at_utc: link.created_at_utc,
+        detached_at_utc: link.detached_at_utc,
+        detached_by: link.detached_by,
     }
 }
 
@@ -2807,6 +2878,94 @@ async fn get_sheet_version(
         .await
         .map_err(atelier_error)?;
     Ok(Json(sheet_version_response(version)))
+}
+
+/// GET /atelier/sheet-versions/:version_id/artifact-links — active reusable refs for one CKC sheet version.
+async fn list_sheet_artifact_links(
+    State(state): State<AppState>,
+    Path(version_id): Path<Uuid>,
+) -> Result<Json<Vec<SheetArtifactLinkResponse>>, (StatusCode, Json<ErrorResponse>)> {
+    let store = atelier_store(&state);
+    store
+        .get_sheet_version(version_id)
+        .await
+        .map_err(atelier_error)?;
+    let links = store
+        .list_sheet_artifacts(version_id)
+        .await
+        .map_err(atelier_error)?;
+    Ok(Json(
+        links
+            .into_iter()
+            .map(sheet_artifact_link_response)
+            .collect(),
+    ))
+}
+
+/// GET /atelier/sheet-artifact-links/:link_id — resolve one active reusable CKC sheet artifact typed ref.
+async fn get_sheet_artifact_link(
+    State(state): State<AppState>,
+    Path(link_id): Path<Uuid>,
+) -> Result<Json<SheetArtifactLinkResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let store = atelier_store(&state);
+    let link = store
+        .get_sheet_artifact(link_id)
+        .await
+        .map_err(atelier_error)?;
+    Ok(Json(sheet_artifact_link_response(link)))
+}
+
+/// POST /atelier/sheet-versions/:version_id/artifact-links — attach a reusable artifact ref to a CKC sheet version.
+async fn attach_sheet_artifact_link(
+    State(state): State<AppState>,
+    Path(version_id): Path<Uuid>,
+    headers: HeaderMap,
+    Json(payload): Json<AttachSheetArtifactLinkRequest>,
+) -> Result<(StatusCode, Json<SheetArtifactLinkResponse>), (StatusCode, Json<ErrorResponse>)> {
+    let actor = calling_actor(&headers)?;
+    let store = atelier_store(&state);
+    let version = store
+        .get_sheet_version(version_id)
+        .await
+        .map_err(atelier_error)?;
+    let artifact_kind =
+        SheetArtifactKind::from_token(payload.artifact_kind.trim()).map_err(atelier_error)?;
+    let outcome = store
+        .link_sheet_artifact_with_status(&NewSheetArtifactLink {
+            character_internal_id: version.character_internal_id,
+            sheet_version_id: version.version_id,
+            artifact_kind,
+            artifact_ref: payload.artifact_ref,
+            manifest_ref: payload.manifest_ref,
+            source_ref: payload.source_ref,
+            label: payload.label,
+            reuse_role: payload.reuse_role,
+            linked_by: actor,
+            metadata: payload.metadata.unwrap_or_else(|| serde_json::json!({})),
+        })
+        .await
+        .map_err(atelier_error)?;
+    let status = if outcome.created {
+        StatusCode::CREATED
+    } else {
+        StatusCode::OK
+    };
+    Ok((status, Json(sheet_artifact_link_response(outcome.link))))
+}
+
+/// DELETE /atelier/sheet-artifact-links/:link_id — soft-detach a sheet artifact link.
+async fn detach_sheet_artifact_link(
+    State(state): State<AppState>,
+    Path(link_id): Path<Uuid>,
+    headers: HeaderMap,
+) -> Result<Json<SheetArtifactLinkResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let actor = calling_actor(&headers)?;
+    let store = atelier_store(&state);
+    let link = store
+        .detach_sheet_artifact(link_id, &actor)
+        .await
+        .map_err(atelier_error)?;
+    Ok(Json(sheet_artifact_link_response(link)))
 }
 
 /// GET /atelier/sheet-versions/:version_id/export?format=txt|json — deterministic CKC sheet export.
