@@ -8161,6 +8161,11 @@ impl AtelierPanel {
 
     fn show_ingest(&self, ui: &mut egui::Ui, palette: &HsPalette) {
         self.drain_ingest_classification_backend();
+        ui.label(egui::RichText::new("Intake batch source").color(palette.text));
+        if let Ok(mut side_panel) = self.side_panel.lock() {
+            side_panel.show(ui, palette);
+        }
+        ui.separator();
         let expanded_items = self
             .side_panel
             .lock()
@@ -8488,7 +8493,7 @@ impl AtelierPanel {
                 ui.strong("CKC link");
                 ui.end_row();
                 let Some((batch_id, items)) = expanded_items.as_ref() else {
-                    ui.label("No expanded intake batch.");
+                    ui.label("No loaded intake batch.");
                     ui.label("-");
                     ui.label(state.ingest_decision.label());
                     ui.label("-");

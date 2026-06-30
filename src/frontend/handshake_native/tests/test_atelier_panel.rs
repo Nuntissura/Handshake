@@ -1951,13 +1951,15 @@ fn posekit_and_ingest_controls_are_model_addressable() {
         );
     }
     for expected in [
+        PANEL_AUTHOR_ID,
+        &item_author_id("item-aaa"),
         ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID,
         ATELIER_INGEST_STATUS_AUTHOR_ID,
         ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID,
     ] {
         assert!(
             ingest_ids.contains(expected),
-            "Ingest inspectable surface {expected} must be visible to Argus/MCP"
+            "Ingest inspectable surface {expected} must be visible to Argus/MCP without visiting CKC first"
         );
     }
 }
