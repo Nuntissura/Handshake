@@ -30,6 +30,10 @@ use uuid::Uuid;
 
 use crate::ace::ArtifactHandle;
 use crate::atelier::collections::{Collection, NewCollection};
+use crate::atelier::contact_sheet::{
+    generate_contact_sheet_export, ContactSheetExport, ContactSheetExportItem, ContactSheetLayout,
+    GenerateContactSheetRequest, CONTACT_SHEET_EXPORT_SCHEMA_ID,
+};
 use crate::atelier::documents::{
     AppendCharacterDocumentVersion, CharacterDocument, CharacterDocumentType,
     CharacterDocumentVersion, NewCharacterDocument, NewStoryBeat, NewStoryCard, StoryBeat,
@@ -139,6 +143,7 @@ pub fn routes(state: AppState) -> Router {
             "/atelier/posekit/openpose-export",
             post(export_posekit_openpose),
         )
+        .route("/atelier/contact-sheets/export", post(export_contact_sheet))
         .route(
             "/atelier/sheet-versions/:version_id",
             get(get_sheet_version),
@@ -815,6 +820,50 @@ struct PosekitOpenPoseExportResponse {
     openpose_png_artifact: PosekitArtifactResponse,
     openpose_json_artifact: PosekitArtifactResponse,
     sidecars: Vec<PosekitSidecarResponse>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ContactSheetExportApiRequest {
+    source_kind: String,
+    source_ref: String,
+    rows: usize,
+    columns: usize,
+    dpi: usize,
+    include_labels: Option<bool>,
+    thumbnail_fit: Option<String>,
+    output_path: Option<String>,
+    items: Vec<ContactSheetExportItem>,
+}
+
+#[derive(Debug, Serialize)]
+struct ContactSheetArtifactResponse {
+    artifact_ref: String,
+    manifest_ref: String,
+    content_hash: String,
+    byte_len: u64,
+    mime: String,
+    file_name: String,
+}
+
+#[derive(Debug, Serialize)]
+struct ContactSheetExportResponse {
+    schema_id: String,
+    source_kind: String,
+    source_ref: String,
+    thumbnail_fit: String,
+    output_path: Option<String>,
+    layout: ContactSheetLayout,
+    source_items: Vec<ContactSheetExportItem>,
+    item_count: usize,
+    rendered_item_count: usize,
+    omitted_item_count: usize,
+    include_labels: bool,
+    svg_sha256: String,
+    receipt_sha256: String,
+    content_hash: String,
+    receipt_ref: String,
+    svg_artifact: ContactSheetArtifactResponse,
+    receipt_artifact: ContactSheetArtifactResponse,
 }
 
 fn character_response(character: Character) -> CharacterResponse {
@@ -2616,6 +2665,146 @@ async fn export_posekit_openpose(
     Ok(Json(response))
 }
 
+/// POST /atelier/contact-sheets/export — native Rust contact sheet SVG + receipt into ArtifactStore.
+async fn export_contact_sheet(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<ContactSheetExportApiRequest>,
+) -> Result<Json<ContactSheetExportResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let actor = calling_actor(&headers)?;
+    let validated_items = validate_contact_sheet_source_items(&state, &payload).await?;
+    let export = generate_contact_sheet_export(GenerateContactSheetRequest {
+        source_kind: payload.source_kind,
+        source_ref: payload.source_ref,
+        rows: payload.rows,
+        columns: payload.columns,
+        dpi: payload.dpi,
+        include_labels: payload.include_labels.unwrap_or(true),
+        thumbnail_fit: payload
+            .thumbnail_fit
+            .unwrap_or_else(|| "contain".to_owned()),
+        output_path: payload.output_path,
+        items: validated_items,
+    })
+    .map_err(|err| atelier_error(AtelierError::Validation(err)))?;
+    let response_content_hash = export.content_hash.clone();
+    let svg_artifact = write_contact_sheet_artifact(
+        &export,
+        export.svg.as_bytes(),
+        &export.svg_sha256,
+        "image/svg+xml",
+        "atelier-contact-sheet.svg",
+        &actor,
+        &response_content_hash,
+        &[],
+    )?;
+    let receipt_artifact = write_contact_sheet_receipt_artifact(
+        &export,
+        &svg_artifact,
+        &actor,
+        &response_content_hash,
+    )?;
+    let source_items = export
+        .receipt_json
+        .get("source_items")
+        .cloned()
+        .and_then(|value| serde_json::from_value::<Vec<ContactSheetExportItem>>(value).ok())
+        .unwrap_or_default();
+    let receipt_sha256 = receipt_artifact.content_hash.clone();
+    let response = ContactSheetExportResponse {
+        schema_id: CONTACT_SHEET_EXPORT_SCHEMA_ID.to_owned(),
+        source_kind: export.source_kind.clone(),
+        source_ref: export.source_ref.clone(),
+        thumbnail_fit: export.thumbnail_fit.clone(),
+        output_path: export.output_path.clone(),
+        layout: export.layout.clone(),
+        source_items,
+        item_count: export.item_count,
+        rendered_item_count: export.rendered_item_count,
+        omitted_item_count: export.omitted_item_count,
+        include_labels: export.include_labels,
+        svg_sha256: export.svg_sha256.clone(),
+        receipt_sha256,
+        content_hash: response_content_hash,
+        receipt_ref: receipt_artifact.artifact_ref.clone(),
+        svg_artifact,
+        receipt_artifact,
+    };
+    tracing::info!(
+        target: "handshake_core::atelier",
+        route = "/atelier/contact-sheets/export",
+        status = "ok",
+        actor = %actor,
+        source_kind = %response.source_kind,
+        source_ref = %response.source_ref,
+        item_count = response.item_count,
+        rendered_item_count = response.rendered_item_count,
+        omitted_item_count = response.omitted_item_count,
+        svg_artifact_ref = %response.svg_artifact.artifact_ref,
+        receipt_ref = %response.receipt_ref,
+        "export Atelier contact sheet"
+    );
+    Ok(Json(response))
+}
+
+async fn validate_contact_sheet_source_items(
+    state: &AppState,
+    payload: &ContactSheetExportApiRequest,
+) -> Result<Vec<ContactSheetExportItem>, (StatusCode, Json<ErrorResponse>)> {
+    if payload.source_kind.trim() != "ingest_batch" {
+        return Err(atelier_error(AtelierError::Validation(format!(
+            "contact sheet source_kind {:?} is not supported yet; supported source_kind=ingest_batch",
+            payload.source_kind
+        ))));
+    }
+    let batch_id = Uuid::parse_str(payload.source_ref.trim()).map_err(|_| {
+        atelier_error(AtelierError::Validation(
+            "contact sheet ingest_batch source_ref must be a backend batch UUID".to_owned(),
+        ))
+    })?;
+    let store = atelier_store(state);
+    let canonical_items = store
+        .list_intake_items(batch_id, None)
+        .await
+        .map_err(atelier_error)?;
+    let canonical = canonical_items
+        .into_iter()
+        .map(|item| (item.item_id.to_string(), item.source_path))
+        .collect::<std::collections::HashMap<_, _>>();
+    if canonical.is_empty() {
+        return Err(atelier_error(AtelierError::Validation(format!(
+            "contact sheet ingest_batch source_ref has no items: {batch_id}"
+        ))));
+    }
+    for item in &payload.items {
+        match canonical.get(&item.item_id) {
+            Some(source_path) if source_path == &item.source_ref => {}
+            Some(source_path) => {
+                return Err(atelier_error(AtelierError::Validation(format!(
+                    "contact sheet item source_ref mismatch for item_id={}: expected {}, got {}",
+                    item.item_id, source_path, item.source_ref
+                ))));
+            }
+            None => {
+                return Err(atelier_error(AtelierError::Validation(format!(
+                    "contact sheet item_id={} does not belong to ingest batch {}",
+                    item.item_id, batch_id
+                ))));
+            }
+        }
+    }
+    Ok(payload
+        .items
+        .iter()
+        .map(|item| ContactSheetExportItem {
+            item_id: item.item_id.clone(),
+            label: item.label.clone(),
+            source_ref: item.source_ref.clone(),
+            media_ref: None,
+        })
+        .collect())
+}
+
 fn posekit_sidecar_response(sidecar: PoseSidecar) -> PosekitSidecarResponse {
     PosekitSidecarResponse {
         sidecar_id: sidecar.sidecar_id,
@@ -2762,6 +2951,131 @@ fn posekit_export_source_entity_refs(
 }
 
 fn posekit_artifact_handle(artifact: &PosekitArtifactResponse) -> ArtifactHandle {
+    let artifact_id = artifact
+        .artifact_ref
+        .strip_prefix("artifact://.handshake/artifacts/L1/")
+        .and_then(|value| value.strip_suffix("/payload"))
+        .and_then(|value| Uuid::parse_str(value).ok())
+        .unwrap_or_else(Uuid::now_v7);
+    ArtifactHandle::new(artifact_id, artifact.artifact_ref.clone())
+}
+
+fn write_contact_sheet_artifact(
+    export: &ContactSheetExport,
+    payload_bytes: &[u8],
+    content_hash: &str,
+    mime: &str,
+    file_name: &str,
+    actor: &str,
+    export_entity_id: &str,
+    source_artifact_refs: &[ArtifactHandle],
+) -> Result<ContactSheetArtifactResponse, (StatusCode, Json<ErrorResponse>)> {
+    let workspace_root = resolve_workspace_root().map_err(internal_error)?;
+    let artifact_id = Uuid::now_v7();
+    let manifest = ArtifactManifest {
+        artifact_id,
+        layer: ArtifactLayer::L1,
+        kind: ArtifactPayloadKind::File,
+        mime: mime.to_owned(),
+        filename_hint: Some(file_name.to_owned()),
+        created_at: Utc::now(),
+        created_by_job_id: None,
+        source_entity_refs: contact_sheet_source_entity_refs(export, actor, export_entity_id),
+        source_artifact_refs: source_artifact_refs.to_vec(),
+        content_hash: content_hash.to_owned(),
+        size_bytes: payload_bytes.len() as u64,
+        classification: ArtifactClassification::Low,
+        exportable: true,
+        retention_ttl_days: None,
+        pinned: Some(true),
+        hash_basis: Some(format!(
+            "{}|{}|{}|{}|payload={}|export={}",
+            CONTACT_SHEET_EXPORT_SCHEMA_ID,
+            export.source_kind,
+            export.source_ref,
+            export.layout.cell_count,
+            content_hash,
+            export.content_hash
+        )),
+        hash_exclude_paths: Vec::new(),
+    };
+    write_file_artifact(&workspace_root, &manifest, payload_bytes).map_err(internal_error)?;
+    validate_artifact_content_hash(&workspace_root, ArtifactLayer::L1, artifact_id)
+        .map_err(internal_error)?;
+    let root = artifact_root_rel(ArtifactLayer::L1, artifact_id);
+    Ok(ContactSheetArtifactResponse {
+        artifact_ref: format!("artifact://{root}/payload"),
+        manifest_ref: format!("artifact://{root}/artifact.json"),
+        content_hash: content_hash.to_owned(),
+        byte_len: payload_bytes.len() as u64,
+        mime: mime.to_owned(),
+        file_name: file_name.to_owned(),
+    })
+}
+
+fn write_contact_sheet_receipt_artifact(
+    export: &ContactSheetExport,
+    svg_artifact: &ContactSheetArtifactResponse,
+    actor: &str,
+    export_entity_id: &str,
+) -> Result<ContactSheetArtifactResponse, (StatusCode, Json<ErrorResponse>)> {
+    let mut receipt = export.receipt_json.clone();
+    if let Some(receipt) = receipt.as_object_mut() {
+        receipt.insert(
+            "actor_ref".to_owned(),
+            serde_json::json!(format!("actor://sha256/{}", text_hash(actor))),
+        );
+        receipt.insert(
+            "svg_artifact_ref".to_owned(),
+            serde_json::json!(svg_artifact.artifact_ref.clone()),
+        );
+        receipt.insert(
+            "svg_manifest_ref".to_owned(),
+            serde_json::json!(svg_artifact.manifest_ref.clone()),
+        );
+    }
+    let payload_bytes = serde_json::to_vec(&receipt).map_err(internal_error)?;
+    let content_hash = text_hash(
+        std::str::from_utf8(&payload_bytes).map_err(|err| internal_error(err.to_string()))?,
+    );
+    write_contact_sheet_artifact(
+        export,
+        &payload_bytes,
+        &content_hash,
+        "application/json",
+        "atelier-contact-sheet-receipt.json",
+        actor,
+        export_entity_id,
+        &[contact_sheet_artifact_handle(svg_artifact)],
+    )
+}
+
+fn contact_sheet_source_entity_refs(
+    export: &ContactSheetExport,
+    actor: &str,
+    export_entity_id: &str,
+) -> Vec<EntityRef> {
+    vec![
+        EntityRef {
+            entity_kind: "contact_sheet_source_kind".to_owned(),
+            entity_id: export.source_kind.clone(),
+        },
+        EntityRef {
+            entity_kind: "contact_sheet_source_ref".to_owned(),
+            entity_id: export.source_ref.clone(),
+        },
+        EntityRef {
+            entity_kind: "actor_sha256".to_owned(),
+            entity_id: text_hash(actor),
+        },
+        EntityRef {
+            entity_kind: "contact_sheet_export".to_owned(),
+            entity_id: export_entity_id.to_owned(),
+        },
+    ]
+}
+
+fn contact_sheet_artifact_handle(artifact: &ContactSheetArtifactResponse) -> ArtifactHandle {
     let artifact_id = artifact
         .artifact_ref
         .strip_prefix("artifact://.handshake/artifacts/L1/")

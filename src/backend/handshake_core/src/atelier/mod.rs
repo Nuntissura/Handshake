@@ -31,6 +31,7 @@ pub mod bulk;
 pub mod collections;
 pub mod comfy;
 pub mod command_corpus;
+pub mod contact_sheet;
 pub mod core;
 pub mod dcc_flight_recorder;
 pub mod documents;

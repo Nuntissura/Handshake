@@ -21,7 +21,8 @@ use crate::backend_client::{
     AtelierCkcSearchCell, AtelierCkcSearchResponse, AtelierCkcSearchResultRow,
     AtelierCkcSheetArtifactLinkRow, AtelierCkcSheetArtifactLinksCell, AtelierCkcStoryBeatCell,
     AtelierCkcStoryBeatRow, AtelierCkcStoryCardCell, AtelierCkcStoryCardRow, AtelierCkcTagNoteCell,
-    AtelierCkcTagNoteRow, AtelierCkcTemplateCell, AtelierClient, AtelierIntakeClassificationCell,
+    AtelierCkcTagNoteRow, AtelierCkcTemplateCell, AtelierClient, AtelierContactSheetExportCell,
+    AtelierContactSheetExportRow, AtelierContactSheetItem, AtelierIntakeClassificationCell,
     AtelierIntakeClassificationDecision, AtelierItemRow, AtelierPosekitExportCell,
     AtelierPosekitExportRow, AtelierSheetExportRow, AtelierSheetFieldSuggestionRow,
     AtelierSheetVersionRow,
@@ -202,7 +203,12 @@ pub const ATELIER_INGEST_APPLY_BATCH_AUTHOR_ID: &str = "atelier-ingest-apply-bat
 pub const ATELIER_INGEST_CONTACT_ROWS_AUTHOR_ID: &str = "atelier-ingest-contact-rows";
 pub const ATELIER_INGEST_CONTACT_COLUMNS_AUTHOR_ID: &str = "atelier-ingest-contact-columns";
 pub const ATELIER_INGEST_CONTACT_DPI_AUTHOR_ID: &str = "atelier-ingest-contact-dpi";
+pub const ATELIER_INGEST_CONTACT_LABELS_AUTHOR_ID: &str = "atelier-ingest-contact-labels";
+pub const ATELIER_INGEST_CONTACT_FIT_AUTHOR_ID: &str = "atelier-ingest-contact-fit";
+pub const ATELIER_INGEST_CONTACT_OUTPUT_AUTHOR_ID: &str = "atelier-ingest-contact-output";
 pub const ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID: &str = "atelier-ingest-contact-export";
+pub const ATELIER_INGEST_CONTACT_PREVIEW_AUTHOR_ID: &str = "atelier-ingest-contact-preview";
+pub const ATELIER_INGEST_CONTACT_RECEIPT_AUTHOR_ID: &str = "atelier-ingest-contact-receipt";
 pub const ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID: &str = "atelier-ingest-facial-profile";
 pub const ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID: &str = "atelier-ingest-queue-readout";
 pub const ATELIER_INGEST_BATCH_SUMMARY_AUTHOR_ID: &str = "atelier-ingest-batch-summary";
@@ -346,6 +352,29 @@ impl PosekitExportSnapshot {
     fn marker_layers(&self) -> String {
         marker_layer_summary(self.face, self.body, self.hands)
     }
+}
+
+#[derive(Debug, Clone)]
+struct ContactSheetExportSnapshot {
+    source_kind: String,
+    source_ref: String,
+    rows: usize,
+    columns: usize,
+    dpi: usize,
+    include_labels: bool,
+    thumbnail_fit: String,
+    output_path: Option<String>,
+    item_count: usize,
+    rendered_item_count: usize,
+    omitted_item_count: usize,
+    svg_artifact_ref: String,
+    svg_manifest_ref: String,
+    receipt_ref: String,
+    receipt_manifest_ref: String,
+    svg_sha256: String,
+    receipt_sha256: String,
+    content_hash: String,
+    source_lineage_preview: String,
 }
 
 #[derive(Debug, Clone)]
@@ -2342,6 +2371,14 @@ struct AtelierPanelState {
     ingest_contact_rows: String,
     ingest_contact_columns: String,
     ingest_contact_dpi: String,
+    ingest_contact_include_labels: bool,
+    ingest_contact_thumbnail_fit: String,
+    ingest_contact_output_path: String,
+    ingest_contact_export_pending: bool,
+    ingest_contact_export_request_seq: u64,
+    ingest_active_contact_export_request: Option<u64>,
+    ingest_last_contact_sheet: Option<ContactSheetExportSnapshot>,
+    ingest_contact_sheet_receipt: String,
     ingest_facial_profile: String,
     ingest_status: String,
     ingest_item_decisions: BTreeMap<String, IngestDecision>,
@@ -2480,6 +2517,14 @@ impl Default for AtelierPanelState {
             ingest_contact_rows: "3".to_owned(),
             ingest_contact_columns: "4".to_owned(),
             ingest_contact_dpi: "300".to_owned(),
+            ingest_contact_include_labels: true,
+            ingest_contact_thumbnail_fit: "contain".to_owned(),
+            ingest_contact_output_path: "artifact://atelier/contact-sheets/latest.svg".to_owned(),
+            ingest_contact_export_pending: false,
+            ingest_contact_export_request_seq: 0,
+            ingest_active_contact_export_request: None,
+            ingest_last_contact_sheet: None,
+            ingest_contact_sheet_receipt: "No contact sheet export yet.".to_owned(),
             ingest_facial_profile: "quality+dedupe+identity".to_owned(),
             ingest_status:
                 "Ingest ready: stage dataset metadata, set canonical batch defaults, override visible rows, contact sheet settings, and Facial profile hints."
@@ -4137,7 +4182,7 @@ fn ingest_contact_sheet_shape(state: &AtelierPanelState) -> (usize, usize, usize
 fn ingest_queue_readout(state: &AtelierPanelState) -> String {
     let (rows, columns, dpi, cells) = ingest_contact_sheet_shape(state);
     format!(
-        "dataset_ref={} character_ref={} actor={} decision={} link_passed={} tags={} note={} event={} date={} location={} contact_sheet={}x{}@{}dpi cells={} facial_profile={}",
+        "dataset_ref={} character_ref={} actor={} decision={} link_passed={} tags={} note={} event={} date={} location={} contact_sheet={}x{}@{}dpi cells={} labels={} thumbnail_fit={} output_path={} facial_profile={}",
         state.ingest_dataset_ref.trim(),
         state.ingest_character_ref.trim(),
         state.ingest_actor.trim(),
@@ -4152,6 +4197,9 @@ fn ingest_queue_readout(state: &AtelierPanelState) -> String {
         columns,
         dpi,
         cells,
+        state.ingest_contact_include_labels,
+        state.ingest_contact_thumbnail_fit.trim(),
+        state.ingest_contact_output_path.trim(),
         state.ingest_facial_profile.trim()
     )
 }
@@ -4196,8 +4244,197 @@ fn ingest_metadata_payload(
             "columns": columns,
             "dpi": dpi,
             "cells": cells,
+            "include_labels": state.ingest_contact_include_labels,
+            "thumbnail_fit": ingest_optional_string(&state.ingest_contact_thumbnail_fit),
+            "output_path": ingest_optional_string(&state.ingest_contact_output_path),
         },
     })
+}
+
+fn contact_sheet_items_from_ingest(items: &[AtelierItemRow]) -> Vec<AtelierContactSheetItem> {
+    items
+        .iter()
+        .map(|item| AtelierContactSheetItem {
+            item_id: item.item_id.clone(),
+            label: item.file_name.clone(),
+            source_ref: item.source_path.clone(),
+            media_ref: None,
+        })
+        .collect()
+}
+
+fn contact_sheet_local_snapshot(
+    batch_id: &str,
+    items: &[AtelierItemRow],
+    rows: usize,
+    columns: usize,
+    dpi: usize,
+    include_labels: bool,
+    thumbnail_fit: &str,
+    output_path: Option<String>,
+) -> ContactSheetExportSnapshot {
+    let cell_count = rows.saturating_mul(columns);
+    let rendered_item_count = items.len().min(cell_count);
+    let omitted_item_count = items.len().saturating_sub(rendered_item_count);
+    let item_basis = items
+        .iter()
+        .map(|item| format!("{}:{}", item.item_id, item.source_path))
+        .collect::<Vec<_>>()
+        .join("|");
+    let source_lineage_preview = contact_sheet_lineage_preview(
+        &items
+            .iter()
+            .map(|item| AtelierContactSheetItem {
+                item_id: item.item_id.clone(),
+                label: item.file_name.clone(),
+                source_ref: item.source_path.clone(),
+                media_ref: None,
+            })
+            .collect::<Vec<_>>(),
+    );
+    let content_hash = stable_posekit_hash(&format!(
+        "hsk.atelier.contact_sheet_export@1|ingest_batch|{batch_id}|{rows}|{columns}|{dpi}|{item_basis}"
+    ));
+    ContactSheetExportSnapshot {
+        source_kind: "ingest_batch".to_owned(),
+        source_ref: batch_id.to_owned(),
+        rows,
+        columns,
+        dpi,
+        include_labels,
+        thumbnail_fit: contact_sheet_thumbnail_fit_value(thumbnail_fit),
+        output_path,
+        item_count: items.len(),
+        rendered_item_count,
+        omitted_item_count,
+        svg_artifact_ref: format!("preview://atelier/contact-sheet/{content_hash}/svg/payload"),
+        svg_manifest_ref: format!("preview://atelier/contact-sheet/{content_hash}/svg/manifest"),
+        receipt_ref: format!("preview://atelier/contact-sheet/{content_hash}/receipt"),
+        receipt_manifest_ref: format!(
+            "preview://atelier/contact-sheet/{content_hash}/receipt/manifest"
+        ),
+        svg_sha256: content_hash.clone(),
+        receipt_sha256: content_hash.clone(),
+        content_hash,
+        source_lineage_preview,
+    }
+}
+
+fn contact_sheet_snapshot_from_backend(
+    row: AtelierContactSheetExportRow,
+) -> ContactSheetExportSnapshot {
+    let source_lineage_preview = contact_sheet_lineage_preview(&row.source_items);
+    let rows = row
+        .layout
+        .get("rows")
+        .and_then(|value| value.as_u64())
+        .unwrap_or_default() as usize;
+    let columns = row
+        .layout
+        .get("columns")
+        .and_then(|value| value.as_u64())
+        .unwrap_or_default() as usize;
+    let dpi = row
+        .layout
+        .get("dpi")
+        .and_then(|value| value.as_u64())
+        .unwrap_or_default() as usize;
+    ContactSheetExportSnapshot {
+        source_kind: row.source_kind,
+        source_ref: row.source_ref,
+        rows,
+        columns,
+        dpi,
+        include_labels: row.include_labels,
+        thumbnail_fit: row.thumbnail_fit,
+        output_path: row.output_path,
+        item_count: row.item_count,
+        rendered_item_count: row.rendered_item_count,
+        omitted_item_count: row.omitted_item_count,
+        svg_artifact_ref: row.svg_artifact.artifact_ref,
+        svg_manifest_ref: row.svg_artifact.manifest_ref,
+        receipt_ref: row.receipt_ref,
+        receipt_manifest_ref: row.receipt_artifact.manifest_ref,
+        svg_sha256: row.svg_sha256,
+        receipt_sha256: row.receipt_sha256,
+        content_hash: row.content_hash,
+        source_lineage_preview,
+    }
+}
+
+fn contact_sheet_thumbnail_fit_value(value: &str) -> String {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "cover" => "cover".to_owned(),
+        "stretch" => "stretch".to_owned(),
+        _ => "contain".to_owned(),
+    }
+}
+
+fn contact_sheet_lineage_preview(items: &[AtelierContactSheetItem]) -> String {
+    const LINEAGE_PREVIEW_LIMIT: usize = 12;
+    let mut preview = items
+        .iter()
+        .take(LINEAGE_PREVIEW_LIMIT)
+        .map(|item| format!("{}={}", item.item_id, item.source_ref))
+        .collect::<Vec<_>>()
+        .join(",");
+    if items.len() > LINEAGE_PREVIEW_LIMIT {
+        preview.push_str(&format!(
+            " truncated_source_item_count={}",
+            items.len() - LINEAGE_PREVIEW_LIMIT
+        ));
+    }
+    if preview.is_empty() {
+        "<none>".to_owned()
+    } else {
+        preview
+    }
+}
+
+fn contact_sheet_export_preview(snapshot: &ContactSheetExportSnapshot) -> String {
+    let output_path = snapshot.output_path.as_deref().unwrap_or("<none>");
+    format!(
+        "schema=hsk.atelier.contact_sheet_export@1\nsource_kind={}\nsource_ref={}\nrows={}\ncolumns={}\ndpi={}\ninclude_labels={}\nthumbnail_fit={}\noutput_path={}\nitem_count={}\nrendered_item_count={}\nomitted_item_count={}\nsource_items={}\nsvg_artifact_ref={}\nsvg_manifest_ref={}\nreceipt_ref={}\nreceipt_manifest_ref={}\nsvg_sha256={}\nreceipt_sha256={}\ncontent_hash={}\nsvg_mime=image/svg+xml\nreceipt_mime=application/json",
+        snapshot.source_kind,
+        snapshot.source_ref,
+        snapshot.rows,
+        snapshot.columns,
+        snapshot.dpi,
+        snapshot.include_labels,
+        snapshot.thumbnail_fit,
+        output_path,
+        snapshot.item_count,
+        snapshot.rendered_item_count,
+        snapshot.omitted_item_count,
+        snapshot.source_lineage_preview,
+        snapshot.svg_artifact_ref,
+        snapshot.svg_manifest_ref,
+        snapshot.receipt_ref,
+        snapshot.receipt_manifest_ref,
+        snapshot.svg_sha256,
+        snapshot.receipt_sha256,
+        snapshot.content_hash
+    )
+}
+
+fn contact_sheet_visual_preview(snapshot: Option<&ContactSheetExportSnapshot>) -> String {
+    let Some(snapshot) = snapshot else {
+        return "contact_sheet_preview=<none>".to_owned();
+    };
+    let output_path = snapshot.output_path.as_deref().unwrap_or("<none>");
+    format!(
+        "contact_sheet_preview=grid rows={} columns={} dpi={} include_labels={} thumbnail_fit={} output_path={} rendered_item_count={} omitted_item_count={} source_items={} svg_ref={}",
+        snapshot.rows,
+        snapshot.columns,
+        snapshot.dpi,
+        snapshot.include_labels,
+        snapshot.thumbnail_fit,
+        output_path,
+        snapshot.rendered_item_count,
+        snapshot.omitted_item_count,
+        snapshot.source_lineage_preview,
+        snapshot.svg_artifact_ref
+    )
 }
 
 fn ingest_receipt_applied_item_ids(
@@ -4259,6 +4496,7 @@ pub struct AtelierPanel {
     ckc_search_cell: AtelierCkcSearchCell,
     ckc_tag_note_cell: AtelierCkcTagNoteCell,
     pose_export_cell: AtelierPosekitExportCell,
+    ingest_contact_export_cell: AtelierContactSheetExportCell,
     ingest_classification_cell: AtelierIntakeClassificationCell,
 }
 
@@ -4311,6 +4549,7 @@ impl AtelierPanel {
             ckc_search_cell: Arc::new(Mutex::new(None)),
             ckc_tag_note_cell: Arc::new(Mutex::new(None)),
             pose_export_cell: Arc::new(Mutex::new(None)),
+            ingest_contact_export_cell: Arc::new(Mutex::new(None)),
             ingest_classification_cell: Arc::new(Mutex::new(None)),
         }
     }
@@ -5153,6 +5392,50 @@ impl AtelierPanel {
                     }
                     Err(err) => {
                         state.pose_export_status = format!("Posekit OpenPose export failed: {err}");
+                    }
+                }
+            }
+        }
+    }
+
+    fn drain_contact_sheet_export_backend(&self) {
+        let export_result = self
+            .ingest_contact_export_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        if let Some((request_id, result)) = export_result {
+            if let Ok(mut state) = self.state.lock() {
+                if state.ingest_active_contact_export_request != Some(request_id) {
+                    state.ingest_contact_sheet_receipt = format!(
+                        "ignored_stale_contact_sheet=true request_seq={request_id} expected_request_seq={:?}",
+                        state.ingest_active_contact_export_request
+                    );
+                    return;
+                }
+                state.ingest_contact_export_pending = false;
+                state.ingest_active_contact_export_request = None;
+                match result {
+                    Ok(row) => {
+                        let snapshot = contact_sheet_snapshot_from_backend(row);
+                        state.ingest_contact_sheet_receipt =
+                            contact_sheet_export_preview(&snapshot);
+                        state.ingest_status = format!(
+                            "Exported backend contact sheet: {}x{}@{}dpi rendered_item_count={} omitted_item_count={} svg_artifact_ref={} receipt_ref={}",
+                            snapshot.rows,
+                            snapshot.columns,
+                            snapshot.dpi,
+                            snapshot.rendered_item_count,
+                            snapshot.omitted_item_count,
+                            snapshot.svg_artifact_ref,
+                            snapshot.receipt_ref
+                        );
+                        state.ingest_last_contact_sheet = Some(snapshot);
+                    }
+                    Err(err) => {
+                        state.ingest_contact_sheet_receipt =
+                            format!("contact_sheet_export_error={err}");
+                        state.ingest_status = format!("Contact sheet export failed: {err}");
                     }
                 }
             }
@@ -9103,6 +9386,7 @@ impl AtelierPanel {
     }
 
     fn show_ingest(&self, ui: &mut egui::Ui, palette: &HsPalette) {
+        self.drain_contact_sheet_export_backend();
         self.drain_ingest_classification_backend();
         ui.label(egui::RichText::new("Intake batch source").color(palette.text));
         if let Ok(mut side_panel) = self.side_panel.lock() {
@@ -9411,21 +9695,125 @@ impl AtelierPanel {
                 &state.ingest_contact_dpi,
             );
             ui.label("dpi");
-            let export = ui.button("Stage contact settings");
+            let labels = ui.checkbox(&mut state.ingest_contact_include_labels, "Labels");
+            emit_node(
+                ui.ctx(),
+                labels.id,
+                accesskit::Role::CheckBox,
+                ATELIER_INGEST_CONTACT_LABELS_AUTHOR_ID,
+                "Include labels in contact sheet export",
+                state.ingest_contact_include_labels,
+            );
+            ui.label(egui::RichText::new("Fit").color(palette.text));
+            let fit = ui.add(
+                egui::TextEdit::singleline(&mut state.ingest_contact_thumbnail_fit)
+                    .desired_width(72.0),
+            );
+            emit_value_node(
+                ui.ctx(),
+                fit.id,
+                accesskit::Role::TextInput,
+                ATELIER_INGEST_CONTACT_FIT_AUTHOR_ID,
+                "Contact sheet thumbnail fit: contain, cover, or stretch",
+                &state.ingest_contact_thumbnail_fit,
+            );
+        });
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new("Output").color(palette.text));
+            let output = ui.text_edit_singleline(&mut state.ingest_contact_output_path);
+            emit_value_node(
+                ui.ctx(),
+                output.id,
+                accesskit::Role::TextInput,
+                ATELIER_INGEST_CONTACT_OUTPUT_AUTHOR_ID,
+                "Contact sheet output path or artifact ref",
+                &state.ingest_contact_output_path,
+            );
+            let export = ui.add_enabled(
+                !state.ingest_contact_export_pending,
+                egui::Button::new("Export contact sheet"),
+            );
             emit_node(
                 ui.ctx(),
                 export.id,
                 accesskit::Role::Button,
                 ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID,
-                "Stage contact sheet settings",
-                false,
+                "Export a native Atelier contact sheet SVG and receipt for the expanded intake batch",
+                state.ingest_contact_export_pending,
             );
             if export.clicked() {
                 let (rows, columns, dpi, cells) = ingest_contact_sheet_shape(&state);
-                state.ingest_status = format!(
-                    "Contact sheet staged: {rows}x{columns}@{dpi}dpi with {cells} cells for {}",
-                    state.ingest_dataset_ref.trim()
-                );
+                if let Some((batch_id, items)) = expanded_items.as_ref() {
+                    let actor_id = state.ingest_actor.trim().to_owned();
+                    let actor_id = if actor_id.is_empty() {
+                        "atelier-ingest".to_owned()
+                    } else {
+                        actor_id
+                    };
+                    if let Some(client) = self.ckc_client.as_ref() {
+                        let thumbnail_fit =
+                            contact_sheet_thumbnail_fit_value(&state.ingest_contact_thumbnail_fit);
+                        let output_path = ingest_optional_string(&state.ingest_contact_output_path);
+                        state.ingest_contact_export_request_seq =
+                            state.ingest_contact_export_request_seq.saturating_add(1);
+                        let request_seq = state.ingest_contact_export_request_seq;
+                        state.ingest_contact_export_pending = true;
+                        state.ingest_active_contact_export_request = Some(request_seq);
+                        state.ingest_status = format!(
+                            "Dispatching contact sheet export to backend actor {actor_id}: batch_id={batch_id} rows={rows} columns={columns} dpi={dpi} cells={cells} labels={} thumbnail_fit={} output_path={} item_count={}",
+                            state.ingest_contact_include_labels,
+                            thumbnail_fit,
+                            output_path.as_deref().unwrap_or("<none>"),
+                            items.len()
+                        );
+                        let contact_items = contact_sheet_items_from_ingest(items);
+                        client.export_contact_sheet(
+                            "ingest_batch",
+                            batch_id,
+                            rows,
+                            columns,
+                            dpi,
+                            state.ingest_contact_include_labels,
+                            &thumbnail_fit,
+                            output_path.as_deref(),
+                            contact_items,
+                            &actor_id,
+                            request_seq,
+                            self.ingest_contact_export_cell.clone(),
+                        );
+                    } else {
+                        let thumbnail_fit =
+                            contact_sheet_thumbnail_fit_value(&state.ingest_contact_thumbnail_fit);
+                        let snapshot = contact_sheet_local_snapshot(
+                            batch_id,
+                            items,
+                            rows,
+                            columns,
+                            dpi,
+                            state.ingest_contact_include_labels,
+                            &thumbnail_fit,
+                            ingest_optional_string(&state.ingest_contact_output_path),
+                        );
+                        state.ingest_contact_sheet_receipt =
+                            contact_sheet_export_preview(&snapshot);
+                        state.ingest_status = format!(
+                            "Local contact sheet preview: {rows}x{columns}@{dpi}dpi labels={} thumbnail_fit={} rendered_item_count={} omitted_item_count={} svg_artifact_ref={} receipt_ref={}",
+                            snapshot.include_labels,
+                            snapshot.thumbnail_fit,
+                            snapshot.rendered_item_count,
+                            snapshot.omitted_item_count,
+                            snapshot.svg_artifact_ref,
+                            snapshot.receipt_ref
+                        );
+                        state.ingest_last_contact_sheet = Some(snapshot);
+                    }
+                } else {
+                    state.ingest_status = format!(
+                        "Contact sheet export needs an expanded intake batch; settings staged locally: {rows}x{columns}@{dpi}dpi cells={cells}"
+                    );
+                    state.ingest_contact_sheet_receipt =
+                        "contact_sheet_export_blocked=missing_expanded_batch".to_owned();
+                }
             }
         });
         ui.add_space(6.0);
@@ -9461,6 +9849,17 @@ impl AtelierPanel {
             "Ingest status",
             &state.ingest_status,
         );
+        let contact_preview =
+            contact_sheet_visual_preview(state.ingest_last_contact_sheet.as_ref());
+        let preview = ui.label(egui::RichText::new(&contact_preview).color(palette.text_subtle));
+        emit_value_node(
+            ui.ctx(),
+            preview.id,
+            accesskit::Role::Label,
+            ATELIER_INGEST_CONTACT_PREVIEW_AUTHOR_ID,
+            "Ingest contact sheet visual grid preview",
+            &contact_preview,
+        );
         let receipt = ui.label(
             egui::RichText::new(&state.ingest_last_apply_receipt).color(palette.text_subtle),
         );
@@ -9471,6 +9870,17 @@ impl AtelierPanel {
             ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID,
             "Last Ingest backend apply receipt",
             &state.ingest_last_apply_receipt,
+        );
+        let contact_receipt = ui.label(
+            egui::RichText::new(&state.ingest_contact_sheet_receipt).color(palette.text_subtle),
+        );
+        emit_value_node(
+            ui.ctx(),
+            contact_receipt.id,
+            accesskit::Role::Label,
+            ATELIER_INGEST_CONTACT_RECEIPT_AUTHOR_ID,
+            "Last Ingest contact sheet export receipt",
+            &state.ingest_contact_sheet_receipt,
         );
         ui.separator();
         egui::Grid::new("atelier-ingest-grid")

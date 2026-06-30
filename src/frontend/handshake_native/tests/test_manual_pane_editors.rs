@@ -746,7 +746,12 @@ fn manual_documents_atelier_tabs_and_argus_control_ids() {
         "atelier-ingest-contact-rows",
         "atelier-ingest-contact-columns",
         "atelier-ingest-contact-dpi",
+        "atelier-ingest-contact-labels",
+        "atelier-ingest-contact-fit",
+        "atelier-ingest-contact-output",
         "atelier-ingest-contact-export",
+        "atelier-ingest-contact-preview",
+        "atelier-ingest-contact-receipt",
         "atelier-ingest-facial-profile",
         "atelier-ingest-queue-readout",
         "atelier-ingest-batch-summary",
@@ -763,6 +768,14 @@ fn manual_documents_atelier_tabs_and_argus_control_ids() {
         "total_item_count",
         "canonical_counts_loaded=false",
         "truncated_count",
+        "hsk.atelier.contact_sheet_export@1",
+        "image/svg+xml",
+        "svg_artifact_ref",
+        "receipt_ref",
+        "source_items",
+        "thumbnail fit",
+        "output path",
+        "preview://atelier/contact-sheet",
         "Argus",
     ] {
         assert!(
@@ -825,8 +838,28 @@ fn manual_agent_tool_rows_cover_ingest_dataset_contact_and_facial_controls() {
             "argus.set_value",
         ),
         (
+            handshake_native::atelier_panel::ATELIER_INGEST_CONTACT_LABELS_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_CONTACT_FIT_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_CONTACT_OUTPUT_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
             handshake_native::atelier_panel::ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID,
             "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_CONTACT_PREVIEW_AUTHOR_ID,
+            "argus.inspect",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_CONTACT_RECEIPT_AUTHOR_ID,
+            "argus.inspect",
         ),
         (
             handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID,

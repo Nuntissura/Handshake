@@ -332,7 +332,7 @@ Reusable sheet artifacts link ComfyUI renders, Comfy receipts, conditioning PNGs
 The row typed_ref is atelier://sheet-artifact/{link_id}; resolve it with GET /atelier/sheet-artifact-links/{link_id}. artifact_kind is one of openpose_json, openpose_png, conditioning_png, comfy_render, or comfy_receipt. \
 Use atelier-ckc-sheet-artifact-list to inspect active links, set atelier-ckc-sheet-artifact-actor to the current Argus/model actor id, fill atelier-ckc-sheet-artifact-kind/ref/manifest/label/role, then click atelier-ckc-sheet-artifact-attach. \
 Click atelier-ckc-sheet-artifact-attach-posekit after a Posekit export to attach the latest OpenPose PNG as cui_openpose_conditioning. \
-Use atelier-ckc-sheet-artifact-reuse-ref as the model-readable reuse handle and atelier-ckc-sheet-artifact-detach for a soft detach; parallel agents must keep distinct actor ids so linked_by/detach_actor event metadata stays attributable. Do not delete artifact files from CKC UI. \
+Use atelier-ckc-sheet-artifact-reuse-ref as the model-readable reuse handle and atelier-ckc-sheet-artifact-detach for a soft detach; parallel agents must keep distinct actor ids so linked_by/detach_actor event metadata stays attributable; do not delete artifact files from CKC UI. \
 Sheet appends use \
 expected_parent_version_id as the stale-head guard for parallel agents. A stale append returns \
 error=stale_sheet_version plus character_ref, expected_parent_version_id, \
@@ -458,9 +458,18 @@ requested_by, applied_count, applied_preview_count, total_item_count, capped app
 truncated_count, and stale-response status. If atelier-ingest-batch-summary reports \
 canonical_counts_loaded=false, wait for the batch projection before applying; placeholder zero lane counts \
 are not canonical. \
-contact sheet staging uses atelier-ingest-contact-rows, \
-atelier-ingest-contact-columns, atelier-ingest-contact-dpi, and \
-atelier-ingest-contact-export. Facial quality/dedupe/identity profile hints live in \
+native contact sheet export uses atelier-ingest-contact-rows, \
+atelier-ingest-contact-columns, atelier-ingest-contact-dpi, atelier-ingest-contact-labels, \
+atelier-ingest-contact-fit, atelier-ingest-contact-output, and atelier-ingest-contact-export. \
+Use thumbnail fit values contain, cover, or stretch, and set output path/ref before export when \
+the artifact should land somewhere other than the default latest contact sheet ref. \
+Inspect atelier-ingest-contact-preview for the Argus-visible visual grid projection and \
+atelier-ingest-contact-receipt for \
+hsk.atelier.contact_sheet_export@1, image/svg+xml svg_artifact_ref, svg_manifest_ref, \
+receipt_ref, receipt_manifest_ref, source_ref, item_count, rendered_item_count, and \
+omitted_item_count. The same receipt exposes source_items as item_id=source_ref lineage for the \
+expanded image set. No-backend harnesses expose preview://atelier/contact-sheet/... refs; backend \
+exports write ArtifactStore SVG and JSON receipt artifacts. Facial quality/dedupe/identity profile hints live in \
 atelier-ingest-facial-profile so the future native Facial ingest bridge can reuse the same review queue. Real \
 expanded intake rows are exposed as atelier-ingest-item-{stable_item_id}; per-item triage buttons are \
 atelier-ingest-item-{stable_item_id}-pass, atelier-ingest-item-{stable_item_id}-reject, and \
@@ -1605,10 +1614,40 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             "argus.set_value{target:'atelier-ingest-contact-dpi', value:'300'} sets contact-sheet export DPI.",
         ),
         (
-            crate::atelier_panel::ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID,
-            "Stage Ingest contact-sheet settings",
+            crate::atelier_panel::ATELIER_INGEST_CONTACT_LABELS_AUTHOR_ID,
+            "Toggle Ingest contact-sheet labels",
             "argus.click",
-            "argus.click{target:'atelier-ingest-contact-export'} stages contact-sheet export settings for the current dataset.",
+            "argus.click{target:'atelier-ingest-contact-labels'} toggles labels in the contact-sheet export.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_CONTACT_FIT_AUTHOR_ID,
+            "Set Ingest contact-sheet thumbnail fit",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-contact-fit', value:'cover'} sets thumbnail fit to contain, cover, or stretch.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_CONTACT_OUTPUT_AUTHOR_ID,
+            "Set Ingest contact-sheet output",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-contact-output', value:'artifact://atelier/contact-sheets/latest.svg'} sets the export output path/ref.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID,
+            "Export Ingest contact sheet",
+            "argus.click",
+            "argus.click{target:'atelier-ingest-contact-export'} exports a native contact-sheet SVG plus JSON receipt for the expanded intake batch.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_CONTACT_PREVIEW_AUTHOR_ID,
+            "Inspect Ingest contact-sheet preview",
+            "argus.inspect",
+            "argus.inspect reads the visual grid projection: rows, columns, DPI, labels, thumbnail fit, output path, source lineage, and SVG ref.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_CONTACT_RECEIPT_AUTHOR_ID,
+            "Inspect Ingest contact-sheet receipt",
+            "argus.inspect",
+            "argus.inspect reads hsk.atelier.contact_sheet_export@1 refs, svg_artifact_ref, receipt_ref, item_count, rendered_item_count, omitted_item_count, and content hashes.",
         ),
         (
             crate::atelier_panel::ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID,

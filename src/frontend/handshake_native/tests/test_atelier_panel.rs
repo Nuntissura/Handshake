@@ -69,30 +69,32 @@ use handshake_native::atelier_panel::{
     ATELIER_INGEST_BATCH_NOTE_AUTHOR_ID, ATELIER_INGEST_BATCH_SUMMARY_AUTHOR_ID,
     ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID, ATELIER_INGEST_CHARACTER_REF_AUTHOR_ID,
     ATELIER_INGEST_CONTACT_COLUMNS_AUTHOR_ID, ATELIER_INGEST_CONTACT_DPI_AUTHOR_ID,
-    ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID, ATELIER_INGEST_CONTACT_ROWS_AUTHOR_ID,
-    ATELIER_INGEST_DATASET_REF_AUTHOR_ID, ATELIER_INGEST_DATE_AUTHOR_ID,
-    ATELIER_INGEST_EVENT_AUTHOR_ID, ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID,
-    ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID, ATELIER_INGEST_LINK_PASSED_AUTHOR_ID,
-    ATELIER_INGEST_LOCATION_AUTHOR_ID, ATELIER_INGEST_PASS_AUTHOR_ID,
-    ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID, ATELIER_INGEST_REJECT_AUTHOR_ID,
-    ATELIER_INGEST_STATUS_AUTHOR_ID, ATELIER_INGEST_UNSURE_AUTHOR_ID, ATELIER_PANEL_AUTHOR_ID,
-    ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID, ATELIER_POSE_BODY_TOGGLE_AUTHOR_ID,
-    ATELIER_POSE_EXPORT_AUTHOR_ID, ATELIER_POSE_EXPORT_PREVIEW_AUTHOR_ID,
-    ATELIER_POSE_EXPORT_REF_AUTHOR_ID, ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID,
-    ATELIER_POSE_FACE_TOGGLE_AUTHOR_ID, ATELIER_POSE_FRAMING_LENS_AUTHOR_ID,
-    ATELIER_POSE_FRAMING_PADDING_BOTTOM_AUTHOR_ID, ATELIER_POSE_FRAMING_PADDING_LEFT_AUTHOR_ID,
-    ATELIER_POSE_FRAMING_PADDING_RIGHT_AUTHOR_ID, ATELIER_POSE_FRAMING_PADDING_TOP_AUTHOR_ID,
-    ATELIER_POSE_FRAMING_PRESET_AUTHOR_ID, ATELIER_POSE_FRAMING_READOUT_AUTHOR_ID,
-    ATELIER_POSE_HANDS_TOGGLE_AUTHOR_ID, ATELIER_POSE_MARKER_ADD_AUTHOR_ID,
-    ATELIER_POSE_MARKER_APPLY_AUTHOR_ID, ATELIER_POSE_MARKER_CONFIDENCE_AUTHOR_ID,
-    ATELIER_POSE_MARKER_FAMILY_AUTHOR_ID, ATELIER_POSE_MARKER_INDEX_AUTHOR_ID,
-    ATELIER_POSE_MARKER_NUDGE_DOWN_AUTHOR_ID, ATELIER_POSE_MARKER_NUDGE_LEFT_AUTHOR_ID,
-    ATELIER_POSE_MARKER_NUDGE_RIGHT_AUTHOR_ID, ATELIER_POSE_MARKER_NUDGE_UP_AUTHOR_ID,
-    ATELIER_POSE_MARKER_REMOVE_AUTHOR_ID, ATELIER_POSE_MARKER_RESET_AUTHOR_ID,
-    ATELIER_POSE_MARKER_STATUS_AUTHOR_ID, ATELIER_POSE_MARKER_X_AUTHOR_ID,
-    ATELIER_POSE_MARKER_Y_AUTHOR_ID, ATELIER_POSE_OPENPOSE_VIEWPORT_AUTHOR_ID,
-    ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID, ATELIER_POSE_RESET_AUTHOR_ID,
-    ATELIER_POSE_RIG_ID_AUTHOR_ID, ATELIER_POSE_SOURCE_REF_AUTHOR_ID,
+    ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID, ATELIER_INGEST_CONTACT_FIT_AUTHOR_ID,
+    ATELIER_INGEST_CONTACT_LABELS_AUTHOR_ID, ATELIER_INGEST_CONTACT_OUTPUT_AUTHOR_ID,
+    ATELIER_INGEST_CONTACT_PREVIEW_AUTHOR_ID, ATELIER_INGEST_CONTACT_RECEIPT_AUTHOR_ID,
+    ATELIER_INGEST_CONTACT_ROWS_AUTHOR_ID, ATELIER_INGEST_DATASET_REF_AUTHOR_ID,
+    ATELIER_INGEST_DATE_AUTHOR_ID, ATELIER_INGEST_EVENT_AUTHOR_ID,
+    ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID, ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID,
+    ATELIER_INGEST_LINK_PASSED_AUTHOR_ID, ATELIER_INGEST_LOCATION_AUTHOR_ID,
+    ATELIER_INGEST_PASS_AUTHOR_ID, ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID,
+    ATELIER_INGEST_REJECT_AUTHOR_ID, ATELIER_INGEST_STATUS_AUTHOR_ID,
+    ATELIER_INGEST_UNSURE_AUTHOR_ID, ATELIER_PANEL_AUTHOR_ID, ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID,
+    ATELIER_POSE_BODY_TOGGLE_AUTHOR_ID, ATELIER_POSE_EXPORT_AUTHOR_ID,
+    ATELIER_POSE_EXPORT_PREVIEW_AUTHOR_ID, ATELIER_POSE_EXPORT_REF_AUTHOR_ID,
+    ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID, ATELIER_POSE_FACE_TOGGLE_AUTHOR_ID,
+    ATELIER_POSE_FRAMING_LENS_AUTHOR_ID, ATELIER_POSE_FRAMING_PADDING_BOTTOM_AUTHOR_ID,
+    ATELIER_POSE_FRAMING_PADDING_LEFT_AUTHOR_ID, ATELIER_POSE_FRAMING_PADDING_RIGHT_AUTHOR_ID,
+    ATELIER_POSE_FRAMING_PADDING_TOP_AUTHOR_ID, ATELIER_POSE_FRAMING_PRESET_AUTHOR_ID,
+    ATELIER_POSE_FRAMING_READOUT_AUTHOR_ID, ATELIER_POSE_HANDS_TOGGLE_AUTHOR_ID,
+    ATELIER_POSE_MARKER_ADD_AUTHOR_ID, ATELIER_POSE_MARKER_APPLY_AUTHOR_ID,
+    ATELIER_POSE_MARKER_CONFIDENCE_AUTHOR_ID, ATELIER_POSE_MARKER_FAMILY_AUTHOR_ID,
+    ATELIER_POSE_MARKER_INDEX_AUTHOR_ID, ATELIER_POSE_MARKER_NUDGE_DOWN_AUTHOR_ID,
+    ATELIER_POSE_MARKER_NUDGE_LEFT_AUTHOR_ID, ATELIER_POSE_MARKER_NUDGE_RIGHT_AUTHOR_ID,
+    ATELIER_POSE_MARKER_NUDGE_UP_AUTHOR_ID, ATELIER_POSE_MARKER_REMOVE_AUTHOR_ID,
+    ATELIER_POSE_MARKER_RESET_AUTHOR_ID, ATELIER_POSE_MARKER_STATUS_AUTHOR_ID,
+    ATELIER_POSE_MARKER_X_AUTHOR_ID, ATELIER_POSE_MARKER_Y_AUTHOR_ID,
+    ATELIER_POSE_OPENPOSE_VIEWPORT_AUTHOR_ID, ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID,
+    ATELIER_POSE_RESET_AUTHOR_ID, ATELIER_POSE_RIG_ID_AUTHOR_ID, ATELIER_POSE_SOURCE_REF_AUTHOR_ID,
     ATELIER_POSE_SPLIT_VIEW_AUTHOR_ID, ATELIER_POSE_STATE_READOUT_AUTHOR_ID,
     ATELIER_POSE_YAW_MINUS_AUTHOR_ID, ATELIER_POSE_YAW_PLUS_AUTHOR_ID,
     ATELIER_POSE_YAW_SLIDER_AUTHOR_ID, ATELIER_POSE_ZOOM_SLIDER_AUTHOR_ID,
@@ -455,6 +457,73 @@ fn posekit_backend_export_response(rig_id: &str) -> serde_json::Value {
             "byte_len": 2048,
             "mime": "application/json",
             "file_name": "posekit-openpose.json"
+        }
+    })
+}
+
+fn contact_sheet_backend_export_response() -> serde_json::Value {
+    serde_json::json!({
+        "schema_id": "hsk.atelier.contact_sheet_export@1",
+        "source_kind": "ingest_batch",
+        "source_ref": "batch-1",
+        "thumbnail_fit": "stretch",
+        "output_path": "artifact://atelier/contact-sheets/backend-proof.svg",
+        "layout": {
+            "rows": 2,
+            "columns": 2,
+            "dpi": 220,
+            "cell_width_px": 220,
+            "cell_height_px": 264,
+            "gap_px": 12,
+            "margin_px": 18,
+            "label_height_px": 44,
+            "width_px": 488,
+            "height_px": 576,
+            "cell_count": 4
+        },
+        "source_items": [
+            {
+                "item_id": "item-aaa",
+                "label": "sunset.png",
+                "source_ref": "/intake/sunset.png",
+                "media_ref": null
+            },
+            {
+                "item_id": "item-bbb",
+                "label": "portrait.png",
+                "source_ref": "/intake/portrait.png",
+                "media_ref": null
+            },
+            {
+                "item_id": "item-ccc",
+                "label": "contact.png",
+                "source_ref": "/intake/contact.png",
+                "media_ref": null
+            }
+        ],
+        "item_count": 3,
+        "rendered_item_count": 3,
+        "omitted_item_count": 0,
+        "include_labels": false,
+        "svg_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "receipt_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+        "content_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+        "receipt_ref": "artifact://.handshake/artifacts/contact-sheet-receipt/payload",
+        "svg_artifact": {
+            "artifact_ref": "artifact://.handshake/artifacts/contact-sheet-svg/payload",
+            "manifest_ref": "artifact://.handshake/artifacts/contact-sheet-svg/manifest",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+            "byte_len": 1024,
+            "mime": "image/svg+xml",
+            "file_name": "atelier-contact-sheet.svg"
+        },
+        "receipt_artifact": {
+            "artifact_ref": "artifact://.handshake/artifacts/contact-sheet-receipt/payload",
+            "manifest_ref": "artifact://.handshake/artifacts/contact-sheet-receipt/manifest",
+            "content_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+            "byte_len": 2048,
+            "mime": "application/json",
+            "file_name": "atelier-contact-sheet-receipt.json"
         }
     })
 }
@@ -2408,6 +2477,9 @@ fn posekit_and_ingest_controls_are_model_addressable() {
         ATELIER_INGEST_CONTACT_ROWS_AUTHOR_ID,
         ATELIER_INGEST_CONTACT_COLUMNS_AUTHOR_ID,
         ATELIER_INGEST_CONTACT_DPI_AUTHOR_ID,
+        ATELIER_INGEST_CONTACT_LABELS_AUTHOR_ID,
+        ATELIER_INGEST_CONTACT_FIT_AUTHOR_ID,
+        ATELIER_INGEST_CONTACT_OUTPUT_AUTHOR_ID,
         ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID,
         ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID,
     ] {
@@ -2431,6 +2503,8 @@ fn posekit_and_ingest_controls_are_model_addressable() {
         ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID,
         ATELIER_INGEST_STATUS_AUTHOR_ID,
         ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID,
+        ATELIER_INGEST_CONTACT_PREVIEW_AUTHOR_ID,
+        ATELIER_INGEST_CONTACT_RECEIPT_AUTHOR_ID,
     ] {
         assert!(
             ingest_ids.contains(expected),
@@ -2482,9 +2556,14 @@ fn ingest_batch_metadata_and_contact_sheet_controls_update_argus_state() {
         (ATELIER_INGEST_EVENT_AUTHOR_ID, "i76 prompt stress"),
         (ATELIER_INGEST_DATE_AUTHOR_ID, "2026-06-28"),
         (ATELIER_INGEST_LOCATION_AUTHOR_ID, "studio intake"),
-        (ATELIER_INGEST_CONTACT_ROWS_AUTHOR_ID, "3"),
-        (ATELIER_INGEST_CONTACT_COLUMNS_AUTHOR_ID, "4"),
-        (ATELIER_INGEST_CONTACT_DPI_AUTHOR_ID, "300"),
+        (ATELIER_INGEST_CONTACT_ROWS_AUTHOR_ID, "2"),
+        (ATELIER_INGEST_CONTACT_COLUMNS_AUTHOR_ID, "2"),
+        (ATELIER_INGEST_CONTACT_DPI_AUTHOR_ID, "180"),
+        (ATELIER_INGEST_CONTACT_FIT_AUTHOR_ID, "cover"),
+        (
+            ATELIER_INGEST_CONTACT_OUTPUT_AUTHOR_ID,
+            "artifact://atelier/contact-sheets/leeseo-i76.svg",
+        ),
         (
             ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID,
             "quality+dedupe+identity",
@@ -2515,6 +2594,7 @@ fn ingest_batch_metadata_and_contact_sheet_controls_update_argus_state() {
     for target in [
         ATELIER_INGEST_PASS_AUTHOR_ID,
         ATELIER_INGEST_LINK_PASSED_AUTHOR_ID,
+        ATELIER_INGEST_CONTACT_LABELS_AUTHOR_ID,
         ATELIER_INGEST_APPLY_BATCH_AUTHOR_ID,
         ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID,
     ] {
@@ -2575,8 +2655,20 @@ fn ingest_batch_metadata_and_contact_sheet_controls_update_argus_state() {
         "queue readout must include CKC link toggle; got {queue}"
     );
     assert!(
-        queue.contains("contact_sheet=3x4@300dpi"),
+        queue.contains("contact_sheet=2x2@180dpi"),
         "queue readout must include contact sheet shape; got {queue}"
+    );
+    assert!(
+        queue.contains("labels=false"),
+        "queue readout must include label toggle; got {queue}"
+    );
+    assert!(
+        queue.contains("thumbnail_fit=cover"),
+        "queue readout must include thumbnail fit; got {queue}"
+    );
+    assert!(
+        queue.contains("output_path=artifact://atelier/contact-sheets/leeseo-i76.svg"),
+        "queue readout must include output path; got {queue}"
     );
     assert!(
         queue.contains("facial_profile=quality+dedupe+identity"),
@@ -2587,8 +2679,222 @@ fn ingest_batch_metadata_and_contact_sheet_controls_update_argus_state() {
         .find_by_author_id(ATELIER_INGEST_STATUS_AUTHOR_ID)
         .and_then(|node| node.value.clone())
         .expect("ingest status visible");
-    assert!(status.contains("Contact sheet staged"));
-    assert!(status.contains("12 cells"));
+    assert!(status.contains("Local contact sheet preview"));
+    assert!(status.contains("2x2@180dpi"));
+    assert!(status.contains("labels=false"));
+    assert!(status.contains("thumbnail_fit=cover"));
+    assert!(status.contains("rendered_item_count=3"));
+    assert!(status.contains("omitted_item_count=0"));
+    assert!(status.contains("preview://atelier/contact-sheet/"));
+    let contact_preview = snapshot
+        .find_by_author_id(ATELIER_INGEST_CONTACT_PREVIEW_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("ingest contact sheet preview visible");
+    assert!(contact_preview.contains("contact_sheet_preview=grid"));
+    assert!(contact_preview.contains("rows=2"));
+    assert!(contact_preview.contains("columns=2"));
+    assert!(contact_preview.contains("dpi=180"));
+    assert!(contact_preview.contains("include_labels=false"));
+    assert!(contact_preview.contains("thumbnail_fit=cover"));
+    assert!(
+        contact_preview.contains("output_path=artifact://atelier/contact-sheets/leeseo-i76.svg")
+    );
+    assert!(contact_preview.contains("item-aaa=/intake/sunset.png"));
+    let contact_receipt = snapshot
+        .find_by_author_id(ATELIER_INGEST_CONTACT_RECEIPT_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("ingest contact sheet receipt visible");
+    assert!(contact_receipt.contains("hsk.atelier.contact_sheet_export@1"));
+    assert!(contact_receipt.contains("source_ref=batch-1"));
+    assert!(contact_receipt.contains("rows=2"));
+    assert!(contact_receipt.contains("columns=2"));
+    assert!(contact_receipt.contains("dpi=180"));
+    assert!(contact_receipt.contains("include_labels=false"));
+    assert!(contact_receipt.contains("thumbnail_fit=cover"));
+    assert!(
+        contact_receipt.contains("output_path=artifact://atelier/contact-sheets/leeseo-i76.svg")
+    );
+    assert!(contact_receipt.contains("item_count=3"));
+    assert!(contact_receipt.contains("rendered_item_count=3"));
+    assert!(contact_receipt.contains("omitted_item_count=0"));
+    assert!(contact_receipt.contains("item-aaa=/intake/sunset.png"));
+    assert!(contact_receipt.contains("item-bbb=/intake/portrait.png"));
+    assert!(contact_receipt.contains("item-ccc=/intake/contact.png"));
+    assert!(contact_receipt.contains("svg_artifact_ref=preview://atelier/contact-sheet/"));
+    assert!(contact_receipt.contains("receipt_ref=preview://atelier/contact-sheet/"));
+    assert!(contact_receipt.contains("svg_mime=image/svg+xml"));
+}
+
+#[test]
+fn ingest_contact_sheet_backend_export_reaches_argus_artifact_refs() {
+    let (base_url, server) = spawn_posekit_export_server(contact_sheet_backend_export_response());
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("contact sheet backend proof runtime");
+    let client =
+        AtelierClient::new_with_actor_id(base_url, runtime.handle().clone(), "ingest-agent-018");
+    let mut harness = build_panel_harness_with_client(egui::vec2(1280.0, 760.0), client);
+    harness.run();
+
+    let mut channel = ActionChannel::new();
+    let tab_click = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_TAB_INGEST_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &snapshot_harness(&mut harness),
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(tab_click.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+
+    for (target, value) in [
+        (ATELIER_INGEST_CONTACT_ROWS_AUTHOR_ID, "2"),
+        (ATELIER_INGEST_CONTACT_COLUMNS_AUTHOR_ID, "2"),
+        (ATELIER_INGEST_CONTACT_DPI_AUTHOR_ID, "220"),
+        (ATELIER_INGEST_CONTACT_FIT_AUTHOR_ID, "stretch"),
+        (
+            ATELIER_INGEST_CONTACT_OUTPUT_AUTHOR_ID,
+            "artifact://atelier/contact-sheets/backend-proof.svg",
+        ),
+    ] {
+        let set = dispatch_request(
+            &argus_req(
+                "argus.set_value",
+                serde_json::json!({ "target": target, "value": value }),
+            ),
+            &argus_token(),
+            &snapshot_harness(&mut harness),
+            &mut channel,
+            || Err(ScreenshotError("not used".to_owned())),
+        );
+        assert_eq!(set.to_json()["result"]["queued"], true);
+        for event in channel.drain_into_events() {
+            harness.event(event);
+        }
+        harness.run();
+    }
+
+    let labels = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_INGEST_CONTACT_LABELS_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &snapshot_harness(&mut harness),
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(labels.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+
+    let export = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &snapshot_harness(&mut harness),
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(export.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+
+    let pending = snapshot_harness(&mut harness);
+    let pending_status = pending
+        .find_by_author_id(ATELIER_INGEST_STATUS_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .unwrap_or_default();
+    assert!(
+        pending_status
+            .contains("Dispatching contact sheet export to backend actor ingest-agent-018"),
+        "contact sheet export must expose backend pending state; got {pending_status}"
+    );
+
+    let captured = server
+        .join()
+        .expect("contact sheet export mock server joins");
+    assert_eq!(
+        captured.request_line,
+        "POST /atelier/contact-sheets/export HTTP/1.1"
+    );
+    assert_eq!(
+        captured.headers.get("x-hsk-actor-id").map(String::as_str),
+        Some("ingest-agent-018")
+    );
+    let sent_body: serde_json::Value =
+        serde_json::from_str(&captured.body).expect("contact sheet request JSON body");
+    assert_eq!(sent_body["source_kind"], "ingest_batch");
+    assert_eq!(sent_body["source_ref"], "batch-1");
+    assert_eq!(sent_body["rows"], 2);
+    assert_eq!(sent_body["columns"], 2);
+    assert_eq!(sent_body["dpi"], 220);
+    assert_eq!(sent_body["include_labels"], false);
+    assert_eq!(sent_body["thumbnail_fit"], "stretch");
+    assert_eq!(
+        sent_body["output_path"],
+        "artifact://atelier/contact-sheets/backend-proof.svg"
+    );
+    assert_eq!(sent_body["items"][0]["item_id"], "item-aaa");
+    assert_eq!(sent_body["items"][0]["source_ref"], "/intake/sunset.png");
+    assert_eq!(sent_body["items"][1]["item_id"], "item-bbb");
+    assert_eq!(sent_body["items"][2]["item_id"], "item-ccc");
+
+    let exported = (0..40)
+        .find_map(|_| {
+            harness.run();
+            let snapshot = snapshot_harness(&mut harness);
+            let status = snapshot
+                .find_by_author_id(ATELIER_INGEST_STATUS_AUTHOR_ID)
+                .and_then(|node| node.value.as_deref())
+                .unwrap_or_default()
+                .to_owned();
+            if status.contains("Exported backend contact sheet") {
+                Some(snapshot)
+            } else {
+                std::thread::sleep(std::time::Duration::from_millis(25));
+                None
+            }
+        })
+        .expect("backend contact sheet export becomes Argus-visible");
+
+    let receipt = exported
+        .find_by_author_id(ATELIER_INGEST_CONTACT_RECEIPT_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("backend contact sheet receipt value");
+    assert!(receipt.contains("hsk.atelier.contact_sheet_export@1"));
+    assert!(receipt.contains("thumbnail_fit=stretch"));
+    assert!(receipt.contains("output_path=artifact://atelier/contact-sheets/backend-proof.svg"));
+    assert!(receipt.contains("item-aaa=/intake/sunset.png"));
+    assert!(receipt
+        .contains("svg_artifact_ref=artifact://.handshake/artifacts/contact-sheet-svg/payload"));
+    assert!(receipt
+        .contains("receipt_ref=artifact://.handshake/artifacts/contact-sheet-receipt/payload"));
+
+    let preview = exported
+        .find_by_author_id(ATELIER_INGEST_CONTACT_PREVIEW_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("backend contact sheet preview value");
+    assert!(preview.contains("contact_sheet_preview=grid"));
+    assert!(preview.contains("rows=2"));
+    assert!(preview.contains("columns=2"));
+    assert!(preview.contains("dpi=220"));
+    assert!(preview.contains("thumbnail_fit=stretch"));
+    assert!(preview.contains("svg_ref=artifact://.handshake/artifacts/contact-sheet-svg/payload"));
 }
 
 #[test]
