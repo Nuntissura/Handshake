@@ -444,13 +444,22 @@ cases where the app cannot emit events."
 fn internal_diagnostics_body() -> String {
     "internal_diagnostics is Tier 2: the in-app self-diagnostics layer. It owns the process-global \
 diagnostic-event API, the bounded last-N event buffer, the optional shared-memory ring writer, heartbeat, \
-frame-time, CPU/RSS/GPU/resource counters, panic hook, backend-down events, and the Settings -> Diagnostics \
-projection. Use it when the app is still running and you need to understand UI health, slow frames, resource \
-pressure, backend reachability, or a typed diagnostic event emitted by a feature. A model reads it through \
-Settings -> Diagnostics: diagnostics_panel for the surface, diagnostics_heartbeat for liveness, \
+frame-time, CPU/RSS/GPU/resource counters, panic hook, backend-down events, the operation watchdog, and \
+the Settings -> Diagnostics projection. Use it when the app is still running and you need to understand UI \
+health, slow frames, resource pressure, backend reachability, stalled in-app operations, or a typed \
+diagnostic event emitted by a feature. A deadline-bounded operation registers an OperationCode with the \
+watchdog, ticks progress, and completes when done; the first shipped consumer is the backend health/layout \
+path using OperationCode::BackendCall. If progress stops past the deadline, the watchdog emits one typed \
+StalledOperation event through the diagnostic-event API: sequence_id is the opaque operation id, counter_a \
+is the OperationCode discriminant, counter_b is last_progress_ms, metric_micros is elapsed_ms * 1000, and \
+timestamp_nanos is monotonic. It never records names, command lines, arguments, or paths. A model reads it \
+through Settings -> Diagnostics: diagnostics_panel for the surface, diagnostics_heartbeat for liveness, \
 diagnostics_frame for slow-frame stats, diagnostics_resource for CPU/RSS/GPU, diagnostics_events for recent \
-events, and diagnostics_palmistry for Tier-3 survivor projection. It does not replace Flight Recorder's \
-business ledger and it cannot by itself survive a fully dead process."
+StalledOperation rows, and diagnostics_palmistry for Tier-3 survivor projection. The status bar also shows \
+Stalled ops while an operation is actively stalled and clears when it completes. Recovery is to inspect the \
+typed event, identify the OperationCode lane, let or force the operation to finish/cancel, then verify the \
+status bar clears and no new StalledOperation event is emitted for a ticking/completed operation. It does \
+not replace Flight Recorder's business ledger and it cannot by itself survive a fully dead process."
         .to_owned()
 }
 

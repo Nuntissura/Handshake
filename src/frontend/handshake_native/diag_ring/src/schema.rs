@@ -79,6 +79,8 @@ pub enum DiagEventCode {
     PalmistryHandshake = 9,
     /// Orderly shutdown marker.
     Shutdown = 10,
+    /// A deadline-bounded in-app operation stopped making progress (MT-105 operation watchdog).
+    StalledOperation = 11,
     /// Escape hatch for an event that does not fit a named code. Still carries NO text — only the
     /// numeric counters — so it cannot become a free-text smuggling channel.
     Other = 65535,
@@ -317,6 +319,32 @@ impl DiagEvent {
             port,
             0,
             0,
+            timestamp_nanos,
+        )
+    }
+
+    /// A stalled operation event (MT-105 operation watchdog). The payload is typed integers only:
+    /// `sequence_id` is the opaque operation id, `operation_code` is the closed operation enum
+    /// discriminant, `last_progress_ms` is the monotonic gap since the last tick, and `elapsed_ms` is
+    /// encoded in `metric_micros` as `elapsed_ms * 1000`.
+    #[inline]
+    pub fn stalled_operation(
+        thread_id: u64,
+        sequence_id: u64,
+        operation_code: u64,
+        elapsed_ms: u64,
+        last_progress_ms: u64,
+        timestamp_nanos: u64,
+    ) -> Self {
+        Self::new(
+            DiagEventCode::StalledOperation,
+            DiagPhase::Degraded,
+            DiagSeverity::Error,
+            thread_id,
+            sequence_id,
+            operation_code,
+            last_progress_ms,
+            elapsed_ms.saturating_mul(1000),
             timestamp_nanos,
         )
     }

@@ -157,7 +157,12 @@ impl DiagnosticsPanel {
                 self.palmistry_section(ui, view, palette);
             });
         });
-        set_region(ui, region.response.id, DIAGNOSTICS_PANEL_AUTHOR_ID, "Diagnostics panel");
+        set_region(
+            ui,
+            region.response.id,
+            DIAGNOSTICS_PANEL_AUTHOR_ID,
+            "Diagnostics panel",
+        );
     }
 
     /// Heartbeat section (MT-084): the live counter + time since process start. A non-zero, advancing
@@ -168,7 +173,11 @@ impl DiagnosticsPanel {
             // A non-zero counter is the "alive" signal; colour it with the success/error severity token
             // so the operator + a model can read liveness at a glance (theme tokens only).
             let alive = view.heartbeat_counter > 0;
-            let beat_color = if alive { palette.accent } else { palette.diagnostics.error };
+            let beat_color = if alive {
+                palette.accent
+            } else {
+                palette.diagnostics.error
+            };
             ui.horizontal(|ui| {
                 ui.label(egui::RichText::new("UI-thread beats").color(palette.text_subtle));
                 ui.label(
@@ -189,7 +198,12 @@ impl DiagnosticsPanel {
                 palette,
             );
         });
-        set_group(ui, group.response.id, DIAGNOSTICS_HEARTBEAT_AUTHOR_ID, "Heartbeat");
+        set_group(
+            ui,
+            group.response.id,
+            DIAGNOSTICS_HEARTBEAT_AUTHOR_ID,
+            "Heartbeat",
+        );
     }
 
     /// Frame-time section (MT-085): last / p50 / p95 (+ min/max + slow-emit count), formatted ms.
@@ -207,14 +221,28 @@ impl DiagnosticsPanel {
                 kv_row(
                     ui,
                     "min / max",
-                    &format!("{} / {}", format_micros_ms(s.min_micros), format_micros_ms(s.max_micros)),
+                    &format!(
+                        "{} / {}",
+                        format_micros_ms(s.min_micros),
+                        format_micros_ms(s.max_micros)
+                    ),
                     palette,
                 );
                 kv_row(ui, "Frames", &s.frame_count.to_string(), palette);
-                kv_row(ui, "Slow frames flagged", &s.slow_emit_count.to_string(), palette);
+                kv_row(
+                    ui,
+                    "Slow frames flagged",
+                    &s.slow_emit_count.to_string(),
+                    palette,
+                );
             }
         });
-        set_group(ui, group.response.id, DIAGNOSTICS_FRAME_AUTHOR_ID, "Frame time");
+        set_group(
+            ui,
+            group.response.id,
+            DIAGNOSTICS_FRAME_AUTHOR_ID,
+            "Frame time",
+        );
     }
 
     /// Resource section (MT-086): CPU% + RSS from the last `ResourceSample` + the GPU hardware line.
@@ -229,7 +257,12 @@ impl DiagnosticsPanel {
                 }
                 None => muted_empty(ui, "No resource sample yet (samples every ~1s).", palette),
             }
-            kv_row(ui, "Samples taken", &view.resource_sample_count.to_string(), palette);
+            kv_row(
+                ui,
+                "Samples taken",
+                &view.resource_sample_count.to_string(),
+                palette,
+            );
 
             ui.add_space(2.0);
             match &view.gpu_info {
@@ -248,7 +281,12 @@ impl DiagnosticsPanel {
                 _ => muted_empty(ui, "GPU identity unavailable (headless render).", palette),
             }
         });
-        set_group(ui, group.response.id, DIAGNOSTICS_RESOURCE_AUTHOR_ID, "Resources");
+        set_group(
+            ui,
+            group.response.id,
+            DIAGNOSTICS_RESOURCE_AUTHOR_ID,
+            "Resources",
+        );
     }
 
     /// Last-N events section (MT-082): a scrolling list of the most-recent typed events, read DIRECTLY
@@ -269,6 +307,17 @@ impl DiagnosticsPanel {
                         .small()
                         .color(palette.text_subtle),
                 );
+                let stalled_count = events
+                    .iter()
+                    .filter(|event| event.event_code == DiagEventCode::StalledOperation.as_u16())
+                    .count();
+                if stalled_count > 0 {
+                    ui.label(
+                        egui::RichText::new(format!("· Stalled ops: {stalled_count}"))
+                            .small()
+                            .color(palette.diagnostics.error),
+                    );
+                }
                 if dropped > 0 {
                     ui.label(
                         egui::RichText::new(format!("· {dropped} dropped"))
@@ -293,7 +342,12 @@ impl DiagnosticsPanel {
                     }
                 });
         });
-        set_group(ui, group.response.id, DIAGNOSTICS_EVENTS_AUTHOR_ID, "Recent events");
+        set_group(
+            ui,
+            group.response.id,
+            DIAGNOSTICS_EVENTS_AUTHOR_ID,
+            "Recent events",
+        );
     }
 
     /// Tier-3 Palmistry section (§10.12.5): projects the freeze/crash survivor records the external
@@ -328,7 +382,12 @@ impl DiagnosticsPanel {
                     .color(palette.text_subtle),
             );
         });
-        set_group(ui, group.response.id, DIAGNOSTICS_PALMISTRY_AUTHOR_ID, "Palmistry");
+        set_group(
+            ui,
+            group.response.id,
+            DIAGNOSTICS_PALMISTRY_AUTHOR_ID,
+            "Palmistry",
+        );
     }
 }
 
@@ -348,7 +407,11 @@ fn palmistry_record_row(
             PalmistrySurvivorKind::Freeze => palette.diagnostics.warning,
             PalmistrySurvivorKind::Other => palette.text_subtle,
         };
-        ui.label(egui::RichText::new(rec.kind.label()).strong().color(kind_color));
+        ui.label(
+            egui::RichText::new(rec.kind.label())
+                .strong()
+                .color(kind_color),
+        );
         // The typed evidence specific to the kind.
         match rec.kind {
             PalmistrySurvivorKind::Freeze => {
@@ -487,6 +550,8 @@ pub fn event_code_label(code: u16) -> String {
         "PalmistryHandshake".to_owned()
     } else if named(DiagEventCode::Shutdown) {
         "Shutdown".to_owned()
+    } else if named(DiagEventCode::StalledOperation) {
+        "StalledOperation".to_owned()
     } else if named(DiagEventCode::Other) {
         "Other".to_owned()
     } else {
@@ -595,6 +660,7 @@ mod tests {
             (DiagEventCode::CrashDetected, "CrashDetected"),
             (DiagEventCode::PalmistryHandshake, "PalmistryHandshake"),
             (DiagEventCode::Shutdown, "Shutdown"),
+            (DiagEventCode::StalledOperation, "StalledOperation"),
             (DiagEventCode::Other, "Other"),
         ] {
             assert_eq!(event_code_label(code.as_u16()), expected);

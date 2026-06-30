@@ -42,6 +42,10 @@
 // `self.ui(ctx)`, measuring its WORK time so the MT-084 idle keep-alive is NOT mis-flagged as slow).
 pub mod frame_timing;
 pub mod gpu_info;
+// WP-KERNEL-012 MT-105 (D2 — generalized operation/subprocess stall watchdog): per-operation
+// deadline/progress-tick liveness monitoring. Emits the typed StalledOperation event through the
+// MT-082 recorder on a dedicated poll thread; register/tick/complete never emit or block on work.
+pub mod operation_watchdog;
 // WP-KERNEL-012 MT-087 (D3 — internal_diagnostics, Tier 2 §5.8.4 in-app Diagnostics Panel +
 // §10.12.5 three-tier model): the egui widget that PROJECTS the live internal_diagnostics state
 // (heartbeat MT-084 + frame-time MT-085 + resource/GPU MT-086 + last-N events MT-082 + an honest
@@ -79,6 +83,12 @@ pub use frame_timing::{
 // WP-KERNEL-012 MT-086 (D2 — internal_diagnostics, Tier 2 §5.8.2 resource counters) re-exports so the
 // panel + the app can `use crate::diagnostics::{ResourceSampler, ResourceSample, GpuInfo, ...}`.
 pub use gpu_info::GpuInfo;
+pub use operation_watchdog::{
+    active_stalled_operation_count, global_operation_watchdog, recent_stalled_operation_count,
+    start_global_operation_watchdog, OperationCode, OperationHandle, OperationWatchdog,
+    OperationWatchdogThread, StalledOperationReport, BACKEND_OPERATION_STALL_DEADLINE,
+    OPERATION_WATCHDOG_POLL_INTERVAL,
+};
 pub use resource_counters::{ResourceSample, ResourceSampler, SAMPLE_INTERVAL};
 
 // WP-KERNEL-012 MT-087 (D3 — §5.8.4 in-app Diagnostics Panel) re-exports so the Settings section + the

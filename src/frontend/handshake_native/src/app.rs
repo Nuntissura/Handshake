@@ -1388,9 +1388,17 @@ impl HandshakeApp {
             .enable_all()
             .build()
             .expect("build tokio runtime");
+        // WP-KERNEL-012 MT-082/105: install the diagnostics ring BEFORE the operation watchdog can emit.
+        // A stalled constructor health probe must land in the shared ring when a writer is available,
+        // not initialize the recorder writer-less first.
+        let diag_session = Self::install_diagnostics_ring();
+        crate::diagnostics::start_global_operation_watchdog();
         // Fire-once, non-blocking health poll: window opens immediately, label shows Loading...
-        let health_handle =
-            Some(rt.spawn(async { backend_client::fetch_health(HEALTH_URL).await }));
+        let health_handle = Some(Self::spawn_health_probe(
+            rt.handle(),
+            HEALTH_URL.to_owned(),
+            None,
+        ));
         // Fire-once, non-blocking workspace list fetch (MT-011): the shell opens immediately with the
         // seeded default-project tab; when the fetch resolves, the real workspace tabs replace it.
         let workspaces_handle =
@@ -1429,13 +1437,6 @@ impl HandshakeApp {
             runtime_chat_panel,
             editor_mounts,
         ) = build_factories_with_loom_search_v2(rt_handle.clone(), HsTheme::Dark.palette());
-        // WP-KERNEL-012 MT-082 (D2 — internal_diagnostics, Tier 2): create the MT-081 shared-memory ring
-        // for this session and install its writer onto the process-global diagnostics recorder, so any
-        // feature can `diagnostics::record(..)` and Palmistry (Tier 3) can map the ring. Ring creation is
-        // GRACEFULLY DEGRADING (RISK-002-5 / AC-002-3): if the temp dir is unwritable or the writer cannot
-        // install, we log a warning and continue WITHOUT a writer — diagnostics stay in-process-only and
-        // the shell still opens. `diag_session` is `Some` only when the ring was actually created.
-        let diag_session = Self::install_diagnostics_ring();
         // WP-KERNEL-012 MT-086 (D2 — internal_diagnostics, Tier 2): capture the STATIC GPU/driver
         // identity ONCE from the already-initialized eframe wgpu render state (`cc.wgpu_render_state`).
         // This reads the EXISTING adapter eframe created (no second wgpu device — RISK-006-5) and is
@@ -6475,14 +6476,14 @@ impl HandshakeApp {
         )));
         // Force a fresh off-thread load against the down backend on the next frame.
         self.loaded_project_id = None;
-        // The seam proves the deterministic reachable -> unreachable edge for the supplied dead
-        // endpoint, independent of whether the operator's default backend was already down.
-        self.backend_down = false;
+        // Preserve an already-observed constructor down edge. Forcing this back to false can manufacture
+        // a second BackendUnreachable when the initial production /health probe has already proved the
+        // backend is down before this seam repoints the endpoint.
         // Re-fire the `/health` poll at the down backend so the reachability oracle observes it down.
         let health_url = format!("{}/health", base_url.trim_end_matches('/'));
         self.health_status = HealthDisplayState::Loading;
         self.health_next_poll_at = None;
-        let task = handle.spawn(async move { backend_client::fetch_health(&health_url).await });
+        let task = Self::spawn_health_probe(&handle, health_url, None);
         self.replace_health_handle(task);
     }
 
@@ -6824,6 +6825,11 @@ impl HandshakeApp {
         let manager = self.layout_manager.clone();
         let cell = self.layout_load_cell.clone();
         let in_flight = self.layout_load_in_flight.clone();
+        let operation_handle = crate::diagnostics::global_operation_watchdog().register(
+            crate::diagnostics::OperationCode::BackendCall,
+            crate::diagnostics::BACKEND_OPERATION_STALL_DEADLINE,
+            None,
+        );
         // MT-088: the event-driven wake. The worker calls `request_repaint()` ONCE when it has delivered
         // its result, so `poll_layout_load` drains it on the very next frame — no per-frame poll cadence.
         let wake_ctx = self.frame_ctx.clone();
@@ -6836,6 +6842,7 @@ impl HandshakeApp {
         // timeouts), and the UI keeps painting at full cadence (the freeze fix — both halves: off the UI
         // thread AND the UI thread never waits on the lock the worker holds).
         std::thread::spawn(move || {
+            let operation_handle = operation_handle;
             let (result, reachable) = {
                 let mut mgr = manager.lock().unwrap_or_else(|p| p.into_inner());
                 let result = mgr.load(&project);
@@ -6854,6 +6861,7 @@ impl HandshakeApp {
                 Err(poisoned) => poisoned.into_inner(),
             };
             *slot = Some((project, reachable, result));
+            operation_handle.complete();
             in_flight.store(false, std::sync::atomic::Ordering::SeqCst);
             // EVENT-DRIVEN WAKE (MT-088): the result is delivered; wake the UI exactly once so the next
             // frame drains + applies it (and clears the degraded state on recovery) without any per-frame
@@ -6970,6 +6978,26 @@ impl HandshakeApp {
         );
     }
 
+    fn spawn_health_probe(
+        handle: &tokio::runtime::Handle,
+        health_url: String,
+        wake_ctx: Option<egui::Context>,
+    ) -> tokio::task::JoinHandle<Result<HealthInfo, AppError>> {
+        let operation_handle = crate::diagnostics::global_operation_watchdog().register(
+            crate::diagnostics::OperationCode::BackendCall,
+            crate::diagnostics::BACKEND_OPERATION_STALL_DEADLINE,
+            None,
+        );
+        handle.spawn(async move {
+            let result = backend_client::fetch_health(&health_url).await;
+            operation_handle.complete();
+            if let Some(ctx) = wake_ctx {
+                ctx.request_repaint();
+            }
+            result
+        })
+    }
+
     /// WP-KERNEL-012 MT-088: whether the app currently believes the backend is unreachable (the debounced
     /// down state). Drives the degraded/disconnected UI indicator and is asserted by the backend-down
     /// re-prove (AC-008-4). `false` until the first unreachable observation; cleared on recovery.
@@ -6983,7 +7011,7 @@ impl HandshakeApp {
     /// hang — AC-008-4 / RISK-008-3); otherwise it reflects the `/health` state. Computed in ONE place so
     /// the rendered label and the AC-008-4 test accessor cannot drift.
     pub fn status_bar_health_text(&self) -> String {
-        if self.backend_down {
+        let text = if self.backend_down {
             "Backend: Disconnected (degraded — UI responsive)".to_owned()
         } else {
             match &self.health_status {
@@ -6996,6 +7024,16 @@ impl HandshakeApp {
                 }
                 HealthDisplayState::Error(e) => format!("Backend: error: {e}"),
             }
+        };
+        Self::append_stalled_operation_status(text)
+    }
+
+    fn append_stalled_operation_status(text: String) -> String {
+        let stalled_count = crate::diagnostics::active_stalled_operation_count();
+        if stalled_count == 0 {
+            text
+        } else {
+            format!("{text} | Stalled ops: {stalled_count}")
         }
     }
 
@@ -7486,13 +7524,8 @@ impl HandshakeApp {
                         // the Loading indicator clears promptly without relying only on the per-frame
                         // Loading repaint cadence.
                         let wake_ctx = self.frame_ctx.clone();
-                        let task = handle.spawn(async move {
-                            let info = backend_client::fetch_health(HEALTH_URL).await;
-                            if let Some(ctx) = wake_ctx {
-                                ctx.request_repaint();
-                            }
-                            info
-                        });
+                        let task =
+                            Self::spawn_health_probe(&handle, HEALTH_URL.to_owned(), wake_ctx);
                         self.replace_health_handle(task);
                         return true;
                     }
@@ -7548,13 +7581,7 @@ impl HandshakeApp {
                     // folds the result next frame and `BackendRecovered` fires promptly on a real recovery
                     // — instead of the frame loop polling `health_handle.is_some()` every frame.
                     let wake_ctx = self.frame_ctx.clone();
-                    let task = handle.spawn(async move {
-                        let info = backend_client::fetch_health(HEALTH_URL).await;
-                        if let Some(ctx) = wake_ctx {
-                            ctx.request_repaint();
-                        }
-                        info
-                    });
+                    let task = Self::spawn_health_probe(&handle, HEALTH_URL.to_owned(), wake_ctx);
                     self.replace_health_handle(task);
                 }
             }
