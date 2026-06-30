@@ -20,11 +20,10 @@
 //! [`ControlMessage`]; partial lines are never acted on.
 
 use std::io::{self, BufRead, BufReader, Write};
+use std::path::PathBuf;
 
 use interprocess::local_socket::traits::Listener as _;
-use interprocess::local_socket::{
-    GenericNamespaced, ListenerOptions, Name, ToNsName,
-};
+use interprocess::local_socket::{GenericNamespaced, ListenerOptions, Name, ToNsName};
 use serde::{Deserialize, Serialize};
 
 /// A typed control message exchanged over the local socket. Tagged JSON so the wire form is explicit
@@ -55,10 +54,39 @@ pub enum ControlMessage {
         /// OS thread id of the faulting thread.
         faulting_thread_id: u64,
     },
+    /// Register a child process for passive no-progress stall detection (MT-106). The socket carries
+    /// only the control fact: which child pid/session and which passive liveness source to observe. The
+    /// watch itself happens on Palmistry's polling thread, never by asking the child over this socket.
+    RegisterChild {
+        /// OS pid of the child process being watched.
+        pid: u32,
+        /// Opaque launcher-supplied child-session token so reused pids do not collide.
+        child_session_id: u64,
+        /// Passive source kind.
+        liveness_kind: ControlChildLivenessKind,
+        /// Local reference to the passive liveness source. For `FileCounter`, this is a local file path
+        /// whose contents are a numeric counter.
+        liveness_ref: PathBuf,
+        /// No-progress threshold in milliseconds. `0` means Palmistry's default threshold.
+        threshold_ms: u64,
+    },
+    /// Stop watching a previously registered child process.
+    DeregisterChild {
+        /// OS pid of the child process.
+        pid: u32,
+        /// Opaque launcher-supplied child-session token.
+        child_session_id: u64,
+    },
     /// The ONE deliberate exit command. On receipt Palmistry shuts down promptly + cleanly and records
     /// NO crash (the §6.13 clean-shutdown rule). This is the ONLY message that ends the watcher's life
     /// short of a bounded post-parent-death finalize.
     Shutdown,
+}
+
+/// Passive liveness source kind for [`ControlMessage::RegisterChild`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ControlChildLivenessKind {
+    FileCounter,
 }
 
 /// A reply Palmistry sends back on the same connection. Kept minimal: the control channel is
@@ -70,6 +98,16 @@ pub enum ControlReply {
     Pong,
     /// Generic acknowledgement (Hello / CrashContext / Shutdown received).
     Ack,
+    /// The message decoded, but the requested side effect failed. The code is closed and typed so the
+    /// control channel does not carry paths, command lines, or free-text diagnostics.
+    Error { code: ControlErrorCode },
+}
+
+/// Closed error codes for control-message side-effect failures.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ControlErrorCode {
+    ChildRegisterFailed,
+    ChildNotRegistered,
 }
 
 /// Build the interprocess `Name` for `socket_name` in the GENERIC NAMESPACED form (always supported on
@@ -99,6 +137,8 @@ pub fn handle_message(msg: &ControlMessage) -> (ControlReply, ControlOutcome) {
         ControlMessage::Ping => (ControlReply::Pong, ControlOutcome::Continue),
         ControlMessage::HandshakeHello { .. } => (ControlReply::Ack, ControlOutcome::Continue),
         ControlMessage::CrashContext { .. } => (ControlReply::Ack, ControlOutcome::Continue),
+        ControlMessage::RegisterChild { .. } => (ControlReply::Ack, ControlOutcome::Continue),
+        ControlMessage::DeregisterChild { .. } => (ControlReply::Ack, ControlOutcome::Continue),
         ControlMessage::Shutdown => (ControlReply::Ack, ControlOutcome::Shutdown),
     }
 }
@@ -155,7 +195,7 @@ impl ControlServer {
     /// shutdown via the shared flag the `on_message`/return path sets, never by blocking here.
     pub fn serve_connection(
         &self,
-        on_message: &mut dyn FnMut(&ControlMessage),
+        on_message: &mut dyn FnMut(&ControlMessage) -> Result<(), ControlErrorCode>,
     ) -> io::Result<ControlOutcome> {
         let conn = self.listener.accept()?;
         // interprocess Stream is read+write; wrap the read half in a BufReader for line framing. The
@@ -179,8 +219,12 @@ impl ControlServer {
                 continue;
             }
             let msg = decode_message(trimmed)?;
-            on_message(&msg);
+            let side_effect = on_message(&msg);
             let (reply, outcome) = handle_message(&msg);
+            let reply = match side_effect {
+                Ok(()) => reply,
+                Err(code) => ControlReply::Error { code },
+            };
             let reply_line = serde_json::to_string(&reply).map_err(io::Error::other)?;
             {
                 let w = reader.get_mut();
@@ -213,6 +257,17 @@ mod tests {
                 crash_context_addr: 0xDEAD_BEEF,
                 faulting_thread_id: 17,
             },
+            ControlMessage::RegisterChild {
+                pid: 9,
+                child_session_id: 44,
+                liveness_kind: ControlChildLivenessKind::FileCounter,
+                liveness_ref: PathBuf::from("child.progress"),
+                threshold_ms: 5000,
+            },
+            ControlMessage::DeregisterChild {
+                pid: 9,
+                child_session_id: 44,
+            },
         ];
         for msg in cases {
             let line = encode_message(&msg).unwrap();
@@ -226,7 +281,11 @@ mod tests {
     fn ping_does_not_shut_down() {
         let (reply, outcome) = handle_message(&ControlMessage::Ping);
         assert_eq!(reply, ControlReply::Pong);
-        assert_eq!(outcome, ControlOutcome::Continue, "Ping must NOT exit (AC-009-3)");
+        assert_eq!(
+            outcome,
+            ControlOutcome::Continue,
+            "Ping must NOT exit (AC-009-3)"
+        );
     }
 
     #[test]
@@ -241,6 +300,14 @@ mod tests {
             faulting_thread_id: 1,
         });
         assert_eq!(o2, ControlOutcome::Continue);
+        let (_, o3) = handle_message(&ControlMessage::RegisterChild {
+            pid: 9,
+            child_session_id: 44,
+            liveness_kind: ControlChildLivenessKind::FileCounter,
+            liveness_ref: PathBuf::from("child.progress"),
+            threshold_ms: 5000,
+        });
+        assert_eq!(o3, ControlOutcome::Continue);
     }
 
     #[test]
@@ -248,6 +315,22 @@ mod tests {
         let (reply, outcome) = handle_message(&ControlMessage::Shutdown);
         assert_eq!(reply, ControlReply::Ack);
         assert_eq!(outcome, ControlOutcome::Shutdown);
+    }
+
+    #[test]
+    fn error_reply_shape_is_typed() {
+        let line = serde_json::to_string(&ControlReply::Error {
+            code: ControlErrorCode::ChildRegisterFailed,
+        })
+        .unwrap();
+        assert_eq!(line, r#"{"type":"Error","code":"ChildRegisterFailed"}"#);
+        let back: ControlReply = serde_json::from_str(&line).unwrap();
+        assert_eq!(
+            back,
+            ControlReply::Error {
+                code: ControlErrorCode::ChildRegisterFailed
+            }
+        );
     }
 
     #[test]
@@ -261,6 +344,21 @@ mod tests {
             session_id: "z".into(),
         })
         .unwrap();
-        assert_eq!(hello, r#"{"type":"HandshakeHello","parent_pid":7,"session_id":"z"}"#);
+        assert_eq!(
+            hello,
+            r#"{"type":"HandshakeHello","parent_pid":7,"session_id":"z"}"#
+        );
+        let register = serde_json::to_string(&ControlMessage::RegisterChild {
+            pid: 9,
+            child_session_id: 44,
+            liveness_kind: ControlChildLivenessKind::FileCounter,
+            liveness_ref: PathBuf::from("child.progress"),
+            threshold_ms: 5000,
+        })
+        .unwrap();
+        assert_eq!(
+            register,
+            r#"{"type":"RegisterChild","pid":9,"child_session_id":44,"liveness_kind":"FileCounter","liveness_ref":"child.progress","threshold_ms":5000}"#
+        );
     }
 }

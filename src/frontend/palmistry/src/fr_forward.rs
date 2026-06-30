@@ -213,6 +213,11 @@ pub fn build_survivor_forward_body(record: &SurvivorRecord) -> JsonValue {
         "last_event_count": record.last_event_count,
         "exit_code": record.exit_code,
         "faulting_thread_id": record.faulting_thread_id,
+        "child_process_id": record.child_process_id,
+        "child_session_id": record.child_session_id,
+        "last_progress_counter": record.last_progress_counter,
+        "last_progress_ts_nanos": record.last_progress_ts_nanos,
+        "child_stall_reason_code": record.child_stall_reason_code,
         // The minidump path is a LOCAL path string reference only (never the bytes) — §6.13.8 local-only.
         "minidump_path": record.minidump_path.as_ref().map(|p| p.to_string_lossy().into_owned()),
         "captured_at_unix_ms": record.captured_at_unix_ms,
@@ -290,7 +295,11 @@ impl FrForwarder {
     pub fn forward(&self, record: &SurvivorRecord) -> Result<(), FrForwardBlocker> {
         // HONESTY GATE (AC-013-4): if the target route cannot faithfully carry the survivor record, the
         // correct outcome is a typed blocker — NOT a degraded post that 2xx's and looks forwarded.
-        if let FrSchemaCompat::Incompatible { reason, follow_on_wp } = &self.compat {
+        if let FrSchemaCompat::Incompatible {
+            reason,
+            follow_on_wp,
+        } = &self.compat
+        {
             return Err(FrForwardBlocker::SchemaIncompatible {
                 reason: reason.clone(),
                 follow_on_wp,
@@ -305,7 +314,9 @@ impl FrForwarder {
             .post(self.url())
             .json(&body)
             .send()
-            .map_err(|e| FrForwardBlocker::RouteAbsent { reason: format!("{e}") })?;
+            .map_err(|e| FrForwardBlocker::RouteAbsent {
+                reason: format!("{e}"),
+            })?;
         let status = resp.status();
         if status.is_success() {
             Ok(())
@@ -332,8 +343,9 @@ fn now_rfc3339() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::survivor_store::{SurvivorProbeResult, SurvivorRecord};
+    use crate::child_stall::{ChildStallReasonCode, ChildStallReport};
     use crate::freeze_detect::FreezeReport;
+    use crate::survivor_store::{SurvivorProbeResult, SurvivorRecord};
 
     fn freeze_record() -> SurvivorRecord {
         SurvivorRecord::from_freeze(
@@ -349,6 +361,22 @@ mod tests {
         )
     }
 
+    fn child_stall_record() -> SurvivorRecord {
+        SurvivorRecord::from_child_stall(
+            "sess-child-fr",
+            4242,
+            &ChildStallReport {
+                child_pid: 333,
+                child_session_id: 90,
+                stale_ms: 6100,
+                last_progress_counter: 5,
+                last_progress_ts_nanos: 777,
+                reason_code: ChildStallReasonCode::ProgressStaleWhileAlive,
+            },
+            4,
+        )
+    }
+
     #[test]
     fn existing_fr_is_verified_incompatible() {
         // The verified honesty verdict: the kept-as-is chat-event route cannot carry a survivor record.
@@ -356,7 +384,9 @@ mod tests {
             FrSchemaCompat::Incompatible { follow_on_wp, .. } => {
                 assert_eq!(follow_on_wp, FR_INGESTION_FOLLOW_ON_WP);
             }
-            FrSchemaCompat::Compatible => panic!("the existing chat-event route must be Incompatible"),
+            FrSchemaCompat::Compatible => {
+                panic!("the existing chat-event route must be Incompatible")
+            }
         }
     }
 
@@ -367,12 +397,21 @@ mod tests {
         let body = build_runtime_chat_event_body(&freeze_record(), &new_uuid_string());
         let obj = body.as_object().unwrap();
         let allowed: std::collections::HashSet<&str> = [
-            "schema_version", "event_id", "ts_utc", "session_id", "type", "message_id", "role",
+            "schema_version",
+            "event_id",
+            "ts_utc",
+            "session_id",
+            "type",
+            "message_id",
+            "role",
         ]
         .into_iter()
         .collect();
         for k in obj.keys() {
-            assert!(allowed.contains(k.as_str()), "unexpected key {k} (would trip deny_unknown_fields)");
+            assert!(
+                allowed.contains(k.as_str()),
+                "unexpected key {k} (would trip deny_unknown_fields)"
+            );
         }
         // session_id is a non-nil UUID (the route 400s otherwise).
         let sid = obj["session_id"].as_str().unwrap();
@@ -394,11 +433,28 @@ mod tests {
         // tag (+ a local path when a crash carries one).
         assert_eq!(obj["kind"], "freeze");
         assert_eq!(obj["session_id"], "sess-fr");
-        assert_eq!(obj["event_code"], handshake_diag_ring::DiagEventCode::FreezeSuspected.as_u16());
+        assert_eq!(
+            obj["event_code"],
+            handshake_diag_ring::DiagEventCode::FreezeSuspected.as_u16()
+        );
         assert_eq!(obj["stale_ms"], 6000);
         // No free-text field present.
         assert!(obj.get("message").is_none());
         assert!(obj.get("text").is_none());
+    }
+
+    #[test]
+    fn survivor_forward_body_carries_child_stall_fields() {
+        let body = build_survivor_forward_body(&child_stall_record());
+        assert_eq!(body["kind"], "child-stall");
+        assert_eq!(body["session_id"], "sess-child-fr");
+        assert_eq!(body["process_id"], 4242);
+        assert_eq!(body["child_process_id"], 333);
+        assert_eq!(body["child_session_id"], 90);
+        assert_eq!(body["stale_ms"], 6100);
+        assert_eq!(body["last_progress_counter"], 5);
+        assert_eq!(body["last_progress_ts_nanos"], 777);
+        assert_eq!(body["child_stall_reason_code"], 1);
     }
 
     #[test]
@@ -414,10 +470,15 @@ mod tests {
         // (port 1) to PROVE the blocker is decided WITHOUT a network call (we never even post a degraded
         // chat-event body and call it forwarded).
         let fwd = FrForwarder::for_existing_fr("http://127.0.0.1:1");
-        let err = fwd.forward(&freeze_record()).expect_err("must be a typed blocker, not Ok");
+        let err = fwd
+            .forward(&freeze_record())
+            .expect_err("must be a typed blocker, not Ok");
         match err {
             FrForwardBlocker::SchemaIncompatible { follow_on_wp, .. } => {
-                assert_eq!(follow_on_wp, FR_INGESTION_FOLLOW_ON_WP, "names the WP-016 follow-on");
+                assert_eq!(
+                    follow_on_wp, FR_INGESTION_FOLLOW_ON_WP,
+                    "names the WP-016 follow-on"
+                );
             }
             other => panic!("expected SchemaIncompatible, got {other:?}"),
         }
@@ -428,7 +489,12 @@ mod tests {
         // A COMPATIBLE route that is unreachable yields RouteAbsent (the record stays pending) — bounded,
         // never hangs. Port 1 is reliably refused.
         let fwd = FrForwarder::with_compat("http://127.0.0.1:1", FrSchemaCompat::Compatible);
-        let err = fwd.forward(&freeze_record()).expect_err("absent route must block");
-        assert!(matches!(err, FrForwardBlocker::RouteAbsent { .. }), "got {err:?}");
+        let err = fwd
+            .forward(&freeze_record())
+            .expect_err("absent route must block");
+        assert!(
+            matches!(err, FrForwardBlocker::RouteAbsent { .. }),
+            "got {err:?}"
+        );
     }
 }

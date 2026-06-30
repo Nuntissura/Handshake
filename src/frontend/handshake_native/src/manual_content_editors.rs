@@ -395,8 +395,9 @@ with settings.search and expand settings.section.diagnostics. The Diagnostics pa
 diagnostics_panel AccessKit region with child groups diagnostics_heartbeat, diagnostics_frame, \
 diagnostics_resource, diagnostics_events, and diagnostics_palmistry. It is a read-only projection over \
 internal_diagnostics state: heartbeat, frame-time, resource/GPU, last-N diagnostic events, ring-writer \
-status, and Tier-3 Palmistry survivor records. The section changes no settings and owns no durable state. \
-If a model is debugging a UI freeze, crash, backend-down condition, or slow frame, it should first open \
+status, and Tier-3 Palmistry survivor records for freeze, crash, and child-process stall. The section \
+changes no settings and owns no durable state. If a model is debugging a UI freeze, crash, child hang, \
+backend-down condition, or slow frame, it should first open \
 Settings -> Diagnostics and read the appropriate group instead of looking for a diagnostics pane in the \
 main worksurface."
         .to_owned()
@@ -465,13 +466,30 @@ not replace Flight Recorder's business ledger and it cannot by itself survive a 
 
 fn palmistry_body() -> String {
     "Palmistry is Tier 3: the external out-of-process watcher. It exists for the failures the app cannot \
-reliably report about itself: UI-thread freeze, crash, heavy CPU, or dead process. Palmistry reads the \
-shared-memory ring, watches heartbeat staleness, persists freeze/crash survivor records, captures crash \
-minidump/debris metadata where available, and the recovered app projects those durable records in the \
-diagnostics_palmistry section of Settings -> Diagnostics. Use Palmistry when the app is frozen, crashed, or \
-too busy to update internal_diagnostics. The three-tier choice is: Flight Recorder for business events while \
-healthy, internal_diagnostics for in-app health/stalls while the app still runs, and Palmistry for \
-freeze/crash survival when the app itself is not trustworthy."
+reliably report about itself: UI-thread freeze, crash, heavy CPU, dead process, or a spawned child process \
+that stays alive while progress stops. Palmistry reads the shared-memory ring for Handshake liveness and \
+uses the held control socket only for control messages such as RegisterChild/DeregisterChild. A watched \
+child supplies a passive file-counter liveness source; Palmistry confirms ChildStall only when the child \
+process is alive and that counter has stopped advancing past the threshold. Missing progress before a \
+baseline is not a stall; missing or malformed progress after a baseline is suspected only, not durable \
+ChildStall. Palmistry persists typed freeze/crash/ChildStall survivor records under the portable survivor \
+store (`dirs::data_local_dir()/handshake/palmistry/survivors`) unless HANDSHAKE_PALMISTRY_SURVIVOR_DIR \
+points at a scoped test/recovery directory. ChildStall survivor records carry child_process_id, \
+child_session_id, stale_ms, last_progress_counter, last_progress_ts_nanos, and \
+child_stall_reason_code; the minimal Settings row projects child_process_id, child_session_id, stale_ms, \
+last_progress_counter, and child_stall_reason_code. Reason code 1 means progress stale while the child \
+process was alive. It captures crash minidump/debris metadata where \
+available, and the recovered app projects durable records in diagnostics_palmistry under Settings -> \
+Diagnostics. Runtime proof path: build Palmistry, set HANDSHAKE_PALMISTRY_EXE if it is not side-by-side \
+with the native exe, then run `cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test \
+test_no_silent_hang_end_to_end -- --include-ignored --nocapture` to exercise the real watcher, real child \
+process, real ring, scoped survivor store, and global operation watchdog together. Recovery is to read \
+Settings -> Diagnostics -> diagnostics_palmistry, inspect the typed child ids/reason/progress fields, and \
+only then decide whether to kill/restart the child or app. Use Palmistry when the app is frozen, crashed, \
+too busy to update internal_diagnostics, or supervising a long-running child whose terminal/model/subprocess \
+work could silently hang. The three-tier choice is: Flight Recorder for business events while healthy, \
+internal_diagnostics for in-app health/stalled operations while the app still runs, and Palmistry for \
+freeze/crash/child-stall survival when the app itself or its child process is not trustworthy."
         .to_owned()
 }
 
@@ -641,7 +659,7 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             surface: ManualSurface::Diagnostics,
             action_label: "Read Palmistry survivor projection",
             mcp_tool: "list_widgets",
-            description: "list_widgets reads diagnostics_palmistry for Tier-3 freeze/crash survivor records.",
+            description: "list_widgets reads diagnostics_palmistry for Tier-3 freeze/crash/child-stall survivor records.",
         },
         AgentToolRow {
             author_id: crate::visual_debugger::WORKSURFACE_INSPECTOR_DUMP_BUTTON_AUTHOR_ID,

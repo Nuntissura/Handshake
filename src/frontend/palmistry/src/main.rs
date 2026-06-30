@@ -28,8 +28,8 @@
 // The watcher's reusable modules live in the `palmistry` LIBRARY crate (src/lib.rs) so the integration
 // tests under `tests/` can drive the REAL production types. The binary is a thin entrypoint over them.
 use palmistry::{
-    cli, control, crash_capture, fr_forward, freeze_detect, hung_window_probe, lifecycle,
-    ring_reader, survivor_store,
+    child_registry, child_stall, cli, control, crash_capture, fr_forward, freeze_detect,
+    hung_window_probe, lifecycle, ring_reader, survivor_store,
 };
 
 use std::io::Write as _;
@@ -111,7 +111,10 @@ fn main() {
     );
     // Surface the HARD launcher contract (AC-009-5): the watcher itself assumes NO Win32 Job Object
     // membership and the MT-094 launcher must not add it to a kill-on-job-close job.
-    tracing::info!(contract = lifecycle::JOB_OBJECT_CONTRACT, "launcher contract");
+    tracing::info!(
+        contract = lifecycle::JOB_OBJECT_CONTRACT,
+        "launcher contract"
+    );
 
     match run_watcher(config, RunOptions::default()) {
         Ok(()) => std::process::exit(0),
@@ -153,7 +156,36 @@ fn handle_probe_flags() -> Option<i32> {
         Some("--crash-server-probe") => Some(run_crash_server_probe(&args[1..])),
         // `--crash-client-probe <socket>`: connect + fire a simulated exception (SEPARATE process).
         Some("--crash-client-probe") => Some(run_crash_client_probe(&args[1..])),
+        // `--child-stall-helper <liveness_path>`: write one progress tick, then stay alive silently.
+        Some("--child-stall-helper") => Some(run_child_stall_helper(&args[1..])),
         _ => None,
+    }
+}
+
+/// CHILD-STALL HELPER (MT-106 capstone). Writes a single file-counter progress tick, then stays alive
+/// without advancing it. A test launches this as a REAL child process and Palmistry confirms
+/// process-alive + no-progress through the normal child registry. It never opens a window and the parent
+/// test kills it with a bounded `try_wait` loop.
+fn run_child_stall_helper(args: &[String]) -> i32 {
+    let path = match args {
+        [p] => PathBuf::from(p),
+        _ => {
+            eprintln!("palmistry --child-stall-helper needs <liveness_path>; got {args:?}");
+            return EXIT_CONFIG_ERROR;
+        }
+    };
+    if let Some(parent) = path.parent() {
+        if let Err(err) = std::fs::create_dir_all(parent) {
+            eprintln!("child-stall-helper: could not create liveness parent dir: {err}");
+            return 1;
+        }
+    }
+    if let Err(err) = std::fs::write(&path, b"1\n") {
+        eprintln!("child-stall-helper: could not write initial progress: {err}");
+        return 1;
+    }
+    loop {
+        std::thread::sleep(Duration::from_secs(60));
     }
 }
 
@@ -197,7 +229,11 @@ fn run_crash_server_probe(args: &[String]) -> i32 {
     // accepting until the handler returns `LoopAction::Exit` (after the first dump). (The inverted polarity
     // is the production bug this probe exists to catch — see the `crash_shutdown` flag in `run_watcher`.)
     let shutdown = Arc::new(AtomicBool::new(false));
-    if let Err(err) = server.run(Box::new(handler), &shutdown, Some(CRASH_SERVER_STALE_TIMEOUT)) {
+    if let Err(err) = server.run(
+        Box::new(handler),
+        &shutdown,
+        Some(CRASH_SERVER_STALE_TIMEOUT),
+    ) {
         eprintln!("crash-server-probe: server loop error: {err}");
         return 1;
     }
@@ -301,7 +337,9 @@ fn run_crash_client_probe(args: &[String]) -> i32 {
     if handled {
         0
     } else {
-        eprintln!("crash-client-probe: the simulated exception was not handled (dump request failed)");
+        eprintln!(
+            "crash-client-probe: the simulated exception was not handled (dump request failed)"
+        );
         1
     }
 }
@@ -356,8 +394,7 @@ impl Default for RunOptions {
 /// Factory that builds the MT-092 Embark `minidumper::Server` for a crash-socket name. Boxed so a caller
 /// can inject a pre-bound / fake server without forking the run path. Aliased to keep the [`RunOptions`]
 /// field type legible (clippy type-complexity).
-pub type CrashServerFactory =
-    Box<dyn Fn(&str) -> Result<minidumper::Server, minidumper::Error>>;
+pub type CrashServerFactory = Box<dyn Fn(&str) -> Result<minidumper::Server, minidumper::Error>>;
 
 /// The real crash-server factory: bind a `minidumper::Server` on the derived crash socket (a Windows
 /// named pipe / a Unix domain socket path). This is the SERVER side of the §6.13.6 out-of-process dump
@@ -548,7 +585,9 @@ fn spawn_freeze_poll(
                             path = %path.display(),
                             "durable freeze survivor record persisted (§6.13.7); forward at recovery"
                         ),
-                        Err(err) => tracing::warn!(%err, "failed to persist the freeze survivor record"),
+                        Err(err) => {
+                            tracing::warn!(%err, "failed to persist the freeze survivor record")
+                        }
                     }
                 }
                 (true, FreezeState::Healthy) => {
@@ -579,6 +618,49 @@ fn spawn_freeze_poll(
     })
 }
 
+fn spawn_child_stall_poll(
+    registry: Arc<child_registry::ChildRegistry>,
+    reader: Arc<PalmistryRingReader>,
+    run: Arc<AtomicBool>,
+    poll_interval: Duration,
+    session_id: String,
+    parent_pid: u32,
+    store: Arc<Mutex<SurvivorStore>>,
+) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || {
+        while run.load(Ordering::SeqCst) {
+            let reports = registry.poll(std::time::Instant::now());
+            for report in reports {
+                tracing::warn!(
+                    diag_event_code = handshake_diag_ring::DiagEventCode::Other.as_u16(),
+                    child_pid = report.child_pid,
+                    child_session_id = report.child_session_id,
+                    stale_ms = report.stale_ms,
+                    last_progress_counter = report.last_progress_counter,
+                    "CHILD STALL CONFIRMED (child alive + passive progress stale); persisting durable survivor record"
+                );
+                let last_events = reader.read_last_events(reader.capacity().min(64));
+                let record = survivor_store::SurvivorRecord::from_child_stall(
+                    &session_id,
+                    parent_pid,
+                    &report,
+                    survivor_store::last_event_count(&last_events),
+                );
+                match store.lock().expect("survivor store mutex").put(record) {
+                    Ok(path) => tracing::warn!(
+                        path = %path.display(),
+                        "durable child-stall survivor record persisted (§6.13.7/MT-106)"
+                    ),
+                    Err(err) => {
+                        tracing::warn!(%err, "failed to persist the child-stall survivor record")
+                    }
+                }
+            }
+            std::thread::sleep(poll_interval);
+        }
+    })
+}
+
 /// Drain the survivor store's UNFORWARDED records and forward each to the Tier-1 Flight Recorder via the
 /// EXISTING route (reuse-via-API, MT-093 §6.13.7). On a FAITHFUL forward (HTTP success against a route
 /// that can carry the survivor shape) the record is marked forwarded IDEMPOTENTLY (RISK-013-5). On a
@@ -601,7 +683,11 @@ fn drain_and_forward(store: &Arc<Mutex<SurvivorStore>>, forwarder: &FrForwarder)
         match forwarder.forward(&stored.record) {
             Ok(()) => {
                 // FAITHFUL forward: mark the record forwarded idempotently (survives a restart).
-                match store.lock().expect("survivor store mutex").mark_forwarded(&stored.path) {
+                match store
+                    .lock()
+                    .expect("survivor store mutex")
+                    .mark_forwarded(&stored.path)
+                {
                     Ok(_) => {
                         forwarded += 1;
                         tracing::info!(
@@ -660,8 +746,8 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
     // (possibly frozen) writer. It is held live for the watcher's life so the freeze-probe (MT-091) and
     // the survivor store (MT-093) read through it. Wrapped in `Arc` so a future freeze-probe thread can
     // share it without re-opening the map.
-    let ring_reader = Arc::new(
-        (options.ring_reader_factory)(&config.ring_path).map_err(|err| {
+    let ring_reader = Arc::new((options.ring_reader_factory)(&config.ring_path).map_err(
+        |err| {
             std::io::Error::new(
                 err.kind(),
                 format!(
@@ -669,8 +755,8 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
                     config.ring_path
                 ),
             )
-        })?,
-    );
+        },
+    )?);
     tracing::info!(
         ring_path = %config.ring_path,
         capacity = ring_reader.capacity(),
@@ -684,6 +770,9 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
 
     let state = Arc::new(LifecycleState::new());
     let run = Arc::new(AtomicBool::new(true));
+    let child_registry = Arc::new(child_registry::ChildRegistry::new(
+        child_registry::default_child_watch_factory(),
+    ));
 
     // Arm the parent watch + spawn its thread (the inversion engine).
     let watch = (options.parent_watch_factory)(config.parent_pid);
@@ -699,14 +788,66 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
     // message does — §6.13.3). It stops when `run` is cleared by the lifecycle.
     let control_state = Arc::clone(&state);
     let control_run = Arc::clone(&run);
+    let control_child_registry = Arc::clone(&child_registry);
     let control_handle = std::thread::spawn(move || {
         let mut serve_once = || {
-            let mut on_msg = |msg: &control::ControlMessage| {
-                tracing::debug!(?msg, "control message");
-                if matches!(msg, control::ControlMessage::Shutdown) {
-                    control_state.request_shutdown();
-                }
-            };
+            let mut on_msg =
+                |msg: &control::ControlMessage| -> Result<(), control::ControlErrorCode> {
+                    tracing::debug!(?msg, "control message");
+                    match msg {
+                        control::ControlMessage::Shutdown => control_state.request_shutdown(),
+                        control::ControlMessage::RegisterChild {
+                            pid,
+                            child_session_id,
+                            liveness_kind,
+                            liveness_ref,
+                            threshold_ms,
+                        } => match liveness_kind {
+                            control::ControlChildLivenessKind::FileCounter => {
+                                if let Err(err) = control_child_registry.register_file_child(
+                                    *pid,
+                                    *child_session_id,
+                                    liveness_ref.clone(),
+                                    Duration::from_millis(*threshold_ms),
+                                    std::time::Instant::now(),
+                                ) {
+                                    tracing::warn!(
+                                        %err,
+                                        child_pid = *pid,
+                                        child_session_id = *child_session_id,
+                                        "failed to register child process for passive stall detection"
+                                    );
+                                    return Err(control::ControlErrorCode::ChildRegisterFailed);
+                                } else {
+                                    tracing::info!(
+                                        child_pid = *pid,
+                                        child_session_id = *child_session_id,
+                                        threshold_ms = *threshold_ms,
+                                        "child process registered for passive stall detection"
+                                    );
+                                }
+                            }
+                        },
+                        control::ControlMessage::DeregisterChild {
+                            pid,
+                            child_session_id,
+                        } => {
+                            let removed =
+                                control_child_registry.deregister(*pid, *child_session_id);
+                            tracing::debug!(
+                                child_pid = *pid,
+                                child_session_id = *child_session_id,
+                                removed,
+                                "child process deregistered from passive stall detection"
+                            );
+                            if !removed {
+                                return Err(control::ControlErrorCode::ChildNotRegistered);
+                            }
+                        }
+                        _ => {}
+                    }
+                    Ok(())
+                };
             server.serve_connection(&mut on_msg)
         };
         run_control_loop(
@@ -820,7 +961,7 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
         freeze_detect::POLL_INTERVAL,
         config.session_id.clone(),
         config.parent_pid,
-        freeze_store,
+        Arc::clone(&freeze_store),
         Arc::clone(&forwarder),
     );
     tracing::info!(
@@ -828,6 +969,21 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
         freeze_threshold_ms = freeze_detect::FREEZE_THRESHOLD.as_millis() as u64,
         idle_heartbeat_cadence_ms = freeze_detect::MT084_IDLE_HEARTBEAT_CADENCE.as_millis() as u64,
         "freeze-detection poll thread armed (§6.13.5 double-signal gate)"
+    );
+
+    let child_stall_handle = spawn_child_stall_poll(
+        Arc::clone(&child_registry),
+        Arc::clone(&ring_reader),
+        Arc::clone(&run),
+        child_stall::CHILD_STALL_POLL_INTERVAL,
+        config.session_id.clone(),
+        config.parent_pid,
+        Arc::clone(&freeze_store),
+    );
+    tracing::info!(
+        poll_interval_ms = child_stall::CHILD_STALL_POLL_INTERVAL.as_millis() as u64,
+        child_stall_threshold_ms = child_stall::CHILD_STALL_THRESHOLD.as_millis() as u64,
+        "child-process stall poll thread armed (process-alive + passive progress gate)"
     );
 
     // MT-092: spawn the CRASH minidumper SERVER thread (§6.13.6). On its OWN dedicated thread it runs the
@@ -1017,6 +1173,7 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
     // detach the control thread (its blocking accept may outlive us harmlessly — the process is exiting).
     let _ = watch_handle.join();
     let _ = freeze_handle.join();
+    let _ = child_stall_handle.join();
     // SIGNAL the crash server to stop (its flag is INVERTED vs `run`: minidumper stops when its flag is
     // `true`), then join it (bounded). The server loop re-checks the flag every ~10ms, so it returns
     // promptly. If it already exited after writing a dump, the flag is moot and the join is immediate.
@@ -1195,7 +1352,11 @@ mod control_loop_tests {
         );
         // It called serve_once exactly `ceiling` times (one per consecutive error), proving a bounded
         // retry count rather than an unbounded busy-spin.
-        assert_eq!(calls.get(), ceiling, "exactly one retry per consecutive error up to the ceiling");
+        assert_eq!(
+            calls.get(),
+            ceiling,
+            "exactly one retry per consecutive error up to the ceiling"
+        );
         // It actually SLEPT between retries: with (ceiling - 1) backoff sleeps of `backoff` each, the
         // wall-clock must be at least roughly that. This is the anti-busy-spin guard: a no-sleep loop
         // would finish in microseconds. (The last error trips the ceiling BEFORE sleeping.)
@@ -1239,7 +1400,10 @@ mod control_loop_tests {
             Some(ControlLoopExit::RunCleared),
             "a cleared run flag must break the error-backoff loop promptly (clean shutdown)"
         );
-        assert!(calls.get() <= 4, "the loop must stop within a retry of the run flag clearing");
+        assert!(
+            calls.get() <= 4,
+            "the loop must stop within a retry of the run flag clearing"
+        );
     }
 
     /// A `Shutdown` outcome exits the loop with `Shutdown`, and a `Continue` (peer disconnect) resets the

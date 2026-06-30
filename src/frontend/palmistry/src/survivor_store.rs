@@ -11,7 +11,7 @@
 //! # What this module owns vs what it does NOT
 //!
 //! - OWNS: the typed [`SurvivorRecord`], the durable [`SurvivorStore`] (a per-user data dir of JSON
-//!   records), ATOMIC writes (temp+rename) so a record survives an ill-timed Palmistry restart, read-
+//!   records), ATOMIC writes (temp+replace) so a record survives an ill-timed Palmistry restart, read-
 //!   existing-on-startup, and the idempotent `forwarded` flag (so a record is never double-forwarded).
 //! - Does NOT own: the FR forward itself (that is [`crate::fr_forward`], which reads this store at
 //!   recovery and posts to the EXISTING FR HTTP route — reuse-via-API), nor freeze/crash DETECTION
@@ -25,24 +25,33 @@
 //! record (and the FR forward built from it) cannot become a content-smuggling channel (RISK-013-3). The
 //! [`SurvivorRecord::allowlisted_keys`] list + the `test_survivor_store` value-scan assert this.
 //!
-//! # Durability (atomic temp+rename — RISK-013-4)
+//! # Durability (atomic temp+replace — RISK-013-4)
 //!
-//! A record is written to `<file>.tmp` then `rename`d onto its final path. `rename` is atomic on every
-//! mainstream filesystem, so a reader (a later Palmistry startup) either sees the OLD complete file or
-//! the NEW complete file — never a half-written record. The store reads ALL existing records on startup
-//! (`load_existing`), so a Palmistry restart between capture and forward does not lose a pending forward
-//! (AC-013-1 / AC-013-5).
+//! A record is written to `<file>.tmp` then atomically replaces its final path. A reader (a later
+//! Palmistry startup) either sees the OLD complete file or the NEW complete file — never a half-written
+//! record and, on Windows, never a remove-before-replace gap. The store reads ALL existing records on
+//! startup (`load_existing`), so a Palmistry restart between capture and forward does not lose a pending
+//! forward (AC-013-1 / AC-013-5).
 
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[cfg(windows)]
+use std::ffi::OsStr;
+#[cfg(windows)]
+use std::os::windows::ffi::OsStrExt;
+
 use serde::{Deserialize, Serialize};
 
 use handshake_diag_ring::{DiagEvent, DiagEventCode};
 
+use crate::child_stall::ChildStallReport;
 use crate::crash_capture::{CrashDetection, CrashRecord};
+
 use crate::freeze_detect::FreezeReport;
+#[cfg(windows)]
+use windows_sys::Win32::Storage::FileSystem::ReplaceFileW;
 
 /// Which kind of survived event a [`SurvivorRecord`] captures. A small closed enum so a reviewer and the
 /// FR forwarder reason over a typed kind, never a parsed string. Tagged JSON (`"kind":"Freeze"`).
@@ -55,6 +64,8 @@ pub enum SurvivorRecordKind {
     /// A detected CRASH (MT-092, §6.13.6): the parent died abnormally and/or an out-of-process minidump
     /// was written. The record carries the crash facts (detection kind, exit code, minidump path).
     Crash,
+    /// A child process is alive but its passive progress source stopped advancing (MT-106).
+    ChildStall,
 }
 
 impl SurvivorRecordKind {
@@ -65,6 +76,7 @@ impl SurvivorRecordKind {
         match self {
             SurvivorRecordKind::Freeze => DiagEventCode::FreezeSuspected,
             SurvivorRecordKind::Crash => DiagEventCode::CrashDetected,
+            SurvivorRecordKind::ChildStall => DiagEventCode::Other,
         }
     }
 
@@ -74,6 +86,7 @@ impl SurvivorRecordKind {
         match self {
             SurvivorRecordKind::Freeze => "freeze",
             SurvivorRecordKind::Crash => "crash",
+            SurvivorRecordKind::ChildStall => "child-stall",
         }
     }
 }
@@ -140,6 +153,21 @@ pub struct SurvivorRecord {
     /// string reference — NEVER a URL, NEVER the dump bytes (§6.13.8 local-only, RISK-013-6). `None` for
     /// a freeze or a post-mortem record.
     pub minidump_path: Option<PathBuf>,
+    /// CHILD-STALL only: OS pid of the stalled child process.
+    #[serde(default)]
+    pub child_process_id: Option<u32>,
+    /// CHILD-STALL only: opaque child-session token assigned by the launcher.
+    #[serde(default)]
+    pub child_session_id: Option<u64>,
+    /// CHILD-STALL only: last progress counter observed before the child stopped advancing.
+    #[serde(default)]
+    pub last_progress_counter: Option<u64>,
+    /// CHILD-STALL only: passive source timestamp for the last progress counter.
+    #[serde(default)]
+    pub last_progress_ts_nanos: Option<u64>,
+    /// CHILD-STALL only: stable numeric reason code.
+    #[serde(default)]
+    pub child_stall_reason_code: Option<u16>,
     /// Wall-clock millis since the UNIX epoch when the record was captured (a numeric timestamp).
     pub captured_at_unix_ms: u128,
     /// IDEMPOTENT FORWARD FLAG (RISK-013-5): `false` until [`crate::fr_forward`] has successfully posted
@@ -177,6 +205,11 @@ impl SurvivorRecord {
             faulting_thread_id: None,
             exit_code: None,
             minidump_path: None,
+            child_process_id: None,
+            child_session_id: None,
+            last_progress_counter: None,
+            last_progress_ts_nanos: None,
+            child_stall_reason_code: None,
             captured_at_unix_ms: now_unix_ms(),
             forwarded: false,
         }
@@ -201,6 +234,44 @@ impl SurvivorRecord {
             faulting_thread_id: Some(crash.faulting_thread_id),
             exit_code: crash.exit_code,
             minidump_path: crash.minidump_path.clone(),
+            child_process_id: None,
+            child_session_id: None,
+            last_progress_counter: None,
+            last_progress_ts_nanos: None,
+            child_stall_reason_code: None,
+            captured_at_unix_ms: now_unix_ms(),
+            forwarded: false,
+        }
+    }
+
+    /// Build a CHILD-STALL survivor record from the MT-106 no-progress report. `process_id` remains the
+    /// watched Handshake parent pid for correlation; the stalled child is named by `child_process_id`.
+    pub fn from_child_stall(
+        session_id: &str,
+        process_id: u32,
+        report: &ChildStallReport,
+        last_event_count: u32,
+    ) -> Self {
+        Self {
+            schema_version: SURVIVOR_SCHEMA_VERSION.to_owned(),
+            kind: SurvivorRecordKind::ChildStall,
+            session_id: session_id.to_string(),
+            process_id,
+            event_code: SurvivorRecordKind::ChildStall.diag_event_code().as_u16(),
+            stale_ms: report.stale_ms,
+            last_heartbeat_counter: 0,
+            last_heartbeat_ts_nanos: 0,
+            last_event_count,
+            probe_result: SurvivorProbeResult::NotApplicable,
+            crash_detection: None,
+            faulting_thread_id: None,
+            exit_code: None,
+            minidump_path: None,
+            child_process_id: Some(report.child_pid),
+            child_session_id: Some(report.child_session_id),
+            last_progress_counter: Some(report.last_progress_counter),
+            last_progress_ts_nanos: Some(report.last_progress_ts_nanos),
+            child_stall_reason_code: Some(report.reason_code.as_u16()),
             captured_at_unix_ms: now_unix_ms(),
             forwarded: false,
         }
@@ -226,10 +297,17 @@ impl SurvivorRecord {
             "faulting_thread_id",
             "exit_code",
             "minidump_path",
+            "child_process_id",
+            "child_session_id",
+            "last_progress_counter",
+            "last_progress_ts_nanos",
+            "child_stall_reason_code",
             "captured_at_unix_ms",
             "forwarded",
             // tag keys emitted by the `#[serde(tag = ...)]` enums (NOT content; a fixed vocabulary):
-            "kind", "probe", "detection",
+            "kind",
+            "probe",
+            "detection",
         ]
     }
 }
@@ -305,12 +383,17 @@ pub fn last_event_count(events: &[DiagEvent]) -> u32 {
 /// MT-083's crash dir (`dirs::data_local_dir()/handshake/...`), under a `palmistry/survivors` subtree.
 /// `None` when the platform has no resolvable data-local dir (a headless/odd environment) — the caller
 /// then falls back to a ring-sibling dir so a record is still durable LOCALLY.
+pub const ENV_PALMISTRY_SURVIVOR_DIR: &str = "HANDSHAKE_PALMISTRY_SURVIVOR_DIR";
+
 pub fn default_survivor_dir() -> Option<PathBuf> {
+    if let Some(raw) = std::env::var_os(ENV_PALMISTRY_SURVIVOR_DIR) {
+        return Some(PathBuf::from(raw));
+    }
     dirs::data_local_dir().map(|d| d.join("handshake").join("palmistry").join("survivors"))
 }
 
 /// A durable LOCAL store of [`SurvivorRecord`]s (§6.13.7). Records are JSON files in a per-user data dir;
-/// writes are ATOMIC (temp+rename, RISK-013-4); existing records are read on construction so a Palmistry
+/// writes are ATOMIC (temp+replace, RISK-013-4); existing records are read on construction so a Palmistry
 /// restart does not lose a pending forward (AC-013-1 / AC-013-5). The store is the source the FR
 /// forwarder ([`crate::fr_forward`]) drains at recovery.
 pub struct SurvivorStore {
@@ -383,25 +466,31 @@ impl SurvivorStore {
         &self.dir
     }
 
-    /// The durable file path for a record of `kind` for `session_id`: `<dir>/survivor-<kind>-<session>.json`.
-    /// One file per (kind, session) so a freeze and a crash in the same session are distinct durable
-    /// records and a re-capture overwrites its own file atomically (no unbounded growth per session).
-    fn record_path(&self, kind: SurvivorRecordKind, session_id: &str) -> PathBuf {
-        self.dir.join(format!(
-            "survivor-{}-{}.json",
-            kind.wire_tag(),
-            safe_session_token(session_id)
-        ))
+    /// The durable file path for a record. Freeze/crash remain one file per (kind, session); child stalls
+    /// include child_session_id so multiple watched children in one app session do not overwrite each
+    /// other.
+    fn record_path(&self, record: &SurvivorRecord) -> PathBuf {
+        let base = format!(
+            "survivor-{}-{}",
+            record.kind.wire_tag(),
+            safe_session_token(&record.session_id)
+        );
+        let name = if record.kind == SurvivorRecordKind::ChildStall {
+            format!("{base}-child-{}.json", record.child_session_id.unwrap_or(0))
+        } else {
+            format!("{base}.json")
+        };
+        self.dir.join(name)
     }
 
-    /// Persist `record` durably with an ATOMIC write (temp+rename, RISK-013-4) and mirror it in memory.
+    /// Persist `record` durably with an ATOMIC write (temp+replace, RISK-013-4) and mirror it in memory.
     /// Returns the durable path. If a record for the same (kind, session) already exists in memory it is
     /// REPLACED (the latest capture wins) and the file is overwritten atomically. The typed-allowlist is
     /// asserted before any write so a content breach can never reach disk (AC-013-2).
     pub fn put(&mut self, record: SurvivorRecord) -> std::io::Result<PathBuf> {
         // HARD: never write a record that breaches the typed allowlist (AC-013-2 / RISK-013-3).
         assert_typed_allowlist(&record).map_err(std::io::Error::other)?;
-        let path = self.record_path(record.kind, &record.session_id);
+        let path = self.record_path(&record);
         atomic_write_json(&path, &record)?;
         // Mirror in memory: replace any existing same-path record, else push.
         if let Some(slot) = self.records.iter_mut().find(|s| s.path == path) {
@@ -453,10 +542,10 @@ impl SurvivorStore {
     }
 }
 
-/// Atomically write `record` as pretty JSON to `path`: write to a sibling `<path>.tmp` then `rename` it
-/// onto `path`. `rename` is atomic on every mainstream filesystem, so a concurrent / post-restart reader
-/// sees either the OLD complete file or the NEW complete file — never a torn half-write (RISK-013-4).
-/// The temp file is in the SAME directory as the target so the rename is a cheap intra-filesystem move.
+/// Atomically write `record` as pretty JSON to `path`: write to a sibling `<path>.tmp` then atomically
+/// replace `path`. A concurrent / post-restart reader sees either the OLD complete file or the NEW
+/// complete file — never a torn half-write and never a remove-before-replace gap (RISK-013-4). The temp
+/// file is in the SAME directory as the target so the replace is a cheap intra-filesystem move.
 pub fn atomic_write_json(path: &Path, record: &SurvivorRecord) -> std::io::Result<()> {
     if let Some(dir) = path.parent() {
         fs::create_dir_all(dir)?;
@@ -465,14 +554,7 @@ pub fn atomic_write_json(path: &Path, record: &SurvivorRecord) -> std::io::Resul
     // Unique temp name (pid-scoped) so two Palmistry instances never collide on the temp file.
     let tmp = path.with_extension(format!("tmp.{}", std::process::id()));
     fs::write(&tmp, json.as_bytes())?;
-    // rename onto the final path (atomic). On Windows, rename onto an existing file fails, so remove the
-    // old target first (the window between remove + rename is acceptable: a reader that catches it sees
-    // no file, which it already tolerates as "no record yet"; the durable record is the NEW one).
-    #[cfg(windows)]
-    {
-        let _ = fs::remove_file(path);
-    }
-    match fs::rename(&tmp, path) {
+    match atomic_replace(&tmp, path) {
         Ok(()) => Ok(()),
         Err(err) => {
             // Clean up the temp file on a rename failure so it does not linger as debris.
@@ -482,9 +564,45 @@ pub fn atomic_write_json(path: &Path, record: &SurvivorRecord) -> std::io::Resul
     }
 }
 
+#[cfg(not(windows))]
+fn atomic_replace(tmp: &Path, path: &Path) -> std::io::Result<()> {
+    fs::rename(tmp, path)
+}
+
+#[cfg(windows)]
+fn atomic_replace(tmp: &Path, path: &Path) -> std::io::Result<()> {
+    if !path.exists() {
+        return fs::rename(tmp, path);
+    }
+    let target = wide_null(path.as_os_str());
+    let replacement = wide_null(tmp.as_os_str());
+    // ReplaceFileW preserves the old complete file or installs the new complete file; it avoids the
+    // remove-then-rename durability gap that can lose a survivor record on Windows.
+    let ok = unsafe {
+        ReplaceFileW(
+            target.as_ptr(),
+            replacement.as_ptr(),
+            std::ptr::null(),
+            0,
+            std::ptr::null(),
+            std::ptr::null(),
+        )
+    };
+    if ok == 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    Ok(())
+}
+
+#[cfg(windows)]
+fn wide_null(s: &OsStr) -> Vec<u16> {
+    s.encode_wide().chain(std::iter::once(0)).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::child_stall::{ChildStallReasonCode, ChildStallReport};
     use crate::crash_capture::CrashRecord;
     use crate::freeze_detect::FreezeReport;
     use handshake_diag_ring::Heartbeat;
@@ -512,6 +630,17 @@ mod tests {
             stale_ms: 6000,
             last_heartbeat_counter: 42,
             last_heartbeat_ts_nanos: 123_456,
+        }
+    }
+
+    fn child_stall_report(child_session_id: u64) -> ChildStallReport {
+        ChildStallReport {
+            child_pid: 99,
+            child_session_id,
+            stale_ms: 7000,
+            last_progress_counter: 4,
+            last_progress_ts_nanos: 1234,
+            reason_code: ChildStallReasonCode::ProgressStaleWhileAlive,
         }
     }
 
@@ -548,7 +677,10 @@ mod tests {
         );
         let rec = SurvivorRecord::from_crash(&crash);
         assert_eq!(rec.kind, SurvivorRecordKind::Crash);
-        assert_eq!(rec.crash_detection, Some(CrashDetection::CrashContextMinidump));
+        assert_eq!(
+            rec.crash_detection,
+            Some(CrashDetection::CrashContextMinidump)
+        );
         assert_eq!(rec.faulting_thread_id, Some(13));
         assert_eq!(
             rec.minidump_path.as_deref(),
@@ -556,6 +688,20 @@ mod tests {
         );
         assert_eq!(rec.last_heartbeat_counter, 9);
         assert_typed_allowlist(&rec).expect("crash record must be typed-allowlist clean");
+    }
+
+    #[test]
+    fn child_stall_record_is_typed_allowlist_only() {
+        let rec = SurvivorRecord::from_child_stall("sess-child", 42, &child_stall_report(77), 5);
+        assert_eq!(rec.kind, SurvivorRecordKind::ChildStall);
+        assert_eq!(rec.event_code, DiagEventCode::Other.as_u16());
+        assert_eq!(rec.stale_ms, 7000);
+        assert_eq!(rec.child_process_id, Some(99));
+        assert_eq!(rec.child_session_id, Some(77));
+        assert_eq!(rec.last_progress_counter, Some(4));
+        assert_eq!(rec.child_stall_reason_code, Some(1));
+        assert!(rec.minidump_path.is_none(), "a child stall has no minidump");
+        assert_typed_allowlist(&rec).expect("child-stall record must be typed-allowlist clean");
     }
 
     #[test]
@@ -596,7 +742,11 @@ mod tests {
 
         // A NEW Palmistry process opens the SAME dir and must read the existing record back.
         let restarted = SurvivorStore::open(&dir).unwrap();
-        assert_eq!(restarted.records().len(), 1, "the record outlived the restart");
+        assert_eq!(
+            restarted.records().len(),
+            1,
+            "the record outlived the restart"
+        );
         let back = &restarted.records()[0].record;
         assert_eq!(back.session_id, "sess-restart");
         assert_eq!(back.stale_ms, 6000);
@@ -624,7 +774,10 @@ mod tests {
             assert!(store.mark_forwarded(&path).unwrap(), "first mark succeeds");
             assert_eq!(store.unforwarded_count(), 0, "now forwarded");
             // Idempotent: a second mark is a no-op (still true, no error).
-            assert!(store.mark_forwarded(&path).unwrap(), "second mark is a no-op");
+            assert!(
+                store.mark_forwarded(&path).unwrap(),
+                "second mark is a no-op"
+            );
             assert_eq!(store.unforwarded_count(), 0);
         }
         // Restart: the forwarded flag persisted, so the record is NOT re-drained.
@@ -690,12 +843,58 @@ mod tests {
                 SurvivorProbeResult::NotResponding,
             ))
             .unwrap();
-        assert_eq!(store.records().len(), 1, "same (kind, session) replaces, not duplicates");
-        assert_eq!(store.records()[0].record.stale_ms, 9000, "the latest capture wins");
+        assert_eq!(
+            store.records().len(),
+            1,
+            "same (kind, session) replaces, not duplicates"
+        );
+        assert_eq!(
+            store.records()[0].record.stale_ms,
+            9000,
+            "the latest capture wins"
+        );
 
         // And on disk too (a restart sees exactly one record).
         let restarted = SurvivorStore::open(&dir).unwrap();
         assert_eq!(restarted.records().len(), 1);
+    }
+
+    #[test]
+    fn child_stall_records_are_keyed_by_child_session() {
+        let dir = temp_store_dir("child-keys");
+        let _g = DirGuard(dir.clone());
+        let mut store = SurvivorStore::open(&dir).unwrap();
+        let first = store
+            .put(SurvivorRecord::from_child_stall(
+                "sess-c",
+                1,
+                &child_stall_report(10),
+                0,
+            ))
+            .unwrap();
+        let second = store
+            .put(SurvivorRecord::from_child_stall(
+                "sess-c",
+                1,
+                &child_stall_report(11),
+                0,
+            ))
+            .unwrap();
+        assert_ne!(
+            first, second,
+            "separate child sessions must not overwrite each other"
+        );
+        assert_eq!(store.records().len(), 2);
+        assert!(first
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .contains("child-10"));
+        assert!(second
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .contains("child-11"));
     }
 
     #[test]
@@ -707,6 +906,18 @@ mod tests {
         let store = SurvivorStore::open_default_or_sibling(&parent).unwrap();
         // The chosen dir exists (either the data-local default or the sibling fallback).
         assert!(store.dir().exists(), "the durable dir must exist");
+    }
+
+    #[test]
+    fn default_survivor_dir_honors_override_env() {
+        let dir = temp_store_dir("survivor-dir-override");
+        let prev = std::env::var_os(ENV_PALMISTRY_SURVIVOR_DIR);
+        std::env::set_var(ENV_PALMISTRY_SURVIVOR_DIR, &dir);
+        assert_eq!(default_survivor_dir(), Some(dir));
+        match prev {
+            Some(v) => std::env::set_var(ENV_PALMISTRY_SURVIVOR_DIR, v),
+            None => std::env::remove_var(ENV_PALMISTRY_SURVIVOR_DIR),
+        }
     }
 
     #[test]
@@ -724,5 +935,12 @@ mod tests {
         assert_typed_allowlist(&freeze).expect("freeze keys covered");
         let crash = CrashRecord::post_mortem("s", 1, Some(2), None, &[]);
         assert_typed_allowlist(&SurvivorRecord::from_crash(&crash)).expect("crash keys covered");
+        assert_typed_allowlist(&SurvivorRecord::from_child_stall(
+            "s",
+            1,
+            &child_stall_report(1),
+            0,
+        ))
+        .expect("child-stall keys covered");
     }
 }

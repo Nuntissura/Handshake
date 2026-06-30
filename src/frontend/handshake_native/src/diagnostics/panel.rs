@@ -15,7 +15,8 @@
 //!   ring, plus the static `GpuInfo` hardware line.
 //! - **Last-N events** (MT-082) — read DIRECTLY from the process-global [`crate::diagnostics::
 //!   snapshot_last_n`] each frame (the panel allocates NO copy of its own — RISK-007-2).
-//! - **Tier-3 Palmistry** — an honest empty-state placeholder. Live freeze/crash forwarding is MT-093;
+//! - **Tier-3 Palmistry** — survivor records from the external watcher. Freeze/crash forwarding is MT-093;
+//!   child-stall records are MT-106;
 //!   the three-tier §10.12.5 layout is PRESENT here, honestly empty, not faked (AC-007-4).
 //!
 //! # No own authority (RISK-007-2 / §5.8.4)
@@ -104,11 +105,10 @@ pub struct DiagnosticsView {
     /// Whether the MT-081 ring writer is installed (Palmistry can see events out-of-process). When
     /// false, diagnostics are in-process-only this session (graceful degradation) — surfaced honestly.
     pub ring_writer_installed: bool,
-    /// WP-KERNEL-012 MT-093 (§6.13.7 / §10.12.5 Tier-3): the freeze/crash survivor records the external
+    /// WP-KERNEL-012 MT-093/MT-106 (§6.13.7 / §10.12.5 Tier-3): survivor records the external
     /// Palmistry watcher persisted + (on recovery) forwarded, read by the shell from the durable survivor
-    /// store via [`crate::diagnostics::read_default_survivor_records`]. Empty before any freeze/crash (the
-    /// honest empty-state MT-087 renders); POPULATED post-recovery (AC-013-6). Typed-allowlist only — no
-    /// project content.
+    /// store via [`crate::diagnostics::read_default_survivor_records`]. Empty before any freeze/crash/child
+    /// stall; POPULATED post-recovery or while pending. Typed-allowlist only — no project content.
     pub palmistry_records: Vec<crate::diagnostics::PalmistrySurvivorView>,
 }
 
@@ -350,8 +350,8 @@ impl DiagnosticsPanel {
         );
     }
 
-    /// Tier-3 Palmistry section (§10.12.5): projects the freeze/crash survivor records the external
-    /// Palmistry watcher persisted + forwarded (MT-093 §6.13.7). When no records exist it renders the
+    /// Tier-3 Palmistry section (§10.12.5): projects the survivor records the external Palmistry watcher
+    /// persisted + forwarded (MT-093/MT-106 §6.13.7). When no records exist it renders the
     /// honest empty-state MT-087 established (NOT faked, NOT a spinner — AC-007-4/5); when records exist
     /// (POST-RECOVERY) it lists each typed record (AC-013-6). `Role::Group`, author_id
     /// `diagnostics_palmistry`.
@@ -359,8 +359,8 @@ impl DiagnosticsPanel {
         let group = ui.scope(|ui| {
             section_heading(ui, "Palmistry (Tier 3 — external watcher)", palette);
             if view.palmistry_records.is_empty() {
-                // Honest empty-state (no freeze/crash this session, or none forwarded yet).
-                muted_empty(ui, "No freeze/crash records.", palette);
+                // Honest empty-state (no freeze/crash/child-stall this session, or none forwarded yet).
+                muted_empty(ui, "No freeze/crash/child-stall records.", palette);
             } else {
                 // POPULATED post-recovery (AC-013-6): one row per forwarded/known survivor record. Every
                 // value is typed (kind, codes, durations, exit code, LOCAL minidump path, timestamp) — no
@@ -391,9 +391,10 @@ impl DiagnosticsPanel {
     }
 }
 
-/// One Tier-3 survivor-record row (MT-093 §10.12.5): the typed kind + the typed evidence (stale duration
-/// for a freeze, exit code + LOCAL minidump path for a crash) + whether it has been forwarded to the
-/// Flight Recorder ledger. NO free text (the record carries none). Severity colour from `palette` tokens.
+/// One Tier-3 survivor-record row (MT-093/MT-106 §10.12.5): the typed kind + typed evidence (stale
+/// duration for a freeze/child-stall, exit code + LOCAL minidump path for a crash) + whether it has been
+/// forwarded to the Flight Recorder ledger. NO free text (the record carries none). Severity colour from
+/// `palette` tokens.
 fn palmistry_record_row(
     ui: &mut egui::Ui,
     rec: &crate::diagnostics::PalmistrySurvivorView,
@@ -404,7 +405,9 @@ fn palmistry_record_row(
         // The kind, coloured by severity (a crash is an error tone, a freeze a warn tone).
         let kind_color = match rec.kind {
             PalmistrySurvivorKind::Crash => palette.diagnostics.error,
-            PalmistrySurvivorKind::Freeze => palette.diagnostics.warning,
+            PalmistrySurvivorKind::Freeze | PalmistrySurvivorKind::ChildStall => {
+                palette.diagnostics.warning
+            }
             PalmistrySurvivorKind::Other => palette.text_subtle,
         };
         ui.label(
@@ -420,6 +423,39 @@ fn palmistry_record_row(
                         .monospace()
                         .color(palette.text),
                 );
+            }
+            PalmistrySurvivorKind::ChildStall => {
+                let pid = rec
+                    .child_process_id
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "?".to_owned());
+                let child_session = rec
+                    .child_session_id
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "?".to_owned());
+                let progress = rec
+                    .last_progress_counter
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "?".to_owned());
+                let reason = rec
+                    .child_stall_reason_code
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "?".to_owned());
+                ui.vertical(|ui| {
+                    ui.label(
+                        egui::RichText::new(format!("child {pid} session {child_session}"))
+                            .monospace()
+                            .color(palette.text),
+                    );
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "stale {}ms progress {progress} reason {reason}",
+                            rec.stale_ms
+                        ))
+                        .monospace()
+                        .color(palette.text_subtle),
+                    );
+                });
             }
             _ => {
                 if let Some(code) = rec.exit_code {

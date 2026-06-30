@@ -14,10 +14,13 @@
 //! - [`ring_reader`] — the zero-cooperation MT-081 ring reader (MT-090).
 //! - [`hung_window_probe`] — the OS hung-window probe (MT-091).
 //! - [`freeze_detect`] — the double-signal freeze detector (MT-091).
+//! - [`child_stall`] / [`child_registry`] — child-process no-progress stall detection (MT-106).
 //! - [`crash_capture`] — the out-of-process minidump + typed crash record (MT-092).
 //! - [`survivor_store`] — the DURABLE survivor store (MT-093, §6.13.7).
 //! - [`fr_forward`] — the recovery-time Flight Recorder forwarder (MT-093, §6.13.7).
 
+pub mod child_registry;
+pub mod child_stall;
 pub mod cli;
 pub mod control;
 pub mod crash_capture;

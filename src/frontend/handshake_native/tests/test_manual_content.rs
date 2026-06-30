@@ -145,6 +145,7 @@ fn mt104_topics_exist_and_include_no_context_runtime_facts() {
                 "settings.section.diagnostics",
                 "diagnostics_panel",
                 "diagnostics_palmistry",
+                "child-process stall",
             ],
         ),
         (
@@ -190,7 +191,19 @@ fn mt104_topics_exist_and_include_no_context_runtime_facts() {
         ),
         (
             "Palmistry",
-            &["Tier 3", "freeze", "crash", "diagnostics_palmistry"],
+            &[
+                "Tier 3",
+                "freeze",
+                "crash",
+                "ChildStall",
+                "RegisterChild",
+                "file-counter",
+                "HANDSHAKE_PALMISTRY_SURVIVOR_DIR",
+                "child_session_id",
+                "child_stall_reason_code",
+                "test_no_silent_hang_end_to_end",
+                "diagnostics_palmistry",
+            ],
         ),
     ] {
         let body = topic_body(&section, heading);

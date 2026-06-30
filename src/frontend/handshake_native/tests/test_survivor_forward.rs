@@ -47,7 +47,10 @@ fn temp_dir(label: &str) -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    std::env::temp_dir().join(format!("hsk-mt093-hsk-it-{label}-{}-{nanos}", std::process::id()))
+    std::env::temp_dir().join(format!(
+        "hsk-mt093-hsk-it-{label}-{}-{nanos}",
+        std::process::id()
+    ))
 }
 
 struct DirGuard(PathBuf);
@@ -96,7 +99,10 @@ fn seam_reads_durable_survivor_records_typed_newest_first() {
     assert!(!views[0].forwarded);
     assert_eq!(views[1].kind, PalmistrySurvivorKind::Freeze);
     assert_eq!(views[1].stale_ms, 6000);
-    assert!(views[1].forwarded, "the freeze record was forwarded to the FR ledger");
+    assert!(
+        views[1].forwarded,
+        "the freeze record was forwarded to the FR ledger"
+    );
 }
 
 #[test]
@@ -115,8 +121,29 @@ fn panel_tier3_section_populates_from_forwarded_records() {
                 stale_ms: 6000,
                 exit_code: None,
                 minidump_path: None,
+                child_process_id: None,
+                child_session_id: None,
+                last_progress_counter: None,
+                last_progress_ts_nanos: None,
+                child_stall_reason_code: None,
                 captured_at_unix_ms: 2000,
                 forwarded: true,
+            },
+            PalmistrySurvivorView {
+                kind: PalmistrySurvivorKind::ChildStall,
+                session_id: "sess-child".to_owned(),
+                process_id: 4242,
+                event_code: 12,
+                stale_ms: 6100,
+                exit_code: None,
+                minidump_path: None,
+                child_process_id: Some(333),
+                child_session_id: Some(90),
+                last_progress_counter: Some(5),
+                last_progress_ts_nanos: Some(777),
+                child_stall_reason_code: Some(1),
+                captured_at_unix_ms: 1500,
+                forwarded: false,
             },
             PalmistrySurvivorView {
                 kind: PalmistrySurvivorKind::Crash,
@@ -126,6 +153,11 @@ fn panel_tier3_section_populates_from_forwarded_records() {
                 stale_ms: 0,
                 exit_code: Some(0xC000_0005),
                 minidump_path: Some("C:/data/palmistry-crash-sess-crash.dmp".to_owned()),
+                child_process_id: None,
+                child_session_id: None,
+                last_progress_counter: None,
+                last_progress_ts_nanos: None,
+                child_stall_reason_code: None,
                 captured_at_unix_ms: 1000,
                 forwarded: false,
             },
@@ -148,14 +180,26 @@ fn panel_tier3_section_populates_from_forwarded_records() {
     assert!(
         ids.contains(DIAGNOSTICS_PALMISTRY_AUTHOR_ID),
         "the Tier-3 Palmistry section must render its AccessKit group; got {:?}",
-        ids.iter().filter(|i| i.contains("palmistry") || i.contains("diagnostics")).collect::<Vec<_>>()
+        ids.iter()
+            .filter(|i| i.contains("palmistry") || i.contains("diagnostics"))
+            .collect::<Vec<_>>()
     );
 
     // The panel rendered the forwarded freeze record (its kind label + the forwarded flag) and the crash
     // record's exit code + LOCAL minidump path — proving the panel READ a forwarded record (AC-013-6),
     // not the empty-state. `get_by_label` finds the rendered text node.
-    assert!(harness.query_by_label("Freeze").is_some(), "the freeze record kind must render");
-    assert!(harness.query_by_label("Crash").is_some(), "the crash record kind must render");
+    assert!(
+        harness.query_by_label("Freeze").is_some(),
+        "the freeze record kind must render"
+    );
+    assert!(
+        harness.query_by_label("Crash").is_some(),
+        "the crash record kind must render"
+    );
+    assert!(
+        harness.query_by_label("ChildStall").is_some(),
+        "the child-stall record kind must render"
+    );
     assert!(
         harness.query_by_label("forwarded").is_some(),
         "the forwarded-to-ledger flag must render for the forwarded record"
@@ -163,6 +207,16 @@ fn panel_tier3_section_populates_from_forwarded_records() {
     assert!(
         harness.query_by_label("stale 6000ms").is_some(),
         "the freeze stale-duration evidence must render"
+    );
+    assert!(
+        harness.query_by_label("child 333 session 90").is_some(),
+        "the child-stall pid/session evidence must render compactly"
+    );
+    assert!(
+        harness
+            .query_by_label("stale 6100ms progress 5 reason 1")
+            .is_some(),
+        "the child-stall stale/progress/reason evidence must render compactly"
     );
     // The crash's LOCAL minidump path renders as a local reference (never bytes, never a URL). The panel
     // renders it as the exact label `minidump: <path>`.
@@ -175,7 +229,9 @@ fn panel_tier3_section_populates_from_forwarded_records() {
 
     // The honest empty-state line is NOT shown when records exist.
     assert!(
-        harness.query_by_label("No freeze/crash records.").is_none(),
+        harness
+            .query_by_label("No freeze/crash/child-stall records.")
+            .is_none(),
         "the empty-state must be replaced by the real records when present"
     );
 
@@ -192,7 +248,9 @@ fn panel_tier3_shows_honest_empty_state_when_no_records() {
     });
     harness.run();
     assert!(
-        harness.query_by_label("No freeze/crash records.").is_some(),
+        harness
+            .query_by_label("No freeze/crash/child-stall records.")
+            .is_some(),
         "the honest empty-state must render when no survivor records exist"
     );
 }

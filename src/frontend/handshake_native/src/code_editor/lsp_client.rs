@@ -34,6 +34,7 @@
 //! language-server process (RISK-001 / MC-001).
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -172,10 +173,16 @@ pub struct LspPosition {
 
 impl LspPosition {
     fn from_lsp(p: Position) -> Self {
-        Self { line: p.line, character: p.character }
+        Self {
+            line: p.line,
+            character: p.character,
+        }
     }
     fn to_lsp(self) -> Position {
-        Position { line: self.line, character: self.character }
+        Position {
+            line: self.line,
+            character: self.character,
+        }
     }
 }
 
@@ -189,10 +196,16 @@ pub struct LspRange {
 
 impl LspRange {
     fn from_lsp(r: lsp_types::Range) -> Self {
-        Self { start: LspPosition::from_lsp(r.start), end: LspPosition::from_lsp(r.end) }
+        Self {
+            start: LspPosition::from_lsp(r.start),
+            end: LspPosition::from_lsp(r.end),
+        }
     }
     fn to_lsp(self) -> lsp_types::Range {
-        lsp_types::Range { start: self.start.to_lsp(), end: self.end.to_lsp() }
+        lsp_types::Range {
+            start: self.start.to_lsp(),
+            end: self.end.to_lsp(),
+        }
     }
 }
 
@@ -207,7 +220,10 @@ pub struct LspTextEdit {
 
 impl LspTextEdit {
     fn from_lsp(te: lsp_types::TextEdit) -> Self {
-        Self { range: LspRange::from_lsp(te.range), new_text: te.new_text }
+        Self {
+            range: LspRange::from_lsp(te.range),
+            new_text: te.new_text,
+        }
     }
 }
 
@@ -224,7 +240,10 @@ pub struct LspServerConfig {
 impl LspServerConfig {
     /// A config that launches `command` with no args.
     pub fn command(command: impl Into<String>) -> Self {
-        Self { command: command.into(), args: Vec::new() }
+        Self {
+            command: command.into(),
+            args: Vec::new(),
+        }
     }
 
     /// Whether a server is actually configured (a non-empty command).
@@ -248,9 +267,70 @@ struct Transport {
     /// The spawned child process handle (kept so `Drop` can wait/kill it — RISK-001). `None` for a
     /// test transport backed by an in-memory pipe (no OS process to reap).
     child: Option<Child>,
+    /// OS pid of the spawned child process, kept separately because `tokio::process::Child::id()` is an
+    /// `Option` and the request path must not hold the transport lock just to name the process.
+    child_pid: Option<u32>,
     /// Pending request id -> the oneshot sender the reader task fulfills when the matching response
     /// arrives. Shared with the reader task.
     pending: Arc<Mutex<HashMap<i64, oneshot::Sender<Value>>>>,
+}
+
+struct ActiveChildRequestWatch {
+    pid: u32,
+    child_session_id: u64,
+    liveness_path: PathBuf,
+    deregister_on_drop: bool,
+}
+
+impl ActiveChildRequestWatch {
+    fn new(pid: u32, request_id: i64) -> std::io::Result<Self> {
+        let child_session_id = child_session_id_for_request(request_id);
+        let liveness_path = std::env::temp_dir().join(format!(
+            "handshake-lsp-child-{}-{child_session_id}.progress",
+            std::process::id()
+        ));
+        if let Some(parent) = liveness_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(&liveness_path, b"1\n")?;
+        crate::diagnostics::enqueue_palmistry_child_liveness_file(
+            pid,
+            child_session_id,
+            &liveness_path,
+            REQUEST_TIMEOUT,
+        );
+        Ok(Self {
+            pid,
+            child_session_id,
+            liveness_path,
+            deregister_on_drop: true,
+        })
+    }
+
+    fn complete(mut self) {
+        let _ = std::fs::write(&self.liveness_path, b"2\n");
+        crate::diagnostics::enqueue_palmistry_child_deregister(self.pid, self.child_session_id);
+        self.deregister_on_drop = false;
+        let _ = std::fs::remove_file(&self.liveness_path);
+    }
+
+    fn leave_for_timeout(mut self) {
+        self.deregister_on_drop = false;
+    }
+}
+
+impl Drop for ActiveChildRequestWatch {
+    fn drop(&mut self) {
+        if self.deregister_on_drop {
+            crate::diagnostics::enqueue_palmistry_child_deregister(self.pid, self.child_session_id);
+            let _ = std::fs::remove_file(&self.liveness_path);
+        }
+    }
+}
+
+fn child_session_id_for_request(request_id: i64) -> u64 {
+    let low = u64::try_from(request_id).unwrap_or(0) & 0xFFFF_FFFF;
+    ((std::process::id() as u64) << 32) | low
 }
 
 /// The LSP client. Owns the (lazily-spawned) server transport, the diagnostics notification channel,
@@ -316,7 +396,10 @@ impl LspClient {
 
     /// Whether a server process is currently spawned + attached.
     pub fn is_running(&self) -> bool {
-        self.transport.lock().unwrap_or_else(|e| e.into_inner()).is_some()
+        self.transport
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_some()
     }
 
     /// Take the diagnostics receiver (once) so the editor can drain `publishDiagnostics` each frame.
@@ -325,7 +408,10 @@ impl LspClient {
     pub fn take_diagnostics_receiver(
         &self,
     ) -> Option<mpsc::UnboundedReceiver<PublishedDiagnostics>> {
-        self.diagnostics_rx.lock().unwrap_or_else(|e| e.into_inner()).take()
+        self.diagnostics_rx
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
     }
 
     /// Allocate the next JSON-RPC request id.
@@ -369,7 +455,10 @@ impl LspClient {
             }),
             ..Default::default()
         };
-        *self.server_capabilities.lock().unwrap_or_else(|e| e.into_inner()) = Some(caps);
+        *self
+            .server_capabilities
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(caps);
     }
 
     /// TEST HOOK (MT-047 / AC-001): install an in-memory duplex-pipe transport (NO OS process) wired to
@@ -397,9 +486,10 @@ impl LspClient {
         *self.runtime.lock().unwrap_or_else(|e| e.into_inner()) = Some(Handle::current());
         *self.transport.lock().unwrap_or_else(|e| e.into_inner()) = Some(Transport {
             stdin: Arc::new(tokio::sync::Mutex::new(
-                Box::new(client_write) as Box<dyn tokio::io::AsyncWrite + Send + Unpin>,
+                Box::new(client_write) as Box<dyn tokio::io::AsyncWrite + Send + Unpin>
             )),
             child: None, // no OS process for an in-memory transport.
+            child_pid: None,
             pending,
         });
         // The mock server reads requests from `server_read` and writes responses to `server_write`;
@@ -408,7 +498,10 @@ impl LspClient {
         // pump task is overkill — instead return the server_write and stash server_read for the test
         // to read through `read_test_request`. Simpler: return server_write; the test uses
         // `read_test_request` to pull the request bytes.
-        *self.test_server_read.lock().unwrap_or_else(|e| e.into_inner()) = Some(server_read);
+        *self
+            .test_server_read
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(server_read);
         server_write
     }
 
@@ -416,10 +509,17 @@ impl LspClient {
     /// transport (installed by [`install_test_transport`]). Returns the parsed request `Value`, or
     /// `None` on EOF. The test calls this to observe the request before writing the response.
     pub async fn read_test_request(&self) -> Option<Value> {
-        let mut reader = self.test_server_read.lock().unwrap_or_else(|e| e.into_inner()).take()?;
+        let mut reader = self
+            .test_server_read
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()?;
         let result = read_one_frame(&mut reader).await;
         // Park the reader back for any subsequent reads.
-        *self.test_server_read.lock().unwrap_or_else(|e| e.into_inner()) = Some(reader);
+        *self
+            .test_server_read
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(reader);
         result
     }
 
@@ -461,8 +561,13 @@ impl LspClient {
             Ok(child) => child,
             Err(_) => return false, // server binary missing / not launchable -> graceful (AC-004).
         };
-        let Some(stdin) = child.stdin.take() else { return false };
-        let Some(stdout) = child.stdout.take() else { return false };
+        let child_pid = child.id();
+        let Some(stdin) = child.stdin.take() else {
+            return false;
+        };
+        let Some(stdout) = child.stdout.take() else {
+            return false;
+        };
 
         let pending: Arc<Mutex<HashMap<i64, oneshot::Sender<Value>>>> =
             Arc::new(Mutex::new(HashMap::new()));
@@ -479,9 +584,10 @@ impl LspClient {
         *self.runtime.lock().unwrap_or_else(|e| e.into_inner()) = Some(Handle::current());
         *self.transport.lock().unwrap_or_else(|e| e.into_inner()) = Some(Transport {
             stdin: Arc::new(tokio::sync::Mutex::new(
-                Box::new(stdin) as Box<dyn tokio::io::AsyncWrite + Send + Unpin>,
+                Box::new(stdin) as Box<dyn tokio::io::AsyncWrite + Send + Unpin>
             )),
             child: Some(child),
+            child_pid,
             pending,
         });
 
@@ -501,7 +607,10 @@ impl LspClient {
             // capability as unsupported — graceful, never a panic).
             if let Some(caps) = result.get("capabilities").cloned() {
                 if let Ok(parsed) = serde_json::from_value::<ServerCapabilities>(caps) {
-                    *self.server_capabilities.lock().unwrap_or_else(|e| e.into_inner()) = Some(parsed);
+                    *self
+                        .server_capabilities
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner()) = Some(parsed);
                 }
             }
             // Per the spec the client sends `initialized` after the handshake. Best-effort.
@@ -552,7 +661,9 @@ impl LspClient {
     /// `textDocument/completion`: request completions at `position`. Returns the popup items (empty on
     /// no server / no response / a server error — AC-004).
     pub async fn completion(&self, uri: &str, position: Position) -> Vec<LspCompletionItem> {
-        let Some(params) = position_params(uri, position) else { return Vec::new() };
+        let Some(params) = position_params(uri, position) else {
+            return Vec::new();
+        };
         let Some(result) = self.request("textDocument/completion", params).await else {
             return Vec::new();
         };
@@ -561,9 +672,11 @@ impl LspClient {
             Ok(CompletionResponse::Array(items)) => {
                 items.into_iter().map(completion_item_from_lsp).collect()
             }
-            Ok(CompletionResponse::List(list)) => {
-                list.items.into_iter().map(completion_item_from_lsp).collect()
-            }
+            Ok(CompletionResponse::List(list)) => list
+                .items
+                .into_iter()
+                .map(completion_item_from_lsp)
+                .collect(),
             Err(_) => Vec::new(),
         }
     }
@@ -603,7 +716,9 @@ impl LspClient {
     /// `textDocument/references`: request the reference locations of the symbol at `position`. Returns
     /// every location (empty on no server / no response — AC-004).
     pub async fn references(&self, uri: &str, position: Position) -> Vec<Location> {
-        let Some(base) = position_params(uri, position) else { return Vec::new() };
+        let Some(base) = position_params(uri, position) else {
+            return Vec::new();
+        };
         // The references request adds a `context.includeDeclaration` field to the position params.
         let mut params = base;
         params["context"] = serde_json::json!({ "includeDeclaration": true });
@@ -706,7 +821,9 @@ impl LspClient {
         });
         // A present (non-error) response = the server accepted the command. A None (timeout / no transport /
         // server error) = the command could not be executed -> graceful false.
-        self.request("workspace/executeCommand", params).await.is_some()
+        self.request("workspace/executeCommand", params)
+            .await
+            .is_some()
     }
 
     /// WP-KERNEL-012 MT-047: whether the attached server declared `signatureHelpProvider` in its
@@ -735,10 +852,9 @@ impl LspClient {
             .and_then(|c| c.signature_help_provider.as_ref())
             .and_then(|p| p.trigger_characters.clone());
         match declared {
-            Some(chars) if !chars.is_empty() => chars
-                .iter()
-                .filter_map(|s| s.chars().next())
-                .collect(),
+            Some(chars) if !chars.is_empty() => {
+                chars.iter().filter_map(|s| s.chars().next()).collect()
+            }
             _ => vec!['(', ','],
         }
     }
@@ -758,7 +874,9 @@ impl LspClient {
         let result = self.request("textDocument/signatureHelp", params).await?;
         // A null response (the cursor is not inside a call) deserializes to `None`; a present one to
         // `Some(SignatureHelp)`. A malformed body degrades to `None` (AC-008).
-        serde_json::from_value::<Option<SignatureHelp>>(result).ok().flatten()
+        serde_json::from_value::<Option<SignatureHelp>>(result)
+            .ok()
+            .flatten()
     }
 
     /// WP-KERNEL-012 MT-050: whether the attached server declared `documentFormattingProvider` in its
@@ -851,7 +969,10 @@ impl LspClient {
         let Ok(params_value) = serde_json::to_value(params) else {
             return Err(LspError::Parse);
         };
-        let Some(result) = self.request("textDocument/rangeFormatting", params_value).await else {
+        let Some(result) = self
+            .request("textDocument/rangeFormatting", params_value)
+            .await
+        else {
             return Ok(Vec::new());
         };
         Self::parse_text_edits(result)
@@ -889,7 +1010,10 @@ impl LspClient {
             },
             ..Default::default()
         };
-        *self.server_capabilities.lock().unwrap_or_else(|e| e.into_inner()) = Some(caps);
+        *self
+            .server_capabilities
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(caps);
     }
 
     /// Send a JSON-RPC REQUEST and await its `result` (or `None` on no transport / timeout / a server
@@ -901,13 +1025,21 @@ impl LspClient {
         // Clone the stdin (async-locked) + pending handles out of the std transport guard, then RELEASE
         // the std guard BEFORE the await (clippy await_holding_lock — a std MutexGuard must not be held
         // across `.await`). If there is no transport, this is a graceful None.
-        let (stdin, pending) = {
+        let (stdin, pending, child_pid) = {
             let guard = self.transport.lock().unwrap_or_else(|e| e.into_inner());
             let transport = guard.as_ref()?;
-            (Arc::clone(&transport.stdin), Arc::clone(&transport.pending))
+            (
+                Arc::clone(&transport.stdin),
+                Arc::clone(&transport.pending),
+                transport.child_pid,
+            )
         };
+        let mut child_watch = child_pid.and_then(|pid| ActiveChildRequestWatch::new(pid, id).ok());
         // Register the pending sender before the bytes go out so a fast response cannot race ahead.
-        pending.lock().unwrap_or_else(|e| e.into_inner()).insert(id, tx);
+        pending
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(id, tx);
         let message = serde_json::json!({
             "jsonrpc": "2.0",
             "id": id,
@@ -917,17 +1049,37 @@ impl LspClient {
         // Write under the ASYNC stdin lock (await-safe); serialized sends preserve JSON-RPC framing.
         {
             let mut stdin = stdin.lock().await;
-            if transport::write_message(&mut **stdin, &message).await.is_err() {
-                pending.lock().unwrap_or_else(|e| e.into_inner()).remove(&id);
+            if transport::write_message(&mut **stdin, &message)
+                .await
+                .is_err()
+            {
+                pending
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .remove(&id);
+                if let Some(watch) = child_watch.take() {
+                    watch.complete();
+                }
                 return None;
             }
         }
         // Await the response with a bound so a silent server cannot hang the editor's delivery task.
         match tokio::time::timeout(REQUEST_TIMEOUT, rx).await {
-            Ok(Ok(value)) => Some(value),
+            Ok(Ok(value)) => {
+                if let Some(watch) = child_watch.take() {
+                    watch.complete();
+                }
+                Some(value)
+            }
             _ => {
                 // Timeout / channel closed: drop the pending entry so it does not leak.
-                pending.lock().unwrap_or_else(|e| e.into_inner()).remove(&id);
+                pending
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .remove(&id);
+                if let Some(watch) = child_watch.take() {
+                    watch.leave_for_timeout();
+                }
                 None
             }
         }
@@ -961,9 +1113,19 @@ impl LspClient {
     /// at the end if still alive, and `kill_on_drop(true)` on the spawned `Command` is the final safety
     /// net so the OS process can never outlive the [`LspClient`] (RISK-001 — no zombie).
     fn shutdown_now(&mut self) {
-        let runtime = self.runtime.lock().unwrap_or_else(|e| e.into_inner()).clone();
-        let transport = self.transport.lock().unwrap_or_else(|e| e.into_inner()).take();
-        let Some(mut transport) = transport else { return };
+        let runtime = self
+            .runtime
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        let transport = self
+            .transport
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take();
+        let Some(mut transport) = transport else {
+            return;
+        };
 
         let graceful = |handle: &Handle, transport: &mut Transport| {
             handle.block_on(async {
@@ -1022,7 +1184,10 @@ fn position_params(uri: &str, position: Position) -> Option<Value> {
 /// `#[serde(transparent)]` newtype over `i32`; round-trip it through serde to read the numeric kind
 /// (the only API the crate exposes for the inner value).
 fn completion_item_from_lsp(item: lsp_types::CompletionItem) -> LspCompletionItem {
-    let insert_text = item.insert_text.clone().unwrap_or_else(|| item.label.clone());
+    let insert_text = item
+        .insert_text
+        .clone()
+        .unwrap_or_else(|| item.label.clone());
     let kind = item
         .kind
         .and_then(|k| serde_json::to_value(k).ok())
@@ -1069,7 +1234,10 @@ pub fn published_diagnostics_from_lsp(params: PublishDiagnosticsParams) -> Publi
             message: d.message,
         })
         .collect();
-    PublishedDiagnostics { uri: params.uri.to_string(), diagnostics }
+    PublishedDiagnostics {
+        uri: params.uri.to_string(),
+        diagnostics,
+    }
 }
 
 /// Map an `lsp_types::DiagnosticSeverity` to its i32 wire value (the crate stores it opaquely).
@@ -1199,7 +1367,11 @@ mod transport {
         if let Some(id) = value.get("id").and_then(numeric_id) {
             if !has_method {
                 // It's a response to one of our requests.
-                if let Some(tx) = pending.lock().unwrap_or_else(|e| e.into_inner()).remove(&id) {
+                if let Some(tx) = pending
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .remove(&id)
+                {
                     // Deliver the `result` (or, on an error, a Null so the request resolves to None).
                     let result = value.get("result").cloned().unwrap_or(Value::Null);
                     let _ = tx.send(result);
@@ -1210,9 +1382,7 @@ mod transport {
         // A NOTIFICATION (no id, or id+method we ignore). Route publishDiagnostics.
         if value.get("method").and_then(|m| m.as_str()) == Some("textDocument/publishDiagnostics") {
             if let Some(params) = value.get("params").cloned() {
-                if let Ok(parsed) =
-                    serde_json::from_value::<PublishDiagnosticsParams>(params)
-                {
+                if let Ok(parsed) = serde_json::from_value::<PublishDiagnosticsParams>(params) {
                     let _ = diagnostics_tx.send(published_diagnostics_from_lsp(parsed));
                 }
             }
@@ -1221,7 +1391,8 @@ mod transport {
 
     /// Parse a JSON-RPC id (number or numeric string) to an i64 (our ids are numeric).
     fn numeric_id(v: &Value) -> Option<i64> {
-        v.as_i64().or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+        v.as_i64()
+            .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
     }
 }
 
@@ -1237,6 +1408,14 @@ mod tests {
     }
 
     #[test]
+    fn lsp_request_path_queues_palmistry_child_watch() {
+        let source = include_str!("lsp_client.rs");
+        assert!(source.contains("enqueue_palmistry_child_liveness_file"));
+        assert!(source.contains("enqueue_palmistry_child_deregister"));
+        assert!(source.contains("ActiveChildRequestWatch::new"));
+    }
+
+    #[test]
     fn published_diagnostics_map_zero_based_lines_and_severity() {
         use lsp_types::{Diagnostic, DiagnosticSeverity, Range};
         let params = PublishDiagnosticsParams {
@@ -1245,8 +1424,14 @@ mod tests {
             diagnostics: vec![
                 Diagnostic {
                     range: Range {
-                        start: Position { line: 4, character: 0 },
-                        end: Position { line: 4, character: 3 },
+                        start: Position {
+                            line: 4,
+                            character: 0,
+                        },
+                        end: Position {
+                            line: 4,
+                            character: 3,
+                        },
                     },
                     severity: Some(DiagnosticSeverity::ERROR),
                     message: "boom".to_owned(),
@@ -1254,8 +1439,14 @@ mod tests {
                 },
                 Diagnostic {
                     range: Range {
-                        start: Position { line: 9, character: 2 },
-                        end: Position { line: 9, character: 8 },
+                        start: Position {
+                            line: 9,
+                            character: 2,
+                        },
+                        end: Position {
+                            line: 9,
+                            character: 8,
+                        },
                     },
                     severity: Some(DiagnosticSeverity::WARNING),
                     message: "careful".to_owned(),
@@ -1289,9 +1480,14 @@ mod tests {
         // AC-004: every method returns empty/None without a server, without panicking.
         let client = LspClient::disabled();
         assert!(!client.initialize(None).await);
-        client.did_open("file:///x.rs", "rust", "fn main() {}").await; // no panic
+        client
+            .did_open("file:///x.rs", "rust", "fn main() {}")
+            .await; // no panic
         client.did_change("file:///x.rs", 2, "fn main() {}").await; // no panic
-        let pos = Position { line: 0, character: 0 };
+        let pos = Position {
+            line: 0,
+            character: 0,
+        };
         assert!(client.completion("file:///x.rs", pos).await.is_empty());
         assert!(client.hover("file:///x.rs", pos).await.is_none());
         assert!(client.goto_definition("file:///x.rs", pos).await.is_none());

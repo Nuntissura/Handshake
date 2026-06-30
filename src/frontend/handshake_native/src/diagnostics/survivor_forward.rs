@@ -37,6 +37,8 @@ pub enum PalmistrySurvivorKind {
     Freeze,
     /// A detected CRASH (§6.13.6).
     Crash,
+    /// A child process that stayed alive while passive progress stopped advancing (MT-106).
+    ChildStall,
     /// An unrecognized kind tag (forward-compat: a future palmistry kind this Handshake build does not
     /// know). Rendered as "other" rather than dropped, so nothing is silently lost.
     Other,
@@ -48,6 +50,7 @@ impl PalmistrySurvivorKind {
         match self {
             PalmistrySurvivorKind::Freeze => "Freeze",
             PalmistrySurvivorKind::Crash => "Crash",
+            PalmistrySurvivorKind::ChildStall => "ChildStall",
             PalmistrySurvivorKind::Other => "Other",
         }
     }
@@ -56,6 +59,7 @@ impl PalmistrySurvivorKind {
         match tag {
             "Freeze" => PalmistrySurvivorKind::Freeze,
             "Crash" => PalmistrySurvivorKind::Crash,
+            "ChildStall" => PalmistrySurvivorKind::ChildStall,
             _ => PalmistrySurvivorKind::Other,
         }
     }
@@ -80,6 +84,16 @@ pub struct PalmistrySurvivorView {
     pub exit_code: Option<u32>,
     /// The LOCAL minidump path string, if a crash wrote one (a local reference — never the bytes).
     pub minidump_path: Option<String>,
+    /// CHILD-STALL only: OS pid of the stalled child process.
+    pub child_process_id: Option<u32>,
+    /// CHILD-STALL only: opaque child-session token.
+    pub child_session_id: Option<u64>,
+    /// CHILD-STALL only: last progress counter before no-progress.
+    pub last_progress_counter: Option<u64>,
+    /// CHILD-STALL only: passive source timestamp for the last progress counter.
+    pub last_progress_ts_nanos: Option<u64>,
+    /// CHILD-STALL only: stable numeric reason code.
+    pub child_stall_reason_code: Option<u16>,
     /// Wall-clock millis since the UNIX epoch when the record was captured.
     pub captured_at_unix_ms: u128,
     /// Whether the record has been forwarded to the Flight Recorder (the idempotent flag).
@@ -87,13 +101,15 @@ pub struct PalmistrySurvivorView {
 }
 
 /// The typed-allowlist deserializer for a durable survivor record FILE (the palmistry-side JSON). Only the
-/// known typed fields are read; the `#[serde(tag = "kind")]` value lands in `kind_tag`. An unknown extra
-/// field on disk is IGNORED (never surfaced) — the read side cannot become a content channel.
+/// known typed fields are read. Palmistry's writer serializes the typed enum field as either a flat
+/// `"kind":"Freeze"` style tag in older fixtures or as an object with its own `"kind"` tag in the live
+/// serde shape; both decode to the same closed vocabulary. An unknown extra field on disk is IGNORED
+/// (never surfaced) — the read side cannot become a content channel.
 #[derive(Debug, Deserialize)]
 struct SurvivorRecordOnDisk {
-    /// The serde tag for the kind enum (`"Freeze"` / `"Crash"`).
-    #[serde(rename = "kind", default)]
-    kind_tag: String,
+    /// The serde tag for the kind enum (`"Freeze"` / `"Crash"` / `"ChildStall"`).
+    #[serde(default)]
+    kind: SurvivorKindOnDisk,
     #[serde(default)]
     session_id: String,
     #[serde(default)]
@@ -107,15 +123,45 @@ struct SurvivorRecordOnDisk {
     #[serde(default)]
     minidump_path: Option<String>,
     #[serde(default)]
+    child_process_id: Option<u32>,
+    #[serde(default)]
+    child_session_id: Option<u64>,
+    #[serde(default)]
+    last_progress_counter: Option<u64>,
+    #[serde(default)]
+    last_progress_ts_nanos: Option<u64>,
+    #[serde(default)]
+    child_stall_reason_code: Option<u16>,
+    #[serde(default)]
     captured_at_unix_ms: u128,
     #[serde(default)]
     forwarded: bool,
 }
 
+#[derive(Debug, Default, Deserialize)]
+#[serde(untagged)]
+enum SurvivorKindOnDisk {
+    #[default]
+    Missing,
+    Flat(String),
+    Tagged {
+        kind: String,
+    },
+}
+
+impl SurvivorKindOnDisk {
+    fn tag(&self) -> &str {
+        match self {
+            SurvivorKindOnDisk::Flat(tag) | SurvivorKindOnDisk::Tagged { kind: tag } => tag,
+            SurvivorKindOnDisk::Missing => "",
+        }
+    }
+}
+
 impl SurvivorRecordOnDisk {
     fn into_view(self) -> PalmistrySurvivorView {
         PalmistrySurvivorView {
-            kind: PalmistrySurvivorKind::from_tag(&self.kind_tag),
+            kind: PalmistrySurvivorKind::from_tag(self.kind.tag()),
             session_id: self.session_id,
             process_id: self.process_id,
             event_code: self.event_code,
@@ -123,6 +169,11 @@ impl SurvivorRecordOnDisk {
             exit_code: self.exit_code,
             // Defensive §6.13.8: a path that looks like a URL is dropped (never surface a non-local ref).
             minidump_path: self.minidump_path.filter(|p| !p.contains("://")),
+            child_process_id: self.child_process_id,
+            child_session_id: self.child_session_id,
+            last_progress_counter: self.last_progress_counter,
+            last_progress_ts_nanos: self.last_progress_ts_nanos,
+            child_stall_reason_code: self.child_stall_reason_code,
             captured_at_unix_ms: self.captured_at_unix_ms,
             forwarded: self.forwarded,
         }
@@ -132,7 +183,12 @@ impl SurvivorRecordOnDisk {
 /// The default Palmistry survivor-store directory on the Handshake side — the SAME portable per-user data
 /// dir the watcher writes to (`dirs::data_local_dir()/handshake/palmistry/survivors/`, the MT-083
 /// convention). `None` when the platform has no data-local dir.
+pub const ENV_PALMISTRY_SURVIVOR_DIR: &str = "HANDSHAKE_PALMISTRY_SURVIVOR_DIR";
+
 pub fn default_survivor_dir() -> Option<PathBuf> {
+    if let Some(raw) = std::env::var_os(ENV_PALMISTRY_SURVIVOR_DIR) {
+        return Some(PathBuf::from(raw));
+    }
     dirs::data_local_dir().map(|d| d.join("handshake").join("palmistry").join("survivors"))
 }
 
@@ -187,7 +243,10 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        std::env::temp_dir().join(format!("hsk-mt093-hsk-{label}-{}-{nanos}", std::process::id()))
+        std::env::temp_dir().join(format!(
+            "hsk-mt093-hsk-{label}-{}-{nanos}",
+            std::process::id()
+        ))
     }
 
     /// Write a survivor record JSON in the palmistry-side shape (the cross-process file contract).
@@ -218,29 +277,88 @@ mod tests {
                 "minidump_path":"C:/data/palmistry-crash-sess-b.dmp","captured_at_unix_ms":2000,
                 "forwarded":false}"#,
         );
+        write_record(
+            &dir,
+            "survivor-child-stall-sess-c-child-90.json",
+            r#"{"schema_version":"hsk.palmistry.survivor@0.1","kind":"ChildStall","session_id":"sess-c",
+                "process_id":11,"event_code":12,"stale_ms":6100,"last_heartbeat_counter":0,
+                "last_heartbeat_ts_nanos":0,"last_event_count":2,"probe":"NotApplicable",
+                "crash_detection":null,"faulting_thread_id":null,"exit_code":null,"minidump_path":null,
+                "child_process_id":333,"child_session_id":90,"last_progress_counter":5,
+                "last_progress_ts_nanos":777,"child_stall_reason_code":1,
+                "captured_at_unix_ms":3000,"forwarded":false}"#,
+        );
         let _g = scopeguard(dir.clone());
 
         let views = read_survivor_records(&dir);
-        assert_eq!(views.len(), 2, "both records read");
-        // Newest-first: the crash (captured_at 2000) is first.
-        assert_eq!(views[0].kind, PalmistrySurvivorKind::Crash);
-        assert_eq!(views[0].session_id, "sess-b");
-        assert_eq!(views[0].exit_code, Some(3221225477));
+        assert_eq!(views.len(), 3, "all records read");
+        // Newest-first: the child stall (captured_at 3000) is first.
+        assert_eq!(views[0].kind, PalmistrySurvivorKind::ChildStall);
+        assert_eq!(views[0].session_id, "sess-c");
+        assert_eq!(views[0].child_process_id, Some(333));
+        assert_eq!(views[0].child_session_id, Some(90));
+        assert_eq!(views[0].last_progress_counter, Some(5));
+        assert_eq!(views[0].last_progress_ts_nanos, Some(777));
+        assert_eq!(views[0].child_stall_reason_code, Some(1));
+        assert_eq!(views[1].kind, PalmistrySurvivorKind::Crash);
+        assert_eq!(views[1].session_id, "sess-b");
+        assert_eq!(views[1].exit_code, Some(3221225477));
         assert_eq!(
-            views[0].minidump_path.as_deref(),
+            views[1].minidump_path.as_deref(),
             Some("C:/data/palmistry-crash-sess-b.dmp")
         );
-        assert!(!views[0].forwarded);
-        assert_eq!(views[1].kind, PalmistrySurvivorKind::Freeze);
-        assert_eq!(views[1].stale_ms, 6000);
-        assert!(views[1].forwarded);
+        assert!(!views[1].forwarded);
+        assert_eq!(views[2].kind, PalmistrySurvivorKind::Freeze);
+        assert_eq!(views[2].stale_ms, 6000);
+        assert!(views[2].forwarded);
+    }
+
+    #[test]
+    fn reads_live_palmistry_nested_kind_shape() {
+        let dir = temp_dir("nested-kind");
+        write_record(
+            &dir,
+            "survivor-child-stall-sess-live-child-1060001.json",
+            r#"{"schema_version":"hsk.palmistry.survivor@0.1","kind":{"kind":"ChildStall"},
+                "session_id":"sess-live","process_id":11,"event_code":12,"stale_ms":900,
+                "last_heartbeat_counter":0,"last_heartbeat_ts_nanos":0,"last_event_count":2,
+                "probe":"NotApplicable","crash_detection":null,"faulting_thread_id":null,
+                "exit_code":null,"minidump_path":null,"child_process_id":333,
+                "child_session_id":1060001,"last_progress_counter":1,
+                "last_progress_ts_nanos":777,"child_stall_reason_code":1,
+                "captured_at_unix_ms":3000,"forwarded":false}"#,
+        );
+        let _g = scopeguard(dir.clone());
+
+        let views = read_survivor_records(&dir);
+        assert_eq!(views.len(), 1);
+        assert_eq!(views[0].kind, PalmistrySurvivorKind::ChildStall);
+        assert_eq!(views[0].child_session_id, Some(1_060_001));
+        assert_eq!(views[0].last_progress_counter, Some(1));
+        assert_eq!(views[0].last_progress_ts_nanos, Some(777));
+        assert_eq!(views[0].child_stall_reason_code, Some(1));
     }
 
     #[test]
     fn missing_dir_is_empty_state_not_error() {
         let dir = temp_dir("missing");
         // Never created.
-        assert!(read_survivor_records(&dir).is_empty(), "a missing dir is the honest empty-state");
+        assert!(
+            read_survivor_records(&dir).is_empty(),
+            "a missing dir is the honest empty-state"
+        );
+    }
+
+    #[test]
+    fn default_survivor_dir_honors_override_env() {
+        let dir = temp_dir("override");
+        let prev = std::env::var_os(ENV_PALMISTRY_SURVIVOR_DIR);
+        std::env::set_var(ENV_PALMISTRY_SURVIVOR_DIR, &dir);
+        assert_eq!(default_survivor_dir(), Some(dir));
+        match prev {
+            Some(v) => std::env::set_var(ENV_PALMISTRY_SURVIVOR_DIR, v),
+            None => std::env::remove_var(ENV_PALMISTRY_SURVIVOR_DIR),
+        }
     }
 
     #[test]
@@ -256,17 +374,28 @@ mod tests {
         let _g = scopeguard(dir.clone());
         let views = read_survivor_records(&dir);
         assert_eq!(views.len(), 1);
-        assert!(views[0].minidump_path.is_none(), "a URL minidump path must be dropped (local-only)");
+        assert!(
+            views[0].minidump_path.is_none(),
+            "a URL minidump path must be dropped (local-only)"
+        );
     }
 
     #[test]
     fn corrupt_record_is_skipped_not_fatal() {
         let dir = temp_dir("corrupt");
-        write_record(&dir, "survivor-freeze-good.json", r#"{"kind":"Freeze","session_id":"g","captured_at_unix_ms":1}"#);
+        write_record(
+            &dir,
+            "survivor-freeze-good.json",
+            r#"{"kind":"Freeze","session_id":"g","captured_at_unix_ms":1}"#,
+        );
         write_record(&dir, "survivor-crash-bad.json", "not json at all {{{");
         let _g = scopeguard(dir.clone());
         let views = read_survivor_records(&dir);
-        assert_eq!(views.len(), 1, "the good record is read; the corrupt one is skipped");
+        assert_eq!(
+            views.len(),
+            1,
+            "the good record is read; the corrupt one is skipped"
+        );
         assert_eq!(views[0].session_id, "g");
     }
 

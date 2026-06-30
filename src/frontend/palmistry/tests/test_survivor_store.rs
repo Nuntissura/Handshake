@@ -17,12 +17,13 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use handshake_diag_ring::{DiagEventCode, Heartbeat};
+use palmistry::child_stall::{ChildStallReasonCode, ChildStallReport};
 use palmistry::crash_capture::{CrashDetection, CrashRecord};
 use palmistry::freeze_detect::FreezeReport;
 use palmistry::survivor_store::{
     assert_typed_allowlist, SurvivorProbeResult, SurvivorRecord, SurvivorRecordKind, SurvivorStore,
 };
-use handshake_diag_ring::{DiagEventCode, Heartbeat};
 
 /// A unique temp dir for a test (no collisions across parallel tests).
 fn temp_dir(label: &str) -> PathBuf {
@@ -30,7 +31,10 @@ fn temp_dir(label: &str) -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    std::env::temp_dir().join(format!("hsk-mt093-it-{label}-{}-{nanos}", std::process::id()))
+    std::env::temp_dir().join(format!(
+        "hsk-mt093-it-{label}-{}-{nanos}",
+        std::process::id()
+    ))
 }
 
 struct DirGuard(PathBuf);
@@ -45,6 +49,17 @@ fn freeze_report() -> FreezeReport {
         stale_ms: 7200,
         last_heartbeat_counter: 314,
         last_heartbeat_ts_nanos: 271_828,
+    }
+}
+
+fn child_stall_report(child_session_id: u64) -> ChildStallReport {
+    ChildStallReport {
+        child_pid: 44_444,
+        child_session_id,
+        stale_ms: 6100,
+        last_progress_counter: 12,
+        last_progress_ts_nanos: 1_234_567,
+        reason_code: ChildStallReasonCode::ProgressStaleWhileAlive,
     }
 }
 
@@ -66,11 +81,18 @@ fn freeze_record_is_durable_and_survives_a_palmistry_restart() {
         );
         store.put(rec).expect("durable atomic write")
     };
-    assert!(written_path.exists(), "the durable record file must exist on disk");
+    assert!(
+        written_path.exists(),
+        "the durable record file must exist on disk"
+    );
 
     // Simulated Palmistry RESTART: a brand-new store on the same dir reads the existing record.
     let restarted = SurvivorStore::open(&dir).expect("reopen store after restart");
-    assert_eq!(restarted.records().len(), 1, "the freeze record outlived the restart");
+    assert_eq!(
+        restarted.records().len(),
+        1,
+        "the freeze record outlived the restart"
+    );
     let back = &restarted.records()[0].record;
     assert_eq!(back.kind, SurvivorRecordKind::Freeze);
     assert_eq!(back.session_id, "sess-freeze-durable");
@@ -78,7 +100,10 @@ fn freeze_record_is_durable_and_survives_a_palmistry_restart() {
     assert_eq!(back.stale_ms, 7200);
     assert_eq!(back.last_heartbeat_counter, 314);
     assert_eq!(back.last_event_count, 5);
-    assert!(!back.forwarded, "still pending forward after the restart (AC-013-5 drain set)");
+    assert!(
+        !back.forwarded,
+        "still pending forward after the restart (AC-013-5 drain set)"
+    );
 }
 
 #[test]
@@ -92,23 +117,96 @@ fn crash_record_is_durable_with_local_minidump_path_only() {
         timestamp_nanos: 1_000,
     };
     let dump = dir.join("palmistry-crash-sess-c.dmp");
-    let crash = CrashRecord::with_minidump("sess-crash-durable", 999, 21, dump.clone(), Some(hb), &[]);
+    let crash =
+        CrashRecord::with_minidump("sess-crash-durable", 999, 21, dump.clone(), Some(hb), &[]);
 
     {
         let mut store = SurvivorStore::open(&dir).expect("open store");
-        store.put(SurvivorRecord::from_crash(&crash)).expect("durable write");
+        store
+            .put(SurvivorRecord::from_crash(&crash))
+            .expect("durable write");
     }
     let restarted = SurvivorStore::open(&dir).expect("reopen store");
     assert_eq!(restarted.records().len(), 1);
     let back = &restarted.records()[0].record;
     assert_eq!(back.kind, SurvivorRecordKind::Crash);
-    assert_eq!(back.crash_detection, Some(CrashDetection::CrashContextMinidump));
+    assert_eq!(
+        back.crash_detection,
+        Some(CrashDetection::CrashContextMinidump)
+    );
     assert_eq!(back.faulting_thread_id, Some(21));
     assert_eq!(back.minidump_path.as_deref(), Some(dump.as_path()));
     assert_eq!(back.event_code, DiagEventCode::CrashDetected.as_u16());
     // The minidump path is a LOCAL filesystem path, NOT a URL.
     let p = back.minidump_path.as_ref().unwrap().to_string_lossy();
-    assert!(!p.contains("://"), "minidump path must be local, not a URL (§6.13.8)");
+    assert!(
+        !p.contains("://"),
+        "minidump path must be local, not a URL (§6.13.8)"
+    );
+}
+
+#[test]
+fn child_stall_record_is_durable_and_typed() {
+    // MT-106: a live child process with stale passive progress persists a first-class ChildStall record,
+    // not an Other/unknown survivor row that loses the child pid/session evidence.
+    let dir = temp_dir("child-stall-durable");
+    let _g = DirGuard(dir.clone());
+    let written_path = {
+        let mut store = SurvivorStore::open(&dir).expect("open store");
+        store
+            .put(SurvivorRecord::from_child_stall(
+                "sess-child-durable",
+                12345,
+                &child_stall_report(9001),
+                4,
+            ))
+            .expect("durable write")
+    };
+    assert!(
+        written_path
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .contains("child-9001"),
+        "child-stall records must be keyed by child_session_id"
+    );
+
+    let restarted = SurvivorStore::open(&dir).expect("reopen store");
+    assert_eq!(restarted.records().len(), 1);
+    let back = &restarted.records()[0].record;
+    assert_eq!(back.kind, SurvivorRecordKind::ChildStall);
+    assert_eq!(back.event_code, DiagEventCode::Other.as_u16());
+    assert_eq!(back.process_id, 12345);
+    assert_eq!(back.child_process_id, Some(44_444));
+    assert_eq!(back.child_session_id, Some(9001));
+    assert_eq!(back.stale_ms, 6100);
+    assert_eq!(back.last_progress_counter, Some(12));
+    assert_eq!(back.child_stall_reason_code, Some(1));
+    assert_typed_allowlist(back).expect("child-stall survivor record must be allowlist-clean");
+}
+
+#[test]
+fn multiple_child_stall_records_in_same_session_do_not_overwrite() {
+    let dir = temp_dir("child-stall-multi");
+    let _g = DirGuard(dir.clone());
+    let mut store = SurvivorStore::open(&dir).expect("open store");
+    store
+        .put(SurvivorRecord::from_child_stall(
+            "sess-child-multi",
+            1,
+            &child_stall_report(1),
+            0,
+        ))
+        .unwrap();
+    store
+        .put(SurvivorRecord::from_child_stall(
+            "sess-child-multi",
+            1,
+            &child_stall_report(2),
+            0,
+        ))
+        .unwrap();
+    assert_eq!(store.records().len(), 2);
 }
 
 #[test]
@@ -137,6 +235,13 @@ fn survivor_record_is_typed_allowlist_no_free_text() {
     // The crash path too.
     let crash = CrashRecord::post_mortem("sess-allow", 1, Some(7), None, &[]);
     assert_typed_allowlist(&SurvivorRecord::from_crash(&crash)).expect("crash record clean");
+    assert_typed_allowlist(&SurvivorRecord::from_child_stall(
+        "sess-allow",
+        1,
+        &child_stall_report(1),
+        0,
+    ))
+    .expect("child-stall record clean");
 }
 
 #[test]
@@ -166,7 +271,11 @@ fn mark_forwarded_is_idempotent_and_drains_only_pending() {
         // Idempotent: a second mark is a harmless no-op.
         assert!(store.mark_forwarded(&freeze_path).unwrap());
         let pending = store.unforwarded();
-        assert_eq!(pending.len(), 1, "only the crash remains pending (drain, not lost)");
+        assert_eq!(
+            pending.len(),
+            1,
+            "only the crash remains pending (drain, not lost)"
+        );
         assert_eq!(pending[0].record.kind, SurvivorRecordKind::Crash);
     }
 

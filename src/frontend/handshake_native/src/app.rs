@@ -8584,6 +8584,9 @@ impl eframe::App for HandshakeApp {
         // MT-081 ring header (no record-buffer lock, no `format!`, no heap alloc — RISK-004-3). It is a
         // silent no-op when no ring writer is installed (headless/test shell — AC-004-5).
         self.bump_heartbeat();
+        if let Some(handle) = self.palmistry.as_mut() {
+            crate::diagnostics::drain_palmistry_child_watch_commands(handle);
+        }
 
         // Idle liveness (RISK-004-1 / AC-004-4): egui only repaints on demand, so without this an
         // idle-but-healthy app would stop bumping the counter and look frozen to Palmistry. Schedule a

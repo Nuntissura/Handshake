@@ -119,14 +119,16 @@ pub use panic_hook::{
 // Tier-3 panel section with the forwarded freeze/crash records (AC-013-6).
 pub use survivor_forward::{
     read_default_survivor_records, read_survivor_records, PalmistrySurvivorKind,
-    PalmistrySurvivorView,
+    PalmistrySurvivorView, ENV_PALMISTRY_SURVIVOR_DIR,
 };
 
 // WP-KERNEL-012 MT-094 (§6.13.3) re-exports so `main()` + the app can
 // `use crate::diagnostics::{launch_palmistry_or_degrade, set_preinstalled_diag_session, ...}` without
 // reaching into the `palmistry_launch` submodule path.
 pub use palmistry_launch::{
-    control_socket_name, launch_palmistry, launch_palmistry_at, launch_palmistry_or_degrade,
-    resolve_palmistry_exe, set_preinstalled_diag_session, take_preinstalled_diag_session,
-    PalmistryHandle, ShutdownOutcome, ENV_PALMISTRY_EXE, SPAWN_NOT_KILL_ON_JOB_CLOSE,
+    control_socket_name, drain_palmistry_child_watch_commands, enqueue_palmistry_child_deregister,
+    enqueue_palmistry_child_liveness_file, launch_palmistry, launch_palmistry_at,
+    launch_palmistry_or_degrade, resolve_palmistry_exe, set_preinstalled_diag_session,
+    take_preinstalled_diag_session, PalmistryHandle, ShutdownOutcome, ENV_PALMISTRY_EXE,
+    SPAWN_NOT_KILL_ON_JOB_CLOSE,
 };
