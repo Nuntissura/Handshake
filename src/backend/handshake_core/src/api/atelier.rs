@@ -2621,6 +2621,11 @@ fn write_posekit_export_receipt_artifact(
         "zoom_percent": export.zoom_percent,
         "framing": export.framing,
         "marker_layers": export.marker_layers.clone(),
+        "marker_edits": export.openpose_json
+            .get("pose_state")
+            .and_then(|pose_state| pose_state.get("marker_edits"))
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!([])),
         "applied_marker_edit_count": export.applied_marker_edit_count,
         "width": export.width,
         "height": export.height,

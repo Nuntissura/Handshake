@@ -425,7 +425,8 @@ composition for ComfyUI full-body outputs. Export with atelier-pose-export-openp
 atelier-pose-export-status, atelier-pose-export-ref, and atelier-pose-export-preview. The native Rust \
 generator contract is hsk.atelier.posekit.openpose_export@1: image/png plus OpenPose JSON with body 18, \
 face 70, and hand 21 keypoint arrays, marker_edits, framing metadata, source_ref provenance, rig_id lineage, content_hash, artifact_ref, and \
-backend ArtifactStore receipt JSON metadata. Backend exports expose png_artifact_ref and json_artifact_ref through Argus, plus their manifests and receipt_ref. Stored-rig backend exports must show \
+backend ArtifactStore receipt JSON metadata. Backend receipt JSON preserves the exact marker_edits payload and framing so \
+parallel-agent recovery can reconstruct the last intended marker operation instead of only the edit count. Backend exports expose png_artifact_ref and json_artifact_ref through Argus, plus their manifests and receipt_ref. Stored-rig backend exports must show \
 pose_state.source_keypoint_projection.mode=native-rig-to-openpose and rerender OpenPose coordinates plus \
 PNG/hash evidence when yaw, pitch, or zoom changes; procedural or no-rig previews must identify as \
 procedural preview evidence, not source-rig projection. No-backend harnesses expose preview://atelier/posekit/openpose/.../receipt \

@@ -155,6 +155,20 @@ fn assert_native_posekit_artifact_response(
     artifact_id_from_payload_ref(artifact_ref)
 }
 
+fn read_l1_artifact_payload_json(
+    workspace_root: &std::path::Path,
+    artifact_id: Uuid,
+) -> serde_json::Value {
+    let payload_path = workspace_root
+        .join(artifact_root_rel(ArtifactLayer::L1, artifact_id))
+        .join("payload");
+    let bytes = std::fs::read(&payload_path)
+        .unwrap_or_else(|err| panic!("read ArtifactStore JSON payload at {payload_path:?}: {err}"));
+    serde_json::from_slice(&bytes).unwrap_or_else(|err| {
+        panic!("decode ArtifactStore JSON payload at {payload_path:?}: {err}")
+    })
+}
+
 fn assert_openpose_payload_shape(payload: &serde_json::Value) {
     let person = payload["people"][0]
         .as_object()
@@ -646,9 +660,10 @@ fn posekit_marker_edits_apply_to_export_and_fail_closed() {
     keypoints["people"][0]["pose_keypoints_2d"][3] = serde_json::json!(180.0);
     keypoints["people"][0]["pose_keypoints_2d"][4] = serde_json::json!(420.0);
     keypoints["people"][0]["pose_keypoints_2d"][5] = serde_json::json!(0.9);
-    keypoints["people"][0]["hand_left_keypoints_2d"][6] = serde_json::json!(0.0);
-    keypoints["people"][0]["hand_left_keypoints_2d"][7] = serde_json::json!(0.0);
-    keypoints["people"][0]["hand_left_keypoints_2d"][8] = serde_json::json!(0.0);
+    let mut occupied_keypoints = keypoints.clone();
+    occupied_keypoints["people"][0]["hand_left_keypoints_2d"][6] = serde_json::json!(260.0);
+    occupied_keypoints["people"][0]["hand_left_keypoints_2d"][7] = serde_json::json!(380.0);
+    occupied_keypoints["people"][0]["hand_left_keypoints_2d"][8] = serde_json::json!(0.66);
     let mut add_hand = posekit_export_request(0.0);
     add_hand.marker_edits.push(PosekitMarkerEdit {
         family: PosekitMarkerFamily::LeftHand,
@@ -658,6 +673,19 @@ fn posekit_marker_edits_apply_to_export_and_fail_closed() {
         y: Some(380.0),
         confidence: Some(0.72),
     });
+    let occupied_err =
+        generate_posekit_openpose_export_from_keypoints(&add_hand, &occupied_keypoints)
+            .expect_err("add marker into occupied stored-rig slot must fail closed");
+    assert!(
+        occupied_err
+            .to_string()
+            .contains("Posekit marker add can only fill an empty zero-confidence slot"),
+        "unexpected occupied-slot add error: {occupied_err}"
+    );
+
+    keypoints["people"][0]["hand_left_keypoints_2d"][6] = serde_json::json!(0.0);
+    keypoints["people"][0]["hand_left_keypoints_2d"][7] = serde_json::json!(0.0);
+    keypoints["people"][0]["hand_left_keypoints_2d"][8] = serde_json::json!(0.0);
     let add_export = generate_posekit_openpose_export_from_keypoints(&add_hand, &keypoints)
         .expect("add marker should fill a zero slot without changing OpenPose cardinality");
     let left_hand = add_export.openpose_json["people"][0]["hand_left_keypoints_2d"]
@@ -709,11 +737,20 @@ fn posekit_framing_metadata_changes_pixels_and_keeps_points_visible() {
         padding_bottom_px: 96,
         padding_left_px: 32,
     };
+    framed.marker_edits.push(PosekitMarkerEdit {
+        family: PosekitMarkerFamily::Face,
+        index: 12,
+        action: PosekitMarkerEditAction::Set,
+        x: Some(321.0),
+        y: Some(222.0),
+        confidence: Some(0.87),
+    });
     let export = generate_posekit_openpose_export(&framed)
         .expect("framed Posekit export should produce nonblank output");
 
     assert_ne!(base.openpose_png_sha256, export.openpose_png_sha256);
     assert_eq!(export.framing, framed.framing);
+    assert_eq!(export.applied_marker_edit_count, 1);
     assert_eq!(
         export.openpose_json["pose_state"]["framing"]["preset"],
         serde_json::json!("full_body_with_feet")
@@ -722,6 +759,17 @@ fn posekit_framing_metadata_changes_pixels_and_keeps_points_visible() {
         export.openpose_json["pose_state"]["framing"]["padding_bottom_px"],
         serde_json::json!(96)
     );
+    assert_eq!(
+        export.openpose_json["pose_state"]["marker_edits"][0]["family"],
+        serde_json::json!("face")
+    );
+    let face = export.openpose_json["people"][0]["face_keypoints_2d"]
+        .as_array()
+        .expect("face keypoints");
+    let face_offset = 12 * 3;
+    assert_eq!(face[face_offset], serde_json::json!(321.0));
+    assert_eq!(face[face_offset + 1], serde_json::json!(222.0));
+    assert_eq!(face[face_offset + 2], serde_json::json!(0.87));
 
     let body = export.openpose_json["people"][0]["pose_keypoints_2d"]
         .as_array()
@@ -1300,6 +1348,22 @@ async fn atelier_posekit_openpose_export_route_returns_real_artifact_refs() {
     request.source_ref = rig.source_ref.clone();
     request.rig_id = Some(rig.rig_id);
     request.include_hands = false;
+    request.framing = PosekitExportFraming {
+        preset: PosekitFramingPreset::FullBodyWithFeet,
+        lens_mm: 24,
+        padding_top_px: 48,
+        padding_right_px: 32,
+        padding_bottom_px: 96,
+        padding_left_px: 32,
+    };
+    request.marker_edits.push(PosekitMarkerEdit {
+        family: PosekitMarkerFamily::Face,
+        index: 12,
+        action: PosekitMarkerEditAction::Set,
+        x: Some(321.0),
+        y: Some(222.0),
+        confidence: Some(0.87),
+    });
 
     let response = reqwest::Client::new()
         .post(format!("{base}/atelier/posekit/openpose-export"))
@@ -1338,6 +1402,24 @@ async fn atelier_posekit_openpose_export_route_returns_real_artifact_refs() {
         body["openpose_json"]["pose_state"]["source_keypoint_projection"]["zoom_percent"],
         serde_json::json!(150)
     );
+    assert_eq!(body["applied_marker_edit_count"], serde_json::json!(1));
+    assert_eq!(
+        body["framing"]["preset"],
+        serde_json::json!("full_body_with_feet")
+    );
+    assert_eq!(body["framing"]["lens_mm"], serde_json::json!(24));
+    assert_eq!(
+        body["openpose_json"]["pose_state"]["marker_edits"][0]["family"],
+        serde_json::json!("face")
+    );
+    let route_marker_confidence = body["openpose_json"]["pose_state"]["marker_edits"][0]
+        ["confidence"]
+        .as_f64()
+        .expect("route marker confidence");
+    assert!(
+        (route_marker_confidence - 0.87).abs() < 0.000_001,
+        "route marker confidence must preserve the staged value, got {route_marker_confidence}"
+    );
 
     let png_artifact_id = assert_native_posekit_artifact_response(
         &body,
@@ -1359,6 +1441,15 @@ async fn atelier_posekit_openpose_export_route_returns_real_artifact_refs() {
         .expect("route-produced OpenPose PNG artifact validates");
     validate_artifact_content_hash(&workspace_root, ArtifactLayer::L1, json_artifact_id)
         .expect("route-produced OpenPose JSON artifact validates");
+    let stored_openpose_json = read_l1_artifact_payload_json(&workspace_root, json_artifact_id);
+    assert_eq!(
+        stored_openpose_json["pose_state"]["marker_edits"][0]["index"],
+        serde_json::json!(12)
+    );
+    assert_eq!(
+        stored_openpose_json["pose_state"]["framing"]["padding_bottom_px"],
+        serde_json::json!(96)
+    );
 
     let receipt_ref = body["receipt_ref"]
         .as_str()
@@ -1377,6 +1468,20 @@ async fn atelier_posekit_openpose_export_route_returns_real_artifact_refs() {
         artifact_id_from_payload_ref(receipt_ref),
     )
     .expect("route-produced Posekit receipt artifact validates");
+    let stored_receipt =
+        read_l1_artifact_payload_json(&workspace_root, artifact_id_from_payload_ref(receipt_ref));
+    assert_eq!(
+        stored_receipt["marker_edits"][0]["family"],
+        serde_json::json!("face")
+    );
+    assert_eq!(
+        stored_receipt["framing"]["preset"],
+        serde_json::json!("full_body_with_feet")
+    );
+    assert_eq!(
+        stored_receipt["applied_marker_edit_count"],
+        serde_json::json!(1)
+    );
 
     let sidecars = body["sidecars"]
         .as_array()

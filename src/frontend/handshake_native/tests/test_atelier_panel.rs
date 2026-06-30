@@ -374,11 +374,11 @@ fn posekit_backend_export_response(rig_id: &str) -> serde_json::Value {
         "pitch_deg": 0,
         "zoom_percent": 100,
         "framing": {
-            "preset": "standard",
-            "lens_mm": 50,
-            "padding_top_px": 0,
+            "preset": "full_body_with_feet",
+            "lens_mm": 24,
+            "padding_top_px": 48,
             "padding_right_px": 0,
-            "padding_bottom_px": 0,
+            "padding_bottom_px": 96,
             "padding_left_px": 0
         },
         "marker_layers": {
@@ -386,7 +386,7 @@ fn posekit_backend_export_response(rig_id: &str) -> serde_json::Value {
             "body": true,
             "hands": false
         },
-        "applied_marker_edit_count": 0,
+        "applied_marker_edit_count": 1,
         "width": 768,
         "height": 768,
         "openpose_json": {
@@ -402,13 +402,21 @@ fn posekit_backend_export_response(rig_id: &str) -> serde_json::Value {
                     "mode": "native-rig-to-openpose"
                 },
                 "framing": {
-                    "preset": "standard",
-                    "lens_mm": 50,
-                    "padding_top_px": 0,
+                    "preset": "full_body_with_feet",
+                    "lens_mm": 24,
+                    "padding_top_px": 48,
                     "padding_right_px": 0,
-                    "padding_bottom_px": 0,
+                    "padding_bottom_px": 96,
                     "padding_left_px": 0
-                }
+                },
+                "marker_edits": [{
+                    "family": "face",
+                    "index": 12,
+                    "action": "set",
+                    "x": 321.0,
+                    "y": 222.0,
+                    "confidence": 0.87
+                }]
             },
             "people": [{
                 "pose_keypoints_2d": vec![0.0_f64; 54],
@@ -477,6 +485,8 @@ fn spawn_posekit_export_server(
             .set_read_timeout(Some(std::time::Duration::from_secs(5)))
             .expect("set Posekit mock read timeout");
         let captured = read_http_request(&mut stream);
+        // Keep the mock response slow enough for Argus to inspect the backend-pending UI state.
+        std::thread::sleep(std::time::Duration::from_millis(100));
         let body = response_body.to_string();
         let response = format!(
             "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",
@@ -2690,6 +2700,50 @@ fn posekit_backend_export_reaches_argus_artifact_refs() {
     }
     harness.run();
 
+    for (target, value) in [
+        (ATELIER_POSE_MARKER_FAMILY_AUTHOR_ID, "face"),
+        (ATELIER_POSE_MARKER_INDEX_AUTHOR_ID, "12"),
+        (ATELIER_POSE_MARKER_X_AUTHOR_ID, "321"),
+        (ATELIER_POSE_MARKER_Y_AUTHOR_ID, "222"),
+        (ATELIER_POSE_MARKER_CONFIDENCE_AUTHOR_ID, "0.87"),
+        (ATELIER_POSE_FRAMING_PRESET_AUTHOR_ID, "full_body_with_feet"),
+        (ATELIER_POSE_FRAMING_LENS_AUTHOR_ID, "24"),
+        (ATELIER_POSE_FRAMING_PADDING_TOP_AUTHOR_ID, "48"),
+        (ATELIER_POSE_FRAMING_PADDING_BOTTOM_AUTHOR_ID, "96"),
+    ] {
+        let set = dispatch_request(
+            &argus_req(
+                "argus.set_value",
+                serde_json::json!({ "target": target, "value": value }),
+            ),
+            &argus_token(),
+            &snapshot_harness(&mut harness),
+            &mut channel,
+            || Err(ScreenshotError("not used".to_owned())),
+        );
+        assert_eq!(set.to_json()["result"]["queued"], true);
+        for event in channel.drain_into_events() {
+            harness.event(event);
+        }
+        harness.run();
+    }
+
+    let apply_marker = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_POSE_MARKER_APPLY_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &snapshot_harness(&mut harness),
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(apply_marker.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+
     let ready = snapshot_harness(&mut harness);
     let export_click = dispatch_request(
         &argus_req(
@@ -2706,6 +2760,21 @@ fn posekit_backend_export_reaches_argus_artifact_refs() {
         harness.event(event);
     }
     harness.run();
+
+    let pending_export = snapshot_harness(&mut harness);
+    let pending_status = pending_export
+        .find_by_author_id(ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .unwrap_or_default()
+        .to_owned();
+    assert!(
+        pending_status.contains("Posekit backend OpenPose export pending"),
+        "Argus-visible export status must enter backend pending before the mock server joins; got {pending_status}"
+    );
+    for _ in 0..40 {
+        harness.run();
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
 
     let captured = server.join().expect("Posekit export mock server joins");
     assert_eq!(
@@ -2725,6 +2794,27 @@ fn posekit_backend_export_reaches_argus_artifact_refs() {
     assert_eq!(sent_body["rig_id"].as_str(), Some(rig_id));
     assert!((sent_body["yaw_deg"].as_f64().expect("yaw_deg numeric") - 90.0).abs() < f64::EPSILON);
     assert_eq!(sent_body["include_body"], serde_json::json!(true));
+    assert_eq!(
+        sent_body["marker_edits"][0]["family"],
+        serde_json::json!("face")
+    );
+    assert_eq!(sent_body["marker_edits"][0]["index"], serde_json::json!(12));
+    let sent_marker_confidence = sent_body["marker_edits"][0]["confidence"]
+        .as_f64()
+        .expect("sent marker confidence");
+    assert!(
+        (sent_marker_confidence - 0.87).abs() < 0.000_001,
+        "sent marker confidence must preserve the staged value, got {sent_marker_confidence}"
+    );
+    assert_eq!(
+        sent_body["framing"]["preset"],
+        serde_json::json!("full_body_with_feet")
+    );
+    assert_eq!(sent_body["framing"]["lens_mm"], serde_json::json!(24));
+    assert_eq!(
+        sent_body["framing"]["padding_bottom_px"],
+        serde_json::json!(96)
+    );
 
     let exported = (0..40)
         .find_map(|_| {
@@ -2783,6 +2873,10 @@ fn posekit_backend_export_reaches_argus_artifact_refs() {
     assert!(preview.contains(&format!("\"rig_id\":\"{rig_id}\"")));
     assert!(preview.contains("\"source_keypoint_projection\""));
     assert!(preview.contains("\"native-rig-to-openpose\""));
+    assert!(preview.contains("\"marker_edits\""));
+    assert!(preview.contains("\"full_body_with_feet\""));
+    assert!(preview.contains("\"lens_mm\":24"));
+    assert!(preview.contains("\"padding_bottom_px\":96"));
     assert!(preview.contains("png_mime=image/png"));
     assert!(preview.contains("json_mime=application/json"));
 
