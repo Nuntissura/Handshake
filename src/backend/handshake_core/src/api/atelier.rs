@@ -41,8 +41,9 @@ use crate::atelier::intake::{
 use crate::atelier::moodboards::{MoodboardSnapshot, NewMoodboardSnapshot};
 use crate::atelier::pose::{
     generate_posekit_openpose_export, generate_posekit_openpose_export_from_keypoints,
-    NewPoseSidecar, PoseSidecar, PoseSidecarKind, PoseSidecarStatus, PosekitMarkerLayers,
-    PosekitOpenPoseExport, PosekitOpenPoseExportRequest, POSEKIT_OPENPOSE_EXPORT_SCHEMA_ID,
+    NewPoseSidecar, PoseSidecar, PoseSidecarKind, PoseSidecarStatus, PosekitExportFraming,
+    PosekitMarkerLayers, PosekitOpenPoseExport, PosekitOpenPoseExportRequest,
+    POSEKIT_OPENPOSE_EXPORT_SCHEMA_ID,
 };
 use crate::atelier::search::{
     normalize_tag, AiTagSuggestion, AiTagSuggestionDecision, AiTagSuggestionStatus, CkcSearchMode,
@@ -741,7 +742,9 @@ struct PosekitOpenPoseExportResponse {
     yaw_deg: i32,
     pitch_deg: i32,
     zoom_percent: i32,
+    framing: PosekitExportFraming,
     marker_layers: PosekitMarkerLayers,
+    applied_marker_edit_count: usize,
     width: i32,
     height: i32,
     openpose_json: serde_json::Value,
@@ -2501,7 +2504,9 @@ async fn export_posekit_openpose(
         yaw_deg: export.yaw_deg,
         pitch_deg: export.pitch_deg,
         zoom_percent: export.zoom_percent,
+        framing: export.framing,
         marker_layers: export.marker_layers.clone(),
+        applied_marker_edit_count: export.applied_marker_edit_count,
         width: export.width,
         height: export.height,
         openpose_json: export.openpose_json.clone(),
@@ -2609,7 +2614,9 @@ fn write_posekit_export_receipt_artifact(
         "yaw_deg": export.yaw_deg,
         "pitch_deg": export.pitch_deg,
         "zoom_percent": export.zoom_percent,
+        "framing": export.framing,
         "marker_layers": export.marker_layers.clone(),
+        "applied_marker_edit_count": export.applied_marker_edit_count,
         "width": export.width,
         "height": export.height,
         "content_hash": export.content_hash.clone(),

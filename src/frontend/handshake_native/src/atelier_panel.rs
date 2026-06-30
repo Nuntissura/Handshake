@@ -137,6 +137,28 @@ pub const ATELIER_POSE_HANDS_TOGGLE_AUTHOR_ID: &str = "atelier-pose-hands-toggle
 pub const ATELIER_POSE_YAW_SLIDER_AUTHOR_ID: &str = "atelier-pose-yaw-slider";
 pub const ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID: &str = "atelier-pose-pitch-slider";
 pub const ATELIER_POSE_ZOOM_SLIDER_AUTHOR_ID: &str = "atelier-pose-zoom-slider";
+pub const ATELIER_POSE_MARKER_FAMILY_AUTHOR_ID: &str = "atelier-pose-marker-family";
+pub const ATELIER_POSE_MARKER_INDEX_AUTHOR_ID: &str = "atelier-pose-marker-index";
+pub const ATELIER_POSE_MARKER_X_AUTHOR_ID: &str = "atelier-pose-marker-x";
+pub const ATELIER_POSE_MARKER_Y_AUTHOR_ID: &str = "atelier-pose-marker-y";
+pub const ATELIER_POSE_MARKER_CONFIDENCE_AUTHOR_ID: &str = "atelier-pose-marker-confidence";
+pub const ATELIER_POSE_MARKER_APPLY_AUTHOR_ID: &str = "atelier-pose-marker-apply";
+pub const ATELIER_POSE_MARKER_ADD_AUTHOR_ID: &str = "atelier-pose-marker-add";
+pub const ATELIER_POSE_MARKER_REMOVE_AUTHOR_ID: &str = "atelier-pose-marker-remove";
+pub const ATELIER_POSE_MARKER_RESET_AUTHOR_ID: &str = "atelier-pose-marker-reset";
+pub const ATELIER_POSE_MARKER_NUDGE_LEFT_AUTHOR_ID: &str = "atelier-pose-marker-nudge-left";
+pub const ATELIER_POSE_MARKER_NUDGE_RIGHT_AUTHOR_ID: &str = "atelier-pose-marker-nudge-right";
+pub const ATELIER_POSE_MARKER_NUDGE_UP_AUTHOR_ID: &str = "atelier-pose-marker-nudge-up";
+pub const ATELIER_POSE_MARKER_NUDGE_DOWN_AUTHOR_ID: &str = "atelier-pose-marker-nudge-down";
+pub const ATELIER_POSE_MARKER_STATUS_AUTHOR_ID: &str = "atelier-pose-marker-status";
+pub const ATELIER_POSE_FRAMING_PRESET_AUTHOR_ID: &str = "atelier-pose-framing-preset";
+pub const ATELIER_POSE_FRAMING_LENS_AUTHOR_ID: &str = "atelier-pose-framing-lens";
+pub const ATELIER_POSE_FRAMING_PADDING_TOP_AUTHOR_ID: &str = "atelier-pose-framing-padding-top";
+pub const ATELIER_POSE_FRAMING_PADDING_RIGHT_AUTHOR_ID: &str = "atelier-pose-framing-padding-right";
+pub const ATELIER_POSE_FRAMING_PADDING_BOTTOM_AUTHOR_ID: &str =
+    "atelier-pose-framing-padding-bottom";
+pub const ATELIER_POSE_FRAMING_PADDING_LEFT_AUTHOR_ID: &str = "atelier-pose-framing-padding-left";
+pub const ATELIER_POSE_FRAMING_READOUT_AUTHOR_ID: &str = "atelier-pose-framing-readout";
 pub const ATELIER_POSE_SOURCE_REF_AUTHOR_ID: &str = "atelier-pose-source-ref";
 pub const ATELIER_POSE_RIG_ID_AUTHOR_ID: &str = "atelier-pose-rig-id";
 pub const ATELIER_POSE_STATE_READOUT_AUTHOR_ID: &str = "atelier-pose-state-readout";
@@ -251,12 +273,24 @@ struct PosekitExportSnapshot {
     receipt_ref: String,
     content_hash: String,
     openpose_json: serde_json::Value,
+    framing: serde_json::Value,
+    applied_marker_edit_count: usize,
 }
 
 impl PosekitExportSnapshot {
     fn marker_layers(&self) -> String {
         marker_layer_summary(self.face, self.body, self.hands)
     }
+}
+
+#[derive(Debug, Clone)]
+struct PosekitMarkerEditRecord {
+    family: String,
+    index: usize,
+    action: String,
+    x: Option<f32>,
+    y: Option<f32>,
+    confidence: Option<f32>,
 }
 
 #[derive(Debug, Clone)]
@@ -2018,6 +2052,19 @@ struct AtelierPanelState {
     pose_hands: bool,
     pose_source_ref: String,
     pose_rig_id: String,
+    pose_marker_family: String,
+    pose_marker_index: i32,
+    pose_marker_x: f32,
+    pose_marker_y: f32,
+    pose_marker_confidence: f32,
+    pose_marker_status: String,
+    pose_marker_edits: Vec<PosekitMarkerEditRecord>,
+    pose_framing_preset: String,
+    pose_framing_lens_mm: i32,
+    pose_framing_padding_top_px: i32,
+    pose_framing_padding_right_px: i32,
+    pose_framing_padding_bottom_px: i32,
+    pose_framing_padding_left_px: i32,
     pose_export_pending: bool,
     pose_export_request_seq: u64,
     pose_active_export_request: Option<u64>,
@@ -2108,6 +2155,21 @@ impl Default for AtelierPanelState {
             pose_hands: false,
             pose_source_ref: "atelier://media/mira-demo/pose-source.png".to_owned(),
             pose_rig_id: String::new(),
+            pose_marker_family: "face".to_owned(),
+            pose_marker_index: 12,
+            pose_marker_x: 321.0,
+            pose_marker_y: 222.0,
+            pose_marker_confidence: 0.87,
+            pose_marker_status:
+                "Posekit marker editor ready; staged edits apply to the next OpenPose export."
+                    .to_owned(),
+            pose_marker_edits: Vec::new(),
+            pose_framing_preset: "standard".to_owned(),
+            pose_framing_lens_mm: 50,
+            pose_framing_padding_top_px: 0,
+            pose_framing_padding_right_px: 0,
+            pose_framing_padding_bottom_px: 0,
+            pose_framing_padding_left_px: 0,
             pose_export_pending: false,
             pose_export_request_seq: 0,
             pose_active_export_request: None,
@@ -2121,14 +2183,17 @@ impl Default for AtelierPanelState {
 
 fn posekit_state_readout(state: &AtelierPanelState) -> String {
     let rig_id = posekit_optional_rig_id(&state.pose_rig_id).unwrap_or_else(|| "<none>".to_owned());
+    let framing = posekit_framing_readout(state);
     format!(
-        "source_ref={} rig_id={} yaw_deg={:.0} pitch_deg={:.0} zoom={:.2} markers={}",
+        "source_ref={} rig_id={} yaw_deg={:.0} pitch_deg={:.0} zoom={:.2} markers={} staged_marker_edits={} {}",
         state.pose_source_ref,
         rig_id,
         state.pose_yaw,
         state.pose_pitch,
         state.pose_zoom,
-        marker_layer_summary(state.pose_face, state.pose_body, state.pose_hands)
+        marker_layer_summary(state.pose_face, state.pose_body, state.pose_hands),
+        state.pose_marker_edits.len(),
+        framing
     )
 }
 
@@ -2150,7 +2215,386 @@ fn marker_layer_summary(face: bool, body: bool, hands: bool) -> String {
     )
 }
 
-fn posekit_export_snapshot(state: &AtelierPanelState) -> PosekitExportSnapshot {
+fn posekit_framing_preset(value: &str) -> String {
+    match value.trim().to_ascii_lowercase().replace('-', "_").as_str() {
+        "standard" => "standard".to_owned(),
+        "full_body_with_feet" | "full_body" | "feet" => "full_body_with_feet".to_owned(),
+        "portrait" => "portrait".to_owned(),
+        "custom" => "custom".to_owned(),
+        _ => "custom".to_owned(),
+    }
+}
+
+fn posekit_framing_json_from_state(state: &AtelierPanelState) -> serde_json::Value {
+    serde_json::json!({
+        "preset": posekit_framing_preset(&state.pose_framing_preset),
+        "lens_mm": state.pose_framing_lens_mm.clamp(18, 120),
+        "padding_top_px": state.pose_framing_padding_top_px.clamp(0, 256),
+        "padding_right_px": state.pose_framing_padding_right_px.clamp(0, 256),
+        "padding_bottom_px": state.pose_framing_padding_bottom_px.clamp(0, 256),
+        "padding_left_px": state.pose_framing_padding_left_px.clamp(0, 256),
+    })
+}
+
+fn posekit_framing_readout(state: &AtelierPanelState) -> String {
+    format!(
+        "framing preset={} lens_mm={} top={} right={} bottom={} left={}",
+        posekit_framing_preset(&state.pose_framing_preset),
+        state.pose_framing_lens_mm.clamp(18, 120),
+        state.pose_framing_padding_top_px.clamp(0, 256),
+        state.pose_framing_padding_right_px.clamp(0, 256),
+        state.pose_framing_padding_bottom_px.clamp(0, 256),
+        state.pose_framing_padding_left_px.clamp(0, 256)
+    )
+}
+
+fn posekit_marker_family(value: &str) -> Result<String, String> {
+    match value.trim().to_ascii_lowercase().replace('-', "_").as_str() {
+        "body" | "pose" => Ok("body".to_owned()),
+        "face" | "facial" => Ok("face".to_owned()),
+        "left_hand" | "lefthand" | "left" => Ok("left_hand".to_owned()),
+        "right_hand" | "righthand" | "right" => Ok("right_hand".to_owned()),
+        other => Err(format!(
+            "unknown marker family '{other}'; use body, face, left_hand, or right_hand"
+        )),
+    }
+}
+
+fn posekit_marker_family_count(family: &str) -> usize {
+    match family {
+        "body" => POSEKIT_BODY_KEYPOINT_COUNT,
+        "face" => POSEKIT_FACE_KEYPOINT_COUNT,
+        "left_hand" | "right_hand" => POSEKIT_HAND_KEYPOINT_COUNT,
+        _ => 0,
+    }
+}
+
+fn posekit_marker_family_enabled(state: &AtelierPanelState, family: &str) -> bool {
+    match family {
+        "body" => state.pose_body,
+        "face" => state.pose_face,
+        "left_hand" | "right_hand" => state.pose_hands,
+        _ => false,
+    }
+}
+
+fn posekit_generated_marker_slot_is_zero(
+    state: &AtelierPanelState,
+    family: &str,
+    index: usize,
+) -> bool {
+    let yaw = state.pose_yaw.clamp(-180.0, 180.0);
+    let pitch = state.pose_pitch.clamp(-45.0, 45.0);
+    let zoom = state.pose_zoom.clamp(0.4, 2.2);
+    let keypoints = match family {
+        "body" => posekit_body_keypoints(yaw, pitch, zoom, state.pose_body),
+        "face" => posekit_face_keypoints(yaw, pitch, zoom, state.pose_face),
+        "left_hand" => posekit_hand_keypoints(yaw, pitch, zoom, state.pose_hands, -1.0),
+        "right_hand" => posekit_hand_keypoints(yaw, pitch, zoom, state.pose_hands, 1.0),
+        _ => return false,
+    };
+    let offset = index.saturating_mul(3);
+    if offset + 2 >= keypoints.len() {
+        return false;
+    }
+    keypoints[offset] == 0.0 && keypoints[offset + 1] == 0.0 && keypoints[offset + 2] == 0.0
+}
+
+#[derive(Clone, Copy)]
+struct PosekitMarkerSlotState {
+    zero: bool,
+    locally_mutated: bool,
+}
+
+fn posekit_staged_marker_slot_state(
+    state: &AtelierPanelState,
+    family: &str,
+    index: usize,
+) -> PosekitMarkerSlotState {
+    let mut slot_state = PosekitMarkerSlotState {
+        zero: posekit_generated_marker_slot_is_zero(state, family, index),
+        locally_mutated: false,
+    };
+    for edit in &state.pose_marker_edits {
+        if edit.family != family || edit.index != index {
+            continue;
+        }
+        slot_state = match edit.action.as_str() {
+            "remove" => PosekitMarkerSlotState {
+                zero: true,
+                locally_mutated: true,
+            },
+            "set" | "add" => PosekitMarkerSlotState {
+                zero: false,
+                locally_mutated: true,
+            },
+            _ => slot_state,
+        };
+    }
+    slot_state
+}
+
+fn posekit_validate_marker_edit(
+    state: &AtelierPanelState,
+    action: &str,
+) -> Result<PosekitMarkerEditRecord, String> {
+    let family = posekit_marker_family(&state.pose_marker_family)?;
+    if !posekit_marker_family_enabled(state, &family) {
+        return Err(format!(
+            "{family} marker layer is disabled; enable the layer before editing it"
+        ));
+    }
+    let index = usize::try_from(state.pose_marker_index)
+        .map_err(|_| "marker index must be zero or greater".to_owned())?;
+    let limit = posekit_marker_family_count(&family);
+    if index >= limit {
+        return Err(format!(
+            "{family}[{index}] is outside the supported 0..{} range",
+            limit.saturating_sub(1)
+        ));
+    }
+    let action = action.to_owned();
+    if action == "remove" {
+        return Ok(PosekitMarkerEditRecord {
+            family,
+            index,
+            action,
+            x: None,
+            y: None,
+            confidence: None,
+        });
+    }
+    if !matches!(action.as_str(), "set" | "add") {
+        return Err(format!("unsupported marker action '{action}'"));
+    }
+    let backend_rig_will_validate_source_slot =
+        posekit_optional_rig_id(&state.pose_rig_id).is_some();
+    let slot_state = posekit_staged_marker_slot_state(state, &family, index);
+    if action == "add"
+        && !slot_state.zero
+        && !(backend_rig_will_validate_source_slot && !slot_state.locally_mutated)
+    {
+        return Err(format!(
+            "add would overwrite existing {family}[{index}]; use apply for existing markers, remove it first, or bind a stored rig so the backend can validate the source slot"
+        ));
+    }
+    for (label, value) in [("x", state.pose_marker_x), ("y", state.pose_marker_y)] {
+        if !value.is_finite() || !(0.0..=POSEKIT_EXPORT_WIDTH as f32).contains(&value) {
+            return Err(format!(
+                "{label} must be a finite coordinate inside the 768px canvas"
+            ));
+        }
+    }
+    if !state.pose_marker_confidence.is_finite()
+        || !(0.0..=1.0).contains(&state.pose_marker_confidence)
+    {
+        return Err("confidence must be finite and between 0.0 and 1.0".to_owned());
+    }
+    Ok(PosekitMarkerEditRecord {
+        family,
+        index,
+        action,
+        x: Some((state.pose_marker_x * 10.0).round() / 10.0),
+        y: Some((state.pose_marker_y * 10.0).round() / 10.0),
+        confidence: Some((state.pose_marker_confidence * 100.0).round() / 100.0),
+    })
+}
+
+fn posekit_stage_marker_edit(state: &mut AtelierPanelState, action: &str) {
+    match posekit_validate_marker_edit(state, action) {
+        Ok(edit) => {
+            let verb = match edit.action.as_str() {
+                "add" => "Added marker edit",
+                "remove" => "Removed marker",
+                _ => "Applied marker edit",
+            };
+            state.pose_marker_status = format!("{verb} {}[{}]", edit.family, edit.index);
+            state.pose_marker_edits.push(edit);
+        }
+        Err(err) => {
+            state.pose_marker_status = format!("Marker edit rejected: {err}");
+        }
+    }
+}
+
+fn posekit_validate_staged_marker_edits_for_export(
+    state: &AtelierPanelState,
+    allow_backend_source_validation: bool,
+) -> Result<(), String> {
+    let backend_can_validate_source_slot =
+        allow_backend_source_validation && posekit_optional_rig_id(&state.pose_rig_id).is_some();
+    let mut marker_slot_state: std::collections::BTreeMap<(String, usize), PosekitMarkerSlotState> =
+        std::collections::BTreeMap::new();
+
+    for edit in &state.pose_marker_edits {
+        let family = posekit_marker_family(&edit.family)?;
+        if !posekit_marker_family_enabled(state, &family) {
+            return Err(format!(
+                "staged marker edit {}[{}] targets a disabled marker layer",
+                family, edit.index
+            ));
+        }
+        let limit = posekit_marker_family_count(&family);
+        if edit.index >= limit {
+            return Err(format!(
+                "staged marker edit {}[{}] is outside the supported 0..{} range",
+                family,
+                edit.index,
+                limit.saturating_sub(1)
+            ));
+        }
+        let key = (family.clone(), edit.index);
+        let slot_state =
+            *marker_slot_state
+                .entry(key.clone())
+                .or_insert_with(|| PosekitMarkerSlotState {
+                    zero: posekit_generated_marker_slot_is_zero(state, &family, edit.index),
+                    locally_mutated: false,
+                });
+
+        match edit.action.as_str() {
+            "remove" => {
+                marker_slot_state.insert(
+                    key,
+                    PosekitMarkerSlotState {
+                        zero: true,
+                        locally_mutated: true,
+                    },
+                );
+            }
+            "set" => {
+                posekit_validate_staged_marker_payload(edit)?;
+                marker_slot_state.insert(
+                    key,
+                    PosekitMarkerSlotState {
+                        zero: false,
+                        locally_mutated: true,
+                    },
+                );
+            }
+            "add" => {
+                posekit_validate_staged_marker_payload(edit)?;
+                if !slot_state.zero
+                    && !(backend_can_validate_source_slot && !slot_state.locally_mutated)
+                {
+                    return Err(format!(
+                        "staged marker add {}[{}] needs an empty local slot or backend source validation",
+                        family, edit.index
+                    ));
+                }
+                marker_slot_state.insert(
+                    key,
+                    PosekitMarkerSlotState {
+                        zero: false,
+                        locally_mutated: true,
+                    },
+                );
+            }
+            other => {
+                return Err(format!("unsupported staged marker action '{other}'"));
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn posekit_validate_staged_marker_payload(edit: &PosekitMarkerEditRecord) -> Result<(), String> {
+    let Some(x) = edit.x else {
+        return Err(format!(
+            "staged marker edit {}[{}] is missing x",
+            edit.family, edit.index
+        ));
+    };
+    let Some(y) = edit.y else {
+        return Err(format!(
+            "staged marker edit {}[{}] is missing y",
+            edit.family, edit.index
+        ));
+    };
+    let Some(confidence) = edit.confidence else {
+        return Err(format!(
+            "staged marker edit {}[{}] is missing confidence",
+            edit.family, edit.index
+        ));
+    };
+    for (label, value, max) in [
+        ("x", x, POSEKIT_EXPORT_WIDTH as f32),
+        ("y", y, POSEKIT_EXPORT_HEIGHT as f32),
+    ] {
+        if !value.is_finite() || !(0.0..=max).contains(&value) {
+            return Err(format!(
+                "staged marker edit {}[{}] has invalid {label}; coordinates must stay inside the 768px canvas",
+                edit.family, edit.index
+            ));
+        }
+    }
+    if !confidence.is_finite() || !(0.0..=1.0).contains(&confidence) {
+        return Err(format!(
+            "staged marker edit {}[{}] has invalid confidence",
+            edit.family, edit.index
+        ));
+    }
+    Ok(())
+}
+
+fn posekit_staged_edits_target_family(state: &AtelierPanelState, family: &str) -> bool {
+    state
+        .pose_marker_edits
+        .iter()
+        .any(|edit| edit.family == family)
+}
+
+fn posekit_warn_for_disabled_staged_marker_edits(state: &mut AtelierPanelState) {
+    let mut disabled_families = Vec::new();
+    if !state.pose_body && posekit_staged_edits_target_family(state, "body") {
+        disabled_families.push("body");
+    }
+    if !state.pose_face && posekit_staged_edits_target_family(state, "face") {
+        disabled_families.push("face");
+    }
+    if !state.pose_hands
+        && (posekit_staged_edits_target_family(state, "left_hand")
+            || posekit_staged_edits_target_family(state, "right_hand"))
+    {
+        disabled_families.push("hands");
+    }
+    if disabled_families.is_empty() {
+        return;
+    }
+    state.pose_marker_status = format!(
+        "Staged marker edits target disabled {} layer(s); re-enable the layer or clear edits before export.",
+        disabled_families.join(", ")
+    );
+}
+
+fn posekit_nudge_marker(state: &mut AtelierPanelState, dx: f32, dy: f32) {
+    state.pose_marker_x = (state.pose_marker_x + dx).clamp(0.0, POSEKIT_EXPORT_WIDTH as f32);
+    state.pose_marker_y = (state.pose_marker_y + dy).clamp(0.0, POSEKIT_EXPORT_HEIGHT as f32);
+    state.pose_marker_status = format!(
+        "Nudged marker candidate to x={:.1} y={:.1}; apply to stage it.",
+        state.pose_marker_x, state.pose_marker_y
+    );
+}
+
+fn posekit_marker_edits_json(edits: &[PosekitMarkerEditRecord]) -> Vec<serde_json::Value> {
+    edits
+        .iter()
+        .map(|edit| {
+            serde_json::json!({
+                "family": edit.family.as_str(),
+                "index": edit.index,
+                "action": edit.action.as_str(),
+                "x": edit.x,
+                "y": edit.y,
+                "confidence": edit.confidence,
+            })
+        })
+        .collect()
+}
+
+fn posekit_export_snapshot(state: &AtelierPanelState) -> Result<PosekitExportSnapshot, String> {
+    posekit_validate_staged_marker_edits_for_export(state, false)?;
     let yaw = state.pose_yaw.clamp(-180.0, 180.0);
     let pitch = state.pose_pitch.clamp(-45.0, 45.0);
     let zoom = state.pose_zoom.clamp(0.4, 2.2);
@@ -2160,6 +2604,8 @@ fn posekit_export_snapshot(state: &AtelierPanelState) -> PosekitExportSnapshot {
         state.pose_source_ref.trim().to_owned()
     };
     let rig_id = posekit_optional_rig_id(&state.pose_rig_id);
+    let marker_edits = posekit_marker_edits_json(&state.pose_marker_edits);
+    let framing = posekit_framing_json_from_state(state);
     let openpose_json = posekit_openpose_json(
         &source_ref,
         rig_id.as_deref(),
@@ -2169,21 +2615,25 @@ fn posekit_export_snapshot(state: &AtelierPanelState) -> PosekitExportSnapshot {
         state.pose_face,
         state.pose_body,
         state.pose_hands,
+        &marker_edits,
+        &framing,
     );
+    posekit_validate_local_openpose_export(&openpose_json, state.pose_body)?;
     let hash_basis = format!(
-        "{}|{}|{yaw:.0}|{pitch:.0}|{zoom:.2}|{}|{}|{}|{}",
+        "{}|{}|{yaw:.0}|{pitch:.0}|{zoom:.2}|{}|{}|{}|{}|{}",
         source_ref,
         rig_id.as_deref().unwrap_or("<none>"),
         state.pose_face,
         state.pose_body,
         state.pose_hands,
+        framing,
         openpose_json
     );
     let content_hash = stable_posekit_hash(&hash_basis);
     let artifact_ref = format!("preview://atelier/posekit/openpose/{content_hash}/payload");
     let manifest_ref = format!("preview://atelier/posekit/openpose/{content_hash}/manifest");
     let receipt_ref = format!("preview://atelier/posekit/openpose/{content_hash}/receipt");
-    PosekitExportSnapshot {
+    Ok(PosekitExportSnapshot {
         source_ref,
         rig_id,
         yaw_deg: yaw,
@@ -2197,7 +2647,9 @@ fn posekit_export_snapshot(state: &AtelierPanelState) -> PosekitExportSnapshot {
         receipt_ref,
         content_hash,
         openpose_json,
-    }
+        framing,
+        applied_marker_edit_count: state.pose_marker_edits.len(),
+    })
 }
 
 fn posekit_export_snapshot_from_backend(row: AtelierPosekitExportRow) -> PosekitExportSnapshot {
@@ -2215,6 +2667,8 @@ fn posekit_export_snapshot_from_backend(row: AtelierPosekitExportRow) -> Posekit
         receipt_ref: row.receipt_ref,
         content_hash: row.content_hash,
         openpose_json: row.openpose_json,
+        framing: row.framing,
+        applied_marker_edit_count: row.applied_marker_edit_count,
     }
 }
 
@@ -2227,8 +2681,10 @@ fn posekit_openpose_json(
     face: bool,
     body: bool,
     hands: bool,
+    marker_edits: &[serde_json::Value],
+    framing: &serde_json::Value,
 ) -> serde_json::Value {
-    serde_json::json!({
+    let mut openpose = serde_json::json!({
         "version": 1.3,
         "handshake_schema": "hsk.atelier.posekit.openpose_export@1",
         "preview_only": true,
@@ -2248,6 +2704,8 @@ fn posekit_openpose_json(
                 "body": body,
                 "hands": hands,
             },
+            "marker_edits": marker_edits,
+            "framing": framing,
         },
         "people": [{
             "pose_keypoints_2d": posekit_body_keypoints(yaw_deg, pitch_deg, zoom, body),
@@ -2255,7 +2713,272 @@ fn posekit_openpose_json(
             "hand_left_keypoints_2d": posekit_hand_keypoints(yaw_deg, pitch_deg, zoom, hands, -1.0),
             "hand_right_keypoints_2d": posekit_hand_keypoints(yaw_deg, pitch_deg, zoom, hands, 1.0),
         }],
-    })
+    });
+    posekit_apply_framing_to_openpose(&mut openpose, framing);
+    posekit_apply_marker_edits_to_openpose(&mut openpose, marker_edits);
+    openpose
+}
+
+fn posekit_validate_local_openpose_export(
+    openpose: &serde_json::Value,
+    body_enabled: bool,
+) -> Result<(), String> {
+    let mut visible = 0usize;
+    let body_visible = posekit_validate_local_openpose_field(
+        openpose,
+        "pose_keypoints_2d",
+        POSEKIT_BODY_KEYPOINT_COUNT,
+    )?;
+    visible += body_visible;
+    if body_enabled && body_visible == 0 {
+        return Err(
+            "Posekit body export cannot be all-zero after marker edits and framing".to_owned(),
+        );
+    }
+    visible += posekit_validate_local_openpose_field(
+        openpose,
+        "face_keypoints_2d",
+        POSEKIT_FACE_KEYPOINT_COUNT,
+    )?;
+    visible += posekit_validate_local_openpose_field(
+        openpose,
+        "hand_left_keypoints_2d",
+        POSEKIT_HAND_KEYPOINT_COUNT,
+    )?;
+    visible += posekit_validate_local_openpose_field(
+        openpose,
+        "hand_right_keypoints_2d",
+        POSEKIT_HAND_KEYPOINT_COUNT,
+    )?;
+    if visible == 0 {
+        return Err(
+            "Posekit OpenPose export would be blank after marker edits and framing".to_owned(),
+        );
+    }
+    Ok(())
+}
+
+fn posekit_validate_local_openpose_field(
+    openpose: &serde_json::Value,
+    field: &str,
+    expected_count: usize,
+) -> Result<usize, String> {
+    let Some(points) = openpose
+        .get("people")
+        .and_then(serde_json::Value::as_array)
+        .and_then(|people| people.first())
+        .and_then(|person| person.get(field))
+        .and_then(serde_json::Value::as_array)
+    else {
+        return Err(format!("Posekit OpenPose field {field} is missing"));
+    };
+    if points.len() != expected_count.saturating_mul(3) {
+        return Err(format!(
+            "Posekit OpenPose field {field} has {} values but expected {}",
+            points.len(),
+            expected_count.saturating_mul(3)
+        ));
+    }
+    let mut visible = 0usize;
+    for triple in points.chunks_exact(3) {
+        let x = posekit_json_number(&triple[0], field)?;
+        let y = posekit_json_number(&triple[1], field)?;
+        let confidence = posekit_json_number(&triple[2], field)?;
+        if !(0.0..=1.0).contains(&confidence) {
+            return Err(format!(
+                "Posekit OpenPose field {field} confidence must be in 0..=1"
+            ));
+        }
+        if confidence <= 0.0 {
+            continue;
+        }
+        if x < 0.0 || y < 0.0 || x > POSEKIT_EXPORT_WIDTH as f64 || y > POSEKIT_EXPORT_HEIGHT as f64
+        {
+            return Err(format!(
+                "Posekit OpenPose field {field} has a visible point outside the export canvas"
+            ));
+        }
+        visible = visible.saturating_add(1);
+    }
+    Ok(visible)
+}
+
+fn posekit_json_number(value: &serde_json::Value, field: &str) -> Result<f64, String> {
+    let Some(number) = value.as_f64() else {
+        return Err(format!(
+            "Posekit OpenPose field {field} contains a non-number"
+        ));
+    };
+    if !number.is_finite() {
+        return Err(format!(
+            "Posekit OpenPose field {field} contains non-finite values"
+        ));
+    }
+    Ok(number)
+}
+
+fn posekit_apply_framing_to_openpose(
+    openpose: &mut serde_json::Value,
+    framing: &serde_json::Value,
+) {
+    let lens_mm = framing
+        .get("lens_mm")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(50.0)
+        .clamp(18.0, 120.0) as f32;
+    let padding_top = posekit_padding_from_framing(framing, "padding_top_px");
+    let padding_right = posekit_padding_from_framing(framing, "padding_right_px");
+    let padding_bottom = posekit_padding_from_framing(framing, "padding_bottom_px");
+    let padding_left = posekit_padding_from_framing(framing, "padding_left_px");
+    let content_width = (POSEKIT_EXPORT_WIDTH as f32 - padding_left - padding_right).max(128.0);
+    let content_height = (POSEKIT_EXPORT_HEIGHT as f32 - padding_top - padding_bottom).max(128.0);
+    let source_center_x = POSEKIT_EXPORT_WIDTH as f32 * 0.5;
+    let source_center_y = POSEKIT_EXPORT_HEIGHT as f32 * 0.5;
+    let content_center_x = padding_left + content_width * 0.5;
+    let content_center_y = padding_top + content_height * 0.5;
+    let lens_scale = lens_mm / 50.0;
+
+    let Some(person) = openpose
+        .get_mut("people")
+        .and_then(serde_json::Value::as_array_mut)
+        .and_then(|people| people.first_mut())
+    else {
+        return;
+    };
+    for field in [
+        "pose_keypoints_2d",
+        "face_keypoints_2d",
+        "hand_left_keypoints_2d",
+        "hand_right_keypoints_2d",
+    ] {
+        let Some(points) = person
+            .get_mut(field)
+            .and_then(serde_json::Value::as_array_mut)
+        else {
+            continue;
+        };
+        let mut offset = 0;
+        while offset + 2 < points.len() {
+            let x = points[offset].as_f64().unwrap_or(0.0) as f32;
+            let y = points[offset + 1].as_f64().unwrap_or(0.0) as f32;
+            let confidence = points[offset + 2].as_f64().unwrap_or(0.0) as f32;
+            if confidence > 0.0 {
+                let framed_x = content_center_x + (x - source_center_x) * lens_scale;
+                let framed_y = content_center_y + (y - source_center_y) * lens_scale;
+                points[offset] = posekit_json_f32(framed_x);
+                points[offset + 1] = posekit_json_f32(framed_y);
+            }
+            offset += 3;
+        }
+    }
+}
+
+fn posekit_apply_marker_edits_to_openpose(
+    openpose: &mut serde_json::Value,
+    marker_edits: &[serde_json::Value],
+) {
+    let Some(person) = openpose
+        .get_mut("people")
+        .and_then(serde_json::Value::as_array_mut)
+        .and_then(|people| people.first_mut())
+    else {
+        return;
+    };
+    for edit in marker_edits {
+        let family = edit
+            .get("family")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default();
+        let action = edit
+            .get("action")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("set");
+        let Some(index) = edit
+            .get("index")
+            .and_then(serde_json::Value::as_u64)
+            .map(|value| value as usize)
+        else {
+            continue;
+        };
+        let Some(points) = posekit_keypoint_array_mut(person, family) else {
+            continue;
+        };
+        let offset = index.saturating_mul(3);
+        if offset + 2 >= points.len() {
+            continue;
+        }
+        if action == "remove" {
+            points[offset] = serde_json::json!(0.0);
+            points[offset + 1] = serde_json::json!(0.0);
+            points[offset + 2] = serde_json::json!(0.0);
+            continue;
+        }
+        if action == "add" && !posekit_json_marker_slot_is_zero(points, offset) {
+            continue;
+        }
+        let Some(x) = edit.get("x").and_then(serde_json::Value::as_f64) else {
+            continue;
+        };
+        let Some(y) = edit.get("y").and_then(serde_json::Value::as_f64) else {
+            continue;
+        };
+        let Some(confidence) = edit.get("confidence").and_then(serde_json::Value::as_f64) else {
+            continue;
+        };
+        points[offset] = posekit_json_f32(x as f32);
+        points[offset + 1] = posekit_json_f32(y as f32);
+        points[offset + 2] = posekit_json_confidence(confidence as f32);
+    }
+}
+
+fn posekit_padding_from_framing(framing: &serde_json::Value, field: &str) -> f32 {
+    framing
+        .get(field)
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(0.0)
+        .clamp(0.0, 256.0) as f32
+}
+
+fn posekit_keypoint_array_mut<'a>(
+    person: &'a mut serde_json::Value,
+    family: &str,
+) -> Option<&'a mut Vec<serde_json::Value>> {
+    let field = match family {
+        "body" => "pose_keypoints_2d",
+        "face" => "face_keypoints_2d",
+        "left_hand" => "hand_left_keypoints_2d",
+        "right_hand" => "hand_right_keypoints_2d",
+        _ => return None,
+    };
+    person
+        .get_mut(field)
+        .and_then(serde_json::Value::as_array_mut)
+}
+
+fn posekit_json_marker_slot_is_zero(points: &[serde_json::Value], offset: usize) -> bool {
+    points
+        .get(offset)
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(0.0)
+        == 0.0
+        && points
+            .get(offset + 1)
+            .and_then(serde_json::Value::as_f64)
+            .unwrap_or(0.0)
+            == 0.0
+        && points
+            .get(offset + 2)
+            .and_then(serde_json::Value::as_f64)
+            .unwrap_or(0.0)
+            == 0.0
+}
+
+fn posekit_json_f32(value: f32) -> serde_json::Value {
+    serde_json::json!((value * 10.0).round() / 10.0)
+}
+
+fn posekit_json_confidence(value: f32) -> serde_json::Value {
+    serde_json::json!((value * 100.0).round() / 100.0)
 }
 
 fn posekit_body_keypoints(yaw_deg: f32, pitch_deg: f32, zoom: f32, visible: bool) -> Vec<f32> {
@@ -2416,13 +3139,15 @@ fn stable_posekit_hash(input: &str) -> String {
 fn posekit_export_preview(snapshot: &PosekitExportSnapshot) -> String {
     let rig_id = snapshot.rig_id.as_deref().unwrap_or("<none>");
     format!(
-        "schema=hsk.atelier.posekit.openpose_export@1\nsource_ref={}\nrig_id={}\nyaw_deg={:.0}\npitch_deg={:.0}\nzoom={:.2}\nmarkers={}\nartifact_ref={}\nmanifest_ref={}\nreceipt_ref={}\ncontent_hash={}\nmime=image/png\nopenpose_json={}",
+        "schema=hsk.atelier.posekit.openpose_export@1\nsource_ref={}\nrig_id={}\nyaw_deg={:.0}\npitch_deg={:.0}\nzoom={:.2}\nmarkers={}\napplied_marker_edit_count={}\nframing={}\nartifact_ref={}\nmanifest_ref={}\nreceipt_ref={}\ncontent_hash={}\nmime=image/png\nopenpose_json={}",
         snapshot.source_ref,
         rig_id,
         snapshot.yaw_deg,
         snapshot.pitch_deg,
         snapshot.zoom,
         snapshot.marker_layers(),
+        snapshot.applied_marker_edit_count,
+        snapshot.framing,
         snapshot.artifact_ref,
         snapshot.manifest_ref,
         snapshot.receipt_ref,
@@ -6583,6 +7308,20 @@ impl AtelierPanel {
                 state.pose_export_pending = false;
                 state.pose_active_export_request = None;
                 state.pose_last_export = None;
+                state.pose_marker_family = "face".to_owned();
+                state.pose_marker_index = 12;
+                state.pose_marker_x = 321.0;
+                state.pose_marker_y = 222.0;
+                state.pose_marker_confidence = 0.87;
+                state.pose_marker_edits.clear();
+                state.pose_marker_status =
+                    "Pose reset; marker edits cleared and ready for the next export.".to_owned();
+                state.pose_framing_preset = "standard".to_owned();
+                state.pose_framing_lens_mm = 50;
+                state.pose_framing_padding_top_px = 0;
+                state.pose_framing_padding_right_px = 0;
+                state.pose_framing_padding_bottom_px = 0;
+                state.pose_framing_padding_left_px = 0;
                 state.pose_export_status =
                     "Pose reset; export again to refresh OpenPose artifact metadata.".to_owned();
             }
@@ -6614,6 +7353,9 @@ impl AtelierPanel {
                 "Hand markers",
                 state.pose_hands,
             );
+            if face.changed() || body.changed() || hands.changed() {
+                posekit_warn_for_disabled_staged_marker_edits(&mut state);
+            }
         });
         ui.horizontal(|ui| {
             ui.label(egui::RichText::new("Yaw").color(palette.text));
@@ -6667,6 +7409,315 @@ impl AtelierPanel {
                 &format!("{:.2}", state.pose_zoom),
             );
         });
+        ui.add_space(4.0);
+        ui.horizontal_wrapped(|ui| {
+            ui.label(egui::RichText::new("Marker").color(palette.text));
+            let family = ui.text_edit_singleline(&mut state.pose_marker_family);
+            emit_value_node(
+                ui.ctx(),
+                family.id,
+                accesskit::Role::TextInput,
+                ATELIER_POSE_MARKER_FAMILY_AUTHOR_ID,
+                "Posekit marker family",
+                &state.pose_marker_family,
+            );
+
+            ui.label(egui::RichText::new("Index").color(palette.text));
+            let mut index_text = state.pose_marker_index.to_string();
+            let index = ui.text_edit_singleline(&mut index_text);
+            if index.changed() {
+                if let Ok(value) = index_text.trim().parse::<i32>() {
+                    state.pose_marker_index = value;
+                }
+            }
+            emit_value_node(
+                ui.ctx(),
+                index.id,
+                accesskit::Role::TextInput,
+                ATELIER_POSE_MARKER_INDEX_AUTHOR_ID,
+                "Posekit marker index",
+                &state.pose_marker_index.to_string(),
+            );
+
+            ui.label(egui::RichText::new("X").color(palette.text));
+            let mut x_text = format!("{:.1}", state.pose_marker_x);
+            let x = ui.text_edit_singleline(&mut x_text);
+            if x.changed() {
+                if let Ok(value) = x_text.trim().parse::<f32>() {
+                    state.pose_marker_x = value;
+                }
+            }
+            emit_value_node(
+                ui.ctx(),
+                x.id,
+                accesskit::Role::TextInput,
+                ATELIER_POSE_MARKER_X_AUTHOR_ID,
+                "Posekit marker x coordinate",
+                &format!("{:.1}", state.pose_marker_x),
+            );
+
+            ui.label(egui::RichText::new("Y").color(palette.text));
+            let mut y_text = format!("{:.1}", state.pose_marker_y);
+            let y = ui.text_edit_singleline(&mut y_text);
+            if y.changed() {
+                if let Ok(value) = y_text.trim().parse::<f32>() {
+                    state.pose_marker_y = value;
+                }
+            }
+            emit_value_node(
+                ui.ctx(),
+                y.id,
+                accesskit::Role::TextInput,
+                ATELIER_POSE_MARKER_Y_AUTHOR_ID,
+                "Posekit marker y coordinate",
+                &format!("{:.1}", state.pose_marker_y),
+            );
+
+            ui.label(egui::RichText::new("Conf").color(palette.text));
+            let mut confidence_text = format!("{:.2}", state.pose_marker_confidence);
+            let confidence = ui.text_edit_singleline(&mut confidence_text);
+            if confidence.changed() {
+                if let Ok(value) = confidence_text.trim().parse::<f32>() {
+                    state.pose_marker_confidence = value;
+                }
+            }
+            emit_value_node(
+                ui.ctx(),
+                confidence.id,
+                accesskit::Role::TextInput,
+                ATELIER_POSE_MARKER_CONFIDENCE_AUTHOR_ID,
+                "Posekit marker confidence",
+                &format!("{:.2}", state.pose_marker_confidence),
+            );
+        });
+        ui.horizontal_wrapped(|ui| {
+            let nudge_left = ui.button("<");
+            emit_node(
+                ui.ctx(),
+                nudge_left.id,
+                accesskit::Role::Button,
+                ATELIER_POSE_MARKER_NUDGE_LEFT_AUTHOR_ID,
+                "Nudge marker left",
+                false,
+            );
+            if nudge_left.clicked() {
+                posekit_nudge_marker(&mut state, -1.0, 0.0);
+            }
+            let nudge_right = ui.button(">");
+            emit_node(
+                ui.ctx(),
+                nudge_right.id,
+                accesskit::Role::Button,
+                ATELIER_POSE_MARKER_NUDGE_RIGHT_AUTHOR_ID,
+                "Nudge marker right",
+                false,
+            );
+            if nudge_right.clicked() {
+                posekit_nudge_marker(&mut state, 1.0, 0.0);
+            }
+            let nudge_up = ui.button("^");
+            emit_node(
+                ui.ctx(),
+                nudge_up.id,
+                accesskit::Role::Button,
+                ATELIER_POSE_MARKER_NUDGE_UP_AUTHOR_ID,
+                "Nudge marker up",
+                false,
+            );
+            if nudge_up.clicked() {
+                posekit_nudge_marker(&mut state, 0.0, -1.0);
+            }
+            let nudge_down = ui.button("v");
+            emit_node(
+                ui.ctx(),
+                nudge_down.id,
+                accesskit::Role::Button,
+                ATELIER_POSE_MARKER_NUDGE_DOWN_AUTHOR_ID,
+                "Nudge marker down",
+                false,
+            );
+            if nudge_down.clicked() {
+                posekit_nudge_marker(&mut state, 0.0, 1.0);
+            }
+
+            let apply = ui.button("Apply");
+            emit_node(
+                ui.ctx(),
+                apply.id,
+                accesskit::Role::Button,
+                ATELIER_POSE_MARKER_APPLY_AUTHOR_ID,
+                "Apply marker edit",
+                false,
+            );
+            if apply.clicked() {
+                posekit_stage_marker_edit(&mut state, "set");
+            }
+            let add = ui.button("Add");
+            emit_node(
+                ui.ctx(),
+                add.id,
+                accesskit::Role::Button,
+                ATELIER_POSE_MARKER_ADD_AUTHOR_ID,
+                "Add marker into empty slot",
+                false,
+            );
+            if add.clicked() {
+                posekit_stage_marker_edit(&mut state, "add");
+            }
+            let remove = ui.button("Remove");
+            emit_node(
+                ui.ctx(),
+                remove.id,
+                accesskit::Role::Button,
+                ATELIER_POSE_MARKER_REMOVE_AUTHOR_ID,
+                "Remove marker",
+                false,
+            );
+            if remove.clicked() {
+                posekit_stage_marker_edit(&mut state, "remove");
+            }
+            let reset_marker = ui.button("Clear edits");
+            emit_node(
+                ui.ctx(),
+                reset_marker.id,
+                accesskit::Role::Button,
+                ATELIER_POSE_MARKER_RESET_AUTHOR_ID,
+                "Clear staged marker edits",
+                false,
+            );
+            if reset_marker.clicked() {
+                state.pose_marker_edits.clear();
+                state.pose_marker_status =
+                    "Posekit marker edits cleared; last export remains visible until refreshed."
+                        .to_owned();
+            }
+        });
+        let marker_status = state.pose_marker_status.clone();
+        let marker_status_response =
+            ui.label(egui::RichText::new(&marker_status).color(palette.text_subtle));
+        emit_value_node(
+            ui.ctx(),
+            marker_status_response.id,
+            accesskit::Role::Label,
+            ATELIER_POSE_MARKER_STATUS_AUTHOR_ID,
+            "Posekit marker edit status",
+            &marker_status,
+        );
+
+        ui.horizontal_wrapped(|ui| {
+            ui.label(egui::RichText::new("Framing").color(palette.text));
+            let preset = ui.text_edit_singleline(&mut state.pose_framing_preset);
+            emit_value_node(
+                ui.ctx(),
+                preset.id,
+                accesskit::Role::TextInput,
+                ATELIER_POSE_FRAMING_PRESET_AUTHOR_ID,
+                "Posekit framing preset",
+                &posekit_framing_preset(&state.pose_framing_preset),
+            );
+
+            ui.label(egui::RichText::new("Lens mm").color(palette.text));
+            let mut lens_text = state.pose_framing_lens_mm.to_string();
+            let lens = ui.text_edit_singleline(&mut lens_text);
+            if lens.changed() {
+                if let Ok(value) = lens_text.trim().parse::<i32>() {
+                    state.pose_framing_lens_mm = value.clamp(18, 120);
+                }
+            }
+            emit_value_node(
+                ui.ctx(),
+                lens.id,
+                accesskit::Role::TextInput,
+                ATELIER_POSE_FRAMING_LENS_AUTHOR_ID,
+                "Posekit framing lens millimeters",
+                &state.pose_framing_lens_mm.clamp(18, 120).to_string(),
+            );
+
+            ui.label(egui::RichText::new("Top").color(palette.text));
+            let mut top_text = state.pose_framing_padding_top_px.to_string();
+            let top = ui.text_edit_singleline(&mut top_text);
+            if top.changed() {
+                if let Ok(value) = top_text.trim().parse::<i32>() {
+                    state.pose_framing_padding_top_px = value.clamp(0, 256);
+                }
+            }
+            emit_value_node(
+                ui.ctx(),
+                top.id,
+                accesskit::Role::TextInput,
+                ATELIER_POSE_FRAMING_PADDING_TOP_AUTHOR_ID,
+                "Posekit framing top padding pixels",
+                &state.pose_framing_padding_top_px.clamp(0, 256).to_string(),
+            );
+
+            ui.label(egui::RichText::new("Right").color(palette.text));
+            let mut right_text = state.pose_framing_padding_right_px.to_string();
+            let right = ui.text_edit_singleline(&mut right_text);
+            if right.changed() {
+                if let Ok(value) = right_text.trim().parse::<i32>() {
+                    state.pose_framing_padding_right_px = value.clamp(0, 256);
+                }
+            }
+            emit_value_node(
+                ui.ctx(),
+                right.id,
+                accesskit::Role::TextInput,
+                ATELIER_POSE_FRAMING_PADDING_RIGHT_AUTHOR_ID,
+                "Posekit framing right padding pixels",
+                &state
+                    .pose_framing_padding_right_px
+                    .clamp(0, 256)
+                    .to_string(),
+            );
+
+            ui.label(egui::RichText::new("Bottom").color(palette.text));
+            let mut bottom_text = state.pose_framing_padding_bottom_px.to_string();
+            let bottom = ui.text_edit_singleline(&mut bottom_text);
+            if bottom.changed() {
+                if let Ok(value) = bottom_text.trim().parse::<i32>() {
+                    state.pose_framing_padding_bottom_px = value.clamp(0, 256);
+                }
+            }
+            emit_value_node(
+                ui.ctx(),
+                bottom.id,
+                accesskit::Role::TextInput,
+                ATELIER_POSE_FRAMING_PADDING_BOTTOM_AUTHOR_ID,
+                "Posekit framing bottom padding pixels",
+                &state
+                    .pose_framing_padding_bottom_px
+                    .clamp(0, 256)
+                    .to_string(),
+            );
+
+            ui.label(egui::RichText::new("Left").color(palette.text));
+            let mut left_text = state.pose_framing_padding_left_px.to_string();
+            let left = ui.text_edit_singleline(&mut left_text);
+            if left.changed() {
+                if let Ok(value) = left_text.trim().parse::<i32>() {
+                    state.pose_framing_padding_left_px = value.clamp(0, 256);
+                }
+            }
+            emit_value_node(
+                ui.ctx(),
+                left.id,
+                accesskit::Role::TextInput,
+                ATELIER_POSE_FRAMING_PADDING_LEFT_AUTHOR_ID,
+                "Posekit framing left padding pixels",
+                &state.pose_framing_padding_left_px.clamp(0, 256).to_string(),
+            );
+        });
+        let framing_readout = posekit_framing_readout(&state);
+        let framing_response =
+            ui.label(egui::RichText::new(&framing_readout).color(palette.text_subtle));
+        emit_value_node(
+            ui.ctx(),
+            framing_response.id,
+            accesskit::Role::Label,
+            ATELIER_POSE_FRAMING_READOUT_AUTHOR_ID,
+            "Posekit export framing readout",
+            &framing_readout,
+        );
         ui.separator();
         let split = ui
             .scope_builder(
@@ -6739,35 +7790,53 @@ impl AtelierPanel {
                     "Posekit OpenPose export failed: source_ref must be non-empty and unpadded."
                         .to_owned();
             } else if let Some(client) = self.ckc_client.as_ref() {
-                state.pose_export_request_seq = state.pose_export_request_seq.saturating_add(1);
-                let request_id = state.pose_export_request_seq;
-                state.pose_active_export_request = Some(request_id);
-                state.pose_export_pending = true;
-                state.pose_export_status =
-                    "Posekit backend OpenPose export pending; waiting for ArtifactStore refs."
-                        .to_owned();
-                state.pose_last_export = None;
-                let rig_id = posekit_optional_rig_id(&state.pose_rig_id);
-                client.export_posekit_openpose(
-                    &state.pose_source_ref,
-                    state.pose_yaw,
-                    state.pose_pitch,
-                    state.pose_zoom,
-                    state.pose_face,
-                    state.pose_body,
-                    state.pose_hands,
-                    rig_id.as_deref(),
-                    client.actor_id(),
-                    request_id,
-                    self.pose_export_cell.clone(),
-                );
+                match posekit_validate_staged_marker_edits_for_export(&state, true) {
+                    Ok(()) => {
+                        state.pose_export_request_seq =
+                            state.pose_export_request_seq.saturating_add(1);
+                        let request_id = state.pose_export_request_seq;
+                        state.pose_active_export_request = Some(request_id);
+                        state.pose_export_pending = true;
+                        state.pose_export_status =
+                            "Posekit backend OpenPose export pending; waiting for ArtifactStore refs."
+                                .to_owned();
+                        let rig_id = posekit_optional_rig_id(&state.pose_rig_id);
+                        let marker_edits = posekit_marker_edits_json(&state.pose_marker_edits);
+                        let framing = posekit_framing_json_from_state(&state);
+                        client.export_posekit_openpose(
+                            &state.pose_source_ref,
+                            state.pose_yaw,
+                            state.pose_pitch,
+                            state.pose_zoom,
+                            state.pose_face,
+                            state.pose_body,
+                            state.pose_hands,
+                            rig_id.as_deref(),
+                            marker_edits,
+                            framing,
+                            client.actor_id(),
+                            request_id,
+                            self.pose_export_cell.clone(),
+                        );
+                    }
+                    Err(err) => {
+                        state.pose_export_status = format!("Posekit OpenPose export failed: {err}");
+                    }
+                }
             } else {
-                let snapshot = posekit_export_snapshot(&state);
-                state.pose_export_status = format!(
-                    "Local Argus preview only: yaw_deg={:.0} artifact_ref={} receipt_ref={}",
-                    snapshot.yaw_deg, snapshot.artifact_ref, snapshot.receipt_ref
-                );
-                state.pose_last_export = Some(snapshot);
+                match posekit_export_snapshot(&state) {
+                    Ok(snapshot) => {
+                        state.pose_export_status = format!(
+                            "Local Argus preview only: yaw_deg={:.0} artifact_ref={} receipt_ref={}",
+                            snapshot.yaw_deg, snapshot.artifact_ref, snapshot.receipt_ref
+                        );
+                        state.pose_last_export = Some(snapshot);
+                    }
+                    Err(err) => {
+                        state.pose_export_status =
+                            format!("Local Posekit OpenPose export failed: {err}");
+                    }
+                }
             }
         }
         let export_status = state.pose_export_status.clone();
@@ -7476,6 +8545,253 @@ mod tests {
         assert!(!safe_raw.contains("CHAR-SEX-001"));
         assert!(!safe_raw.contains("CHAR-ID-001X"));
         assert_eq!(safe_json.character_ref, character.character_ref);
+    }
+
+    #[test]
+    fn posekit_add_marker_validation_allows_source_backed_or_remove_then_add() {
+        let mut state = AtelierPanelState::default();
+        state.pose_marker_family = "face".to_owned();
+        state.pose_marker_index = 12;
+        state.pose_marker_x = 321.0;
+        state.pose_marker_y = 222.0;
+        state.pose_marker_confidence = 0.87;
+
+        let blocked = posekit_validate_marker_edit(&state, "add")
+            .expect_err("synthetic non-empty marker slot must be protected");
+        assert!(blocked.contains("overwrite existing face[12]"));
+
+        let remove = posekit_validate_marker_edit(&state, "remove").expect("remove stages");
+        state.pose_marker_edits.push(remove);
+        let add_after_remove =
+            posekit_validate_marker_edit(&state, "add").expect("remove then add is a safe slot");
+        assert_eq!(add_after_remove.action, "add");
+        assert_eq!(add_after_remove.family, "face");
+        assert_eq!(add_after_remove.index, 12);
+
+        let mut source_backed = AtelierPanelState::default();
+        source_backed.pose_rig_id = Uuid::new_v4().to_string();
+        source_backed.pose_marker_family = "face".to_owned();
+        source_backed.pose_marker_index = 12;
+        source_backed.pose_marker_x = 321.0;
+        source_backed.pose_marker_y = 222.0;
+        source_backed.pose_marker_confidence = 0.87;
+        assert!(
+            posekit_validate_marker_edit(&source_backed, "add").is_ok(),
+            "stored rigs let the backend validate the real source slot instead of synthetic preview data"
+        );
+
+        posekit_stage_marker_edit(&mut source_backed, "add");
+        assert_eq!(source_backed.pose_marker_edits.len(), 1);
+        posekit_stage_marker_edit(&mut source_backed, "add");
+        assert_eq!(
+            source_backed.pose_marker_edits.len(),
+            1,
+            "backend source validation only applies to the initial unknown source slot"
+        );
+        assert!(
+            source_backed
+                .pose_marker_status
+                .contains("overwrite existing face[12]"),
+            "unexpected marker status: {}",
+            source_backed.pose_marker_status
+        );
+
+        let mut set_then_add = AtelierPanelState::default();
+        set_then_add.pose_rig_id = Uuid::new_v4().to_string();
+        set_then_add.pose_marker_family = "face".to_owned();
+        set_then_add.pose_marker_index = 12;
+        set_then_add.pose_marker_x = 321.0;
+        set_then_add.pose_marker_y = 222.0;
+        set_then_add.pose_marker_confidence = 0.87;
+        posekit_stage_marker_edit(&mut set_then_add, "set");
+        posekit_stage_marker_edit(&mut set_then_add, "add");
+        assert_eq!(
+            set_then_add.pose_marker_edits.len(),
+            1,
+            "a local set makes a later add provably invalid even when a backend rig exists"
+        );
+
+        let mut stale_recovery = AtelierPanelState::default();
+        stale_recovery.pose_rig_id = Uuid::new_v4().to_string();
+        stale_recovery
+            .pose_marker_edits
+            .push(PosekitMarkerEditRecord {
+                family: "face".to_owned(),
+                index: 12,
+                action: "set".to_owned(),
+                x: Some(321.0),
+                y: Some(222.0),
+                confidence: Some(0.87),
+            });
+        stale_recovery
+            .pose_marker_edits
+            .push(PosekitMarkerEditRecord {
+                family: "face".to_owned(),
+                index: 12,
+                action: "add".to_owned(),
+                x: Some(322.0),
+                y: Some(223.0),
+                confidence: Some(0.86),
+            });
+        let err = posekit_validate_staged_marker_edits_for_export(&stale_recovery, true)
+            .expect_err("state recovery must reject locally impossible add sequences");
+        assert!(
+            err.contains("empty local slot"),
+            "unexpected export validation error: {err}"
+        );
+    }
+
+    #[test]
+    fn posekit_local_export_rejects_staged_edit_for_disabled_layer() {
+        let mut state = AtelierPanelState::default();
+        state.pose_marker_family = "face".to_owned();
+        state.pose_marker_index = 12;
+        state.pose_marker_x = 321.0;
+        state.pose_marker_y = 222.0;
+        state.pose_marker_confidence = 0.87;
+        posekit_stage_marker_edit(&mut state, "set");
+        assert_eq!(state.pose_marker_edits.len(), 1);
+
+        state.pose_face = false;
+
+        let err = posekit_export_snapshot(&state)
+            .expect_err("local export must reject edits for layers disabled after staging");
+        assert!(
+            err.contains("disabled marker layer"),
+            "unexpected export error: {err}"
+        );
+    }
+
+    #[test]
+    fn posekit_local_export_rejects_backend_deferred_add_without_backend() {
+        let mut state = AtelierPanelState::default();
+        state.pose_rig_id = Uuid::new_v4().to_string();
+        state.pose_marker_family = "face".to_owned();
+        state.pose_marker_index = 12;
+        state.pose_marker_x = 321.0;
+        state.pose_marker_y = 222.0;
+        state.pose_marker_confidence = 0.87;
+        posekit_stage_marker_edit(&mut state, "add");
+        assert_eq!(state.pose_marker_edits.len(), 1);
+        assert!(
+            posekit_validate_staged_marker_edits_for_export(&state, true).is_ok(),
+            "backend export may defer add-slot validation to the stored rig source"
+        );
+
+        let err = posekit_export_snapshot(&state)
+            .expect_err("local export has no backend source slot and must not fake the add");
+        assert!(
+            err.contains("backend source validation"),
+            "unexpected export error: {err}"
+        );
+    }
+
+    #[test]
+    fn posekit_layer_toggle_warns_about_stale_staged_edits() {
+        let mut state = AtelierPanelState::default();
+        posekit_stage_marker_edit(&mut state, "set");
+        assert_eq!(state.pose_marker_edits.len(), 1);
+
+        state.pose_face = false;
+        posekit_warn_for_disabled_staged_marker_edits(&mut state);
+
+        assert!(
+            state.pose_marker_status.contains("disabled face layer"),
+            "unexpected marker status: {}",
+            state.pose_marker_status
+        );
+    }
+
+    #[test]
+    fn posekit_backend_export_failure_preserves_previous_preview_snapshot() {
+        let panel = AtelierPanel::new(
+            empty_side_panel(),
+            Arc::new(Mutex::new(LoomCanvasBoard::new("ws-test", "canvas-1"))),
+            Arc::new(Mutex::new(Vec::<CanvasEvent>::new())),
+        );
+        let previous_hash = {
+            let mut state = panel.state.lock().expect("panel state");
+            let snapshot = posekit_export_snapshot(&state).expect("initial local preview snapshot");
+            let previous_hash = snapshot.content_hash.clone();
+            state.pose_last_export = Some(snapshot);
+            state.pose_export_pending = true;
+            state.pose_active_export_request = Some(77);
+            previous_hash
+        };
+        *panel.pose_export_cell.lock().expect("pose export cell") =
+            Some((77, Err("backend rejected marker add".to_owned())));
+
+        panel.drain_posekit_export_backend();
+
+        let state = panel.state.lock().expect("panel state");
+        assert!(!state.pose_export_pending);
+        assert_eq!(state.pose_active_export_request, None);
+        assert!(state
+            .pose_export_status
+            .contains("backend rejected marker add"));
+        assert_eq!(
+            state
+                .pose_last_export
+                .as_ref()
+                .map(|snapshot| snapshot.content_hash.as_str()),
+            Some(previous_hash.as_str()),
+            "backend export rejection must not clear the last known-good OpenPose preview"
+        );
+    }
+
+    #[test]
+    fn local_posekit_framing_rejects_backend_invalid_off_canvas_points() {
+        let mut body_keypoints = zero_keypoints(POSEKIT_BODY_KEYPOINT_COUNT);
+        body_keypoints[0] = 700.0;
+        body_keypoints[1] = 384.0;
+        body_keypoints[2] = 1.0;
+        let mut openpose = serde_json::json!({
+            "people": [{
+                "pose_keypoints_2d": body_keypoints,
+                "face_keypoints_2d": zero_keypoints(POSEKIT_FACE_KEYPOINT_COUNT),
+                "hand_left_keypoints_2d": zero_keypoints(POSEKIT_HAND_KEYPOINT_COUNT),
+                "hand_right_keypoints_2d": zero_keypoints(POSEKIT_HAND_KEYPOINT_COUNT),
+            }],
+            "pose_state": {},
+        });
+        let framing = serde_json::json!({
+            "preset": "custom",
+            "lens_mm": 120,
+            "padding_top_px": 0,
+            "padding_right_px": 0,
+            "padding_bottom_px": 0,
+            "padding_left_px": 0,
+        });
+
+        posekit_apply_framing_to_openpose(&mut openpose, &framing);
+
+        let framed_x = openpose["people"][0]["pose_keypoints_2d"][0]
+            .as_f64()
+            .expect("framed x");
+        assert!(
+            framed_x > POSEKIT_EXPORT_WIDTH as f64,
+            "local preview must not clamp framing points that backend validation would reject"
+        );
+        let err = posekit_validate_local_openpose_export(&openpose, true)
+            .expect_err("local preview must reject the same off-canvas visible point as backend");
+        assert!(
+            err.contains("outside the export canvas"),
+            "unexpected local validation error: {err}"
+        );
+    }
+
+    #[test]
+    fn local_posekit_snapshot_rejects_generated_points_backend_would_reject() {
+        let mut state = AtelierPanelState::default();
+        state.pose_zoom = 2.2;
+        state.pose_framing_lens_mm = 120;
+
+        let err = posekit_export_snapshot(&state)
+            .expect_err("local snapshot must not store backend-invalid OpenPose geometry");
+        assert!(
+            err.contains("outside the export canvas"),
+            "unexpected local snapshot validation error: {err}"
+        );
     }
 
     #[test]

@@ -275,6 +275,27 @@ fn live_author_id_set() -> HashSet<String> {
         handshake_native::atelier_panel::ATELIER_POSE_YAW_SLIDER_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_POSE_ZOOM_SLIDER_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_MARKER_FAMILY_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_MARKER_INDEX_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_MARKER_X_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_MARKER_Y_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_MARKER_CONFIDENCE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_MARKER_APPLY_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_MARKER_ADD_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_MARKER_REMOVE_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_MARKER_RESET_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_MARKER_NUDGE_LEFT_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_MARKER_NUDGE_RIGHT_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_MARKER_NUDGE_UP_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_MARKER_NUDGE_DOWN_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_MARKER_STATUS_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_FRAMING_PRESET_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_FRAMING_LENS_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_FRAMING_PADDING_TOP_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_FRAMING_PADDING_RIGHT_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_FRAMING_PADDING_BOTTOM_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_FRAMING_PADDING_LEFT_AUTHOR_ID,
+        handshake_native::atelier_panel::ATELIER_POSE_FRAMING_READOUT_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_POSE_EXPORT_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID,
         handshake_native::atelier_panel::ATELIER_POSE_EXPORT_REF_AUTHOR_ID,
@@ -610,6 +631,31 @@ fn manual_documents_atelier_tabs_and_argus_control_ids() {
         "atelier-pose-face-toggle",
         "atelier-pose-body-toggle",
         "atelier-pose-hands-toggle",
+        "atelier-pose-marker-family",
+        "atelier-pose-marker-index",
+        "atelier-pose-marker-x",
+        "atelier-pose-marker-y",
+        "atelier-pose-marker-confidence",
+        "atelier-pose-marker-apply",
+        "atelier-pose-marker-remove",
+        "atelier-pose-marker-add",
+        "safe empty slot",
+        "atelier-pose-marker-nudge-left",
+        "atelier-pose-marker-nudge-right",
+        "atelier-pose-marker-nudge-up",
+        "atelier-pose-marker-nudge-down",
+        "atelier-pose-marker-reset",
+        "atelier-pose-marker-status",
+        "rejected edit must leave the previous export preview intact",
+        "atelier-pose-framing-preset",
+        "atelier-pose-framing-lens",
+        "atelier-pose-framing-padding-top",
+        "atelier-pose-framing-padding-right",
+        "atelier-pose-framing-padding-bottom",
+        "atelier-pose-framing-padding-left",
+        "atelier-pose-framing-readout",
+        "full_body_with_feet",
+        "ComfyUI full-body outputs",
         "atelier-pose-export-openpose",
         "atelier-pose-export-status",
         "atelier-pose-export-ref",
@@ -619,6 +665,8 @@ fn manual_documents_atelier_tabs_and_argus_control_ids() {
         "body 18",
         "face 70",
         "hand 21",
+        "marker_edits",
+        "framing metadata",
         "source_ref provenance",
         "rig_id lineage",
         "content_hash",
@@ -638,6 +686,74 @@ fn manual_documents_atelier_tabs_and_argus_control_ids() {
         assert!(
             topic.body.contains(required),
             "Atelier manual topic missing required control/navigation guidance: {required}"
+        );
+    }
+}
+
+#[test]
+fn manual_agent_tool_rows_cover_posekit_marker_and_framing_controls() {
+    let rows = agent_tool_rows();
+    for (author_id, tool) in [
+        (
+            handshake_native::atelier_panel::ATELIER_POSE_MARKER_FAMILY_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_POSE_MARKER_INDEX_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_POSE_MARKER_X_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_POSE_MARKER_Y_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_POSE_MARKER_CONFIDENCE_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_POSE_MARKER_APPLY_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_POSE_MARKER_ADD_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_POSE_MARKER_REMOVE_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_POSE_MARKER_STATUS_AUTHOR_ID,
+            "argus.inspect",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_POSE_FRAMING_PRESET_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_POSE_FRAMING_LENS_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_POSE_FRAMING_PADDING_BOTTOM_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_POSE_FRAMING_READOUT_AUTHOR_ID,
+            "argus.inspect",
+        ),
+    ] {
+        let row = rows
+            .iter()
+            .find(|row| row.author_id == author_id)
+            .unwrap_or_else(|| panic!("missing Posekit manual agent-tool row {author_id}"));
+        assert_eq!(
+            row.mcp_tool, tool,
+            "Posekit manual row {author_id} must use the right Argus tool"
         );
     }
 }

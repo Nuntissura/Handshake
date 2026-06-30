@@ -409,10 +409,22 @@ left viewport is atelier-pose-3d-viewport and the OpenPose output viewport is \
 atelier-pose-openpose-viewport. Drive rotation with atelier-pose-yaw-minus, atelier-pose-yaw-plus, \
 atelier-pose-reset, atelier-pose-yaw-slider, atelier-pose-pitch-slider, and atelier-pose-zoom-slider; \
 toggle exported marker layers with atelier-pose-face-toggle, atelier-pose-body-toggle, and \
-atelier-pose-hands-toggle. Export with atelier-pose-export-openpose, then inspect \
+atelier-pose-hands-toggle. Marker editing is staged before export: set atelier-pose-marker-family \
+(body, face, left_hand, right_hand), atelier-pose-marker-index, atelier-pose-marker-x, \
+atelier-pose-marker-y, and atelier-pose-marker-confidence, then click atelier-pose-marker-apply to \
+replace an existing marker, atelier-pose-marker-remove to zero a marker, or atelier-pose-marker-add \
+only when validation finds a safe empty slot. Use atelier-pose-marker-nudge-left, \
+atelier-pose-marker-nudge-right, atelier-pose-marker-nudge-up, and atelier-pose-marker-nudge-down for \
+one-pixel coordinate adjustments; atelier-pose-marker-reset clears staged edits. Always inspect \
+atelier-pose-marker-status after a click: a rejected edit must leave the previous export preview intact. \
+Lens/framing controls are atelier-pose-framing-preset, atelier-pose-framing-lens, \
+atelier-pose-framing-padding-top, atelier-pose-framing-padding-right, \
+atelier-pose-framing-padding-bottom, atelier-pose-framing-padding-left, and \
+atelier-pose-framing-readout. Use full_body_with_feet plus bottom padding to force black-space style \
+composition for ComfyUI full-body outputs. Export with atelier-pose-export-openpose, then inspect \
 atelier-pose-export-status, atelier-pose-export-ref, and atelier-pose-export-preview. The native Rust \
 generator contract is hsk.atelier.posekit.openpose_export@1: image/png plus OpenPose JSON with body 18, \
-face 70, and hand 21 keypoint arrays, source_ref provenance, rig_id lineage, content_hash, artifact_ref, and \
+face 70, and hand 21 keypoint arrays, marker_edits, framing metadata, source_ref provenance, rig_id lineage, content_hash, artifact_ref, and \
 backend ArtifactStore receipt JSON metadata. No-backend harnesses expose preview://atelier/posekit/openpose/.../receipt \
 metadata only. Use argus.inspect on viewport/control IDs and \
 argus.screenshot{} for a full-frame visual proof; screenshot target cropping is not supported yet. Both \
@@ -1214,6 +1226,132 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             "Set Posekit zoom",
             "argus.set_value",
             "argus.set_value{target:'atelier-pose-zoom-slider', value:'1.0'} sets render zoom for the next OpenPose export.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_MARKER_FAMILY_AUTHOR_ID,
+            "Set Posekit marker family",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-pose-marker-family', value:'face'} selects body, face, left_hand, or right_hand for the staged marker edit.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_MARKER_INDEX_AUTHOR_ID,
+            "Set Posekit marker index",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-pose-marker-index', value:'12'} selects the OpenPose keypoint index inside the chosen marker family.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_MARKER_X_AUTHOR_ID,
+            "Set Posekit marker x",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-pose-marker-x', value:'321'} stages the marker x coordinate for the next edit.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_MARKER_Y_AUTHOR_ID,
+            "Set Posekit marker y",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-pose-marker-y', value:'222'} stages the marker y coordinate for the next edit.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_MARKER_CONFIDENCE_AUTHOR_ID,
+            "Set Posekit marker confidence",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-pose-marker-confidence', value:'0.87'} stages the confidence; values outside 0.0..1.0 are rejected without overwriting the last export preview.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_MARKER_APPLY_AUTHOR_ID,
+            "Apply Posekit marker edit",
+            "argus.click",
+            "argus.click{target:'atelier-pose-marker-apply'} stages a set-marker edit into the next OpenPose export.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_MARKER_ADD_AUTHOR_ID,
+            "Add Posekit marker safely",
+            "argus.click",
+            "argus.click{target:'atelier-pose-marker-add'} stages an add-marker edit only when validation finds an empty safe slot.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_MARKER_REMOVE_AUTHOR_ID,
+            "Remove Posekit marker",
+            "argus.click",
+            "argus.click{target:'atelier-pose-marker-remove'} stages a zeroed marker removal for the next OpenPose export.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_MARKER_RESET_AUTHOR_ID,
+            "Clear Posekit staged marker edits",
+            "argus.click",
+            "argus.click{target:'atelier-pose-marker-reset'} clears staged marker edits without hiding the last export preview.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_MARKER_NUDGE_LEFT_AUTHOR_ID,
+            "Nudge Posekit marker left",
+            "argus.click",
+            "argus.click{target:'atelier-pose-marker-nudge-left'} moves the staged coordinate left by one pixel.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_MARKER_NUDGE_RIGHT_AUTHOR_ID,
+            "Nudge Posekit marker right",
+            "argus.click",
+            "argus.click{target:'atelier-pose-marker-nudge-right'} moves the staged coordinate right by one pixel.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_MARKER_NUDGE_UP_AUTHOR_ID,
+            "Nudge Posekit marker up",
+            "argus.click",
+            "argus.click{target:'atelier-pose-marker-nudge-up'} moves the staged coordinate up by one pixel.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_MARKER_NUDGE_DOWN_AUTHOR_ID,
+            "Nudge Posekit marker down",
+            "argus.click",
+            "argus.click{target:'atelier-pose-marker-nudge-down'} moves the staged coordinate down by one pixel.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_MARKER_STATUS_AUTHOR_ID,
+            "Inspect Posekit marker edit status",
+            "argus.inspect",
+            "argus.inspect reads whether the last marker edit was staged or rejected; rejected edits preserve the previous export preview.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_FRAMING_PRESET_AUTHOR_ID,
+            "Set Posekit framing preset",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-pose-framing-preset', value:'full_body_with_feet'} selects standard, full_body_with_feet, portrait, or custom framing.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_FRAMING_LENS_AUTHOR_ID,
+            "Set Posekit framing lens",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-pose-framing-lens', value:'24'} changes lens_mm for the next export.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_FRAMING_PADDING_TOP_AUTHOR_ID,
+            "Set Posekit top framing padding",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-pose-framing-padding-top', value:'48'} adds top black-space padding to the next export.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_FRAMING_PADDING_RIGHT_AUTHOR_ID,
+            "Set Posekit right framing padding",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-pose-framing-padding-right', value:'32'} adds right black-space padding to the next export.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_FRAMING_PADDING_BOTTOM_AUTHOR_ID,
+            "Set Posekit bottom framing padding",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-pose-framing-padding-bottom', value:'96'} adds bottom black-space padding to force full-body/feet framing.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_FRAMING_PADDING_LEFT_AUTHOR_ID,
+            "Set Posekit left framing padding",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-pose-framing-padding-left', value:'32'} adds left black-space padding to the next export.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_FRAMING_READOUT_AUTHOR_ID,
+            "Inspect Posekit framing readout",
+            "argus.inspect",
+            "argus.inspect reads preset, lens_mm, and padding values that will be written into the next OpenPose export metadata.",
         ),
         (
             crate::atelier_panel::ATELIER_POSE_EXPORT_AUTHOR_ID,

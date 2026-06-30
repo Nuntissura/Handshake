@@ -605,6 +605,10 @@ pub struct PosekitOpenPoseExportRequest {
     pub include_face: bool,
     pub include_body: bool,
     pub include_hands: bool,
+    #[serde(default)]
+    pub marker_edits: Vec<PosekitMarkerEdit>,
+    #[serde(default)]
+    pub framing: PosekitExportFraming,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -614,6 +618,124 @@ pub struct PosekitMarkerLayers {
     pub hands: bool,
 }
 
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PosekitMarkerFamily {
+    Body,
+    Face,
+    LeftHand,
+    RightHand,
+}
+
+impl PosekitMarkerFamily {
+    fn as_token(self) -> &'static str {
+        match self {
+            Self::Body => "body",
+            Self::Face => "face",
+            Self::LeftHand => "left_hand",
+            Self::RightHand => "right_hand",
+        }
+    }
+
+    fn field_and_count(self) -> (&'static str, usize) {
+        match self {
+            Self::Body => ("pose_keypoints_2d", BODY_KEYPOINT_COUNT),
+            Self::Face => ("face_keypoints_2d", FACE_KEYPOINT_COUNT),
+            Self::LeftHand => ("hand_left_keypoints_2d", HAND_KEYPOINT_COUNT),
+            Self::RightHand => ("hand_right_keypoints_2d", HAND_KEYPOINT_COUNT),
+        }
+    }
+
+    fn layer_enabled(self, layers: &PosekitMarkerLayers) -> bool {
+        match self {
+            Self::Body => layers.body,
+            Self::Face => layers.face,
+            Self::LeftHand | Self::RightHand => layers.hands,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PosekitMarkerEditAction {
+    Set,
+    Add,
+    Remove,
+}
+
+impl PosekitMarkerEditAction {
+    fn as_token(self) -> &'static str {
+        match self {
+            Self::Set => "set",
+            Self::Add => "add",
+            Self::Remove => "remove",
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct PosekitMarkerEdit {
+    pub family: PosekitMarkerFamily,
+    pub index: usize,
+    pub action: PosekitMarkerEditAction,
+    #[serde(default)]
+    pub x: Option<f32>,
+    #[serde(default)]
+    pub y: Option<f32>,
+    #[serde(default)]
+    pub confidence: Option<f32>,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PosekitFramingPreset {
+    Standard,
+    FullBodyWithFeet,
+    Portrait,
+    Custom,
+}
+
+impl Default for PosekitFramingPreset {
+    fn default() -> Self {
+        Self::Standard
+    }
+}
+
+impl PosekitFramingPreset {
+    fn as_token(self) -> &'static str {
+        match self {
+            Self::Standard => "standard",
+            Self::FullBodyWithFeet => "full_body_with_feet",
+            Self::Portrait => "portrait",
+            Self::Custom => "custom",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PosekitExportFraming {
+    #[serde(default)]
+    pub preset: PosekitFramingPreset,
+    pub lens_mm: i32,
+    pub padding_top_px: i32,
+    pub padding_right_px: i32,
+    pub padding_bottom_px: i32,
+    pub padding_left_px: i32,
+}
+
+impl Default for PosekitExportFraming {
+    fn default() -> Self {
+        Self {
+            preset: PosekitFramingPreset::Standard,
+            lens_mm: 50,
+            padding_top_px: 0,
+            padding_right_px: 0,
+            padding_bottom_px: 0,
+            padding_left_px: 0,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PosekitOpenPoseExport {
     pub schema_id: String,
@@ -621,7 +743,9 @@ pub struct PosekitOpenPoseExport {
     pub yaw_deg: i32,
     pub pitch_deg: i32,
     pub zoom_percent: i32,
+    pub framing: PosekitExportFraming,
     pub marker_layers: PosekitMarkerLayers,
+    pub applied_marker_edit_count: usize,
     pub width: i32,
     pub height: i32,
     pub openpose_json: serde_json::Value,
@@ -1127,7 +1251,7 @@ fn generate_posekit_openpose_export_with_source_keypoints(
         body: request.include_body,
         hands: request.include_hands,
     };
-    let openpose_json = match source_keypoints {
+    let mut openpose_json = match source_keypoints {
         Some(source_keypoints) => posekit_openpose_json_from_source_keypoints(
             request,
             yaw,
@@ -1137,7 +1261,11 @@ fn generate_posekit_openpose_export_with_source_keypoints(
         )?,
         None => posekit_openpose_json(request, yaw, pitch, zoom_percent),
     };
+    apply_posekit_framing(&mut openpose_json, &request.framing)?;
+    let applied_marker_edit_count =
+        apply_posekit_marker_edits(&mut openpose_json, &request.marker_edits, &marker_layers)?;
     validate_keypoints(&openpose_json)?;
+    validate_posekit_export_keypoints(&openpose_json, &marker_layers)?;
     let openpose_json_bytes = serde_json::to_vec(&openpose_json)
         .map_err(|err| AtelierError::Validation(err.to_string()))?;
     let openpose_png_bytes = render_posekit_openpose_png(&openpose_json)?;
@@ -1151,7 +1279,9 @@ fn generate_posekit_openpose_export_with_source_keypoints(
         yaw_deg: yaw,
         pitch_deg: pitch,
         zoom_percent,
+        framing: request.framing,
         marker_layers,
+        applied_marker_edit_count,
         width: POSEKIT_OPENPOSE_EXPORT_WIDTH,
         height: POSEKIT_OPENPOSE_EXPORT_HEIGHT,
         openpose_json,
@@ -1176,6 +1306,7 @@ fn validate_posekit_openpose_export_request(
     validate_finite_range("yaw_deg", request.yaw_deg, -180.0, 180.0)?;
     validate_finite_range("pitch_deg", request.pitch_deg, -45.0, 45.0)?;
     validate_finite_range("zoom", request.zoom, 0.4, 2.2)?;
+    validate_posekit_framing(&request.framing)?;
     if !(request.include_face || request.include_body || request.include_hands) {
         return Err(AtelierError::Validation(
             "Posekit OpenPose export requires at least one marker layer".into(),
@@ -1222,6 +1353,8 @@ fn posekit_openpose_json(
                 "body": request.include_body,
                 "hands": request.include_hands,
             },
+            "framing": posekit_framing_json(&request.framing),
+            "marker_edits": posekit_marker_edits_json(&request.marker_edits),
         },
         "people": [{
             "pose_keypoints_2d": posekit_body_keypoints(
@@ -1281,6 +1414,8 @@ fn posekit_openpose_json_from_source_keypoints(
                 "body": request.include_body,
                 "hands": request.include_hands,
             },
+            "framing": posekit_framing_json(&request.framing),
+            "marker_edits": posekit_marker_edits_json(&request.marker_edits),
         },
         "people": [{
             "pose_keypoints_2d": if request.include_body {
@@ -1350,6 +1485,320 @@ fn source_keypoint_array(
             })
         })
         .collect()
+}
+
+fn validate_posekit_framing(framing: &PosekitExportFraming) -> AtelierResult<()> {
+    if !(18..=120).contains(&framing.lens_mm) {
+        return Err(AtelierError::Validation(
+            "Posekit OpenPose export lens_mm must be in 18..=120".into(),
+        ));
+    }
+    for (field, value) in [
+        ("padding_top_px", framing.padding_top_px),
+        ("padding_right_px", framing.padding_right_px),
+        ("padding_bottom_px", framing.padding_bottom_px),
+        ("padding_left_px", framing.padding_left_px),
+    ] {
+        if !(0..=256).contains(&value) {
+            return Err(AtelierError::Validation(format!(
+                "Posekit OpenPose export {field} must be in 0..=256"
+            )));
+        }
+    }
+    let content_width =
+        POSEKIT_OPENPOSE_EXPORT_WIDTH - framing.padding_left_px - framing.padding_right_px;
+    let content_height =
+        POSEKIT_OPENPOSE_EXPORT_HEIGHT - framing.padding_top_px - framing.padding_bottom_px;
+    if content_width < 128 || content_height < 128 {
+        return Err(AtelierError::Validation(
+            "Posekit OpenPose export black-space padding leaves less than 128px content area"
+                .into(),
+        ));
+    }
+    Ok(())
+}
+
+fn posekit_framing_json(framing: &PosekitExportFraming) -> serde_json::Value {
+    serde_json::json!({
+        "preset": framing.preset.as_token(),
+        "lens_mm": framing.lens_mm,
+        "padding_top_px": framing.padding_top_px,
+        "padding_right_px": framing.padding_right_px,
+        "padding_bottom_px": framing.padding_bottom_px,
+        "padding_left_px": framing.padding_left_px,
+        "content_rect": {
+            "x": framing.padding_left_px,
+            "y": framing.padding_top_px,
+            "width": POSEKIT_OPENPOSE_EXPORT_WIDTH - framing.padding_left_px - framing.padding_right_px,
+            "height": POSEKIT_OPENPOSE_EXPORT_HEIGHT - framing.padding_top_px - framing.padding_bottom_px,
+        },
+    })
+}
+
+fn posekit_marker_edits_json(edits: &[PosekitMarkerEdit]) -> serde_json::Value {
+    serde_json::Value::Array(
+        edits
+            .iter()
+            .map(|edit| {
+                serde_json::json!({
+                    "family": edit.family.as_token(),
+                    "index": edit.index,
+                    "action": edit.action.as_token(),
+                    "x": edit.x,
+                    "y": edit.y,
+                    "confidence": edit.confidence,
+                })
+            })
+            .collect(),
+    )
+}
+
+fn apply_posekit_framing(
+    openpose_json: &mut serde_json::Value,
+    framing: &PosekitExportFraming,
+) -> AtelierResult<()> {
+    validate_posekit_framing(framing)?;
+    let scale = framing.lens_mm as f32 / 50.0;
+    let source_center_x = POSEKIT_OPENPOSE_EXPORT_WIDTH as f32 * 0.5;
+    let source_center_y = POSEKIT_OPENPOSE_EXPORT_HEIGHT as f32 * 0.5;
+    let content_width =
+        (POSEKIT_OPENPOSE_EXPORT_WIDTH - framing.padding_left_px - framing.padding_right_px) as f32;
+    let content_height = (POSEKIT_OPENPOSE_EXPORT_HEIGHT
+        - framing.padding_top_px
+        - framing.padding_bottom_px) as f32;
+    let content_center_x = framing.padding_left_px as f32 + content_width * 0.5;
+    let content_center_y = framing.padding_top_px as f32 + content_height * 0.5;
+
+    for field in [
+        "pose_keypoints_2d",
+        "face_keypoints_2d",
+        "hand_left_keypoints_2d",
+        "hand_right_keypoints_2d",
+    ] {
+        let values = openpose_keypoint_array_mut(openpose_json, field)?;
+        for triple in values.chunks_exact_mut(3) {
+            let confidence = value_as_f32(&triple[2], field)?;
+            if confidence <= 0.0 {
+                continue;
+            }
+            let x = value_as_f32(&triple[0], field)?;
+            let y = value_as_f32(&triple[1], field)?;
+            let framed_x = content_center_x + (x - source_center_x) * scale;
+            let framed_y = content_center_y + (y - source_center_y) * scale;
+            triple[0] = serde_json::json!(round_posekit_coordinate(framed_x));
+            triple[1] = serde_json::json!(round_posekit_coordinate(framed_y));
+        }
+    }
+    if let Some(pose_state) = openpose_json
+        .get_mut("pose_state")
+        .and_then(|value| value.as_object_mut())
+    {
+        pose_state.insert("framing".to_owned(), posekit_framing_json(framing));
+    }
+    Ok(())
+}
+
+fn apply_posekit_marker_edits(
+    openpose_json: &mut serde_json::Value,
+    edits: &[PosekitMarkerEdit],
+    layers: &PosekitMarkerLayers,
+) -> AtelierResult<usize> {
+    for edit in edits {
+        let (field, expected_count) = edit.family.field_and_count();
+        if edit.index >= expected_count {
+            return Err(AtelierError::Validation(format!(
+                "Posekit marker edit index {} is outside {} marker count {}",
+                edit.index,
+                edit.family.as_token(),
+                expected_count
+            )));
+        }
+        if !edit.family.layer_enabled(layers) {
+            return Err(AtelierError::Validation(format!(
+                "Posekit marker edit family {} is disabled by marker layers",
+                edit.family.as_token()
+            )));
+        }
+        let values = openpose_keypoint_array_mut(openpose_json, field)?;
+        let offset = edit.index * 3;
+        match edit.action {
+            PosekitMarkerEditAction::Remove => {
+                values[offset] = serde_json::json!(0.0);
+                values[offset + 1] = serde_json::json!(0.0);
+                values[offset + 2] = serde_json::json!(0.0);
+            }
+            PosekitMarkerEditAction::Set | PosekitMarkerEditAction::Add => {
+                let x = edit.x.ok_or_else(|| {
+                    AtelierError::Validation("Posekit marker edit x is required".into())
+                })?;
+                let y = edit.y.ok_or_else(|| {
+                    AtelierError::Validation("Posekit marker edit y is required".into())
+                })?;
+                let confidence = edit.confidence.ok_or_else(|| {
+                    AtelierError::Validation("Posekit marker edit confidence is required".into())
+                })?;
+                validate_posekit_marker_coordinate("x", x)?;
+                validate_posekit_marker_coordinate("y", y)?;
+                validate_posekit_marker_confidence(confidence)?;
+                if matches!(edit.action, PosekitMarkerEditAction::Add)
+                    && !is_zero_marker_slot(&values[offset..offset + 3])?
+                {
+                    return Err(AtelierError::Validation(
+                        "Posekit marker add can only fill an empty zero-confidence slot".into(),
+                    ));
+                }
+                values[offset] = serde_json::json!(round_posekit_coordinate(x));
+                values[offset + 1] = serde_json::json!(round_posekit_coordinate(y));
+                values[offset + 2] = serde_json::json!(round_posekit_confidence(confidence));
+            }
+        }
+    }
+    Ok(edits.len())
+}
+
+fn openpose_keypoint_array_mut<'a>(
+    openpose_json: &'a mut serde_json::Value,
+    field: &str,
+) -> AtelierResult<&'a mut Vec<serde_json::Value>> {
+    openpose_json
+        .get_mut("people")
+        .and_then(|people| people.as_array_mut())
+        .and_then(|people| people.first_mut())
+        .and_then(|person| person.get_mut(field))
+        .and_then(|value| value.as_array_mut())
+        .ok_or_else(|| {
+            AtelierError::Validation(format!("Posekit OpenPose JSON missing array {field}"))
+        })
+}
+
+fn value_as_f32(value: &serde_json::Value, field: &str) -> AtelierResult<f32> {
+    let number = value.as_f64().ok_or_else(|| {
+        AtelierError::Validation(format!(
+            "pose keypoints field {field} contains a non-number"
+        ))
+    })?;
+    if !number.is_finite() {
+        return Err(AtelierError::Validation(format!(
+            "pose keypoints field {field} contains a non-finite number"
+        )));
+    }
+    Ok(number as f32)
+}
+
+fn is_zero_marker_slot(values: &[serde_json::Value]) -> AtelierResult<bool> {
+    Ok(value_as_f32(&values[0], "marker")? == 0.0
+        && value_as_f32(&values[1], "marker")? == 0.0
+        && value_as_f32(&values[2], "marker")? == 0.0)
+}
+
+fn validate_posekit_marker_coordinate(field: &str, value: f32) -> AtelierResult<()> {
+    if !value.is_finite() {
+        return Err(AtelierError::Validation(format!(
+            "Posekit marker edit {field} must be finite"
+        )));
+    }
+    let max = if field == "x" {
+        POSEKIT_OPENPOSE_EXPORT_WIDTH as f32
+    } else {
+        POSEKIT_OPENPOSE_EXPORT_HEIGHT as f32
+    };
+    if value < 0.0 || value > max {
+        return Err(AtelierError::Validation(format!(
+            "Posekit marker edit {field} must be inside the export canvas"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_posekit_marker_confidence(value: f32) -> AtelierResult<()> {
+    if !value.is_finite() || !(0.0..=1.0).contains(&value) {
+        return Err(AtelierError::Validation(
+            "Posekit marker edit confidence must be finite and in 0..=1".into(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_posekit_export_keypoints(
+    openpose_json: &serde_json::Value,
+    layers: &PosekitMarkerLayers,
+) -> AtelierResult<()> {
+    let mut visible = 0usize;
+    let body_visible = validate_posekit_export_keypoint_field(
+        openpose_json,
+        "pose_keypoints_2d",
+        BODY_KEYPOINT_COUNT,
+    )?;
+    visible += body_visible;
+    if layers.body && body_visible == 0 {
+        return Err(AtelierError::Validation(
+            "Posekit body export cannot be all-zero after marker edits and framing".into(),
+        ));
+    }
+    visible += validate_posekit_export_keypoint_field(
+        openpose_json,
+        "face_keypoints_2d",
+        FACE_KEYPOINT_COUNT,
+    )?;
+    visible += validate_posekit_export_keypoint_field(
+        openpose_json,
+        "hand_left_keypoints_2d",
+        HAND_KEYPOINT_COUNT,
+    )?;
+    visible += validate_posekit_export_keypoint_field(
+        openpose_json,
+        "hand_right_keypoints_2d",
+        HAND_KEYPOINT_COUNT,
+    )?;
+    if visible == 0 {
+        return Err(AtelierError::Validation(
+            "Posekit OpenPose export would be blank after marker edits and framing".into(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_posekit_export_keypoint_field(
+    openpose_json: &serde_json::Value,
+    field: &str,
+    expected_count: usize,
+) -> AtelierResult<usize> {
+    let points = openpose_points(openpose_json, field, expected_count)?;
+    let mut visible = 0usize;
+    for (x, y, confidence) in points {
+        if !x.is_finite() || !y.is_finite() || !confidence.is_finite() {
+            return Err(AtelierError::Validation(format!(
+                "Posekit OpenPose field {field} contains non-finite values"
+            )));
+        }
+        if !(0.0..=1.0).contains(&confidence) {
+            return Err(AtelierError::Validation(format!(
+                "Posekit OpenPose field {field} confidence must be in 0..=1"
+            )));
+        }
+        if confidence <= 0.0 {
+            continue;
+        }
+        if x < 0.0
+            || y < 0.0
+            || x > POSEKIT_OPENPOSE_EXPORT_WIDTH as f32
+            || y > POSEKIT_OPENPOSE_EXPORT_HEIGHT as f32
+        {
+            return Err(AtelierError::Validation(format!(
+                "Posekit OpenPose field {field} has a visible point outside the export canvas"
+            )));
+        }
+        visible += 1;
+    }
+    Ok(visible)
+}
+
+fn round_posekit_coordinate(value: f32) -> f64 {
+    ((value as f64) * 10.0).round() / 10.0
+}
+
+fn round_posekit_confidence(value: f32) -> f64 {
+    ((value as f64) * 100.0).round() / 100.0
 }
 
 fn posekit_pose_center(yaw_deg: f32, pitch_deg: f32) -> (f32, f32) {

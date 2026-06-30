@@ -60,9 +60,20 @@ use handshake_native::atelier_panel::{
     ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID, ATELIER_POSE_BODY_TOGGLE_AUTHOR_ID,
     ATELIER_POSE_EXPORT_AUTHOR_ID, ATELIER_POSE_EXPORT_PREVIEW_AUTHOR_ID,
     ATELIER_POSE_EXPORT_REF_AUTHOR_ID, ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID,
-    ATELIER_POSE_FACE_TOGGLE_AUTHOR_ID, ATELIER_POSE_HANDS_TOGGLE_AUTHOR_ID,
-    ATELIER_POSE_OPENPOSE_VIEWPORT_AUTHOR_ID, ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID,
-    ATELIER_POSE_RESET_AUTHOR_ID, ATELIER_POSE_RIG_ID_AUTHOR_ID, ATELIER_POSE_SOURCE_REF_AUTHOR_ID,
+    ATELIER_POSE_FACE_TOGGLE_AUTHOR_ID, ATELIER_POSE_FRAMING_LENS_AUTHOR_ID,
+    ATELIER_POSE_FRAMING_PADDING_BOTTOM_AUTHOR_ID, ATELIER_POSE_FRAMING_PADDING_LEFT_AUTHOR_ID,
+    ATELIER_POSE_FRAMING_PADDING_RIGHT_AUTHOR_ID, ATELIER_POSE_FRAMING_PADDING_TOP_AUTHOR_ID,
+    ATELIER_POSE_FRAMING_PRESET_AUTHOR_ID, ATELIER_POSE_FRAMING_READOUT_AUTHOR_ID,
+    ATELIER_POSE_HANDS_TOGGLE_AUTHOR_ID, ATELIER_POSE_MARKER_ADD_AUTHOR_ID,
+    ATELIER_POSE_MARKER_APPLY_AUTHOR_ID, ATELIER_POSE_MARKER_CONFIDENCE_AUTHOR_ID,
+    ATELIER_POSE_MARKER_FAMILY_AUTHOR_ID, ATELIER_POSE_MARKER_INDEX_AUTHOR_ID,
+    ATELIER_POSE_MARKER_NUDGE_DOWN_AUTHOR_ID, ATELIER_POSE_MARKER_NUDGE_LEFT_AUTHOR_ID,
+    ATELIER_POSE_MARKER_NUDGE_RIGHT_AUTHOR_ID, ATELIER_POSE_MARKER_NUDGE_UP_AUTHOR_ID,
+    ATELIER_POSE_MARKER_REMOVE_AUTHOR_ID, ATELIER_POSE_MARKER_RESET_AUTHOR_ID,
+    ATELIER_POSE_MARKER_STATUS_AUTHOR_ID, ATELIER_POSE_MARKER_X_AUTHOR_ID,
+    ATELIER_POSE_MARKER_Y_AUTHOR_ID, ATELIER_POSE_OPENPOSE_VIEWPORT_AUTHOR_ID,
+    ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID, ATELIER_POSE_RESET_AUTHOR_ID,
+    ATELIER_POSE_RIG_ID_AUTHOR_ID, ATELIER_POSE_SOURCE_REF_AUTHOR_ID,
     ATELIER_POSE_SPLIT_VIEW_AUTHOR_ID, ATELIER_POSE_STATE_READOUT_AUTHOR_ID,
     ATELIER_POSE_YAW_MINUS_AUTHOR_ID, ATELIER_POSE_YAW_PLUS_AUTHOR_ID,
     ATELIER_POSE_YAW_SLIDER_AUTHOR_ID, ATELIER_POSE_ZOOM_SLIDER_AUTHOR_ID,
@@ -2093,5 +2104,275 @@ fn posekit_split_view_rotation_export_is_argus_inspectable() {
         &mut harness,
         "wp-ckc-posekit-overhaul-mt-014",
         "posekit_split_export_desktop.png",
+    );
+}
+
+#[test]
+fn posekit_marker_editing_and_framing_controls_are_argus_steerable() {
+    let mut harness = build_panel_harness();
+    harness.run();
+
+    let mut channel = ActionChannel::new();
+    let tab_click = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_TAB_POSEKIT_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &snapshot_harness(&mut harness),
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(tab_click.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+
+    let initial = snapshot_harness(&mut harness);
+    for expected in [
+        ATELIER_POSE_MARKER_FAMILY_AUTHOR_ID,
+        ATELIER_POSE_MARKER_INDEX_AUTHOR_ID,
+        ATELIER_POSE_MARKER_X_AUTHOR_ID,
+        ATELIER_POSE_MARKER_Y_AUTHOR_ID,
+        ATELIER_POSE_MARKER_CONFIDENCE_AUTHOR_ID,
+        ATELIER_POSE_MARKER_APPLY_AUTHOR_ID,
+        ATELIER_POSE_MARKER_ADD_AUTHOR_ID,
+        ATELIER_POSE_MARKER_REMOVE_AUTHOR_ID,
+        ATELIER_POSE_MARKER_RESET_AUTHOR_ID,
+        ATELIER_POSE_MARKER_NUDGE_LEFT_AUTHOR_ID,
+        ATELIER_POSE_MARKER_NUDGE_RIGHT_AUTHOR_ID,
+        ATELIER_POSE_MARKER_NUDGE_UP_AUTHOR_ID,
+        ATELIER_POSE_MARKER_NUDGE_DOWN_AUTHOR_ID,
+        ATELIER_POSE_MARKER_STATUS_AUTHOR_ID,
+        ATELIER_POSE_FRAMING_PRESET_AUTHOR_ID,
+        ATELIER_POSE_FRAMING_LENS_AUTHOR_ID,
+        ATELIER_POSE_FRAMING_PADDING_TOP_AUTHOR_ID,
+        ATELIER_POSE_FRAMING_PADDING_RIGHT_AUTHOR_ID,
+        ATELIER_POSE_FRAMING_PADDING_BOTTOM_AUTHOR_ID,
+        ATELIER_POSE_FRAMING_PADDING_LEFT_AUTHOR_ID,
+        ATELIER_POSE_FRAMING_READOUT_AUTHOR_ID,
+    ] {
+        assert!(
+            initial.find_by_author_id(expected).is_some(),
+            "Posekit MT-015 control must expose stable Argus author id {expected}"
+        );
+    }
+
+    for (target, value) in [
+        (ATELIER_POSE_MARKER_FAMILY_AUTHOR_ID, "face"),
+        (ATELIER_POSE_MARKER_INDEX_AUTHOR_ID, "12"),
+        (ATELIER_POSE_MARKER_X_AUTHOR_ID, "321"),
+        (ATELIER_POSE_MARKER_Y_AUTHOR_ID, "222"),
+        (ATELIER_POSE_MARKER_CONFIDENCE_AUTHOR_ID, "0.87"),
+        (ATELIER_POSE_FRAMING_PRESET_AUTHOR_ID, "full_body_with_feet"),
+        (ATELIER_POSE_FRAMING_LENS_AUTHOR_ID, "24"),
+        (ATELIER_POSE_FRAMING_PADDING_BOTTOM_AUTHOR_ID, "96"),
+    ] {
+        let set = dispatch_request(
+            &argus_req(
+                "argus.set_value",
+                serde_json::json!({ "target": target, "value": value }),
+            ),
+            &argus_token(),
+            &snapshot_harness(&mut harness),
+            &mut channel,
+            || Err(ScreenshotError("not used".to_owned())),
+        );
+        assert_eq!(set.to_json()["result"]["queued"], true);
+        for event in channel.drain_into_events() {
+            harness.event(event);
+        }
+        harness.run();
+    }
+
+    let apply = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_POSE_MARKER_APPLY_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &snapshot_harness(&mut harness),
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(apply.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+
+    let export = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_POSE_EXPORT_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &snapshot_harness(&mut harness),
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(export.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+
+    let exported = snapshot_harness(&mut harness);
+    let marker_status = exported
+        .find_by_author_id(ATELIER_POSE_MARKER_STATUS_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("marker status");
+    assert!(marker_status.contains("Applied marker edit face[12]"));
+    let framing = exported
+        .find_by_author_id(ATELIER_POSE_FRAMING_READOUT_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("framing readout");
+    assert!(framing.contains("full_body_with_feet"));
+    assert!(framing.contains("lens_mm=24"));
+    assert!(framing.contains("bottom=96"));
+    let preview = exported
+        .find_by_author_id(ATELIER_POSE_EXPORT_PREVIEW_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("Posekit MT-015 export preview");
+    assert!(preview.contains("\"marker_edits\""));
+    assert!(preview.contains("\"family\":\"face\""));
+    assert!(preview.contains("\"index\":12"));
+    assert!(preview.contains("\"x\":321.0") || preview.contains("\"x\":321"));
+    assert!(preview.contains("\"confidence\":0.87"));
+    assert!(preview.contains("\"preset\":\"full_body_with_feet\""));
+    assert!(preview.contains("\"lens_mm\":24"));
+    assert!(preview.contains("\"padding_bottom_px\":96"));
+
+    let baseline_preview = preview.to_owned();
+    let bad_confidence = dispatch_request(
+        &argus_req(
+            "argus.set_value",
+            serde_json::json!({ "target": ATELIER_POSE_MARKER_CONFIDENCE_AUTHOR_ID, "value": "1.4" }),
+        ),
+        &argus_token(),
+        &exported,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(bad_confidence.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    let bad_apply = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_POSE_MARKER_APPLY_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &snapshot_harness(&mut harness),
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(bad_apply.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    let failed = snapshot_harness(&mut harness);
+    let failed_status = failed
+        .find_by_author_id(ATELIER_POSE_MARKER_STATUS_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("failed marker status");
+    assert!(failed_status.contains("rejected"));
+    let after_failed_preview = failed
+        .find_by_author_id(ATELIER_POSE_EXPORT_PREVIEW_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("Posekit preview after failed edit");
+    assert_eq!(after_failed_preview, baseline_preview);
+}
+
+#[test]
+fn posekit_disabled_layer_warning_is_argus_visible() {
+    let mut harness = build_panel_harness();
+    harness.run();
+
+    let mut channel = ActionChannel::new();
+    let tab_click = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_TAB_POSEKIT_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &snapshot_harness(&mut harness),
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(tab_click.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+
+    for (target, value) in [
+        (ATELIER_POSE_MARKER_FAMILY_AUTHOR_ID, "face"),
+        (ATELIER_POSE_MARKER_INDEX_AUTHOR_ID, "12"),
+        (ATELIER_POSE_MARKER_X_AUTHOR_ID, "321"),
+        (ATELIER_POSE_MARKER_Y_AUTHOR_ID, "222"),
+        (ATELIER_POSE_MARKER_CONFIDENCE_AUTHOR_ID, "0.87"),
+    ] {
+        let set = dispatch_request(
+            &argus_req(
+                "argus.set_value",
+                serde_json::json!({ "target": target, "value": value }),
+            ),
+            &argus_token(),
+            &snapshot_harness(&mut harness),
+            &mut channel,
+            || Err(ScreenshotError("not used".to_owned())),
+        );
+        assert_eq!(set.to_json()["result"]["queued"], true);
+        for event in channel.drain_into_events() {
+            harness.event(event);
+        }
+        harness.run();
+    }
+
+    let apply = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_POSE_MARKER_APPLY_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &snapshot_harness(&mut harness),
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(apply.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+
+    let face_toggle = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_POSE_FACE_TOGGLE_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &snapshot_harness(&mut harness),
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(face_toggle.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+
+    let after_toggle = snapshot_harness(&mut harness);
+    let marker_status = after_toggle
+        .find_by_author_id(ATELIER_POSE_MARKER_STATUS_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("marker status after disabling face layer");
+    assert!(
+        marker_status.contains("disabled face layer"),
+        "Argus-visible marker status must warn about stale disabled-layer edits; got {marker_status}"
     );
 }

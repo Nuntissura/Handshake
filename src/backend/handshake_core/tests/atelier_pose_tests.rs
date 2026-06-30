@@ -28,9 +28,10 @@ use handshake_core::atelier::pose::{
     NewPoseWorkspaceRouteTarget, PoseContextKind, PoseOpenPoseSidecarStripItem, PoseRig,
     PoseSidecarGalleryProjection, PoseSidecarKind, PoseSidecarStatus, PoseSourceImageStripItem,
     PoseWorkspaceKeyboardAction, PoseWorkspaceKeyboardActionRequest, PoseWorkspaceRigState,
-    PosekitOpenPoseExportRequest, UpdateIdentityProfile, BODY_KEYPOINT_COUNT, FACE_KEYPOINT_COUNT,
-    HAND_KEYPOINT_COUNT, POSEKIT_OPENPOSE_EXPORT_HEIGHT, POSEKIT_OPENPOSE_EXPORT_SCHEMA_ID,
-    POSEKIT_OPENPOSE_EXPORT_WIDTH,
+    PosekitExportFraming, PosekitFramingPreset, PosekitMarkerEdit, PosekitMarkerEditAction,
+    PosekitMarkerFamily, PosekitOpenPoseExportRequest, UpdateIdentityProfile, BODY_KEYPOINT_COUNT,
+    FACE_KEYPOINT_COUNT, HAND_KEYPOINT_COUNT, POSEKIT_OPENPOSE_EXPORT_HEIGHT,
+    POSEKIT_OPENPOSE_EXPORT_SCHEMA_ID, POSEKIT_OPENPOSE_EXPORT_WIDTH,
 };
 use handshake_core::atelier::{AtelierStore, NewCharacter, NewMediaAsset};
 use handshake_core::storage::artifacts::{
@@ -86,6 +87,8 @@ fn posekit_export_request(yaw_deg: f32) -> PosekitOpenPoseExportRequest {
         include_face: true,
         include_body: true,
         include_hands: true,
+        marker_edits: Vec::new(),
+        framing: PosekitExportFraming::default(),
     }
 }
 
@@ -400,6 +403,156 @@ fn posekit_openpose_export_rejects_invisible_or_invalid_requests() {
         generate_posekit_openpose_export(&nan_yaw).is_err(),
         "NaN yaw must be rejected"
     );
+}
+
+#[test]
+fn posekit_marker_edits_apply_to_export_and_fail_closed() {
+    let mut edited = posekit_export_request(0.0);
+    edited.marker_edits.push(PosekitMarkerEdit {
+        family: PosekitMarkerFamily::Face,
+        index: 12,
+        action: PosekitMarkerEditAction::Set,
+        x: Some(321.0),
+        y: Some(222.0),
+        confidence: Some(0.87),
+    });
+    let export = generate_posekit_openpose_export(&edited)
+        .expect("facial marker placement edit should produce an export");
+    assert_eq!(export.applied_marker_edit_count, 1);
+    assert_eq!(
+        export.openpose_json["pose_state"]["marker_edits"][0]["family"],
+        serde_json::json!("face")
+    );
+    let face = export.openpose_json["people"][0]["face_keypoints_2d"]
+        .as_array()
+        .expect("face keypoints");
+    let offset = 12 * 3;
+    assert_eq!(face[offset], serde_json::json!(321.0));
+    assert_eq!(face[offset + 1], serde_json::json!(222.0));
+    assert_eq!(face[offset + 2], serde_json::json!(0.87));
+
+    let mut removed = posekit_export_request(0.0);
+    removed.marker_edits.push(PosekitMarkerEdit {
+        family: PosekitMarkerFamily::Body,
+        index: 10,
+        action: PosekitMarkerEditAction::Remove,
+        x: None,
+        y: None,
+        confidence: None,
+    });
+    let removed_export = generate_posekit_openpose_export(&removed)
+        .expect("body marker removal should zero one marker without changing cardinality");
+    let body = removed_export.openpose_json["people"][0]["pose_keypoints_2d"]
+        .as_array()
+        .expect("body keypoints");
+    assert_eq!(body.len(), BODY_KEYPOINT_COUNT * 3);
+    assert_eq!(body[30], serde_json::json!(0.0));
+    assert_eq!(body[31], serde_json::json!(0.0));
+    assert_eq!(body[32], serde_json::json!(0.0));
+
+    let mut keypoints = valid_keypoints();
+    keypoints["people"][0]["pose_keypoints_2d"][0] = serde_json::json!(120.0);
+    keypoints["people"][0]["pose_keypoints_2d"][1] = serde_json::json!(420.0);
+    keypoints["people"][0]["pose_keypoints_2d"][2] = serde_json::json!(0.9);
+    keypoints["people"][0]["pose_keypoints_2d"][3] = serde_json::json!(180.0);
+    keypoints["people"][0]["pose_keypoints_2d"][4] = serde_json::json!(420.0);
+    keypoints["people"][0]["pose_keypoints_2d"][5] = serde_json::json!(0.9);
+    keypoints["people"][0]["hand_left_keypoints_2d"][6] = serde_json::json!(0.0);
+    keypoints["people"][0]["hand_left_keypoints_2d"][7] = serde_json::json!(0.0);
+    keypoints["people"][0]["hand_left_keypoints_2d"][8] = serde_json::json!(0.0);
+    let mut add_hand = posekit_export_request(0.0);
+    add_hand.marker_edits.push(PosekitMarkerEdit {
+        family: PosekitMarkerFamily::LeftHand,
+        index: 2,
+        action: PosekitMarkerEditAction::Add,
+        x: Some(280.0),
+        y: Some(380.0),
+        confidence: Some(0.72),
+    });
+    let add_export = generate_posekit_openpose_export_from_keypoints(&add_hand, &keypoints)
+        .expect("add marker should fill a zero slot without changing OpenPose cardinality");
+    let left_hand = add_export.openpose_json["people"][0]["hand_left_keypoints_2d"]
+        .as_array()
+        .expect("left hand keypoints");
+    assert_eq!(left_hand[6], serde_json::json!(280.0));
+    assert_eq!(left_hand[7], serde_json::json!(380.0));
+    assert_eq!(left_hand[8], serde_json::json!(0.72));
+
+    let mut invalid_index = posekit_export_request(0.0);
+    invalid_index.marker_edits.push(PosekitMarkerEdit {
+        family: PosekitMarkerFamily::Face,
+        index: FACE_KEYPOINT_COUNT,
+        action: PosekitMarkerEditAction::Set,
+        x: Some(20.0),
+        y: Some(20.0),
+        confidence: Some(0.9),
+    });
+    assert!(
+        generate_posekit_openpose_export(&invalid_index).is_err(),
+        "invalid marker index must fail closed before corrupting output"
+    );
+
+    let mut bad_confidence = posekit_export_request(0.0);
+    bad_confidence.marker_edits.push(PosekitMarkerEdit {
+        family: PosekitMarkerFamily::Face,
+        index: 1,
+        action: PosekitMarkerEditAction::Set,
+        x: Some(20.0),
+        y: Some(20.0),
+        confidence: Some(1.4),
+    });
+    assert!(
+        generate_posekit_openpose_export(&bad_confidence).is_err(),
+        "invalid confidence must fail closed before rendering"
+    );
+}
+
+#[test]
+fn posekit_framing_metadata_changes_pixels_and_keeps_points_visible() {
+    let base = generate_posekit_openpose_export(&posekit_export_request(0.0))
+        .expect("base Posekit export");
+    let mut framed = posekit_export_request(0.0);
+    framed.framing = PosekitExportFraming {
+        preset: PosekitFramingPreset::FullBodyWithFeet,
+        lens_mm: 24,
+        padding_top_px: 48,
+        padding_right_px: 32,
+        padding_bottom_px: 96,
+        padding_left_px: 32,
+    };
+    let export = generate_posekit_openpose_export(&framed)
+        .expect("framed Posekit export should produce nonblank output");
+
+    assert_ne!(base.openpose_png_sha256, export.openpose_png_sha256);
+    assert_eq!(export.framing, framed.framing);
+    assert_eq!(
+        export.openpose_json["pose_state"]["framing"]["preset"],
+        serde_json::json!("full_body_with_feet")
+    );
+    assert_eq!(
+        export.openpose_json["pose_state"]["framing"]["padding_bottom_px"],
+        serde_json::json!(96)
+    );
+
+    let body = export.openpose_json["people"][0]["pose_keypoints_2d"]
+        .as_array()
+        .expect("body keypoints");
+    let visible_points = body
+        .chunks(3)
+        .filter_map(|triple| {
+            let x = triple[0].as_f64()?;
+            let y = triple[1].as_f64()?;
+            let confidence = triple[2].as_f64()?;
+            (confidence > 0.0).then_some((x, y))
+        })
+        .collect::<Vec<_>>();
+    assert!(!visible_points.is_empty());
+    assert!(visible_points.iter().all(|(x, y)| {
+        *x >= 32.0
+            && *x <= (POSEKIT_OPENPOSE_EXPORT_WIDTH - 32) as f64
+            && *y >= 48.0
+            && *y <= (POSEKIT_OPENPOSE_EXPORT_HEIGHT - 96) as f64
+    }));
 }
 
 #[tokio::test]

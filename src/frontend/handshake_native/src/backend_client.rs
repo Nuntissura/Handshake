@@ -5539,7 +5539,9 @@ pub struct AtelierPosekitExportRow {
     pub yaw_deg: i32,
     pub pitch_deg: i32,
     pub zoom_percent: i32,
+    pub framing: serde_json::Value,
     pub marker_layers: AtelierPosekitMarkerLayersRow,
+    pub applied_marker_edit_count: usize,
     pub width: i32,
     pub height: i32,
     pub openpose_json: serde_json::Value,
@@ -5969,6 +5971,8 @@ impl AtelierClient {
         include_body: bool,
         include_hands: bool,
         rig_id: Option<&str>,
+        marker_edits: &[serde_json::Value],
+        framing: &serde_json::Value,
         actor_id: &str,
     ) -> ActorRequestSpec {
         ActorRequestSpec {
@@ -5983,6 +5987,8 @@ impl AtelierClient {
                 "include_face": include_face,
                 "include_body": include_body,
                 "include_hands": include_hands,
+                "marker_edits": marker_edits,
+                "framing": framing,
             })),
             headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
         }
@@ -7110,6 +7116,8 @@ impl AtelierClient {
         include_body: bool,
         include_hands: bool,
         rig_id: Option<&str>,
+        marker_edits: Vec<serde_json::Value>,
+        framing: serde_json::Value,
         actor_id: &str,
         request_id: u64,
         cell: AtelierPosekitExportCell,
@@ -7123,6 +7131,8 @@ impl AtelierClient {
             include_body,
             include_hands,
             rig_id,
+            &marker_edits,
+            &framing,
             actor_id,
         );
         let client = self.client.clone();
@@ -8172,7 +8182,11 @@ fn parse_atelier_posekit_export_row(row: &serde_json::Value) -> Option<AtelierPo
         yaw_deg: row.get("yaw_deg").and_then(|value| value.as_i64())? as i32,
         pitch_deg: row.get("pitch_deg").and_then(|value| value.as_i64())? as i32,
         zoom_percent: row.get("zoom_percent").and_then(|value| value.as_i64())? as i32,
+        framing: row.get("framing")?.clone(),
         marker_layers: parse_atelier_posekit_marker_layers_row(row.get("marker_layers")?)?,
+        applied_marker_edit_count: row
+            .get("applied_marker_edit_count")
+            .and_then(|value| value.as_u64())? as usize,
         width: row.get("width").and_then(|value| value.as_i64())? as i32,
         height: row.get("height").and_then(|value| value.as_i64())? as i32,
         openpose_json: row.get("openpose_json")?.clone(),
@@ -8350,6 +8364,22 @@ mod tests {
             true,
             false,
             Some("018f7848-1111-7000-9000-00000000f014"),
+            &[serde_json::json!({
+                "family": "face",
+                "index": 12,
+                "action": "set",
+                "x": 321.0,
+                "y": 222.0,
+                "confidence": 0.87
+            })],
+            &serde_json::json!({
+                "preset": "full_body_with_feet",
+                "lens_mm": 24,
+                "padding_top_px": 48,
+                "padding_right_px": 32,
+                "padding_bottom_px": 96,
+                "padding_left_px": 32
+            }),
             c.actor_id(),
         );
         assert_eq!(spec.method, HttpMethod::Post);
@@ -8370,6 +8400,79 @@ mod tests {
         assert_eq!(body["include_face"], true);
         assert_eq!(body["include_body"], true);
         assert_eq!(body["include_hands"], false);
+        assert_eq!(body["marker_edits"][0]["family"], "face");
+        assert_eq!(body["marker_edits"][0]["index"], 12);
+        assert_eq!(body["marker_edits"][0]["confidence"], 0.87);
+        assert_eq!(body["framing"]["preset"], "full_body_with_feet");
+        assert_eq!(body["framing"]["lens_mm"], 24);
+        assert_eq!(body["framing"]["padding_bottom_px"], 96);
+    }
+
+    #[test]
+    fn atelier_posekit_export_parser_requires_marker_edit_and_framing_metadata() {
+        let artifact = serde_json::json!({
+            "artifact_ref": "artifact://posekit/openpose.png",
+            "manifest_ref": "artifact://posekit/openpose.png/manifest",
+            "content_hash": "hash-1",
+            "byte_len": 42,
+            "mime": "image/png",
+            "file_name": "openpose.png"
+        });
+        let row = serde_json::json!({
+            "schema_id": "hsk.atelier.posekit.openpose_export@1",
+            "source_ref": "atelier://media/source.png",
+            "rig_id": null,
+            "yaw_deg": 15,
+            "pitch_deg": 0,
+            "zoom_percent": 100,
+            "framing": {
+                "preset": "standard",
+                "lens_mm": 50,
+                "padding_top_px": 0,
+                "padding_right_px": 0,
+                "padding_bottom_px": 0,
+                "padding_left_px": 0
+            },
+            "marker_layers": {
+                "face": true,
+                "body": true,
+                "hands": false
+            },
+            "applied_marker_edit_count": 1,
+            "width": 768,
+            "height": 768,
+            "openpose_json": {"people": []},
+            "openpose_json_sha256": "json-sha",
+            "openpose_png_sha256": "png-sha",
+            "content_hash": "export-hash",
+            "receipt_ref": "artifact://posekit/receipt.json",
+            "openpose_png_artifact": artifact.clone(),
+            "openpose_json_artifact": artifact
+        });
+
+        let parsed = parse_atelier_posekit_export_row(&row).expect("complete posekit export row");
+        assert_eq!(parsed.framing["lens_mm"], 50);
+        assert_eq!(parsed.applied_marker_edit_count, 1);
+
+        let mut missing_framing = row.clone();
+        missing_framing
+            .as_object_mut()
+            .expect("row object")
+            .remove("framing");
+        assert!(
+            parse_atelier_posekit_export_row(&missing_framing).is_none(),
+            "framing is a required response contract field"
+        );
+
+        let mut missing_applied_count = row;
+        missing_applied_count
+            .as_object_mut()
+            .expect("row object")
+            .remove("applied_marker_edit_count");
+        assert!(
+            parse_atelier_posekit_export_row(&missing_applied_count).is_none(),
+            "applied_marker_edit_count is a required response contract field"
+        );
     }
 
     #[test]
