@@ -403,10 +403,20 @@ separate from sheet notes, album notes, and image notes: edit atelier-ckc-tag-no
 atelier-ckc-tag-note-scope, and atelier-ckc-tag-note-editor, then click atelier-ckc-tag-note-save. The \
 native backend routes are POST /atelier/ckc/search and POST /atelier/ckc/tag-notes; tag-note writes \
 require x-hsk-actor-id. \
-Posekit starts from atelier-content-posekit and exposes model-addressable controls for the current \
-placeholder split-view workflow: atelier-pose-yaw-minus, atelier-pose-yaw-plus, atelier-pose-reset, \
-atelier-pose-face-toggle, atelier-pose-body-toggle, atelier-pose-hands-toggle, \
-atelier-pose-yaw-slider, atelier-pose-pitch-slider, and atelier-pose-zoom-slider. Ingest starts from \
+Posekit starts from atelier-content-posekit and is the native OpenRepose-style split-view workflow. \
+Set or inspect atelier-pose-source-ref and atelier-pose-rig-id first, then inspect atelier-pose-state-readout and atelier-pose-split-view; the \
+left viewport is atelier-pose-3d-viewport and the OpenPose output viewport is \
+atelier-pose-openpose-viewport. Drive rotation with atelier-pose-yaw-minus, atelier-pose-yaw-plus, \
+atelier-pose-reset, atelier-pose-yaw-slider, atelier-pose-pitch-slider, and atelier-pose-zoom-slider; \
+toggle exported marker layers with atelier-pose-face-toggle, atelier-pose-body-toggle, and \
+atelier-pose-hands-toggle. Export with atelier-pose-export-openpose, then inspect \
+atelier-pose-export-status, atelier-pose-export-ref, and atelier-pose-export-preview. The native Rust \
+generator contract is hsk.atelier.posekit.openpose_export@1: image/png plus OpenPose JSON with body 18, \
+face 70, and hand 21 keypoint arrays, source_ref provenance, rig_id lineage, content_hash, artifact_ref, and \
+backend ArtifactStore receipt JSON metadata. No-backend harnesses expose preview://atelier/posekit/openpose/.../receipt \
+metadata only. Use argus.inspect on viewport/control IDs and \
+argus.screenshot{} for a full-frame visual proof; screenshot target cropping is not supported yet. Both \
+paths must be headless/non-intrusive: no foreground window, no keyboard capture, no mouse steal. Ingest starts from \
 atelier-content-ingest and exposes review controls atelier-ingest-pass, atelier-ingest-reject, \
 atelier-ingest-unsure, and atelier-ingest-batch-tags.\n\
 \n\
@@ -1114,6 +1124,130 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         mcp_tool: "argus.inspect",
         description: "argus.inspect reads atelier-ckc-moodboard-canvas for native moodboard state.",
     });
+    for (author_id, action_label, mcp_tool, description) in [
+        (
+            crate::atelier_panel::ATELIER_POSE_SOURCE_REF_AUTHOR_ID,
+            "Set the Posekit source image ref",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-pose-source-ref', value:'atelier://media/...'} sets the source image reference.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_RIG_ID_AUTHOR_ID,
+            "Set the Posekit stored rig id",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-pose-rig-id', value:'018f...'} binds export to a stored atelier_pose_rig; leave blank for procedural preview/export.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_STATE_READOUT_AUTHOR_ID,
+            "Inspect Posekit state",
+            "argus.inspect",
+            "argus.inspect reads source_ref, rig_id, yaw, pitch, zoom, and marker-layer state.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_SPLIT_VIEW_AUTHOR_ID,
+            "Inspect the Posekit split view",
+            "argus.inspect",
+            "argus.inspect confirms the rig/source preview and OpenPose viewport are present together.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID,
+            "Inspect the Posekit rig/source viewport",
+            "argus.inspect",
+            "argus.inspect confirms atelier-pose-3d-viewport is present as the rig/source preview and exposes source_ref/rig_id lineage; pair with argus.screenshot{} for full-frame proof.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_OPENPOSE_VIEWPORT_AUTHOR_ID,
+            "Inspect the Posekit OpenPose viewport",
+            "argus.inspect",
+            "argus.inspect confirms atelier-pose-openpose-viewport is present; pair with argus.screenshot{} for full-frame proof.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_YAW_MINUS_AUTHOR_ID,
+            "Rotate Posekit yaw left",
+            "argus.click",
+            "argus.click{target:'atelier-pose-yaw-minus'} rotates the pose preview left.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_YAW_PLUS_AUTHOR_ID,
+            "Rotate Posekit yaw right",
+            "argus.click",
+            "argus.click{target:'atelier-pose-yaw-plus'} rotates the pose preview right.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_RESET_AUTHOR_ID,
+            "Reset Posekit pose",
+            "argus.click",
+            "argus.click{target:'atelier-pose-reset'} restores yaw, pitch, zoom, and default marker layers.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_FACE_TOGGLE_AUTHOR_ID,
+            "Toggle Posekit face markers",
+            "argus.click",
+            "argus.click{target:'atelier-pose-face-toggle'} includes or hides face markers.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_BODY_TOGGLE_AUTHOR_ID,
+            "Toggle Posekit body markers",
+            "argus.click",
+            "argus.click{target:'atelier-pose-body-toggle'} includes or hides body markers.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_HANDS_TOGGLE_AUTHOR_ID,
+            "Toggle Posekit hand markers",
+            "argus.click",
+            "argus.click{target:'atelier-pose-hands-toggle'} includes or hides hand markers.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_YAW_SLIDER_AUTHOR_ID,
+            "Set Posekit yaw",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-pose-yaw-slider', value:'90'} sets yaw for the next OpenPose render.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID,
+            "Set Posekit pitch",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-pose-pitch-slider', value:'0'} sets pitch for the next OpenPose render.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_ZOOM_SLIDER_AUTHOR_ID,
+            "Set Posekit zoom",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-pose-zoom-slider', value:'1.0'} sets render zoom for the next OpenPose export.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_EXPORT_AUTHOR_ID,
+            "Export Posekit OpenPose",
+            "argus.click",
+            "argus.click{target:'atelier-pose-export-openpose'} dispatches the backend OpenPose export when connected; no-backend harnesses expose preview:// metadata only.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID,
+            "Inspect Posekit export status",
+            "argus.inspect",
+            "argus.inspect reads whether the latest OpenPose export succeeded and which yaw it used.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_EXPORT_REF_AUTHOR_ID,
+            "Inspect Posekit artifact refs",
+            "argus.inspect",
+            "argus.inspect reads artifact_ref, receipt_ref, and content_hash for the latest OpenPose export; backend receipt_ref is an ArtifactStore JSON payload, while no-backend preview uses preview://.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_POSE_EXPORT_PREVIEW_AUTHOR_ID,
+            "Inspect Posekit export preview",
+            "argus.inspect",
+            "argus.inspect reads the hsk.atelier.posekit.openpose_export@1 preview payload.",
+        ),
+    ] {
+        rows.push(AgentToolRow {
+            author_id,
+            surface: ManualSurface::Interop,
+            action_label,
+            mcp_tool,
+            description,
+        });
+    }
 
     // ── Code editor: every CODE_ACTION_CATALOG entry as editor.code.<action> ─────────────────────────
     // Both momentary Buttons and ToggleButtons are ACTIVATED by a click (a toggle carries its toggled

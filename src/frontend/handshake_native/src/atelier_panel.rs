@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use egui::accesskit;
+use sha2::{Digest, Sha256};
 
 use crate::atelier_side_panel::AtelierSidePanel;
 use crate::backend_client::{
@@ -20,7 +21,8 @@ use crate::backend_client::{
     AtelierCkcSearchCell, AtelierCkcSearchResponse, AtelierCkcSearchResultRow,
     AtelierCkcStoryBeatCell, AtelierCkcStoryBeatRow, AtelierCkcStoryCardCell,
     AtelierCkcStoryCardRow, AtelierCkcTagNoteCell, AtelierCkcTagNoteRow, AtelierCkcTemplateCell,
-    AtelierClient, AtelierSheetExportRow, AtelierSheetFieldSuggestionRow, AtelierSheetVersionRow,
+    AtelierClient, AtelierPosekitExportCell, AtelierPosekitExportRow, AtelierSheetExportRow,
+    AtelierSheetFieldSuggestionRow, AtelierSheetVersionRow,
 };
 use crate::editor_pane_factories::SharedPalette;
 use crate::graph::canvas_board::{
@@ -135,6 +137,16 @@ pub const ATELIER_POSE_HANDS_TOGGLE_AUTHOR_ID: &str = "atelier-pose-hands-toggle
 pub const ATELIER_POSE_YAW_SLIDER_AUTHOR_ID: &str = "atelier-pose-yaw-slider";
 pub const ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID: &str = "atelier-pose-pitch-slider";
 pub const ATELIER_POSE_ZOOM_SLIDER_AUTHOR_ID: &str = "atelier-pose-zoom-slider";
+pub const ATELIER_POSE_SOURCE_REF_AUTHOR_ID: &str = "atelier-pose-source-ref";
+pub const ATELIER_POSE_RIG_ID_AUTHOR_ID: &str = "atelier-pose-rig-id";
+pub const ATELIER_POSE_STATE_READOUT_AUTHOR_ID: &str = "atelier-pose-state-readout";
+pub const ATELIER_POSE_SPLIT_VIEW_AUTHOR_ID: &str = "atelier-pose-split-view";
+pub const ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID: &str = "atelier-pose-3d-viewport";
+pub const ATELIER_POSE_OPENPOSE_VIEWPORT_AUTHOR_ID: &str = "atelier-pose-openpose-viewport";
+pub const ATELIER_POSE_EXPORT_AUTHOR_ID: &str = "atelier-pose-export-openpose";
+pub const ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID: &str = "atelier-pose-export-status";
+pub const ATELIER_POSE_EXPORT_REF_AUTHOR_ID: &str = "atelier-pose-export-ref";
+pub const ATELIER_POSE_EXPORT_PREVIEW_AUTHOR_ID: &str = "atelier-pose-export-preview";
 pub const ATELIER_INGEST_PASS_AUTHOR_ID: &str = "atelier-ingest-pass";
 pub const ATELIER_INGEST_REJECT_AUTHOR_ID: &str = "atelier-ingest-reject";
 pub const ATELIER_INGEST_UNSURE_AUTHOR_ID: &str = "atelier-ingest-unsure";
@@ -215,6 +227,35 @@ impl CkcBookMode {
 
     fn has_middle_panel(self) -> bool {
         !matches!(self, Self::Sheet)
+    }
+}
+
+const POSEKIT_EXPORT_WIDTH: i32 = 768;
+const POSEKIT_EXPORT_HEIGHT: i32 = 768;
+const POSEKIT_BODY_KEYPOINT_COUNT: usize = 18;
+const POSEKIT_FACE_KEYPOINT_COUNT: usize = 70;
+const POSEKIT_HAND_KEYPOINT_COUNT: usize = 21;
+
+#[derive(Debug, Clone)]
+struct PosekitExportSnapshot {
+    source_ref: String,
+    rig_id: Option<String>,
+    yaw_deg: f32,
+    pitch_deg: f32,
+    zoom: f32,
+    face: bool,
+    body: bool,
+    hands: bool,
+    artifact_ref: String,
+    manifest_ref: String,
+    receipt_ref: String,
+    content_hash: String,
+    openpose_json: serde_json::Value,
+}
+
+impl PosekitExportSnapshot {
+    fn marker_layers(&self) -> String {
+        marker_layer_summary(self.face, self.body, self.hands)
     }
 }
 
@@ -1975,6 +2016,13 @@ struct AtelierPanelState {
     pose_face: bool,
     pose_body: bool,
     pose_hands: bool,
+    pose_source_ref: String,
+    pose_rig_id: String,
+    pose_export_pending: bool,
+    pose_export_request_seq: u64,
+    pose_active_export_request: Option<u64>,
+    pose_export_status: String,
+    pose_last_export: Option<PosekitExportSnapshot>,
     ingest_decision: IngestDecision,
     ingest_tag_buffer: String,
 }
@@ -2058,10 +2106,329 @@ impl Default for AtelierPanelState {
             pose_face: true,
             pose_body: true,
             pose_hands: false,
+            pose_source_ref: "atelier://media/mira-demo/pose-source.png".to_owned(),
+            pose_rig_id: String::new(),
+            pose_export_pending: false,
+            pose_export_request_seq: 0,
+            pose_active_export_request: None,
+            pose_export_status: "No Posekit OpenPose export requested.".to_owned(),
+            pose_last_export: None,
             ingest_decision: IngestDecision::Unsure,
             ingest_tag_buffer: "event, outfit, source".to_owned(),
         }
     }
+}
+
+fn posekit_state_readout(state: &AtelierPanelState) -> String {
+    let rig_id = posekit_optional_rig_id(&state.pose_rig_id).unwrap_or_else(|| "<none>".to_owned());
+    format!(
+        "source_ref={} rig_id={} yaw_deg={:.0} pitch_deg={:.0} zoom={:.2} markers={}",
+        state.pose_source_ref,
+        rig_id,
+        state.pose_yaw,
+        state.pose_pitch,
+        state.pose_zoom,
+        marker_layer_summary(state.pose_face, state.pose_body, state.pose_hands)
+    )
+}
+
+fn posekit_optional_rig_id(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_owned())
+    }
+}
+
+fn marker_layer_summary(face: bool, body: bool, hands: bool) -> String {
+    format!(
+        "face:{} body:{} hands:{}",
+        if face { "on" } else { "off" },
+        if body { "on" } else { "off" },
+        if hands { "on" } else { "off" }
+    )
+}
+
+fn posekit_export_snapshot(state: &AtelierPanelState) -> PosekitExportSnapshot {
+    let yaw = state.pose_yaw.clamp(-180.0, 180.0);
+    let pitch = state.pose_pitch.clamp(-45.0, 45.0);
+    let zoom = state.pose_zoom.clamp(0.4, 2.2);
+    let source_ref = if state.pose_source_ref.trim().is_empty() {
+        "atelier://posekit/blank-source".to_owned()
+    } else {
+        state.pose_source_ref.trim().to_owned()
+    };
+    let rig_id = posekit_optional_rig_id(&state.pose_rig_id);
+    let openpose_json = posekit_openpose_json(
+        &source_ref,
+        rig_id.as_deref(),
+        yaw,
+        pitch,
+        zoom,
+        state.pose_face,
+        state.pose_body,
+        state.pose_hands,
+    );
+    let hash_basis = format!(
+        "{}|{}|{yaw:.0}|{pitch:.0}|{zoom:.2}|{}|{}|{}|{}",
+        source_ref,
+        rig_id.as_deref().unwrap_or("<none>"),
+        state.pose_face,
+        state.pose_body,
+        state.pose_hands,
+        openpose_json
+    );
+    let content_hash = stable_posekit_hash(&hash_basis);
+    let artifact_ref = format!("preview://atelier/posekit/openpose/{content_hash}/payload");
+    let manifest_ref = format!("preview://atelier/posekit/openpose/{content_hash}/manifest");
+    let receipt_ref = format!("preview://atelier/posekit/openpose/{content_hash}/receipt");
+    PosekitExportSnapshot {
+        source_ref,
+        rig_id,
+        yaw_deg: yaw,
+        pitch_deg: pitch,
+        zoom,
+        face: state.pose_face,
+        body: state.pose_body,
+        hands: state.pose_hands,
+        artifact_ref,
+        manifest_ref,
+        receipt_ref,
+        content_hash,
+        openpose_json,
+    }
+}
+
+fn posekit_export_snapshot_from_backend(row: AtelierPosekitExportRow) -> PosekitExportSnapshot {
+    PosekitExportSnapshot {
+        source_ref: row.source_ref,
+        rig_id: row.rig_id,
+        yaw_deg: row.yaw_deg as f32,
+        pitch_deg: row.pitch_deg as f32,
+        zoom: row.zoom_percent as f32 / 100.0,
+        face: row.marker_layers.face,
+        body: row.marker_layers.body,
+        hands: row.marker_layers.hands,
+        artifact_ref: row.openpose_png_artifact.artifact_ref,
+        manifest_ref: row.openpose_png_artifact.manifest_ref,
+        receipt_ref: row.receipt_ref,
+        content_hash: row.content_hash,
+        openpose_json: row.openpose_json,
+    }
+}
+
+fn posekit_openpose_json(
+    source_ref: &str,
+    rig_id: Option<&str>,
+    yaw_deg: f32,
+    pitch_deg: f32,
+    zoom: f32,
+    face: bool,
+    body: bool,
+    hands: bool,
+) -> serde_json::Value {
+    serde_json::json!({
+        "version": 1.3,
+        "handshake_schema": "hsk.atelier.posekit.openpose_export@1",
+        "preview_only": true,
+        "source_ref": source_ref,
+        "rig_id": rig_id,
+        "canvas": {
+            "width": POSEKIT_EXPORT_WIDTH,
+            "height": POSEKIT_EXPORT_HEIGHT,
+        },
+        "pose_state": {
+            "yaw_deg": yaw_deg.round(),
+            "pitch_deg": pitch_deg.round(),
+            "zoom": ((zoom * 100.0).round() / 100.0),
+            "zoom_percent": (zoom * 100.0).round(),
+            "marker_layers": {
+                "face": face,
+                "body": body,
+                "hands": hands,
+            },
+        },
+        "people": [{
+            "pose_keypoints_2d": posekit_body_keypoints(yaw_deg, pitch_deg, zoom, body),
+            "face_keypoints_2d": posekit_face_keypoints(yaw_deg, pitch_deg, zoom, face),
+            "hand_left_keypoints_2d": posekit_hand_keypoints(yaw_deg, pitch_deg, zoom, hands, -1.0),
+            "hand_right_keypoints_2d": posekit_hand_keypoints(yaw_deg, pitch_deg, zoom, hands, 1.0),
+        }],
+    })
+}
+
+fn posekit_body_keypoints(yaw_deg: f32, pitch_deg: f32, zoom: f32, visible: bool) -> Vec<f32> {
+    if !visible {
+        return zero_keypoints(POSEKIT_BODY_KEYPOINT_COUNT);
+    }
+    let center_x = POSEKIT_EXPORT_WIDTH as f32 * 0.5 + yaw_deg / 180.0 * 72.0;
+    let center_y = POSEKIT_EXPORT_HEIGHT as f32 * 0.51 + pitch_deg / 45.0 * 42.0;
+    let scale = zoom.clamp(0.4, 2.2);
+    let yaw_bias = yaw_deg / 180.0;
+    let shoulder = 86.0 * scale * (1.0 - yaw_bias.abs() * 0.28);
+    let hip = 52.0 * scale * (1.0 - yaw_bias.abs() * 0.18);
+    let points = [
+        (center_x, center_y - 170.0 * scale, 0.95),
+        (center_x, center_y - 102.0 * scale, 0.94),
+        (center_x - shoulder, center_y - 92.0 * scale, 0.91),
+        (
+            center_x - shoulder - 54.0 * scale,
+            center_y - 34.0 * scale,
+            0.86,
+        ),
+        (
+            center_x - shoulder - 70.0 * scale,
+            center_y + 34.0 * scale,
+            0.82,
+        ),
+        (center_x + shoulder, center_y - 92.0 * scale, 0.91),
+        (
+            center_x + shoulder + 54.0 * scale,
+            center_y - 34.0 * scale,
+            0.86,
+        ),
+        (
+            center_x + shoulder + 70.0 * scale,
+            center_y + 34.0 * scale,
+            0.82,
+        ),
+        (center_x - hip, center_y + 46.0 * scale, 0.90),
+        (
+            center_x - hip - 22.0 * scale,
+            center_y + 142.0 * scale,
+            0.86,
+        ),
+        (
+            center_x - hip - 18.0 * scale,
+            center_y + 238.0 * scale,
+            0.82,
+        ),
+        (center_x + hip, center_y + 46.0 * scale, 0.90),
+        (
+            center_x + hip + 22.0 * scale,
+            center_y + 142.0 * scale,
+            0.86,
+        ),
+        (
+            center_x + hip + 18.0 * scale,
+            center_y + 238.0 * scale,
+            0.82,
+        ),
+        (
+            center_x - 18.0 * scale - yaw_bias * 8.0,
+            center_y - 180.0 * scale,
+            0.80,
+        ),
+        (
+            center_x + 18.0 * scale - yaw_bias * 8.0,
+            center_y - 180.0 * scale,
+            0.80,
+        ),
+        (
+            center_x - 42.0 * scale - yaw_bias * 10.0,
+            center_y - 164.0 * scale,
+            0.76,
+        ),
+        (
+            center_x + 42.0 * scale - yaw_bias * 10.0,
+            center_y - 164.0 * scale,
+            0.76,
+        ),
+    ];
+    flatten_keypoints(&points)
+}
+
+fn posekit_face_keypoints(yaw_deg: f32, pitch_deg: f32, zoom: f32, visible: bool) -> Vec<f32> {
+    if !visible {
+        return zero_keypoints(POSEKIT_FACE_KEYPOINT_COUNT);
+    }
+    let center_x = POSEKIT_EXPORT_WIDTH as f32 * 0.5 + yaw_deg / 180.0 * 72.0;
+    let center_y = POSEKIT_EXPORT_HEIGHT as f32 * 0.51 + pitch_deg / 45.0 * 42.0 - 170.0 * zoom;
+    let scale = zoom.clamp(0.4, 2.2);
+    let yaw_bias = yaw_deg / 180.0;
+    let mut points = Vec::with_capacity(POSEKIT_FACE_KEYPOINT_COUNT);
+    for index in 0..POSEKIT_FACE_KEYPOINT_COUNT {
+        let theta = index as f32 / POSEKIT_FACE_KEYPOINT_COUNT as f32 * std::f32::consts::TAU;
+        let x = center_x
+            + theta.cos() * 34.0 * scale * (1.0 - yaw_bias.abs() * 0.32)
+            + yaw_bias * 14.0 * scale;
+        let y = center_y + theta.sin() * 45.0 * scale;
+        points.push((x, y, 0.78));
+    }
+    flatten_keypoints(&points)
+}
+
+fn posekit_hand_keypoints(
+    yaw_deg: f32,
+    pitch_deg: f32,
+    zoom: f32,
+    visible: bool,
+    side: f32,
+) -> Vec<f32> {
+    if !visible {
+        return zero_keypoints(POSEKIT_HAND_KEYPOINT_COUNT);
+    }
+    let center_x = POSEKIT_EXPORT_WIDTH as f32 * 0.5
+        + yaw_deg / 180.0 * 72.0
+        + side * 158.0 * zoom.clamp(0.4, 2.2);
+    let center_y = POSEKIT_EXPORT_HEIGHT as f32 * 0.51 + pitch_deg / 45.0 * 42.0 + 34.0 * zoom;
+    let scale = zoom.clamp(0.4, 2.2);
+    let mut points = Vec::with_capacity(POSEKIT_HAND_KEYPOINT_COUNT);
+    for index in 0..POSEKIT_HAND_KEYPOINT_COUNT {
+        let finger = (index / 4) as f32;
+        let joint = (index % 4) as f32;
+        points.push((
+            center_x + side * (finger - 2.0) * 8.0 * scale,
+            center_y - joint * 13.0 * scale - finger * 2.0 * scale,
+            0.70,
+        ));
+    }
+    flatten_keypoints(&points)
+}
+
+fn flatten_keypoints(points: &[(f32, f32, f32)]) -> Vec<f32> {
+    let mut flattened = Vec::with_capacity(points.len() * 3);
+    for (x, y, confidence) in points {
+        flattened.push((x * 10.0).round() / 10.0);
+        flattened.push((y * 10.0).round() / 10.0);
+        flattened.push((confidence * 100.0).round() / 100.0);
+    }
+    flattened
+}
+
+fn zero_keypoints(count: usize) -> Vec<f32> {
+    vec![0.0; count * 3]
+}
+
+fn stable_posekit_hash(input: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(input.as_bytes());
+    let digest = hasher.finalize();
+    let mut hex = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        use std::fmt::Write as _;
+        let _ = write!(&mut hex, "{byte:02x}");
+    }
+    hex
+}
+
+fn posekit_export_preview(snapshot: &PosekitExportSnapshot) -> String {
+    let rig_id = snapshot.rig_id.as_deref().unwrap_or("<none>");
+    format!(
+        "schema=hsk.atelier.posekit.openpose_export@1\nsource_ref={}\nrig_id={}\nyaw_deg={:.0}\npitch_deg={:.0}\nzoom={:.2}\nmarkers={}\nartifact_ref={}\nmanifest_ref={}\nreceipt_ref={}\ncontent_hash={}\nmime=image/png\nopenpose_json={}",
+        snapshot.source_ref,
+        rig_id,
+        snapshot.yaw_deg,
+        snapshot.pitch_deg,
+        snapshot.zoom,
+        snapshot.marker_layers(),
+        snapshot.artifact_ref,
+        snapshot.manifest_ref,
+        snapshot.receipt_ref,
+        snapshot.content_hash,
+        snapshot.openpose_json
+    )
 }
 
 fn seeded_ckc_characters() -> Vec<CkcCharacterRecord> {
@@ -2641,6 +3008,7 @@ pub struct AtelierPanel {
     ckc_moodboard_latest_cell: AtelierCkcMoodboardSnapshotCell,
     ckc_search_cell: AtelierCkcSearchCell,
     ckc_tag_note_cell: AtelierCkcTagNoteCell,
+    pose_export_cell: AtelierPosekitExportCell,
 }
 
 impl AtelierPanel {
@@ -2689,6 +3057,7 @@ impl AtelierPanel {
             ckc_moodboard_latest_cell: Arc::new(Mutex::new(None)),
             ckc_search_cell: Arc::new(Mutex::new(None)),
             ckc_tag_note_cell: Arc::new(Mutex::new(None)),
+            pose_export_cell: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -3453,6 +3822,36 @@ impl AtelierPanel {
                     }
                     Err(err) => {
                         state.ckc_search_status = format!("CKC tag note save failed: {err}");
+                    }
+                }
+            }
+        }
+    }
+
+    fn drain_posekit_export_backend(&self) {
+        let export_result = self
+            .pose_export_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        if let Some((request_id, result)) = export_result {
+            if let Ok(mut state) = self.state.lock() {
+                if state.pose_active_export_request != Some(request_id) {
+                    return;
+                }
+                state.pose_export_pending = false;
+                state.pose_active_export_request = None;
+                match result {
+                    Ok(row) => {
+                        let snapshot = posekit_export_snapshot_from_backend(row);
+                        state.pose_export_status = format!(
+                            "Exported backend Posekit OpenPose: yaw_deg={:.0} artifact_ref={} receipt_ref={}",
+                            snapshot.yaw_deg, snapshot.artifact_ref, snapshot.receipt_ref
+                        );
+                        state.pose_last_export = Some(snapshot);
+                    }
+                    Err(err) => {
+                        state.pose_export_status = format!("Posekit OpenPose export failed: {err}");
                     }
                 }
             }
@@ -6103,9 +6502,43 @@ impl AtelierPanel {
     }
 
     fn show_posekit(&self, ui: &mut egui::Ui, palette: &HsPalette) {
+        self.drain_posekit_export_backend();
         let Ok(mut state) = self.state.lock() else {
             return;
         };
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new("Source image").color(palette.text));
+            let source = ui.text_edit_singleline(&mut state.pose_source_ref);
+            emit_value_node(
+                ui.ctx(),
+                source.id,
+                accesskit::Role::TextInput,
+                ATELIER_POSE_SOURCE_REF_AUTHOR_ID,
+                "Posekit source image ref",
+                &state.pose_source_ref,
+            );
+            ui.label(egui::RichText::new("Rig id").color(palette.text));
+            let rig = ui.text_edit_singleline(&mut state.pose_rig_id);
+            emit_value_node(
+                ui.ctx(),
+                rig.id,
+                accesskit::Role::TextInput,
+                ATELIER_POSE_RIG_ID_AUTHOR_ID,
+                "Posekit stored rig id",
+                &posekit_optional_rig_id(&state.pose_rig_id).unwrap_or_else(|| "<none>".to_owned()),
+            );
+        });
+        let readout = posekit_state_readout(&state);
+        let readout_response = ui.label(egui::RichText::new(&readout).color(palette.text_subtle));
+        emit_value_node(
+            ui.ctx(),
+            readout_response.id,
+            accesskit::Role::Label,
+            ATELIER_POSE_STATE_READOUT_AUTHOR_ID,
+            "Posekit current pose state",
+            &readout,
+        );
+        ui.add_space(4.0);
         ui.horizontal(|ui| {
             let yaw_minus = ui.button("Yaw -15");
             emit_node(
@@ -6144,6 +6577,14 @@ impl AtelierPanel {
                 state.pose_yaw = 0.0;
                 state.pose_pitch = 0.0;
                 state.pose_zoom = 1.0;
+                state.pose_face = true;
+                state.pose_body = true;
+                state.pose_hands = false;
+                state.pose_export_pending = false;
+                state.pose_active_export_request = None;
+                state.pose_last_export = None;
+                state.pose_export_status =
+                    "Pose reset; export again to refresh OpenPose artifact metadata.".to_owned();
             }
             ui.separator();
             let face = ui.checkbox(&mut state.pose_face, "Face");
@@ -6174,55 +6615,200 @@ impl AtelierPanel {
                 state.pose_hands,
             );
         });
-        let yaw_slider = ui.add(egui::Slider::new(&mut state.pose_yaw, -180.0..=180.0).text("Yaw"));
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new("Yaw").color(palette.text));
+            let mut yaw_text = format!("{:.0}", state.pose_yaw);
+            let yaw = ui.text_edit_singleline(&mut yaw_text);
+            if yaw.changed() {
+                if let Ok(value) = yaw_text.trim().parse::<f32>() {
+                    state.pose_yaw = value.clamp(-180.0, 180.0);
+                }
+            }
+            emit_value_node(
+                ui.ctx(),
+                yaw.id,
+                accesskit::Role::TextInput,
+                ATELIER_POSE_YAW_SLIDER_AUTHOR_ID,
+                "Posekit yaw degrees",
+                &format!("{:.0}", state.pose_yaw),
+            );
+
+            ui.label(egui::RichText::new("Pitch").color(palette.text));
+            let mut pitch_text = format!("{:.0}", state.pose_pitch);
+            let pitch = ui.text_edit_singleline(&mut pitch_text);
+            if pitch.changed() {
+                if let Ok(value) = pitch_text.trim().parse::<f32>() {
+                    state.pose_pitch = value.clamp(-45.0, 45.0);
+                }
+            }
+            emit_value_node(
+                ui.ctx(),
+                pitch.id,
+                accesskit::Role::TextInput,
+                ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID,
+                "Posekit pitch degrees",
+                &format!("{:.0}", state.pose_pitch),
+            );
+
+            ui.label(egui::RichText::new("Zoom").color(palette.text));
+            let mut zoom_text = format!("{:.2}", state.pose_zoom);
+            let zoom = ui.text_edit_singleline(&mut zoom_text);
+            if zoom.changed() {
+                if let Ok(value) = zoom_text.trim().parse::<f32>() {
+                    state.pose_zoom = value.clamp(0.4, 2.2);
+                }
+            }
+            emit_value_node(
+                ui.ctx(),
+                zoom.id,
+                accesskit::Role::TextInput,
+                ATELIER_POSE_ZOOM_SLIDER_AUTHOR_ID,
+                "Posekit zoom",
+                &format!("{:.2}", state.pose_zoom),
+            );
+        });
+        ui.separator();
+        let split = ui
+            .scope_builder(
+                egui::UiBuilder::new().id_salt(ATELIER_POSE_SPLIT_VIEW_AUTHOR_ID),
+                |ui| {
+                    ui.columns(2, |cols| {
+                        draw_pose_view(
+                            &mut cols[0],
+                            palette,
+                            "Rig/source preview",
+                            ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID,
+                            state.pose_yaw,
+                            state.pose_pitch,
+                            state.pose_zoom,
+                            state.pose_face,
+                            state.pose_body,
+                            state.pose_hands,
+                            &state.pose_source_ref,
+                            posekit_optional_rig_id(&state.pose_rig_id).as_deref(),
+                            false,
+                        );
+                        draw_pose_view(
+                            &mut cols[1],
+                            palette,
+                            "OpenPose preview",
+                            ATELIER_POSE_OPENPOSE_VIEWPORT_AUTHOR_ID,
+                            state.pose_yaw,
+                            state.pose_pitch,
+                            state.pose_zoom,
+                            state.pose_face,
+                            state.pose_body,
+                            state.pose_hands,
+                            &state.pose_source_ref,
+                            posekit_optional_rig_id(&state.pose_rig_id).as_deref(),
+                            true,
+                        );
+                    });
+                },
+            )
+            .response;
         emit_node(
             ui.ctx(),
-            yaw_slider.id,
-            accesskit::Role::Slider,
-            ATELIER_POSE_YAW_SLIDER_AUTHOR_ID,
-            "Yaw",
-            false,
-        );
-        let pitch_slider =
-            ui.add(egui::Slider::new(&mut state.pose_pitch, -45.0..=45.0).text("Pitch"));
-        emit_node(
-            ui.ctx(),
-            pitch_slider.id,
-            accesskit::Role::Slider,
-            ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID,
-            "Pitch",
-            false,
-        );
-        let zoom_slider = ui.add(egui::Slider::new(&mut state.pose_zoom, 0.4..=2.2).text("Zoom"));
-        emit_node(
-            ui.ctx(),
-            zoom_slider.id,
-            accesskit::Role::Slider,
-            ATELIER_POSE_ZOOM_SLIDER_AUTHOR_ID,
-            "Zoom",
+            split.id,
+            accesskit::Role::Group,
+            ATELIER_POSE_SPLIT_VIEW_AUTHOR_ID,
+            "Posekit rig/OpenPose split view",
             false,
         );
         ui.separator();
-        ui.columns(2, |cols| {
-            draw_pose_view(
-                &mut cols[0],
-                palette,
-                "3D rig",
-                state.pose_yaw,
-                state.pose_pitch,
-                state.pose_zoom,
-                false,
+        let export = ui.add_enabled(
+            !state.pose_export_pending,
+            egui::Button::new("Export OpenPose"),
+        );
+        emit_node(
+            ui.ctx(),
+            export.id,
+            accesskit::Role::Button,
+            ATELIER_POSE_EXPORT_AUTHOR_ID,
+            "Export ComfyUI-ready OpenPose",
+            state.pose_export_pending,
+        );
+        if export.clicked() {
+            if !(state.pose_face || state.pose_body || state.pose_hands) {
+                state.pose_export_status =
+                    "Posekit OpenPose export failed: enable at least one marker layer.".to_owned();
+            } else if state.pose_source_ref.trim().is_empty()
+                || state.pose_source_ref.trim() != state.pose_source_ref
+            {
+                state.pose_export_status =
+                    "Posekit OpenPose export failed: source_ref must be non-empty and unpadded."
+                        .to_owned();
+            } else if let Some(client) = self.ckc_client.as_ref() {
+                state.pose_export_request_seq = state.pose_export_request_seq.saturating_add(1);
+                let request_id = state.pose_export_request_seq;
+                state.pose_active_export_request = Some(request_id);
+                state.pose_export_pending = true;
+                state.pose_export_status =
+                    "Posekit backend OpenPose export pending; waiting for ArtifactStore refs."
+                        .to_owned();
+                state.pose_last_export = None;
+                let rig_id = posekit_optional_rig_id(&state.pose_rig_id);
+                client.export_posekit_openpose(
+                    &state.pose_source_ref,
+                    state.pose_yaw,
+                    state.pose_pitch,
+                    state.pose_zoom,
+                    state.pose_face,
+                    state.pose_body,
+                    state.pose_hands,
+                    rig_id.as_deref(),
+                    client.actor_id(),
+                    request_id,
+                    self.pose_export_cell.clone(),
+                );
+            } else {
+                let snapshot = posekit_export_snapshot(&state);
+                state.pose_export_status = format!(
+                    "Local Argus preview only: yaw_deg={:.0} artifact_ref={} receipt_ref={}",
+                    snapshot.yaw_deg, snapshot.artifact_ref, snapshot.receipt_ref
+                );
+                state.pose_last_export = Some(snapshot);
+            }
+        }
+        let export_status = state.pose_export_status.clone();
+        let status = ui.label(egui::RichText::new(&export_status).color(palette.text));
+        emit_value_node(
+            ui.ctx(),
+            status.id,
+            accesskit::Role::Label,
+            ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID,
+            "Posekit export status",
+            &export_status,
+        );
+        if let Some(snapshot) = state.pose_last_export.as_ref() {
+            let export_ref_label = format!(
+                "{} {} {}",
+                snapshot.artifact_ref, snapshot.receipt_ref, snapshot.content_hash
             );
-            draw_pose_view(
-                &mut cols[1],
-                palette,
-                "OpenPose",
-                state.pose_yaw,
-                state.pose_pitch,
-                state.pose_zoom,
-                true,
+            let export_ref = ui.label(&export_ref_label);
+            emit_value_node(
+                ui.ctx(),
+                export_ref.id,
+                accesskit::Role::Label,
+                ATELIER_POSE_EXPORT_REF_AUTHOR_ID,
+                "Posekit OpenPose artifact and receipt refs",
+                &export_ref_label,
             );
-        });
+            let mut preview = posekit_export_preview(snapshot);
+            let preview_response = ui.add(
+                egui::TextEdit::multiline(&mut preview)
+                    .desired_rows(8)
+                    .interactive(false),
+            );
+            emit_value_node(
+                ui.ctx(),
+                preview_response.id,
+                accesskit::Role::TextInput,
+                ATELIER_POSE_EXPORT_PREVIEW_AUTHOR_ID,
+                "Posekit ComfyUI-ready OpenPose export preview",
+                &preview,
+            );
+        }
     }
 
     fn show_ingest(&self, ui: &mut egui::Ui, palette: &HsPalette) {
@@ -6353,15 +6939,21 @@ fn draw_pose_view(
     ui: &mut egui::Ui,
     palette: &HsPalette,
     label: &str,
+    author_id: &str,
     yaw: f32,
     pitch: f32,
     zoom: f32,
+    face: bool,
+    body: bool,
+    hands: bool,
+    source_ref: &str,
+    rig_id: Option<&str>,
     openpose: bool,
 ) {
     ui.label(egui::RichText::new(label).strong().color(palette.text));
     let height = 260.0;
     let width = ui.available_width().max(180.0);
-    let (rect, _) = ui.allocate_exact_size(egui::vec2(width, height), egui::Sense::hover());
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(width, height), egui::Sense::hover());
     let painter = ui.painter_at(rect);
     painter.rect_filled(
         rect,
@@ -6387,54 +6979,99 @@ fn draw_pose_view(
     } else {
         palette.text_subtle
     };
+    let faint = if openpose {
+        egui::Color32::from_gray(70)
+    } else {
+        palette.border
+    };
 
-    painter.circle_stroke(
-        center + egui::vec2(0.0, -58.0 * scale),
-        head_r,
-        egui::Stroke::new(2.0, color),
-    );
-    painter.line_segment(
-        [
-            center + egui::vec2(0.0, -36.0 * scale),
-            center + egui::vec2(0.0, torso * 0.45),
-        ],
-        egui::Stroke::new(2.0, color),
-    );
-    painter.line_segment(
-        [
-            center + egui::vec2(-42.0 * scale, -8.0 * scale),
-            center + egui::vec2(42.0 * scale, -8.0 * scale),
-        ],
-        egui::Stroke::new(2.0, color),
-    );
-    painter.line_segment(
-        [
-            center + egui::vec2(-28.0 * scale, torso * 0.95),
-            center + egui::vec2(0.0, torso * 0.45),
-        ],
-        egui::Stroke::new(2.0, color),
-    );
-    painter.line_segment(
-        [
-            center + egui::vec2(28.0 * scale, torso * 0.95),
-            center + egui::vec2(0.0, torso * 0.45),
-        ],
-        egui::Stroke::new(2.0, color),
-    );
+    let stroke = egui::Stroke::new(2.0, if body { color } else { faint });
+    if face || !openpose {
+        painter.circle_stroke(center + egui::vec2(0.0, -58.0 * scale), head_r, stroke);
+    }
+    if body || !openpose {
+        painter.line_segment(
+            [
+                center + egui::vec2(0.0, -36.0 * scale),
+                center + egui::vec2(0.0, torso * 0.45),
+            ],
+            stroke,
+        );
+        painter.line_segment(
+            [
+                center + egui::vec2(-42.0 * scale, -8.0 * scale),
+                center + egui::vec2(42.0 * scale, -8.0 * scale),
+            ],
+            stroke,
+        );
+        painter.line_segment(
+            [
+                center + egui::vec2(-28.0 * scale, torso * 0.95),
+                center + egui::vec2(0.0, torso * 0.45),
+            ],
+            stroke,
+        );
+        painter.line_segment(
+            [
+                center + egui::vec2(28.0 * scale, torso * 0.95),
+                center + egui::vec2(0.0, torso * 0.45),
+            ],
+            stroke,
+        );
+    }
 
     if openpose {
-        for point in [
-            center + egui::vec2(0.0, -58.0 * scale),
-            center + egui::vec2(-10.0 * scale, -62.0 * scale),
-            center + egui::vec2(10.0 * scale, -62.0 * scale),
-            center + egui::vec2(0.0, -50.0 * scale),
-            center + egui::vec2(-42.0 * scale, -8.0 * scale),
-            center + egui::vec2(42.0 * scale, -8.0 * scale),
-            center + egui::vec2(0.0, torso * 0.45),
-        ] {
-            painter.circle_filled(point, 3.5, muted);
+        if face {
+            for point in [
+                center + egui::vec2(0.0, -58.0 * scale),
+                center + egui::vec2(-10.0 * scale, -62.0 * scale),
+                center + egui::vec2(10.0 * scale, -62.0 * scale),
+                center + egui::vec2(0.0, -50.0 * scale),
+            ] {
+                painter.circle_filled(point, 3.5, muted);
+            }
+        }
+        if body {
+            for point in [
+                center + egui::vec2(-42.0 * scale, -8.0 * scale),
+                center + egui::vec2(42.0 * scale, -8.0 * scale),
+                center + egui::vec2(0.0, torso * 0.45),
+                center + egui::vec2(-28.0 * scale, torso * 0.95),
+                center + egui::vec2(28.0 * scale, torso * 0.95),
+            ] {
+                painter.circle_filled(point, 3.5, muted);
+            }
+        }
+        if hands {
+            for side in [-1.0_f32, 1.0_f32] {
+                for joint in 0..5 {
+                    let point = center
+                        + egui::vec2(
+                            side * (66.0 + joint as f32 * 5.0) * scale,
+                            (18.0 - joint as f32 * 6.0) * scale,
+                        );
+                    painter.circle_filled(point, 2.8, egui::Color32::from_rgb(120, 255, 150));
+                }
+            }
         }
     }
+    let node_label = format!(
+        "{label} source_ref={} rig_id={} yaw_deg={:.0} pitch_deg={:.0} zoom={:.2} markers={}",
+        source_ref,
+        rig_id.unwrap_or("<none>"),
+        yaw,
+        pitch,
+        zoom,
+        marker_layer_summary(face, body, hands)
+    );
+    emit_value_node(
+        ui.ctx(),
+        response.id,
+        accesskit::Role::Group,
+        author_id,
+        &node_label,
+        &node_label,
+    );
 }
 
 fn emit_node(

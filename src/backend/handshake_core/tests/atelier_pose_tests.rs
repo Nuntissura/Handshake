@@ -20,6 +20,7 @@ mod atelier_pg_support;
 
 use handshake_core::atelier::collections::NewCollection;
 use handshake_core::atelier::pose::{
+    generate_posekit_openpose_export, generate_posekit_openpose_export_from_keypoints,
     pose_event_family, CalibrationHandKind, CalibrationHandRow, CalibrationMarkerColors,
     CalibrationMarkerVisibility, CalibrationState, CanvasSize, DetectorStatus, IdentityCropBox,
     IdentityCropLandmark, IdentityProfileKind, NewIdentityCropArtifact, NewIdentityProfile,
@@ -27,9 +28,16 @@ use handshake_core::atelier::pose::{
     NewPoseWorkspaceRouteTarget, PoseContextKind, PoseOpenPoseSidecarStripItem, PoseRig,
     PoseSidecarGalleryProjection, PoseSidecarKind, PoseSidecarStatus, PoseSourceImageStripItem,
     PoseWorkspaceKeyboardAction, PoseWorkspaceKeyboardActionRequest, PoseWorkspaceRigState,
-    UpdateIdentityProfile, BODY_KEYPOINT_COUNT, FACE_KEYPOINT_COUNT, HAND_KEYPOINT_COUNT,
+    PosekitOpenPoseExportRequest, UpdateIdentityProfile, BODY_KEYPOINT_COUNT, FACE_KEYPOINT_COUNT,
+    HAND_KEYPOINT_COUNT, POSEKIT_OPENPOSE_EXPORT_HEIGHT, POSEKIT_OPENPOSE_EXPORT_SCHEMA_ID,
+    POSEKIT_OPENPOSE_EXPORT_WIDTH,
 };
 use handshake_core::atelier::{AtelierStore, NewCharacter, NewMediaAsset};
+use handshake_core::storage::artifacts::{
+    artifact_root_rel, validate_artifact_content_hash, write_file_artifact, ArtifactClassification,
+    ArtifactLayer, ArtifactManifest, ArtifactPayloadKind,
+};
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 /// Connect + ensure schema, the shared preamble every test runs against a real
@@ -66,6 +74,108 @@ fn valid_keypoints() -> serde_json::Value {
             "hand_right_keypoints_2d": vec![0.0_f64; HAND_KEYPOINT_COUNT * 3],
         }]
     })
+}
+
+fn posekit_export_request(yaw_deg: f32) -> PosekitOpenPoseExportRequest {
+    PosekitOpenPoseExportRequest {
+        source_ref: "atelier://media/mira-demo/pose-source.png".to_string(),
+        rig_id: None,
+        yaw_deg,
+        pitch_deg: 0.0,
+        zoom: 1.0,
+        include_face: true,
+        include_body: true,
+        include_hands: true,
+    }
+}
+
+fn assert_openpose_payload_shape(payload: &serde_json::Value) {
+    let person = payload["people"][0]
+        .as_object()
+        .expect("OpenPose payload has people[0] object");
+    assert_eq!(
+        person["pose_keypoints_2d"]
+            .as_array()
+            .expect("body keypoints array")
+            .len(),
+        BODY_KEYPOINT_COUNT * 3
+    );
+    assert_eq!(
+        person["face_keypoints_2d"]
+            .as_array()
+            .expect("face keypoints array")
+            .len(),
+        FACE_KEYPOINT_COUNT * 3
+    );
+    assert_eq!(
+        person["hand_left_keypoints_2d"]
+            .as_array()
+            .expect("left hand keypoints array")
+            .len(),
+        HAND_KEYPOINT_COUNT * 3
+    );
+    assert_eq!(
+        person["hand_right_keypoints_2d"]
+            .as_array()
+            .expect("right hand keypoints array")
+            .len(),
+        HAND_KEYPOINT_COUNT * 3
+    );
+}
+
+struct NativePoseSidecarArtifact {
+    artifact_ref: String,
+    content_hash: String,
+    byte_len: i64,
+    stored_payload: Vec<u8>,
+}
+
+fn write_pose_sidecar_artifact(
+    stored_payload: &[u8],
+    mime: &str,
+    filename_hint: &str,
+) -> NativePoseSidecarArtifact {
+    let workspace_root = atelier_pg_support::test_artifact_workspace_root();
+    let artifact_id = Uuid::now_v7();
+    let content_hash = sha256_hex(stored_payload);
+    let manifest = ArtifactManifest {
+        artifact_id,
+        layer: ArtifactLayer::L1,
+        kind: ArtifactPayloadKind::File,
+        mime: mime.to_string(),
+        filename_hint: Some(filename_hint.to_string()),
+        created_at: chrono::Utc::now(),
+        created_by_job_id: None,
+        source_entity_refs: Vec::new(),
+        source_artifact_refs: Vec::new(),
+        content_hash: content_hash.clone(),
+        size_bytes: stored_payload.len() as u64,
+        classification: ArtifactClassification::Low,
+        exportable: true,
+        retention_ttl_days: None,
+        pinned: Some(true),
+        hash_basis: None,
+        hash_exclude_paths: Vec::new(),
+    };
+    write_file_artifact(&workspace_root, &manifest, stored_payload)
+        .expect("write Posekit sidecar ArtifactStore payload");
+    validate_artifact_content_hash(&workspace_root, ArtifactLayer::L1, artifact_id)
+        .expect("validate Posekit sidecar ArtifactStore payload hash");
+    NativePoseSidecarArtifact {
+        artifact_ref: format!(
+            "artifact://{}/payload",
+            artifact_root_rel(ArtifactLayer::L1, artifact_id)
+        ),
+        content_hash,
+        byte_len: stored_payload.len() as i64,
+        stored_payload: stored_payload.to_vec(),
+    }
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    format!("{:x}", hasher.finalize())
 }
 
 fn artifact_manifest_ref(artifact_ref: &str) -> String {
@@ -128,6 +238,168 @@ async fn expect_pose_source_ref_rejected(
         })
         .await;
     assert!(result.is_err(), "{reason}");
+}
+
+#[test]
+fn posekit_openpose_export_generates_real_png_and_full_payload_shape() {
+    let export = generate_posekit_openpose_export(&posekit_export_request(0.0))
+        .expect("generate native Posekit OpenPose export");
+    assert_eq!(export.schema_id, POSEKIT_OPENPOSE_EXPORT_SCHEMA_ID);
+    assert_eq!(export.width, POSEKIT_OPENPOSE_EXPORT_WIDTH);
+    assert_eq!(export.height, POSEKIT_OPENPOSE_EXPORT_HEIGHT);
+    assert_eq!(export.yaw_deg, 0);
+    assert_eq!(export.zoom_percent, 100);
+    assert!(export
+        .receipt_ref
+        .starts_with("preview://atelier/posekit/openpose/"));
+    assert_eq!(export.openpose_json["version"], serde_json::json!(1.3));
+    assert_eq!(
+        export.openpose_json["handshake_schema"],
+        serde_json::json!(POSEKIT_OPENPOSE_EXPORT_SCHEMA_ID)
+    );
+    assert_openpose_payload_shape(&export.openpose_json);
+
+    let decoded =
+        image::load_from_memory(&export.openpose_png_bytes).expect("Posekit export PNG decodes");
+    assert_eq!(decoded.width(), POSEKIT_OPENPOSE_EXPORT_WIDTH as u32);
+    assert_eq!(decoded.height(), POSEKIT_OPENPOSE_EXPORT_HEIGHT as u32);
+    let nonblack_pixels = decoded
+        .to_rgba8()
+        .pixels()
+        .filter(|pixel| pixel.0[0] != 0 || pixel.0[1] != 0 || pixel.0[2] != 0)
+        .count();
+    assert!(
+        nonblack_pixels > 1000,
+        "OpenPose PNG must contain a visible skeleton, got {nonblack_pixels} nonblack pixels"
+    );
+    assert_eq!(export.openpose_json_sha256.len(), 64);
+    assert_eq!(export.openpose_png_sha256.len(), 64);
+    assert_eq!(export.content_hash.len(), 64);
+}
+
+#[test]
+fn posekit_openpose_export_can_use_stored_rig_keypoints() {
+    let mut keypoints = valid_keypoints();
+    keypoints["people"][0]["pose_keypoints_2d"][0] = serde_json::json!(123.4);
+    keypoints["people"][0]["pose_keypoints_2d"][1] = serde_json::json!(456.7);
+    let export =
+        generate_posekit_openpose_export_from_keypoints(&posekit_export_request(45.0), &keypoints)
+            .expect("generate Posekit export from stored rig keypoints");
+    let body = export.openpose_json["people"][0]["pose_keypoints_2d"]
+        .as_array()
+        .expect("body keypoints array");
+    assert!((body[0].as_f64().expect("body x") - 123.4).abs() < 0.001);
+    assert!((body[1].as_f64().expect("body y") - 456.7).abs() < 0.001);
+    assert_eq!(
+        export.openpose_json["source_keypoints_ref"],
+        serde_json::json!("atelier_pose_rig.keypoints_json")
+    );
+    assert_eq!(
+        export.openpose_json["pose_state"]["yaw_deg"],
+        serde_json::json!(45)
+    );
+    assert_openpose_payload_shape(&export.openpose_json);
+}
+
+#[test]
+fn posekit_openpose_export_renders_png_from_stored_rig_keypoints() {
+    let mut keypoints = valid_keypoints();
+    keypoints["people"][0]["pose_keypoints_2d"][0] = serde_json::json!(123.0);
+    keypoints["people"][0]["pose_keypoints_2d"][1] = serde_json::json!(456.0);
+    keypoints["people"][0]["pose_keypoints_2d"][2] = serde_json::json!(0.99);
+    keypoints["people"][0]["pose_keypoints_2d"][3] = serde_json::json!(205.0);
+    keypoints["people"][0]["pose_keypoints_2d"][4] = serde_json::json!(456.0);
+    keypoints["people"][0]["pose_keypoints_2d"][5] = serde_json::json!(0.99);
+
+    let export =
+        generate_posekit_openpose_export_from_keypoints(&posekit_export_request(45.0), &keypoints)
+            .expect("generate Posekit export from stored rig keypoints");
+    let decoded =
+        image::load_from_memory(&export.openpose_png_bytes).expect("Posekit export PNG decodes");
+    let rgba = decoded.to_rgba8();
+    let source_point_rendered = (118..=128).any(|x| {
+        (451..=461).any(|y| {
+            let pixel = rgba.get_pixel(x, y).0;
+            pixel[0] != 0 || pixel[1] != 0 || pixel[2] != 0
+        })
+    });
+    assert!(
+        source_point_rendered,
+        "rig-backed OpenPose PNG must render the stored keypoint at 123,456"
+    );
+
+    let procedural = generate_posekit_openpose_export(&posekit_export_request(45.0))
+        .expect("generate procedural Posekit export");
+    assert_ne!(
+        export.openpose_png_sha256, procedural.openpose_png_sha256,
+        "rig-backed PNG hash must differ when stored keypoints differ from procedural pose"
+    );
+}
+
+#[test]
+fn posekit_openpose_export_is_deterministic_and_rotation_changes_state() {
+    let first = generate_posekit_openpose_export(&posekit_export_request(90.0))
+        .expect("generate first Posekit export");
+    let repeat = generate_posekit_openpose_export(&posekit_export_request(90.0))
+        .expect("generate repeated Posekit export");
+    assert_eq!(first.content_hash, repeat.content_hash);
+    assert_eq!(first.openpose_json_bytes, repeat.openpose_json_bytes);
+    assert_eq!(first.openpose_png_bytes, repeat.openpose_png_bytes);
+
+    let mut hashes = std::collections::BTreeSet::new();
+    for yaw in [-180.0_f32, -90.0, 0.0, 90.0, 180.0] {
+        let export = generate_posekit_openpose_export(&posekit_export_request(yaw))
+            .expect("generate yaw export");
+        hashes.insert(export.content_hash);
+        assert_eq!(
+            export.openpose_json["pose_state"]["yaw_deg"],
+            serde_json::json!(yaw as i32)
+        );
+    }
+    assert_eq!(
+        hashes.len(),
+        5,
+        "the full -180..=180 rotation span must rerender distinct OpenPose state"
+    );
+}
+
+#[test]
+fn posekit_openpose_export_rejects_invisible_or_invalid_requests() {
+    let mut blank_source = posekit_export_request(0.0);
+    blank_source.source_ref = " ".to_string();
+    assert!(
+        generate_posekit_openpose_export(&blank_source).is_err(),
+        "blank source_ref must be rejected"
+    );
+
+    let mut padded_source = posekit_export_request(0.0);
+    padded_source.source_ref = " atelier://media/padded ".to_string();
+    assert!(
+        generate_posekit_openpose_export(&padded_source).is_err(),
+        "padded source_ref must be rejected"
+    );
+
+    let mut all_off = posekit_export_request(0.0);
+    all_off.include_face = false;
+    all_off.include_body = false;
+    all_off.include_hands = false;
+    assert!(
+        generate_posekit_openpose_export(&all_off).is_err(),
+        "all marker layers off would produce an invisible export and must be rejected"
+    );
+
+    let out_of_range = posekit_export_request(270.0);
+    assert!(
+        generate_posekit_openpose_export(&out_of_range).is_err(),
+        "yaw outside the -180..=180 full-rotation span must be rejected"
+    );
+
+    let mut nan_yaw = posekit_export_request(0.0);
+    nan_yaw.yaw_deg = f32::NAN;
+    assert!(
+        generate_posekit_openpose_export(&nan_yaw).is_err(),
+        "NaN yaw must be rejected"
+    );
 }
 
 #[tokio::test]
@@ -586,6 +858,88 @@ async fn atelier_pose_rig_ingest_idempotency_and_roundtrip() {
 }
 
 #[tokio::test]
+async fn atelier_posekit_generated_openpose_export_records_real_sidecars() {
+    let Some(url) = atelier_pg_support::database_url().await else {
+        eprintln!(
+            "SKIP atelier_posekit_generated_openpose_export_records_real_sidecars: PostgreSQL unavailable"
+        );
+        return;
+    };
+    let store = connected_store(&url).await;
+    let character = fresh_character(&store).await;
+    let rig = fresh_rig(&store, character).await;
+    let export = generate_posekit_openpose_export(&posekit_export_request(90.0))
+        .expect("generate native Posekit export");
+
+    let json_artifact = write_pose_sidecar_artifact(
+        &export.openpose_json_bytes,
+        "application/json",
+        "posekit-openpose.json",
+    );
+    let png_artifact = write_pose_sidecar_artifact(
+        &export.openpose_png_bytes,
+        "image/png",
+        "posekit-openpose.png",
+    );
+    image::load_from_memory(&png_artifact.stored_payload)
+        .expect("generated OpenPose PNG sidecar payload decodes");
+
+    let json_sidecar = store
+        .record_pose_sidecar(&NewPoseSidecar {
+            rig_id: rig.rig_id,
+            kind: PoseSidecarKind::OpenPoseJson,
+            artifact_ref: json_artifact.artifact_ref.clone(),
+            manifest_ref: artifact_manifest_ref(&json_artifact.artifact_ref),
+            content_hash: json_artifact.content_hash.clone(),
+            byte_len: json_artifact.byte_len,
+            mime: "application/json".to_string(),
+            width: export.width,
+            height: export.height,
+            status: PoseSidecarStatus::Rendered,
+            error_message: None,
+        })
+        .await
+        .expect("record generated OpenPose JSON sidecar");
+    let png_sidecar = store
+        .record_pose_sidecar(&NewPoseSidecar {
+            rig_id: rig.rig_id,
+            kind: PoseSidecarKind::OpenPosePng,
+            artifact_ref: png_artifact.artifact_ref.clone(),
+            manifest_ref: artifact_manifest_ref(&png_artifact.artifact_ref),
+            content_hash: png_artifact.content_hash.clone(),
+            byte_len: png_artifact.byte_len,
+            mime: "image/png".to_string(),
+            width: export.width,
+            height: export.height,
+            status: PoseSidecarStatus::Rendered,
+            error_message: None,
+        })
+        .await
+        .expect("record generated OpenPose PNG sidecar");
+
+    let sidecars = store
+        .list_pose_sidecars(rig.rig_id)
+        .await
+        .expect("list generated Posekit sidecars");
+    assert_eq!(
+        sidecars
+            .iter()
+            .map(|sidecar| sidecar.kind)
+            .collect::<Vec<_>>(),
+        vec![PoseSidecarKind::OpenPoseJson, PoseSidecarKind::OpenPosePng],
+        "generated export sidecars should list in deterministic OpenPose JSON/PNG order"
+    );
+    assert_eq!(json_sidecar.width, POSEKIT_OPENPOSE_EXPORT_WIDTH);
+    assert_eq!(json_sidecar.height, POSEKIT_OPENPOSE_EXPORT_HEIGHT);
+    assert_eq!(png_sidecar.width, POSEKIT_OPENPOSE_EXPORT_WIDTH);
+    assert_eq!(png_sidecar.height, POSEKIT_OPENPOSE_EXPORT_HEIGHT);
+    assert_eq!(png_sidecar.content_hash, png_artifact.content_hash);
+    assert!(export.receipt_ref.contains(export.content_hash.as_str()));
+    assert!(export.receipt_ref.ends_with("/receipt"));
+    assert_openpose_payload_shape(&export.openpose_json);
+}
+
+#[tokio::test]
 async fn atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts() {
     let Some(url) = atelier_pg_support::database_url().await else {
         eprintln!(
@@ -597,10 +951,23 @@ async fn atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts
     let character = fresh_character(&store).await;
     let rig = fresh_rig(&store, character).await;
 
-    let json_artifact = atelier_pg_support::write_native_media_artifact(b"openpose-json");
-    let preview_png = atelier_pg_support::write_native_media_artifact(b"openpose-preview-png");
-    let conditioning_png =
-        atelier_pg_support::write_native_media_artifact(b"openpose-conditioning-png");
+    let export = generate_posekit_openpose_export(&posekit_export_request(0.0))
+        .expect("generate test OpenPose export");
+    let json_artifact = write_pose_sidecar_artifact(
+        &export.openpose_json_bytes,
+        "application/json",
+        "posekit-openpose.json",
+    );
+    let preview_png = write_pose_sidecar_artifact(
+        &export.openpose_png_bytes,
+        "image/png",
+        "posekit-openpose-preview.png",
+    );
+    let conditioning_png = write_pose_sidecar_artifact(
+        &export.openpose_png_bytes,
+        "image/png",
+        "posekit-conditioning.png",
+    );
 
     let json_sidecar = store
         .record_pose_sidecar(&NewPoseSidecar {
@@ -611,8 +978,8 @@ async fn atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts
             content_hash: json_artifact.content_hash.clone(),
             byte_len: json_artifact.byte_len,
             mime: "application/json".to_string(),
-            width: rig.canvas.width,
-            height: rig.canvas.height,
+            width: export.width,
+            height: export.height,
             status: PoseSidecarStatus::Rendered,
             error_message: None,
         })
@@ -627,8 +994,8 @@ async fn atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts
             content_hash: preview_png.content_hash.clone(),
             byte_len: preview_png.byte_len,
             mime: "image/png".to_string(),
-            width: rig.canvas.width,
-            height: rig.canvas.height,
+            width: export.width,
+            height: export.height,
             status: PoseSidecarStatus::Rendered,
             error_message: None,
         })
@@ -643,8 +1010,8 @@ async fn atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts
             content_hash: conditioning_png.content_hash.clone(),
             byte_len: conditioning_png.byte_len,
             mime: "image/png".to_string(),
-            width: rig.canvas.width,
-            height: rig.canvas.height,
+            width: export.width,
+            height: export.height,
             status: PoseSidecarStatus::Rendered,
             error_message: None,
         })
@@ -688,8 +1055,8 @@ async fn atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts
     assert_eq!(conditioning_sidecar.mime, "image/png");
     assert_eq!(preview_sidecar.source_ref, rig.source_ref);
     assert_eq!(preview_sidecar.source_asset_id, rig.source_asset_id);
-    assert_eq!(preview_sidecar.width, rig.canvas.width);
-    assert_eq!(preview_sidecar.height, rig.canvas.height);
+    assert_eq!(preview_sidecar.width, export.width);
+    assert_eq!(preview_sidecar.height, export.height);
     assert_eq!(preview_sidecar.status, PoseSidecarStatus::Rendered);
     assert_eq!(preview_sidecar.error_message, None);
 
@@ -702,8 +1069,8 @@ async fn atelier_pose_openpose_png_sidecars_are_registered_as_portable_artifacts
             content_hash: format!("sha256-{}", Uuid::new_v4()),
             byte_len: preview_png.byte_len,
             mime: "image/jpeg".to_string(),
-            width: rig.canvas.width,
-            height: rig.canvas.height,
+            width: export.width,
+            height: export.height,
             status: PoseSidecarStatus::Rendered,
             error_message: None,
         })
@@ -792,24 +1159,34 @@ async fn atelier_pose_sidecars_lookup_by_source_and_hidden_gallery_projection() 
     let character = fresh_character(&store).await;
     let rig = fresh_rig(&store, character).await;
 
+    let export = generate_posekit_openpose_export(&posekit_export_request(0.0))
+        .expect("generate lookup OpenPose export");
     for (kind, mime, payload) in [
         (
             PoseSidecarKind::OpenPoseJson,
             "application/json",
-            "lookup-openpose-json",
+            export.openpose_json_bytes.as_slice(),
         ),
         (
             PoseSidecarKind::OpenPosePng,
             "image/png",
-            "lookup-openpose-preview",
+            export.openpose_png_bytes.as_slice(),
         ),
         (
             PoseSidecarKind::ConditioningPng,
             "image/png",
-            "lookup-conditioning-png",
+            export.openpose_png_bytes.as_slice(),
         ),
     ] {
-        let artifact = atelier_pg_support::write_native_media_artifact(payload.as_bytes());
+        let artifact = write_pose_sidecar_artifact(
+            payload,
+            mime,
+            match kind {
+                PoseSidecarKind::OpenPoseJson => "posekit-lookup-openpose.json",
+                PoseSidecarKind::OpenPosePng => "posekit-lookup-openpose.png",
+                PoseSidecarKind::ConditioningPng => "posekit-lookup-conditioning.png",
+            },
+        );
         store
             .record_pose_sidecar(&NewPoseSidecar {
                 rig_id: rig.rig_id,
@@ -819,8 +1196,8 @@ async fn atelier_pose_sidecars_lookup_by_source_and_hidden_gallery_projection() 
                 content_hash: artifact.content_hash,
                 byte_len: artifact.byte_len,
                 mime: mime.to_string(),
-                width: rig.canvas.width,
-                height: rig.canvas.height,
+                width: export.width,
+                height: export.height,
                 status: PoseSidecarStatus::Rendered,
                 error_message: None,
             })
@@ -916,24 +1293,34 @@ async fn atelier_pose_strip_state_projection_exposes_source_and_openpose_sidecar
         .expect("ingest strip source-linked rig");
     let fallback_rig = fresh_rig(&store, character).await;
 
+    let export = generate_posekit_openpose_export(&posekit_export_request(0.0))
+        .expect("generate strip OpenPose export");
     for (kind, mime, payload) in [
         (
             PoseSidecarKind::OpenPoseJson,
             "application/json",
-            "strip-json",
+            export.openpose_json_bytes.as_slice(),
         ),
         (
             PoseSidecarKind::OpenPosePng,
             "image/png",
-            "strip-openpose-png",
+            export.openpose_png_bytes.as_slice(),
         ),
         (
             PoseSidecarKind::ConditioningPng,
             "image/png",
-            "strip-conditioning-png",
+            export.openpose_png_bytes.as_slice(),
         ),
     ] {
-        let artifact = atelier_pg_support::write_native_media_artifact(payload.as_bytes());
+        let artifact = write_pose_sidecar_artifact(
+            payload,
+            mime,
+            match kind {
+                PoseSidecarKind::OpenPoseJson => "posekit-strip-openpose.json",
+                PoseSidecarKind::OpenPosePng => "posekit-strip-openpose.png",
+                PoseSidecarKind::ConditioningPng => "posekit-strip-conditioning.png",
+            },
+        );
         store
             .record_pose_sidecar(&NewPoseSidecar {
                 rig_id: rig.rig_id,
@@ -943,16 +1330,19 @@ async fn atelier_pose_strip_state_projection_exposes_source_and_openpose_sidecar
                 content_hash: artifact.content_hash,
                 byte_len: artifact.byte_len,
                 mime: mime.to_string(),
-                width: rig.canvas.width,
-                height: rig.canvas.height,
+                width: export.width,
+                height: export.height,
                 status: PoseSidecarStatus::Rendered,
                 error_message: None,
             })
             .await
             .expect("record strip sidecar");
     }
-    let failed_json_artifact =
-        atelier_pg_support::write_native_media_artifact(b"strip-json-failed");
+    let failed_json_artifact = write_pose_sidecar_artifact(
+        &export.openpose_json_bytes,
+        "application/json",
+        "posekit-strip-openpose-failed.json",
+    );
     let failed_json_message = "openpose renderer unavailable";
     store
         .record_pose_sidecar(&NewPoseSidecar {
@@ -963,8 +1353,8 @@ async fn atelier_pose_strip_state_projection_exposes_source_and_openpose_sidecar
             content_hash: failed_json_artifact.content_hash,
             byte_len: failed_json_artifact.byte_len,
             mime: "application/json".to_string(),
-            width: fallback_rig.canvas.width,
-            height: fallback_rig.canvas.height,
+            width: export.width,
+            height: export.height,
             status: PoseSidecarStatus::Failed,
             error_message: Some(failed_json_message.to_string()),
         })

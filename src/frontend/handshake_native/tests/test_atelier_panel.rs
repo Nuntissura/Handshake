@@ -57,12 +57,17 @@ use handshake_native::atelier_panel::{
     ATELIER_CONTENT_INGEST_AUTHOR_ID, ATELIER_CONTENT_POSEKIT_AUTHOR_ID,
     ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID, ATELIER_INGEST_PASS_AUTHOR_ID,
     ATELIER_INGEST_REJECT_AUTHOR_ID, ATELIER_INGEST_UNSURE_AUTHOR_ID, ATELIER_PANEL_AUTHOR_ID,
-    ATELIER_POSE_BODY_TOGGLE_AUTHOR_ID, ATELIER_POSE_FACE_TOGGLE_AUTHOR_ID,
-    ATELIER_POSE_HANDS_TOGGLE_AUTHOR_ID, ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID,
-    ATELIER_POSE_RESET_AUTHOR_ID, ATELIER_POSE_YAW_MINUS_AUTHOR_ID,
-    ATELIER_POSE_YAW_PLUS_AUTHOR_ID, ATELIER_POSE_YAW_SLIDER_AUTHOR_ID,
-    ATELIER_POSE_ZOOM_SLIDER_AUTHOR_ID, ATELIER_TABLIST_AUTHOR_ID, ATELIER_TAB_CKC_AUTHOR_ID,
-    ATELIER_TAB_INGEST_AUTHOR_ID, ATELIER_TAB_POSEKIT_AUTHOR_ID,
+    ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID, ATELIER_POSE_BODY_TOGGLE_AUTHOR_ID,
+    ATELIER_POSE_EXPORT_AUTHOR_ID, ATELIER_POSE_EXPORT_PREVIEW_AUTHOR_ID,
+    ATELIER_POSE_EXPORT_REF_AUTHOR_ID, ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID,
+    ATELIER_POSE_FACE_TOGGLE_AUTHOR_ID, ATELIER_POSE_HANDS_TOGGLE_AUTHOR_ID,
+    ATELIER_POSE_OPENPOSE_VIEWPORT_AUTHOR_ID, ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID,
+    ATELIER_POSE_RESET_AUTHOR_ID, ATELIER_POSE_RIG_ID_AUTHOR_ID, ATELIER_POSE_SOURCE_REF_AUTHOR_ID,
+    ATELIER_POSE_SPLIT_VIEW_AUTHOR_ID, ATELIER_POSE_STATE_READOUT_AUTHOR_ID,
+    ATELIER_POSE_YAW_MINUS_AUTHOR_ID, ATELIER_POSE_YAW_PLUS_AUTHOR_ID,
+    ATELIER_POSE_YAW_SLIDER_AUTHOR_ID, ATELIER_POSE_ZOOM_SLIDER_AUTHOR_ID,
+    ATELIER_TABLIST_AUTHOR_ID, ATELIER_TAB_CKC_AUTHOR_ID, ATELIER_TAB_INGEST_AUTHOR_ID,
+    ATELIER_TAB_POSEKIT_AUTHOR_ID,
 };
 use handshake_native::atelier_side_panel::{item_author_id, AtelierSidePanel, PANEL_AUTHOR_ID};
 use handshake_native::backend_client::{AtelierBatchRow, AtelierItemRow};
@@ -1833,7 +1838,22 @@ fn posekit_and_ingest_controls_are_model_addressable() {
         .get_by(|node| node.author_id() == Some(ATELIER_TAB_POSEKIT_AUTHOR_ID))
         .click();
     harness.run();
+    let ids = author_ids(&harness);
     for expected in [
+        ATELIER_POSE_STATE_READOUT_AUTHOR_ID,
+        ATELIER_POSE_SPLIT_VIEW_AUTHOR_ID,
+        ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID,
+        ATELIER_POSE_OPENPOSE_VIEWPORT_AUTHOR_ID,
+        ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID,
+    ] {
+        assert!(
+            ids.contains(expected),
+            "Posekit inspectable surface {expected} must be visible to Argus/MCP"
+        );
+    }
+    for expected in [
+        ATELIER_POSE_SOURCE_REF_AUTHOR_ID,
+        ATELIER_POSE_RIG_ID_AUTHOR_ID,
         ATELIER_POSE_YAW_MINUS_AUTHOR_ID,
         ATELIER_POSE_YAW_PLUS_AUTHOR_ID,
         ATELIER_POSE_RESET_AUTHOR_ID,
@@ -1843,6 +1863,7 @@ fn posekit_and_ingest_controls_are_model_addressable() {
         ATELIER_POSE_YAW_SLIDER_AUTHOR_ID,
         ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID,
         ATELIER_POSE_ZOOM_SLIDER_AUTHOR_ID,
+        ATELIER_POSE_EXPORT_AUTHOR_ID,
     ] {
         let node = harness.get_by(|node| node.author_id() == Some(expected));
         assert!(
@@ -1879,4 +1900,198 @@ fn posekit_and_ingest_controls_are_model_addressable() {
             "Ingest control {expected} must be steerable by Argus/MCP"
         );
     }
+}
+
+#[test]
+fn posekit_split_view_rotation_export_is_argus_inspectable() {
+    let mut harness = build_panel_harness();
+    harness.run();
+
+    let mut channel = ActionChannel::new();
+    let tab_click = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_TAB_POSEKIT_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &snapshot_harness(&mut harness),
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(tab_click.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+
+    let initial = snapshot_harness(&mut harness);
+    for expected in [
+        ATELIER_CONTENT_POSEKIT_AUTHOR_ID,
+        ATELIER_POSE_SOURCE_REF_AUTHOR_ID,
+        ATELIER_POSE_RIG_ID_AUTHOR_ID,
+        ATELIER_POSE_STATE_READOUT_AUTHOR_ID,
+        ATELIER_POSE_SPLIT_VIEW_AUTHOR_ID,
+        ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID,
+        ATELIER_POSE_OPENPOSE_VIEWPORT_AUTHOR_ID,
+        ATELIER_POSE_EXPORT_AUTHOR_ID,
+        ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID,
+    ] {
+        assert!(
+            initial.find_by_author_id(expected).is_some(),
+            "Posekit split/export surface must expose {expected}"
+        );
+    }
+    let initial_readout = initial
+        .find_by_author_id(ATELIER_POSE_STATE_READOUT_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("Posekit state readout value");
+    assert!(initial_readout.contains("yaw_deg=0"));
+    assert!(initial_readout.contains("markers=face:on body:on hands:off"));
+    assert!(initial_readout.contains("rig_id=<none>"));
+    let initial_status = initial
+        .find_by_author_id(ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("Posekit export status value");
+    assert!(initial_status.contains("No Posekit OpenPose export requested"));
+
+    let rig_id = "018f7848-1111-7000-9000-00000000f014";
+    let set_rig = dispatch_request(
+        &argus_req(
+            "argus.set_value",
+            serde_json::json!({ "target": ATELIER_POSE_RIG_ID_AUTHOR_ID, "value": rig_id }),
+        ),
+        &argus_token(),
+        &initial,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(set_rig.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+
+    let rigged = snapshot_harness(&mut harness);
+    let rigged_readout = rigged
+        .find_by_author_id(ATELIER_POSE_STATE_READOUT_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("rigged Posekit state readout value");
+    assert!(
+        rigged_readout.contains(&format!("rig_id={rig_id}")),
+        "Posekit state readout must expose the selected rig id: {rigged_readout}"
+    );
+    let rigged_viewport = rigged
+        .find_by_author_id(ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("rigged Posekit viewport value");
+    assert!(
+        rigged_viewport.contains(&format!("rig_id={rig_id}")),
+        "Posekit rig/source viewport must consume the selected rig id: {rigged_viewport}"
+    );
+
+    let yaw_click = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_POSE_YAW_PLUS_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &rigged,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(yaw_click.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+
+    let rotated = snapshot_harness(&mut harness);
+    let rotated_readout = rotated
+        .find_by_author_id(ATELIER_POSE_STATE_READOUT_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("rotated Posekit state readout value");
+    assert!(
+        rotated_readout.contains("yaw_deg=15"),
+        "Yaw +15 must update model-readable pose state: {rotated_readout}"
+    );
+    let set_yaw = dispatch_request(
+        &argus_req(
+            "argus.set_value",
+            serde_json::json!({ "target": ATELIER_POSE_YAW_SLIDER_AUTHOR_ID, "value": "90" }),
+        ),
+        &argus_token(),
+        &rotated,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(set_yaw.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+
+    let set_rotated = snapshot_harness(&mut harness);
+    let set_readout = set_rotated
+        .find_by_author_id(ATELIER_POSE_STATE_READOUT_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("set-value Posekit state readout value");
+    assert!(
+        set_readout.contains("yaw_deg=90"),
+        "Argus set_value must update the model-readable yaw field: {set_readout}"
+    );
+
+    let export_click = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_POSE_EXPORT_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &set_rotated,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(export_click.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+
+    let exported = snapshot_harness(&mut harness);
+    let status = exported
+        .find_by_author_id(ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("exported Posekit status value");
+    assert!(status.contains("Local Argus preview only"));
+    assert!(status.contains("yaw_deg=90"));
+    assert!(status.contains("preview://atelier/posekit/openpose/"));
+    let export_ref = exported
+        .find_by_author_id(ATELIER_POSE_EXPORT_REF_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("Posekit export ref value");
+    assert!(export_ref.contains("preview://atelier/posekit/openpose/"));
+    assert!(
+        export_ref
+            .split_whitespace()
+            .any(|part| part.len() == 64 && part.chars().all(|ch| ch.is_ascii_hexdigit())),
+        "Posekit export ref should expose a SHA-256 content hash: {export_ref}"
+    );
+    let preview = exported
+        .find_by_author_id(ATELIER_POSE_EXPORT_PREVIEW_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("Posekit export preview value");
+    assert!(preview.contains("hsk.atelier.posekit.openpose_export@1"));
+    assert!(preview.contains(&format!("rig_id={rig_id}")));
+    assert!(preview.contains(&format!("\"rig_id\":\"{rig_id}\"")));
+    assert!(preview.contains("\"pose_keypoints_2d\""));
+    assert!(preview.contains("\"face_keypoints_2d\""));
+    assert!(preview.contains("\"hand_left_keypoints_2d\""));
+    assert!(preview.contains("\"hand_right_keypoints_2d\""));
+    assert!(preview.contains("\"yaw_deg\":90.0") || preview.contains("\"yaw_deg\":90"));
+    assert!(preview.contains("mime=image/png"));
+
+    save_visual_probe_to(
+        &mut harness,
+        "wp-ckc-posekit-overhaul-mt-014",
+        "posekit_split_export_desktop.png",
+    );
 }

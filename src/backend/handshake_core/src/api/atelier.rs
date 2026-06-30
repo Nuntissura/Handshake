@@ -28,6 +28,7 @@ use sqlx::Row;
 use std::collections::HashSet;
 use uuid::Uuid;
 
+use crate::ace::ArtifactHandle;
 use crate::atelier::collections::{Collection, NewCollection};
 use crate::atelier::documents::{
     AppendCharacterDocumentVersion, CharacterDocument, CharacterDocumentType,
@@ -38,6 +39,11 @@ use crate::atelier::intake::{
     IntakeBatchMode, IntakeLaneCounts, IntakeProfileMode, NewIntakeBatch,
 };
 use crate::atelier::moodboards::{MoodboardSnapshot, NewMoodboardSnapshot};
+use crate::atelier::pose::{
+    generate_posekit_openpose_export, generate_posekit_openpose_export_from_keypoints,
+    NewPoseSidecar, PoseSidecar, PoseSidecarKind, PoseSidecarStatus, PosekitMarkerLayers,
+    PosekitOpenPoseExport, PosekitOpenPoseExportRequest, POSEKIT_OPENPOSE_EXPORT_SCHEMA_ID,
+};
 use crate::atelier::search::{
     normalize_tag, AiTagSuggestion, AiTagSuggestionDecision, AiTagSuggestionStatus, CkcSearchMode,
     CkcSearchRequest, CkcSearchResponse, CkcTagNote, NewAiTagSuggestion, UpsertCkcTagNote,
@@ -55,6 +61,11 @@ use crate::atelier::{
     MediaReviewMetadataUpdate, NewCharacter, NewSheetVersion, SetMediaSourceProvenanceRefs,
     SheetVersion, UrlImageImportRequest, CHARACTER_SHEET_V2_TEMPLATE_VERSION, DEFAULT_SHEET_TOOL,
 };
+use crate::storage::artifacts::{
+    artifact_root_rel, resolve_workspace_root, validate_artifact_content_hash, write_file_artifact,
+    ArtifactClassification, ArtifactLayer, ArtifactManifest, ArtifactPayloadKind,
+};
+use crate::storage::EntityRef;
 use crate::AppState;
 
 const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
@@ -120,6 +131,10 @@ pub fn routes(state: AppState) -> Router {
         )
         .route("/atelier/ckc/search", post(search_ckc))
         .route("/atelier/ckc/tag-notes", post(upsert_ckc_tag_note))
+        .route(
+            "/atelier/posekit/openpose-export",
+            post(export_posekit_openpose),
+        )
         .route(
             "/atelier/sheet-versions/:version_id",
             get(get_sheet_version),
@@ -696,6 +711,47 @@ struct CkcTagNoteRequest {
     tag_text: String,
     scope_ref: Option<String>,
     note: String,
+}
+
+#[derive(Debug, Serialize)]
+struct PosekitArtifactResponse {
+    artifact_ref: String,
+    manifest_ref: String,
+    content_hash: String,
+    byte_len: u64,
+    mime: String,
+    file_name: String,
+}
+
+#[derive(Debug, Serialize)]
+struct PosekitSidecarResponse {
+    sidecar_id: Uuid,
+    rig_id: Uuid,
+    kind: String,
+    artifact_ref: String,
+    manifest_ref: String,
+    content_hash: String,
+}
+
+#[derive(Debug, Serialize)]
+struct PosekitOpenPoseExportResponse {
+    schema_id: String,
+    source_ref: String,
+    rig_id: Option<Uuid>,
+    yaw_deg: i32,
+    pitch_deg: i32,
+    zoom_percent: i32,
+    marker_layers: PosekitMarkerLayers,
+    width: i32,
+    height: i32,
+    openpose_json: serde_json::Value,
+    openpose_json_sha256: String,
+    openpose_png_sha256: String,
+    content_hash: String,
+    receipt_ref: String,
+    openpose_png_artifact: PosekitArtifactResponse,
+    openpose_json_artifact: PosekitArtifactResponse,
+    sidecars: Vec<PosekitSidecarResponse>,
 }
 
 fn character_response(character: Character) -> CharacterResponse {
@@ -2141,6 +2197,278 @@ async fn upsert_ckc_tag_note(
         "upsert CKC tag note"
     );
     Ok(Json(tag_note))
+}
+
+/// POST /atelier/posekit/openpose-export — native Rust Posekit/OpenRepose export into ArtifactStore.
+async fn export_posekit_openpose(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<PosekitOpenPoseExportRequest>,
+) -> Result<Json<PosekitOpenPoseExportResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let actor = calling_actor(&headers)?;
+    let store = atelier_store(&state);
+    let rig = if let Some(rig_id) = payload.rig_id {
+        let rig = store.get_pose_rig(rig_id).await.map_err(atelier_error)?;
+        if rig.source_ref != payload.source_ref {
+            return Err(atelier_error(AtelierError::Validation(format!(
+                "Posekit OpenPose export source_ref must match rig source_ref: request={} rig={}",
+                payload.source_ref, rig.source_ref
+            ))));
+        }
+        Some(rig)
+    } else {
+        None
+    };
+    let export = if let Some(rig) = rig.as_ref() {
+        generate_posekit_openpose_export_from_keypoints(&payload, &rig.keypoints_json)
+    } else {
+        generate_posekit_openpose_export(&payload)
+    }
+    .map_err(atelier_error)?;
+    let png_artifact = write_posekit_export_artifact(
+        &export,
+        &export.openpose_png_bytes,
+        &export.openpose_png_sha256,
+        "image/png",
+        "posekit-openpose.png",
+        &actor,
+        payload.rig_id,
+        &[],
+    )?;
+    let json_artifact = write_posekit_export_artifact(
+        &export,
+        &export.openpose_json_bytes,
+        &export.openpose_json_sha256,
+        "application/json",
+        "posekit-openpose.json",
+        &actor,
+        payload.rig_id,
+        &[],
+    )?;
+    let receipt_artifact = write_posekit_export_receipt_artifact(
+        &export,
+        &png_artifact,
+        &json_artifact,
+        &actor,
+        payload.rig_id,
+    )?;
+    let sidecars = if let Some(rig_id) = payload.rig_id {
+        let sidecars = store
+            .record_pose_sidecars(&[
+                NewPoseSidecar {
+                    rig_id,
+                    kind: PoseSidecarKind::OpenPoseJson,
+                    artifact_ref: json_artifact.artifact_ref.clone(),
+                    manifest_ref: json_artifact.manifest_ref.clone(),
+                    content_hash: json_artifact.content_hash.clone(),
+                    byte_len: json_artifact.byte_len as i64,
+                    mime: json_artifact.mime.clone(),
+                    width: export.width,
+                    height: export.height,
+                    status: PoseSidecarStatus::Rendered,
+                    error_message: None,
+                },
+                NewPoseSidecar {
+                    rig_id,
+                    kind: PoseSidecarKind::OpenPosePng,
+                    artifact_ref: png_artifact.artifact_ref.clone(),
+                    manifest_ref: png_artifact.manifest_ref.clone(),
+                    content_hash: png_artifact.content_hash.clone(),
+                    byte_len: png_artifact.byte_len as i64,
+                    mime: png_artifact.mime.clone(),
+                    width: export.width,
+                    height: export.height,
+                    status: PoseSidecarStatus::Rendered,
+                    error_message: None,
+                },
+            ])
+            .await
+            .map_err(atelier_error)?;
+        sidecars.into_iter().map(posekit_sidecar_response).collect()
+    } else {
+        Vec::new()
+    };
+    let response = PosekitOpenPoseExportResponse {
+        schema_id: POSEKIT_OPENPOSE_EXPORT_SCHEMA_ID.to_owned(),
+        source_ref: export.source_ref.clone(),
+        rig_id: payload.rig_id,
+        yaw_deg: export.yaw_deg,
+        pitch_deg: export.pitch_deg,
+        zoom_percent: export.zoom_percent,
+        marker_layers: export.marker_layers.clone(),
+        width: export.width,
+        height: export.height,
+        openpose_json: export.openpose_json.clone(),
+        openpose_json_sha256: export.openpose_json_sha256.clone(),
+        openpose_png_sha256: export.openpose_png_sha256.clone(),
+        content_hash: export.content_hash.clone(),
+        receipt_ref: receipt_artifact.artifact_ref.clone(),
+        openpose_png_artifact: png_artifact,
+        openpose_json_artifact: json_artifact,
+        sidecars,
+    };
+    tracing::info!(
+        target: "handshake_core::atelier",
+        route = "/atelier/posekit/openpose-export",
+        status = "ok",
+        actor = %actor,
+        source_ref = %response.source_ref,
+        yaw_deg = response.yaw_deg,
+        png_artifact_ref = %response.openpose_png_artifact.artifact_ref,
+        json_artifact_ref = %response.openpose_json_artifact.artifact_ref,
+        sidecar_count = response.sidecars.len(),
+        receipt_ref = %response.receipt_ref,
+        "export Posekit OpenPose"
+    );
+    Ok(Json(response))
+}
+
+fn posekit_sidecar_response(sidecar: PoseSidecar) -> PosekitSidecarResponse {
+    PosekitSidecarResponse {
+        sidecar_id: sidecar.sidecar_id,
+        rig_id: sidecar.rig_id,
+        kind: sidecar.kind.as_token().to_owned(),
+        artifact_ref: sidecar.artifact_ref,
+        manifest_ref: sidecar.manifest_ref,
+        content_hash: sidecar.content_hash,
+    }
+}
+
+fn write_posekit_export_artifact(
+    export: &PosekitOpenPoseExport,
+    payload_bytes: &[u8],
+    content_hash: &str,
+    mime: &str,
+    file_name: &str,
+    actor: &str,
+    rig_id: Option<Uuid>,
+    source_artifact_refs: &[ArtifactHandle],
+) -> Result<PosekitArtifactResponse, (StatusCode, Json<ErrorResponse>)> {
+    let workspace_root = resolve_workspace_root().map_err(internal_error)?;
+    let artifact_id = Uuid::now_v7();
+    let manifest = ArtifactManifest {
+        artifact_id,
+        layer: ArtifactLayer::L1,
+        kind: ArtifactPayloadKind::File,
+        mime: mime.to_owned(),
+        filename_hint: Some(file_name.to_owned()),
+        created_at: Utc::now(),
+        created_by_job_id: None,
+        source_entity_refs: posekit_export_source_entity_refs(export, actor, rig_id),
+        source_artifact_refs: source_artifact_refs.to_vec(),
+        content_hash: content_hash.to_owned(),
+        size_bytes: payload_bytes.len() as u64,
+        classification: ArtifactClassification::Low,
+        exportable: true,
+        retention_ttl_days: None,
+        pinned: Some(true),
+        hash_basis: Some(format!(
+            "{}|{}|yaw={}|pitch={}|zoom={}|{}",
+            POSEKIT_OPENPOSE_EXPORT_SCHEMA_ID,
+            export.source_ref,
+            export.yaw_deg,
+            export.pitch_deg,
+            export.zoom_percent,
+            export.content_hash
+        )),
+        hash_exclude_paths: Vec::new(),
+    };
+    write_file_artifact(&workspace_root, &manifest, payload_bytes).map_err(internal_error)?;
+    validate_artifact_content_hash(&workspace_root, ArtifactLayer::L1, artifact_id)
+        .map_err(internal_error)?;
+    let root = artifact_root_rel(ArtifactLayer::L1, artifact_id);
+    Ok(PosekitArtifactResponse {
+        artifact_ref: format!("artifact://{root}/payload"),
+        manifest_ref: format!("artifact://{root}/artifact.json"),
+        content_hash: content_hash.to_owned(),
+        byte_len: payload_bytes.len() as u64,
+        mime: mime.to_owned(),
+        file_name: file_name.to_owned(),
+    })
+}
+
+fn write_posekit_export_receipt_artifact(
+    export: &PosekitOpenPoseExport,
+    png_artifact: &PosekitArtifactResponse,
+    json_artifact: &PosekitArtifactResponse,
+    actor: &str,
+    rig_id: Option<Uuid>,
+) -> Result<PosekitArtifactResponse, (StatusCode, Json<ErrorResponse>)> {
+    let receipt = serde_json::json!({
+        "schema_id": "hsk.atelier.posekit.openpose_export_receipt@1",
+        "export_schema_id": export.schema_id.clone(),
+        "source_ref": export.source_ref.clone(),
+        "rig_id": rig_id,
+        "actor_ref": format!("actor://sha256/{}", text_hash(actor)),
+        "yaw_deg": export.yaw_deg,
+        "pitch_deg": export.pitch_deg,
+        "zoom_percent": export.zoom_percent,
+        "marker_layers": export.marker_layers.clone(),
+        "width": export.width,
+        "height": export.height,
+        "content_hash": export.content_hash.clone(),
+        "openpose_png_artifact_ref": png_artifact.artifact_ref.clone(),
+        "openpose_png_manifest_ref": png_artifact.manifest_ref.clone(),
+        "openpose_png_sha256": export.openpose_png_sha256.clone(),
+        "openpose_json_artifact_ref": json_artifact.artifact_ref.clone(),
+        "openpose_json_manifest_ref": json_artifact.manifest_ref.clone(),
+        "openpose_json_sha256": export.openpose_json_sha256.clone(),
+    });
+    let payload_bytes = serde_json::to_vec(&receipt).map_err(internal_error)?;
+    let content_hash = text_hash(
+        std::str::from_utf8(&payload_bytes).map_err(|err| internal_error(err.to_string()))?,
+    );
+    write_posekit_export_artifact(
+        export,
+        &payload_bytes,
+        &content_hash,
+        "application/json",
+        "posekit-openpose-export-receipt.json",
+        actor,
+        rig_id,
+        &[
+            posekit_artifact_handle(png_artifact),
+            posekit_artifact_handle(json_artifact),
+        ],
+    )
+}
+
+fn posekit_export_source_entity_refs(
+    export: &PosekitOpenPoseExport,
+    actor: &str,
+    rig_id: Option<Uuid>,
+) -> Vec<EntityRef> {
+    let mut refs = vec![
+        EntityRef {
+            entity_kind: "posekit_source_ref".to_owned(),
+            entity_id: export.source_ref.clone(),
+        },
+        EntityRef {
+            entity_kind: "actor_sha256".to_owned(),
+            entity_id: text_hash(actor),
+        },
+        EntityRef {
+            entity_kind: "posekit_openpose_export".to_owned(),
+            entity_id: export.content_hash.clone(),
+        },
+    ];
+    if let Some(rig_id) = rig_id {
+        refs.push(EntityRef {
+            entity_kind: "pose_rig".to_owned(),
+            entity_id: rig_id.to_string(),
+        });
+    }
+    refs
+}
+
+fn posekit_artifact_handle(artifact: &PosekitArtifactResponse) -> ArtifactHandle {
+    let artifact_id = artifact
+        .artifact_ref
+        .strip_prefix("artifact://.handshake/artifacts/L1/")
+        .and_then(|value| value.strip_suffix("/payload"))
+        .and_then(|value| Uuid::parse_str(value).ok())
+        .unwrap_or_else(Uuid::now_v7);
+    ArtifactHandle::new(artifact_id, artifact.artifact_ref.clone())
 }
 
 /// POST /atelier/characters/:character_internal_id/sheet-versions — append a guarded sheet edit.
