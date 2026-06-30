@@ -753,6 +753,9 @@ fn manual_documents_atelier_tabs_and_argus_control_ids() {
         "atelier-ingest-contact-preview",
         "atelier-ingest-contact-receipt",
         "atelier-ingest-facial-profile",
+        "atelier-ingest-facial-analyze",
+        "atelier-ingest-facial-summary",
+        "atelier-ingest-facial-receipt",
         "atelier-ingest-queue-readout",
         "atelier-ingest-batch-summary",
         "atelier-ingest-status",
@@ -776,6 +779,10 @@ fn manual_documents_atelier_tabs_and_argus_control_ids() {
         "thumbnail fit",
         "output path",
         "preview://atelier/contact-sheet",
+        "hsk.atelier.facial_ingest_analysis@1",
+        "quality_source=handshake_native_proxy_v1",
+        "dedupe_source=content_hash_exact_or_singleton",
+        "identity_source=handshake_proxy_no_model",
         "Argus",
     ] {
         assert!(
@@ -864,6 +871,18 @@ fn manual_agent_tool_rows_cover_ingest_dataset_contact_and_facial_controls() {
         (
             handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID,
             "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_ANALYZE_AUTHOR_ID,
+            "argus.click",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_SUMMARY_AUTHOR_ID,
+            "argus.inspect",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_FACIAL_RECEIPT_AUTHOR_ID,
+            "argus.inspect",
         ),
         (
             handshake_native::atelier_panel::ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID,

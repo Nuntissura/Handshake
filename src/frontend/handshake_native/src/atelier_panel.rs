@@ -22,7 +22,8 @@ use crate::backend_client::{
     AtelierCkcSheetArtifactLinkRow, AtelierCkcSheetArtifactLinksCell, AtelierCkcStoryBeatCell,
     AtelierCkcStoryBeatRow, AtelierCkcStoryCardCell, AtelierCkcStoryCardRow, AtelierCkcTagNoteCell,
     AtelierCkcTagNoteRow, AtelierCkcTemplateCell, AtelierClient, AtelierContactSheetExportCell,
-    AtelierContactSheetExportRow, AtelierContactSheetItem, AtelierIntakeClassificationCell,
+    AtelierContactSheetExportRow, AtelierContactSheetItem, AtelierFacialIngestAnalysisCell,
+    AtelierFacialIngestAnalysisRow, AtelierIntakeClassificationCell,
     AtelierIntakeClassificationDecision, AtelierItemRow, AtelierPosekitExportCell,
     AtelierPosekitExportRow, AtelierSheetExportRow, AtelierSheetFieldSuggestionRow,
     AtelierSheetVersionRow,
@@ -210,6 +211,9 @@ pub const ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID: &str = "atelier-ingest-contac
 pub const ATELIER_INGEST_CONTACT_PREVIEW_AUTHOR_ID: &str = "atelier-ingest-contact-preview";
 pub const ATELIER_INGEST_CONTACT_RECEIPT_AUTHOR_ID: &str = "atelier-ingest-contact-receipt";
 pub const ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID: &str = "atelier-ingest-facial-profile";
+pub const ATELIER_INGEST_FACIAL_ANALYZE_AUTHOR_ID: &str = "atelier-ingest-facial-analyze";
+pub const ATELIER_INGEST_FACIAL_SUMMARY_AUTHOR_ID: &str = "atelier-ingest-facial-summary";
+pub const ATELIER_INGEST_FACIAL_RECEIPT_AUTHOR_ID: &str = "atelier-ingest-facial-receipt";
 pub const ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID: &str = "atelier-ingest-queue-readout";
 pub const ATELIER_INGEST_BATCH_SUMMARY_AUTHOR_ID: &str = "atelier-ingest-batch-summary";
 pub const ATELIER_INGEST_STATUS_AUTHOR_ID: &str = "atelier-ingest-status";
@@ -375,6 +379,30 @@ struct ContactSheetExportSnapshot {
     receipt_sha256: String,
     content_hash: String,
     source_lineage_preview: String,
+}
+
+#[derive(Debug, Clone)]
+struct FacialIngestAnalysisSnapshot {
+    batch_id: String,
+    profile: String,
+    profile_tokens: String,
+    item_count: usize,
+    decoded_count: usize,
+    duplicate_group_count: usize,
+    duplicate_item_count: usize,
+    keep_count: usize,
+    review_count: usize,
+    cull_count: usize,
+    quality_source: String,
+    identity_source: String,
+    dedupe_source: String,
+    analysis_artifact_ref: String,
+    analysis_manifest_ref: String,
+    receipt_ref: String,
+    receipt_manifest_ref: String,
+    analysis_sha256: String,
+    receipt_sha256: String,
+    content_hash: String,
 }
 
 #[derive(Debug, Clone)]
@@ -2380,6 +2408,11 @@ struct AtelierPanelState {
     ingest_last_contact_sheet: Option<ContactSheetExportSnapshot>,
     ingest_contact_sheet_receipt: String,
     ingest_facial_profile: String,
+    ingest_facial_analysis_pending: bool,
+    ingest_facial_analysis_request_seq: u64,
+    ingest_active_facial_analysis_request: Option<u64>,
+    ingest_last_facial_analysis: Option<FacialIngestAnalysisSnapshot>,
+    ingest_facial_analysis_receipt: String,
     ingest_status: String,
     ingest_item_decisions: BTreeMap<String, IngestDecision>,
     ingest_persisted_item_ids: BTreeSet<String>,
@@ -2526,8 +2559,13 @@ impl Default for AtelierPanelState {
             ingest_last_contact_sheet: None,
             ingest_contact_sheet_receipt: "No contact sheet export yet.".to_owned(),
             ingest_facial_profile: "quality+dedupe+identity".to_owned(),
+            ingest_facial_analysis_pending: false,
+            ingest_facial_analysis_request_seq: 0,
+            ingest_active_facial_analysis_request: None,
+            ingest_last_facial_analysis: None,
+            ingest_facial_analysis_receipt: "No Facial Ingest analysis yet.".to_owned(),
             ingest_status:
-                "Ingest ready: stage dataset metadata, set canonical batch defaults, override visible rows, contact sheet settings, and Facial profile hints."
+                "Ingest ready: stage dataset metadata, set canonical batch defaults, override visible rows, export contact sheets, and run native Facial analysis."
                     .to_owned(),
             ingest_item_decisions: BTreeMap::new(),
             ingest_persisted_item_ids: BTreeSet::new(),
@@ -4437,6 +4475,116 @@ fn contact_sheet_visual_preview(snapshot: Option<&ContactSheetExportSnapshot>) -
     )
 }
 
+fn facial_analysis_snapshot_from_backend(
+    row: AtelierFacialIngestAnalysisRow,
+) -> FacialIngestAnalysisSnapshot {
+    FacialIngestAnalysisSnapshot {
+        batch_id: row.batch_id,
+        profile: row.profile,
+        profile_tokens: row.profile_tokens.join("+"),
+        item_count: row.item_count,
+        decoded_count: json_summary_count(&row.summary, "decoded_count"),
+        duplicate_group_count: json_summary_count(&row.summary, "duplicate_group_count"),
+        duplicate_item_count: json_summary_count(&row.summary, "duplicate_item_count"),
+        keep_count: json_summary_map_count(&row.summary, "review_recommendation_counts", "keep"),
+        review_count: json_summary_map_count(
+            &row.summary,
+            "review_recommendation_counts",
+            "review",
+        ),
+        cull_count: json_summary_map_count(&row.summary, "review_recommendation_counts", "cull"),
+        quality_source: json_summary_string(&row.summary, "quality_source")
+            .unwrap_or_else(|| "unknown".to_owned()),
+        identity_source: json_summary_string(&row.summary, "identity_source")
+            .unwrap_or_else(|| "unknown".to_owned()),
+        dedupe_source: json_summary_string(&row.summary, "dedupe_source")
+            .unwrap_or_else(|| "unknown".to_owned()),
+        analysis_artifact_ref: row.analysis_artifact.artifact_ref,
+        analysis_manifest_ref: row.analysis_artifact.manifest_ref,
+        receipt_ref: row.receipt_ref,
+        receipt_manifest_ref: row.receipt_artifact.manifest_ref,
+        analysis_sha256: row.analysis_sha256,
+        receipt_sha256: row.receipt_sha256,
+        content_hash: row.content_hash,
+    }
+}
+
+fn json_summary_count(summary: &serde_json::Value, field: &str) -> usize {
+    summary
+        .get(field)
+        .and_then(|value| value.as_u64())
+        .and_then(|value| usize::try_from(value).ok())
+        .unwrap_or(0)
+}
+
+fn json_summary_map_count(summary: &serde_json::Value, map_field: &str, key: &str) -> usize {
+    summary
+        .get(map_field)
+        .and_then(|value| value.get(key))
+        .and_then(|value| value.as_u64())
+        .and_then(|value| usize::try_from(value).ok())
+        .unwrap_or(0)
+}
+
+fn json_summary_string(summary: &serde_json::Value, field: &str) -> Option<String> {
+    summary
+        .get(field)
+        .and_then(|value| value.as_str())
+        .map(ToOwned::to_owned)
+}
+
+fn facial_analysis_summary_preview(snapshot: Option<&FacialIngestAnalysisSnapshot>) -> String {
+    let Some(snapshot) = snapshot else {
+        return "facial_analysis=<none>".to_owned();
+    };
+    format!(
+        "facial_analysis=schema=hsk.atelier.facial_ingest_analysis@1 batch_id={} profile={} profile_tokens={} item_count={} decoded_count={} duplicate_group_count={} duplicate_item_count={} keep={} review={} cull={} quality_source={} identity_source={} dedupe_source={} analysis_ref={}",
+        snapshot.batch_id,
+        snapshot.profile,
+        snapshot.profile_tokens,
+        snapshot.item_count,
+        snapshot.decoded_count,
+        snapshot.duplicate_group_count,
+        snapshot.duplicate_item_count,
+        snapshot.keep_count,
+        snapshot.review_count,
+        snapshot.cull_count,
+        snapshot.quality_source,
+        snapshot.identity_source,
+        snapshot.dedupe_source,
+        snapshot.analysis_artifact_ref
+    )
+}
+
+fn facial_analysis_receipt_preview(snapshot: Option<&FacialIngestAnalysisSnapshot>) -> String {
+    let Some(snapshot) = snapshot else {
+        return "facial_analysis_receipt=<none>".to_owned();
+    };
+    format!(
+        "schema=hsk.atelier.facial_ingest_analysis@1\nbatch_id={}\nprofile={}\nprofile_tokens={}\nitem_count={}\ndecoded_count={}\nduplicate_group_count={}\nduplicate_item_count={}\nkeep={}\nreview={}\ncull={}\nquality_source={}\nidentity_source={}\ndedupe_source={}\nanalysis_artifact_ref={}\nanalysis_manifest_ref={}\nreceipt_ref={}\nreceipt_manifest_ref={}\nanalysis_sha256={}\nreceipt_sha256={}\ncontent_hash={}\nanalysis_mime=application/json\nreceipt_mime=application/json",
+        snapshot.batch_id,
+        snapshot.profile,
+        snapshot.profile_tokens,
+        snapshot.item_count,
+        snapshot.decoded_count,
+        snapshot.duplicate_group_count,
+        snapshot.duplicate_item_count,
+        snapshot.keep_count,
+        snapshot.review_count,
+        snapshot.cull_count,
+        snapshot.quality_source,
+        snapshot.identity_source,
+        snapshot.dedupe_source,
+        snapshot.analysis_artifact_ref,
+        snapshot.analysis_manifest_ref,
+        snapshot.receipt_ref,
+        snapshot.receipt_manifest_ref,
+        snapshot.analysis_sha256,
+        snapshot.receipt_sha256,
+        snapshot.content_hash
+    )
+}
+
 fn ingest_receipt_applied_item_ids(
     rows: &[crate::backend_client::AtelierIntakeClassificationRow],
     applied_count: usize,
@@ -4497,6 +4645,7 @@ pub struct AtelierPanel {
     ckc_tag_note_cell: AtelierCkcTagNoteCell,
     pose_export_cell: AtelierPosekitExportCell,
     ingest_contact_export_cell: AtelierContactSheetExportCell,
+    ingest_facial_analysis_cell: AtelierFacialIngestAnalysisCell,
     ingest_classification_cell: AtelierIntakeClassificationCell,
 }
 
@@ -4550,6 +4699,7 @@ impl AtelierPanel {
             ckc_tag_note_cell: Arc::new(Mutex::new(None)),
             pose_export_cell: Arc::new(Mutex::new(None)),
             ingest_contact_export_cell: Arc::new(Mutex::new(None)),
+            ingest_facial_analysis_cell: Arc::new(Mutex::new(None)),
             ingest_classification_cell: Arc::new(Mutex::new(None)),
         }
     }
@@ -5436,6 +5586,51 @@ impl AtelierPanel {
                         state.ingest_contact_sheet_receipt =
                             format!("contact_sheet_export_error={err}");
                         state.ingest_status = format!("Contact sheet export failed: {err}");
+                    }
+                }
+            }
+        }
+    }
+
+    fn drain_facial_analysis_backend(&self) {
+        let analysis_result = self
+            .ingest_facial_analysis_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        if let Some((request_id, result)) = analysis_result {
+            if let Ok(mut state) = self.state.lock() {
+                if state.ingest_active_facial_analysis_request != Some(request_id) {
+                    state.ingest_facial_analysis_receipt = format!(
+                        "ignored_stale_facial_analysis=true request_seq={request_id} expected_request_seq={:?}",
+                        state.ingest_active_facial_analysis_request
+                    );
+                    return;
+                }
+                state.ingest_facial_analysis_pending = false;
+                state.ingest_active_facial_analysis_request = None;
+                match result {
+                    Ok(row) => {
+                        let snapshot = facial_analysis_snapshot_from_backend(row);
+                        state.ingest_facial_analysis_receipt =
+                            facial_analysis_receipt_preview(Some(&snapshot));
+                        state.ingest_status = format!(
+                            "Exported backend Facial Ingest analysis: batch_id={} profile={} item_count={} decoded_count={} duplicate_group_count={} analysis_artifact_ref={} receipt_ref={}",
+                            snapshot.batch_id,
+                            snapshot.profile,
+                            snapshot.item_count,
+                            snapshot.decoded_count,
+                            snapshot.duplicate_group_count,
+                            snapshot.analysis_artifact_ref,
+                            snapshot.receipt_ref
+                        );
+                        state.ingest_last_facial_analysis = Some(snapshot);
+                    }
+                    Err(err) => {
+                        state.ingest_last_facial_analysis = None;
+                        state.ingest_facial_analysis_receipt =
+                            format!("facial_analysis_error={err}");
+                        state.ingest_status = format!("Facial Ingest analysis failed: {err}");
                     }
                 }
             }
@@ -9387,6 +9582,7 @@ impl AtelierPanel {
 
     fn show_ingest(&self, ui: &mut egui::Ui, palette: &HsPalette) {
         self.drain_contact_sheet_export_backend();
+        self.drain_facial_analysis_backend();
         self.drain_ingest_classification_backend();
         ui.label(egui::RichText::new("Intake batch source").color(palette.text));
         if let Ok(mut side_panel) = self.side_panel.lock() {
@@ -9526,9 +9722,73 @@ impl AtelierPanel {
                 facial.id,
                 accesskit::Role::TextInput,
                 ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID,
-                "Facial quality, dedupe, and identity profile hint",
+                "Facial quality, dedupe, identity, and review analysis profile",
                 &state.ingest_facial_profile,
             );
+            let analyze = ui.add_enabled(
+                !state.ingest_facial_analysis_pending,
+                egui::Button::new("Analyze Facial"),
+            );
+            emit_node(
+                ui.ctx(),
+                analyze.id,
+                accesskit::Role::Button,
+                ATELIER_INGEST_FACIAL_ANALYZE_AUTHOR_ID,
+                "Run native Facial-derived Ingest analysis for the canonical expanded batch",
+                state.ingest_facial_analysis_pending,
+            );
+            if analyze.clicked() {
+                let profile = state.ingest_facial_profile.trim().to_owned();
+                if profile.is_empty() {
+                    state.ingest_last_facial_analysis = None;
+                    state.ingest_status =
+                        "Facial Ingest analysis blocked: profile is empty".to_owned();
+                    state.ingest_facial_analysis_receipt =
+                        "facial_analysis_blocked=empty_profile".to_owned();
+                } else if let (Some(client), Some((batch_id, items))) =
+                    (self.ckc_client.as_ref(), expanded_items.as_ref())
+                {
+                    let actor_id = state.ingest_actor.trim().to_owned();
+                    let actor_id = if actor_id.is_empty() {
+                        "atelier-ingest".to_owned()
+                    } else {
+                        actor_id
+                    };
+                    state.ingest_facial_analysis_request_seq =
+                        state.ingest_facial_analysis_request_seq.saturating_add(1);
+                    let request_seq = state.ingest_facial_analysis_request_seq;
+                    state.ingest_facial_analysis_pending = true;
+                    state.ingest_active_facial_analysis_request = Some(request_seq);
+                    state.ingest_last_facial_analysis = None;
+                    state.ingest_facial_analysis_receipt =
+                        "facial_analysis_pending=true".to_owned();
+                    state.ingest_status = format!(
+                        "Dispatching Facial Ingest analysis to backend actor {actor_id}: batch_id={batch_id} profile={profile} visible_item_count={} canonical_source=backend",
+                        items.len()
+                    );
+                    client.analyze_ingest_facial(
+                        batch_id,
+                        &profile,
+                        &actor_id,
+                        request_seq,
+                        self.ingest_facial_analysis_cell.clone(),
+                    );
+                } else if expanded_items.is_none() {
+                    state.ingest_last_facial_analysis = None;
+                    state.ingest_status =
+                        "Facial Ingest analysis needs an expanded backend intake batch."
+                            .to_owned();
+                    state.ingest_facial_analysis_receipt =
+                        "facial_analysis_blocked=missing_expanded_batch".to_owned();
+                } else {
+                    state.ingest_last_facial_analysis = None;
+                    state.ingest_status =
+                        "Facial Ingest analysis needs a backend client; no local fake analysis emitted."
+                            .to_owned();
+                    state.ingest_facial_analysis_receipt =
+                        "facial_analysis_blocked=backend_required".to_owned();
+                }
+            }
         });
         ui.horizontal(|ui| {
             ui.label(egui::RichText::new("Note").color(palette.text));
@@ -9860,6 +10120,20 @@ impl AtelierPanel {
             "Ingest contact sheet visual grid preview",
             &contact_preview,
         );
+        let facial_summary =
+            facial_analysis_summary_preview(state.ingest_last_facial_analysis.as_ref());
+        let facial = ui.add(
+            egui::Label::new(egui::RichText::new(&facial_summary).color(palette.text_subtle))
+                .wrap(),
+        );
+        emit_value_node(
+            ui.ctx(),
+            facial.id,
+            accesskit::Role::Label,
+            ATELIER_INGEST_FACIAL_SUMMARY_AUTHOR_ID,
+            "Ingest Facial analysis summary",
+            &facial_summary,
+        );
         let receipt = ui.label(
             egui::RichText::new(&state.ingest_last_apply_receipt).color(palette.text_subtle),
         );
@@ -9881,6 +10155,21 @@ impl AtelierPanel {
             ATELIER_INGEST_CONTACT_RECEIPT_AUTHOR_ID,
             "Last Ingest contact sheet export receipt",
             &state.ingest_contact_sheet_receipt,
+        );
+        let facial_receipt = ui.add(
+            egui::Label::new(
+                egui::RichText::new(&state.ingest_facial_analysis_receipt)
+                    .color(palette.text_subtle),
+            )
+            .wrap(),
+        );
+        emit_value_node(
+            ui.ctx(),
+            facial_receipt.id,
+            accesskit::Role::Label,
+            ATELIER_INGEST_FACIAL_RECEIPT_AUTHOR_ID,
+            "Last Ingest Facial analysis receipt",
+            &state.ingest_facial_analysis_receipt,
         );
         ui.separator();
         egui::Grid::new("atelier-ingest-grid")

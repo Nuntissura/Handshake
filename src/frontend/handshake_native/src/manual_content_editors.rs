@@ -469,8 +469,14 @@ hsk.atelier.contact_sheet_export@1, image/svg+xml svg_artifact_ref, svg_manifest
 receipt_ref, receipt_manifest_ref, source_ref, item_count, rendered_item_count, and \
 omitted_item_count. The same receipt exposes source_items as item_id=source_ref lineage for the \
 expanded image set. No-backend harnesses expose preview://atelier/contact-sheet/... refs; backend \
-exports write ArtifactStore SVG and JSON receipt artifacts. Facial quality/dedupe/identity profile hints live in \
-atelier-ingest-facial-profile so the future native Facial ingest bridge can reuse the same review queue. Real \
+exports write ArtifactStore SVG and JSON receipt artifacts. Facial quality/dedupe/identity profile \
+selection now drives native Facial Ingest analysis through \
+atelier-ingest-facial-profile and atelier-ingest-facial-analyze. The backend loads the full canonical \
+batch, writes hsk.atelier.facial_ingest_analysis@1 JSON plus receipt artifacts, and projects \
+atelier-ingest-facial-summary / atelier-ingest-facial-receipt for Argus. Current MT-019 Facial \
+quality, dedupe, identity, and review fields are explicit native proxies: quality_source=handshake_native_proxy_v1, \
+dedupe_source=content_hash_exact_or_singleton, and identity_source=handshake_proxy_no_model. Do not claim \
+ArcFace/YuNet match/no_match parity until a later model-backed MT wires those assets. Real \
 expanded intake rows are exposed as atelier-ingest-item-{stable_item_id}; per-item triage buttons are \
 atelier-ingest-item-{stable_item_id}-pass, atelier-ingest-item-{stable_item_id}-reject, and \
 atelier-ingest-item-{stable_item_id}-unsure so parallel agents can inspect and stage row decisions without \
@@ -1653,7 +1659,25 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             crate::atelier_panel::ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID,
             "Set Ingest Facial profile",
             "argus.set_value",
-            "argus.set_value{target:'atelier-ingest-facial-profile', value:'quality+dedupe+identity'} stages Facial quality/dedupe/identity hints.",
+            "argus.set_value{target:'atelier-ingest-facial-profile', value:'quality+dedupe+identity'} selects the native Facial quality/dedupe/identity/review analysis profile.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_ANALYZE_AUTHOR_ID,
+            "Run Ingest Facial analysis",
+            "argus.click",
+            "argus.click{target:'atelier-ingest-facial-analyze'} runs native Facial-derived analysis for the full canonical backend batch and writes JSON analysis plus receipt artifacts.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_SUMMARY_AUTHOR_ID,
+            "Inspect Ingest Facial summary",
+            "argus.inspect",
+            "argus.inspect reads hsk.atelier.facial_ingest_analysis@1 item_count, decoded_count, duplicate counts, keep/review/cull counts, analysis_ref, and proxy provenance sources.",
+        ),
+        (
+            crate::atelier_panel::ATELIER_INGEST_FACIAL_RECEIPT_AUTHOR_ID,
+            "Inspect Ingest Facial receipt",
+            "argus.inspect",
+            "argus.inspect reads Facial analysis artifact refs, manifests, hashes, quality_source=handshake_native_proxy_v1, dedupe_source=content_hash_exact_or_singleton, and identity_source=handshake_proxy_no_model.",
         ),
         (
             crate::atelier_panel::ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID,

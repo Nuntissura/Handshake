@@ -39,6 +39,11 @@ use crate::atelier::documents::{
     CharacterDocumentVersion, NewCharacterDocument, NewStoryBeat, NewStoryCard, StoryBeat,
     StoryCard,
 };
+use crate::atelier::facial::{
+    generate_facial_ingest_analysis, FacialIngestAnalysisExport, FacialIngestAnalysisItem,
+    FacialIngestAnalysisSummary, GenerateFacialIngestAnalysisRequest,
+    FACIAL_INGEST_ANALYSIS_SCHEMA_ID,
+};
 use crate::atelier::intake::{
     ApplyIntakeBatchClassificationOverride, ApplyIntakeBatchClassificationsRequest,
     ApplyIntakeClassificationRequest, IntakeBatchClassificationFailure, IntakeBatchMode,
@@ -183,6 +188,10 @@ pub fn routes(state: AppState) -> Router {
         .route(
             "/atelier/intake/batches/:batch_id/classifications",
             post(apply_intake_batch_classifications),
+        )
+        .route(
+            "/atelier/intake/batches/:batch_id/facial/analyze",
+            post(analyze_intake_batch_facial),
         )
         .route(
             "/atelier/intake/items/:item_id/classification",
@@ -864,6 +873,37 @@ struct ContactSheetExportResponse {
     receipt_ref: String,
     svg_artifact: ContactSheetArtifactResponse,
     receipt_artifact: ContactSheetArtifactResponse,
+}
+
+#[derive(Debug, Deserialize)]
+struct FacialIngestAnalysisApiRequest {
+    profile: String,
+}
+
+#[derive(Debug, Serialize)]
+struct FacialIngestArtifactResponse {
+    artifact_ref: String,
+    manifest_ref: String,
+    content_hash: String,
+    byte_len: u64,
+    mime: String,
+    file_name: String,
+}
+
+#[derive(Debug, Serialize)]
+struct FacialIngestAnalysisResponse {
+    schema_id: String,
+    batch_id: Uuid,
+    profile: String,
+    profile_tokens: Vec<String>,
+    item_count: usize,
+    summary: FacialIngestAnalysisSummary,
+    analysis_sha256: String,
+    receipt_sha256: String,
+    content_hash: String,
+    receipt_ref: String,
+    analysis_artifact: FacialIngestArtifactResponse,
+    receipt_artifact: FacialIngestArtifactResponse,
 }
 
 fn character_response(character: Character) -> CharacterResponse {
@@ -3085,6 +3125,146 @@ fn contact_sheet_artifact_handle(artifact: &ContactSheetArtifactResponse) -> Art
     ArtifactHandle::new(artifact_id, artifact.artifact_ref.clone())
 }
 
+fn resolve_facial_ingest_local_path(source_ref: &str) -> Option<String> {
+    let relative = source_ref.trim().strip_prefix("artifact://.handshake/")?;
+    if relative.is_empty()
+        || relative
+            .split('/')
+            .any(|segment| segment.is_empty() || segment == "." || segment == "..")
+    {
+        return None;
+    }
+    let workspace_root = resolve_workspace_root().ok()?;
+    let mut path = workspace_root.join(".handshake");
+    for segment in relative.split('/') {
+        path.push(segment);
+    }
+    Some(path.to_string_lossy().into_owned())
+}
+
+fn write_facial_ingest_artifact(
+    export: &FacialIngestAnalysisExport,
+    payload_bytes: &[u8],
+    content_hash: &str,
+    mime: &str,
+    file_name: &str,
+    actor: &str,
+    export_entity_id: &str,
+    source_artifact_refs: &[ArtifactHandle],
+) -> Result<FacialIngestArtifactResponse, (StatusCode, Json<ErrorResponse>)> {
+    let workspace_root = resolve_workspace_root().map_err(internal_error)?;
+    let artifact_id = Uuid::now_v7();
+    let manifest = ArtifactManifest {
+        artifact_id,
+        layer: ArtifactLayer::L1,
+        kind: ArtifactPayloadKind::File,
+        mime: mime.to_owned(),
+        filename_hint: Some(file_name.to_owned()),
+        created_at: Utc::now(),
+        created_by_job_id: None,
+        source_entity_refs: facial_ingest_source_entity_refs(export, actor, export_entity_id),
+        source_artifact_refs: source_artifact_refs.to_vec(),
+        content_hash: content_hash.to_owned(),
+        size_bytes: payload_bytes.len() as u64,
+        classification: ArtifactClassification::Low,
+        exportable: true,
+        retention_ttl_days: None,
+        pinned: Some(true),
+        hash_basis: Some(format!(
+            "{}|{}|{}|payload={}|export={}",
+            FACIAL_INGEST_ANALYSIS_SCHEMA_ID,
+            export.batch_id,
+            export.profile,
+            content_hash,
+            export.content_hash
+        )),
+        hash_exclude_paths: Vec::new(),
+    };
+    write_file_artifact(&workspace_root, &manifest, payload_bytes).map_err(internal_error)?;
+    validate_artifact_content_hash(&workspace_root, ArtifactLayer::L1, artifact_id)
+        .map_err(internal_error)?;
+    let root = artifact_root_rel(ArtifactLayer::L1, artifact_id);
+    Ok(FacialIngestArtifactResponse {
+        artifact_ref: format!("artifact://{root}/payload"),
+        manifest_ref: format!("artifact://{root}/artifact.json"),
+        content_hash: content_hash.to_owned(),
+        byte_len: payload_bytes.len() as u64,
+        mime: mime.to_owned(),
+        file_name: file_name.to_owned(),
+    })
+}
+
+fn write_facial_ingest_receipt_artifact(
+    export: &FacialIngestAnalysisExport,
+    analysis_artifact: &FacialIngestArtifactResponse,
+    actor: &str,
+) -> Result<FacialIngestArtifactResponse, (StatusCode, Json<ErrorResponse>)> {
+    let mut receipt = export.receipt_json.clone();
+    if let Some(receipt) = receipt.as_object_mut() {
+        receipt.insert(
+            "actor_ref".to_owned(),
+            serde_json::json!(format!("actor://sha256/{}", text_hash(actor))),
+        );
+        receipt.insert(
+            "analysis_artifact_ref".to_owned(),
+            serde_json::json!(analysis_artifact.artifact_ref.clone()),
+        );
+        receipt.insert(
+            "analysis_manifest_ref".to_owned(),
+            serde_json::json!(analysis_artifact.manifest_ref.clone()),
+        );
+    }
+    let payload_bytes = serde_json::to_vec(&receipt).map_err(internal_error)?;
+    let content_hash = text_hash(
+        std::str::from_utf8(&payload_bytes).map_err(|err| internal_error(err.to_string()))?,
+    );
+    write_facial_ingest_artifact(
+        export,
+        &payload_bytes,
+        &content_hash,
+        "application/json",
+        "atelier-facial-ingest-analysis-receipt.json",
+        actor,
+        &export.content_hash,
+        &[facial_ingest_artifact_handle(analysis_artifact)],
+    )
+}
+
+fn facial_ingest_source_entity_refs(
+    export: &FacialIngestAnalysisExport,
+    actor: &str,
+    export_entity_id: &str,
+) -> Vec<EntityRef> {
+    vec![
+        EntityRef {
+            entity_kind: "intake_batch".to_owned(),
+            entity_id: export.batch_id.clone(),
+        },
+        EntityRef {
+            entity_kind: "facial_profile".to_owned(),
+            entity_id: export.profile.clone(),
+        },
+        EntityRef {
+            entity_kind: "actor_sha256".to_owned(),
+            entity_id: text_hash(actor),
+        },
+        EntityRef {
+            entity_kind: "facial_ingest_analysis".to_owned(),
+            entity_id: export_entity_id.to_owned(),
+        },
+    ]
+}
+
+fn facial_ingest_artifact_handle(artifact: &FacialIngestArtifactResponse) -> ArtifactHandle {
+    let artifact_id = artifact
+        .artifact_ref
+        .strip_prefix("artifact://.handshake/artifacts/L1/")
+        .and_then(|value| value.strip_suffix("/payload"))
+        .and_then(|value| Uuid::parse_str(value).ok())
+        .unwrap_or_else(Uuid::now_v7);
+    ArtifactHandle::new(artifact_id, artifact.artifact_ref.clone())
+}
+
 /// POST /atelier/characters/:character_internal_id/sheet-versions — append a guarded sheet edit.
 async fn append_sheet_version(
     State(state): State<AppState>,
@@ -3821,6 +4001,87 @@ async fn list_intake_batch_items(
     }))
 }
 
+/// POST /atelier/intake/batches/:batch_id/facial/analyze — native Facial-derived Ingest analysis.
+async fn analyze_intake_batch_facial(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(batch_id): Path<Uuid>,
+    Json(payload): Json<FacialIngestAnalysisApiRequest>,
+) -> Result<Json<FacialIngestAnalysisResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let actor = calling_actor(&headers)?;
+    let store = atelier_store(&state);
+    let canonical_items = store
+        .list_intake_items(batch_id, None)
+        .await
+        .map_err(atelier_error)?;
+    let analysis_items = canonical_items
+        .into_iter()
+        .map(|item| {
+            let source_path = item.source_path;
+            let local_path_hint = resolve_facial_ingest_local_path(&source_path);
+            FacialIngestAnalysisItem {
+                item_id: item.item_id.to_string(),
+                source_ref: source_path,
+                local_path_hint,
+                file_name: item.file_name,
+                byte_len: item.byte_len,
+                content_hash: item.content_hash,
+                lane: item.lane.as_str().to_owned(),
+            }
+        })
+        .collect::<Vec<_>>();
+    let export = generate_facial_ingest_analysis(GenerateFacialIngestAnalysisRequest {
+        batch_id: batch_id.to_string(),
+        profile: payload.profile,
+        requested_by: actor.clone(),
+        items: analysis_items,
+    })
+    .map_err(|err| atelier_error(AtelierError::Validation(err)))?;
+
+    let analysis_payload = serde_json::to_vec(&export.analysis_json).map_err(internal_error)?;
+    let analysis_artifact = write_facial_ingest_artifact(
+        &export,
+        &analysis_payload,
+        &export.analysis_sha256,
+        "application/json",
+        "atelier-facial-ingest-analysis.json",
+        &actor,
+        &export.content_hash,
+        &[],
+    )?;
+    let receipt_artifact =
+        write_facial_ingest_receipt_artifact(&export, &analysis_artifact, &actor)?;
+    let receipt_sha256 = receipt_artifact.content_hash.clone();
+    let response = FacialIngestAnalysisResponse {
+        schema_id: FACIAL_INGEST_ANALYSIS_SCHEMA_ID.to_owned(),
+        batch_id,
+        profile: export.profile.clone(),
+        profile_tokens: export.profile_tokens.clone(),
+        item_count: export.item_count,
+        summary: export.summary.clone(),
+        analysis_sha256: export.analysis_sha256.clone(),
+        receipt_sha256,
+        content_hash: export.content_hash.clone(),
+        receipt_ref: receipt_artifact.artifact_ref.clone(),
+        analysis_artifact,
+        receipt_artifact,
+    };
+
+    tracing::info!(
+        target: "handshake_core::atelier",
+        route = "/atelier/intake/batches/:batch_id/facial/analyze",
+        status = "ok",
+        actor = %actor,
+        batch_id = %batch_id,
+        profile = %response.profile,
+        item_count = response.item_count,
+        analysis_artifact_ref = %response.analysis_artifact.artifact_ref,
+        receipt_ref = %response.receipt_ref,
+        "analyze intake batch with native Facial bridge"
+    );
+    Ok(Json(response))
+}
+
 #[derive(Debug, Deserialize)]
 struct ApplyIntakeItemClassificationRequest {
     lane: String,
@@ -4350,5 +4611,21 @@ mod tests {
             notes_ref,
             format!("sha256:{}", crate::atelier::text_hash("same note"))
         );
+    }
+
+    #[test]
+    fn facial_ingest_local_path_resolver_accepts_only_workspace_artifact_refs() {
+        let resolved = resolve_facial_ingest_local_path(
+            "artifact://.handshake/artifacts/L1/018f7848-1111-7000-9000-00000000f019/payload",
+        )
+        .expect("artifact ref resolves under workspace");
+        assert!(resolved
+            .replace('\\', "/")
+            .contains(".handshake/artifacts/L1/018f7848-1111-7000-9000-00000000f019/payload"));
+        assert!(resolve_facial_ingest_local_path("source://operator/import/a.png").is_none());
+        assert!(resolve_facial_ingest_local_path(
+            "artifact://.handshake/artifacts/L1/../escape/payload"
+        )
+        .is_none());
     }
 }

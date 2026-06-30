@@ -74,27 +74,29 @@ use handshake_native::atelier_panel::{
     ATELIER_INGEST_CONTACT_PREVIEW_AUTHOR_ID, ATELIER_INGEST_CONTACT_RECEIPT_AUTHOR_ID,
     ATELIER_INGEST_CONTACT_ROWS_AUTHOR_ID, ATELIER_INGEST_DATASET_REF_AUTHOR_ID,
     ATELIER_INGEST_DATE_AUTHOR_ID, ATELIER_INGEST_EVENT_AUTHOR_ID,
-    ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID, ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID,
-    ATELIER_INGEST_LINK_PASSED_AUTHOR_ID, ATELIER_INGEST_LOCATION_AUTHOR_ID,
-    ATELIER_INGEST_PASS_AUTHOR_ID, ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID,
-    ATELIER_INGEST_REJECT_AUTHOR_ID, ATELIER_INGEST_STATUS_AUTHOR_ID,
-    ATELIER_INGEST_UNSURE_AUTHOR_ID, ATELIER_PANEL_AUTHOR_ID, ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID,
-    ATELIER_POSE_BODY_TOGGLE_AUTHOR_ID, ATELIER_POSE_EXPORT_AUTHOR_ID,
-    ATELIER_POSE_EXPORT_PREVIEW_AUTHOR_ID, ATELIER_POSE_EXPORT_REF_AUTHOR_ID,
-    ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID, ATELIER_POSE_FACE_TOGGLE_AUTHOR_ID,
-    ATELIER_POSE_FRAMING_LENS_AUTHOR_ID, ATELIER_POSE_FRAMING_PADDING_BOTTOM_AUTHOR_ID,
-    ATELIER_POSE_FRAMING_PADDING_LEFT_AUTHOR_ID, ATELIER_POSE_FRAMING_PADDING_RIGHT_AUTHOR_ID,
-    ATELIER_POSE_FRAMING_PADDING_TOP_AUTHOR_ID, ATELIER_POSE_FRAMING_PRESET_AUTHOR_ID,
-    ATELIER_POSE_FRAMING_READOUT_AUTHOR_ID, ATELIER_POSE_HANDS_TOGGLE_AUTHOR_ID,
-    ATELIER_POSE_MARKER_ADD_AUTHOR_ID, ATELIER_POSE_MARKER_APPLY_AUTHOR_ID,
-    ATELIER_POSE_MARKER_CONFIDENCE_AUTHOR_ID, ATELIER_POSE_MARKER_FAMILY_AUTHOR_ID,
-    ATELIER_POSE_MARKER_INDEX_AUTHOR_ID, ATELIER_POSE_MARKER_NUDGE_DOWN_AUTHOR_ID,
-    ATELIER_POSE_MARKER_NUDGE_LEFT_AUTHOR_ID, ATELIER_POSE_MARKER_NUDGE_RIGHT_AUTHOR_ID,
-    ATELIER_POSE_MARKER_NUDGE_UP_AUTHOR_ID, ATELIER_POSE_MARKER_REMOVE_AUTHOR_ID,
-    ATELIER_POSE_MARKER_RESET_AUTHOR_ID, ATELIER_POSE_MARKER_STATUS_AUTHOR_ID,
-    ATELIER_POSE_MARKER_X_AUTHOR_ID, ATELIER_POSE_MARKER_Y_AUTHOR_ID,
-    ATELIER_POSE_OPENPOSE_VIEWPORT_AUTHOR_ID, ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID,
-    ATELIER_POSE_RESET_AUTHOR_ID, ATELIER_POSE_RIG_ID_AUTHOR_ID, ATELIER_POSE_SOURCE_REF_AUTHOR_ID,
+    ATELIER_INGEST_FACIAL_ANALYZE_AUTHOR_ID, ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID,
+    ATELIER_INGEST_FACIAL_RECEIPT_AUTHOR_ID, ATELIER_INGEST_FACIAL_SUMMARY_AUTHOR_ID,
+    ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID, ATELIER_INGEST_LINK_PASSED_AUTHOR_ID,
+    ATELIER_INGEST_LOCATION_AUTHOR_ID, ATELIER_INGEST_PASS_AUTHOR_ID,
+    ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID, ATELIER_INGEST_REJECT_AUTHOR_ID,
+    ATELIER_INGEST_STATUS_AUTHOR_ID, ATELIER_INGEST_UNSURE_AUTHOR_ID, ATELIER_PANEL_AUTHOR_ID,
+    ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID, ATELIER_POSE_BODY_TOGGLE_AUTHOR_ID,
+    ATELIER_POSE_EXPORT_AUTHOR_ID, ATELIER_POSE_EXPORT_PREVIEW_AUTHOR_ID,
+    ATELIER_POSE_EXPORT_REF_AUTHOR_ID, ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID,
+    ATELIER_POSE_FACE_TOGGLE_AUTHOR_ID, ATELIER_POSE_FRAMING_LENS_AUTHOR_ID,
+    ATELIER_POSE_FRAMING_PADDING_BOTTOM_AUTHOR_ID, ATELIER_POSE_FRAMING_PADDING_LEFT_AUTHOR_ID,
+    ATELIER_POSE_FRAMING_PADDING_RIGHT_AUTHOR_ID, ATELIER_POSE_FRAMING_PADDING_TOP_AUTHOR_ID,
+    ATELIER_POSE_FRAMING_PRESET_AUTHOR_ID, ATELIER_POSE_FRAMING_READOUT_AUTHOR_ID,
+    ATELIER_POSE_HANDS_TOGGLE_AUTHOR_ID, ATELIER_POSE_MARKER_ADD_AUTHOR_ID,
+    ATELIER_POSE_MARKER_APPLY_AUTHOR_ID, ATELIER_POSE_MARKER_CONFIDENCE_AUTHOR_ID,
+    ATELIER_POSE_MARKER_FAMILY_AUTHOR_ID, ATELIER_POSE_MARKER_INDEX_AUTHOR_ID,
+    ATELIER_POSE_MARKER_NUDGE_DOWN_AUTHOR_ID, ATELIER_POSE_MARKER_NUDGE_LEFT_AUTHOR_ID,
+    ATELIER_POSE_MARKER_NUDGE_RIGHT_AUTHOR_ID, ATELIER_POSE_MARKER_NUDGE_UP_AUTHOR_ID,
+    ATELIER_POSE_MARKER_REMOVE_AUTHOR_ID, ATELIER_POSE_MARKER_RESET_AUTHOR_ID,
+    ATELIER_POSE_MARKER_STATUS_AUTHOR_ID, ATELIER_POSE_MARKER_X_AUTHOR_ID,
+    ATELIER_POSE_MARKER_Y_AUTHOR_ID, ATELIER_POSE_OPENPOSE_VIEWPORT_AUTHOR_ID,
+    ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID, ATELIER_POSE_RESET_AUTHOR_ID,
+    ATELIER_POSE_RIG_ID_AUTHOR_ID, ATELIER_POSE_SOURCE_REF_AUTHOR_ID,
     ATELIER_POSE_SPLIT_VIEW_AUTHOR_ID, ATELIER_POSE_STATE_READOUT_AUTHOR_ID,
     ATELIER_POSE_YAW_MINUS_AUTHOR_ID, ATELIER_POSE_YAW_PLUS_AUTHOR_ID,
     ATELIER_POSE_YAW_SLIDER_AUTHOR_ID, ATELIER_POSE_ZOOM_SLIDER_AUTHOR_ID,
@@ -524,6 +526,55 @@ fn contact_sheet_backend_export_response() -> serde_json::Value {
             "byte_len": 2048,
             "mime": "application/json",
             "file_name": "atelier-contact-sheet-receipt.json"
+        }
+    })
+}
+
+fn facial_backend_analysis_response() -> serde_json::Value {
+    serde_json::json!({
+        "schema_id": "hsk.atelier.facial_ingest_analysis@1",
+        "batch_id": "batch-1",
+        "profile": "quality+dedupe+identity",
+        "profile_tokens": ["quality", "dedupe", "identity"],
+        "item_count": 3,
+        "summary": {
+            "item_count": 3,
+            "decoded_count": 2,
+            "duplicate_group_count": 1,
+            "duplicate_item_count": 2,
+            "quality_band_counts": {"good": 2, "usable": 1},
+            "review_recommendation_counts": {"keep": 1, "review": 2},
+            "profile": "quality+dedupe+identity",
+            "profile_tokens": ["quality", "dedupe", "identity"],
+            "quality_source": "handshake_native_proxy_v1",
+            "identity_source": "handshake_proxy_no_model",
+            "dedupe_source": "content_hash_exact_or_singleton",
+            "capability_map": [{
+                "capability": "identity",
+                "facial_source_family": "ArcFace/YuNet identity_gate",
+                "handshake_status": "proxy_unverified_until_models_configured",
+                "provenance_note": "Rows expose identity proxy keys but never claim real face match/no_match without model assets."
+            }]
+        },
+        "analysis_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "receipt_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "receipt_ref": "artifact://.handshake/artifacts/facial-analysis-receipt/payload",
+        "analysis_artifact": {
+            "artifact_ref": "artifact://.handshake/artifacts/facial-analysis-json/payload",
+            "manifest_ref": "artifact://.handshake/artifacts/facial-analysis-json/manifest",
+            "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "byte_len": 4096,
+            "mime": "application/json",
+            "file_name": "atelier-facial-ingest-analysis.json"
+        },
+        "receipt_artifact": {
+            "artifact_ref": "artifact://.handshake/artifacts/facial-analysis-receipt/payload",
+            "manifest_ref": "artifact://.handshake/artifacts/facial-analysis-receipt/manifest",
+            "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "byte_len": 2048,
+            "mime": "application/json",
+            "file_name": "atelier-facial-ingest-analysis-receipt.json"
         }
     })
 }
@@ -2482,6 +2533,7 @@ fn posekit_and_ingest_controls_are_model_addressable() {
         ATELIER_INGEST_CONTACT_OUTPUT_AUTHOR_ID,
         ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID,
         ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID,
+        ATELIER_INGEST_FACIAL_ANALYZE_AUTHOR_ID,
     ] {
         let node = harness.get_by(|node| node.author_id() == Some(expected));
         assert!(
@@ -2505,6 +2557,8 @@ fn posekit_and_ingest_controls_are_model_addressable() {
         ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID,
         ATELIER_INGEST_CONTACT_PREVIEW_AUTHOR_ID,
         ATELIER_INGEST_CONTACT_RECEIPT_AUTHOR_ID,
+        ATELIER_INGEST_FACIAL_SUMMARY_AUTHOR_ID,
+        ATELIER_INGEST_FACIAL_RECEIPT_AUTHOR_ID,
     ] {
         assert!(
             ingest_ids.contains(expected),
@@ -2895,6 +2949,137 @@ fn ingest_contact_sheet_backend_export_reaches_argus_artifact_refs() {
     assert!(preview.contains("dpi=220"));
     assert!(preview.contains("thumbnail_fit=stretch"));
     assert!(preview.contains("svg_ref=artifact://.handshake/artifacts/contact-sheet-svg/payload"));
+}
+
+#[test]
+fn ingest_facial_backend_analysis_reaches_argus_artifact_refs() {
+    let (base_url, server) = spawn_posekit_export_server(facial_backend_analysis_response());
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("Facial analysis backend proof runtime");
+    let client =
+        AtelierClient::new_with_actor_id(base_url, runtime.handle().clone(), "facial-agent-019");
+    let mut harness = build_panel_harness_with_client(egui::vec2(760.0, 760.0), client);
+    harness.run();
+
+    let mut channel = ActionChannel::new();
+    let tab_click = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_TAB_INGEST_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &snapshot_harness(&mut harness),
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(tab_click.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+
+    let set_profile = dispatch_request(
+        &argus_req(
+            "argus.set_value",
+            serde_json::json!({
+                "target": ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID,
+                "value": "quality+dedupe+identity"
+            }),
+        ),
+        &argus_token(),
+        &snapshot_harness(&mut harness),
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(set_profile.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+
+    let analyze = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_INGEST_FACIAL_ANALYZE_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &snapshot_harness(&mut harness),
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(analyze.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+
+    let pending = snapshot_harness(&mut harness);
+    let pending_status = pending
+        .find_by_author_id(ATELIER_INGEST_STATUS_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .unwrap_or_default();
+    assert!(
+        pending_status
+            .contains("Dispatching Facial Ingest analysis to backend actor facial-agent-019"),
+        "Facial analysis must expose backend pending state; got {pending_status}"
+    );
+
+    let captured = server.join().expect("Facial analysis mock server joins");
+    assert_eq!(
+        captured.request_line,
+        "POST /atelier/intake/batches/batch-1/facial/analyze HTTP/1.1"
+    );
+    assert_eq!(
+        captured.headers.get("x-hsk-actor-id").map(String::as_str),
+        Some("facial-agent-019")
+    );
+    let sent_body: serde_json::Value =
+        serde_json::from_str(&captured.body).expect("Facial analysis request JSON body");
+    assert_eq!(sent_body["profile"], "quality+dedupe+identity");
+
+    let exported = (0..40)
+        .find_map(|_| {
+            harness.run();
+            let snapshot = snapshot_harness(&mut harness);
+            let status = snapshot
+                .find_by_author_id(ATELIER_INGEST_STATUS_AUTHOR_ID)
+                .and_then(|node| node.value.as_deref())
+                .unwrap_or_default()
+                .to_owned();
+            if status.contains("Exported backend Facial Ingest analysis") {
+                Some(snapshot)
+            } else {
+                std::thread::sleep(std::time::Duration::from_millis(25));
+                None
+            }
+        })
+        .expect("backend Facial analysis result becomes Argus-visible");
+
+    let summary = exported
+        .find_by_author_id(ATELIER_INGEST_FACIAL_SUMMARY_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("backend Facial summary value");
+    assert!(summary.contains("hsk.atelier.facial_ingest_analysis@1"));
+    assert!(summary.contains("profile=quality+dedupe+identity"));
+    assert!(summary.contains("item_count=3"));
+    assert!(summary.contains("decoded_count=2"));
+    assert!(summary.contains("duplicate_group_count=1"));
+    assert!(summary.contains("identity_source=handshake_proxy_no_model"));
+    assert!(summary
+        .contains("analysis_ref=artifact://.handshake/artifacts/facial-analysis-json/payload"));
+
+    let receipt = exported
+        .find_by_author_id(ATELIER_INGEST_FACIAL_RECEIPT_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("backend Facial receipt value");
+    assert!(receipt.contains("schema=hsk.atelier.facial_ingest_analysis@1"));
+    assert!(receipt
+        .contains("receipt_ref=artifact://.handshake/artifacts/facial-analysis-receipt/payload"));
+    assert!(receipt.contains("analysis_mime=application/json"));
+    assert!(receipt.contains("receipt_mime=application/json"));
 }
 
 #[test]
