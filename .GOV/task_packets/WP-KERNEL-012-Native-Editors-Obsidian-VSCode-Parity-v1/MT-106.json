@@ -14,7 +14,7 @@
   "title": "P6-MT-106-ChildProcessStallWatch-EndToEndNoSilentHangProof",
   "group": "P1 Palmistry (Tier 3 external watcher) — child-process stall watch + no-silent-hang capstone",
   "created_at_utc": "2026-06-28T00:00:00Z",
-  "updated_at_utc": "2026-06-28T00:00:00Z",
+  "updated_at_utc": "2026-06-30T06:35:37Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-106.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,8 +25,11 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
+    "claimed_by": "KERNEL_BUILDER",
+    "claimed_at_utc": "2026-06-30T06:35:37Z",
+    "claim_session": "KERNEL_BUILDER-20260630-061317",
     "depends_on": [
       "MT-089",
       "MT-090",
@@ -118,7 +121,7 @@
     }
   ],
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260630-061317 product_commit=547b29c9",
     "wp_validator_session": null,
     "depends_on_note": "Requires MT-105's DiagEventCode::StalledOperation + the in-app OperationWatchdog (the capstone asserts a StalledOperation fires for the hung operation). MT-105 must land first; this MT reuses its typed code via the MT-090 reader, it does not re-add it."
   },
