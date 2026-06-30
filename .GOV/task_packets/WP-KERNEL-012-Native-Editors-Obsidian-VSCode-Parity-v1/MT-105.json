@@ -14,7 +14,7 @@
   "title": "D9-MT-105-OperationSubprocessStallWatchdog-DeadlineProgressTicks",
   "group": "D2 internal_diagnostics (Tier 2 — generalized stall/hang detection)",
   "created_at_utc": "2026-06-28T00:00:00Z",
-  "updated_at_utc": "2026-06-28T00:00:00Z",
+  "updated_at_utc": "2026-06-30T03:56:25Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-105.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,8 +25,11 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
+    "claimed_by": "KERNEL_BUILDER",
+    "claimed_at_utc": "2026-06-30T03:55:07Z",
+    "claim_session": "KERNEL_BUILDER-20260630-024337",
     "depends_on": [
       "MT-081",
       "MT-082",
