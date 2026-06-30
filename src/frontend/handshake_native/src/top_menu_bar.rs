@@ -54,7 +54,8 @@
 //!   Open Swarm Board        ENABLED -> OpenSwarmBoard (opens the Swarm surface on the active pane)
 //!   Open Inference Lab      ENABLED -> NavigateToTab("inference-lab")
 //!   Open Flight Recorder    ENABLED -> NavigateToTab("flight-recorder")
-//!   Open Terminal           DISABLED (no native terminal panel yet — future MT)
+//!   Open Terminal in Workspace Folder
+//!                           -> surfaces EndpointMissing until native HTTP terminal route exists
 //! HELP
 //!   Open User Manual        ENABLED -> NavigateToTab("user-manual")
 //!   Open Settings…          ENABLED -> OpenSettings (sets settings_open; UI = MT-018)
@@ -268,7 +269,7 @@ pub enum MenuBarAction {
     OpenSwarmBoard,
     /// Navigate the active pane to a named tab/surface (the React `PaneTabId` string).
     NavigateToTab(String),
-    OpenTerminal, // disabled in MT-015 (no native terminal panel yet)
+    OpenTerminal, // surfaces typed EndpointMissing until a native HTTP terminal route exists.
     // HELP
     OpenSettings,
     ShowAbout,
@@ -565,7 +566,15 @@ impl MenuBar {
                 self.item(ui, "menu.run.swarm-board", "Open Swarm Board", None, true, MenuBarAction::OpenSwarmBoard, action);
                 self.item(ui, "menu.run.inference-lab", "Open Inference Lab", None, true, MenuBarAction::NavigateToTab("inference-lab".to_owned()), action);
                 self.item(ui, "menu.run.flight-recorder", "Open Flight Recorder", None, true, MenuBarAction::NavigateToTab("flight-recorder".to_owned()), action);
-                self.disabled_item(ui, "menu.run.terminal", "Open Terminal", None, "No native terminal panel yet (future MT)");
+                self.item(
+                    ui,
+                    "menu.run.terminal",
+                    "Open Terminal in Workspace Folder",
+                    None,
+                    true,
+                    MenuBarAction::OpenTerminal,
+                    action,
+                );
             }
             MenuId::Help => {
                 self.item(ui, "menu.help.user-manual", "Open User Manual", None, true, MenuBarAction::NavigateToTab("user-manual".to_owned()), action);

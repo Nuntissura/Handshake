@@ -6,6 +6,7 @@
 use crate::error::AppError;
 use crate::layout_persistence::{LayoutError, LayoutTransport};
 use serde_json::Value;
+use std::fmt;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
@@ -64,6 +65,143 @@ pub fn build_backend_client() -> reqwest::Client {
 pub fn shared_http_client() -> reqwest::Client {
     SHARED_HTTP_CLIENT.get_or_init(build_backend_client).clone()
 }
+
+/// WP-KERNEL-012 MT-100: planned native HTTP terminal-session route. The real PTY runtime exists today
+/// in `handshake_core::terminal` and is exposed through legacy Tauri IPC
+/// `kernel_terminal_create_session`, but the native Rust frontend is a separate process and has no HTTP
+/// `/terminal/*` surface to call.
+pub const TERMINAL_LAUNCH_PROBED_PATH: &str = "/terminal/sessions";
+
+/// The existing terminal session spawn channel. This is evidence for the typed blocker: terminal launch
+/// is built behind Tauri IPC, not behind a native-reachable HTTP route.
+pub const TERMINAL_LAUNCH_IPC_CHANNEL: &str = "kernel_terminal_create_session";
+
+/// Source owner of the currently reachable terminal runtime bridge.
+pub const TERMINAL_LAUNCH_IPC_OWNER: &str = "app/src-tauri/src/commands/terminal.rs";
+
+#[cfg(target_os = "windows")]
+const DEFAULT_TERMINAL_SHELL: &str = "pwsh.exe";
+#[cfg(not(target_os = "windows"))]
+const DEFAULT_TERMINAL_SHELL: &str = "sh";
+
+/// The resolved request the native terminal-launch affordance would send if a native HTTP terminal
+/// route existed. Keeping this typed prevents the UI from fabricating a terminal session while still
+/// proving that the cwd and shell wrapper are carried explicitly.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TerminalLaunchRequest {
+    pub cwd: String,
+    pub shell: String,
+    pub args: Vec<String>,
+    pub rows: u16,
+    pub cols: u16,
+}
+
+impl TerminalLaunchRequest {
+    pub fn workspace_default(cwd: impl Into<String>) -> Self {
+        let (shell, args) = platform_terminal_wrapper();
+        Self {
+            cwd: cwd.into(),
+            shell,
+            args,
+            rows: 24,
+            cols: 80,
+        }
+    }
+}
+
+/// Platform shell wrapper for a workspace terminal launch. Windows prefers `pwsh.exe`; the backend PTY
+/// path still owns deeper fallback (`powershell.exe` -> `cmd.exe`) once a native route exists.
+pub fn platform_terminal_wrapper() -> (String, Vec<String>) {
+    (DEFAULT_TERMINAL_SHELL.to_owned(), Vec::new())
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TerminalLaunchClient {
+    base_url: String,
+}
+
+impl TerminalLaunchClient {
+    pub fn new(base_url: impl Into<String>) -> Self {
+        Self {
+            base_url: base_url.into(),
+        }
+    }
+
+    pub fn production() -> Self {
+        Self::new(BACKEND_BASE_URL)
+    }
+
+    pub fn probed_url(&self) -> String {
+        format!("{}{}", self.base_url, TERMINAL_LAUNCH_PROBED_PATH)
+    }
+
+    pub fn request_for_workspace(&self, cwd: impl Into<String>) -> TerminalLaunchRequest {
+        TerminalLaunchRequest::workspace_default(cwd)
+    }
+
+    /// Attempt to open a terminal session in `cwd`. Today this returns the honest typed blocker because
+    /// the PTY session runtime is reachable only through Tauri IPC, not through native HTTP.
+    pub fn open_workspace_terminal(
+        &self,
+        cwd: impl Into<String>,
+    ) -> Result<TerminalLaunchSession, TerminalLaunchError> {
+        let request = self.request_for_workspace(cwd);
+        Err(TerminalLaunchError::EndpointMissing {
+            probed_path: TERMINAL_LAUNCH_PROBED_PATH.to_owned(),
+            probed_url: self.probed_url(),
+            ipc_channel: TERMINAL_LAUNCH_IPC_CHANNEL,
+            ipc_owner: TERMINAL_LAUNCH_IPC_OWNER,
+            request,
+        })
+    }
+}
+
+/// Placeholder for the future real native terminal-session response. It deliberately has no fake
+/// constructor or fallback id; the current production path returns [`TerminalLaunchError`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TerminalLaunchSession {
+    pub session_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TerminalLaunchError {
+    EndpointMissing {
+        probed_path: String,
+        probed_url: String,
+        ipc_channel: &'static str,
+        ipc_owner: &'static str,
+        request: TerminalLaunchRequest,
+    },
+}
+
+impl TerminalLaunchError {
+    pub fn is_endpoint_missing(&self) -> bool {
+        matches!(self, Self::EndpointMissing { .. })
+    }
+
+    pub fn request(&self) -> &TerminalLaunchRequest {
+        match self {
+            Self::EndpointMissing { request, .. } => request,
+        }
+    }
+}
+
+impl fmt::Display for TerminalLaunchError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::EndpointMissing {
+                probed_path,
+                ipc_channel,
+                ipc_owner,
+                ..
+            } => write!(
+                f,
+                "EndpointMissing: native terminal launch needs HTTP {probed_path}; current PTY runtime terminal/** is IPC-only via {ipc_channel} in {ipc_owner}"
+            ),
+        }
+    }
+}
+
 /// Health probe (CONTROL-2). Kept as a full URL for the existing MT-002 health wiring.
 pub const HEALTH_URL: &str = "http://127.0.0.1:37501/health";
 

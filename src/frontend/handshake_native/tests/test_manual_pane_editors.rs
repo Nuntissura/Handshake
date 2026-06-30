@@ -180,6 +180,8 @@ fn live_author_id_set() -> HashSet<String> {
     set.insert(handshake_native::runtime_chat::RUNTIME_CHAT_STATUS_AUTHOR_ID.to_owned());
     set.insert(handshake_native::runtime_chat::RUNTIME_CHAT_INPUT_AUTHOR_ID.to_owned());
     set.insert(handshake_native::runtime_chat::RUNTIME_CHAT_SEND_AUTHOR_ID.to_owned());
+    // Terminal launch status appears after the dynamic RUN/palette action records its typed blocker.
+    set.insert(handshake_native::app::TERMINAL_LAUNCH_STATUS_AUTHOR_ID.to_owned());
     // Settings-hosted diagnostics and MT-102 visual-debugger controls.
     set.insert(handshake_native::settings_dialog::SETTINGS_SEARCH_AUTHOR_ID.to_owned());
     set.insert(format!(
@@ -319,10 +321,9 @@ fn id_audit_no_documented_author_id_missing_from_live_registry() {
     let mut orphans: Vec<&str> = Vec::new();
     for row in &rows {
         if row.author_id == handshake_native::manual_content_editors::TERMINAL_MENU_AUTHOR_ID {
-            // The disabled terminal leaf is dynamic: it exists only while the RUN menu is open and is
-            // intentionally absent from SWARM_ACCESSIBLE_ACTIONS because it is not dispatchable. MT-104
-            // proves it with a live Run-menu kittest in test_manual_content.rs instead of seeding this
-            // static registry audit with the same literal the manual row documents.
+            // The terminal leaf is dynamic: it exists only while the RUN menu is open. MT-100 proves its
+            // click path with a live Run-menu kittest and terminal-launch-status, so this static registry
+            // audit does not seed the same literal the manual row documents.
             continue;
         }
         if !live.contains(row.author_id) {

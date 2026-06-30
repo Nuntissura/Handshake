@@ -57,6 +57,11 @@ const THEME_TOGGLE_NODE_ID: u64 = 10;
 /// independent of its display text ("Light"/"Dark") which flips with the active theme.
 const THEME_TOGGLE_AUTHOR_ID: &str = "shell.chrome.theme-toggle";
 
+/// Stable AccessKit author id for the MT-100 terminal launch outcome. The RUN menu and command palette
+/// both route to the same typed blocker, then this status segment makes the result visible to the
+/// operator and addressable to a no-context model.
+pub const TERMINAL_LAUNCH_STATUS_AUTHOR_ID: &str = "terminal-launch-status";
+
 /// The content-presentation mode the shell is in (MT-015 VIEW menu). Mirrors the React workspace
 /// `viewMode` (`NSFW`/`SFW`): NSFW shows adult content surfaces, SFW hides them. The native shell
 /// owns the flag (MT-015 toggles it from the VIEW menu); the surfaces that consume it land in later
@@ -572,6 +577,10 @@ pub struct HandshakeApp {
     /// The last "Propose to Memory" outcome message (the typed blocker / disclosed-no-runtime note),
     /// surfaced on the dialog status row so the operator/agent sees a real result, never a silent drop.
     memory_proposal_status: Option<String>,
+    /// WP-KERNEL-012 MT-100: last native terminal-launch outcome. The current reachable PTY surface is
+    /// legacy Tauri IPC-only, so launching from RUN or the palette records a compact `EndpointMissing`
+    /// status here instead of fabricating a terminal session or silently doing nothing.
+    terminal_launch_status: Option<String>,
     /// MT-021 source-control off-thread client (verified `/source-control/*` endpoints). `None` in the
     /// no-runtime test app (the SCM menu is then a disclosed no-op rather than a panic). Wired so the
     /// production shell can drive stage/unstage/diff/blame off the UI thread (HBR-QUIET) when the native
@@ -1566,6 +1575,7 @@ impl HandshakeApp {
             rename_error: None,
             pending_memory_proposal: None,
             memory_proposal_status: None,
+            terminal_launch_status: None,
             source_control_client: Some(crate::backend_client::SourceControlClient::production(
                 rt_handle.clone(),
             )),
@@ -2042,6 +2052,7 @@ impl HandshakeApp {
             rename_error: None,
             pending_memory_proposal: None,
             memory_proposal_status: None,
+            terminal_launch_status: None,
             // Headless/test shell: no runtime to bridge the SCM/canvas clients onto. A test injects a
             // runtime via `set_runtime_handle` if it wants live calls; without one these stay None.
             source_control_client: None,
@@ -2500,6 +2511,7 @@ impl HandshakeApp {
                 self.open_settings();
                 true
             }
+            crate::command_registry::CMD_TERMINAL_OPEN_WORKSPACE => self.open_workspace_terminal(),
             "theme.toggle" => {
                 self.current_theme = self.current_theme.toggled();
                 self.apply_theme_if_changed(ctx);
@@ -4931,6 +4943,46 @@ impl HandshakeApp {
         self.open_content_on_active_pane(pane_type, None)
     }
 
+    fn active_workspace_terminal_cwd(&self) -> String {
+        std::env::current_dir()
+            .map(|path| path.display().to_string())
+            .unwrap_or_else(|_| ".".to_owned())
+    }
+
+    fn terminal_launch_status_text(err: &backend_client::TerminalLaunchError) -> String {
+        match err {
+            backend_client::TerminalLaunchError::EndpointMissing {
+                probed_path,
+                ipc_channel,
+                ..
+            } => format!(
+                "Terminal: EndpointMissing {probed_path} (PTY runtime terminal/** is IPC-only via {ipc_channel})"
+            ),
+        }
+    }
+
+    /// WP-KERNEL-012 MT-100: execute the native terminal-launch affordance. Until handshake_core exposes
+    /// a native HTTP terminal-session route, this sets a typed visible blocker instead of pretending a
+    /// terminal opened. Both RUN > Open Terminal in Workspace Folder and the palette command call here.
+    fn open_workspace_terminal(&mut self) -> bool {
+        let cwd = self.active_workspace_terminal_cwd();
+        match backend_client::TerminalLaunchClient::production().open_workspace_terminal(cwd) {
+            Ok(session) => {
+                self.terminal_launch_status =
+                    Some(format!("Terminal session opened: {}", session.session_id));
+                true
+            }
+            Err(err) => {
+                self.terminal_launch_status = Some(Self::terminal_launch_status_text(&err));
+                true
+            }
+        }
+    }
+
+    pub fn terminal_launch_status_for_test(&self) -> Option<&str> {
+        self.terminal_launch_status.as_deref()
+    }
+
     /// Dispatch a [`MenuBarAction`] returned by the top menu bar into the shell's existing state-
     /// mutation paths (MT-015). Returns `true` if app state changed (so the caller can request a
     /// repaint + let the layout change-detector schedule a save). EXHAUSTIVE on `MenuBarAction` so a
@@ -4990,6 +5042,7 @@ impl HandshakeApp {
             MenuBarAction::CloseActiveTab => self.close_active_tab(),
             MenuBarAction::OpenSwarmBoard => self.navigate_to_tab("swarm"),
             MenuBarAction::NavigateToTab(tab_id) => self.navigate_to_tab(&tab_id),
+            MenuBarAction::OpenTerminal => self.open_workspace_terminal(),
             MenuBarAction::QuitApp => {
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                 false
@@ -5014,8 +5067,7 @@ impl HandshakeApp {
             | MenuBarAction::EditPaste
             | MenuBarAction::OpenFindReplace
             | MenuBarAction::OpenWorkspaceSearch
-            | MenuBarAction::ToggleFileDrawer
-            | MenuBarAction::OpenTerminal => false,
+            | MenuBarAction::ToggleFileDrawer => false,
         }
     }
 
@@ -7481,6 +7533,22 @@ impl HandshakeApp {
         });
     }
 
+    /// WP-KERNEL-012 MT-100: render the terminal-launch outcome as a compact status segment. The full
+    /// typed request/error stays in `backend_client`; this bar surface is the operator/model-visible
+    /// signal that selecting the terminal affordance hit `EndpointMissing`, not a silent no-op.
+    fn terminal_launch_status_segment(&self, ui: &mut egui::Ui) {
+        let Some(text) = self.terminal_launch_status.as_deref() else {
+            return;
+        };
+        let color = self.current_theme.palette().text_subtle;
+        let response = ui.add(egui::Label::new(egui::RichText::new(text).color(color)));
+        ui.ctx().accesskit_node_builder(response.id, |node| {
+            node.set_role(egui::accesskit::Role::Status);
+            node.set_author_id(TERMINAL_LAUNCH_STATUS_AUTHOR_ID.to_owned());
+            node.set_label(text.to_owned());
+        });
+    }
+
     /// Apply a confirmed status-bar-segment menu action (MT-021). `segment_id` is the right-clicked
     /// segment; `display_text` its current text (for Copy). Returns `true` when app state changed (so
     /// the caller can repaint). `OpenPanel` opens the segment's related pane on the active pane.
@@ -7846,6 +7914,7 @@ impl HandshakeApp {
                         // renders here when present so the seam outcome is PERCEIVABLE (rendered label +
                         // live AccessKit node) after the overlay closes; a no-op when no nav status is set.
                         self.quick_switcher_nav_status_segment(ui);
+                        self.terminal_launch_status_segment(ui);
                         // WP-KERNEL-012 MT-071: mount the five editor file-metadata segments (LanguageMode
                         // / EOL / Indent / Encoding / RenderWhitespace) in the RIGHT cluster of the LIVE
                         // status bar (NOT a standalone harness). They render only when a code pane is

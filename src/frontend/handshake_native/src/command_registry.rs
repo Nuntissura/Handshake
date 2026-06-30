@@ -72,6 +72,9 @@ pub struct AppCommand {
     pub disabled: bool,
 }
 
+pub const CMD_TERMINAL_OPEN_WORKSPACE: &str = "terminal.open-workspace";
+pub const TERMINAL_OPEN_WORKSPACE_STABLE_ID: &str = "hs-terminal-palette-open-workspace";
+
 /// The canonical command catalog a swarm agent may dispatch through the palette (HBR-SWARM).
 ///
 /// Returns a `&'static [AppCommand]` computed once (red-team MC2: static-ref access, no per-frame
@@ -179,6 +182,23 @@ const APP_COMMANDS: &[AppCommand] = &[
         description: "Open the Flight Recorder on the active pane.",
         keywords: &["flight", "recorder", "trace", "run"],
         stable_id: "hs-flight-palette-open",
+        disabled: false,
+    },
+    AppCommand {
+        id: CMD_TERMINAL_OPEN_WORKSPACE,
+        kind: CommandKind::App,
+        label: "Terminal: Open in Workspace Folder",
+        description: "Runs the native terminal launch affordance; until HTTP /terminal/sessions exists it surfaces EndpointMissing with the current Tauri IPC-only reach.",
+        keywords: &[
+            "terminal",
+            "shell",
+            "workspace",
+            "repo",
+            "folder",
+            "wrapper",
+            "endpointmissing",
+        ],
+        stable_id: TERMINAL_OPEN_WORKSPACE_STABLE_ID,
         disabled: false,
     },
     AppCommand {

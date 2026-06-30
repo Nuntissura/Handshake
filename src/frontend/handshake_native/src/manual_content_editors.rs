@@ -362,15 +362,18 @@ EventLedger receipt, not an old widget value or cached editor state."
 
 fn terminal_launch_body() -> String {
     "Terminal launch is documented as an honest typed blocker in this native frontend build. The top-menu \
-Run item menu.run.terminal is visible as 'Open Terminal' but disabled, with the disclosed reason 'No native \
-terminal panel yet'. The backend PTY runtime exists in handshake_core terminal/** and its TerminalRequest \
-carries cwd plus command/args for the shell wrapper, but native Handshake currently has no reachable HTTP \
-/terminal spawn route and no native terminal client; the typed native reach is EndpointMissing / IPC-only, \
-with Tauri IPC as the existing working reach in the legacy app path. A model should use list_widgets on \
-menu.run.terminal to read the disabled state and blocker. Do \
-not claim a terminal opened, do not expect fake terminal output, and do not synthesize a cwd. The correct \
-future behavior is 'Terminal: Open in Workspace Folder' issuing a real spawn in the repo folder through a \
-native HTTP route or bridge, using the configured platform wrapper such as pwsh/cmd on Windows."
+Run item menu.run.terminal is visible as 'Open Terminal in Workspace Folder' and is clickable. Selecting it \
+does not fabricate a PTY: it records terminal-launch-status with 'EndpointMissing: native terminal launch \
+needs HTTP /terminal/sessions' because current PTY reach is Tauri IPC-only. The backend PTY runtime exists in \
+handshake_core terminal/** and its TerminalRequest carries cwd plus command/args for the shell wrapper, but \
+native Handshake currently has no reachable HTTP /terminal/sessions route and no native terminal client; the \
+typed native reach is EndpointMissing / IPC-only, with Tauri IPC kernel_terminal_create_session as the \
+existing working reach in the legacy app path. The command palette exposes the same runnable Terminal: Open \
+in Workspace Folder row as terminal.open-workspace and lands in the same terminal-launch-status blocker. A \
+model should click menu.run.terminal or run terminal.open-workspace, then read terminal-launch-status. Do not \
+claim a terminal opened, do not expect fake terminal output, and do not synthesize a cwd. The correct future \
+behavior is Terminal: Open in Workspace Folder issuing a real spawn in the repo folder through a native HTTP \
+route or bridge, using the configured platform wrapper such as pwsh/cmd on Windows."
         .to_owned()
 }
 
@@ -573,9 +576,16 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         AgentToolRow {
             author_id: TERMINAL_MENU_AUTHOR_ID,
             surface: ManualSurface::Terminal,
-            action_label: "Read disabled terminal launch blocker",
+            action_label: "Open terminal launch blocker",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu.run.terminal'} records terminal-launch-status as EndpointMissing until a native HTTP /terminal/sessions route exists; current reach is legacy Tauri IPC / IPC-only.",
+        },
+        AgentToolRow {
+            author_id: crate::app::TERMINAL_LAUNCH_STATUS_AUTHOR_ID,
+            surface: ManualSurface::Terminal,
+            action_label: "Read terminal launch status",
             mcp_tool: "list_widgets",
-            description: "list_widgets surfaces menu.run.terminal as disabled: native terminal launch has no HTTP route/client; current reach is legacy Tauri IPC / IPC-only.",
+            description: "list_widgets surfaces terminal-launch-status after menu.run.terminal or terminal.open-workspace records the EndpointMissing blocker.",
         },
         AgentToolRow {
             author_id: INFERENCE_LAB_MENU_AUTHOR_ID,

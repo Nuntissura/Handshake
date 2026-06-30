@@ -7,7 +7,7 @@ use std::rc::Rc;
 use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 
-use handshake_native::app::HandshakeApp;
+use handshake_native::app::{HandshakeApp, TERMINAL_LAUNCH_STATUS_AUTHOR_ID};
 use handshake_native::manual_content_editors::{
     agent_tool_rows, editors_manual_section, DIAGNOSTIC_TOOL_HEADINGS,
     FLIGHT_RECORDER_MENU_AUTHOR_ID, FLIGHT_RECORDER_PALETTE_AUTHOR_ID,
@@ -48,7 +48,9 @@ fn body_marker(heading: &str) -> &'static str {
     match heading {
         "Notes Worksurface and Chat" => "pane-a is the Code editor",
         "Opening Editing and Saving Notes" => "GET /knowledge/documents/:id",
-        "Terminal Launch" => "No native terminal panel yet",
+        "Terminal Launch" => {
+            "EndpointMissing: native terminal launch needs HTTP /terminal/sessions"
+        }
         "Model Session Launch" => "NEEDS_MANAGED_RESOURCE_PROOF",
         "Settings Diagnostics" => "diagnostics_heartbeat",
         "Visual Debugger" => "hsk.native_worksurface_inspector@1",
@@ -122,7 +124,7 @@ fn mt104_topics_exist_and_include_no_context_runtime_facts() {
                 "EndpointMissing",
                 "IPC-only",
                 "/terminal",
-                "disabled",
+                "terminal-launch-status",
             ],
         ),
         (
@@ -235,9 +237,8 @@ fn mt104_terminal_and_model_topics_are_honest_blockers() {
         );
     }
     assert!(
-        terminal.contains("list_widgets")
-            && !terminal.contains("click_widget on menu.run.terminal"),
-        "terminal blocker should be inspectable, not advertised as a working click launch"
+        terminal.contains("click menu.run.terminal") && terminal.contains("terminal-launch-status"),
+        "terminal blocker should be clickable into a typed status, not disabled-only guidance"
     );
     assert!(
         model.contains("must not fabricate a session id"),
@@ -251,6 +252,11 @@ fn mt104_agent_tool_reference_adds_real_terminal_model_diagnostics_rows() {
     let required = [
         (
             TERMINAL_MENU_AUTHOR_ID,
+            ManualSurface::Terminal,
+            "click_widget",
+        ),
+        (
+            TERMINAL_LAUNCH_STATUS_AUTHOR_ID,
             ManualSurface::Terminal,
             "list_widgets",
         ),
@@ -311,8 +317,8 @@ fn mt104_agent_tool_reference_adds_real_terminal_model_diagnostics_rows() {
 
     assert_eq!(
         rows.get(TERMINAL_MENU_AUTHOR_ID).unwrap().mcp_tool,
-        "list_widgets",
-        "disabled terminal menu item must be read, not clicked"
+        "click_widget",
+        "terminal menu item must be runnable into terminal-launch-status"
     );
 
     for row in rows.values() {
@@ -331,12 +337,12 @@ fn mt104_agent_tool_reference_adds_real_terminal_model_diagnostics_rows() {
 }
 
 #[test]
-fn mt104_terminal_menu_author_id_is_live_disabled_run_leaf() {
+fn mt104_terminal_menu_author_id_is_live_clickable_run_leaf() {
     let rows = row_by_id();
     let terminal = rows
         .get(TERMINAL_MENU_AUTHOR_ID)
         .expect("terminal agent-tool row exists");
-    assert_eq!(terminal.mcp_tool, "list_widgets");
+    assert_eq!(terminal.mcp_tool, "click_widget");
     assert_eq!(terminal.surface, ManualSurface::Terminal);
 
     let mut harness: Harness<HandshakeApp> = Harness::builder()
@@ -357,12 +363,12 @@ fn mt104_terminal_menu_author_id_is_live_disabled_run_leaf() {
         .unwrap_or_else(|| panic!("RUN menu must render '{TERMINAL_MENU_AUTHOR_ID}'"));
     assert_eq!(role, "MenuItem", "terminal leaf AccessKit role");
     assert!(
-        disabled,
-        "terminal leaf must be disabled until a native terminal route/client exists"
+        !disabled,
+        "terminal leaf must be clickable so it can surface terminal-launch-status"
     );
     assert_eq!(
         label.as_deref(),
-        Some("Open Terminal"),
+        Some("Open Terminal in Workspace Folder"),
         "terminal leaf label"
     );
 }
