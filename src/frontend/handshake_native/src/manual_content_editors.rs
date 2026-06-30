@@ -405,7 +405,7 @@ native backend routes are POST /atelier/ckc/search and POST /atelier/ckc/tag-not
 require x-hsk-actor-id. \
 Posekit starts from atelier-content-posekit and is the native OpenRepose-style split-view workflow. \
 Set or inspect atelier-pose-source-ref and atelier-pose-rig-id first, then inspect atelier-pose-state-readout and atelier-pose-split-view; the \
-left viewport is atelier-pose-3d-viewport and the OpenPose output viewport is \
+left viewport is atelier-pose-3d-viewport, the native 3D projection preview bound to source_ref plus rig lineage, and the OpenPose output viewport is \
 atelier-pose-openpose-viewport. Drive rotation with atelier-pose-yaw-minus, atelier-pose-yaw-plus, \
 atelier-pose-reset, atelier-pose-yaw-slider, atelier-pose-pitch-slider, and atelier-pose-zoom-slider; \
 toggle exported marker layers with atelier-pose-face-toggle, atelier-pose-body-toggle, and \
@@ -425,7 +425,10 @@ composition for ComfyUI full-body outputs. Export with atelier-pose-export-openp
 atelier-pose-export-status, atelier-pose-export-ref, and atelier-pose-export-preview. The native Rust \
 generator contract is hsk.atelier.posekit.openpose_export@1: image/png plus OpenPose JSON with body 18, \
 face 70, and hand 21 keypoint arrays, marker_edits, framing metadata, source_ref provenance, rig_id lineage, content_hash, artifact_ref, and \
-backend ArtifactStore receipt JSON metadata. No-backend harnesses expose preview://atelier/posekit/openpose/.../receipt \
+backend ArtifactStore receipt JSON metadata. Backend exports expose png_artifact_ref and json_artifact_ref through Argus, plus their manifests and receipt_ref. Stored-rig backend exports must show \
+pose_state.source_keypoint_projection.mode=native-rig-to-openpose and rerender OpenPose coordinates plus \
+PNG/hash evidence when yaw, pitch, or zoom changes; procedural or no-rig previews must identify as \
+procedural preview evidence, not source-rig projection. No-backend harnesses expose preview://atelier/posekit/openpose/.../receipt \
 metadata only. Use argus.inspect on viewport/control IDs and \
 argus.screenshot{} for a full-frame visual proof; screenshot target cropping is not supported yet. Both \
 paths must be headless/non-intrusive: no foreground window, no keyboard capture, no mouse steal. Ingest starts from \
@@ -1181,13 +1184,13 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             crate::atelier_panel::ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID,
             "Inspect the Posekit rig/source viewport",
             "argus.inspect",
-            "argus.inspect confirms atelier-pose-3d-viewport is present as the rig/source preview and exposes source_ref/rig_id lineage; pair with argus.screenshot{} for full-frame proof.",
+            "argus.inspect confirms atelier-pose-3d-viewport is present as the native 3D projection preview, exposes source_ref/rig_id lineage and source_fingerprint, and distinguishes procedural-posekit-preview from rig-linked-native-preview; pair with argus.screenshot{} for full-frame proof.",
         ),
         (
             crate::atelier_panel::ATELIER_POSE_OPENPOSE_VIEWPORT_AUTHOR_ID,
             "Inspect the Posekit OpenPose viewport",
             "argus.inspect",
-            "argus.inspect confirms atelier-pose-openpose-viewport is present; pair with argus.screenshot{} for full-frame proof.",
+            "argus.inspect confirms atelier-pose-openpose-viewport is present as the OpenPose conditioning preview and rerenders metadata after yaw/pitch/zoom changes; pair with argus.screenshot{} for full-frame proof.",
         ),
         (
             crate::atelier_panel::ATELIER_POSE_YAW_MINUS_AUTHOR_ID,
@@ -1385,13 +1388,13 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             crate::atelier_panel::ATELIER_POSE_EXPORT_REF_AUTHOR_ID,
             "Inspect Posekit artifact refs",
             "argus.inspect",
-            "argus.inspect reads artifact_ref, receipt_ref, and content_hash for the latest OpenPose export; backend receipt_ref is an ArtifactStore JSON payload, while no-backend preview uses preview://.",
+            "argus.inspect reads png_artifact_ref, json_artifact_ref, receipt_ref, and content_hash for the latest OpenPose export; backend refs are ArtifactStore payloads, while no-backend preview uses preview://.",
         ),
         (
             crate::atelier_panel::ATELIER_POSE_EXPORT_PREVIEW_AUTHOR_ID,
             "Inspect Posekit export preview",
             "argus.inspect",
-            "argus.inspect reads the hsk.atelier.posekit.openpose_export@1 preview payload.",
+            "argus.inspect reads the hsk.atelier.posekit.openpose_export@1 preview payload; stored-rig backend exports must show source_keypoint_projection.mode=native-rig-to-openpose, png_artifact_ref, json_artifact_ref, and rerender OpenPose JSON/PNG hash evidence after yaw, pitch, or zoom changes.",
         ),
         (
             crate::atelier_panel::ATELIER_INGEST_DATASET_REF_AUTHOR_ID,

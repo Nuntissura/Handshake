@@ -1,6 +1,8 @@
 //! MT-006 Atelier main-panel proofs.
 
 use std::{
+    io::{Read, Write},
+    net::TcpListener,
     path::PathBuf,
     sync::{Arc, Mutex},
 };
@@ -15,74 +17,74 @@ use handshake_native::atelier_panel::{
     ckc_media_row_author_id, ckc_moodboard_document_row_author_id, ckc_search_result_row_author_id,
     ckc_source_url_row_author_id, ckc_story_document_row_author_id, ingest_item_pass_author_id,
     ingest_item_reject_author_id, ingest_item_row_author_id, ingest_item_unsure_author_id,
-    AtelierPanel, ATELIER_CKC_ALBUM_CREATE_AUTHOR_ID, ATELIER_CKC_ALBUM_CREATE_NAME_AUTHOR_ID,
-    ATELIER_CKC_ALBUM_CREATE_NOTES_AUTHOR_ID, ATELIER_CKC_ALBUM_CREATE_TAGS_AUTHOR_ID,
-    ATELIER_CKC_ALBUM_LINK_ASSET_IDS_AUTHOR_ID, ATELIER_CKC_ALBUM_LINK_AUTHOR_ID,
-    ATELIER_CKC_ALBUM_LINK_SOURCE_PATH_AUTHOR_ID, ATELIER_CKC_ALBUM_LINK_SOURCE_URL_AUTHOR_ID,
-    ATELIER_CKC_ALBUM_STATUS_AUTHOR_ID, ATELIER_CKC_BOOK_LAYOUT_AUTHOR_ID,
-    ATELIER_CKC_BOOK_LEFT_MEDIA_AUTHOR_ID, ATELIER_CKC_BOOK_MIDDLE_AUTHOR_ID,
-    ATELIER_CKC_BOOK_RIGHT_SHEET_AUTHOR_ID, ATELIER_CKC_CHARACTER_CREATE_AUTHOR_ID,
-    ATELIER_CKC_CHARACTER_CREATE_NAME_AUTHOR_ID, ATELIER_CKC_CHARACTER_LIST_AUTHOR_ID,
-    ATELIER_CKC_CHARACTER_NOTES_APPLY_AUTHOR_ID, ATELIER_CKC_CHARACTER_NOTES_EDITOR_AUTHOR_ID,
-    ATELIER_CKC_CHARACTER_REF_AUTHOR_ID, ATELIER_CKC_EXPORT_JSON_AUTHOR_ID,
-    ATELIER_CKC_EXPORT_PREVIEW_AUTHOR_ID, ATELIER_CKC_EXPORT_REF_AUTHOR_ID,
-    ATELIER_CKC_EXPORT_SAFE_JSON_AUTHOR_ID, ATELIER_CKC_EXPORT_SAFE_TXT_AUTHOR_ID,
-    ATELIER_CKC_EXPORT_STATUS_AUTHOR_ID, ATELIER_CKC_EXPORT_TXT_AUTHOR_ID,
-    ATELIER_CKC_FIELD_SUGGESTIONS_LIST_AUTHOR_ID, ATELIER_CKC_FIELD_SUGGESTIONS_LOAD_AUTHOR_ID,
-    ATELIER_CKC_FIELD_SUGGESTION_FIELD_AUTHOR_ID, ATELIER_CKC_IMPORT_AUTHOR_ID,
-    ATELIER_CKC_IMPORT_EDITOR_AUTHOR_ID, ATELIER_CKC_LINKED_MEDIA_LIST_AUTHOR_ID,
-    ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID, ATELIER_CKC_MEDIA_SAVE_AUTHOR_ID,
-    ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID, ATELIER_CKC_MEDIA_VIEWER_AUTHOR_ID,
-    ATELIER_CKC_MODE_MOODBOARD_AUTHOR_ID, ATELIER_CKC_MODE_NOTES_AUTHOR_ID,
-    ATELIER_CKC_MODE_SHEET_AUTHOR_ID, ATELIER_CKC_MODE_STORY_AUTHOR_ID,
-    ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID, ATELIER_CKC_MOODBOARD_DOC_REF_AUTHOR_ID,
-    ATELIER_CKC_MOODBOARD_EDITOR_AUTHOR_ID, ATELIER_CKC_MOODBOARD_LATEST_REF_AUTHOR_ID,
-    ATELIER_CKC_MOODBOARD_OPEN_AUTHOR_ID, ATELIER_CKC_MOODBOARD_SAVE_AUTHOR_ID,
-    ATELIER_CKC_SAFE_SUBSET_LOAD_AUTHOR_ID, ATELIER_CKC_SEARCH_FILTER_CHARACTER_AUTHOR_ID,
-    ATELIER_CKC_SEARCH_FILTER_COLLECTION_AUTHOR_ID, ATELIER_CKC_SEARCH_FILTER_MEDIA_AUTHOR_ID,
-    ATELIER_CKC_SEARCH_FILTER_SIMILARITY_AUTHOR_ID, ATELIER_CKC_SEARCH_MODE_COMBINED_AUTHOR_ID,
-    ATELIER_CKC_SEARCH_MODE_FUZZY_AUTHOR_ID, ATELIER_CKC_SEARCH_MODE_VECTOR_AUTHOR_ID,
-    ATELIER_CKC_SEARCH_QUERY_AUTHOR_ID, ATELIER_CKC_SEARCH_RESULTS_AUTHOR_ID,
-    ATELIER_CKC_SEARCH_RUN_AUTHOR_ID, ATELIER_CKC_SEARCH_STATUS_AUTHOR_ID,
-    ATELIER_CKC_SEARCH_TAGS_AUTHOR_ID, ATELIER_CKC_SELECTED_CHARACTER_AUTHOR_ID,
-    ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID, ATELIER_CKC_SHEET_SAVE_AUTHOR_ID,
-    ATELIER_CKC_SHEET_VERSION_REF_AUTHOR_ID, ATELIER_CKC_STORY_BEAT_EDITOR_AUTHOR_ID,
-    ATELIER_CKC_STORY_BEAT_SAVE_AUTHOR_ID, ATELIER_CKC_STORY_CARD_BODY_AUTHOR_ID,
-    ATELIER_CKC_STORY_CARD_LIST_AUTHOR_ID, ATELIER_CKC_STORY_CARD_SAVE_AUTHOR_ID,
-    ATELIER_CKC_STORY_CARD_TITLE_AUTHOR_ID, ATELIER_CKC_STORY_DOC_REF_AUTHOR_ID,
-    ATELIER_CKC_STORY_EDITOR_AUTHOR_ID, ATELIER_CKC_STORY_SAVE_AUTHOR_ID,
-    ATELIER_CKC_TAG_NOTE_EDITOR_AUTHOR_ID, ATELIER_CKC_TAG_NOTE_SAVE_AUTHOR_ID,
-    ATELIER_CKC_TAG_NOTE_SCOPE_AUTHOR_ID, ATELIER_CKC_TAG_NOTE_TAG_AUTHOR_ID,
-    ATELIER_CKC_TEMPLATE_LOAD_AUTHOR_ID, ATELIER_CKC_TEMPLATE_STATUS_AUTHOR_ID,
-    ATELIER_CKC_TYPED_REF_KIND_AUTHOR_ID, ATELIER_CONTENT_CKC_AUTHOR_ID,
-    ATELIER_CONTENT_INGEST_AUTHOR_ID, ATELIER_CONTENT_POSEKIT_AUTHOR_ID,
-    ATELIER_INGEST_APPLY_BATCH_AUTHOR_ID, ATELIER_INGEST_BATCH_NOTE_AUTHOR_ID,
-    ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID, ATELIER_INGEST_CHARACTER_REF_AUTHOR_ID,
-    ATELIER_INGEST_CONTACT_COLUMNS_AUTHOR_ID, ATELIER_INGEST_CONTACT_DPI_AUTHOR_ID,
-    ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID, ATELIER_INGEST_CONTACT_ROWS_AUTHOR_ID,
-    ATELIER_INGEST_DATASET_REF_AUTHOR_ID, ATELIER_INGEST_DATE_AUTHOR_ID,
-    ATELIER_INGEST_EVENT_AUTHOR_ID, ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID,
-    ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID, ATELIER_INGEST_LINK_PASSED_AUTHOR_ID,
-    ATELIER_INGEST_LOCATION_AUTHOR_ID, ATELIER_INGEST_PASS_AUTHOR_ID,
-    ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID, ATELIER_INGEST_REJECT_AUTHOR_ID,
-    ATELIER_INGEST_STATUS_AUTHOR_ID, ATELIER_INGEST_UNSURE_AUTHOR_ID, ATELIER_PANEL_AUTHOR_ID,
-    ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID, ATELIER_POSE_BODY_TOGGLE_AUTHOR_ID,
-    ATELIER_POSE_EXPORT_AUTHOR_ID, ATELIER_POSE_EXPORT_PREVIEW_AUTHOR_ID,
-    ATELIER_POSE_EXPORT_REF_AUTHOR_ID, ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID,
-    ATELIER_POSE_FACE_TOGGLE_AUTHOR_ID, ATELIER_POSE_FRAMING_LENS_AUTHOR_ID,
-    ATELIER_POSE_FRAMING_PADDING_BOTTOM_AUTHOR_ID, ATELIER_POSE_FRAMING_PADDING_LEFT_AUTHOR_ID,
-    ATELIER_POSE_FRAMING_PADDING_RIGHT_AUTHOR_ID, ATELIER_POSE_FRAMING_PADDING_TOP_AUTHOR_ID,
-    ATELIER_POSE_FRAMING_PRESET_AUTHOR_ID, ATELIER_POSE_FRAMING_READOUT_AUTHOR_ID,
-    ATELIER_POSE_HANDS_TOGGLE_AUTHOR_ID, ATELIER_POSE_MARKER_ADD_AUTHOR_ID,
-    ATELIER_POSE_MARKER_APPLY_AUTHOR_ID, ATELIER_POSE_MARKER_CONFIDENCE_AUTHOR_ID,
-    ATELIER_POSE_MARKER_FAMILY_AUTHOR_ID, ATELIER_POSE_MARKER_INDEX_AUTHOR_ID,
-    ATELIER_POSE_MARKER_NUDGE_DOWN_AUTHOR_ID, ATELIER_POSE_MARKER_NUDGE_LEFT_AUTHOR_ID,
-    ATELIER_POSE_MARKER_NUDGE_RIGHT_AUTHOR_ID, ATELIER_POSE_MARKER_NUDGE_UP_AUTHOR_ID,
-    ATELIER_POSE_MARKER_REMOVE_AUTHOR_ID, ATELIER_POSE_MARKER_RESET_AUTHOR_ID,
-    ATELIER_POSE_MARKER_STATUS_AUTHOR_ID, ATELIER_POSE_MARKER_X_AUTHOR_ID,
-    ATELIER_POSE_MARKER_Y_AUTHOR_ID, ATELIER_POSE_OPENPOSE_VIEWPORT_AUTHOR_ID,
-    ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID, ATELIER_POSE_RESET_AUTHOR_ID,
-    ATELIER_POSE_RIG_ID_AUTHOR_ID, ATELIER_POSE_SOURCE_REF_AUTHOR_ID,
+    AtelierPanel, AtelierPanelTab, ATELIER_CKC_ALBUM_CREATE_AUTHOR_ID,
+    ATELIER_CKC_ALBUM_CREATE_NAME_AUTHOR_ID, ATELIER_CKC_ALBUM_CREATE_NOTES_AUTHOR_ID,
+    ATELIER_CKC_ALBUM_CREATE_TAGS_AUTHOR_ID, ATELIER_CKC_ALBUM_LINK_ASSET_IDS_AUTHOR_ID,
+    ATELIER_CKC_ALBUM_LINK_AUTHOR_ID, ATELIER_CKC_ALBUM_LINK_SOURCE_PATH_AUTHOR_ID,
+    ATELIER_CKC_ALBUM_LINK_SOURCE_URL_AUTHOR_ID, ATELIER_CKC_ALBUM_STATUS_AUTHOR_ID,
+    ATELIER_CKC_BOOK_LAYOUT_AUTHOR_ID, ATELIER_CKC_BOOK_LEFT_MEDIA_AUTHOR_ID,
+    ATELIER_CKC_BOOK_MIDDLE_AUTHOR_ID, ATELIER_CKC_BOOK_RIGHT_SHEET_AUTHOR_ID,
+    ATELIER_CKC_CHARACTER_CREATE_AUTHOR_ID, ATELIER_CKC_CHARACTER_CREATE_NAME_AUTHOR_ID,
+    ATELIER_CKC_CHARACTER_LIST_AUTHOR_ID, ATELIER_CKC_CHARACTER_NOTES_APPLY_AUTHOR_ID,
+    ATELIER_CKC_CHARACTER_NOTES_EDITOR_AUTHOR_ID, ATELIER_CKC_CHARACTER_REF_AUTHOR_ID,
+    ATELIER_CKC_EXPORT_JSON_AUTHOR_ID, ATELIER_CKC_EXPORT_PREVIEW_AUTHOR_ID,
+    ATELIER_CKC_EXPORT_REF_AUTHOR_ID, ATELIER_CKC_EXPORT_SAFE_JSON_AUTHOR_ID,
+    ATELIER_CKC_EXPORT_SAFE_TXT_AUTHOR_ID, ATELIER_CKC_EXPORT_STATUS_AUTHOR_ID,
+    ATELIER_CKC_EXPORT_TXT_AUTHOR_ID, ATELIER_CKC_FIELD_SUGGESTIONS_LIST_AUTHOR_ID,
+    ATELIER_CKC_FIELD_SUGGESTIONS_LOAD_AUTHOR_ID, ATELIER_CKC_FIELD_SUGGESTION_FIELD_AUTHOR_ID,
+    ATELIER_CKC_IMPORT_AUTHOR_ID, ATELIER_CKC_IMPORT_EDITOR_AUTHOR_ID,
+    ATELIER_CKC_LINKED_MEDIA_LIST_AUTHOR_ID, ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID,
+    ATELIER_CKC_MEDIA_SAVE_AUTHOR_ID, ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID,
+    ATELIER_CKC_MEDIA_VIEWER_AUTHOR_ID, ATELIER_CKC_MODE_MOODBOARD_AUTHOR_ID,
+    ATELIER_CKC_MODE_NOTES_AUTHOR_ID, ATELIER_CKC_MODE_SHEET_AUTHOR_ID,
+    ATELIER_CKC_MODE_STORY_AUTHOR_ID, ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID,
+    ATELIER_CKC_MOODBOARD_DOC_REF_AUTHOR_ID, ATELIER_CKC_MOODBOARD_EDITOR_AUTHOR_ID,
+    ATELIER_CKC_MOODBOARD_LATEST_REF_AUTHOR_ID, ATELIER_CKC_MOODBOARD_OPEN_AUTHOR_ID,
+    ATELIER_CKC_MOODBOARD_SAVE_AUTHOR_ID, ATELIER_CKC_SAFE_SUBSET_LOAD_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_FILTER_CHARACTER_AUTHOR_ID, ATELIER_CKC_SEARCH_FILTER_COLLECTION_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_FILTER_MEDIA_AUTHOR_ID, ATELIER_CKC_SEARCH_FILTER_SIMILARITY_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_MODE_COMBINED_AUTHOR_ID, ATELIER_CKC_SEARCH_MODE_FUZZY_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_MODE_VECTOR_AUTHOR_ID, ATELIER_CKC_SEARCH_QUERY_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_RESULTS_AUTHOR_ID, ATELIER_CKC_SEARCH_RUN_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_STATUS_AUTHOR_ID, ATELIER_CKC_SEARCH_TAGS_AUTHOR_ID,
+    ATELIER_CKC_SELECTED_CHARACTER_AUTHOR_ID, ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID,
+    ATELIER_CKC_SHEET_SAVE_AUTHOR_ID, ATELIER_CKC_SHEET_VERSION_REF_AUTHOR_ID,
+    ATELIER_CKC_STORY_BEAT_EDITOR_AUTHOR_ID, ATELIER_CKC_STORY_BEAT_SAVE_AUTHOR_ID,
+    ATELIER_CKC_STORY_CARD_BODY_AUTHOR_ID, ATELIER_CKC_STORY_CARD_LIST_AUTHOR_ID,
+    ATELIER_CKC_STORY_CARD_SAVE_AUTHOR_ID, ATELIER_CKC_STORY_CARD_TITLE_AUTHOR_ID,
+    ATELIER_CKC_STORY_DOC_REF_AUTHOR_ID, ATELIER_CKC_STORY_EDITOR_AUTHOR_ID,
+    ATELIER_CKC_STORY_SAVE_AUTHOR_ID, ATELIER_CKC_TAG_NOTE_EDITOR_AUTHOR_ID,
+    ATELIER_CKC_TAG_NOTE_SAVE_AUTHOR_ID, ATELIER_CKC_TAG_NOTE_SCOPE_AUTHOR_ID,
+    ATELIER_CKC_TAG_NOTE_TAG_AUTHOR_ID, ATELIER_CKC_TEMPLATE_LOAD_AUTHOR_ID,
+    ATELIER_CKC_TEMPLATE_STATUS_AUTHOR_ID, ATELIER_CKC_TYPED_REF_KIND_AUTHOR_ID,
+    ATELIER_CONTENT_CKC_AUTHOR_ID, ATELIER_CONTENT_INGEST_AUTHOR_ID,
+    ATELIER_CONTENT_POSEKIT_AUTHOR_ID, ATELIER_INGEST_APPLY_BATCH_AUTHOR_ID,
+    ATELIER_INGEST_BATCH_NOTE_AUTHOR_ID, ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID,
+    ATELIER_INGEST_CHARACTER_REF_AUTHOR_ID, ATELIER_INGEST_CONTACT_COLUMNS_AUTHOR_ID,
+    ATELIER_INGEST_CONTACT_DPI_AUTHOR_ID, ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID,
+    ATELIER_INGEST_CONTACT_ROWS_AUTHOR_ID, ATELIER_INGEST_DATASET_REF_AUTHOR_ID,
+    ATELIER_INGEST_DATE_AUTHOR_ID, ATELIER_INGEST_EVENT_AUTHOR_ID,
+    ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID, ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID,
+    ATELIER_INGEST_LINK_PASSED_AUTHOR_ID, ATELIER_INGEST_LOCATION_AUTHOR_ID,
+    ATELIER_INGEST_PASS_AUTHOR_ID, ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID,
+    ATELIER_INGEST_REJECT_AUTHOR_ID, ATELIER_INGEST_STATUS_AUTHOR_ID,
+    ATELIER_INGEST_UNSURE_AUTHOR_ID, ATELIER_PANEL_AUTHOR_ID, ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID,
+    ATELIER_POSE_BODY_TOGGLE_AUTHOR_ID, ATELIER_POSE_EXPORT_AUTHOR_ID,
+    ATELIER_POSE_EXPORT_PREVIEW_AUTHOR_ID, ATELIER_POSE_EXPORT_REF_AUTHOR_ID,
+    ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID, ATELIER_POSE_FACE_TOGGLE_AUTHOR_ID,
+    ATELIER_POSE_FRAMING_LENS_AUTHOR_ID, ATELIER_POSE_FRAMING_PADDING_BOTTOM_AUTHOR_ID,
+    ATELIER_POSE_FRAMING_PADDING_LEFT_AUTHOR_ID, ATELIER_POSE_FRAMING_PADDING_RIGHT_AUTHOR_ID,
+    ATELIER_POSE_FRAMING_PADDING_TOP_AUTHOR_ID, ATELIER_POSE_FRAMING_PRESET_AUTHOR_ID,
+    ATELIER_POSE_FRAMING_READOUT_AUTHOR_ID, ATELIER_POSE_HANDS_TOGGLE_AUTHOR_ID,
+    ATELIER_POSE_MARKER_ADD_AUTHOR_ID, ATELIER_POSE_MARKER_APPLY_AUTHOR_ID,
+    ATELIER_POSE_MARKER_CONFIDENCE_AUTHOR_ID, ATELIER_POSE_MARKER_FAMILY_AUTHOR_ID,
+    ATELIER_POSE_MARKER_INDEX_AUTHOR_ID, ATELIER_POSE_MARKER_NUDGE_DOWN_AUTHOR_ID,
+    ATELIER_POSE_MARKER_NUDGE_LEFT_AUTHOR_ID, ATELIER_POSE_MARKER_NUDGE_RIGHT_AUTHOR_ID,
+    ATELIER_POSE_MARKER_NUDGE_UP_AUTHOR_ID, ATELIER_POSE_MARKER_REMOVE_AUTHOR_ID,
+    ATELIER_POSE_MARKER_RESET_AUTHOR_ID, ATELIER_POSE_MARKER_STATUS_AUTHOR_ID,
+    ATELIER_POSE_MARKER_X_AUTHOR_ID, ATELIER_POSE_MARKER_Y_AUTHOR_ID,
+    ATELIER_POSE_OPENPOSE_VIEWPORT_AUTHOR_ID, ATELIER_POSE_PITCH_SLIDER_AUTHOR_ID,
+    ATELIER_POSE_RESET_AUTHOR_ID, ATELIER_POSE_RIG_ID_AUTHOR_ID, ATELIER_POSE_SOURCE_REF_AUTHOR_ID,
     ATELIER_POSE_SPLIT_VIEW_AUTHOR_ID, ATELIER_POSE_STATE_READOUT_AUTHOR_ID,
     ATELIER_POSE_YAW_MINUS_AUTHOR_ID, ATELIER_POSE_YAW_PLUS_AUTHOR_ID,
     ATELIER_POSE_YAW_SLIDER_AUTHOR_ID, ATELIER_POSE_ZOOM_SLIDER_AUTHOR_ID,
@@ -90,7 +92,7 @@ use handshake_native::atelier_panel::{
     ATELIER_TAB_POSEKIT_AUTHOR_ID,
 };
 use handshake_native::atelier_side_panel::{item_author_id, AtelierSidePanel, PANEL_AUTHOR_ID};
-use handshake_native::backend_client::{AtelierBatchRow, AtelierItemRow};
+use handshake_native::backend_client::{AtelierBatchRow, AtelierClient, AtelierItemRow};
 use handshake_native::graph::canvas_board::{CanvasEvent, LoomCanvasBoard};
 use handshake_native::mcp::{
     dispatch_request, ActionChannel, McpRequest, ScreenshotError, SessionToken,
@@ -337,8 +339,206 @@ fn build_panel_harness_with_size(size: egui::Vec2) -> Harness<'static, AtelierPa
     )
 }
 
+fn build_panel_harness_with_client(
+    size: egui::Vec2,
+    client: AtelierClient,
+) -> Harness<'static, AtelierPanel> {
+    let panel = AtelierPanel::with_client(
+        seeded_side_panel(),
+        Arc::new(Mutex::new(LoomCanvasBoard::new("ws-test", "canvas-1"))),
+        Arc::new(Mutex::new(Vec::<CanvasEvent>::new())),
+        Some(client),
+    );
+    panel.set_active_tab(AtelierPanelTab::Posekit);
+    Harness::builder().with_size(size).build_state(
+        |ctx, panel: &mut AtelierPanel| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                panel.show(ui, &HsTheme::Dark.palette());
+            });
+        },
+        panel,
+    )
+}
+
 fn build_panel_harness() -> Harness<'static, AtelierPanel> {
     build_panel_harness_with_size(egui::vec2(1280.0, 760.0))
+}
+
+fn posekit_backend_export_response(rig_id: &str) -> serde_json::Value {
+    let content_hash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    serde_json::json!({
+        "schema_id": "hsk.atelier.posekit.openpose_export@1",
+        "source_ref": "atelier://media/mira-demo/pose-source.png",
+        "rig_id": rig_id,
+        "yaw_deg": 90,
+        "pitch_deg": 0,
+        "zoom_percent": 100,
+        "framing": {
+            "preset": "standard",
+            "lens_mm": 50,
+            "padding_top_px": 0,
+            "padding_right_px": 0,
+            "padding_bottom_px": 0,
+            "padding_left_px": 0
+        },
+        "marker_layers": {
+            "face": true,
+            "body": true,
+            "hands": false
+        },
+        "applied_marker_edit_count": 0,
+        "width": 768,
+        "height": 768,
+        "openpose_json": {
+            "version": 1.3,
+            "handshake_schema": "hsk.atelier.posekit.openpose_export@1",
+            "source_ref": "atelier://media/mira-demo/pose-source.png",
+            "rig_id": rig_id,
+            "pose_state": {
+                "yaw_deg": 90,
+                "pitch_deg": 0,
+                "zoom_percent": 100,
+                "source_keypoint_projection": {
+                    "mode": "native-rig-to-openpose"
+                },
+                "framing": {
+                    "preset": "standard",
+                    "lens_mm": 50,
+                    "padding_top_px": 0,
+                    "padding_right_px": 0,
+                    "padding_bottom_px": 0,
+                    "padding_left_px": 0
+                }
+            },
+            "people": [{
+                "pose_keypoints_2d": vec![0.0_f64; 54],
+                "face_keypoints_2d": vec![0.0_f64; 210],
+                "hand_left_keypoints_2d": vec![0.0_f64; 63],
+                "hand_right_keypoints_2d": vec![0.0_f64; 63]
+            }]
+        },
+        "openpose_json_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "openpose_png_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "content_hash": content_hash,
+        "receipt_ref": "artifact://.handshake/artifacts/posekit-openpose-receipt/payload",
+        "openpose_png_artifact": {
+            "artifact_ref": "artifact://.handshake/artifacts/posekit-openpose-png/payload",
+            "manifest_ref": "artifact://.handshake/artifacts/posekit-openpose-png/manifest",
+            "content_hash": content_hash,
+            "byte_len": 4096,
+            "mime": "image/png",
+            "file_name": "posekit-openpose.png"
+        },
+        "openpose_json_artifact": {
+            "artifact_ref": "artifact://.handshake/artifacts/posekit-openpose-json/payload",
+            "manifest_ref": "artifact://.handshake/artifacts/posekit-openpose-json/manifest",
+            "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "byte_len": 2048,
+            "mime": "application/json",
+            "file_name": "posekit-openpose.json"
+        }
+    })
+}
+
+struct CapturedHttpRequest {
+    request_line: String,
+    headers: std::collections::HashMap<String, String>,
+    body: String,
+}
+
+fn spawn_posekit_export_server(
+    response_body: serde_json::Value,
+) -> (String, std::thread::JoinHandle<CapturedHttpRequest>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind Posekit export mock server");
+    let addr = listener.local_addr().expect("mock server local addr");
+    let base_url = format!("http://{addr}");
+    let handle = std::thread::spawn(move || {
+        listener
+            .set_nonblocking(true)
+            .expect("set Posekit mock server nonblocking");
+        let started = std::time::Instant::now();
+        let (mut stream, _) = loop {
+            match listener.accept() {
+                Ok(accepted) => break accepted,
+                Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {
+                    if started.elapsed() > std::time::Duration::from_secs(5) {
+                        return CapturedHttpRequest {
+                            request_line: "TIMEOUT waiting for Posekit export request".to_owned(),
+                            headers: std::collections::HashMap::new(),
+                            body: String::new(),
+                        };
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+                Err(err) => panic!("accept Posekit export request: {err}"),
+            }
+        };
+        stream
+            .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+            .expect("set Posekit mock read timeout");
+        let captured = read_http_request(&mut stream);
+        let body = response_body.to_string();
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",
+            body.len()
+        );
+        stream
+            .write_all(response.as_bytes())
+            .expect("write Posekit export response");
+        stream.flush().expect("flush Posekit export response");
+        captured
+    });
+    (base_url, handle)
+}
+
+fn read_http_request(stream: &mut std::net::TcpStream) -> CapturedHttpRequest {
+    let mut data = Vec::new();
+    let mut buffer = [0_u8; 8192];
+    loop {
+        let read = stream.read(&mut buffer).expect("read HTTP request");
+        if read == 0 {
+            break;
+        }
+        data.extend_from_slice(&buffer[..read]);
+        let text = String::from_utf8_lossy(&data);
+        if let Some(header_end) = text.find("\r\n\r\n") {
+            let header = &text[..header_end];
+            let body_so_far = &text[header_end + 4..];
+            let content_len = header
+                .lines()
+                .find_map(|line| {
+                    let lower = line.to_ascii_lowercase();
+                    lower
+                        .strip_prefix("content-length:")
+                        .and_then(|value| value.trim().parse::<usize>().ok())
+                })
+                .unwrap_or(0);
+            if body_so_far.len() >= content_len {
+                break;
+            }
+        }
+    }
+    let text = String::from_utf8_lossy(&data).into_owned();
+    let header_end = text.find("\r\n\r\n").unwrap_or(text.len());
+    let header = &text[..header_end];
+    let body = if header_end + 4 <= text.len() {
+        text[header_end + 4..].to_owned()
+    } else {
+        String::new()
+    };
+    let mut lines = header.lines();
+    let request_line = lines.next().unwrap_or_default().to_owned();
+    let headers = lines
+        .filter_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            Some((name.to_ascii_lowercase(), value.trim().to_owned()))
+        })
+        .collect::<std::collections::HashMap<_, _>>();
+    CapturedHttpRequest {
+        request_line,
+        headers,
+        body,
+    }
 }
 
 fn decode_base64(s: &str) -> Result<Vec<u8>, String> {
@@ -2243,6 +2443,23 @@ fn posekit_split_view_rotation_export_is_argus_inspectable() {
     assert!(initial_readout.contains("yaw_deg=0"));
     assert!(initial_readout.contains("markers=face:on body:on hands:off"));
     assert!(initial_readout.contains("rig_id=<none>"));
+    let initial_3d_viewport = initial
+        .find_by_author_id(ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("initial Posekit 3D viewport value");
+    assert!(initial_3d_viewport.contains("3D rig/source preview"));
+    assert!(initial_3d_viewport.contains("viewport_mode=native_3d_projection_preview"));
+    assert!(initial_3d_viewport.contains("projection=procedural-posekit-preview"));
+    assert!(initial_3d_viewport.contains("source_fingerprint="));
+    let initial_openpose_viewport = initial
+        .find_by_author_id(ATELIER_POSE_OPENPOSE_VIEWPORT_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("initial Posekit OpenPose viewport value");
+    assert!(initial_openpose_viewport.contains("OpenPose preview"));
+    assert!(
+        initial_openpose_viewport.contains("viewport_mode=openpose_conditioning_preview"),
+        "Posekit OpenPose viewport must expose its conditioning preview mode: {initial_openpose_viewport}"
+    );
     let initial_status = initial
         .find_by_author_id(ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID)
         .and_then(|node| node.value.as_deref())
@@ -2282,6 +2499,14 @@ fn posekit_split_view_rotation_export_is_argus_inspectable() {
     assert!(
         rigged_viewport.contains(&format!("rig_id={rig_id}")),
         "Posekit rig/source viewport must consume the selected rig id: {rigged_viewport}"
+    );
+    assert!(
+        rigged_viewport.contains("viewport_mode=native_3d_projection_preview"),
+        "Posekit rig/source viewport must remain the native 3D projection preview: {rigged_viewport}"
+    );
+    assert!(
+        rigged_viewport.contains("projection=rig-linked-native-preview"),
+        "Posekit rig/source viewport must distinguish rig-linked preview metadata from no-rig procedural preview: {rigged_viewport}"
     );
 
     let yaw_click = dispatch_request(
@@ -2334,6 +2559,14 @@ fn posekit_split_view_rotation_export_is_argus_inspectable() {
         set_readout.contains("yaw_deg=90"),
         "Argus set_value must update the model-readable yaw field: {set_readout}"
     );
+    let set_openpose_viewport = set_rotated
+        .find_by_author_id(ATELIER_POSE_OPENPOSE_VIEWPORT_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("set-value Posekit OpenPose viewport value");
+    assert!(
+        set_openpose_viewport.contains("yaw_deg=90"),
+        "OpenPose viewport metadata must rerender with Argus-driven yaw changes: {set_openpose_viewport}"
+    );
 
     let export_click = dispatch_request(
         &argus_req(
@@ -2382,13 +2615,191 @@ fn posekit_split_view_rotation_export_is_argus_inspectable() {
     assert!(preview.contains("\"hand_left_keypoints_2d\""));
     assert!(preview.contains("\"hand_right_keypoints_2d\""));
     assert!(preview.contains("\"yaw_deg\":90.0") || preview.contains("\"yaw_deg\":90"));
-    assert!(preview.contains("mime=image/png"));
+    assert!(preview.contains("png_mime=image/png"));
+    assert!(preview.contains("json_mime=application/json"));
 
     save_visual_probe_to(
         &mut harness,
         "wp-ckc-posekit-overhaul-mt-014",
         "posekit_split_export_desktop.png",
     );
+}
+
+#[test]
+fn posekit_backend_export_reaches_argus_artifact_refs() {
+    let rig_id = "018f7848-1111-7000-9000-00000000f014";
+    let (base_url, server) = spawn_posekit_export_server(posekit_backend_export_response(rig_id));
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("Posekit backend UI proof runtime");
+    let client =
+        AtelierClient::new_with_actor_id(base_url, runtime.handle().clone(), "posekit-agent-014");
+    let mut harness = build_panel_harness_with_client(egui::vec2(1280.0, 760.0), client);
+    harness.run();
+
+    let mut channel = ActionChannel::new();
+    let tab_click = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_TAB_POSEKIT_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &snapshot_harness(&mut harness),
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(tab_click.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+
+    let posekit = snapshot_harness(&mut harness);
+    let set_rig = dispatch_request(
+        &argus_req(
+            "argus.set_value",
+            serde_json::json!({ "target": ATELIER_POSE_RIG_ID_AUTHOR_ID, "value": rig_id }),
+        ),
+        &argus_token(),
+        &posekit,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(set_rig.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+
+    let rigged = snapshot_harness(&mut harness);
+    let set_yaw = dispatch_request(
+        &argus_req(
+            "argus.set_value",
+            serde_json::json!({ "target": ATELIER_POSE_YAW_SLIDER_AUTHOR_ID, "value": "90" }),
+        ),
+        &argus_token(),
+        &rigged,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(set_yaw.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+
+    let ready = snapshot_harness(&mut harness);
+    let export_click = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_POSE_EXPORT_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &ready,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(export_click.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+
+    let captured = server.join().expect("Posekit export mock server joins");
+    assert_eq!(
+        captured.request_line,
+        "POST /atelier/posekit/openpose-export HTTP/1.1"
+    );
+    assert_eq!(
+        captured.headers.get("x-hsk-actor-id").map(String::as_str),
+        Some("posekit-agent-014")
+    );
+    let sent_body: serde_json::Value =
+        serde_json::from_str(&captured.body).expect("Posekit export request JSON body");
+    assert_eq!(
+        sent_body["source_ref"].as_str(),
+        Some("atelier://media/mira-demo/pose-source.png")
+    );
+    assert_eq!(sent_body["rig_id"].as_str(), Some(rig_id));
+    assert!((sent_body["yaw_deg"].as_f64().expect("yaw_deg numeric") - 90.0).abs() < f64::EPSILON);
+    assert_eq!(sent_body["include_body"], serde_json::json!(true));
+
+    let exported = (0..40)
+        .find_map(|_| {
+            harness.run();
+            let snapshot = snapshot_harness(&mut harness);
+            let status = snapshot
+                .find_by_author_id(ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID)
+                .and_then(|node| node.value.as_deref())
+                .unwrap_or_default()
+                .to_owned();
+            if status.contains("Exported backend Posekit OpenPose") {
+                Some(snapshot)
+            } else {
+                std::thread::sleep(std::time::Duration::from_millis(25));
+                None
+            }
+        })
+        .expect("backend Posekit export result becomes Argus-visible");
+
+    let status = exported
+        .find_by_author_id(ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("backend Posekit export status value");
+    assert!(status.contains("Exported backend Posekit OpenPose"));
+    assert!(status.contains("yaw_deg=90"));
+    assert!(!status.contains("Local Argus preview only"));
+    let export_ref = exported
+        .find_by_author_id(ATELIER_POSE_EXPORT_REF_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("backend Posekit export ref value");
+    assert!(export_ref.contains("artifact://.handshake/artifacts/posekit-openpose-png/payload"));
+    assert!(export_ref.contains("artifact://.handshake/artifacts/posekit-openpose-json/payload"));
+    assert!(export_ref.contains("artifact://.handshake/artifacts/posekit-openpose-png/manifest"));
+    assert!(export_ref.contains("artifact://.handshake/artifacts/posekit-openpose-json/manifest"));
+    assert!(export_ref.contains("artifact://.handshake/artifacts/posekit-openpose-receipt/payload"));
+    assert!(
+        !export_ref.contains("preview://"),
+        "backend export refs must not degrade to local preview refs: {export_ref}"
+    );
+    let preview = exported
+        .find_by_author_id(ATELIER_POSE_EXPORT_PREVIEW_AUTHOR_ID)
+        .and_then(|node| node.value.as_deref())
+        .expect("backend Posekit export preview value");
+    assert!(preview.contains("hsk.atelier.posekit.openpose_export@1"));
+    assert!(preview
+        .contains("png_artifact_ref=artifact://.handshake/artifacts/posekit-openpose-png/payload"));
+    assert!(preview.contains(
+        "json_artifact_ref=artifact://.handshake/artifacts/posekit-openpose-json/payload"
+    ));
+    assert!(preview.contains(
+        "png_manifest_ref=artifact://.handshake/artifacts/posekit-openpose-png/manifest"
+    ));
+    assert!(preview.contains(
+        "json_manifest_ref=artifact://.handshake/artifacts/posekit-openpose-json/manifest"
+    ));
+    assert!(preview.contains(&format!("\"rig_id\":\"{rig_id}\"")));
+    assert!(preview.contains("\"source_keypoint_projection\""));
+    assert!(preview.contains("\"native-rig-to-openpose\""));
+    assert!(preview.contains("png_mime=image/png"));
+    assert!(preview.contains("json_mime=application/json"));
+
+    let inspect = dispatch_request(
+        &argus_req("argus.inspect", serde_json::json!({})),
+        &argus_token(),
+        &exported,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    let inspect_json = inspect.to_json();
+    assert_eq!(inspect_json["result"]["argus"]["method"], "argus.inspect");
+    let node_values = inspect_json["result"]["root"].to_string();
+    assert!(node_values.contains(ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID));
+    assert!(node_values.contains("Exported backend Posekit OpenPose"));
+    assert!(node_values.contains("artifact://.handshake/artifacts/posekit-openpose-png/payload"));
+    assert!(node_values.contains("artifact://.handshake/artifacts/posekit-openpose-json/payload"));
 }
 
 #[test]

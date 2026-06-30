@@ -17,7 +17,9 @@
 //! (+ std) are used; sqlx is never imported directly.
 
 mod atelier_pg_support;
+mod user_manual_support;
 
+use handshake_core::api::atelier as atelier_api;
 use handshake_core::atelier::collections::NewCollection;
 use handshake_core::atelier::pose::{
     generate_posekit_openpose_export, generate_posekit_openpose_export_from_keypoints,
@@ -77,6 +79,20 @@ fn valid_keypoints() -> serde_json::Value {
     })
 }
 
+fn visible_source_body_keypoints() -> serde_json::Value {
+    let mut keypoints = valid_keypoints();
+    keypoints["people"][0]["pose_keypoints_2d"][0] = serde_json::json!(384.0);
+    keypoints["people"][0]["pose_keypoints_2d"][1] = serde_json::json!(120.0);
+    keypoints["people"][0]["pose_keypoints_2d"][2] = serde_json::json!(0.95);
+    keypoints["people"][0]["pose_keypoints_2d"][3] = serde_json::json!(384.0);
+    keypoints["people"][0]["pose_keypoints_2d"][4] = serde_json::json!(220.0);
+    keypoints["people"][0]["pose_keypoints_2d"][5] = serde_json::json!(0.94);
+    keypoints["people"][0]["pose_keypoints_2d"][6] = serde_json::json!(260.0);
+    keypoints["people"][0]["pose_keypoints_2d"][7] = serde_json::json!(240.0);
+    keypoints["people"][0]["pose_keypoints_2d"][8] = serde_json::json!(0.91);
+    keypoints
+}
+
 fn posekit_export_request(yaw_deg: f32) -> PosekitOpenPoseExportRequest {
     PosekitOpenPoseExportRequest {
         source_ref: "atelier://media/mira-demo/pose-source.png".to_string(),
@@ -90,6 +106,53 @@ fn posekit_export_request(yaw_deg: f32) -> PosekitOpenPoseExportRequest {
         marker_edits: Vec::new(),
         framing: PosekitExportFraming::default(),
     }
+}
+
+fn posekit_export_request_with_pose(
+    yaw_deg: f32,
+    pitch_deg: f32,
+    zoom: f32,
+) -> PosekitOpenPoseExportRequest {
+    let mut request = posekit_export_request(yaw_deg);
+    request.pitch_deg = pitch_deg;
+    request.zoom = zoom;
+    request
+}
+
+fn artifact_id_from_payload_ref(artifact_ref: &str) -> Uuid {
+    let rest = artifact_ref
+        .strip_prefix("artifact://.handshake/artifacts/L1/")
+        .expect("ArtifactStore payload ref must use the native L1 prefix");
+    let artifact_id = rest
+        .strip_suffix("/payload")
+        .expect("ArtifactStore payload ref must end with /payload");
+    Uuid::parse_str(artifact_id).expect("ArtifactStore payload ref carries a UUID artifact id")
+}
+
+fn assert_native_posekit_artifact_response(
+    response: &serde_json::Value,
+    field: &str,
+    expected_mime: &str,
+    expected_hash: &str,
+) -> Uuid {
+    let row = response.get(field).expect("artifact response field");
+    let artifact_ref = row["artifact_ref"].as_str().expect("artifact_ref string");
+    let manifest_ref = row["manifest_ref"].as_str().expect("manifest_ref string");
+    assert!(
+        artifact_ref.starts_with("artifact://.handshake/artifacts/L1/"),
+        "{field}.artifact_ref must be a native ArtifactStore payload handle: {artifact_ref}"
+    );
+    assert!(
+        !artifact_ref.starts_with("preview://"),
+        "{field}.artifact_ref must not be a preview handle: {artifact_ref}"
+    );
+    assert_eq!(
+        manifest_ref,
+        artifact_ref.replace("/payload", "/artifact.json")
+    );
+    assert_eq!(row["mime"], serde_json::json!(expected_mime));
+    assert_eq!(row["content_hash"], serde_json::json!(expected_hash));
+    artifact_id_from_payload_ref(artifact_ref)
 }
 
 fn assert_openpose_payload_shape(payload: &serde_json::Value) {
@@ -187,6 +250,14 @@ fn artifact_manifest_ref(artifact_ref: &str) -> String {
 
 /// Ingest a fresh, run-unique rig for a character and return it.
 async fn fresh_rig(store: &AtelierStore, character_internal_id: Uuid) -> PoseRig {
+    fresh_rig_with_keypoints(store, character_internal_id, valid_keypoints()).await
+}
+
+async fn fresh_rig_with_keypoints(
+    store: &AtelierStore,
+    character_internal_id: Uuid,
+    keypoints_json: serde_json::Value,
+) -> PoseRig {
     store
         .ingest_pose_rig(&NewPoseRig {
             character_internal_id,
@@ -205,7 +276,7 @@ async fn fresh_rig(store: &AtelierStore, character_internal_id: Uuid) -> PoseRig
             confidence_available: true,
             detector_status: DetectorStatus::Detected,
             error_reason: None,
-            keypoints_json: valid_keypoints(),
+            keypoints_json,
             sidecar_ref: Some(format!("artifact://atelier/pose/{}", Uuid::new_v4())),
         })
         .await
@@ -285,8 +356,9 @@ fn posekit_openpose_export_can_use_stored_rig_keypoints() {
     let mut keypoints = valid_keypoints();
     keypoints["people"][0]["pose_keypoints_2d"][0] = serde_json::json!(123.4);
     keypoints["people"][0]["pose_keypoints_2d"][1] = serde_json::json!(456.7);
+    keypoints["people"][0]["pose_keypoints_2d"][2] = serde_json::json!(0.99);
     let export =
-        generate_posekit_openpose_export_from_keypoints(&posekit_export_request(45.0), &keypoints)
+        generate_posekit_openpose_export_from_keypoints(&posekit_export_request(0.0), &keypoints)
             .expect("generate Posekit export from stored rig keypoints");
     let body = export.openpose_json["people"][0]["pose_keypoints_2d"]
         .as_array()
@@ -299,7 +371,11 @@ fn posekit_openpose_export_can_use_stored_rig_keypoints() {
     );
     assert_eq!(
         export.openpose_json["pose_state"]["yaw_deg"],
-        serde_json::json!(45)
+        serde_json::json!(0)
+    );
+    assert_eq!(
+        export.openpose_json["pose_state"]["source_keypoint_projection"]["mode"],
+        serde_json::json!("native-rig-to-openpose")
     );
     assert_openpose_payload_shape(&export.openpose_json);
 }
@@ -315,7 +391,7 @@ fn posekit_openpose_export_renders_png_from_stored_rig_keypoints() {
     keypoints["people"][0]["pose_keypoints_2d"][5] = serde_json::json!(0.99);
 
     let export =
-        generate_posekit_openpose_export_from_keypoints(&posekit_export_request(45.0), &keypoints)
+        generate_posekit_openpose_export_from_keypoints(&posekit_export_request(0.0), &keypoints)
             .expect("generate Posekit export from stored rig keypoints");
     let decoded =
         image::load_from_memory(&export.openpose_png_bytes).expect("Posekit export PNG decodes");
@@ -336,6 +412,95 @@ fn posekit_openpose_export_renders_png_from_stored_rig_keypoints() {
     assert_ne!(
         export.openpose_png_sha256, procedural.openpose_png_sha256,
         "rig-backed PNG hash must differ when stored keypoints differ from procedural pose"
+    );
+}
+
+#[test]
+fn posekit_stored_rig_rotation_rerenders_coordinates_and_png() {
+    let keypoints = visible_source_body_keypoints();
+
+    let yaw0 =
+        generate_posekit_openpose_export_from_keypoints(&posekit_export_request(0.0), &keypoints)
+            .expect("generate yaw 0 source-backed export");
+    let yaw90 =
+        generate_posekit_openpose_export_from_keypoints(&posekit_export_request(90.0), &keypoints)
+            .expect("generate yaw 90 source-backed export");
+    let yaw180 =
+        generate_posekit_openpose_export_from_keypoints(&posekit_export_request(180.0), &keypoints)
+            .expect("generate yaw 180 source-backed export");
+
+    let body0 = yaw0.openpose_json["people"][0]["pose_keypoints_2d"]
+        .as_array()
+        .expect("yaw0 body");
+    let body90 = yaw90.openpose_json["people"][0]["pose_keypoints_2d"]
+        .as_array()
+        .expect("yaw90 body");
+    let body180 = yaw180.openpose_json["people"][0]["pose_keypoints_2d"]
+        .as_array()
+        .expect("yaw180 body");
+    assert!((body0[0].as_f64().expect("yaw0 x") - 384.0).abs() < 0.001);
+    assert!(
+        body90[0].as_f64().expect("yaw90 x") > body0[0].as_f64().expect("yaw0 x"),
+        "yaw 90 must project stored rig keypoints, not only record metadata"
+    );
+    assert!(
+        body180[0].as_f64().expect("yaw180 x") > body90[0].as_f64().expect("yaw90 x"),
+        "yaw 180 must project farther than yaw 90"
+    );
+    assert_ne!(yaw0.openpose_png_sha256, yaw90.openpose_png_sha256);
+    assert_ne!(yaw90.openpose_png_sha256, yaw180.openpose_png_sha256);
+    assert_eq!(
+        yaw90.openpose_json["pose_state"]["source_keypoint_projection"]["mode"],
+        serde_json::json!("native-rig-to-openpose")
+    );
+}
+
+#[test]
+fn posekit_stored_rig_pitch_and_zoom_rerender_coordinates_and_png() {
+    let keypoints = visible_source_body_keypoints();
+
+    let base = generate_posekit_openpose_export_from_keypoints(
+        &posekit_export_request_with_pose(0.0, 0.0, 1.0),
+        &keypoints,
+    )
+    .expect("generate base source-backed export");
+    let pitched = generate_posekit_openpose_export_from_keypoints(
+        &posekit_export_request_with_pose(0.0, 30.0, 1.0),
+        &keypoints,
+    )
+    .expect("generate pitched source-backed export");
+    let zoomed = generate_posekit_openpose_export_from_keypoints(
+        &posekit_export_request_with_pose(0.0, 0.0, 1.5),
+        &keypoints,
+    )
+    .expect("generate zoomed source-backed export");
+
+    let base_body = base.openpose_json["people"][0]["pose_keypoints_2d"]
+        .as_array()
+        .expect("base body");
+    let pitched_body = pitched.openpose_json["people"][0]["pose_keypoints_2d"]
+        .as_array()
+        .expect("pitched body");
+    let zoomed_body = zoomed.openpose_json["people"][0]["pose_keypoints_2d"]
+        .as_array()
+        .expect("zoomed body");
+    assert!(
+        pitched_body[1].as_f64().expect("pitched y") > base_body[1].as_f64().expect("base y"),
+        "pitch must project stored rig keypoint y coordinates, not only update metadata"
+    );
+    assert!(
+        zoomed_body[6].as_f64().expect("zoomed x") < base_body[6].as_f64().expect("base x"),
+        "zoom must project off-center stored rig keypoint x coordinates, not only update metadata"
+    );
+    assert_ne!(base.openpose_png_sha256, pitched.openpose_png_sha256);
+    assert_ne!(base.openpose_png_sha256, zoomed.openpose_png_sha256);
+    assert_eq!(
+        pitched.openpose_json["pose_state"]["source_keypoint_projection"]["pitch_deg"],
+        serde_json::json!(30)
+    );
+    assert_eq!(
+        zoomed.openpose_json["pose_state"]["source_keypoint_projection"]["zoom_percent"],
+        serde_json::json!(150)
     );
 }
 
@@ -402,6 +567,30 @@ fn posekit_openpose_export_rejects_invisible_or_invalid_requests() {
     assert!(
         generate_posekit_openpose_export(&nan_yaw).is_err(),
         "NaN yaw must be rejected"
+    );
+
+    let mut bad_source_coordinate = valid_keypoints();
+    bad_source_coordinate["people"][0]["pose_keypoints_2d"][0] = serde_json::json!(-20.0);
+    bad_source_coordinate["people"][0]["pose_keypoints_2d"][1] = serde_json::json!(120.0);
+    bad_source_coordinate["people"][0]["pose_keypoints_2d"][2] = serde_json::json!(0.9);
+    assert!(
+        generate_posekit_openpose_export_from_keypoints(
+            &posekit_export_request(180.0),
+            &bad_source_coordinate
+        )
+        .is_err(),
+        "visible source rig points outside the export canvas must fail before projection clamps them"
+    );
+
+    let mut bad_source_confidence = visible_source_body_keypoints();
+    bad_source_confidence["people"][0]["pose_keypoints_2d"][2] = serde_json::json!(1.4);
+    assert!(
+        generate_posekit_openpose_export_from_keypoints(
+            &posekit_export_request(0.0),
+            &bad_source_confidence
+        )
+        .is_err(),
+        "source rig confidence outside 0..=1 must fail before projection normalizes it"
     );
 }
 
@@ -1090,6 +1279,117 @@ async fn atelier_posekit_generated_openpose_export_records_real_sidecars() {
     assert!(export.receipt_ref.contains(export.content_hash.as_str()));
     assert!(export.receipt_ref.ends_with("/receipt"));
     assert_openpose_payload_shape(&export.openpose_json);
+}
+
+#[tokio::test]
+async fn atelier_posekit_openpose_export_route_returns_real_artifact_refs() {
+    let Some(url) = atelier_pg_support::database_url().await else {
+        eprintln!(
+            "SKIP atelier_posekit_openpose_export_route_returns_real_artifact_refs: PostgreSQL unavailable"
+        );
+        return;
+    };
+    let workspace_root = atelier_pg_support::test_artifact_workspace_root();
+    let store = connected_store(&url).await;
+    let character = fresh_character(&store).await;
+    let rig = fresh_rig_with_keypoints(&store, character, visible_source_body_keypoints()).await;
+
+    let state = user_manual_support::app_state_for(&url).await;
+    let (base, server) = user_manual_support::start_server(atelier_api::routes(state)).await;
+    let mut request = posekit_export_request_with_pose(90.0, 30.0, 1.5);
+    request.source_ref = rig.source_ref.clone();
+    request.rig_id = Some(rig.rig_id);
+    request.include_hands = false;
+
+    let response = reqwest::Client::new()
+        .post(format!("{base}/atelier/posekit/openpose-export"))
+        .header("x-hsk-actor-id", "posekit-route-test")
+        .json(&request)
+        .send()
+        .await
+        .expect("send Posekit OpenPose export route request");
+    let status = response.status();
+    let text = response.text().await.expect("read Posekit route response");
+    server.abort();
+    assert!(
+        status.is_success(),
+        "Posekit route must return success, got {status}: {text}"
+    );
+    let body: serde_json::Value = serde_json::from_str(&text).expect("Posekit route response JSON");
+
+    assert_eq!(
+        body["schema_id"],
+        serde_json::json!(POSEKIT_OPENPOSE_EXPORT_SCHEMA_ID)
+    );
+    assert_eq!(body["source_ref"], serde_json::json!(rig.source_ref));
+    assert_eq!(body["rig_id"], serde_json::json!(rig.rig_id));
+    assert_eq!(body["yaw_deg"], serde_json::json!(90));
+    assert_eq!(body["pitch_deg"], serde_json::json!(30));
+    assert_eq!(body["zoom_percent"], serde_json::json!(150));
+    assert_eq!(
+        body["openpose_json"]["pose_state"]["source_keypoint_projection"]["mode"],
+        serde_json::json!("native-rig-to-openpose")
+    );
+    assert_eq!(
+        body["openpose_json"]["pose_state"]["source_keypoint_projection"]["pitch_deg"],
+        serde_json::json!(30)
+    );
+    assert_eq!(
+        body["openpose_json"]["pose_state"]["source_keypoint_projection"]["zoom_percent"],
+        serde_json::json!(150)
+    );
+
+    let png_artifact_id = assert_native_posekit_artifact_response(
+        &body,
+        "openpose_png_artifact",
+        "image/png",
+        body["openpose_png_sha256"]
+            .as_str()
+            .expect("openpose_png_sha256 string"),
+    );
+    let json_artifact_id = assert_native_posekit_artifact_response(
+        &body,
+        "openpose_json_artifact",
+        "application/json",
+        body["openpose_json_sha256"]
+            .as_str()
+            .expect("openpose_json_sha256 string"),
+    );
+    validate_artifact_content_hash(&workspace_root, ArtifactLayer::L1, png_artifact_id)
+        .expect("route-produced OpenPose PNG artifact validates");
+    validate_artifact_content_hash(&workspace_root, ArtifactLayer::L1, json_artifact_id)
+        .expect("route-produced OpenPose JSON artifact validates");
+
+    let receipt_ref = body["receipt_ref"]
+        .as_str()
+        .expect("Posekit route receipt_ref string");
+    assert!(
+        receipt_ref.starts_with("artifact://.handshake/artifacts/L1/"),
+        "route receipt_ref must be a native ArtifactStore payload handle: {receipt_ref}"
+    );
+    assert!(
+        !receipt_ref.starts_with("preview://"),
+        "route receipt_ref must not be a preview handle: {receipt_ref}"
+    );
+    validate_artifact_content_hash(
+        &workspace_root,
+        ArtifactLayer::L1,
+        artifact_id_from_payload_ref(receipt_ref),
+    )
+    .expect("route-produced Posekit receipt artifact validates");
+
+    let sidecars = body["sidecars"]
+        .as_array()
+        .expect("Posekit route sidecars array");
+    assert_eq!(sidecars.len(), 2);
+    assert!(sidecars.iter().any(|sidecar| {
+        sidecar["artifact_ref"] == body["openpose_json_artifact"]["artifact_ref"]
+            && sidecar["kind"] == serde_json::json!("openpose_json")
+    }));
+    assert!(sidecars.iter().any(|sidecar| {
+        sidecar["artifact_ref"] == body["openpose_png_artifact"]["artifact_ref"]
+            && sidecar["kind"] == serde_json::json!("openpose_png")
+    }));
 }
 
 #[tokio::test]

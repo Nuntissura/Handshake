@@ -1348,6 +1348,12 @@ fn posekit_openpose_json(
             "yaw_deg": yaw_deg,
             "pitch_deg": pitch_deg,
             "zoom_percent": zoom_percent,
+            "openpose_generation": {
+                "mode": "procedural-posekit-preview",
+                "yaw_deg": yaw_deg,
+                "pitch_deg": pitch_deg,
+                "zoom_percent": zoom_percent,
+            },
             "marker_layers": {
                 "face": request.include_face,
                 "body": request.include_body,
@@ -1395,6 +1401,7 @@ fn posekit_openpose_json_from_source_keypoints(
     source_keypoints: &serde_json::Value,
 ) -> AtelierResult<serde_json::Value> {
     validate_keypoints(source_keypoints)?;
+    validate_source_keypoints_for_posekit_projection(source_keypoints)?;
     Ok(serde_json::json!({
         "version": 1.3,
         "handshake_schema": POSEKIT_OPENPOSE_EXPORT_SCHEMA_ID,
@@ -1409,6 +1416,12 @@ fn posekit_openpose_json_from_source_keypoints(
             "yaw_deg": yaw_deg,
             "pitch_deg": pitch_deg,
             "zoom_percent": zoom_percent,
+            "source_keypoint_projection": {
+                "mode": "native-rig-to-openpose",
+                "yaw_deg": yaw_deg,
+                "pitch_deg": pitch_deg,
+                "zoom_percent": zoom_percent,
+            },
             "marker_layers": {
                 "face": request.include_face,
                 "body": request.include_body,
@@ -1419,27 +1432,63 @@ fn posekit_openpose_json_from_source_keypoints(
         },
         "people": [{
             "pose_keypoints_2d": if request.include_body {
-                source_keypoint_array(source_keypoints, "pose_keypoints_2d", BODY_KEYPOINT_COUNT, true)?
+                projected_source_keypoint_array(
+                    request,
+                    source_keypoints,
+                    "pose_keypoints_2d",
+                    BODY_KEYPOINT_COUNT,
+                    true,
+                )?
             } else {
                 zero_keypoints(BODY_KEYPOINT_COUNT)
             },
             "face_keypoints_2d": if request.include_face {
-                source_keypoint_array(source_keypoints, "face_keypoints_2d", FACE_KEYPOINT_COUNT, false)?
+                projected_source_keypoint_array(
+                    request,
+                    source_keypoints,
+                    "face_keypoints_2d",
+                    FACE_KEYPOINT_COUNT,
+                    false,
+                )?
             } else {
                 zero_keypoints(FACE_KEYPOINT_COUNT)
             },
             "hand_left_keypoints_2d": if request.include_hands {
-                source_keypoint_array(source_keypoints, "hand_left_keypoints_2d", HAND_KEYPOINT_COUNT, false)?
+                projected_source_keypoint_array(
+                    request,
+                    source_keypoints,
+                    "hand_left_keypoints_2d",
+                    HAND_KEYPOINT_COUNT,
+                    false,
+                )?
             } else {
                 zero_keypoints(HAND_KEYPOINT_COUNT)
             },
             "hand_right_keypoints_2d": if request.include_hands {
-                source_keypoint_array(source_keypoints, "hand_right_keypoints_2d", HAND_KEYPOINT_COUNT, false)?
+                projected_source_keypoint_array(
+                    request,
+                    source_keypoints,
+                    "hand_right_keypoints_2d",
+                    HAND_KEYPOINT_COUNT,
+                    false,
+                )?
             } else {
                 zero_keypoints(HAND_KEYPOINT_COUNT)
             },
         }],
     }))
+}
+
+fn projected_source_keypoint_array(
+    request: &PosekitOpenPoseExportRequest,
+    source_keypoints: &serde_json::Value,
+    field: &str,
+    count: usize,
+    required: bool,
+) -> AtelierResult<Vec<f32>> {
+    let mut points = source_keypoint_array(source_keypoints, field, count, required)?;
+    apply_posekit_source_projection(&mut points, request);
+    Ok(points)
 }
 
 fn source_keypoint_array(
@@ -1485,6 +1534,104 @@ fn source_keypoint_array(
             })
         })
         .collect()
+}
+
+fn validate_source_keypoints_for_posekit_projection(
+    source_keypoints: &serde_json::Value,
+) -> AtelierResult<()> {
+    let Some(person) = source_keypoints
+        .get("people")
+        .and_then(|people| people.as_array())
+        .and_then(|people| people.first())
+    else {
+        return Err(AtelierError::Validation(
+            "pose keypoints_json must contain a non-empty people[] array".into(),
+        ));
+    };
+
+    for (field, count, required) in [
+        ("pose_keypoints_2d", BODY_KEYPOINT_COUNT, true),
+        ("face_keypoints_2d", FACE_KEYPOINT_COUNT, false),
+        ("hand_left_keypoints_2d", HAND_KEYPOINT_COUNT, false),
+        ("hand_right_keypoints_2d", HAND_KEYPOINT_COUNT, false),
+    ] {
+        let Some(value) = person.get(field) else {
+            if required {
+                return Err(AtelierError::Validation(format!(
+                    "pose keypoints_json missing required {field}"
+                )));
+            }
+            continue;
+        };
+        if value.is_null() {
+            if required {
+                return Err(AtelierError::Validation(format!(
+                    "pose keypoints_json missing required {field}"
+                )));
+            }
+            continue;
+        }
+        let array = value.as_array().ok_or_else(|| {
+            AtelierError::Validation(format!("pose keypoints field {field} must be an array"))
+        })?;
+        if array.len() != count * 3 {
+            return Err(AtelierError::Validation(format!(
+                "pose keypoints field {field} must have {} values",
+                count * 3
+            )));
+        }
+        for triple in array.chunks_exact(3) {
+            let x = value_as_f32(&triple[0], field)?;
+            let y = value_as_f32(&triple[1], field)?;
+            let confidence = value_as_f32(&triple[2], field)?;
+            if !(0.0..=1.0).contains(&confidence) {
+                return Err(AtelierError::Validation(format!(
+                    "pose source keypoints field {field} confidence must be in 0..=1 before projection"
+                )));
+            }
+            if confidence <= 0.0 {
+                continue;
+            }
+            if x < 0.0
+                || y < 0.0
+                || x > POSEKIT_OPENPOSE_EXPORT_WIDTH as f32
+                || y > POSEKIT_OPENPOSE_EXPORT_HEIGHT as f32
+            {
+                return Err(AtelierError::Validation(format!(
+                    "pose source keypoints field {field} has a visible point outside the export canvas before projection"
+                )));
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn apply_posekit_source_projection(points: &mut [f32], request: &PosekitOpenPoseExportRequest) {
+    let yaw_bias = request.yaw_deg.clamp(-180.0, 180.0) / 180.0;
+    let yaw_squash = 1.0 - yaw_bias.abs() * 0.35;
+    let pitch_shift = request.pitch_deg.clamp(-45.0, 45.0) / 45.0 * 42.0;
+    let zoom = request.zoom.clamp(0.4, 2.2);
+    let center_x = POSEKIT_OPENPOSE_EXPORT_WIDTH as f32 * 0.5;
+    let center_y = POSEKIT_OPENPOSE_EXPORT_HEIGHT as f32 * 0.5;
+
+    for triple in points.chunks_exact_mut(3) {
+        let confidence = triple[2];
+        if confidence <= 0.0 {
+            continue;
+        }
+
+        let dx = (triple[0] - center_x) * zoom;
+        let dy = (triple[1] - center_y) * zoom;
+        let projected_x = center_x + dx * yaw_squash + yaw_bias * 72.0;
+        let projected_y = center_y + dy + pitch_shift;
+
+        triple[0] = round_posekit_coordinate(projected_x)
+            .clamp(1.0, (POSEKIT_OPENPOSE_EXPORT_WIDTH - 1) as f64) as f32;
+        triple[1] = round_posekit_coordinate(projected_y)
+            .clamp(1.0, (POSEKIT_OPENPOSE_EXPORT_HEIGHT - 1) as f64) as f32;
+        triple[2] = round_posekit_confidence(confidence.clamp(0.0, 1.0)) as f32;
+    }
 }
 
 fn validate_posekit_framing(framing: &PosekitExportFraming) -> AtelierResult<()> {

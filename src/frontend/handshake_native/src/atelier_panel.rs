@@ -313,8 +313,10 @@ struct PosekitExportSnapshot {
     face: bool,
     body: bool,
     hands: bool,
-    artifact_ref: String,
-    manifest_ref: String,
+    png_artifact_ref: String,
+    png_manifest_ref: String,
+    json_artifact_ref: String,
+    json_manifest_ref: String,
     receipt_ref: String,
     content_hash: String,
     openpose_json: serde_json::Value,
@@ -2714,8 +2716,13 @@ fn posekit_export_snapshot(state: &AtelierPanelState) -> Result<PosekitExportSna
         openpose_json
     );
     let content_hash = stable_posekit_hash(&hash_basis);
-    let artifact_ref = format!("preview://atelier/posekit/openpose/{content_hash}/payload");
-    let manifest_ref = format!("preview://atelier/posekit/openpose/{content_hash}/manifest");
+    let png_artifact_ref = format!("preview://atelier/posekit/openpose/{content_hash}/png/payload");
+    let png_manifest_ref =
+        format!("preview://atelier/posekit/openpose/{content_hash}/png/manifest");
+    let json_artifact_ref =
+        format!("preview://atelier/posekit/openpose/{content_hash}/json/payload");
+    let json_manifest_ref =
+        format!("preview://atelier/posekit/openpose/{content_hash}/json/manifest");
     let receipt_ref = format!("preview://atelier/posekit/openpose/{content_hash}/receipt");
     Ok(PosekitExportSnapshot {
         source_ref,
@@ -2726,8 +2733,10 @@ fn posekit_export_snapshot(state: &AtelierPanelState) -> Result<PosekitExportSna
         face: state.pose_face,
         body: state.pose_body,
         hands: state.pose_hands,
-        artifact_ref,
-        manifest_ref,
+        png_artifact_ref,
+        png_manifest_ref,
+        json_artifact_ref,
+        json_manifest_ref,
         receipt_ref,
         content_hash,
         openpose_json,
@@ -2746,8 +2755,10 @@ fn posekit_export_snapshot_from_backend(row: AtelierPosekitExportRow) -> Posekit
         face: row.marker_layers.face,
         body: row.marker_layers.body,
         hands: row.marker_layers.hands,
-        artifact_ref: row.openpose_png_artifact.artifact_ref,
-        manifest_ref: row.openpose_png_artifact.manifest_ref,
+        png_artifact_ref: row.openpose_png_artifact.artifact_ref,
+        png_manifest_ref: row.openpose_png_artifact.manifest_ref,
+        json_artifact_ref: row.openpose_json_artifact.artifact_ref,
+        json_manifest_ref: row.openpose_json_artifact.manifest_ref,
         receipt_ref: row.receipt_ref,
         content_hash: row.content_hash,
         openpose_json: row.openpose_json,
@@ -3223,7 +3234,7 @@ fn stable_posekit_hash(input: &str) -> String {
 fn posekit_export_preview(snapshot: &PosekitExportSnapshot) -> String {
     let rig_id = snapshot.rig_id.as_deref().unwrap_or("<none>");
     format!(
-        "schema=hsk.atelier.posekit.openpose_export@1\nsource_ref={}\nrig_id={}\nyaw_deg={:.0}\npitch_deg={:.0}\nzoom={:.2}\nmarkers={}\napplied_marker_edit_count={}\nframing={}\nartifact_ref={}\nmanifest_ref={}\nreceipt_ref={}\ncontent_hash={}\nmime=image/png\nopenpose_json={}",
+        "schema=hsk.atelier.posekit.openpose_export@1\nsource_ref={}\nrig_id={}\nyaw_deg={:.0}\npitch_deg={:.0}\nzoom={:.2}\nmarkers={}\napplied_marker_edit_count={}\nframing={}\npng_artifact_ref={}\npng_manifest_ref={}\njson_artifact_ref={}\njson_manifest_ref={}\nreceipt_ref={}\ncontent_hash={}\npng_mime=image/png\njson_mime=application/json\nopenpose_json={}",
         snapshot.source_ref,
         rig_id,
         snapshot.yaw_deg,
@@ -3232,8 +3243,10 @@ fn posekit_export_preview(snapshot: &PosekitExportSnapshot) -> String {
         snapshot.marker_layers(),
         snapshot.applied_marker_edit_count,
         snapshot.framing,
-        snapshot.artifact_ref,
-        snapshot.manifest_ref,
+        snapshot.png_artifact_ref,
+        snapshot.png_manifest_ref,
+        snapshot.json_artifact_ref,
+        snapshot.json_manifest_ref,
         snapshot.receipt_ref,
         snapshot.content_hash,
         snapshot.openpose_json
@@ -4781,8 +4794,11 @@ impl AtelierPanel {
                     Ok(row) => {
                         let snapshot = posekit_export_snapshot_from_backend(row);
                         state.pose_export_status = format!(
-                            "Exported backend Posekit OpenPose: yaw_deg={:.0} artifact_ref={} receipt_ref={}",
-                            snapshot.yaw_deg, snapshot.artifact_ref, snapshot.receipt_ref
+                            "Exported backend Posekit OpenPose: yaw_deg={:.0} png_artifact_ref={} json_artifact_ref={} receipt_ref={}",
+                            snapshot.yaw_deg,
+                            snapshot.png_artifact_ref,
+                            snapshot.json_artifact_ref,
+                            snapshot.receipt_ref
                         );
                         state.pose_last_export = Some(snapshot);
                     }
@@ -8006,7 +8022,7 @@ impl AtelierPanel {
                         draw_pose_view(
                             &mut cols[0],
                             palette,
-                            "Rig/source preview",
+                            "3D rig/source preview",
                             ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID,
                             state.pose_yaw,
                             state.pose_pitch,
@@ -8106,8 +8122,11 @@ impl AtelierPanel {
                 match posekit_export_snapshot(&state) {
                     Ok(snapshot) => {
                         state.pose_export_status = format!(
-                            "Local Argus preview only: yaw_deg={:.0} artifact_ref={} receipt_ref={}",
-                            snapshot.yaw_deg, snapshot.artifact_ref, snapshot.receipt_ref
+                            "Local Argus preview only: yaw_deg={:.0} png_artifact_ref={} json_artifact_ref={} receipt_ref={}",
+                            snapshot.yaw_deg,
+                            snapshot.png_artifact_ref,
+                            snapshot.json_artifact_ref,
+                            snapshot.receipt_ref
                         );
                         state.pose_last_export = Some(snapshot);
                     }
@@ -8130,8 +8149,13 @@ impl AtelierPanel {
         );
         if let Some(snapshot) = state.pose_last_export.as_ref() {
             let export_ref_label = format!(
-                "{} {} {}",
-                snapshot.artifact_ref, snapshot.receipt_ref, snapshot.content_hash
+                "{} {} {} {} {} {}",
+                snapshot.png_artifact_ref,
+                snapshot.json_artifact_ref,
+                snapshot.receipt_ref,
+                snapshot.content_hash,
+                snapshot.png_manifest_ref,
+                snapshot.json_manifest_ref
             );
             let export_ref = ui.label(&export_ref_label);
             emit_value_node(
@@ -8708,6 +8732,104 @@ fn draw_pose_view(
     } else {
         palette.border
     };
+    let viewport_mode = if openpose {
+        "openpose_conditioning_preview"
+    } else {
+        "native_3d_projection_preview"
+    };
+    let projection_mode = if rig_id.is_some() {
+        "rig-linked-native-preview"
+    } else {
+        "procedural-posekit-preview"
+    };
+    let source_fingerprint =
+        stable_posekit_hash(&format!("{}|{}", source_ref, rig_id.unwrap_or("<none>")));
+
+    if !openpose {
+        let tint_r = u8::from_str_radix(&source_fingerprint[0..2], 16).unwrap_or(96);
+        let tint_g = u8::from_str_radix(&source_fingerprint[2..4], 16).unwrap_or(128);
+        let tint_b = u8::from_str_radix(&source_fingerprint[4..6], 16).unwrap_or(160);
+        let source_tile = egui::Rect::from_min_size(
+            rect.left_top() + egui::vec2(12.0, 12.0),
+            egui::vec2(74.0, 48.0),
+        );
+        painter.rect_filled(
+            source_tile,
+            3.0,
+            egui::Color32::from_rgb(32 + tint_r / 4, 32 + tint_g / 4, 32 + tint_b / 4),
+        );
+        painter.rect_stroke(
+            source_tile,
+            3.0,
+            egui::Stroke::new(1.0, muted),
+            egui::StrokeKind::Outside,
+        );
+        let floor_y = rect.top() + height * 0.74;
+        for step in 0..4 {
+            let y = floor_y + step as f32 * 12.0 * scale;
+            if y < rect.bottom() - 8.0 {
+                painter.line_segment(
+                    [
+                        egui::pos2(rect.left() + 12.0, y),
+                        egui::pos2(rect.right() - 12.0, y),
+                    ],
+                    egui::Stroke::new(1.0, faint),
+                );
+            }
+        }
+        let yaw_radians = yaw.to_radians();
+        let pelvis = center + egui::vec2(0.0, torso * 0.45);
+        let yaw_tip = pelvis
+            + egui::vec2(
+                yaw_radians.sin() * 54.0 * scale,
+                -yaw_radians.cos() * 20.0 * scale,
+            );
+        painter.circle_stroke(pelvis, 58.0 * scale, egui::Stroke::new(1.0, faint));
+        painter.line_segment([pelvis, yaw_tip], egui::Stroke::new(2.0, muted));
+        painter.circle_filled(yaw_tip, 3.0, muted);
+
+        let yaw_radians = yaw.to_radians();
+        let pitch_radians = pitch.to_radians();
+        let project = |x: f32, y: f32, z: f32| {
+            let yaw_x = x * yaw_radians.cos() + z * yaw_radians.sin();
+            let yaw_z = -x * yaw_radians.sin() + z * yaw_radians.cos();
+            let pitch_y = y * pitch_radians.cos() - yaw_z * pitch_radians.sin();
+            let pitch_z = y * pitch_radians.sin() + yaw_z * pitch_radians.cos();
+            let perspective = 1.0 / (1.0 + (pitch_z + 220.0).max(16.0) / 760.0);
+            center + egui::vec2(yaw_x * perspective * scale, pitch_y * perspective * scale)
+        };
+        let neck = project(0.0, -92.0, 28.0);
+        let pelvis_3d = project(0.0, 28.0, -20.0);
+        let left_shoulder = project(-76.0, -76.0, 8.0);
+        let right_shoulder = project(76.0, -76.0, 8.0);
+        let left_hand = project(-128.0, 8.0, -18.0);
+        let right_hand = project(128.0, 8.0, -18.0);
+        let left_foot = project(-44.0, 164.0, 12.0);
+        let right_foot = project(44.0, 164.0, 12.0);
+        let projection_stroke = egui::Stroke::new(3.0, color);
+        for (from, to) in [
+            (neck, pelvis_3d),
+            (left_shoulder, right_shoulder),
+            (left_shoulder, left_hand),
+            (right_shoulder, right_hand),
+            (pelvis_3d, left_foot),
+            (pelvis_3d, right_foot),
+        ] {
+            painter.line_segment([from, to], projection_stroke);
+        }
+        for joint in [
+            neck,
+            pelvis_3d,
+            left_shoulder,
+            right_shoulder,
+            left_hand,
+            right_hand,
+            left_foot,
+            right_foot,
+        ] {
+            painter.circle_filled(joint, 4.0, muted);
+        }
+    }
 
     let stroke = egui::Stroke::new(2.0, if body { color } else { faint });
     if face || !openpose {
@@ -8780,9 +8902,12 @@ fn draw_pose_view(
         }
     }
     let node_label = format!(
-        "{label} source_ref={} rig_id={} yaw_deg={:.0} pitch_deg={:.0} zoom={:.2} markers={}",
+        "{label} viewport_mode={} projection={} source_ref={} rig_id={} source_fingerprint={} yaw_deg={:.0} pitch_deg={:.0} zoom={:.2} markers={}",
+        viewport_mode,
+        projection_mode,
         source_ref,
         rig_id.unwrap_or("<none>"),
+        &source_fingerprint[..12],
         yaw,
         pitch,
         zoom,
