@@ -7,11 +7,17 @@ use std::rc::Rc;
 use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 
-use handshake_native::app::{HandshakeApp, TERMINAL_LAUNCH_STATUS_AUTHOR_ID};
+use handshake_native::app::{
+    HandshakeApp, MODEL_SESSION_LAUNCH_FOLDER_AUTHOR_ID, MODEL_SESSION_LAUNCH_MODEL_AUTHOR_ID,
+    MODEL_SESSION_LAUNCH_PROVIDER_CLOUD_AUTHOR_ID, MODEL_SESSION_LAUNCH_PROVIDER_LOCAL_AUTHOR_ID,
+    MODEL_SESSION_LAUNCH_START_AUTHOR_ID, MODEL_SESSION_LAUNCH_STATUS_AUTHOR_ID,
+    MODEL_SESSION_LAUNCH_WRAPPER_AUTHOR_ID, TERMINAL_LAUNCH_STATUS_AUTHOR_ID,
+};
 use handshake_native::manual_content_editors::{
     agent_tool_rows, editors_manual_section, DIAGNOSTIC_TOOL_HEADINGS,
     FLIGHT_RECORDER_MENU_AUTHOR_ID, FLIGHT_RECORDER_PALETTE_AUTHOR_ID,
     INFERENCE_LAB_MENU_AUTHOR_ID, INFERENCE_LAB_PALETTE_AUTHOR_ID,
+    MODEL_SESSION_LAUNCH_MENU_AUTHOR_ID, MODEL_SESSION_LAUNCH_PALETTE_AUTHOR_ID,
     SETTINGS_DIAGNOSTICS_SECTION_AUTHOR_ID, TERMINAL_MENU_AUTHOR_ID, WP104_PRODUCT_HEADINGS,
 };
 use handshake_native::manual_pane::{
@@ -130,8 +136,11 @@ fn mt104_topics_exist_and_include_no_context_runtime_facts() {
         (
             "Model Session Launch",
             &[
-                "menu.run.inference-lab",
-                "command-palette.option.hs-inference-palette-open",
+                "menu.run.model-session-launch",
+                "command-palette.option.hs-model-session-palette-launch-workspace",
+                "model-session-launch.folder",
+                "model-session-launch.model",
+                "model-session-launch.wrapper",
                 "POST /jobs",
                 "IPC-only",
                 "kernel_swarm_spawn_session",
@@ -244,6 +253,15 @@ fn mt104_terminal_and_model_topics_are_honest_blockers() {
         model.contains("must not fabricate a session id"),
         "model topic must explicitly forbid fabricated session state"
     );
+    assert!(
+        model.contains("model-session-launch.provider.local")
+            && model.contains("model-session-launch.provider.cloud"),
+        "model topic must document provider row ids for no-context steering"
+    );
+    assert!(
+        model.contains("Settings -> Model Session is read-only/not-yet-wired"),
+        "model topic must not imply Settings values drive the MT-101 launch"
+    );
 }
 
 #[test]
@@ -258,6 +276,51 @@ fn mt104_agent_tool_reference_adds_real_terminal_model_diagnostics_rows() {
         (
             TERMINAL_LAUNCH_STATUS_AUTHOR_ID,
             ManualSurface::Terminal,
+            "list_widgets",
+        ),
+        (
+            MODEL_SESSION_LAUNCH_MENU_AUTHOR_ID,
+            ManualSurface::Model,
+            "click_widget",
+        ),
+        (
+            MODEL_SESSION_LAUNCH_PALETTE_AUTHOR_ID,
+            ManualSurface::Model,
+            "click_widget",
+        ),
+        (
+            MODEL_SESSION_LAUNCH_PROVIDER_LOCAL_AUTHOR_ID,
+            ManualSurface::Model,
+            "click_widget",
+        ),
+        (
+            MODEL_SESSION_LAUNCH_PROVIDER_CLOUD_AUTHOR_ID,
+            ManualSurface::Model,
+            "click_widget",
+        ),
+        (
+            MODEL_SESSION_LAUNCH_FOLDER_AUTHOR_ID,
+            ManualSurface::Model,
+            "set_value",
+        ),
+        (
+            MODEL_SESSION_LAUNCH_MODEL_AUTHOR_ID,
+            ManualSurface::Model,
+            "set_value",
+        ),
+        (
+            MODEL_SESSION_LAUNCH_WRAPPER_AUTHOR_ID,
+            ManualSurface::Model,
+            "set_value",
+        ),
+        (
+            MODEL_SESSION_LAUNCH_START_AUTHOR_ID,
+            ManualSurface::Model,
+            "click_widget",
+        ),
+        (
+            MODEL_SESSION_LAUNCH_STATUS_AUTHOR_ID,
+            ManualSurface::Model,
             "list_widgets",
         ),
         (
@@ -377,13 +440,18 @@ fn mt104_terminal_menu_author_id_is_live_clickable_run_leaf() {
 fn mt104_agent_tool_reference_rejects_raw_command_stable_ids() {
     let row_ids: HashSet<&str> = agent_tool_rows().iter().map(|row| row.author_id).collect();
 
-    for raw in ["hs-inference-palette-open", "hs-flight-palette-open"] {
+    for raw in [
+        "hs-inference-palette-open",
+        "hs-flight-palette-open",
+        "hs-model-session-palette-launch-workspace",
+    ] {
         assert!(
             !row_ids.contains(raw),
             "agent-tool rows must use generated command-palette option ids, not raw stable id '{raw}'"
         );
     }
     for generated in [
+        "command-palette.option.hs-model-session-palette-launch-workspace",
         "command-palette.option.hs-inference-palette-open",
         "command-palette.option.hs-flight-palette-open",
     ] {

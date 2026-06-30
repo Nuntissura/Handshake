@@ -62,6 +62,25 @@ const THEME_TOGGLE_AUTHOR_ID: &str = "shell.chrome.theme-toggle";
 /// operator and addressable to a no-context model.
 pub const TERMINAL_LAUNCH_STATUS_AUTHOR_ID: &str = "terminal-launch-status";
 
+/// WP-KERNEL-012 MT-101: compact model-session launch dialog and status author ids. These are stable so
+/// MT-102/MT-103 model-driven navigation can open the dialog, set values, submit, and read back status
+/// without guessing from screen pixels.
+pub const MODEL_SESSION_LAUNCH_DIALOG_AUTHOR_ID: &str = "model-session-launch.dialog";
+pub const MODEL_SESSION_LAUNCH_PROVIDER_AUTHOR_ID: &str = "model-session-launch.provider";
+pub const MODEL_SESSION_LAUNCH_PROVIDER_LOCAL_AUTHOR_ID: &str =
+    "model-session-launch.provider.local";
+pub const MODEL_SESSION_LAUNCH_PROVIDER_CLOUD_AUTHOR_ID: &str =
+    "model-session-launch.provider.cloud";
+pub const MODEL_SESSION_LAUNCH_FOLDER_AUTHOR_ID: &str = "model-session-launch.folder";
+pub const MODEL_SESSION_LAUNCH_MODEL_AUTHOR_ID: &str = "model-session-launch.model";
+pub const MODEL_SESSION_LAUNCH_WRAPPER_AUTHOR_ID: &str = "model-session-launch.wrapper";
+pub const MODEL_SESSION_LAUNCH_START_AUTHOR_ID: &str = "model-session-launch.start";
+pub const MODEL_SESSION_LAUNCH_CANCEL_AUTHOR_ID: &str = "model-session-launch.cancel";
+pub const MODEL_SESSION_LAUNCH_INLINE_STATUS_AUTHOR_ID: &str = "model-session-launch.inline-status";
+pub const MODEL_SESSION_LAUNCH_STATUS_AUTHOR_ID: &str = "model-session-launch-status";
+const MODEL_SESSION_CHOOSE_STATUS: &str = "Model session: choose folder, model, and wrapper";
+const MODEL_SESSION_READY_STATUS: &str = "Model session: ready to issue POST /jobs";
+
 /// The content-presentation mode the shell is in (MT-015 VIEW menu). Mirrors the React workspace
 /// `viewMode` (`NSFW`/`SFW`): NSFW shows adult content surfaces, SFW hides them. The native shell
 /// owns the flag (MT-015 toggles it from the VIEW menu); the surfaces that consume it land in later
@@ -581,6 +600,22 @@ pub struct HandshakeApp {
     /// legacy Tauri IPC-only, so launching from RUN or the palette records a compact `EndpointMissing`
     /// status here instead of fabricating a terminal session or silently doing nothing.
     terminal_launch_status: Option<String>,
+    /// WP-KERNEL-012 MT-101: model-session launch client for the real reachable `/jobs` request. `None`
+    /// in no-runtime tests; the direct-spawn IPC-only blocker is still available as a pure typed result.
+    model_session_launch_client: Option<crate::backend_client::ModelSessionLaunchClient>,
+    /// Delivery cell for the off-thread MT-101 `POST /jobs` model-session request.
+    model_session_launch_cell: crate::backend_client::ModelSessionLaunchCell,
+    /// Compact in-app launch dialog state. It opens from RUN > Launch Model Session in Workspace Folder
+    /// or the command palette, and keeps one-shot launch fields out of Settings.
+    model_session_launch_dialog: Option<ModelSessionLaunchDialogState>,
+    /// Last MT-101 visible launch outcome. The text always distinguishes `/jobs` creation from the
+    /// IPC-only direct repo-folder spawn blocker.
+    model_session_launch_status: Option<String>,
+    /// Last direct-spawn blocker paired with the current/last MT-101 `/jobs` attempt. Kept separately so
+    /// async job completion cannot drop the exact probed URL needed for state recovery.
+    model_session_launch_direct_status: Option<String>,
+    /// Prevents duplicate `/jobs` dispatch while the current off-thread request is still unresolved.
+    model_session_launch_pending: bool,
     /// MT-021 source-control off-thread client (verified `/source-control/*` endpoints). `None` in the
     /// no-runtime test app (the SCM menu is then a disclosed no-op rather than a panic). Wired so the
     /// production shell can drive stage/unstage/diff/blame off the UI thread (HBR-QUIET) when the native
@@ -749,6 +784,34 @@ pub struct PendingRename {
     pub block_id: String,
     /// The live text buffer, seeded from the row's current title and edited in the rename dialog.
     pub text: String,
+}
+
+/// WP-KERNEL-012 MT-101: the compact model-session launch form. It stays in app state while the in-app
+/// dialog is open; no foreground OS window is spawned and no model session is claimed until the backend
+/// returns real evidence.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelSessionLaunchDialogState {
+    pub provider: backend_client::ModelSessionProvider,
+    pub workspace_folder: String,
+    pub model_id: String,
+    pub wrapper: String,
+}
+
+impl ModelSessionLaunchDialogState {
+    pub fn new(workspace_folder: impl Into<String>) -> Self {
+        Self {
+            provider: backend_client::ModelSessionProvider::Local,
+            workspace_folder: workspace_folder.into(),
+            model_id: String::new(),
+            wrapper: "repo-folder-wrapper-v1".to_owned(),
+        }
+    }
+
+    fn is_ready(&self) -> bool {
+        !self.workspace_folder.trim().is_empty()
+            && !self.model_id.trim().is_empty()
+            && !self.wrapper.trim().is_empty()
+    }
 }
 
 /// The seed panes for a fresh editor-first work surface. MT-098 keeps feature pane factories registered,
@@ -1576,6 +1639,14 @@ impl HandshakeApp {
             pending_memory_proposal: None,
             memory_proposal_status: None,
             terminal_launch_status: None,
+            model_session_launch_client: Some(
+                crate::backend_client::ModelSessionLaunchClient::production(rt_handle.clone()),
+            ),
+            model_session_launch_cell: Arc::new(Mutex::new(None)),
+            model_session_launch_dialog: None,
+            model_session_launch_status: None,
+            model_session_launch_direct_status: None,
+            model_session_launch_pending: false,
             source_control_client: Some(crate::backend_client::SourceControlClient::production(
                 rt_handle.clone(),
             )),
@@ -2053,6 +2124,12 @@ impl HandshakeApp {
             pending_memory_proposal: None,
             memory_proposal_status: None,
             terminal_launch_status: None,
+            model_session_launch_client: None,
+            model_session_launch_cell: Arc::new(Mutex::new(None)),
+            model_session_launch_dialog: None,
+            model_session_launch_status: None,
+            model_session_launch_direct_status: None,
+            model_session_launch_pending: false,
             // Headless/test shell: no runtime to bridge the SCM/canvas clients onto. A test injects a
             // runtime via `set_runtime_handle` if it wants live calls; without one these stay None.
             source_control_client: None,
@@ -2512,6 +2589,9 @@ impl HandshakeApp {
                 true
             }
             crate::command_registry::CMD_TERMINAL_OPEN_WORKSPACE => self.open_workspace_terminal(),
+            crate::command_registry::CMD_MODEL_SESSION_LAUNCH_WORKSPACE => {
+                self.open_model_session_launch_dialog()
+            }
             "theme.toggle" => {
                 self.current_theme = self.current_theme.toggled();
                 self.apply_theme_if_changed(ctx);
@@ -3216,6 +3296,11 @@ impl HandshakeApp {
         self.canvas_client = Some(crate::backend_client::CanvasClient::production(
             handle.clone(),
         ));
+        // MT-101: bridge the model-session launch client onto the injected runtime so tests can point it
+        // at a capture backend and prove the real `/jobs` request.
+        self.model_session_launch_client = Some(
+            crate::backend_client::ModelSessionLaunchClient::production(handle.clone()),
+        );
         // MT-022: the rail makes NO backend call (AC-022-9), so there is no rail transport to bridge onto
         // the runtime — the rail emits its RailQuery intent into `search_rail_query` silently.
         // MT-023: bridge the drawer-data client onto the injected runtime so an injected-runtime shell
@@ -3435,6 +3520,9 @@ impl HandshakeApp {
             base_url,
             handle.clone(),
         ));
+        self.model_session_launch_client = Some(
+            crate::backend_client::ModelSessionLaunchClient::new(base_url, handle.clone()),
+        );
         // MT-024: the drawer card-action client too, so the confirm-discard -> DELETE wire test (mirroring
         // PROOF-024-2(e)) can drive the REAL dispatch path against a localhost capture server.
         self.drawer_action_client = Some(crate::backend_client::DrawerActionClient::new(
@@ -4949,6 +5037,14 @@ impl HandshakeApp {
             .unwrap_or_else(|_| ".".to_owned())
     }
 
+    fn active_workspace_model_folder(&self) -> String {
+        // Project tabs currently carry workspace ids/names, not a canonical filesystem root. Seed the
+        // dialog from the process cwd, then require the operator/model to submit the explicit folder value.
+        std::env::current_dir()
+            .map(|path| path.display().to_string())
+            .unwrap_or_else(|_| ".".to_owned())
+    }
+
     fn terminal_launch_status_text(err: &backend_client::TerminalLaunchError) -> String {
         match err {
             backend_client::TerminalLaunchError::EndpointMissing {
@@ -4958,6 +5054,23 @@ impl HandshakeApp {
             } => format!(
                 "Terminal: EndpointMissing {probed_path} (PTY runtime terminal/** is IPC-only via {ipc_channel})"
             ),
+        }
+    }
+
+    fn model_session_direct_blocker_status(
+        err: &backend_client::ModelSessionLaunchError,
+    ) -> String {
+        match err {
+            backend_client::ModelSessionLaunchError::EndpointMissing {
+                ipc_channel,
+                probed_url,
+                ..
+            } => format!(
+                "Model session: EndpointMissing {ipc_channel} (direct spawn with wrapper is IPC-only; probed {probed_url})"
+            ),
+            backend_client::ModelSessionLaunchError::InvalidRequest { field, reason } => {
+                format!("Model session: InvalidRequest {field}: {reason}")
+            }
         }
     }
 
@@ -4981,6 +5094,316 @@ impl HandshakeApp {
 
     pub fn terminal_launch_status_for_test(&self) -> Option<&str> {
         self.terminal_launch_status.as_deref()
+    }
+
+    /// WP-KERNEL-012 MT-101: open the compact launch dialog from RUN or the command palette. This is a
+    /// one-shot operational surface, not Settings and not a new worksurface pane.
+    fn open_model_session_launch_dialog(&mut self) -> bool {
+        if self.model_session_launch_dialog.is_none() {
+            self.model_session_launch_dialog = Some(ModelSessionLaunchDialogState::new(
+                self.active_workspace_model_folder(),
+            ));
+        }
+        self.model_session_launch_status
+            .get_or_insert_with(|| MODEL_SESSION_CHOOSE_STATUS.to_owned());
+        true
+    }
+
+    fn model_session_launch_request(
+        &self,
+        dialog: &ModelSessionLaunchDialogState,
+    ) -> backend_client::ModelSessionLaunchRequest {
+        backend_client::ModelSessionLaunchRequest::new(
+            dialog.provider,
+            self.active_project_id.clone(),
+            dialog.workspace_folder.clone(),
+            dialog.model_id.clone(),
+            dialog.wrapper.clone(),
+        )
+    }
+
+    fn submit_model_session_launch(&mut self, dialog: &ModelSessionLaunchDialogState) -> bool {
+        if self.model_session_launch_pending {
+            self.model_session_launch_status = Some(
+                "Model session: POST /jobs already pending; duplicate launch ignored".to_owned(),
+            );
+            return true;
+        }
+        let request = self.model_session_launch_request(dialog);
+        let Some(client) = self.model_session_launch_client.clone() else {
+            let direct_status =
+                match backend_client::ModelSessionLaunchClient::direct_spawn_workspace(
+                    backend_client::BACKEND_BASE_URL,
+                    &request,
+                ) {
+                    Ok(_) => {
+                        "Model session: direct spawn returned unexpectedly; no runtime proof accepted"
+                            .to_owned()
+                    }
+                    Err(err) => Self::model_session_direct_blocker_status(&err),
+                };
+            self.model_session_launch_direct_status = Some(direct_status.clone());
+            self.model_session_launch_status = Some(format!(
+                "Model session: POST /jobs not issued (no backend runtime); {direct_status}"
+            ));
+            return true;
+        };
+        let direct_status = match backend_client::ModelSessionLaunchClient::direct_spawn_workspace(
+            client.base_url(),
+            &request,
+        ) {
+            Ok(_) => "Model session: direct spawn returned unexpectedly; no runtime proof accepted"
+                .to_owned(),
+            Err(err) => Self::model_session_direct_blocker_status(&err),
+        };
+        self.model_session_launch_direct_status = Some(direct_status.clone());
+
+        match client.launch_workspace_model_job(request, self.model_session_launch_cell.clone()) {
+            Ok(_spec) => {
+                self.model_session_launch_pending = true;
+                self.model_session_launch_status = Some(format!(
+                    "Model session: POST /jobs pending; {direct_status}"
+                ));
+                true
+            }
+            Err(err) => {
+                self.model_session_launch_pending = false;
+                self.model_session_launch_status = Some(format!(
+                    "Model session: POST /jobs not issued; {}; {direct_status}",
+                    err
+                ));
+                true
+            }
+        }
+    }
+
+    fn drain_model_session_launch_cell(&mut self) {
+        let delivered = self
+            .model_session_launch_cell
+            .try_lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        let Some(result) = delivered else {
+            return;
+        };
+        self.model_session_launch_pending = false;
+        let direct_status = self
+            .model_session_launch_direct_status
+            .as_deref()
+            .unwrap_or("EndpointMissing kernel_swarm_spawn_session");
+        self.model_session_launch_status = Some(match result {
+            Ok(job) => {
+                let status = job.status.as_deref().unwrap_or("unknown");
+                format!(
+                    "Model session: /jobs job {} status={status}; NEEDS_MANAGED_RESOURCE_PROOF; {direct_status}",
+                    job.job_id
+                )
+            }
+            Err(message) => format!("Model session: POST /jobs failed: {message}; {direct_status}"),
+        });
+    }
+
+    fn name_launch_node(
+        ctx: &egui::Context,
+        id: egui::Id,
+        role: egui::accesskit::Role,
+        author_id: &'static str,
+        label: impl Into<String>,
+    ) {
+        let label = label.into();
+        ctx.accesskit_node_builder(id, |node| {
+            node.set_role(role);
+            node.set_author_id(author_id.to_owned());
+            node.set_label(label.clone());
+        });
+    }
+
+    fn drive_model_session_launch_dialog(&mut self, ctx: &egui::Context) {
+        self.drain_model_session_launch_cell();
+        let Some(mut dialog) = self.model_session_launch_dialog.take() else {
+            return;
+        };
+
+        let mut window_open = true;
+        let mut cancel = false;
+        let mut launch = false;
+        let mut status = self
+            .model_session_launch_status
+            .clone()
+            .unwrap_or_else(|| MODEL_SESSION_CHOOSE_STATUS.to_owned());
+        if !self.model_session_launch_pending
+            && (status == MODEL_SESSION_CHOOSE_STATUS || status == MODEL_SESSION_READY_STATUS)
+        {
+            status = if dialog.is_ready() {
+                MODEL_SESSION_READY_STATUS
+            } else {
+                MODEL_SESSION_CHOOSE_STATUS
+            }
+            .to_owned();
+            self.model_session_launch_status = Some(status.clone());
+        }
+
+        let shown = egui::Window::new("Launch Model Session")
+            .id(egui::Id::new(MODEL_SESSION_LAUNCH_DIALOG_AUTHOR_ID))
+            .collapsible(false)
+            .resizable(false)
+            .default_width(460.0)
+            .open(&mut window_open)
+            .show(ctx, |ui| {
+                ui.set_min_width(420.0);
+                ui.vertical(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.label("Provider");
+                        let combo =
+                            egui::ComboBox::from_id_salt(MODEL_SESSION_LAUNCH_PROVIDER_AUTHOR_ID)
+                                .selected_text(dialog.provider.label())
+                                .show_ui(ui, |ui| {
+                                    let local = ui.selectable_value(
+                                        &mut dialog.provider,
+                                        backend_client::ModelSessionProvider::Local,
+                                        "Local",
+                                    );
+                                    Self::name_launch_node(
+                                        ui.ctx(),
+                                        local.id,
+                                        egui::accesskit::Role::MenuItem,
+                                        MODEL_SESSION_LAUNCH_PROVIDER_LOCAL_AUTHOR_ID,
+                                        "Local model provider",
+                                    );
+                                    let cloud = ui.selectable_value(
+                                        &mut dialog.provider,
+                                        backend_client::ModelSessionProvider::Cloud,
+                                        "Cloud",
+                                    );
+                                    Self::name_launch_node(
+                                        ui.ctx(),
+                                        cloud.id,
+                                        egui::accesskit::Role::MenuItem,
+                                        MODEL_SESSION_LAUNCH_PROVIDER_CLOUD_AUTHOR_ID,
+                                        "Cloud model provider",
+                                    );
+                                });
+                        Self::name_launch_node(
+                            ui.ctx(),
+                            combo.response.id,
+                            egui::accesskit::Role::ComboBox,
+                            MODEL_SESSION_LAUNCH_PROVIDER_AUTHOR_ID,
+                            format!("Provider {}", dialog.provider.label()),
+                        );
+                    });
+                    ui.add_space(6.0);
+                    ui.label("Workspace folder");
+                    let folder = ui.add(
+                        egui::TextEdit::singleline(&mut dialog.workspace_folder)
+                            .desired_width(400.0),
+                    );
+                    Self::name_launch_node(
+                        ui.ctx(),
+                        folder.id,
+                        egui::accesskit::Role::TextInput,
+                        MODEL_SESSION_LAUNCH_FOLDER_AUTHOR_ID,
+                        "Workspace folder",
+                    );
+                    ui.add_space(6.0);
+                    ui.label("Model");
+                    let model = ui
+                        .add(egui::TextEdit::singleline(&mut dialog.model_id).desired_width(400.0));
+                    Self::name_launch_node(
+                        ui.ctx(),
+                        model.id,
+                        egui::accesskit::Role::TextInput,
+                        MODEL_SESSION_LAUNCH_MODEL_AUTHOR_ID,
+                        "Model id or cloud model name",
+                    );
+                    ui.add_space(6.0);
+                    ui.label("Wrapper");
+                    let wrapper = ui
+                        .add(egui::TextEdit::singleline(&mut dialog.wrapper).desired_width(400.0));
+                    Self::name_launch_node(
+                        ui.ctx(),
+                        wrapper.id,
+                        egui::accesskit::Role::TextInput,
+                        MODEL_SESSION_LAUNCH_WRAPPER_AUTHOR_ID,
+                        "Wrapper",
+                    );
+                    ui.add_space(10.0);
+                    ui.horizontal(|ui| {
+                        let launch_response = ui.add_enabled(
+                            dialog.is_ready() && !self.model_session_launch_pending,
+                            egui::Button::new("Launch"),
+                        );
+                        Self::name_launch_node(
+                            ui.ctx(),
+                            launch_response.id,
+                            egui::accesskit::Role::Button,
+                            MODEL_SESSION_LAUNCH_START_AUTHOR_ID,
+                            "Launch model session",
+                        );
+                        if launch_response.clicked() {
+                            launch = true;
+                        }
+                        let cancel_response = ui.button("Cancel");
+                        Self::name_launch_node(
+                            ui.ctx(),
+                            cancel_response.id,
+                            egui::accesskit::Role::Button,
+                            MODEL_SESSION_LAUNCH_CANCEL_AUTHOR_ID,
+                            "Cancel model session launch",
+                        );
+                        if cancel_response.clicked() {
+                            cancel = true;
+                        }
+                    });
+                    ui.add_space(6.0);
+                    let status_response = ui.add(egui::Label::new(status.clone()).wrap());
+                    Self::name_launch_node(
+                        ui.ctx(),
+                        status_response.id,
+                        egui::accesskit::Role::Status,
+                        MODEL_SESSION_LAUNCH_INLINE_STATUS_AUTHOR_ID,
+                        status.clone(),
+                    );
+                });
+            });
+
+        if let Some(inner) = shown {
+            Self::name_launch_node(
+                ctx,
+                inner.response.id,
+                egui::accesskit::Role::Dialog,
+                MODEL_SESSION_LAUNCH_DIALOG_AUTHOR_ID,
+                "Launch Model Session",
+            );
+        }
+        if launch {
+            self.submit_model_session_launch(&dialog);
+            ctx.request_repaint();
+        }
+        if cancel {
+            window_open = false;
+        }
+        if window_open {
+            self.model_session_launch_dialog = Some(dialog);
+        }
+    }
+
+    pub fn model_session_launch_status_for_test(&self) -> Option<&str> {
+        self.model_session_launch_status.as_deref()
+    }
+
+    pub fn model_session_launch_pending_for_test(&self) -> bool {
+        self.model_session_launch_pending
+    }
+
+    pub fn model_session_launch_dialog_open_for_test(&self) -> bool {
+        self.model_session_launch_dialog.is_some()
+    }
+
+    pub fn set_model_session_launch_dialog_for_test(
+        &mut self,
+        dialog: ModelSessionLaunchDialogState,
+    ) {
+        self.model_session_launch_dialog = Some(dialog);
     }
 
     /// Dispatch a [`MenuBarAction`] returned by the top menu bar into the shell's existing state-
@@ -5042,6 +5465,7 @@ impl HandshakeApp {
             MenuBarAction::CloseActiveTab => self.close_active_tab(),
             MenuBarAction::OpenSwarmBoard => self.navigate_to_tab("swarm"),
             MenuBarAction::NavigateToTab(tab_id) => self.navigate_to_tab(&tab_id),
+            MenuBarAction::OpenModelSessionLaunch => self.open_model_session_launch_dialog(),
             MenuBarAction::OpenTerminal => self.open_workspace_terminal(),
             MenuBarAction::QuitApp => {
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
@@ -7549,6 +7973,56 @@ impl HandshakeApp {
         });
     }
 
+    /// WP-KERNEL-012 MT-101: compact status-bar mirror of the model-session launch outcome. It must stay
+    /// honest: `/jobs` creation is reported as job creation, and direct repo-folder session spawn remains
+    /// `EndpointMissing kernel_swarm_spawn_session` until a native bridge exists.
+    fn model_session_launch_status_segment(&self, ui: &mut egui::Ui) {
+        let Some(text) = self.model_session_launch_status.as_deref() else {
+            return;
+        };
+        let display_text = Self::compact_model_session_status(text);
+        let color = self.current_theme.palette().text_subtle;
+        let response = ui
+            .add(egui::Label::new(
+                egui::RichText::new(display_text).color(color),
+            ))
+            .on_hover_text(text);
+        ui.ctx().accesskit_node_builder(response.id, |node| {
+            node.set_role(egui::accesskit::Role::Status);
+            node.set_author_id(MODEL_SESSION_LAUNCH_STATUS_AUTHOR_ID.to_owned());
+            node.set_label(text.to_owned());
+        });
+    }
+
+    fn compact_model_session_status(text: &str) -> String {
+        if text == MODEL_SESSION_READY_STATUS {
+            return "Model session: ready".to_owned();
+        }
+        if text == MODEL_SESSION_CHOOSE_STATUS {
+            return "Model session: choose fields".to_owned();
+        }
+        if text.contains("POST /jobs pending") {
+            return "Model session: /jobs pending".to_owned();
+        }
+        if text.contains("POST /jobs failed") {
+            return "Model session: /jobs failed; see status".to_owned();
+        }
+        if let Some(rest) = text.strip_prefix("Model session: /jobs job ") {
+            let job_id = rest.split_whitespace().next().unwrap_or("created");
+            let status = rest
+                .split_once("status=")
+                .map(|(_, value)| value.split(';').next().unwrap_or("unknown"))
+                .unwrap_or("unknown");
+            return format!("Model session: /jobs {job_id} {status}; needs runtime proof");
+        }
+        if text.len() <= 72 {
+            return text.to_owned();
+        }
+        let mut compact: String = text.chars().take(69).collect();
+        compact.push_str("...");
+        compact
+    }
+
     /// Apply a confirmed status-bar-segment menu action (MT-021). `segment_id` is the right-clicked
     /// segment; `display_text` its current text (for Copy). Returns `true` when app state changed (so
     /// the caller can repaint). `OpenPanel` opens the segment's related pane on the active pane.
@@ -7915,6 +8389,7 @@ impl HandshakeApp {
                         // live AccessKit node) after the overlay closes; a no-op when no nav status is set.
                         self.quick_switcher_nav_status_segment(ui);
                         self.terminal_launch_status_segment(ui);
+                        self.model_session_launch_status_segment(ui);
                         // WP-KERNEL-012 MT-071: mount the five editor file-metadata segments (LanguageMode
                         // / EOL / Indent / Encoding / RenderWhitespace) in the RIGHT cluster of the LIVE
                         // status bar (NOT a standalone harness). They render only when a code pane is
@@ -8042,6 +8517,9 @@ impl HandshakeApp {
         // MT-064 FEMS "Propose to Memory": render the open proposal dialog (or its status note) — the
         // visible result of dispatching the `fems.propose_to_memory` palette command over a selection.
         self.drive_propose_to_memory(ctx);
+        // MT-101 model-session launch: render the compact one-shot launch dialog opened from RUN/palette
+        // and drain the off-thread `/jobs` result without blocking the UI thread.
+        self.drive_model_session_launch_dialog(ctx);
         // MT-021: drain any delivered SCM / canvas / Loom-node-flag off-thread results into panel state
         // (the network already ran off the UI thread — these just read the delivery cells, HBR-QUIET).
         self.drive_source_control(ctx);

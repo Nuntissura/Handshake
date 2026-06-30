@@ -12,7 +12,7 @@
 //! - opening the VIEW menu and clicking "Reset Layout" arms the confirm (does NOT reset immediately —
 //!   red-team MC7/R7), and the explicit confirm resets to the seeded default (AC7);
 //! - the menu closes after an item is clicked (red-team R6 / MC6);
-//! - disabled leaves (Save, Open Terminal, …) render but are not clickable into an action (no fake-
+//! - disabled leaves (Save, …) render but are not clickable into an action (no fake-
 //!   enable) — they still appear in the open-menu tree as addressable disabled MenuItem nodes.
 //!
 //! ## No live backend needed
@@ -27,7 +27,9 @@ use handshake_native::accessibility::assert_no_unnamed_interactive;
 use handshake_native::app::{HandshakeApp, HealthDisplayState, ViewMode};
 use handshake_native::backend_client::HealthInfo;
 use handshake_native::theme::HsTheme;
-use handshake_native::top_menu_bar::{MenuBar, MenuBarState, MENU_DEFINITIONS};
+use handshake_native::top_menu_bar::{
+    MenuBar, MenuBarState, MENU_DEFINITIONS, MENU_RUN_MODEL_SESSION_LAUNCH_AUTHOR_ID,
+};
 
 fn ok_app() -> HandshakeApp {
     HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
@@ -69,8 +71,14 @@ fn live_shell_has_six_top_level_menus_with_stable_ids() {
         assert_eq!(found.1, "MenuItem", "{} role is MenuItem", menu.author_id());
     }
     // Exactly six top-level menu buttons (leaf items are not rendered while all menus are closed).
-    let count = nodes.iter().filter(|(a, _, _)| a.starts_with("menu-")).count();
-    assert_eq!(count, 6, "exactly six top-level menu buttons in the live tree: {nodes:?}");
+    let count = nodes
+        .iter()
+        .filter(|(a, _, _)| a.starts_with("menu-"))
+        .count();
+    assert_eq!(
+        count, 6,
+        "exactly six top-level menu buttons in the live tree: {nodes:?}"
+    );
     // The six menu titles are reachable by label (the mouse-click open path). The Alt+<letter> keyboard
     // mnemonic open path is proven separately in `alt_letter_mnemonic_opens_each_menu` below (AC2).
     for label in ["FILE", "EDIT", "VIEW", "GO", "RUN", "HELP"] {
@@ -143,7 +151,9 @@ fn alt_letter_mnemonic_switches_between_menus() {
     harness.run();
     let go_open = live_author_nodes(&harness);
     assert!(
-        go_open.iter().any(|(a, _, _)| a == "menu.go.command-palette"),
+        go_open
+            .iter()
+            .any(|(a, _, _)| a == "menu.go.command-palette"),
         "Alt+G opened GO: {go_open:?}"
     );
 
@@ -153,11 +163,15 @@ fn alt_letter_mnemonic_switches_between_menus() {
     harness.run();
     let view_open = live_author_nodes(&harness);
     assert!(
-        view_open.iter().any(|(a, _, _)| a == "menu.view.reset-layout"),
+        view_open
+            .iter()
+            .any(|(a, _, _)| a == "menu.view.reset-layout"),
         "Alt+V opened VIEW: {view_open:?}"
     );
     assert!(
-        !view_open.iter().any(|(a, _, _)| a == "menu.go.command-palette"),
+        !view_open
+            .iter()
+            .any(|(a, _, _)| a == "menu.go.command-palette"),
         "GO closed when VIEW opened (only one menu open at a time): {view_open:?}"
     );
 }
@@ -168,7 +182,10 @@ fn alt_letter_mnemonic_switches_between_menus() {
 fn clicking_go_command_palette_sets_flag() {
     let mut harness = shell_harness();
     harness.run();
-    assert!(!harness.state().command_palette_open(), "palette closed initially");
+    assert!(
+        !harness.state().command_palette_open(),
+        "palette closed initially"
+    );
 
     // Open the GO menu, then click the Command Palette leaf — the genuine out-of-process path.
     harness.get_by_label("GO").click();
@@ -194,14 +211,20 @@ fn clicking_go_command_palette_sets_flag() {
 fn clicking_go_quick_switcher_sets_flag() {
     let mut harness = shell_harness();
     harness.run();
-    assert!(!harness.state().quick_switcher_open(), "switcher closed initially");
+    assert!(
+        !harness.state().quick_switcher_open(),
+        "switcher closed initially"
+    );
 
     harness.get_by_label("GO").click();
     harness.run();
     harness.get_by_label("Quick Switcher").click();
     harness.run();
 
-    assert!(harness.state().quick_switcher_open(), "GO > Quick Switcher set the flag");
+    assert!(
+        harness.state().quick_switcher_open(),
+        "GO > Quick Switcher set the flag"
+    );
 }
 
 // ── AC5: VIEW > Theme toggle flips the theme + the checkmark ─────────────────────────────────────────
@@ -210,7 +233,11 @@ fn clicking_go_quick_switcher_sets_flag() {
 fn clicking_view_theme_light_toggles_theme() {
     let mut harness = shell_harness();
     harness.run();
-    assert_eq!(harness.state().current_theme(), HsTheme::Dark, "starts Dark");
+    assert_eq!(
+        harness.state().current_theme(),
+        HsTheme::Dark,
+        "starts Dark"
+    );
 
     harness.get_by_label("VIEW").click();
     harness.run();
@@ -256,7 +283,11 @@ fn clicking_view_toggle_project_drawer_flips_the_rail_flag() {
     harness.get_by_label("Toggle Project Drawer").click();
     harness.run();
 
-    assert_eq!(harness.state().left_rail_open(), !before, "project drawer flag flipped");
+    assert_eq!(
+        harness.state().left_rail_open(),
+        !before,
+        "project drawer flag flipped"
+    );
 }
 
 // ── AC7 + MC7/R7: Reset Layout ARMS a confirm; only the explicit confirm resets ──────────────────────
@@ -268,7 +299,10 @@ fn reset_layout_arms_then_confirms() {
     // Dirty the layout so the reset is observable: move a divider weight off the default.
     harness.state_mut().split_weights_mut().vertical = 0.2;
     harness.run();
-    assert!(!harness.state().reset_layout_pending(), "no reset armed yet");
+    assert!(
+        !harness.state().reset_layout_pending(),
+        "no reset armed yet"
+    );
 
     harness.get_by_label("VIEW").click();
     harness.run();
@@ -276,7 +310,10 @@ fn reset_layout_arms_then_confirms() {
     harness.run();
 
     // The click ARMS the confirm but does NOT reset (red-team MC7/R7): the off-default weight survives.
-    assert!(harness.state().reset_layout_pending(), "Reset Layout armed the confirm");
+    assert!(
+        harness.state().reset_layout_pending(),
+        "Reset Layout armed the confirm"
+    );
     assert!(
         (harness.state().split_weights().vertical - 0.2).abs() < 1e-6,
         "layout NOT reset on the menu click alone"
@@ -286,7 +323,10 @@ fn reset_layout_arms_then_confirms() {
     let did = harness.state_mut().confirm_reset_layout();
     harness.run();
     assert!(did, "confirm performed the reset");
-    assert!(!harness.state().reset_layout_pending(), "confirm cleared the pending flag");
+    assert!(
+        !harness.state().reset_layout_pending(),
+        "confirm cleared the pending flag"
+    );
     let default_v = handshake_native::split_layout::SplitWeights::default().vertical;
     assert!(
         (harness.state().split_weights().vertical - default_v).abs() < 1e-6,
@@ -294,7 +334,7 @@ fn reset_layout_arms_then_confirms() {
     );
 }
 
-// ── No fake-enable: disabled leaves render but cannot be clicked into an action ──────────────────────
+// ── No fake-enable: disabled leaves render; terminal blocker is clickable and typed ─────────────────
 
 #[test]
 fn disabled_leaves_render_but_do_not_fire() {
@@ -309,13 +349,19 @@ fn disabled_leaves_render_but_do_not_fire() {
         nodes.iter().any(|(a, _, _)| a == "menu.file.save"),
         "disabled Save leaf is still present + addressable in the open menu: {nodes:?}"
     );
-    // RUN > Open Terminal is likewise disabled (no native terminal panel yet).
+    // RUN > Open Terminal is present and addressable; MT-100 routes it into a typed status blocker.
     harness.get_by_label("RUN").click();
     harness.run();
     let nodes = live_author_nodes(&harness);
     assert!(
+        nodes
+            .iter()
+            .any(|(a, _, _)| a == MENU_RUN_MODEL_SESSION_LAUNCH_AUTHOR_ID),
+        "Launch Model Session leaf is present + addressable: {nodes:?}"
+    );
+    assert!(
         nodes.iter().any(|(a, _, _)| a == "menu.run.terminal"),
-        "disabled Open Terminal leaf is present + addressable: {nodes:?}"
+        "Open Terminal in Workspace Folder leaf is present + addressable: {nodes:?}"
     );
 }
 
@@ -360,7 +406,10 @@ fn open_menu_leaves_are_all_named() {
         menu_item_count, named_menu_items,
         "every live MenuItem node carries an author_id (none anonymous)"
     );
-    assert!(menu_item_count >= 10, "six menus + four open GO leaves at least; got {menu_item_count}");
+    assert!(
+        menu_item_count >= 10,
+        "six menus + four open GO leaves at least; got {menu_item_count}"
+    );
 }
 
 // ── ViewMode toggle is observable through the public accessor ────────────────────────────────────────
@@ -369,14 +418,22 @@ fn open_menu_leaves_are_all_named() {
 fn view_mode_toggles_from_nsfw_to_sfw() {
     let mut harness = shell_harness();
     harness.run();
-    assert_eq!(harness.state().view_mode(), ViewMode::Nsfw, "starts NSFW (production default)");
+    assert_eq!(
+        harness.state().view_mode(),
+        ViewMode::Nsfw,
+        "starts NSFW (production default)"
+    );
 
     harness.get_by_label("VIEW").click();
     harness.run();
     harness.get_by_label("View Mode: SFW").click();
     harness.run();
 
-    assert_eq!(harness.state().view_mode(), ViewMode::Sfw, "VIEW > View Mode: SFW switched the mode");
+    assert_eq!(
+        harness.state().view_mode(),
+        ViewMode::Sfw,
+        "VIEW > View Mode: SFW switched the mode"
+    );
 }
 
 // ── Widget-level: MenuBar::show returns the clicked action ───────────────────────────────────────────

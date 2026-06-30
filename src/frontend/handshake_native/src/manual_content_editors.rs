@@ -88,6 +88,10 @@ pub const DIAGNOSTIC_TOOL_HEADINGS: &[&str] =
     &["Flight Recorder", "internal_diagnostics", "Palmistry"];
 
 pub const TERMINAL_MENU_AUTHOR_ID: &str = "menu.run.terminal";
+pub const MODEL_SESSION_LAUNCH_MENU_AUTHOR_ID: &str =
+    crate::top_menu_bar::MENU_RUN_MODEL_SESSION_LAUNCH_AUTHOR_ID;
+pub const MODEL_SESSION_LAUNCH_PALETTE_AUTHOR_ID: &str =
+    "command-palette.option.hs-model-session-palette-launch-workspace";
 pub const INFERENCE_LAB_MENU_AUTHOR_ID: &str = "menu.run.inference-lab";
 pub const INFERENCE_LAB_PALETTE_AUTHOR_ID: &str =
     "command-palette.option.hs-inference-palette-open";
@@ -378,16 +382,26 @@ route or bridge, using the configured platform wrapper such as pwsh/cmd on Windo
 }
 
 fn model_session_launch_body() -> String {
-    "Model/session launch is split. The reachable native concept today is the Inference Lab surface: open \
-it with menu.run.inference-lab or the generated command-palette row \
-command-palette.option.hs-inference-palette-open (command id inferencelab.open). The backend POST /jobs \
-family exists for reachable HTTP job creation and can represent a workspace-scoped model_run request, but \
-live local/cloud model execution requires a managed handshake_core and remains NEEDS_MANAGED_RESOURCE_PROOF \
-in this frontend-only manual context. The direct repo-folder-bound session spawn with wrapper is still \
-IPC-only via kernel_swarm_spawn_session / cloud escalation commands in the legacy Tauri layer, so the native \
-frontend must describe that half as EndpointMissing / IPC-only rather than a running model. A no-context \
-model should open Inference Lab to inspect available launch/status UI, but it must not fabricate a session \
-id, 'model running' state, local GGUF load, or cloud run result unless the real /jobs path returns one."
+    "Model/session launch is a compact native dialog, not a worksurface pane. Open it from Run -> Launch \
+Model Session in Workspace Folder (author_id menu.run.model-session-launch) or the command palette row \
+command-palette.option.hs-model-session-palette-launch-workspace (command id \
+model-session.launch-workspace). The dialog exposes provider, workspace folder, model, wrapper, Launch, \
+Cancel, and inline status through model-session-launch.dialog, model-session-launch.provider, \
+model-session-launch.provider.local, model-session-launch.provider.cloud, \
+model-session-launch.folder, model-session-launch.model, model-session-launch.wrapper, \
+model-session-launch.start, model-session-launch.cancel, and model-session-launch.inline-status. \
+Submitting issues a real POST /jobs body with job_kind=model_run, protocol_id=protocol-default, no doc_id \
+for a folder-only launch, and job_inputs carrying workspace_id, workspace_folder, working_dir, \
+model_provider, model_id, backend, wrapper, wp_id, and mt_id. That proves job creation only: live local or \
+cloud execution remains NEEDS_MANAGED_RESOURCE_PROOF until a managed handshake_core returns runtime state. \
+The direct repo-folder-bound session spawn with wrapper remains IPC-only via kernel_swarm_spawn_session in \
+app/src-tauri/src/commands/swarm_runtime.rs, so the native frontend surfaces \
+model-session-launch-status with EndpointMissing kernel_swarm_spawn_session rather than fabricating a \
+session id, running model, local GGUF load, or cloud run result. A model must not fabricate a session id \
+or claim 'model running' state unless a managed backend returns that runtime proof. Inference Lab remains available at \
+menu.run.inference-lab for broader model inspection, but it is not the MT-101 launch path. Settings -> \
+Model Session is read-only/not-yet-wired in this build; actual MT-101 launch values come only from the \
+one-shot dialog."
         .to_owned()
 }
 
@@ -586,6 +600,76 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             action_label: "Read terminal launch status",
             mcp_tool: "list_widgets",
             description: "list_widgets surfaces terminal-launch-status after menu.run.terminal or terminal.open-workspace records the EndpointMissing blocker.",
+        },
+        AgentToolRow {
+            author_id: MODEL_SESSION_LAUNCH_MENU_AUTHOR_ID,
+            surface: ManualSurface::Model,
+            action_label: "Open model-session launch dialog",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu.run.model-session-launch'} opens the compact MT-101 launch dialog; it does not claim a running model.",
+        },
+        AgentToolRow {
+            author_id: MODEL_SESSION_LAUNCH_PALETTE_AUTHOR_ID,
+            surface: ManualSurface::Model,
+            action_label: "Open model-session launch from the command palette",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'command-palette.option.hs-model-session-palette-launch-workspace'} opens the same MT-101 launch dialog after palette filtering.",
+        },
+        AgentToolRow {
+            author_id: crate::app::MODEL_SESSION_LAUNCH_PROVIDER_AUTHOR_ID,
+            surface: ManualSurface::Model,
+            action_label: "Choose Local or Cloud provider",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'model-session-launch.provider'} opens the provider picker; use local/cloud rows for the exact provider.",
+        },
+        AgentToolRow {
+            author_id: crate::app::MODEL_SESSION_LAUNCH_PROVIDER_LOCAL_AUTHOR_ID,
+            surface: ManualSurface::Model,
+            action_label: "Choose Local provider row",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'model-session-launch.provider.local'} selects the Local provider while the provider picker is open.",
+        },
+        AgentToolRow {
+            author_id: crate::app::MODEL_SESSION_LAUNCH_PROVIDER_CLOUD_AUTHOR_ID,
+            surface: ManualSurface::Model,
+            action_label: "Choose Cloud provider row",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'model-session-launch.provider.cloud'} selects the Cloud provider while the provider picker is open.",
+        },
+        AgentToolRow {
+            author_id: crate::app::MODEL_SESSION_LAUNCH_FOLDER_AUTHOR_ID,
+            surface: ManualSurface::Model,
+            action_label: "Set model-session workspace folder",
+            mcp_tool: "set_value",
+            description: "set_value{target:'model-session-launch.folder', value:'<repo folder>'} sets the explicit working folder included in job_inputs.workspace_folder and job_inputs.working_dir.",
+        },
+        AgentToolRow {
+            author_id: crate::app::MODEL_SESSION_LAUNCH_MODEL_AUTHOR_ID,
+            surface: ManualSurface::Model,
+            action_label: "Set model id",
+            mcp_tool: "set_value",
+            description: "set_value{target:'model-session-launch.model', value:'<model id or cloud model name>'} sets job_inputs.model_id/backend target; empty values are rejected before POST /jobs.",
+        },
+        AgentToolRow {
+            author_id: crate::app::MODEL_SESSION_LAUNCH_WRAPPER_AUTHOR_ID,
+            surface: ManualSurface::Model,
+            action_label: "Set wrapper",
+            mcp_tool: "set_value",
+            description: "set_value{target:'model-session-launch.wrapper', value:'<wrapper>'} sets the wrapper attribution carried in /jobs and the direct-spawn blocker request.",
+        },
+        AgentToolRow {
+            author_id: crate::app::MODEL_SESSION_LAUNCH_START_AUTHOR_ID,
+            surface: ManualSurface::Model,
+            action_label: "Submit model-session launch",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'model-session-launch.start'} issues real POST /jobs when fields are valid and records EndpointMissing for direct kernel_swarm_spawn_session spawn.",
+        },
+        AgentToolRow {
+            author_id: crate::app::MODEL_SESSION_LAUNCH_STATUS_AUTHOR_ID,
+            surface: ManualSurface::Model,
+            action_label: "Read model-session launch status",
+            mcp_tool: "list_widgets",
+            description: "list_widgets surfaces model-session-launch-status after launch; it distinguishes POST /jobs job creation from NEEDS_MANAGED_RESOURCE_PROOF and EndpointMissing kernel_swarm_spawn_session.",
         },
         AgentToolRow {
             author_id: INFERENCE_LAB_MENU_AUTHOR_ID,

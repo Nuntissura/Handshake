@@ -182,6 +182,18 @@ fn live_author_id_set() -> HashSet<String> {
     set.insert(handshake_native::runtime_chat::RUNTIME_CHAT_SEND_AUTHOR_ID.to_owned());
     // Terminal launch status appears after the dynamic RUN/palette action records its typed blocker.
     set.insert(handshake_native::app::TERMINAL_LAUNCH_STATUS_AUTHOR_ID.to_owned());
+    // MT-101 model-session launch dialog/status ids.
+    set.insert(handshake_native::app::MODEL_SESSION_LAUNCH_DIALOG_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::app::MODEL_SESSION_LAUNCH_PROVIDER_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::app::MODEL_SESSION_LAUNCH_PROVIDER_LOCAL_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::app::MODEL_SESSION_LAUNCH_PROVIDER_CLOUD_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::app::MODEL_SESSION_LAUNCH_FOLDER_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::app::MODEL_SESSION_LAUNCH_MODEL_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::app::MODEL_SESSION_LAUNCH_WRAPPER_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::app::MODEL_SESSION_LAUNCH_START_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::app::MODEL_SESSION_LAUNCH_CANCEL_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::app::MODEL_SESSION_LAUNCH_INLINE_STATUS_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::app::MODEL_SESSION_LAUNCH_STATUS_AUTHOR_ID.to_owned());
     // Settings-hosted diagnostics and MT-102 visual-debugger controls.
     set.insert(handshake_native::settings_dialog::SETTINGS_SEARCH_AUTHOR_ID.to_owned());
     set.insert(format!(

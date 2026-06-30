@@ -74,6 +74,9 @@ pub struct AppCommand {
 
 pub const CMD_TERMINAL_OPEN_WORKSPACE: &str = "terminal.open-workspace";
 pub const TERMINAL_OPEN_WORKSPACE_STABLE_ID: &str = "hs-terminal-palette-open-workspace";
+pub const CMD_MODEL_SESSION_LAUNCH_WORKSPACE: &str = "model-session.launch-workspace";
+pub const MODEL_SESSION_LAUNCH_WORKSPACE_STABLE_ID: &str =
+    "hs-model-session-palette-launch-workspace";
 
 /// The canonical command catalog a swarm agent may dispatch through the palette (HBR-SWARM).
 ///
@@ -182,6 +185,28 @@ const APP_COMMANDS: &[AppCommand] = &[
         description: "Open the Flight Recorder on the active pane.",
         keywords: &["flight", "recorder", "trace", "run"],
         stable_id: "hs-flight-palette-open",
+        disabled: false,
+    },
+    AppCommand {
+        id: CMD_MODEL_SESSION_LAUNCH_WORKSPACE,
+        kind: CommandKind::App,
+        label: "Model Session: Launch in Workspace Folder",
+        description: "Open a compact launch dialog that issues real POST /jobs for model_run and reports EndpointMissing for direct repo-folder spawn while it remains Tauri IPC-only.",
+        keywords: &[
+            "model",
+            "session",
+            "launch",
+            "workspace",
+            "repo",
+            "folder",
+            "local",
+            "cloud",
+            "wrapper",
+            "jobs",
+            "endpointmissing",
+            "kernel_swarm_spawn_session",
+        ],
+        stable_id: MODEL_SESSION_LAUNCH_WORKSPACE_STABLE_ID,
         disabled: false,
     },
     AppCommand {
@@ -383,28 +408,138 @@ pub fn is_go_nav_pending(id: &str) -> bool {
 /// applied by the menu bar + palette via [`editor_menu_commands_enabled`] so a stale-state row is honest.
 /// The GO-nav rows are NOT in this catalog: they stay disabled placeholders in the GO menu (AC-003).
 const EDITOR_MENU_COMMANDS: &[AppCommand] = &[
-    editor_menu_cmd(CMD_EDITOR_FILE_NEW, "Editor: New Document", &["new", "document", "file", "editor"], "hs-editor-menu-file-new"),
-    editor_menu_cmd(CMD_EDITOR_FILE_SAVE, "Editor: Save", &["save", "file", "document", "editor"], "hs-editor-menu-file-save"),
-    editor_menu_cmd(CMD_EDITOR_FILE_SAVE_ALL, "Editor: Save All", &["save", "all", "file", "documents", "editor"], "hs-editor-menu-file-save-all"),
-    editor_menu_cmd(CMD_EDITOR_FILE_SAVE_AS, "Editor: Save As", &["save", "as", "file", "export", "editor"], "hs-editor-menu-file-save-as"),
-    editor_menu_cmd(CMD_EDITOR_FILE_EXPORT_HTML, "Editor: Export Document (HTML)", &["export", "html", "document", "editor"], "hs-editor-menu-file-export-html"),
-    editor_menu_cmd(CMD_EDITOR_FILE_EXPORT_MD, "Editor: Export Document (Markdown)", &["export", "markdown", "md", "document", "editor"], "hs-editor-menu-file-export-md"),
-    editor_menu_cmd(CMD_EDITOR_FILE_EXPORT_TXT, "Editor: Export Document (Text)", &["export", "text", "txt", "document", "editor"], "hs-editor-menu-file-export-txt"),
-    editor_menu_cmd(CMD_EDITOR_FILE_EXPORT_JSON, "Editor: Export Document (JSON)", &["export", "json", "document", "editor"], "hs-editor-menu-file-export-json"),
-    editor_menu_cmd(CMD_EDITOR_EDIT_UNDO, "Editor: Undo", &["undo", "revert", "edit", "editor"], "hs-editor-menu-edit-undo"),
-    editor_menu_cmd(CMD_EDITOR_EDIT_REDO, "Editor: Redo", &["redo", "edit", "editor"], "hs-editor-menu-edit-redo"),
-    editor_menu_cmd(CMD_EDITOR_EDIT_CUT, "Editor: Cut", &["cut", "clipboard", "edit", "editor"], "hs-editor-menu-edit-cut"),
-    editor_menu_cmd(CMD_EDITOR_EDIT_COPY, "Editor: Copy", &["copy", "clipboard", "edit", "editor"], "hs-editor-menu-edit-copy"),
-    editor_menu_cmd(CMD_EDITOR_EDIT_PASTE, "Editor: Paste", &["paste", "clipboard", "edit", "editor"], "hs-editor-menu-edit-paste"),
-    editor_menu_cmd(CMD_EDITOR_EDIT_SELECT_ALL, "Editor: Select All", &["select", "all", "edit", "editor"], "hs-editor-menu-edit-select-all"),
-    editor_menu_cmd(CMD_EDITOR_FIND_FIND, "Editor: Find", &["find", "search", "edit", "editor"], "hs-editor-menu-find-find"),
-    editor_menu_cmd(CMD_EDITOR_FIND_REPLACE, "Editor: Replace", &["replace", "find", "search", "edit", "editor"], "hs-editor-menu-find-replace"),
-    editor_menu_cmd(CMD_EDITOR_FIND_IN_FILES, "Editor: Find in Files", &["find", "files", "workspace", "search", "editor"], "hs-editor-menu-find-in-files"),
-    editor_menu_cmd(CMD_EDITOR_REPLACE_IN_FILES, "Editor: Replace in Files", &["replace", "files", "workspace", "search", "editor"], "hs-editor-menu-replace-in-files"),
-    editor_menu_cmd(CMD_EDITOR_EDIT_TOGGLE_COMMENT, "Editor: Toggle Comment", &["comment", "toggle", "line", "edit", "editor"], "hs-editor-menu-edit-toggle-comment"),
-    editor_menu_cmd(CMD_EDITOR_EDIT_FORMAT_DOCUMENT, "Editor: Format Document", &["format", "document", "edit", "editor"], "hs-editor-menu-edit-format-document"),
-    editor_menu_cmd(CMD_WORKBENCH_SHOW_COMMANDS, "Show All Commands", &["command", "palette", "commands", "workbench"], "hs-editor-menu-show-commands"),
-    editor_menu_cmd(CMD_WORKBENCH_QUICK_OPEN, "Go to File (Quick Open)", &["quick", "open", "switcher", "file", "workbench"], "hs-editor-menu-quick-open"),
+    editor_menu_cmd(
+        CMD_EDITOR_FILE_NEW,
+        "Editor: New Document",
+        &["new", "document", "file", "editor"],
+        "hs-editor-menu-file-new",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_FILE_SAVE,
+        "Editor: Save",
+        &["save", "file", "document", "editor"],
+        "hs-editor-menu-file-save",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_FILE_SAVE_ALL,
+        "Editor: Save All",
+        &["save", "all", "file", "documents", "editor"],
+        "hs-editor-menu-file-save-all",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_FILE_SAVE_AS,
+        "Editor: Save As",
+        &["save", "as", "file", "export", "editor"],
+        "hs-editor-menu-file-save-as",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_FILE_EXPORT_HTML,
+        "Editor: Export Document (HTML)",
+        &["export", "html", "document", "editor"],
+        "hs-editor-menu-file-export-html",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_FILE_EXPORT_MD,
+        "Editor: Export Document (Markdown)",
+        &["export", "markdown", "md", "document", "editor"],
+        "hs-editor-menu-file-export-md",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_FILE_EXPORT_TXT,
+        "Editor: Export Document (Text)",
+        &["export", "text", "txt", "document", "editor"],
+        "hs-editor-menu-file-export-txt",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_FILE_EXPORT_JSON,
+        "Editor: Export Document (JSON)",
+        &["export", "json", "document", "editor"],
+        "hs-editor-menu-file-export-json",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_EDIT_UNDO,
+        "Editor: Undo",
+        &["undo", "revert", "edit", "editor"],
+        "hs-editor-menu-edit-undo",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_EDIT_REDO,
+        "Editor: Redo",
+        &["redo", "edit", "editor"],
+        "hs-editor-menu-edit-redo",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_EDIT_CUT,
+        "Editor: Cut",
+        &["cut", "clipboard", "edit", "editor"],
+        "hs-editor-menu-edit-cut",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_EDIT_COPY,
+        "Editor: Copy",
+        &["copy", "clipboard", "edit", "editor"],
+        "hs-editor-menu-edit-copy",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_EDIT_PASTE,
+        "Editor: Paste",
+        &["paste", "clipboard", "edit", "editor"],
+        "hs-editor-menu-edit-paste",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_EDIT_SELECT_ALL,
+        "Editor: Select All",
+        &["select", "all", "edit", "editor"],
+        "hs-editor-menu-edit-select-all",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_FIND_FIND,
+        "Editor: Find",
+        &["find", "search", "edit", "editor"],
+        "hs-editor-menu-find-find",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_FIND_REPLACE,
+        "Editor: Replace",
+        &["replace", "find", "search", "edit", "editor"],
+        "hs-editor-menu-find-replace",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_FIND_IN_FILES,
+        "Editor: Find in Files",
+        &["find", "files", "workspace", "search", "editor"],
+        "hs-editor-menu-find-in-files",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_REPLACE_IN_FILES,
+        "Editor: Replace in Files",
+        &["replace", "files", "workspace", "search", "editor"],
+        "hs-editor-menu-replace-in-files",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_EDIT_TOGGLE_COMMENT,
+        "Editor: Toggle Comment",
+        &["comment", "toggle", "line", "edit", "editor"],
+        "hs-editor-menu-edit-toggle-comment",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_EDIT_FORMAT_DOCUMENT,
+        "Editor: Format Document",
+        &["format", "document", "edit", "editor"],
+        "hs-editor-menu-edit-format-document",
+    ),
+    editor_menu_cmd(
+        CMD_WORKBENCH_SHOW_COMMANDS,
+        "Show All Commands",
+        &["command", "palette", "commands", "workbench"],
+        "hs-editor-menu-show-commands",
+    ),
+    editor_menu_cmd(
+        CMD_WORKBENCH_QUICK_OPEN,
+        "Go to File (Quick Open)",
+        &["quick", "open", "switcher", "file", "workbench"],
+        "hs-editor-menu-quick-open",
+    ),
 ];
 
 /// Const helper building one ENABLED `CommandKind::EditorMenu` entry (MT-069). `disabled: false` at the
@@ -432,19 +567,84 @@ const fn editor_menu_cmd(
 /// `disabled: true` (the React registry sets `disabled: !editorCommandsEnabled` the same way). A follow-up
 /// MT can flip `disabled` when a rich-text document is the active edit target.
 const EDITOR_COMMANDS: &[AppCommand] = &[
-    editor_cmd("editor.format.bold", "Bold", &["bold", "strong", "format"], "hs-editor-command-format-bold"),
-    editor_cmd("editor.format.italic", "Italic", &["italic", "emphasis", "format"], "hs-editor-command-format-italic"),
-    editor_cmd("editor.format.code", "Inline code", &["code", "monospace", "inline", "format"], "hs-editor-command-format-code"),
-    editor_cmd("editor.block.h1", "Heading 1", &["heading", "h1", "title", "block"], "hs-editor-command-block-h1"),
-    editor_cmd("editor.block.h2", "Heading 2", &["heading", "h2", "block"], "hs-editor-command-block-h2"),
-    editor_cmd("editor.block.h3", "Heading 3", &["heading", "h3", "block"], "hs-editor-command-block-h3"),
-    editor_cmd("editor.block.quote", "Block quote", &["quote", "blockquote", "callout", "block"], "hs-editor-command-block-quote"),
-    editor_cmd("editor.list.bullet", "Bullet list", &["bullet", "unordered", "list"], "hs-editor-command-list-bullet"),
-    editor_cmd("editor.list.ordered", "Numbered list", &["numbered", "ordered", "list"], "hs-editor-command-list-ordered"),
-    editor_cmd("editor.list.task", "Task list", &["task", "todo", "checkbox", "checklist", "list"], "hs-editor-command-list-task"),
-    editor_cmd("editor.code.insert", "Insert code block", &["code", "monaco", "snippet", "fence", "block"], "hs-editor-command-code-insert"),
-    editor_cmd("editor.table.insert", "Insert table", &["table", "grid"], "hs-editor-command-table-insert"),
-    editor_cmd("editor.link.wikilink", "Insert link", &["link", "wikilink", "note", "reference"], "hs-editor-command-link-wikilink"),
+    editor_cmd(
+        "editor.format.bold",
+        "Bold",
+        &["bold", "strong", "format"],
+        "hs-editor-command-format-bold",
+    ),
+    editor_cmd(
+        "editor.format.italic",
+        "Italic",
+        &["italic", "emphasis", "format"],
+        "hs-editor-command-format-italic",
+    ),
+    editor_cmd(
+        "editor.format.code",
+        "Inline code",
+        &["code", "monospace", "inline", "format"],
+        "hs-editor-command-format-code",
+    ),
+    editor_cmd(
+        "editor.block.h1",
+        "Heading 1",
+        &["heading", "h1", "title", "block"],
+        "hs-editor-command-block-h1",
+    ),
+    editor_cmd(
+        "editor.block.h2",
+        "Heading 2",
+        &["heading", "h2", "block"],
+        "hs-editor-command-block-h2",
+    ),
+    editor_cmd(
+        "editor.block.h3",
+        "Heading 3",
+        &["heading", "h3", "block"],
+        "hs-editor-command-block-h3",
+    ),
+    editor_cmd(
+        "editor.block.quote",
+        "Block quote",
+        &["quote", "blockquote", "callout", "block"],
+        "hs-editor-command-block-quote",
+    ),
+    editor_cmd(
+        "editor.list.bullet",
+        "Bullet list",
+        &["bullet", "unordered", "list"],
+        "hs-editor-command-list-bullet",
+    ),
+    editor_cmd(
+        "editor.list.ordered",
+        "Numbered list",
+        &["numbered", "ordered", "list"],
+        "hs-editor-command-list-ordered",
+    ),
+    editor_cmd(
+        "editor.list.task",
+        "Task list",
+        &["task", "todo", "checkbox", "checklist", "list"],
+        "hs-editor-command-list-task",
+    ),
+    editor_cmd(
+        "editor.code.insert",
+        "Insert code block",
+        &["code", "monaco", "snippet", "fence", "block"],
+        "hs-editor-command-code-insert",
+    ),
+    editor_cmd(
+        "editor.table.insert",
+        "Insert table",
+        &["table", "grid"],
+        "hs-editor-command-table-insert",
+    ),
+    editor_cmd(
+        "editor.link.wikilink",
+        "Insert link",
+        &["link", "wikilink", "note", "reference"],
+        "hs-editor-command-link-wikilink",
+    ),
 ];
 
 /// Const helper building one disabled `CommandKind::Editor` entry with the React-aligned description
@@ -489,7 +689,10 @@ pub fn matches_query(cmd: &AppCommand, query: &str) -> bool {
 /// Allocates a fresh `Vec<&AppCommand>` per call; the palette calls it once per frame against the
 /// small static catalog (well under the red-team MC2 frame-time budget).
 pub fn filtered_commands(query: &str) -> Vec<&'static AppCommand> {
-    all_commands().iter().filter(|c| matches_query(c, query)).collect()
+    all_commands()
+        .iter()
+        .filter(|c| matches_query(c, query))
+        .collect()
 }
 
 /// WP-KERNEL-012 MT-069: apply the per-frame ENABLE PREDICATE to a catalog command, returning the
@@ -565,10 +768,19 @@ mod tests {
     fn filtering_manual_returns_usermanual_commands() {
         let results = filtered_commands("manual");
         let ids: Vec<&str> = results.iter().map(|c| c.id).collect();
-        assert!(ids.contains(&"usermanual.open"), "usermanual.open in 'manual' results: {ids:?}");
-        assert!(ids.contains(&"usermanual.search"), "usermanual.search in 'manual' results: {ids:?}");
+        assert!(
+            ids.contains(&"usermanual.open"),
+            "usermanual.open in 'manual' results: {ids:?}"
+        );
+        assert!(
+            ids.contains(&"usermanual.search"),
+            "usermanual.search in 'manual' results: {ids:?}"
+        );
         // A command with no 'manual' token is excluded.
-        assert!(!ids.contains(&"theme.toggle"), "theme.toggle excluded from 'manual' results: {ids:?}");
+        assert!(
+            !ids.contains(&"theme.toggle"),
+            "theme.toggle excluded from 'manual' results: {ids:?}"
+        );
     }
 
     /// App commands are runnable; rich-text Editor commands are disabled until a rich document is the
@@ -580,12 +792,24 @@ mod tests {
             match cmd.kind {
                 CommandKind::App => assert!(!cmd.disabled, "App command '{}' is enabled", cmd.id),
                 CommandKind::Editor => {
-                    assert!(cmd.disabled, "Editor command '{}' is disabled (no editor doc yet)", cmd.id);
-                    assert!(cmd.id.starts_with("editor."), "editor id prefix on '{}'", cmd.id);
+                    assert!(
+                        cmd.disabled,
+                        "Editor command '{}' is disabled (no editor doc yet)",
+                        cmd.id
+                    );
+                    assert!(
+                        cmd.id.starts_with("editor."),
+                        "editor id prefix on '{}'",
+                        cmd.id
+                    );
                 }
                 CommandKind::EditorMenu => {
                     // Catalog-enabled (the static flag is false); the live predicate gates it.
-                    assert!(!cmd.disabled, "EditorMenu command '{}' is catalog-enabled", cmd.id);
+                    assert!(
+                        !cmd.disabled,
+                        "EditorMenu command '{}' is catalog-enabled",
+                        cmd.id
+                    );
                 }
             }
         }
@@ -595,15 +819,36 @@ mod tests {
     /// enabled when one is; non-editor-menu commands ignore the predicate (keep their static flag).
     #[test]
     fn editor_menu_commands_gated_by_editor_available() {
-        let save = all_commands().iter().find(|c| c.id == CMD_EDITOR_FILE_SAVE).unwrap();
-        assert!(effective_disabled(save, false), "Editor Save disabled when no editor pane is available");
-        assert!(!effective_disabled(save, true), "Editor Save enabled when an editor pane is available");
+        let save = all_commands()
+            .iter()
+            .find(|c| c.id == CMD_EDITOR_FILE_SAVE)
+            .unwrap();
+        assert!(
+            effective_disabled(save, false),
+            "Editor Save disabled when no editor pane is available"
+        );
+        assert!(
+            !effective_disabled(save, true),
+            "Editor Save enabled when an editor pane is available"
+        );
         // A disabled rich-text Editor command stays disabled regardless of editor availability.
-        let bold = all_commands().iter().find(|c| c.id == "editor.format.bold").unwrap();
-        assert!(effective_disabled(bold, true), "rich-text Bold stays disabled (needs an active doc)");
+        let bold = all_commands()
+            .iter()
+            .find(|c| c.id == "editor.format.bold")
+            .unwrap();
+        assert!(
+            effective_disabled(bold, true),
+            "rich-text Bold stays disabled (needs an active doc)"
+        );
         // An App command is never gated by the editor predicate.
-        let theme = all_commands().iter().find(|c| c.id == "theme.toggle").unwrap();
-        assert!(!effective_disabled(theme, false), "App command ignores the editor predicate");
+        let theme = all_commands()
+            .iter()
+            .find(|c| c.id == "theme.toggle")
+            .unwrap();
+        assert!(
+            !effective_disabled(theme, false),
+            "App command ignores the editor predicate"
+        );
     }
 
     /// The 22 MT-069 menu/palette editor command ids are present, enabled at the catalog level, and use
@@ -616,21 +861,45 @@ mod tests {
             .map(|c| c.id)
             .collect();
         for expected in [
-            CMD_EDITOR_FILE_NEW, CMD_EDITOR_FILE_SAVE, CMD_EDITOR_FILE_SAVE_ALL, CMD_EDITOR_FILE_SAVE_AS,
-            CMD_EDITOR_FILE_EXPORT_HTML, CMD_EDITOR_FILE_EXPORT_MD, CMD_EDITOR_FILE_EXPORT_TXT,
-            CMD_EDITOR_FILE_EXPORT_JSON, CMD_EDITOR_EDIT_UNDO, CMD_EDITOR_EDIT_REDO, CMD_EDITOR_EDIT_CUT,
-            CMD_EDITOR_EDIT_COPY, CMD_EDITOR_EDIT_PASTE, CMD_EDITOR_EDIT_SELECT_ALL, CMD_EDITOR_FIND_FIND,
-            CMD_EDITOR_FIND_REPLACE, CMD_EDITOR_FIND_IN_FILES, CMD_EDITOR_REPLACE_IN_FILES,
-            CMD_EDITOR_EDIT_TOGGLE_COMMENT, CMD_EDITOR_EDIT_FORMAT_DOCUMENT, CMD_WORKBENCH_SHOW_COMMANDS,
+            CMD_EDITOR_FILE_NEW,
+            CMD_EDITOR_FILE_SAVE,
+            CMD_EDITOR_FILE_SAVE_ALL,
+            CMD_EDITOR_FILE_SAVE_AS,
+            CMD_EDITOR_FILE_EXPORT_HTML,
+            CMD_EDITOR_FILE_EXPORT_MD,
+            CMD_EDITOR_FILE_EXPORT_TXT,
+            CMD_EDITOR_FILE_EXPORT_JSON,
+            CMD_EDITOR_EDIT_UNDO,
+            CMD_EDITOR_EDIT_REDO,
+            CMD_EDITOR_EDIT_CUT,
+            CMD_EDITOR_EDIT_COPY,
+            CMD_EDITOR_EDIT_PASTE,
+            CMD_EDITOR_EDIT_SELECT_ALL,
+            CMD_EDITOR_FIND_FIND,
+            CMD_EDITOR_FIND_REPLACE,
+            CMD_EDITOR_FIND_IN_FILES,
+            CMD_EDITOR_REPLACE_IN_FILES,
+            CMD_EDITOR_EDIT_TOGGLE_COMMENT,
+            CMD_EDITOR_EDIT_FORMAT_DOCUMENT,
+            CMD_WORKBENCH_SHOW_COMMANDS,
             CMD_WORKBENCH_QUICK_OPEN,
         ] {
-            assert!(menu_ids.contains(&expected), "menu command id '{expected}' present: {menu_ids:?}");
+            assert!(
+                menu_ids.contains(&expected),
+                "menu command id '{expected}' present: {menu_ids:?}"
+            );
         }
         assert_eq!(menu_ids.len(), 22, "exactly 22 EditorMenu commands");
         // The GO-nav pending ids are NOT enabled palette commands (they stay disabled GO-menu placeholders).
         for go in EDITOR_GO_NAV_PENDING_IDS {
-            assert!(!menu_ids.contains(go), "GO-nav id '{go}' is NOT an enabled palette command");
-            assert!(is_go_nav_pending(go), "'{go}' is recognized as a pending GO-nav id");
+            assert!(
+                !menu_ids.contains(go),
+                "GO-nav id '{go}' is NOT an enabled palette command"
+            );
+            assert!(
+                is_go_nav_pending(go),
+                "'{go}' is recognized as a pending GO-nav id"
+            );
         }
     }
 }

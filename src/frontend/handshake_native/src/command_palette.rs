@@ -130,9 +130,7 @@ pub fn show(ctx: &egui::Context, open_count: u64, editor_available: bool) -> Pal
     ctx.input(|i| {
         for event in &i.events {
             if let egui::Event::Key {
-                key,
-                pressed: true,
-                ..
+                key, pressed: true, ..
             } = event
             {
                 match key {
@@ -186,13 +184,9 @@ pub fn show(ctx: &egui::Context, open_count: u64, editor_available: bool) -> Pal
         .fixed_pos(screen.min)
         .interactable(true)
         .show(ctx, |ui| {
-            let (rect, response) =
-                ui.allocate_exact_size(screen.size(), egui::Sense::click());
-            ui.painter().rect_filled(
-                rect,
-                0.0,
-                egui::Color32::from_black_alpha(96),
-            );
+            let (rect, response) = ui.allocate_exact_size(screen.size(), egui::Sense::click());
+            ui.painter()
+                .rect_filled(rect, 0.0, egui::Color32::from_black_alpha(96));
             response
         });
     if backdrop.inner.clicked() {
@@ -248,8 +242,13 @@ pub fn show(ctx: &egui::Context, open_count: u64, editor_available: bool) -> Pal
                 // setSelectedIndex(0)).
                 state.selected_index = 0;
             }
-            if !state.focus_requested {
+            // Keep requesting until focus is actually observed. Marking the latch before focus settles
+            // can lose the first-frame request in egui/kittest and leaves the palette open without a
+            // focused search box.
+            if !state.focus_requested || !edit_response.has_focus() {
                 edit_response.request_focus();
+            }
+            if edit_response.has_focus() {
                 state.focus_requested = true;
             }
             // Tag the search node with its stable author_id + a TextInput role (egui already derived the

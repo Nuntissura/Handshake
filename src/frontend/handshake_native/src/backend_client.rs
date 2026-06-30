@@ -79,6 +79,24 @@ pub const TERMINAL_LAUNCH_IPC_CHANNEL: &str = "kernel_terminal_create_session";
 /// Source owner of the currently reachable terminal runtime bridge.
 pub const TERMINAL_LAUNCH_IPC_OWNER: &str = "app/src-tauri/src/commands/terminal.rs";
 
+/// WP-KERNEL-012 MT-101: reachable native job-creation path for a model-session launch.
+pub const MODEL_SESSION_JOBS_PATH: &str = "/jobs";
+
+/// The protocol id used by existing handshake_core tests and default workflow creation. The native
+/// frontend sends this through the real `POST /jobs` surface and keeps any repo-folder binding inside
+/// `job_inputs`; the backend does not currently enforce folder scoping for model_run jobs.
+pub const MODEL_SESSION_PROTOCOL_ID: &str = "protocol-default";
+
+/// Native-declared direct-spawn route that does not exist today. The direct repo-folder session spawn
+/// with wrapper is only exposed through Tauri IPC, so probing this path always returns EndpointMissing.
+pub const MODEL_SESSION_DIRECT_SPAWN_PROBED_PATH: &str = "/swarm/sessions";
+
+/// The existing direct session spawn channel in the legacy Tauri command layer.
+pub const MODEL_SESSION_LAUNCH_IPC_CHANNEL: &str = "kernel_swarm_spawn_session";
+
+/// Source owner of the reachable IPC command for direct repo-folder model session spawn.
+pub const MODEL_SESSION_LAUNCH_IPC_OWNER: &str = "app/src-tauri/src/commands/swarm_runtime.rs";
+
 #[cfg(target_os = "windows")]
 const DEFAULT_TERMINAL_SHELL: &str = "pwsh.exe";
 #[cfg(not(target_os = "windows"))]
@@ -200,6 +218,354 @@ impl fmt::Display for TerminalLaunchError {
             ),
         }
     }
+}
+
+/// Which backend/provider lane the native model-session launch should request.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ModelSessionProvider {
+    Local,
+    Cloud,
+}
+
+impl ModelSessionProvider {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Local => "local",
+            Self::Cloud => "cloud",
+        }
+    }
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Local => "Local",
+            Self::Cloud => "Cloud",
+        }
+    }
+}
+
+impl fmt::Display for ModelSessionProvider {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// Operator-selected launch inputs. These are explicit because handshake_core's model_run defaults would
+/// otherwise mask missing UI state with `default-model` / `default-backend`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelSessionLaunchRequest {
+    pub provider: ModelSessionProvider,
+    pub workspace_id: String,
+    pub workspace_folder: String,
+    pub model_id: String,
+    pub wrapper: String,
+}
+
+impl ModelSessionLaunchRequest {
+    pub fn new(
+        provider: ModelSessionProvider,
+        workspace_id: impl Into<String>,
+        workspace_folder: impl Into<String>,
+        model_id: impl Into<String>,
+        wrapper: impl Into<String>,
+    ) -> Self {
+        Self {
+            provider,
+            workspace_id: workspace_id.into(),
+            workspace_folder: workspace_folder.into(),
+            model_id: model_id.into(),
+            wrapper: wrapper.into(),
+        }
+    }
+
+    fn validate(&self) -> Result<(), ModelSessionLaunchError> {
+        if self.workspace_folder.trim().is_empty() {
+            return Err(ModelSessionLaunchError::InvalidRequest {
+                field: "workspace_folder",
+                reason: "workspace folder is required".to_owned(),
+            });
+        }
+        if self.model_id.trim().is_empty() {
+            return Err(ModelSessionLaunchError::InvalidRequest {
+                field: "model_id",
+                reason: "model id or cloud model name is required".to_owned(),
+            });
+        }
+        if self.wrapper.trim().is_empty() {
+            return Err(ModelSessionLaunchError::InvalidRequest {
+                field: "wrapper",
+                reason: "wrapper is required".to_owned(),
+            });
+        }
+        Ok(())
+    }
+
+    fn trimmed(&self) -> Self {
+        Self {
+            provider: self.provider,
+            workspace_id: self.workspace_id.trim().to_owned(),
+            workspace_folder: self.workspace_folder.trim().to_owned(),
+            model_id: self.model_id.trim().to_owned(),
+            wrapper: self.wrapper.trim().to_owned(),
+        }
+    }
+}
+
+/// The direct-spawn request that would be passed to `kernel_swarm_spawn_session` if a native HTTP bridge
+/// existed. It is preserved inside [`ModelSessionLaunchError::EndpointMissing`] for state recovery and
+/// no-context model debugging.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelSessionDirectSpawnRequest {
+    pub provider: ModelSessionProvider,
+    pub workspace_id: String,
+    pub worktree_id: Option<String>,
+    pub working_dir: String,
+    pub model_id: String,
+    pub wrapper: String,
+    pub artifact_path: Option<String>,
+    pub sha256_expected: Option<String>,
+    pub runtime_binding: Option<String>,
+    pub local_model_id: Option<String>,
+    pub cloud_model_name: Option<String>,
+}
+
+impl From<&ModelSessionLaunchRequest> for ModelSessionDirectSpawnRequest {
+    fn from(request: &ModelSessionLaunchRequest) -> Self {
+        let request = request.trimmed();
+        Self {
+            provider: request.provider,
+            workspace_id: request.workspace_id,
+            worktree_id: None,
+            working_dir: request.workspace_folder,
+            model_id: request.model_id.clone(),
+            wrapper: request.wrapper,
+            artifact_path: None,
+            sha256_expected: None,
+            runtime_binding: None,
+            local_model_id: (request.provider == ModelSessionProvider::Local)
+                .then_some(request.model_id.clone()),
+            cloud_model_name: (request.provider == ModelSessionProvider::Cloud)
+                .then_some(request.model_id),
+        }
+    }
+}
+
+/// Parsed result from the real `POST /jobs` path. This deliberately does not expose "model running":
+/// creating a backend workflow job is not the same proof as a direct repo-folder-bound live session.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelSessionJobResult {
+    pub job_id: String,
+    pub workflow_run_id: Option<String>,
+    pub status: Option<String>,
+    pub raw: serde_json::Value,
+}
+
+impl ModelSessionJobResult {
+    fn from_json(raw: serde_json::Value) -> Result<Self, String> {
+        let Some(job_id) = raw
+            .get("job_id")
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|id| !id.is_empty())
+            .map(str::to_owned)
+        else {
+            return Err(
+                "invalid /jobs response: missing required job_id; did not claim model session created"
+                    .to_owned(),
+            );
+        };
+        let workflow_run_id = raw
+            .get("id")
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|id| !id.is_empty())
+            .map(str::to_owned);
+        let status = raw
+            .get("status")
+            .and_then(|v| v.as_str())
+            .map(str::to_owned);
+        Ok(Self {
+            job_id,
+            workflow_run_id,
+            status,
+            raw,
+        })
+    }
+}
+
+/// Delivery cell for the off-thread `POST /jobs` model-session request.
+pub type ModelSessionLaunchCell = Arc<Mutex<Option<Result<ModelSessionJobResult, String>>>>;
+
+/// Native client for MT-101 model-session launch. It owns the real reachable `POST /jobs` request and
+/// separately exposes the typed blocker for direct repo-folder spawn, which is IPC-only today.
+#[derive(Clone)]
+pub struct ModelSessionLaunchClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+}
+
+impl ModelSessionLaunchClient {
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: build_backend_client(),
+            base_url: base_url.into(),
+            runtime,
+        }
+    }
+
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    pub fn jobs_url(&self) -> String {
+        format!("{}{}", self.base_url, MODEL_SESSION_JOBS_PATH)
+    }
+
+    pub fn base_url(&self) -> &str {
+        &self.base_url
+    }
+
+    pub fn direct_spawn_probed_url(base_url: &str) -> String {
+        format!("{base_url}{MODEL_SESSION_DIRECT_SPAWN_PROBED_PATH}")
+    }
+
+    pub fn jobs_request(
+        &self,
+        request: &ModelSessionLaunchRequest,
+    ) -> Result<RequestSpec, ModelSessionLaunchError> {
+        model_session_jobs_request(&self.base_url, request)
+    }
+
+    /// Enqueue the real reachable `POST /jobs` request off the UI thread. The returned [`RequestSpec`] is
+    /// the exact request being sent, so the caller can report "POST /jobs issued" without duplicating
+    /// serialization logic.
+    pub fn launch_workspace_model_job(
+        &self,
+        request: ModelSessionLaunchRequest,
+        cell: ModelSessionLaunchCell,
+    ) -> Result<RequestSpec, ModelSessionLaunchError> {
+        let spec = self.jobs_request(&request)?;
+        let body = spec.body.clone().unwrap_or_else(|| serde_json::json!({}));
+        let client = self.client.clone();
+        let url = spec.url.clone();
+        self.runtime.spawn(async move {
+            let result = match post_json_expect_value(&client, &url, &body).await {
+                Ok(raw) => ModelSessionJobResult::from_json(raw),
+                Err(e) => Err(e.to_string()),
+            };
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+        Ok(spec)
+    }
+
+    /// The direct repo-folder-bound spawn remains IPC-only. This path intentionally never returns a fake
+    /// session id.
+    pub fn direct_spawn_workspace(
+        base_url: &str,
+        request: &ModelSessionLaunchRequest,
+    ) -> Result<ModelSessionDirectSpawn, ModelSessionLaunchError> {
+        request.validate()?;
+        Err(ModelSessionLaunchError::EndpointMissing {
+            probed_path: MODEL_SESSION_DIRECT_SPAWN_PROBED_PATH.to_owned(),
+            probed_url: Self::direct_spawn_probed_url(base_url),
+            ipc_channel: MODEL_SESSION_LAUNCH_IPC_CHANNEL,
+            ipc_owner: MODEL_SESSION_LAUNCH_IPC_OWNER,
+            request: ModelSessionDirectSpawnRequest::from(request),
+        })
+    }
+}
+
+/// Placeholder for a future native direct-spawn response. There is deliberately no fake constructor.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelSessionDirectSpawn {
+    pub session_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ModelSessionLaunchError {
+    InvalidRequest {
+        field: &'static str,
+        reason: String,
+    },
+    EndpointMissing {
+        probed_path: String,
+        probed_url: String,
+        ipc_channel: &'static str,
+        ipc_owner: &'static str,
+        request: ModelSessionDirectSpawnRequest,
+    },
+}
+
+impl ModelSessionLaunchError {
+    pub fn is_endpoint_missing(&self) -> bool {
+        matches!(self, Self::EndpointMissing { .. })
+    }
+}
+
+impl fmt::Display for ModelSessionLaunchError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidRequest { field, reason } => {
+                write!(f, "InvalidRequest: {field}: {reason}")
+            }
+            Self::EndpointMissing {
+                ipc_channel,
+                ipc_owner,
+                ..
+            } => write!(
+                f,
+                "EndpointMissing: direct repo-folder model session spawn with wrapper is IPC-only via {ipc_channel} in {ipc_owner}"
+            ),
+        }
+    }
+}
+
+fn model_session_jobs_request(
+    base_url: &str,
+    request: &ModelSessionLaunchRequest,
+) -> Result<RequestSpec, ModelSessionLaunchError> {
+    request.validate()?;
+    let request = request.trimmed();
+    let backend = request.provider.as_str();
+    let job_inputs = serde_json::json!({
+        "launch_surface": "handshake_native",
+        "launch_mode": "workspace_model_session",
+        "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+        "mt_id": "MT-101",
+        "workspace_id": request.workspace_id,
+        "workspace_folder": request.workspace_folder,
+        "working_dir": request.workspace_folder,
+        "model_provider": backend,
+        "model_id": request.model_id,
+        "backend": backend,
+        "wrapper": request.wrapper,
+        "prompt": "Native model-session launch request: bind execution to job_inputs.working_dir and wrapper before running operator work.",
+        "role": "assistant",
+        "lane": "PRIMARY",
+        "priority": 50,
+        "retry_backoff": "exponential",
+        "timeout_ms": 120000,
+        "max_tokens_budget": 4096,
+        "max_retries": 3,
+        "parameter_class": "default",
+        "execution_mode": "STANDARD",
+        "memory_policy": "EPHEMERAL",
+        "capability_grants": [],
+        "capability_token_ids": [],
+        "session_messages": [],
+        "simulate_duration_ms": 0,
+    });
+    Ok(RequestSpec {
+        method: HttpMethod::Post,
+        url: format!("{base_url}{MODEL_SESSION_JOBS_PATH}"),
+        body: Some(serde_json::json!({
+            "job_kind": "model_run",
+            "protocol_id": MODEL_SESSION_PROTOCOL_ID,
+            "job_inputs": job_inputs,
+        })),
+    })
 }
 
 /// Health probe (CONTROL-2). Kept as a full URL for the existing MT-002 health wiring.
@@ -876,6 +1242,32 @@ async fn post_expect_success(
         )));
     }
     Ok(())
+}
+
+/// POST `body`, require a 2xx response, and return the JSON body. Used when a receipt body matters
+/// (MT-101 model-session `/jobs` creation); non-2xx and parse failures are surfaced, never treated as a
+/// successful launch.
+async fn post_json_expect_value(
+    client: &reqwest::Client,
+    url: &str,
+    body: &serde_json::Value,
+) -> Result<serde_json::Value, AppError> {
+    let resp = client
+        .post(url)
+        .timeout(Duration::from_secs(5))
+        .json(body)
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    if !resp.status().is_success() {
+        return Err(AppError::Http(format!(
+            "POST non-success status {}",
+            resp.status()
+        )));
+    }
+    resp.json()
+        .await
+        .map_err(|e| AppError::Parse(e.to_string()))
 }
 
 /// PATCH `body` and treat any 2xx as success.

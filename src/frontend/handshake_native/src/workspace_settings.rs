@@ -341,7 +341,12 @@ impl EditorPrefs {
         let editor_font_size = obj
             .get("editor_font_size")
             .and_then(Value::as_f64)
-            .map(|v| (v as f32).clamp(*EDITOR_FONT_SIZE_RANGE.start(), *EDITOR_FONT_SIZE_RANGE.end()))
+            .map(|v| {
+                (v as f32).clamp(
+                    *EDITOR_FONT_SIZE_RANGE.start(),
+                    *EDITOR_FONT_SIZE_RANGE.end(),
+                )
+            })
             .unwrap_or(fallback.editor_font_size);
         let tab_size = obj
             .get("tab_size")
@@ -548,7 +553,11 @@ impl WorkspaceSettingsState {
 
     /// Set (or insert) the chord for `action_id`, preserving `APP_KEYBINDING_ACTIONS` order.
     pub fn set_chord(&mut self, action_id: &str, chord: String) {
-        if let Some(existing) = self.keybindings.iter_mut().find(|b| b.action_id == action_id) {
+        if let Some(existing) = self
+            .keybindings
+            .iter_mut()
+            .find(|b| b.action_id == action_id)
+        {
             existing.chord = chord;
         } else {
             self.keybindings.push(Keybinding {
@@ -599,7 +608,10 @@ impl WorkspaceSettingsState {
     pub fn to_settings_state(&self) -> Value {
         let mut keybindings = serde_json::Map::new();
         for binding in &self.keybindings {
-            keybindings.insert(binding.action_id.clone(), Value::String(binding.chord.clone()));
+            keybindings.insert(
+                binding.action_id.clone(),
+                Value::String(binding.chord.clone()),
+            );
         }
         // MT-072: editor keybinding overrides emit as a separate top-level array (NOT into the
         // backend-validated `keybindings` map — RISK-001). Each entry is `{action, chord}`.
@@ -826,7 +838,8 @@ pub fn normalize_workspace_settings_state(
     // this is the manual-round-trip analogue of #[serde(default)]; the struct uses an explicit
     // normalize, not serde-derive, so "absent => fallback" is implemented here per field).
     let editor_prefs = EditorPrefs::from_json(obj.get("editor_prefs"), &fallback.editor_prefs);
-    let syntax_palette = SyntaxPalette::from_json(obj.get("syntax_palette"), &fallback.syntax_palette);
+    let syntax_palette =
+        SyntaxPalette::from_json(obj.get("syntax_palette"), &fallback.syntax_palette);
     let editor_keybindings = match obj.get("editor_keybindings").and_then(Value::as_array) {
         Some(arr) => arr
             .iter()
@@ -908,6 +921,31 @@ pub const TERMINAL_OUTPUT_LOGGING_SETTING: NotYetWiredSetting = NotYetWiredSetti
     note: "Not yet wired - backend redacts + records captured output",
 };
 
+/// Model-session default provider. MT-101 keeps provider per-launch; durable defaults are not wired yet.
+pub const MODEL_SESSION_DEFAULT_PROVIDER_SETTING: NotYetWiredSetting = NotYetWiredSetting {
+    id: "model-session-default-provider",
+    label: "Model-session default provider",
+    fixed_value: "Per launch",
+    note: "Not yet wired - choose Local or Cloud in the launch dialog",
+};
+
+/// Model-session default wrapper. The MT-101 dialog seeds this value but does not persist it yet.
+pub const MODEL_SESSION_DEFAULT_WRAPPER_SETTING: NotYetWiredSetting = NotYetWiredSetting {
+    id: "model-session-default-wrapper",
+    label: "Model-session default wrapper",
+    fixed_value: "repo-folder-wrapper-v1",
+    note: "Not yet wired - edit the wrapper in the launch dialog",
+};
+
+/// Model-session local model root. Native launch records model_id/path in /jobs but does not own model
+/// inventory discovery yet.
+pub const MODEL_SESSION_LOCAL_MODEL_ROOT_SETTING: NotYetWiredSetting = NotYetWiredSetting {
+    id: "model-session-local-model-root",
+    label: "Model-session local model root",
+    fixed_value: "Configured outside native settings",
+    note: "Not yet wired - provide the model id/path in the launch dialog",
+};
+
 /// The app name shown in the About section. Port of `ABOUT_INFO.appName`.
 pub const ABOUT_APP_NAME: &str = "Handshake";
 
@@ -951,7 +989,8 @@ pub trait SettingsTransport: Send + Sync {
     fn load(&self, workspace_id: &str) -> Result<Option<Value>, SettingsTransportError>;
 
     /// `PUT /workspaces/{workspace_id}/settings` with `{ settings_state }` → the persisted blob.
-    fn save(&self, workspace_id: &str, settings_state: Value) -> Result<(), SettingsTransportError>;
+    fn save(&self, workspace_id: &str, settings_state: Value)
+        -> Result<(), SettingsTransportError>;
 }
 
 /// Production transport: the backend's PostgreSQL-authoritative workspace-settings REST surface
@@ -998,7 +1037,9 @@ fn urlencode(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for b in s.bytes() {
         match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => out.push(b as char),
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(b as char)
+            }
             _ => out.push_str(&format!("%{b:02X}")),
         }
     }
@@ -1034,7 +1075,11 @@ impl SettingsTransport for SettingsClient {
         })
     }
 
-    fn save(&self, workspace_id: &str, settings_state: Value) -> Result<(), SettingsTransportError> {
+    fn save(
+        &self,
+        workspace_id: &str,
+        settings_state: Value,
+    ) -> Result<(), SettingsTransportError> {
         let url = self.settings_url(workspace_id);
         let client = self.client.clone();
         let request_body = serde_json::json!({ "settings_state": settings_state });
@@ -1102,11 +1147,7 @@ mod tests {
         );
         // Three-label format ("A, B and C").
         assert_eq!(
-            keybinding_label_for_conflict(&[
-                "A".to_owned(),
-                "B".to_owned(),
-                "C".to_owned()
-            ]),
+            keybinding_label_for_conflict(&["A".to_owned(), "B".to_owned(), "C".to_owned()]),
             "A, B and C",
         );
     }
@@ -1117,10 +1158,19 @@ mod tests {
         // Empty query matches everything.
         assert!(setting_matches_query("", &["anything"]));
         // Substring of a joined term matches.
-        assert!(setting_matches_query("theme", &["appearance", "theme", "dark"]));
-        assert!(setting_matches_query("dar", &["appearance", "theme", "dark"]));
+        assert!(setting_matches_query(
+            "theme",
+            &["appearance", "theme", "dark"]
+        ));
+        assert!(setting_matches_query(
+            "dar",
+            &["appearance", "theme", "dark"]
+        ));
         // A term not present does not match.
-        assert!(!setting_matches_query("terminal", &["appearance", "theme", "dark"]));
+        assert!(!setting_matches_query(
+            "terminal",
+            &["appearance", "theme", "dark"]
+        ));
         // Case-insensitive (caller lowercases the query; terms are lowercased here).
         assert!(setting_matches_query("view", &["View", "Mode", "NSFW"]));
     }
@@ -1172,15 +1222,24 @@ mod tests {
 
         let json = settings.to_settings_state();
         let back = normalize_workspace_settings_state(&json, &default_workspace_settings_state());
-        assert_eq!(back, settings, "settings round-trip through the backend JSON shape");
+        assert_eq!(
+            back, settings,
+            "settings round-trip through the backend JSON shape"
+        );
     }
 
     #[test]
     fn theme_maps_to_and_from_hs_theme() {
         assert_eq!(WorkspaceTheme::Dark.to_hs_theme(), HsTheme::Dark);
         assert_eq!(WorkspaceTheme::Light.to_hs_theme(), HsTheme::Light);
-        assert_eq!(WorkspaceTheme::from_hs_theme(HsTheme::Dark), WorkspaceTheme::Dark);
-        assert_eq!(WorkspaceTheme::from_hs_theme(HsTheme::Light), WorkspaceTheme::Light);
+        assert_eq!(
+            WorkspaceTheme::from_hs_theme(HsTheme::Dark),
+            WorkspaceTheme::Dark
+        );
+        assert_eq!(
+            WorkspaceTheme::from_hs_theme(HsTheme::Light),
+            WorkspaceTheme::Light
+        );
     }
 
     #[test]
@@ -1214,13 +1273,25 @@ mod tests {
 
         let json = settings.to_settings_state();
         let back = normalize_workspace_settings_state(&json, &default_workspace_settings_state());
-        assert_eq!(back, settings, "editor settings round-trip through the backend JSON shape");
+        assert_eq!(
+            back, settings,
+            "editor settings round-trip through the backend JSON shape"
+        );
 
         // The new fields are NEW TOP-LEVEL keys (NOT inside the backend-validated `keybindings` map).
         let obj = json.as_object().unwrap();
-        assert!(obj.contains_key("editor_prefs"), "editor_prefs is a top-level key");
-        assert!(obj.contains_key("syntax_palette"), "syntax_palette is a top-level key");
-        assert!(obj.contains_key("editor_keybindings"), "editor_keybindings is a top-level key");
+        assert!(
+            obj.contains_key("editor_prefs"),
+            "editor_prefs is a top-level key"
+        );
+        assert!(
+            obj.contains_key("syntax_palette"),
+            "syntax_palette is a top-level key"
+        );
+        assert!(
+            obj.contains_key("editor_keybindings"),
+            "editor_keybindings is a top-level key"
+        );
         // RISK-001 guard: the editor bindings did NOT leak into the backend-validated `keybindings` map.
         let kb = obj.get("keybindings").and_then(Value::as_object).unwrap();
         assert!(
@@ -1241,7 +1312,10 @@ mod tests {
         settings.editor_prefs.editor_font_size = 28.0;
 
         // Mutating editor font size left the chrome theme untouched.
-        assert_eq!(settings.theme, theme_before, "editor font size change must not alter chrome theme");
+        assert_eq!(
+            settings.theme, theme_before,
+            "editor font size change must not alter chrome theme"
+        );
 
         let json = settings.to_settings_state();
         let obj = json.as_object().unwrap();
@@ -1249,8 +1323,14 @@ mod tests {
         let editor_prefs = obj.get("editor_prefs").and_then(Value::as_object).unwrap();
         assert!(editor_prefs.contains_key("editor_font_size"));
         // The top-level appearance key (`theme`) carries NO font size — they are distinct surfaces.
-        assert!(!obj.contains_key("editor_font_size"), "editor font size is NOT a top-level chrome key");
-        assert!(obj.contains_key("theme"), "chrome appearance (theme) is its own top-level key");
+        assert!(
+            !obj.contains_key("editor_font_size"),
+            "editor font size is NOT a top-level chrome key"
+        );
+        assert!(
+            obj.contains_key("theme"),
+            "chrome appearance (theme) is its own top-level key"
+        );
     }
 
     /// AC-006: a legacy WP-011-era settings document WITHOUT any of the new keys deserializes cleanly to
@@ -1273,9 +1353,20 @@ mod tests {
         let got = normalize_workspace_settings_state(&legacy, &fallback);
 
         // It deserialized without error and the new fields are the DEFAULTS (no panic, no missing key).
-        assert_eq!(got.editor_prefs, EditorPrefs::default(), "legacy doc -> default editor prefs");
-        assert_eq!(got.syntax_palette, SyntaxPalette::default(), "legacy doc -> default syntax palette");
-        assert!(got.editor_keybindings.is_empty(), "legacy doc -> no editor keybinding overrides");
+        assert_eq!(
+            got.editor_prefs,
+            EditorPrefs::default(),
+            "legacy doc -> default editor prefs"
+        );
+        assert_eq!(
+            got.syntax_palette,
+            SyntaxPalette::default(),
+            "legacy doc -> default syntax palette"
+        );
+        assert!(
+            got.editor_keybindings.is_empty(),
+            "legacy doc -> no editor keybinding overrides"
+        );
         // And the existing fields still parsed correctly.
         assert_eq!(got.theme, WorkspaceTheme::Dark);
         assert_eq!(got.chord_for("app.quick_switcher.open"), Some("Mod-p"));
@@ -1293,8 +1384,16 @@ mod tests {
             "render_whitespace": "none",
         });
         let got = EditorPrefs::from_json(Some(&blob), &EditorPrefs::default());
-        assert_eq!(got.editor_font_size, *EDITOR_FONT_SIZE_RANGE.end(), "font size clamped to max");
-        assert_eq!(got.tab_size, *TAB_SIZE_RANGE.end(), "tab size clamped to max");
+        assert_eq!(
+            got.editor_font_size,
+            *EDITOR_FONT_SIZE_RANGE.end(),
+            "font size clamped to max"
+        );
+        assert_eq!(
+            got.tab_size,
+            *TAB_SIZE_RANGE.end(),
+            "tab size clamped to max"
+        );
     }
 
     /// `WordWrapMode::BoundedColumn` round-trips its column through JSON.
@@ -1306,7 +1405,11 @@ mod tests {
             WordWrapMode::BoundedColumn(72),
         ] {
             let j = mode.to_json();
-            assert_eq!(WordWrapMode::from_json(&j), Some(mode), "wrap mode {mode:?} round-trips");
+            assert_eq!(
+                WordWrapMode::from_json(&j),
+                Some(mode),
+                "wrap mode {mode:?} round-trips"
+            );
         }
     }
 
@@ -1314,10 +1417,24 @@ mod tests {
     #[test]
     fn editor_chord_override_is_custom_if_present_else_none() {
         let mut settings = default_workspace_settings_state();
-        assert_eq!(settings.editor_chord_override("code.open_find"), None, "no override => None (default)");
+        assert_eq!(
+            settings.editor_chord_override("code.open_find"),
+            None,
+            "no override => None (default)"
+        );
         settings.set_editor_chord("code.open_find", "Mod+Alt+F".to_owned());
-        assert_eq!(settings.editor_chord_override("code.open_find"), Some("Mod+Alt+F"));
-        assert!(settings.clear_editor_chord("code.open_find"), "clear removes the override");
-        assert_eq!(settings.editor_chord_override("code.open_find"), None, "cleared => back to default");
+        assert_eq!(
+            settings.editor_chord_override("code.open_find"),
+            Some("Mod+Alt+F")
+        );
+        assert!(
+            settings.clear_editor_chord("code.open_find"),
+            "clear removes the override"
+        );
+        assert_eq!(
+            settings.editor_chord_override("code.open_find"),
+            None,
+            "cleared => back to default"
+        );
     }
 }

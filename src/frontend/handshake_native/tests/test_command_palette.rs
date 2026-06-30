@@ -39,15 +39,12 @@ fn shell_harness() -> Harness<'static, HandshakeApp> {
     Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), ok_app())
 }
 
-/// The palette's search box, disambiguated from the always-visible MT-022 bottom search rail input
-/// (which is ALSO a `Role::TextInput` in every frame). The rail input carries the stable author_id
-/// `bottom-rail.input`; the palette search box does not, so we pick the non-rail TextInput. (Before
-/// MT-022 the palette search was the only TextInput on screen, so this test used a bare
-/// `get_by_role(TextInput)`; the rail made that ambiguous, hence this narrowing helper.)
+/// The palette's search box, disambiguated from the always-visible bottom search rail and the mounted
+/// code editor, which are also `Role::TextInput` nodes in the default shell.
 fn palette_search<'h>(harness: &'h Harness<'_, HandshakeApp>) -> egui_kittest::Node<'h> {
     harness
         .query_all_by_role(egui::accesskit::Role::TextInput)
-        .find(|n| n.accesskit_node().author_id() != Some("bottom-rail.input"))
+        .find(|n| n.accesskit_node().author_id() == Some(PALETTE_SEARCH_AUTHOR_ID))
         .expect("the palette search TextInput (the non-rail one)")
 }
 
@@ -111,9 +108,10 @@ fn opening_palette_renders_dialog_searchbox_listbox() {
     // The full app command set renders as ListBoxOption rows (AC: list real commands). UserManual: Open
     // is present and addressable.
     assert!(
-        nodes
-            .iter()
-            .any(|(a, r, _)| a == "command-palette.option.hs-usermanual-palette-open" && r == "ListBoxOption"),
+        nodes.iter().any(
+            |(a, r, _)| a == "command-palette.option.hs-usermanual-palette-open"
+                && r == "ListBoxOption"
+        ),
         "UserManual: Open row present as ListBoxOption: {nodes:?}"
     );
 }
@@ -130,7 +128,10 @@ fn search_input_is_focused_on_open() {
 
     let search = palette_search(&harness);
     // The palette's search box is the only TextInput on screen and it requested focus on open.
-    assert!(search.is_focused(), "the search input has keyboard focus on open");
+    assert!(
+        search.is_focused(),
+        "the search input has keyboard focus on open"
+    );
 }
 
 // ── AC3: typing "manual" filters the list to the UserManual commands ─────────────────────────────────
@@ -155,8 +156,14 @@ fn typing_manual_filters_to_usermanual_rows() {
         .map(|(_, _, label)| label.as_deref().unwrap_or(""))
         .collect();
 
-    assert!(rows.contains(&"UserManual: Open"), "UserManual: Open shown for 'manual': {rows:?}");
-    assert!(rows.contains(&"UserManual: Search"), "UserManual: Search shown for 'manual': {rows:?}");
+    assert!(
+        rows.contains(&"UserManual: Open"),
+        "UserManual: Open shown for 'manual': {rows:?}"
+    );
+    assert!(
+        rows.contains(&"UserManual: Search"),
+        "UserManual: Search shown for 'manual': {rows:?}"
+    );
     // A non-matching command is filtered out.
     assert!(
         !rows.contains(&"View: Toggle Theme"),
@@ -170,7 +177,10 @@ fn typing_manual_filters_to_usermanual_rows() {
 fn enter_runs_selected_command_and_closes() {
     let mut harness = shell_harness();
     harness.run();
-    assert!(!any_pane_has_usermanual_tab(harness.state()), "no UserManual tab before");
+    assert!(
+        !any_pane_has_usermanual_tab(harness.state()),
+        "no UserManual tab before"
+    );
 
     harness.state_mut().open_command_palette();
     harness.run();
@@ -206,13 +216,19 @@ fn escape_closes_without_running() {
     harness.state_mut().open_command_palette();
     harness.run();
     harness.run();
-    assert!(harness.state().command_palette_open(), "palette open before Escape");
+    assert!(
+        harness.state().command_palette_open(),
+        "palette open before Escape"
+    );
 
     harness.key_press(egui::Key::Escape);
     harness.run();
     harness.run();
 
-    assert!(!harness.state().command_palette_open(), "Escape closed the palette");
+    assert!(
+        !harness.state().command_palette_open(),
+        "Escape closed the palette"
+    );
     // Nothing ran: no UserManual tab was opened.
     assert!(
         !any_pane_has_usermanual_tab(harness.state()),
@@ -240,7 +256,10 @@ fn close_button_closes_palette() {
     harness.run();
     harness.run();
 
-    assert!(!harness.state().command_palette_open(), "Close button closed the palette");
+    assert!(
+        !harness.state().command_palette_open(),
+        "Close button closed the palette"
+    );
 }
 
 // ── Re-open resets the query (red-team R1/MC1) ───────────────────────────────────────────────────────
@@ -300,7 +319,10 @@ fn disabled_editor_row_cannot_run() {
 
     // The Bold row is present and marked disabled.
     let bold = harness.get_by_label("Bold");
-    assert!(bold.accesskit_node().is_disabled(), "editor Bold row is disabled");
+    assert!(
+        bold.accesskit_node().is_disabled(),
+        "editor Bold row is disabled"
+    );
 
     // Pressing Enter on the disabled selection does NOT run it: the palette stays open (no Run outcome).
     harness.key_press(egui::Key::Enter);

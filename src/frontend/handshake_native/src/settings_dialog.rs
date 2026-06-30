@@ -57,11 +57,12 @@ use egui::accesskit;
 
 use crate::workspace_settings::{
     find_keybinding_conflicts, keybinding_label_for_conflict, normalize_chord_input,
-    setting_matches_query, ABOUT_APP_NAME, ABOUT_VERSION, APP_KEYBINDING_ACTIONS, Keybinding,
-    NotYetWiredSetting, SettingsViewMode, WorkspaceSettingsState, WorkspaceTheme,
-    SWARM_RECONCILE_INTERVAL_SETTING, SWARM_RESOURCE_POLL_INTERVAL_SETTING,
-    TERMINAL_DEFAULT_SHELL_SETTING, TERMINAL_MAX_SCROLLBACK_SETTING,
-    TERMINAL_OUTPUT_LOGGING_SETTING,
+    setting_matches_query, Keybinding, NotYetWiredSetting, SettingsViewMode,
+    WorkspaceSettingsState, WorkspaceTheme, ABOUT_APP_NAME, ABOUT_VERSION, APP_KEYBINDING_ACTIONS,
+    MODEL_SESSION_DEFAULT_PROVIDER_SETTING, MODEL_SESSION_DEFAULT_WRAPPER_SETTING,
+    MODEL_SESSION_LOCAL_MODEL_ROOT_SETTING, SWARM_RECONCILE_INTERVAL_SETTING,
+    SWARM_RESOURCE_POLL_INTERVAL_SETTING, TERMINAL_DEFAULT_SHELL_SETTING,
+    TERMINAL_MAX_SCROLLBACK_SETTING, TERMINAL_OUTPUT_LOGGING_SETTING,
 };
 
 /// Fixed AccessKit/egui `NodeId` of the settings DIALOG root (Role::Dialog, modal). Fresh band slot 17:
@@ -227,7 +228,9 @@ impl DialogState {
                     .draft_for(action.id)
                     .map(normalize_chord_input)
                     .unwrap_or_else(|| {
-                        normalize_chord_input(live.chord_for(action.id).unwrap_or(action.default_chord))
+                        normalize_chord_input(
+                            live.chord_for(action.id).unwrap_or(action.default_chord),
+                        )
                     });
                 Keybinding {
                     action_id: action.id.to_owned(),
@@ -462,7 +465,16 @@ fn render_sections(
     // ── [1] Appearance (theme + view mode — both WIRED) ────────────────────────────────────────────
     let show_appearance = setting_matches_query(
         query,
-        &["appearance", "theme", "light", "dark", "view", "mode", "sfw", "nsfw"],
+        &[
+            "appearance",
+            "theme",
+            "light",
+            "dark",
+            "view",
+            "mode",
+            "sfw",
+            "nsfw",
+        ],
     );
     let show_theme_row = setting_matches_query(query, &["appearance", "theme", "light", "dark"]);
     let show_view_mode_row =
@@ -532,13 +544,17 @@ fn render_sections(
         APP_KEYBINDING_ACTIONS
             .iter()
             .filter(|action| {
-                let mut terms: Vec<&str> = vec!["keybinding", "shortcut", action.label, action.description];
+                let mut terms: Vec<&str> =
+                    vec!["keybinding", "shortcut", action.label, action.description];
                 terms.extend_from_slice(action.keywords);
                 setting_matches_query(query, &terms)
             })
             .collect();
     let show_keybindings = !visible_actions.is_empty()
-        || setting_matches_query(query, &["keybinding", "keybindings", "shortcut", "shortcuts"]);
+        || setting_matches_query(
+            query,
+            &["keybinding", "keybindings", "shortcut", "shortcuts"],
+        );
     if show_keybindings {
         let keybindings_header = egui::CollapsingHeader::new("Keybindings")
             .default_open(true)
@@ -572,68 +588,65 @@ fn render_sections(
                             ui.label(action.label);
                             ui.label(egui::RichText::new(action.description).small().weak());
                         });
-                        ui.with_layout(
-                            egui::Layout::right_to_left(egui::Align::Center),
-                            |ui| {
-                                let reset = ui.button("Reset");
-                                set_author_id(
-                                    ui,
-                                    reset.id,
-                                    &format!("{KEYBINDING_RESET_AUTHOR_ID_PREFIX}{}", action.id),
-                                );
-                                if reset.clicked() && outcome == SettingsOutcome::None {
-                                    // Reflect the default in the draft immediately, then emit the reset.
-                                    state.set_draft(action.id, action.default_chord.to_owned());
-                                    outcome = SettingsOutcome::KeybindingReset {
-                                        action_id: action.id.to_owned(),
-                                    };
-                                }
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            let reset = ui.button("Reset");
+                            set_author_id(
+                                ui,
+                                reset.id,
+                                &format!("{KEYBINDING_RESET_AUTHOR_ID_PREFIX}{}", action.id),
+                            );
+                            if reset.clicked() && outcome == SettingsOutcome::None {
+                                // Reflect the default in the draft immediately, then emit the reset.
+                                state.set_draft(action.id, action.default_chord.to_owned());
+                                outcome = SettingsOutcome::KeybindingReset {
+                                    action_id: action.id.to_owned(),
+                                };
+                            }
 
-                                // Editable chord input bound to the draft.
-                                let mut draft = state
-                                    .draft_for(action.id)
-                                    .map(str::to_owned)
-                                    .unwrap_or_else(|| action.default_chord.to_owned());
-                                let input = ui.add(
-                                    egui::TextEdit::singleline(&mut draft)
-                                        .desired_width(140.0)
-                                        .hint_text(action.default_chord),
-                                );
-                                set_author_id_and_label(
-                                    ui,
-                                    input.id,
-                                    &format!("{KEYBINDING_INPUT_AUTHOR_ID_PREFIX}{}", action.id),
-                                    &format!("{} keybinding", action.label),
-                                );
-                                if input.changed() {
-                                    state.set_draft(action.id, draft.clone());
-                                    // Persist ONLY when the new draft is conflict-free (AC6): build the
-                                    // would-be settings, normalize, check conflicts; emit on clean.
-                                    //
-                                    // FIX-D — conflict basis (DELIBERATE): the conflict check runs over
-                                    // `draft_settings` (every action's CURRENT draft text, normalized),
-                                    // NOT over the persisted `settings.keybindings`. This is intentional:
-                                    // an editor must see a conflict against what the user is TYPING right
-                                    // now across all rows, not against the last-saved chords (which may
-                                    // already be stale relative to two in-progress edits). The persisted
-                                    // keybindings only seed the drafts on (re-)open; from then on the
-                                    // visible drafts are authoritative for conflict detection, so a
-                                    // `KeybindingChanged` is emitted (and later persisted) only when the
-                                    // DRAFT set — the user's visible intent — is conflict-free.
-                                    let normalized = normalize_chord_input(&draft);
-                                    if !normalized.is_empty() && outcome == SettingsOutcome::None {
-                                        let mut probe = state.draft_settings(settings);
-                                        probe.set_chord(action.id, normalized.clone());
-                                        if find_keybinding_conflicts(&probe).is_empty() {
-                                            outcome = SettingsOutcome::KeybindingChanged {
-                                                action_id: action.id.to_owned(),
-                                                chord: normalized,
-                                            };
-                                        }
+                            // Editable chord input bound to the draft.
+                            let mut draft = state
+                                .draft_for(action.id)
+                                .map(str::to_owned)
+                                .unwrap_or_else(|| action.default_chord.to_owned());
+                            let input = ui.add(
+                                egui::TextEdit::singleline(&mut draft)
+                                    .desired_width(140.0)
+                                    .hint_text(action.default_chord),
+                            );
+                            set_author_id_and_label(
+                                ui,
+                                input.id,
+                                &format!("{KEYBINDING_INPUT_AUTHOR_ID_PREFIX}{}", action.id),
+                                &format!("{} keybinding", action.label),
+                            );
+                            if input.changed() {
+                                state.set_draft(action.id, draft.clone());
+                                // Persist ONLY when the new draft is conflict-free (AC6): build the
+                                // would-be settings, normalize, check conflicts; emit on clean.
+                                //
+                                // FIX-D — conflict basis (DELIBERATE): the conflict check runs over
+                                // `draft_settings` (every action's CURRENT draft text, normalized),
+                                // NOT over the persisted `settings.keybindings`. This is intentional:
+                                // an editor must see a conflict against what the user is TYPING right
+                                // now across all rows, not against the last-saved chords (which may
+                                // already be stale relative to two in-progress edits). The persisted
+                                // keybindings only seed the drafts on (re-)open; from then on the
+                                // visible drafts are authoritative for conflict detection, so a
+                                // `KeybindingChanged` is emitted (and later persisted) only when the
+                                // DRAFT set — the user's visible intent — is conflict-free.
+                                let normalized = normalize_chord_input(&draft);
+                                if !normalized.is_empty() && outcome == SettingsOutcome::None {
+                                    let mut probe = state.draft_settings(settings);
+                                    probe.set_chord(action.id, normalized.clone());
+                                    if find_keybinding_conflicts(&probe).is_empty() {
+                                        outcome = SettingsOutcome::KeybindingChanged {
+                                            action_id: action.id.to_owned(),
+                                            chord: normalized,
+                                        };
                                     }
                                 }
-                            },
-                        );
+                            }
+                        });
                     });
                 }
 
@@ -760,6 +773,26 @@ fn render_sections(
         );
     }
 
+    // ── [5b] Model Session (not-yet-wired durable defaults) ────────────────────────────────────────
+    let show_model_session = setting_matches_query(
+        query,
+        &["model", "session", "launch", "local", "cloud", "wrapper"],
+    );
+    if show_model_session {
+        let model_header = egui::CollapsingHeader::new("Model Session")
+            .default_open(true)
+            .show(ui, |ui| {
+                not_yet_wired_row(ui, &MODEL_SESSION_DEFAULT_PROVIDER_SETTING);
+                not_yet_wired_row(ui, &MODEL_SESSION_DEFAULT_WRAPPER_SETTING);
+                not_yet_wired_row(ui, &MODEL_SESSION_LOCAL_MODEL_ROOT_SETTING);
+            });
+        set_author_id(
+            ui,
+            model_header.header_response.id,
+            &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}model-session"),
+        );
+    }
+
     // ── [6] About (app name + REAL Cargo version) ──────────────────────────────────────────────────
     let show_about = setting_matches_query(query, &["about", "app", "version"]);
     if show_about {
@@ -796,8 +829,18 @@ fn render_sections(
     let show_editor = setting_matches_query(
         query,
         &[
-            "editor", "font", "size", "tab", "spaces", "indent", "wrap", "word", "whitespace",
-            "render", "auto", "save",
+            "editor",
+            "font",
+            "size",
+            "tab",
+            "spaces",
+            "indent",
+            "wrap",
+            "word",
+            "whitespace",
+            "render",
+            "auto",
+            "save",
         ],
     );
     if show_editor {
@@ -826,8 +869,18 @@ fn render_sections(
     let show_syntax = setting_matches_query(
         query,
         &[
-            "syntax", "palette", "color", "colour", "scheme", "muted", "standard", "custom",
-            "keyword", "string", "comment", "highlight",
+            "syntax",
+            "palette",
+            "color",
+            "colour",
+            "scheme",
+            "muted",
+            "standard",
+            "custom",
+            "keyword",
+            "string",
+            "comment",
+            "highlight",
         ],
     );
     if show_syntax {
@@ -893,9 +946,7 @@ fn render_sections(
 
 /// MT-072: map an [`crate::settings_editor_section::EditorSectionOutcome`] from the editor sections onto
 /// the dialog's [`SettingsOutcome`] the shell already applies + persists. `None` maps to `None`.
-fn map_editor_outcome(
-    o: crate::settings_editor_section::EditorSectionOutcome,
-) -> SettingsOutcome {
+fn map_editor_outcome(o: crate::settings_editor_section::EditorSectionOutcome) -> SettingsOutcome {
     use crate::settings_editor_section::EditorSectionOutcome as E;
     match o {
         E::None => SettingsOutcome::None,
@@ -1018,7 +1069,10 @@ mod tests {
         assert_eq!(SETTINGS_LIST_AUTHOR_ID, "settings.list");
         assert_eq!(THEME_COMBO_AUTHOR_ID, "settings.theme");
         assert_eq!(VIEW_MODE_COMBO_AUTHOR_ID, "settings.view-mode");
-        assert_eq!(SWARM_BOARD_CHECKBOX_AUTHOR_ID, "settings.swarm-board-default-open");
+        assert_eq!(
+            SWARM_BOARD_CHECKBOX_AUTHOR_ID,
+            "settings.swarm-board-default-open"
+        );
         assert_eq!(RESET_LAYOUT_AUTHOR_ID, "settings.reset-layout");
         assert_eq!(CLOSE_AUTHOR_ID, "settings.close");
     }
