@@ -736,6 +736,7 @@ fn manual_documents_atelier_tabs_and_argus_control_ids() {
         "atelier-ingest-batch-tags",
         "atelier-ingest-dataset-ref",
         "atelier-ingest-character-ref",
+        "atelier-ingest-actor",
         "atelier-ingest-batch-note",
         "atelier-ingest-event",
         "atelier-ingest-date",
@@ -748,12 +749,20 @@ fn manual_documents_atelier_tabs_and_argus_control_ids() {
         "atelier-ingest-contact-export",
         "atelier-ingest-facial-profile",
         "atelier-ingest-queue-readout",
+        "atelier-ingest-batch-summary",
         "atelier-ingest-status",
         "atelier-ingest-last-receipt",
+        "atelier-intake-batch-{stable_batch_id}",
         "Facial quality/dedupe/identity profile",
         "contact sheet",
         "link intent metadata",
-        "currently loaded rows",
+        "full canonical backend batch",
+        "requested_by",
+        "applied_count",
+        "applied_preview_count",
+        "total_item_count",
+        "canonical_counts_loaded=false",
+        "truncated_count",
         "Argus",
     ] {
         assert!(
@@ -773,6 +782,10 @@ fn manual_agent_tool_rows_cover_ingest_dataset_contact_and_facial_controls() {
         ),
         (
             handshake_native::atelier_panel::ATELIER_INGEST_CHARACTER_REF_AUTHOR_ID,
+            "argus.set_value",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_ACTOR_AUTHOR_ID,
             "argus.set_value",
         ),
         (
@@ -821,6 +834,10 @@ fn manual_agent_tool_rows_cover_ingest_dataset_contact_and_facial_controls() {
         ),
         (
             handshake_native::atelier_panel::ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID,
+            "argus.inspect",
+        ),
+        (
+            handshake_native::atelier_panel::ATELIER_INGEST_BATCH_SUMMARY_AUTHOR_ID,
             "argus.inspect",
         ),
         (

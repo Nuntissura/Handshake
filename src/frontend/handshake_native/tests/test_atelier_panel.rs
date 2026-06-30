@@ -65,7 +65,8 @@ use handshake_native::atelier_panel::{
     ATELIER_CKC_TEMPLATE_LOAD_AUTHOR_ID, ATELIER_CKC_TEMPLATE_STATUS_AUTHOR_ID,
     ATELIER_CKC_TYPED_REF_KIND_AUTHOR_ID, ATELIER_CONTENT_CKC_AUTHOR_ID,
     ATELIER_CONTENT_INGEST_AUTHOR_ID, ATELIER_CONTENT_POSEKIT_AUTHOR_ID,
-    ATELIER_INGEST_APPLY_BATCH_AUTHOR_ID, ATELIER_INGEST_BATCH_NOTE_AUTHOR_ID,
+    ATELIER_INGEST_ACTOR_AUTHOR_ID, ATELIER_INGEST_APPLY_BATCH_AUTHOR_ID,
+    ATELIER_INGEST_BATCH_NOTE_AUTHOR_ID, ATELIER_INGEST_BATCH_SUMMARY_AUTHOR_ID,
     ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID, ATELIER_INGEST_CHARACTER_REF_AUTHOR_ID,
     ATELIER_INGEST_CONTACT_COLUMNS_AUTHOR_ID, ATELIER_INGEST_CONTACT_DPI_AUTHOR_ID,
     ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID, ATELIER_INGEST_CONTACT_ROWS_AUTHOR_ID,
@@ -98,7 +99,9 @@ use handshake_native::atelier_panel::{
     ATELIER_TABLIST_AUTHOR_ID, ATELIER_TAB_CKC_AUTHOR_ID, ATELIER_TAB_INGEST_AUTHOR_ID,
     ATELIER_TAB_POSEKIT_AUTHOR_ID,
 };
-use handshake_native::atelier_side_panel::{item_author_id, AtelierSidePanel, PANEL_AUTHOR_ID};
+use handshake_native::atelier_side_panel::{
+    batch_author_id, item_author_id, AtelierSidePanel, PANEL_AUTHOR_ID,
+};
 use handshake_native::backend_client::{AtelierBatchRow, AtelierClient, AtelierItemRow};
 use handshake_native::graph::canvas_board::{CanvasEvent, LoomCanvasBoard};
 use handshake_native::mcp::{
@@ -2391,6 +2394,7 @@ fn posekit_and_ingest_controls_are_model_addressable() {
     for expected in [
         ATELIER_INGEST_DATASET_REF_AUTHOR_ID,
         ATELIER_INGEST_CHARACTER_REF_AUTHOR_ID,
+        ATELIER_INGEST_ACTOR_AUTHOR_ID,
         ATELIER_INGEST_PASS_AUTHOR_ID,
         ATELIER_INGEST_REJECT_AUTHOR_ID,
         ATELIER_INGEST_UNSURE_AUTHOR_ID,
@@ -2421,7 +2425,9 @@ fn posekit_and_ingest_controls_are_model_addressable() {
     }
     for expected in [
         PANEL_AUTHOR_ID,
+        &batch_author_id("batch-1"),
         &item_author_id("item-aaa"),
+        ATELIER_INGEST_BATCH_SUMMARY_AUTHOR_ID,
         ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID,
         ATELIER_INGEST_STATUS_AUTHOR_ID,
         ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID,
@@ -2464,6 +2470,7 @@ fn ingest_batch_metadata_and_contact_sheet_controls_update_argus_state() {
             ATELIER_INGEST_CHARACTER_REF_AUTHOR_ID,
             "atelier://character/mira",
         ),
+        (ATELIER_INGEST_ACTOR_AUTHOR_ID, "ingest-agent-manual"),
         (
             ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID,
             "event:i76, outfit:school-uniform",
@@ -2543,6 +2550,11 @@ fn ingest_batch_metadata_and_contact_sheet_controls_update_argus_state() {
         queue.contains("atelier://character/mira"),
         "queue readout must include updated character ref; got {queue}"
     );
+    let actor = snapshot
+        .find_by_author_id(ATELIER_INGEST_ACTOR_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("ingest actor field visible");
+    assert_eq!(actor, "ingest-agent-manual");
     assert!(
         queue.contains("decision=pass"),
         "queue readout must include updated decision; got {queue}"
@@ -2577,6 +2589,62 @@ fn ingest_batch_metadata_and_contact_sheet_controls_update_argus_state() {
         .expect("ingest status visible");
     assert!(status.contains("Contact sheet staged"));
     assert!(status.contains("12 cells"));
+}
+
+#[test]
+fn ingest_batch_summary_and_client_default_actor_are_argus_visible() {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("Ingest actor proof runtime");
+    let client = AtelierClient::new_with_actor_id(
+        "http://127.0.0.1:9",
+        runtime.handle().clone(),
+        "ingest-client-017",
+    );
+    let mut harness = build_panel_harness_with_client(egui::vec2(1280.0, 760.0), client);
+    harness.run();
+
+    harness
+        .get_by(|node| node.author_id() == Some(ATELIER_TAB_INGEST_AUTHOR_ID))
+        .click();
+    harness.run();
+    harness.run();
+
+    let snapshot = snapshot_harness(&mut harness);
+    let batch_button_id = batch_author_id("batch-1");
+    assert!(
+        snapshot.find_by_author_id(&batch_button_id).is_some(),
+        "stable batch selector {batch_button_id} must be Argus-visible"
+    );
+    let actor = snapshot
+        .find_by_author_id(ATELIER_INGEST_ACTOR_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("ingest actor field visible");
+    assert_eq!(
+        actor, "ingest-client-017",
+        "Ingest actor field must default from the client actor id"
+    );
+    let summary = snapshot
+        .find_by_author_id(ATELIER_INGEST_BATCH_SUMMARY_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("batch summary visible");
+    for required in [
+        "batch_id=batch-1",
+        "total=3",
+        "pending=2",
+        "accepted=1",
+        "rejected=0",
+        "deferred=0",
+        "skipped=0",
+        "failed=0",
+        "visible_items=3",
+    ] {
+        assert!(
+            summary.contains(required),
+            "batch summary missing {required}; got {summary}"
+        );
+    }
 }
 
 #[test]

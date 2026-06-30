@@ -37,7 +37,8 @@ use std::sync::{Arc, Mutex};
 use egui::accesskit;
 
 use crate::backend_client::{
-    AtelierClient, AtelierCorpusRow, AtelierItemRow, AtelierItemsCell, AtelierSidePanelCell,
+    AtelierBatchItemsProjection, AtelierClient, AtelierCorpusRow, AtelierItemRow, AtelierItemsCell,
+    AtelierSidePanelCell,
 };
 use crate::interop::{AtelierItemKind, AtelierRef, DragPayload};
 use crate::theme::HsPalette;
@@ -48,12 +49,54 @@ pub const PANEL_AUTHOR_ID: &str = "atelier-side-panel";
 pub const REFRESH_AUTHOR_ID: &str = "atelier-side-panel.refresh";
 /// Author_id prefix for one draggable item row. The full id is `atelier-item-{sanitized_item_id}`.
 pub const ITEM_AUTHOR_ID_PREFIX: &str = "atelier-item-";
+/// Author_id prefix for one intake batch selector button.
+pub const BATCH_AUTHOR_ID_PREFIX: &str = "atelier-intake-batch-";
 
 /// The stable AccessKit author_id for one draggable item row, sanitizing `item_id` to `[a-z0-9-]` so a
 /// raw id with slashes/colons (e.g. a UUID is already safe, but a fabricated id might not be) can never
 /// break AccessKit tree integrity (reuses the shell's slugger, the canvas-board pattern).
 pub fn item_author_id(item_id: &str) -> String {
-    format!("{ITEM_AUTHOR_ID_PREFIX}{}", crate::project_tree::stable_part(item_id))
+    format!(
+        "{ITEM_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(item_id)
+    )
+}
+
+/// The stable AccessKit author_id for one batch selector.
+pub fn batch_author_id(batch_id: &str) -> String {
+    format!(
+        "{BATCH_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(batch_id)
+    )
+}
+
+fn lane_counts_from_items(items: &[AtelierItemRow]) -> crate::backend_client::AtelierLaneCounts {
+    let mut counts = crate::backend_client::AtelierLaneCounts::default();
+    for item in items {
+        match item.lane.as_str() {
+            "accepted" | "accept" => counts.accepted += 1,
+            "rejected" | "reject" => counts.rejected += 1,
+            "deferred" | "unsure" => counts.deferred += 1,
+            "skipped" => counts.skipped += 1,
+            "failed" => counts.failed += 1,
+            _ => counts.pending += 1,
+        }
+    }
+    counts
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierExpandedBatchSummary {
+    pub batch_id: String,
+    pub total: usize,
+    pub pending: usize,
+    pub accepted: usize,
+    pub rejected: usize,
+    pub deferred: usize,
+    pub skipped: usize,
+    pub failed: usize,
+    pub visible_items: usize,
+    pub value: String,
 }
 
 /// Whether a section is expanded.
@@ -82,7 +125,9 @@ pub struct AtelierSidePanel {
     corpus: Vec<AtelierCorpusRow>,
     /// The currently-expanded batch id + its loaded item rows (one batch expanded at a time, keeping the
     /// panel compact). `None` => no batch expanded.
-    expanded: Option<(String, Vec<AtelierItemRow>)>,
+    expanded: Option<(String, AtelierBatchItemsProjection)>,
+    /// True only after the backend projection has supplied canonical lane counts for the expanded batch.
+    expanded_counts_loaded: bool,
     /// The side-panel load state (drives the spinner/error/rows — no perpetual spinner).
     state: LoadState,
     /// The per-batch items-load state for the currently-expanding batch (a spinner while in flight).
@@ -110,6 +155,7 @@ impl AtelierSidePanel {
             batches: Vec::new(),
             corpus: Vec::new(),
             expanded: None,
+            expanded_counts_loaded: false,
             state: LoadState::Idle,
             items_loading: None,
             error: None,
@@ -129,7 +175,16 @@ impl AtelierSidePanel {
         let mut p = Self::with_client(None);
         p.batches = batches;
         p.corpus = corpus;
-        p.expanded = expanded;
+        p.expanded = expanded.map(|(batch_id, items)| {
+            (
+                batch_id,
+                AtelierBatchItemsProjection {
+                    lane_counts: lane_counts_from_items(&items),
+                    items,
+                },
+            )
+        });
+        p.expanded_counts_loaded = p.expanded.is_some();
         p.state = LoadState::Loaded;
         p
     }
@@ -145,8 +200,28 @@ impl AtelierSidePanel {
     ) {
         self.batches = batches;
         self.corpus = corpus;
-        self.expanded = expanded;
+        self.expanded = expanded.map(|(batch_id, items)| {
+            (
+                batch_id,
+                AtelierBatchItemsProjection {
+                    lane_counts: lane_counts_from_items(&items),
+                    items,
+                },
+            )
+        });
+        self.expanded_counts_loaded = self.expanded.is_some();
         self.state = LoadState::Loaded;
+        self.error = None;
+    }
+
+    pub fn seed_expanded_projection(
+        &mut self,
+        batch_id: String,
+        projection: AtelierBatchItemsProjection,
+    ) {
+        self.expanded = Some((batch_id, projection));
+        self.expanded_counts_loaded = true;
+        self.items_loading = None;
         self.error = None;
     }
 
@@ -165,10 +240,18 @@ impl AtelierSidePanel {
         // Toggle: clicking the expanded batch collapses it.
         if self.expanded.as_ref().map(|(id, _)| id.as_str()) == Some(batch_id) {
             self.expanded = None;
+            self.expanded_counts_loaded = false;
             self.items_loading = None;
             return;
         }
-        self.expanded = Some((batch_id.to_owned(), Vec::new()));
+        self.expanded = Some((
+            batch_id.to_owned(),
+            AtelierBatchItemsProjection {
+                lane_counts: Default::default(),
+                items: Vec::new(),
+            },
+        ));
+        self.expanded_counts_loaded = false;
         if let Some(client) = &self.client {
             self.items_loading = Some(batch_id.to_owned());
             client.fetch_items(batch_id, Arc::clone(&self.items_cell));
@@ -199,10 +282,12 @@ impl AtelierSidePanel {
                 // batch is discarded — RISK / MC: no dangling item rows).
                 if self.expanded.as_ref().map(|(id, _)| id.as_str()) == Some(batch_id.as_str()) {
                     match result {
-                        Ok(items) => {
-                            self.expanded = Some((batch_id.clone(), items));
+                        Ok(projection) => {
+                            self.expanded = Some((batch_id.clone(), projection));
+                            self.expanded_counts_loaded = true;
                         }
                         Err(msg) => {
+                            self.expanded_counts_loaded = false;
                             self.error = Some(format!("items load failed: {msg}"));
                         }
                     }
@@ -220,8 +305,66 @@ impl AtelierSidePanel {
     }
 
     /// The currently-expanded batch id + its item rows (test/peek accessor).
-    pub fn expanded(&self) -> Option<&(String, Vec<AtelierItemRow>)> {
+    pub fn expanded(&self) -> Option<(&str, &[AtelierItemRow])> {
+        if !self.expanded_counts_loaded {
+            return None;
+        }
+        self.expanded
+            .as_ref()
+            .map(|(batch_id, projection)| (batch_id.as_str(), projection.items.as_slice()))
+    }
+
+    pub fn expanded_projection(&self) -> Option<&(String, AtelierBatchItemsProjection)> {
+        if !self.expanded_counts_loaded {
+            return None;
+        }
         self.expanded.as_ref()
+    }
+
+    pub fn expanded_batch_summary(&self) -> Option<AtelierExpandedBatchSummary> {
+        let (batch_id, projection) = self.expanded.as_ref()?;
+        if !self.expanded_counts_loaded {
+            let visible_items = projection.items.len();
+            let loading = self.items_loading.as_deref() == Some(batch_id.as_str());
+            return Some(AtelierExpandedBatchSummary {
+                batch_id: batch_id.clone(),
+                total: 0,
+                pending: 0,
+                accepted: 0,
+                rejected: 0,
+                deferred: 0,
+                skipped: 0,
+                failed: 0,
+                visible_items,
+                value: format!(
+                    "batch_id={batch_id} loading={loading} canonical_counts_loaded=false visible_items={visible_items}"
+                ),
+            });
+        }
+        let counts = &projection.lane_counts;
+        let total = counts.total();
+        let visible_items = projection.items.len();
+        let value = format!(
+            "batch_id={batch_id} total={total} pending={} accepted={} rejected={} deferred={} skipped={} failed={} visible_items={visible_items}",
+            counts.pending,
+            counts.accepted,
+            counts.rejected,
+            counts.deferred,
+            counts.skipped,
+            counts.failed
+        );
+        Some(AtelierExpandedBatchSummary {
+            batch_id: batch_id.clone(),
+            total,
+            pending: counts.pending,
+            accepted: counts.accepted,
+            rejected: counts.rejected,
+            deferred: counts.deferred,
+            skipped: counts.skipped,
+            failed: counts.failed,
+            visible_items,
+            value,
+        })
     }
 
     /// Render the panel into `ui`. The panel:
@@ -240,7 +383,11 @@ impl AtelierSidePanel {
 
         // ── Header strip: title + refresh ───────────────────────────────────────────────────────────
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new("Atelier / CKC").strong().color(palette.text));
+            ui.label(
+                egui::RichText::new("Atelier / CKC")
+                    .strong()
+                    .color(palette.text),
+            );
             let refresh = ui.button("⟳");
             emit_button_node(ui, refresh.id, REFRESH_AUTHOR_ID, "Refresh atelier");
             if refresh.clicked() {
@@ -285,7 +432,11 @@ impl AtelierSidePanel {
 
         egui::ScrollArea::vertical().show(ui, |ui| {
             // ── Section 1: Media / Characters / Moodboards (intake batches -> draggable item rows) ────
-            ui.label(egui::RichText::new("Media / Characters / Moodboards").strong().color(palette.text));
+            ui.label(
+                egui::RichText::new("Media / Characters / Moodboards")
+                    .strong()
+                    .color(palette.text),
+            );
             if self.batches.is_empty() {
                 ui.label(egui::RichText::new("No intake batches yet.").color(palette.text_subtle));
             }
@@ -294,11 +445,14 @@ impl AtelierSidePanel {
             // conflict with the per-row expand/drag handlers).
             let batches = self.batches.clone();
             for batch in &batches {
-                let expanded_here =
-                    self.expanded.as_ref().map(|(id, _)| id.as_str()) == Some(batch.batch_id.as_str());
+                let expanded_here = self.expanded.as_ref().map(|(id, _)| id.as_str())
+                    == Some(batch.batch_id.as_str());
                 let marker = if expanded_here { "▼" } else { "▶" };
                 let label = format!("{marker} {}  ({})", batch.source_label, batch.status);
-                if ui.add(egui::Button::new(label).frame(false)).clicked() {
+                let response = ui.add(egui::Button::new(label).frame(false));
+                let batch_author = batch_author_id(&batch.batch_id);
+                emit_button_node(ui, response.id, &batch_author, &batch.source_label);
+                if response.clicked() {
                     self.expand_batch(&batch.batch_id);
                 }
                 if expanded_here {
@@ -309,14 +463,23 @@ impl AtelierSidePanel {
             ui.separator();
 
             // ── Section 2: Command Corpus ─────────────────────────────────────────────────────────────
-            ui.label(egui::RichText::new("Command Corpus").strong().color(palette.text));
+            ui.label(
+                egui::RichText::new("Command Corpus")
+                    .strong()
+                    .color(palette.text),
+            );
             if self.corpus.is_empty() {
-                ui.label(egui::RichText::new("No command-corpus entries.").color(palette.text_subtle));
+                ui.label(
+                    egui::RichText::new("No command-corpus entries.").color(palette.text_subtle),
+                );
             }
             for entry in &self.corpus {
                 ui.label(
-                    egui::RichText::new(format!("• {}  [{}]", entry.action_id, entry.execution_class))
-                        .color(palette.text_subtle),
+                    egui::RichText::new(format!(
+                        "• {}  [{}]",
+                        entry.action_id, entry.execution_class
+                    ))
+                    .color(palette.text_subtle),
                 );
             }
         });
@@ -334,13 +497,15 @@ impl AtelierSidePanel {
             return;
         }
         let items = match &self.expanded {
-            Some((_, items)) => items.clone(),
+            Some((_, projection)) => projection.items.clone(),
             None => return,
         };
         if items.is_empty() {
             ui.horizontal(|ui| {
                 ui.add_space(16.0);
-                ui.label(egui::RichText::new("(no items in this batch)").color(palette.text_subtle));
+                ui.label(
+                    egui::RichText::new("(no items in this batch)").color(palette.text_subtle),
+                );
             });
             return;
         }
@@ -450,8 +615,93 @@ mod tests {
         assert!(id.starts_with(ITEM_AUTHOR_ID_PREFIX));
         let suffix = &id[ITEM_AUTHOR_ID_PREFIX.len()..];
         assert!(
-            suffix.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
+            suffix
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
             "author_id suffix must be [a-z0-9-]; got '{suffix}'"
+        );
+    }
+
+    /// The batch selector author_id matches the Argus contract and sanitizes to `[a-z0-9-]`.
+    #[test]
+    fn batch_author_id_matches_contract_shape() {
+        assert_eq!(batch_author_id("abc-123"), "atelier-intake-batch-abc-123");
+        let id = batch_author_id("source://run 7#x");
+        assert!(id.starts_with(BATCH_AUTHOR_ID_PREFIX));
+        let suffix = &id[BATCH_AUTHOR_ID_PREFIX.len()..];
+        assert!(
+            suffix
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
+            "author_id suffix must be [a-z0-9-]; got '{suffix}'"
+        );
+    }
+
+    #[test]
+    fn expanded_batch_summary_uses_projection_lane_counts_not_visible_rows() {
+        let mut panel = AtelierSidePanel::with_rows(
+            vec![AtelierBatchRow {
+                batch_id: "b-1".to_owned(),
+                source_label: "Batch One".to_owned(),
+                status: "open".to_owned(),
+            }],
+            vec![],
+            Some(("b-1".to_owned(), vec![item("i-1", "a.png")])),
+        );
+        panel.seed_expanded_projection(
+            "b-1".to_owned(),
+            AtelierBatchItemsProjection {
+                lane_counts: crate::backend_client::AtelierLaneCounts {
+                    pending: 1200,
+                    accepted: 34,
+                    rejected: 56,
+                    deferred: 7,
+                    skipped: 8,
+                    failed: 9,
+                },
+                items: vec![item("i-1", "a.png")],
+            },
+        );
+        let summary = panel
+            .expanded_batch_summary()
+            .expect("expanded batch summary");
+        assert_eq!(summary.total, 1314);
+        assert_eq!(summary.visible_items, 1);
+        assert_eq!(
+            summary.value,
+            "batch_id=b-1 total=1314 pending=1200 accepted=34 rejected=56 deferred=7 skipped=8 failed=9 visible_items=1"
+        );
+    }
+
+    #[test]
+    fn expanded_batch_summary_marks_counts_loading_before_projection_arrives() {
+        let mut panel = AtelierSidePanel::with_rows(
+            vec![AtelierBatchRow {
+                batch_id: "b-1".to_owned(),
+                source_label: "Batch One".to_owned(),
+                status: "open".to_owned(),
+            }],
+            vec![],
+            None,
+        );
+        panel.expand_batch("b-1");
+        panel.items_loading = Some("b-1".to_owned());
+
+        assert!(
+            panel.expanded().is_none(),
+            "placeholder rows must not be treated as loaded canonical batch rows"
+        );
+        let summary = panel
+            .expanded_batch_summary()
+            .expect("loading batch summary");
+        assert_eq!(summary.total, 0);
+        assert_eq!(
+            summary.value,
+            "batch_id=b-1 loading=true canonical_counts_loaded=false visible_items=0"
+        );
+        assert!(
+            !summary.value.contains("total=0"),
+            "Argus summary must not present placeholder zero counts as canonical counts"
         );
     }
 
@@ -485,8 +735,14 @@ mod tests {
             vec![],
             Some(("b-1".to_owned(), vec![item("i-1", "a.png")])),
         );
-        assert!(!panel.is_loading(), "a with_rows panel is Loaded, never Loading (no perpetual spinner)");
-        assert_eq!(panel.expanded().map(|(id, items)| (id.as_str(), items.len())), Some(("b-1", 1)));
+        assert!(
+            !panel.is_loading(),
+            "a with_rows panel is Loaded, never Loading (no perpetual spinner)"
+        );
+        assert_eq!(
+            panel.expanded().map(|(id, items)| (id, items.len())),
+            Some(("b-1", 1))
+        );
     }
 
     /// `request_load` on a no-client panel is a benign no-op (stays Loaded, no panic).
@@ -494,6 +750,9 @@ mod tests {
     fn request_load_without_client_is_benign() {
         let mut panel = AtelierSidePanel::with_rows(vec![], vec![], None);
         panel.request_load();
-        assert!(!panel.is_loading(), "no client -> request_load does not enter Loading");
+        assert!(
+            !panel.is_loading(),
+            "no client -> request_load does not enter Loading"
+        );
     }
 }

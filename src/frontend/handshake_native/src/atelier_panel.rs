@@ -192,6 +192,7 @@ pub const ATELIER_INGEST_UNSURE_AUTHOR_ID: &str = "atelier-ingest-unsure";
 pub const ATELIER_INGEST_BATCH_TAGS_AUTHOR_ID: &str = "atelier-ingest-batch-tags";
 pub const ATELIER_INGEST_DATASET_REF_AUTHOR_ID: &str = "atelier-ingest-dataset-ref";
 pub const ATELIER_INGEST_CHARACTER_REF_AUTHOR_ID: &str = "atelier-ingest-character-ref";
+pub const ATELIER_INGEST_ACTOR_AUTHOR_ID: &str = "atelier-ingest-actor";
 pub const ATELIER_INGEST_BATCH_NOTE_AUTHOR_ID: &str = "atelier-ingest-batch-note";
 pub const ATELIER_INGEST_EVENT_AUTHOR_ID: &str = "atelier-ingest-event";
 pub const ATELIER_INGEST_DATE_AUTHOR_ID: &str = "atelier-ingest-date";
@@ -204,6 +205,7 @@ pub const ATELIER_INGEST_CONTACT_DPI_AUTHOR_ID: &str = "atelier-ingest-contact-d
 pub const ATELIER_INGEST_CONTACT_EXPORT_AUTHOR_ID: &str = "atelier-ingest-contact-export";
 pub const ATELIER_INGEST_FACIAL_PROFILE_AUTHOR_ID: &str = "atelier-ingest-facial-profile";
 pub const ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID: &str = "atelier-ingest-queue-readout";
+pub const ATELIER_INGEST_BATCH_SUMMARY_AUTHOR_ID: &str = "atelier-ingest-batch-summary";
 pub const ATELIER_INGEST_STATUS_AUTHOR_ID: &str = "atelier-ingest-status";
 pub const ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID: &str = "atelier-ingest-last-receipt";
 
@@ -2330,6 +2332,7 @@ struct AtelierPanelState {
     ingest_decision: IngestDecision,
     ingest_dataset_ref: String,
     ingest_character_ref: String,
+    ingest_actor: String,
     ingest_tag_buffer: String,
     ingest_batch_note: String,
     ingest_event: String,
@@ -2346,6 +2349,7 @@ struct AtelierPanelState {
     ingest_apply_pending: bool,
     ingest_apply_request_id: Option<String>,
     ingest_apply_batch_id: Option<String>,
+    ingest_apply_actor_id: Option<String>,
     ingest_last_apply_receipt: String,
 }
 
@@ -2465,6 +2469,7 @@ impl Default for AtelierPanelState {
             ingest_decision: IngestDecision::Unsure,
             ingest_dataset_ref: "dataset://atelier/inbox".to_owned(),
             ingest_character_ref: "atelier://character/mira-demo".to_owned(),
+            ingest_actor: String::new(),
             ingest_tag_buffer: "event, outfit, source".to_owned(),
             ingest_batch_note:
                 "Batch note applied to selected/pass/reject/unsure image review rows.".to_owned(),
@@ -2477,13 +2482,14 @@ impl Default for AtelierPanelState {
             ingest_contact_dpi: "300".to_owned(),
             ingest_facial_profile: "quality+dedupe+identity".to_owned(),
             ingest_status:
-                "Ingest ready: stage dataset metadata, triage loaded rows, contact sheet settings, and Facial profile hints."
+                "Ingest ready: stage dataset metadata, set canonical batch defaults, override visible rows, contact sheet settings, and Facial profile hints."
                     .to_owned(),
             ingest_item_decisions: BTreeMap::new(),
             ingest_persisted_item_ids: BTreeSet::new(),
             ingest_apply_pending: false,
             ingest_apply_request_id: None,
             ingest_apply_batch_id: None,
+            ingest_apply_actor_id: None,
             ingest_last_apply_receipt: "No backend apply receipt yet.".to_owned(),
         }
     }
@@ -4131,9 +4137,10 @@ fn ingest_contact_sheet_shape(state: &AtelierPanelState) -> (usize, usize, usize
 fn ingest_queue_readout(state: &AtelierPanelState) -> String {
     let (rows, columns, dpi, cells) = ingest_contact_sheet_shape(state);
     format!(
-        "dataset_ref={} character_ref={} decision={} link_passed={} tags={} note={} event={} date={} location={} contact_sheet={}x{}@{}dpi cells={} facial_profile={}",
+        "dataset_ref={} character_ref={} actor={} decision={} link_passed={} tags={} note={} event={} date={} location={} contact_sheet={}x{}@{}dpi cells={} facial_profile={}",
         state.ingest_dataset_ref.trim(),
         state.ingest_character_ref.trim(),
+        state.ingest_actor.trim(),
         state.ingest_decision.machine_label(),
         state.ingest_link_passed,
         state.ingest_tag_buffer.trim(),
@@ -4195,14 +4202,27 @@ fn ingest_metadata_payload(
 
 fn ingest_receipt_applied_item_ids(
     rows: &[crate::backend_client::AtelierIntakeClassificationRow],
+    applied_count: usize,
 ) -> String {
-    if rows.is_empty() {
+    const RECEIPT_ITEM_ID_DISPLAY_LIMIT: usize = 12;
+    if rows.is_empty() && applied_count == 0 {
         return "<none>".to_owned();
     }
-    rows.iter()
+    let displayed_count = rows.len().min(RECEIPT_ITEM_ID_DISPLAY_LIMIT);
+    let mut display = rows
+        .iter()
+        .take(RECEIPT_ITEM_ID_DISPLAY_LIMIT)
         .map(|row| row.item.item_id.as_str())
         .collect::<Vec<_>>()
-        .join(",")
+        .join(",");
+    if display.is_empty() {
+        display = "<preview-empty>".to_owned();
+    }
+    if applied_count > displayed_count {
+        let truncated_count = applied_count - displayed_count;
+        display.push_str(&format!(" truncated_count={truncated_count}"));
+    }
+    display
 }
 
 fn ingest_item_decision(state: &AtelierPanelState, item: &AtelierItemRow) -> IngestDecision {
@@ -4258,7 +4278,8 @@ impl AtelierPanel {
         ckc_client: Option<AtelierClient>,
     ) -> Self {
         let mut state = AtelierPanelState::default();
-        if ckc_client.is_some() {
+        if let Some(client) = ckc_client.as_ref() {
+            state.ingest_actor = client.actor_id().to_owned();
             state.ckc_characters.clear();
             state.ckc_search_results.clear();
             state.ckc_search_status = "Waiting for live CKC database load".to_owned();
@@ -5149,6 +5170,42 @@ impl AtelierPanel {
                 if state.ingest_apply_request_id.as_deref() != Some(outcome.request_id.as_str())
                     || state.ingest_apply_batch_id.as_deref() != outcome.batch_id.as_deref()
                 {
+                    let expected_request_id = state
+                        .ingest_apply_request_id
+                        .as_deref()
+                        .unwrap_or("<none>")
+                        .to_owned();
+                    let expected_batch_id = state
+                        .ingest_apply_batch_id
+                        .as_deref()
+                        .unwrap_or("<none>")
+                        .to_owned();
+                    let request_id = outcome.request_id.clone();
+                    let batch_id = outcome
+                        .batch_id
+                        .clone()
+                        .unwrap_or_else(|| "<none>".to_owned());
+                    let applied_count = outcome.applied_count;
+                    let applied_preview_count = outcome.applied.len();
+                    let total_item_count = outcome.total_item_count.unwrap_or(applied_count);
+                    let applied_ids =
+                        ingest_receipt_applied_item_ids(&outcome.applied, applied_count);
+                    let failed_detail = outcome
+                        .failed
+                        .as_ref()
+                        .map(|failed| {
+                            format!(
+                                "failed_item_id={} failed_row={} failed_error={}",
+                                failed.item_id,
+                                failed.index + 1,
+                                failed.error
+                            )
+                        })
+                        .unwrap_or_else(|| "failed_item_id=<none>".to_owned());
+                    state.ingest_last_apply_receipt = format!(
+                        "ignored_stale=true request_id={request_id} expected_request_id={expected_request_id} batch_id={batch_id} expected_batch_id={expected_batch_id} requested_by={} applied_count={applied_count} applied_preview_count={applied_preview_count} total_item_count={total_item_count} applied_item_ids={applied_ids} {failed_detail}",
+                        outcome.requested_by
+                    );
                     state.ingest_status = format!(
                         "Ignored stale ingest classification response request_id={} batch_id={:?}.",
                         outcome.request_id, outcome.batch_id
@@ -5157,16 +5214,41 @@ impl AtelierPanel {
                 }
 
                 state.ingest_apply_pending = false;
+                let expected_actor_id = state.ingest_apply_actor_id.clone();
+                if let Some(expected_actor_id) = expected_actor_id.as_deref() {
+                    if expected_actor_id != outcome.requested_by {
+                        let request_id = outcome.request_id.clone();
+                        let batch_id = outcome
+                            .batch_id
+                            .clone()
+                            .unwrap_or_else(|| "<none>".to_owned());
+                        state.ingest_apply_request_id = None;
+                        state.ingest_apply_batch_id = None;
+                        state.ingest_apply_actor_id = None;
+                        state.ingest_last_apply_receipt = format!(
+                            "ignored_actor_mismatch=true request_id={request_id} batch_id={batch_id} expected_requested_by={expected_actor_id} requested_by={}",
+                            outcome.requested_by
+                        );
+                        state.ingest_status = format!(
+                            "Ignored ingest classification response with actor mismatch: expected {expected_actor_id}, got {}.",
+                            outcome.requested_by
+                        );
+                        return;
+                    }
+                }
                 state.ingest_apply_request_id = None;
                 state.ingest_apply_batch_id = None;
+                state.ingest_apply_actor_id = None;
 
                 let request_id = outcome.request_id.clone();
                 let batch_id = outcome
                     .batch_id
                     .clone()
                     .unwrap_or_else(|| "<none>".to_owned());
-                let applied_count = outcome.applied.len();
-                let applied_ids = ingest_receipt_applied_item_ids(&outcome.applied);
+                let applied_count = outcome.applied_count;
+                let applied_preview_count = outcome.applied.len();
+                let total_item_count = outcome.total_item_count.unwrap_or(applied_count);
+                let applied_ids = ingest_receipt_applied_item_ids(&outcome.applied, applied_count);
                 for row in &outcome.applied {
                     let decision = IngestDecision::from_lane(&row.item.lane);
                     state
@@ -5179,27 +5261,26 @@ impl AtelierPanel {
 
                 if let Some(failed) = outcome.failed {
                     state.ingest_last_apply_receipt = format!(
-                        "request_id={request_id} batch_id={batch_id} applied_count={applied_count} applied_item_ids={applied_ids} failed_item_id={} failed_row={} failed_error={}",
+                        "request_id={request_id} batch_id={batch_id} requested_by={} applied_count={applied_count} applied_preview_count={applied_preview_count} total_item_count={total_item_count} applied_item_ids={applied_ids} failed_item_id={} failed_row={} failed_error={}",
+                        outcome.requested_by,
                         failed.item_id,
                         failed.index + 1,
                         failed.error
                     );
                     state.ingest_status = format!(
-                        "Persisted {applied_count} loaded intake item classification(s); failed item {} at row {}: {}",
+                        "Persisted {applied_count}/{total_item_count} canonical intake item classification(s); failed item {} at row {}: {}",
                         failed.item_id,
                         failed.index + 1,
                         failed.error
                     );
                 } else {
+                    let actor_label = outcome.requested_by.clone();
                     state.ingest_last_apply_receipt = format!(
-                        "request_id={request_id} batch_id={batch_id} applied_count={applied_count} applied_item_ids={applied_ids} failed_item_id=<none>"
+                        "request_id={request_id} batch_id={batch_id} requested_by={actor_label} applied_count={applied_count} applied_preview_count={applied_preview_count} total_item_count={total_item_count} applied_item_ids={applied_ids} failed_item_id=<none>"
                     );
                     state.ingest_status = format!(
-                        "Persisted {applied_count} loaded intake item classification(s) through backend actor {}.",
-                        self.ckc_client
-                            .as_ref()
-                            .map(|client| client.actor_id())
-                            .unwrap_or("atelier")
+                        "Persisted {applied_count}/{total_item_count} canonical intake item classification(s) through backend actor {}.",
+                        actor_label
                     );
                 }
             }
@@ -9028,14 +9109,29 @@ impl AtelierPanel {
             side_panel.show(ui, palette);
         }
         ui.separator();
-        let expanded_items = self
+        let (expanded_items, expanded_batch_summary) = self
             .side_panel
             .lock()
             .ok()
-            .and_then(|panel| panel.expanded().cloned());
+            .map(|panel| {
+                (
+                    panel
+                        .expanded()
+                        .map(|(batch_id, items)| (batch_id.to_owned(), items.to_vec())),
+                    panel.expanded_batch_summary(),
+                )
+            })
+            .unwrap_or((None, None));
         let Ok(mut state) = self.state.lock() else {
             return;
         };
+        if state.ingest_actor.trim().is_empty() {
+            state.ingest_actor = self
+                .ckc_client
+                .as_ref()
+                .map(|client| client.actor_id().to_owned())
+                .unwrap_or_else(|| "atelier-ingest".to_owned());
+        }
         ui.horizontal(|ui| {
             ui.label(egui::RichText::new("Dataset").color(palette.text));
             let dataset = ui.text_edit_singleline(&mut state.ingest_dataset_ref);
@@ -9056,6 +9152,18 @@ impl AtelierPanel {
                 ATELIER_INGEST_CHARACTER_REF_AUTHOR_ID,
                 "CKC character ref for passed image links",
                 &state.ingest_character_ref,
+            );
+        });
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new("Actor").color(palette.text));
+            let actor = ui.text_edit_singleline(&mut state.ingest_actor);
+            emit_value_node(
+                ui.ctx(),
+                actor.id,
+                accesskit::Role::TextInput,
+                ATELIER_INGEST_ACTOR_AUTHOR_ID,
+                "Ingest backend actor id for batch apply",
+                &state.ingest_actor,
             );
         });
         ui.add_space(6.0);
@@ -9185,14 +9293,14 @@ impl AtelierPanel {
         ui.horizontal(|ui| {
             let apply = ui.add_enabled(
                 !state.ingest_apply_pending,
-                egui::Button::new("Apply loaded rows"),
+                egui::Button::new("Apply full batch"),
             );
             emit_node(
                 ui.ctx(),
                 apply.id,
                 accesskit::Role::Button,
                 ATELIER_INGEST_APPLY_BATCH_AUTHOR_ID,
-                "Apply loaded intake row classifications with structured ingest metadata",
+                "Apply the full persisted intake batch with visible-row overrides and structured ingest metadata",
                 state.ingest_apply_pending,
             );
             if apply.clicked() {
@@ -9201,57 +9309,67 @@ impl AtelierPanel {
                     (self.ckc_client.as_ref(), expanded_items.as_ref())
                 {
                     let request_id = format!("atelier-ingest-{}", Uuid::new_v4());
+                    let default_decision = state.ingest_decision;
                     let metadata = ingest_metadata_payload(
                         &state,
                         &request_id,
                         Some(batch_id.as_str()),
                         items.len(),
                     );
-                    let decisions: Vec<AtelierIntakeClassificationDecision> = items
+                    let reason = format!(
+                        "dataset_ref={} character_ref={} link_passed={} tags={} note={} event={} date={} location={} facial_profile={}",
+                        state.ingest_dataset_ref.trim(),
+                        state.ingest_character_ref.trim(),
+                        state.ingest_link_passed,
+                        state.ingest_tag_buffer.trim(),
+                        state.ingest_batch_note.trim(),
+                        state.ingest_event.trim(),
+                        state.ingest_date.trim(),
+                        state.ingest_location.trim(),
+                        state.ingest_facial_profile.trim()
+                    );
+                    let overrides: Vec<AtelierIntakeClassificationDecision> = items
                         .iter()
+                        .filter(|item| state.ingest_item_decisions.contains_key(&item.item_id))
                         .map(|item| {
                             let decision = ingest_item_decision(&state, item);
-                            let reason = format!(
-                                "dataset_ref={} character_ref={} link_passed={} tags={} note={} event={} date={} location={} facial_profile={}",
-                                state.ingest_dataset_ref.trim(),
-                                state.ingest_character_ref.trim(),
-                                state.ingest_link_passed,
-                                state.ingest_tag_buffer.trim(),
-                                state.ingest_batch_note.trim(),
-                                state.ingest_event.trim(),
-                                state.ingest_date.trim(),
-                                state.ingest_location.trim(),
-                                state.ingest_facial_profile.trim()
-                            );
                             AtelierIntakeClassificationDecision {
                                 item_id: item.item_id.clone(),
                                 lane: decision.backend_lane().to_owned(),
-                                reason: Some(reason),
+                                reason: Some(reason.clone()),
                                 metadata: metadata.clone(),
                             }
                         })
                         .collect();
-                    if decisions.is_empty() {
-                        state.ingest_status =
-                            format!("No loaded intake items to classify: {readout}");
+                    let override_count = overrides.len();
+                    let actor_id = state.ingest_actor.trim().to_owned();
+                    let actor_id = if actor_id.is_empty() {
+                        "atelier-ingest".to_owned()
                     } else {
-                        let count = decisions.len();
-                        state.ingest_apply_pending = true;
-                        state.ingest_apply_request_id = Some(request_id.clone());
-                        state.ingest_apply_batch_id = Some(batch_id.clone());
-                        state.ingest_status = format!(
-                            "Dispatching {count} loaded intake item classification(s) to backend with request_id={request_id}: {readout}"
-                        );
-                        client.apply_intake_classifications(
-                            request_id,
-                            Some(batch_id.clone()),
-                            decisions,
-                            client.actor_id(),
-                            self.ingest_classification_cell.clone(),
-                        );
-                    }
+                        actor_id
+                    };
+                    state.ingest_apply_pending = true;
+                    state.ingest_apply_request_id = Some(request_id.clone());
+                    state.ingest_apply_batch_id = Some(batch_id.clone());
+                    state.ingest_apply_actor_id = Some(actor_id.clone());
+                    state.ingest_status = format!(
+                        "Dispatching canonical batch classification to backend actor {actor_id} with {override_count} visible-row override(s), default_decision={}, request_id={request_id}: {readout}",
+                        default_decision.machine_label(),
+                    );
+                    client.apply_intake_batch_classifications(
+                        request_id,
+                        batch_id.clone(),
+                        default_decision.backend_lane().to_owned(),
+                        Some(reason),
+                        metadata,
+                        overrides,
+                        &actor_id,
+                        self.ingest_classification_cell.clone(),
+                    );
                 } else {
-                    state.ingest_status = format!("Loaded-row metadata staged locally: {readout}");
+                    state.ingest_status = format!(
+                        "Full-batch apply needs an expanded backend intake batch; metadata staged locally: {readout}"
+                    );
                 }
             }
         });
@@ -9320,6 +9438,19 @@ impl AtelierPanel {
             ATELIER_INGEST_QUEUE_READOUT_AUTHOR_ID,
             "Ingest queue readout",
             &queue_readout,
+        );
+        let batch_summary = expanded_batch_summary
+            .as_ref()
+            .map(|summary| summary.value.clone())
+            .unwrap_or_else(|| "No expanded intake batch summary.".to_owned());
+        let summary = ui.label(egui::RichText::new(&batch_summary).color(palette.text_subtle));
+        emit_value_node(
+            ui.ctx(),
+            summary.id,
+            accesskit::Role::Label,
+            ATELIER_INGEST_BATCH_SUMMARY_AUTHOR_ID,
+            "Ingest canonical batch lane counts",
+            &batch_summary,
         );
         let status = ui.label(egui::RichText::new(&state.ingest_status).color(palette.text));
         emit_value_node(
@@ -9843,7 +9974,8 @@ mod tests {
     use super::*;
     use crate::backend_client::{
         AtelierBatchRow, AtelierCkcDocumentVersionRow, AtelierCkcSheetArtifactLinkRow,
-        AtelierItemRow,
+        AtelierIntakeClassificationFailure, AtelierIntakeClassificationOutcome,
+        AtelierIntakeClassificationRow, AtelierItemRow,
     };
 
     fn empty_side_panel() -> Arc<Mutex<AtelierSidePanel>> {
@@ -9852,6 +9984,179 @@ mod tests {
             Vec::new(),
             None::<(String, Vec<AtelierItemRow>)>,
         )))
+    }
+
+    fn ingest_applied_row(item_id: &str) -> AtelierIntakeClassificationRow {
+        AtelierIntakeClassificationRow {
+            item: AtelierItemRow {
+                item_id: item_id.to_owned(),
+                file_name: format!("{item_id}.png"),
+                source_path: format!("dataset://{item_id}.png"),
+                lane: "accepted".to_owned(),
+            },
+            asset_id: Some(format!("asset-{item_id}")),
+            media_ref: Some(format!("atelier://media/asset-{item_id}")),
+            collection_id: None,
+            collection_ref: None,
+            collection_inserted: false,
+            requested_by: "ingest-agent-017".to_owned(),
+        }
+    }
+
+    #[test]
+    fn ingest_receipt_applied_item_ids_caps_large_batches() {
+        let rows = (1..=15)
+            .map(|index| ingest_applied_row(&format!("item-{index:03}")))
+            .collect::<Vec<_>>();
+        let display = ingest_receipt_applied_item_ids(&rows, rows.len());
+        assert!(
+            display.contains("item-001,item-002,item-003"),
+            "receipt display should include the first applied item ids; got {display}"
+        );
+        assert!(
+            display.contains("item-012"),
+            "receipt display should include the capped boundary item; got {display}"
+        );
+        assert!(
+            !display.contains("item-013"),
+            "receipt display must not list item ids beyond the cap; got {display}"
+        );
+        assert!(
+            display.contains("truncated_count=3"),
+            "receipt display must show how many applied ids were truncated; got {display}"
+        );
+
+        let preview_display = ingest_receipt_applied_item_ids(&rows[..1], 20);
+        assert!(
+            preview_display.contains("item-001"),
+            "receipt display should include the preview id; got {preview_display}"
+        );
+        assert!(
+            preview_display.contains("truncated_count=19"),
+            "receipt display must count canonical ids omitted beyond the backend preview; got {preview_display}"
+        );
+    }
+
+    #[test]
+    fn stale_ingest_response_updates_last_receipt_with_ignored_details() {
+        let panel = AtelierPanel::new(
+            empty_side_panel(),
+            Arc::new(Mutex::new(LoomCanvasBoard::new("ws-test", "canvas-1"))),
+            Arc::new(Mutex::new(Vec::<CanvasEvent>::new())),
+        );
+        {
+            let mut state = panel.state.lock().expect("state");
+            state.ingest_apply_pending = true;
+            state.ingest_apply_request_id = Some("current-request".to_owned());
+            state.ingest_apply_batch_id = Some("current-batch".to_owned());
+            state.ingest_apply_actor_id = Some("ingest-agent-017".to_owned());
+            state.ingest_last_apply_receipt = "previous-receipt".to_owned();
+        }
+        {
+            let mut slot = panel.ingest_classification_cell.lock().expect("cell");
+            *slot = Some(AtelierIntakeClassificationOutcome {
+                request_id: "old-request".to_owned(),
+                batch_id: Some("old-batch".to_owned()),
+                total_item_count: Some(99),
+                applied_count: 99,
+                requested_by: "ingest-agent-017".to_owned(),
+                applied: vec![ingest_applied_row("item-001")],
+                failed: Some(AtelierIntakeClassificationFailure {
+                    item_id: "item-002".to_owned(),
+                    index: 1,
+                    error: "backend stale failure".to_owned(),
+                }),
+            });
+        }
+        panel.drain_ingest_classification_backend();
+        let state = panel.state.lock().expect("state");
+        assert!(
+            state.ingest_apply_pending,
+            "stale response must not clear the current pending request"
+        );
+        assert!(
+            state.ingest_status.contains("Ignored stale ingest"),
+            "status must still call out the stale response; got {}",
+            state.ingest_status
+        );
+        let receipt = &state.ingest_last_apply_receipt;
+        for required in [
+            "ignored_stale=true",
+            "request_id=old-request",
+            "expected_request_id=current-request",
+            "batch_id=old-batch",
+            "expected_batch_id=current-batch",
+            "requested_by=ingest-agent-017",
+            "applied_count=99",
+            "applied_preview_count=1",
+            "total_item_count=99",
+            "applied_item_ids=item-001",
+            "truncated_count=98",
+            "failed_item_id=item-002",
+            "failed_error=backend stale failure",
+        ] {
+            assert!(
+                receipt.contains(required),
+                "stale receipt missing {required}; got {receipt}"
+            );
+        }
+    }
+
+    #[test]
+    fn ingest_apply_receipt_uses_request_actor_not_mutated_editor_actor() {
+        let panel = AtelierPanel::new(
+            empty_side_panel(),
+            Arc::new(Mutex::new(LoomCanvasBoard::new("ws-test", "canvas-1"))),
+            Arc::new(Mutex::new(Vec::<CanvasEvent>::new())),
+        );
+        {
+            let mut state = panel.state.lock().expect("state");
+            state.ingest_actor = "changed-before-response".to_owned();
+            state.ingest_apply_pending = true;
+            state.ingest_apply_request_id = Some("current-request".to_owned());
+            state.ingest_apply_batch_id = Some("current-batch".to_owned());
+            state.ingest_apply_actor_id = Some("request-actor".to_owned());
+        }
+        {
+            let mut row = ingest_applied_row("item-001");
+            row.requested_by = "request-actor".to_owned();
+            let mut slot = panel.ingest_classification_cell.lock().expect("cell");
+            *slot = Some(AtelierIntakeClassificationOutcome {
+                request_id: "current-request".to_owned(),
+                batch_id: Some("current-batch".to_owned()),
+                total_item_count: Some(20),
+                applied_count: 20,
+                requested_by: "request-actor".to_owned(),
+                applied: vec![row],
+                failed: None,
+            });
+        }
+        panel.drain_ingest_classification_backend();
+        let state = panel.state.lock().expect("state");
+        assert!(!state.ingest_apply_pending);
+        assert!(
+            state.ingest_status.contains("backend actor request-actor"),
+            "status must use the request/backend actor, not the mutable editor actor; got {}",
+            state.ingest_status
+        );
+        let receipt = &state.ingest_last_apply_receipt;
+        for required in [
+            "requested_by=request-actor",
+            "applied_count=20",
+            "applied_preview_count=1",
+            "total_item_count=20",
+            "applied_item_ids=item-001",
+            "truncated_count=19",
+        ] {
+            assert!(
+                receipt.contains(required),
+                "receipt missing {required}; got {receipt}"
+            );
+        }
+        assert!(
+            !receipt.contains("changed-before-response"),
+            "receipt must not read attribution from the mutable editor field; got {receipt}"
+        );
     }
 
     #[test]

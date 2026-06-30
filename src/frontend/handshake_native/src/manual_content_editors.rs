@@ -444,14 +444,20 @@ procedural preview evidence, not source-rig projection. No-backend harnesses exp
 metadata only. Use argus.inspect on viewport/control IDs and \
 argus.screenshot{} for a full-frame visual proof; screenshot target cropping is not supported yet. Both \
 paths must be headless/non-intrusive: no foreground window, no keyboard capture, no mouse steal. Ingest starts from \
-atelier-content-ingest. Set atelier-ingest-dataset-ref and atelier-ingest-character-ref, choose \
+atelier-content-ingest. Select batches through stable atelier-intake-batch-{stable_batch_id} buttons, \
+inspect atelier-ingest-batch-summary for canonical lane counts, set atelier-ingest-dataset-ref, \
+atelier-ingest-character-ref, and atelier-ingest-actor, choose \
 atelier-ingest-pass, atelier-ingest-reject, or atelier-ingest-unsure, then add batch metadata with \
 atelier-ingest-batch-tags, atelier-ingest-batch-note, atelier-ingest-event, atelier-ingest-date, and \
 atelier-ingest-location. Toggle atelier-ingest-link-passed to persist link intent metadata for passed \
 rows; object-level CKC media linking occurs only when the backend intake batch already has a target \
-collection. Click atelier-ingest-apply-batch to apply the currently loaded rows, not the full canonical \
-batch, and inspect atelier-ingest-queue-readout, atelier-ingest-status, and \
-atelier-ingest-last-receipt for request id, partial-success, applied item ids, and stale-response status. \
+collection. Click atelier-ingest-apply-batch to apply the full canonical backend batch; currently \
+loaded rows are preview rows and visible-row overrides only. Inspect atelier-ingest-queue-readout, \
+atelier-ingest-batch-summary, atelier-ingest-status, and atelier-ingest-last-receipt for request id, \
+requested_by, applied_count, applied_preview_count, total_item_count, capped applied item ids, \
+truncated_count, and stale-response status. If atelier-ingest-batch-summary reports \
+canonical_counts_loaded=false, wait for the batch projection before applying; placeholder zero lane counts \
+are not canonical. \
 contact sheet staging uses atelier-ingest-contact-rows, \
 atelier-ingest-contact-columns, atelier-ingest-contact-dpi, and \
 atelier-ingest-contact-export. Facial quality/dedupe/identity profile hints live in \
@@ -1515,6 +1521,12 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             "argus.set_value{target:'atelier-ingest-character-ref', value:'atelier://character/...'} selects the CKC sheet target for passed-image links.",
         ),
         (
+            crate::atelier_panel::ATELIER_INGEST_ACTOR_AUTHOR_ID,
+            "Set Ingest actor",
+            "argus.set_value",
+            "argus.set_value{target:'atelier-ingest-actor', value:'ingest-agent-017'} sets the backend actor id used by full-batch apply receipts.",
+        ),
+        (
             crate::atelier_panel::ATELIER_INGEST_PASS_AUTHOR_ID,
             "Stage loaded Ingest rows as pass",
             "argus.click",
@@ -1570,9 +1582,9 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         ),
         (
             crate::atelier_panel::ATELIER_INGEST_APPLY_BATCH_AUTHOR_ID,
-            "Apply loaded Ingest rows",
+            "Apply full Ingest batch",
             "argus.click",
-            "argus.click{target:'atelier-ingest-apply-batch'} applies the currently loaded intake rows with structured metadata and reports partial failures in atelier-ingest-status.",
+            "argus.click{target:'atelier-ingest-apply-batch'} applies the full canonical backend intake batch with structured metadata and actor attribution; loaded rows are only preview/override rows. Select batches via atelier-intake-batch-{stable_batch_id}; inspect atelier-ingest-status and atelier-ingest-last-receipt for requested_by, applied_count, applied_preview_count, total_item_count, truncated_count, and failures.",
         ),
         (
             crate::atelier_panel::ATELIER_INGEST_CONTACT_ROWS_AUTHOR_ID,
@@ -1611,6 +1623,12 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             "argus.inspect reads dataset, character, decision, batch metadata, contact-sheet shape, and Facial profile state.",
         ),
         (
+            crate::atelier_panel::ATELIER_INGEST_BATCH_SUMMARY_AUTHOR_ID,
+            "Inspect Ingest batch summary",
+            "argus.inspect",
+            "argus.inspect reads the canonical lane counts for the expanded backend batch: total, pending, accepted, rejected, deferred, skipped, failed, and visible_items. If canonical_counts_loaded=false, the backend projection is still loading and the summary must not be treated as canonical counts.",
+        ),
+        (
             crate::atelier_panel::ATELIER_INGEST_STATUS_AUTHOR_ID,
             "Inspect Ingest status",
             "argus.inspect",
@@ -1620,7 +1638,7 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             crate::atelier_panel::ATELIER_INGEST_LAST_RECEIPT_AUTHOR_ID,
             "Inspect Ingest apply receipt",
             "argus.inspect",
-            "argus.inspect reads the last backend request id, batch id, applied item ids, and failed row.",
+            "argus.inspect reads the last backend request id, batch id, requested_by actor, applied_count, applied_preview_count, total_item_count, capped applied item ids, truncated_count, stale-response marker, and failed row.",
         ),
     ] {
         rows.push(AgentToolRow {

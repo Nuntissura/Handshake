@@ -1764,6 +1764,11 @@ impl AtelierStore {
             ))
             .execute(&mut *tx)
             .await?;
+            sqlx::raw_sql(include_str!(
+                "../../migrations/0341_atelier_intake_item_metadata.sql"
+            ))
+            .execute(&mut *tx)
+            .await?;
             tx.commit().await?;
             self.repair_contact_sheet_manifest_schema_namespace()
                 .await?;
@@ -2219,6 +2224,11 @@ impl AtelierStore {
         .await?;
         sqlx::raw_sql(include_str!(
             "../../migrations/0340_atelier_sheet_artifact_links.sql"
+        ))
+        .execute(&mut *tx)
+        .await?;
+        sqlx::raw_sql(include_str!(
+            "../../migrations/0341_atelier_intake_item_metadata.sql"
         ))
         .execute(&mut *tx)
         .await?;

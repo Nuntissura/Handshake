@@ -40,8 +40,9 @@ use handshake_core::atelier::exports::{
     WEB_PORTFOLIO_MANIFEST_SCHEMA_ID,
 };
 use handshake_core::atelier::intake::{
-    intake_event_family, ApplyIntakeClassificationRequest, AtelierResetMode, AtelierResetRequest,
-    BatchStatus, IntakeBatchMode, IntakeClassificationContactSheetMetadata,
+    intake_event_family, ApplyIntakeBatchClassificationOverride,
+    ApplyIntakeBatchClassificationsRequest, ApplyIntakeClassificationRequest, AtelierResetMode,
+    AtelierResetRequest, BatchStatus, IntakeBatchMode, IntakeClassificationContactSheetMetadata,
     IntakeClassificationMetadata, IntakeLane, IntakeProfileMode, NewIntakeBatch, NewIntakeItem,
     OrphanAdoptionRequest, OrphanAdoptionStatus,
 };
@@ -2195,6 +2196,826 @@ async fn atelier_intake_classification_apply_links_media_and_rolls_back_invalid_
         persisted_invalid.lane,
         IntakeLane::Pending,
         "invalid target must roll back the lane change"
+    );
+}
+
+#[tokio::test]
+async fn atelier_intake_batch_classification_applies_canonical_items_and_links_passed_media() {
+    let Some(url) = database_url() else {
+        eprintln!(
+            "SKIP atelier_intake_batch_classification_applies_canonical_items_and_links_passed_media: DATABASE_URL not set"
+        );
+        return;
+    };
+    let store = connected_store(&url).await;
+    let character = store
+        .create_character(&NewCharacter {
+            public_id: format!("mt-017-batch-character-{}", Uuid::new_v4()),
+            display_name: "MT-017 Batch Character".to_string(),
+        })
+        .await
+        .expect("create character for batch apply");
+    let sheet = store
+        .append_sheet_version(&NewSheetVersion {
+            character_internal_id: character.internal_id,
+            raw_text: "mt-017 batch sheet".to_string(),
+            author: "mt-017".to_string(),
+            tool: Some("mt-017-test".to_string()),
+        })
+        .await
+        .expect("append sheet for batch apply");
+    let collection = store
+        .create_collection(&NewCollection {
+            name: format!("mt-017-batch-target-{}", Uuid::new_v4()),
+            notes: "target collection for canonical batch apply".to_string(),
+            tags: vec!["mt-017".to_string(), "dataset".to_string()],
+            character_internal_id: Some(character.internal_id),
+            sheet_version_id: Some(sheet.version_id),
+        })
+        .await
+        .expect("create target collection for batch apply");
+
+    let artifact_a = atelier_pg_support::write_native_media_artifact(
+        format!("mt-017-batch-a-{}", Uuid::new_v4()).as_bytes(),
+    );
+    let artifact_b = atelier_pg_support::write_native_media_artifact(
+        format!("mt-017-batch-b-{}", Uuid::new_v4()).as_bytes(),
+    );
+    let asset_a = store
+        .materialize_media_asset(&NewMediaAsset {
+            content_hash: artifact_a.content_hash.clone(),
+            mime: "image/png".to_string(),
+            byte_len: artifact_a.byte_len,
+            source_provenance: Some("mt-017-batch-source-a".to_string()),
+            artifact_ref: artifact_a.artifact_ref.clone(),
+        })
+        .await
+        .expect("materialize batch asset a");
+    let asset_b = store
+        .materialize_media_asset(&NewMediaAsset {
+            content_hash: artifact_b.content_hash.clone(),
+            mime: "image/png".to_string(),
+            byte_len: artifact_b.byte_len,
+            source_provenance: Some("mt-017-batch-source-b".to_string()),
+            artifact_ref: artifact_b.artifact_ref.clone(),
+        })
+        .await
+        .expect("materialize batch asset b");
+
+    let batch = store
+        .open_intake_batch(&NewIntakeBatch {
+            idempotency_key: format!("mt-017-batch-apply-{}", Uuid::new_v4()),
+            source_label: "mt-017 canonical batch apply".to_string(),
+            source_ref: Some(format!("dataset://mt-017/{}", Uuid::new_v4())),
+            mode: IntakeBatchMode::Manual,
+            profile_mode: IntakeProfileMode::CharacterLinked,
+            character_internal_id: Some(character.internal_id),
+            target_character_id: Some(character.internal_id),
+            target_sheet_version_id: Some(sheet.version_id),
+            target_collection_id: Some(collection.collection_id),
+            resume_cursor: None,
+        })
+        .await
+        .expect("open linked batch");
+    let item_a = store
+        .add_intake_item(
+            batch.batch_id,
+            &NewIntakeItem {
+                source_path: format!("source://mt-017/batch/a/{}", Uuid::new_v4()),
+                file_name: "batch-a.png".to_string(),
+                byte_len: artifact_a.byte_len,
+                content_hash: Some(asset_a.content_hash.clone()),
+            },
+        )
+        .await
+        .expect("add item a");
+    let item_b = store
+        .add_intake_item(
+            batch.batch_id,
+            &NewIntakeItem {
+                source_path: format!("source://mt-017/batch/b/{}", Uuid::new_v4()),
+                file_name: "batch-b.png".to_string(),
+                byte_len: artifact_b.byte_len,
+                content_hash: Some(asset_b.content_hash.clone()),
+            },
+        )
+        .await
+        .expect("add item b");
+    let rejected_item = store
+        .add_intake_item(
+            batch.batch_id,
+            &NewIntakeItem {
+                source_path: format!("source://mt-017/batch/reject/{}", Uuid::new_v4()),
+                file_name: "batch-reject.png".to_string(),
+                byte_len: 128,
+                content_hash: None,
+            },
+        )
+        .await
+        .expect("add reject override item");
+
+    let request_id = format!("mt-017-batch-request-{}", Uuid::new_v4());
+    let result = store
+        .apply_intake_batch_classifications(&ApplyIntakeBatchClassificationsRequest {
+            batch_id: batch.batch_id,
+            default_lane: IntakeLane::Accepted,
+            default_reason: Some("accepted canonical batch default".to_string()),
+            requested_by: "ingest-agent-017".to_string(),
+            metadata: Some(IntakeClassificationMetadata {
+                request_id: Some(request_id.clone()),
+                batch_id: Some(batch.batch_id.to_string()),
+                dataset_ref: Some("dataset://mt-017/canonical-batch".to_string()),
+                character_ref: Some(format!("atelier://character/{}", character.internal_id)),
+                link_passed: true,
+                tags: vec!["event".to_string(), "location".to_string()],
+                note: Some("batch apply should cover canonical item set".to_string()),
+                event: Some("mt-017".to_string()),
+                date: Some("2026-06-30".to_string()),
+                location: Some("test studio".to_string()),
+                facial_profile: Some("quality+dedupe+identity".to_string()),
+                loaded_item_count: Some(1),
+                contact_sheet: Some(IntakeClassificationContactSheetMetadata {
+                    rows: Some(3),
+                    columns: Some(4),
+                    dpi: Some(300),
+                    cells: Some(12),
+                }),
+            }),
+            overrides: vec![ApplyIntakeBatchClassificationOverride {
+                item_id: rejected_item.item_id,
+                lane: IntakeLane::Rejected,
+                reason: Some("visible override reject".to_string()),
+            }],
+        })
+        .await
+        .expect("apply canonical batch classifications");
+
+    assert_eq!(result.batch_id, batch.batch_id);
+    assert_eq!(result.total_item_count, 3);
+    assert_eq!(result.applied.len(), 3);
+    assert_eq!(result.failed, None);
+    assert_eq!(
+        result
+            .applied
+            .iter()
+            .filter(|row| row.collection_id == Some(collection.collection_id))
+            .count(),
+        2,
+        "both canonical accepted rows should link into the CKC target collection"
+    );
+
+    let persisted_items = store
+        .list_intake_items(batch.batch_id, None)
+        .await
+        .expect("reload canonical batch items");
+    let lane_by_item: HashMap<_, _> = persisted_items
+        .iter()
+        .map(|item| (item.item_id, item.lane))
+        .collect();
+    assert_eq!(
+        lane_by_item.get(&item_a.item_id),
+        Some(&IntakeLane::Accepted)
+    );
+    assert_eq!(
+        lane_by_item.get(&item_b.item_id),
+        Some(&IntakeLane::Accepted)
+    );
+    assert_eq!(
+        lane_by_item.get(&rejected_item.item_id),
+        Some(&IntakeLane::Rejected)
+    );
+
+    let members = store
+        .list_collection_images(collection.collection_id)
+        .await
+        .expect("list collection members after canonical batch apply");
+    assert_eq!(members.len(), 2);
+    assert!(
+        members
+            .iter()
+            .any(|member| member.asset_id == asset_a.asset_id)
+            && members
+                .iter()
+                .any(|member| member.asset_id == asset_b.asset_id),
+        "accepted batch rows must materialize CKC collection links"
+    );
+
+    let payload_count: i64 = sqlx::query_scalar(
+        r#"SELECT COUNT(*)
+           FROM atelier_event
+           WHERE event_family = $1
+             AND payload->'metadata'->>'request_id' = $2
+             AND (payload->'metadata'->>'loaded_item_count')::bigint = 3"#,
+    )
+    .bind(intake_event_family::INTAKE_ITEM_CLASSIFIED)
+    .bind(request_id.as_str())
+    .fetch_one(store.pool())
+    .await
+    .expect("count canonical metadata events");
+    assert_eq!(
+        payload_count, 3,
+        "batch apply metadata must record canonical batch total, not visible preview count"
+    );
+
+    let durable_metadata_count: i64 = sqlx::query_scalar(
+        r#"SELECT COUNT(*)
+           FROM atelier_intake_item_metadata
+           WHERE batch_id = $1
+             AND request_id = $2
+             AND requested_by = $3
+             AND tags_json @> $4::jsonb
+             AND event_label = $5
+             AND location = $6
+             AND loaded_item_count = 3"#,
+    )
+    .bind(batch.batch_id)
+    .bind(request_id.as_str())
+    .bind("ingest-agent-017")
+    .bind(serde_json::json!(["event", "location"]))
+    .bind("mt-017")
+    .bind("test studio")
+    .fetch_one(store.pool())
+    .await
+    .expect("count durable item metadata");
+    assert_eq!(
+        durable_metadata_count, 3,
+        "batch metadata must be durable and queryable for every canonical item"
+    );
+}
+
+#[tokio::test]
+async fn atelier_intake_batch_classification_rejects_foreign_override_before_writes() {
+    let Some(url) = database_url() else {
+        eprintln!(
+            "SKIP atelier_intake_batch_classification_rejects_foreign_override_before_writes: DATABASE_URL not set"
+        );
+        return;
+    };
+    let store = connected_store(&url).await;
+    let batch_a = store
+        .open_intake_batch(&NewIntakeBatch {
+            idempotency_key: format!("mt-017-foreign-a-{}", Uuid::new_v4()),
+            source_label: "mt-017 foreign override a".to_string(),
+            source_ref: Some(format!("dataset://mt-017/foreign/a/{}", Uuid::new_v4())),
+            mode: IntakeBatchMode::Manual,
+            profile_mode: IntakeProfileMode::LooseProfile,
+            character_internal_id: None,
+            target_character_id: None,
+            target_sheet_version_id: None,
+            target_collection_id: None,
+            resume_cursor: None,
+        })
+        .await
+        .expect("open batch a");
+    let batch_b = store
+        .open_intake_batch(&NewIntakeBatch {
+            idempotency_key: format!("mt-017-foreign-b-{}", Uuid::new_v4()),
+            source_label: "mt-017 foreign override b".to_string(),
+            source_ref: Some(format!("dataset://mt-017/foreign/b/{}", Uuid::new_v4())),
+            mode: IntakeBatchMode::Manual,
+            profile_mode: IntakeProfileMode::LooseProfile,
+            character_internal_id: None,
+            target_character_id: None,
+            target_sheet_version_id: None,
+            target_collection_id: None,
+            resume_cursor: None,
+        })
+        .await
+        .expect("open batch b");
+    let target_item = store
+        .add_intake_item(
+            batch_a.batch_id,
+            &NewIntakeItem {
+                source_path: format!("source://mt-017/foreign/a/{}", Uuid::new_v4()),
+                file_name: "target.png".to_string(),
+                byte_len: 128,
+                content_hash: None,
+            },
+        )
+        .await
+        .expect("add target item");
+    let foreign_item = store
+        .add_intake_item(
+            batch_b.batch_id,
+            &NewIntakeItem {
+                source_path: format!("source://mt-017/foreign/b/{}", Uuid::new_v4()),
+                file_name: "foreign.png".to_string(),
+                byte_len: 128,
+                content_hash: None,
+            },
+        )
+        .await
+        .expect("add foreign item");
+
+    let error = store
+        .apply_intake_batch_classifications(&ApplyIntakeBatchClassificationsRequest {
+            batch_id: batch_a.batch_id,
+            default_lane: IntakeLane::Deferred,
+            default_reason: Some("default defer should not write".to_string()),
+            requested_by: "ingest-agent-017".to_string(),
+            metadata: Some(IntakeClassificationMetadata {
+                request_id: Some(format!("mt-017-foreign-{}", Uuid::new_v4())),
+                batch_id: Some(batch_a.batch_id.to_string()),
+                dataset_ref: Some("dataset://mt-017/foreign".to_string()),
+                character_ref: None,
+                link_passed: false,
+                tags: vec!["foreign-override".to_string()],
+                note: None,
+                event: None,
+                date: None,
+                location: None,
+                facial_profile: None,
+                loaded_item_count: Some(1),
+                contact_sheet: None,
+            }),
+            overrides: vec![ApplyIntakeBatchClassificationOverride {
+                item_id: foreign_item.item_id,
+                lane: IntakeLane::Rejected,
+                reason: Some("foreign override".to_string()),
+            }],
+        })
+        .await
+        .expect_err("foreign override must reject before writes");
+    assert!(
+        error.to_string().contains("does not belong to batch"),
+        "foreign override error should name batch membership, got {error}"
+    );
+
+    let persisted = store
+        .get_intake_item(batch_a.batch_id, &target_item.source_path)
+        .await
+        .expect("reload target item")
+        .expect("target item exists");
+    assert_eq!(
+        persisted.lane,
+        IntakeLane::Pending,
+        "foreign override validation must happen before default lane writes"
+    );
+}
+
+#[tokio::test]
+async fn atelier_intake_batch_classification_rolls_back_when_later_item_fails() {
+    let Some(url) = database_url() else {
+        eprintln!(
+            "SKIP atelier_intake_batch_classification_rolls_back_when_later_item_fails: DATABASE_URL not set"
+        );
+        return;
+    };
+    let store = connected_store(&url).await;
+    let character = store
+        .create_character(&NewCharacter {
+            public_id: format!("mt-017-rollback-character-{}", Uuid::new_v4()),
+            display_name: "MT-017 Rollback Character".to_string(),
+        })
+        .await
+        .expect("create rollback character");
+    let collection = store
+        .create_collection(&NewCollection {
+            name: format!("mt-017-rollback-target-{}", Uuid::new_v4()),
+            notes: "target collection must stay empty after rollback".to_string(),
+            tags: vec!["mt-017".to_string()],
+            character_internal_id: Some(character.internal_id),
+            sheet_version_id: None,
+        })
+        .await
+        .expect("create rollback collection");
+    let artifact = atelier_pg_support::write_native_media_artifact(
+        format!("mt-017-rollback-a-{}", Uuid::new_v4()).as_bytes(),
+    );
+    let asset = store
+        .materialize_media_asset(&NewMediaAsset {
+            content_hash: artifact.content_hash.clone(),
+            mime: "image/png".to_string(),
+            byte_len: artifact.byte_len,
+            source_provenance: Some("mt-017-rollback-source".to_string()),
+            artifact_ref: artifact.artifact_ref.clone(),
+        })
+        .await
+        .expect("materialize rollback asset");
+    let batch = store
+        .open_intake_batch(&NewIntakeBatch {
+            idempotency_key: format!("mt-017-rollback-{}", Uuid::new_v4()),
+            source_label: "mt-017 rollback batch".to_string(),
+            source_ref: Some(format!("dataset://mt-017/rollback/{}", Uuid::new_v4())),
+            mode: IntakeBatchMode::Manual,
+            profile_mode: IntakeProfileMode::CharacterLinked,
+            character_internal_id: Some(character.internal_id),
+            target_character_id: Some(character.internal_id),
+            target_sheet_version_id: None,
+            target_collection_id: Some(collection.collection_id),
+            resume_cursor: None,
+        })
+        .await
+        .expect("open rollback batch");
+    let item_a = store
+        .add_intake_item(
+            batch.batch_id,
+            &NewIntakeItem {
+                source_path: format!("source://mt-017/rollback/a/{}", Uuid::new_v4()),
+                file_name: "rollback-a.png".to_string(),
+                byte_len: artifact.byte_len,
+                content_hash: Some(asset.content_hash.clone()),
+            },
+        )
+        .await
+        .expect("add rollback item a");
+    let item_b = store
+        .add_intake_item(
+            batch.batch_id,
+            &NewIntakeItem {
+                source_path: format!("source://mt-017/rollback/b/{}", Uuid::new_v4()),
+                file_name: "rollback-b.png".to_string(),
+                byte_len: 128,
+                content_hash: None,
+            },
+        )
+        .await
+        .expect("add rollback item b");
+
+    let error = store
+        .apply_intake_batch_classifications(&ApplyIntakeBatchClassificationsRequest {
+            batch_id: batch.batch_id,
+            default_lane: IntakeLane::Accepted,
+            default_reason: Some("accepted batch should roll back".to_string()),
+            requested_by: "ingest-agent-017".to_string(),
+            metadata: Some(IntakeClassificationMetadata {
+                request_id: Some(format!("mt-017-rollback-{}", Uuid::new_v4())),
+                batch_id: Some(batch.batch_id.to_string()),
+                dataset_ref: Some("dataset://mt-017/rollback".to_string()),
+                character_ref: Some(format!("atelier://character/{}", character.internal_id)),
+                link_passed: true,
+                tags: vec!["rollback".to_string()],
+                note: None,
+                event: None,
+                date: None,
+                location: None,
+                facial_profile: None,
+                loaded_item_count: None,
+                contact_sheet: None,
+            }),
+            overrides: Vec::new(),
+        })
+        .await
+        .expect_err("second accepted item without content_hash must abort the batch");
+    assert!(
+        error
+            .to_string()
+            .contains("accepted intake item requires target media asset content_hash"),
+        "rollback error should name missing content_hash, got {error}"
+    );
+
+    let persisted_items = store
+        .list_intake_items(batch.batch_id, None)
+        .await
+        .expect("reload rollback items");
+    let lane_by_item: HashMap<_, _> = persisted_items
+        .iter()
+        .map(|item| (item.item_id, item.lane))
+        .collect();
+    assert_eq!(
+        lane_by_item.get(&item_a.item_id),
+        Some(&IntakeLane::Pending)
+    );
+    assert_eq!(
+        lane_by_item.get(&item_b.item_id),
+        Some(&IntakeLane::Pending)
+    );
+    let members = store
+        .list_collection_images(collection.collection_id)
+        .await
+        .expect("list rollback collection");
+    assert!(
+        members.is_empty(),
+        "atomic batch failure must not leave the first accepted item linked"
+    );
+}
+
+#[tokio::test]
+async fn atelier_intake_batch_classification_requires_request_id_before_writes() {
+    let Some(url) = database_url() else {
+        eprintln!(
+            "SKIP atelier_intake_batch_classification_requires_request_id_before_writes: DATABASE_URL not set"
+        );
+        return;
+    };
+    let store = connected_store(&url).await;
+    let batch = store
+        .open_intake_batch(&NewIntakeBatch {
+            idempotency_key: format!("mt-017-request-id-{}", Uuid::new_v4()),
+            source_label: "mt-017 request id batch".to_string(),
+            source_ref: Some(format!("dataset://mt-017/request-id/{}", Uuid::new_v4())),
+            mode: IntakeBatchMode::Manual,
+            profile_mode: IntakeProfileMode::LooseProfile,
+            character_internal_id: None,
+            target_character_id: None,
+            target_sheet_version_id: None,
+            target_collection_id: None,
+            resume_cursor: None,
+        })
+        .await
+        .expect("open request-id batch");
+    let item = store
+        .add_intake_item(
+            batch.batch_id,
+            &NewIntakeItem {
+                source_path: format!("source://mt-017/request-id/{}", Uuid::new_v4()),
+                file_name: "request-id.png".to_string(),
+                byte_len: 128,
+                content_hash: None,
+            },
+        )
+        .await
+        .expect("add request-id item");
+
+    let error = store
+        .apply_intake_batch_classifications(&ApplyIntakeBatchClassificationsRequest {
+            batch_id: batch.batch_id,
+            default_lane: IntakeLane::Deferred,
+            default_reason: Some("defer should not write without request id".to_string()),
+            requested_by: "ingest-agent-017".to_string(),
+            metadata: None,
+            overrides: Vec::new(),
+        })
+        .await
+        .expect_err("batch apply must require request_id metadata");
+    assert!(
+        error.to_string().contains("metadata with request_id"),
+        "request-id error should be explicit, got {error}"
+    );
+
+    let persisted = store
+        .get_intake_item(batch.batch_id, &item.source_path)
+        .await
+        .expect("reload request-id item")
+        .expect("request-id item exists");
+    assert_eq!(persisted.lane, IntakeLane::Pending);
+}
+
+#[tokio::test]
+async fn atelier_intake_batch_classification_rejects_cross_batch_request_id_reuse() {
+    let Some(url) = database_url() else {
+        eprintln!(
+            "SKIP atelier_intake_batch_classification_rejects_cross_batch_request_id_reuse: DATABASE_URL not set"
+        );
+        return;
+    };
+    let store = connected_store(&url).await;
+    let batch_a = store
+        .open_intake_batch(&NewIntakeBatch {
+            idempotency_key: format!("mt-017-request-reuse-a-{}", Uuid::new_v4()),
+            source_label: "mt-017 request reuse a".to_string(),
+            source_ref: Some(format!(
+                "dataset://mt-017/request-reuse/a/{}",
+                Uuid::new_v4()
+            )),
+            mode: IntakeBatchMode::Manual,
+            profile_mode: IntakeProfileMode::LooseProfile,
+            character_internal_id: None,
+            target_character_id: None,
+            target_sheet_version_id: None,
+            target_collection_id: None,
+            resume_cursor: None,
+        })
+        .await
+        .expect("open request reuse batch a");
+    let batch_b = store
+        .open_intake_batch(&NewIntakeBatch {
+            idempotency_key: format!("mt-017-request-reuse-b-{}", Uuid::new_v4()),
+            source_label: "mt-017 request reuse b".to_string(),
+            source_ref: Some(format!(
+                "dataset://mt-017/request-reuse/b/{}",
+                Uuid::new_v4()
+            )),
+            mode: IntakeBatchMode::Manual,
+            profile_mode: IntakeProfileMode::LooseProfile,
+            character_internal_id: None,
+            target_character_id: None,
+            target_sheet_version_id: None,
+            target_collection_id: None,
+            resume_cursor: None,
+        })
+        .await
+        .expect("open request reuse batch b");
+    let item_a = store
+        .add_intake_item(
+            batch_a.batch_id,
+            &NewIntakeItem {
+                source_path: format!("source://mt-017/request-reuse/a/{}", Uuid::new_v4()),
+                file_name: "reuse-a.png".to_string(),
+                byte_len: 128,
+                content_hash: None,
+            },
+        )
+        .await
+        .expect("add request reuse item a");
+    let item_b = store
+        .add_intake_item(
+            batch_b.batch_id,
+            &NewIntakeItem {
+                source_path: format!("source://mt-017/request-reuse/b/{}", Uuid::new_v4()),
+                file_name: "reuse-b.png".to_string(),
+                byte_len: 128,
+                content_hash: None,
+            },
+        )
+        .await
+        .expect("add request reuse item b");
+    let request_id = format!("mt-017-reused-request-{}", Uuid::new_v4());
+
+    store
+        .apply_intake_batch_classifications(&ApplyIntakeBatchClassificationsRequest {
+            batch_id: batch_a.batch_id,
+            default_lane: IntakeLane::Deferred,
+            default_reason: Some("first batch defer".to_string()),
+            requested_by: "ingest-agent-017".to_string(),
+            metadata: Some(IntakeClassificationMetadata {
+                request_id: Some(request_id.clone()),
+                batch_id: Some(batch_a.batch_id.to_string()),
+                dataset_ref: Some("dataset://mt-017/request-reuse/a".to_string()),
+                character_ref: None,
+                link_passed: false,
+                tags: vec!["reuse-a".to_string()],
+                note: None,
+                event: None,
+                date: None,
+                location: None,
+                facial_profile: None,
+                loaded_item_count: None,
+                contact_sheet: None,
+            }),
+            overrides: Vec::new(),
+        })
+        .await
+        .expect("first batch request id apply");
+
+    let error = store
+        .apply_intake_batch_classifications(&ApplyIntakeBatchClassificationsRequest {
+            batch_id: batch_b.batch_id,
+            default_lane: IntakeLane::Deferred,
+            default_reason: Some("second batch should not write".to_string()),
+            requested_by: "ingest-agent-017".to_string(),
+            metadata: Some(IntakeClassificationMetadata {
+                request_id: Some(request_id.clone()),
+                batch_id: Some(batch_b.batch_id.to_string()),
+                dataset_ref: Some("dataset://mt-017/request-reuse/b".to_string()),
+                character_ref: None,
+                link_passed: false,
+                tags: vec!["reuse-b".to_string()],
+                note: None,
+                event: None,
+                date: None,
+                location: None,
+                facial_profile: None,
+                loaded_item_count: None,
+                contact_sheet: None,
+            }),
+            overrides: Vec::new(),
+        })
+        .await
+        .expect_err("request_id reuse across batches must reject");
+    assert!(
+        error.to_string().contains("already bound"),
+        "cross-batch request_id error should be explicit, got {error}"
+    );
+
+    let persisted_a = store
+        .get_intake_item(batch_a.batch_id, &item_a.source_path)
+        .await
+        .expect("reload request reuse item a")
+        .expect("item a exists");
+    let persisted_b = store
+        .get_intake_item(batch_b.batch_id, &item_b.source_path)
+        .await
+        .expect("reload request reuse item b")
+        .expect("item b exists");
+    assert_eq!(persisted_a.lane, IntakeLane::Deferred);
+    assert_eq!(
+        persisted_b.lane,
+        IntakeLane::Pending,
+        "cross-batch request_id rejection must happen before second batch writes"
+    );
+}
+
+#[tokio::test]
+async fn atelier_intake_batch_classification_rejects_mismatched_target_collection() {
+    let Some(url) = database_url() else {
+        eprintln!(
+            "SKIP atelier_intake_batch_classification_rejects_mismatched_target_collection: DATABASE_URL not set"
+        );
+        return;
+    };
+    let store = connected_store(&url).await;
+    let target_character = store
+        .create_character(&NewCharacter {
+            public_id: format!("mt-017-target-character-{}", Uuid::new_v4()),
+            display_name: "MT-017 Target Character".to_string(),
+        })
+        .await
+        .expect("create target character");
+    let other_character = store
+        .create_character(&NewCharacter {
+            public_id: format!("mt-017-other-character-{}", Uuid::new_v4()),
+            display_name: "MT-017 Other Character".to_string(),
+        })
+        .await
+        .expect("create other character");
+    let wrong_collection = store
+        .create_collection(&NewCollection {
+            name: format!("mt-017-wrong-target-{}", Uuid::new_v4()),
+            notes: "collection belongs to another character".to_string(),
+            tags: vec!["mt-017".to_string()],
+            character_internal_id: Some(other_character.internal_id),
+            sheet_version_id: None,
+        })
+        .await
+        .expect("create wrong collection");
+    let artifact = atelier_pg_support::write_native_media_artifact(
+        format!("mt-017-target-mismatch-{}", Uuid::new_v4()).as_bytes(),
+    );
+    let asset = store
+        .materialize_media_asset(&NewMediaAsset {
+            content_hash: artifact.content_hash.clone(),
+            mime: "image/png".to_string(),
+            byte_len: artifact.byte_len,
+            source_provenance: Some("mt-017-target-mismatch-source".to_string()),
+            artifact_ref: artifact.artifact_ref.clone(),
+        })
+        .await
+        .expect("materialize mismatch asset");
+    let batch = store
+        .open_intake_batch(&NewIntakeBatch {
+            idempotency_key: format!("mt-017-target-mismatch-{}", Uuid::new_v4()),
+            source_label: "mt-017 target mismatch batch".to_string(),
+            source_ref: Some(format!("dataset://mt-017/target/{}", Uuid::new_v4())),
+            mode: IntakeBatchMode::Manual,
+            profile_mode: IntakeProfileMode::CharacterLinked,
+            character_internal_id: Some(target_character.internal_id),
+            target_character_id: Some(target_character.internal_id),
+            target_sheet_version_id: None,
+            target_collection_id: Some(wrong_collection.collection_id),
+            resume_cursor: None,
+        })
+        .await
+        .expect("open mismatch batch");
+    let item = store
+        .add_intake_item(
+            batch.batch_id,
+            &NewIntakeItem {
+                source_path: format!("source://mt-017/target/{}", Uuid::new_v4()),
+                file_name: "target-mismatch.png".to_string(),
+                byte_len: artifact.byte_len,
+                content_hash: Some(asset.content_hash.clone()),
+            },
+        )
+        .await
+        .expect("add mismatch item");
+
+    let error = store
+        .apply_intake_batch_classifications(&ApplyIntakeBatchClassificationsRequest {
+            batch_id: batch.batch_id,
+            default_lane: IntakeLane::Accepted,
+            default_reason: Some("accepted should reject wrong collection".to_string()),
+            requested_by: "ingest-agent-017".to_string(),
+            metadata: Some(IntakeClassificationMetadata {
+                request_id: Some(format!("mt-017-target-mismatch-{}", Uuid::new_v4())),
+                batch_id: Some(batch.batch_id.to_string()),
+                dataset_ref: Some("dataset://mt-017/target".to_string()),
+                character_ref: Some(format!(
+                    "atelier://character/{}",
+                    target_character.internal_id
+                )),
+                link_passed: true,
+                tags: vec!["target-mismatch".to_string()],
+                note: None,
+                event: None,
+                date: None,
+                location: None,
+                facial_profile: None,
+                loaded_item_count: None,
+                contact_sheet: None,
+            }),
+            overrides: Vec::new(),
+        })
+        .await
+        .expect_err("wrong target collection must reject before linking");
+    assert!(
+        error.to_string().contains("target_character_id"),
+        "collection ownership error should name target_character_id, got {error}"
+    );
+
+    let persisted = store
+        .get_intake_item(batch.batch_id, &item.source_path)
+        .await
+        .expect("reload mismatch item")
+        .expect("mismatch item exists");
+    assert_eq!(persisted.lane, IntakeLane::Pending);
+    let members = store
+        .list_collection_images(wrong_collection.collection_id)
+        .await
+        .expect("list wrong collection members");
+    assert!(
+        members.is_empty(),
+        "wrong collection must not receive links"
     );
 }
 

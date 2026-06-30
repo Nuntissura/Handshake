@@ -5262,6 +5262,35 @@ pub struct AtelierItemRow {
     pub lane: String,
 }
 
+/// Canonical lane counts returned by the backend for a full intake batch.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct AtelierLaneCounts {
+    pub pending: usize,
+    pub accepted: usize,
+    pub rejected: usize,
+    pub deferred: usize,
+    pub skipped: usize,
+    pub failed: usize,
+}
+
+impl AtelierLaneCounts {
+    pub fn total(&self) -> usize {
+        self.pending
+            .saturating_add(self.accepted)
+            .saturating_add(self.rejected)
+            .saturating_add(self.deferred)
+            .saturating_add(self.skipped)
+            .saturating_add(self.failed)
+    }
+}
+
+/// Expanded batch projection: canonical full-batch lane counts plus the currently loaded preview rows.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierBatchItemsProjection {
+    pub lane_counts: AtelierLaneCounts,
+    pub items: Vec<AtelierItemRow>,
+}
+
 /// Result from applying one durable intake item classification.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AtelierIntakeClassificationRow {
@@ -5289,6 +5318,9 @@ pub struct AtelierIntakeClassificationFailure {
 pub struct AtelierIntakeClassificationOutcome {
     pub request_id: String,
     pub batch_id: Option<String>,
+    pub total_item_count: Option<usize>,
+    pub applied_count: usize,
+    pub requested_by: String,
     pub applied: Vec<AtelierIntakeClassificationRow>,
     pub failed: Option<AtelierIntakeClassificationFailure>,
 }
@@ -5637,9 +5669,10 @@ pub type AtelierSidePanelCell = Arc<Mutex<Option<Result<AtelierSidePanelData, St
 
 /// One-slot delivery cell for an off-thread per-batch items load, keyed by the batch id so a stale
 /// response for a previously-expanded batch is discardable.
-pub type AtelierItemsCell = Arc<Mutex<Option<(String, Result<Vec<AtelierItemRow>, String>)>>>;
+pub type AtelierItemsCell =
+    Arc<Mutex<Option<(String, Result<AtelierBatchItemsProjection, String>)>>>;
 
-/// One-slot delivery cell for off-thread intake classification writes over the currently loaded rows.
+/// One-slot delivery cell for off-thread intake classification writes.
 pub type AtelierIntakeClassificationCell = Arc<Mutex<Option<AtelierIntakeClassificationOutcome>>>;
 
 /// One-slot delivery cell for off-thread CKC character/sheet loads.
@@ -5804,6 +5837,42 @@ impl AtelierClient {
                 "lane": lane,
                 "reason": reason,
                 "metadata": metadata,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure actor-attributed request builder for canonical full-batch intake apply.
+    pub fn apply_intake_batch_classifications_actor_request(
+        &self,
+        batch_id: &str,
+        default_lane: &str,
+        default_reason: Option<&str>,
+        metadata: serde_json::Value,
+        overrides: &[AtelierIntakeClassificationDecision],
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        let overrides_json = overrides
+            .iter()
+            .map(|override_row| {
+                serde_json::json!({
+                    "item_id": override_row.item_id.as_str(),
+                    "lane": override_row.lane.as_str(),
+                    "reason": override_row.reason.as_deref(),
+                })
+            })
+            .collect::<Vec<_>>();
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/intake/batches/{}/classifications",
+                self.base_url, batch_id
+            ),
+            body: Some(serde_json::json!({
+                "default_lane": default_lane,
+                "default_reason": default_reason,
+                "metadata": metadata,
+                "overrides": overrides_json,
             })),
             headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
         }
@@ -7143,9 +7212,68 @@ impl AtelierClient {
                 *slot = Some(AtelierIntakeClassificationOutcome {
                     request_id,
                     batch_id,
+                    total_item_count: None,
+                    applied_count: applied.len(),
+                    requested_by: actor,
                     applied,
                     failed,
                 });
+            }
+        });
+    }
+
+    /// Apply the canonical persisted item set for a batch with optional visible-row overrides.
+    pub fn apply_intake_batch_classifications(
+        &self,
+        request_id: String,
+        batch_id: String,
+        default_lane: String,
+        default_reason: Option<String>,
+        metadata: serde_json::Value,
+        overrides: Vec<AtelierIntakeClassificationDecision>,
+        actor_id: &str,
+        cell: AtelierIntakeClassificationCell,
+    ) {
+        let client = self.client.clone();
+        let client_for_specs = self.clone();
+        let actor = actor_id.to_owned();
+        self.runtime.spawn(async move {
+            let spec = client_for_specs.apply_intake_batch_classifications_actor_request(
+                &batch_id,
+                &default_lane,
+                default_reason.as_deref(),
+                metadata,
+                &overrides,
+                &actor,
+            );
+            let result = post_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_intake_batch_classification_outcome(
+                        request_id.clone(),
+                        &batch_id,
+                        &actor,
+                        &value,
+                    )
+                });
+            let outcome = match result {
+                Ok(outcome) => outcome,
+                Err(err) => AtelierIntakeClassificationOutcome {
+                    request_id,
+                    batch_id: Some(batch_id),
+                    total_item_count: None,
+                    applied_count: 0,
+                    requested_by: actor,
+                    applied: Vec::new(),
+                    failed: Some(AtelierIntakeClassificationFailure {
+                        item_id: "<batch-request>".to_owned(),
+                        index: 0,
+                        error: err.to_string(),
+                    }),
+                },
+            };
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(outcome);
             }
         });
     }
@@ -7659,8 +7787,37 @@ async fn fetch_atelier_corpus(
 async fn fetch_atelier_items(
     client: &reqwest::Client,
     url: &str,
-) -> Result<Vec<AtelierItemRow>, AppError> {
+) -> Result<AtelierBatchItemsProjection, AppError> {
     let v = get_json(client, url, &[]).await?;
+    parse_atelier_batch_items_projection(&v)
+}
+
+fn parse_atelier_lane_count(value: &serde_json::Value, field: &str) -> Result<usize, AppError> {
+    value
+        .get(field)
+        .and_then(|x| x.as_u64())
+        .and_then(|count| usize::try_from(count).ok())
+        .ok_or_else(|| AppError::Parse(format!("missing intake lane_counts.{field}")))
+}
+
+fn parse_atelier_lane_counts(value: &serde_json::Value) -> Result<AtelierLaneCounts, AppError> {
+    let counts = value
+        .get("lane_counts")
+        .ok_or_else(|| AppError::Parse("missing intake items lane_counts".to_owned()))?;
+    Ok(AtelierLaneCounts {
+        pending: parse_atelier_lane_count(counts, "pending")?,
+        accepted: parse_atelier_lane_count(counts, "accepted")?,
+        rejected: parse_atelier_lane_count(counts, "rejected")?,
+        deferred: parse_atelier_lane_count(counts, "deferred")?,
+        skipped: parse_atelier_lane_count(counts, "skipped")?,
+        failed: parse_atelier_lane_count(counts, "failed")?,
+    })
+}
+
+fn parse_atelier_batch_items_projection(
+    v: &serde_json::Value,
+) -> Result<AtelierBatchItemsProjection, AppError> {
+    let lane_counts = parse_atelier_lane_counts(v)?;
     let items = v
         .get("items")
         .and_then(|x| x.as_array())
@@ -7693,7 +7850,10 @@ async fn fetch_atelier_items(
             })
         })
         .collect();
-    Ok(rows)
+    Ok(AtelierBatchItemsProjection {
+        lane_counts,
+        items: rows,
+    })
 }
 
 fn parse_atelier_intake_item_row(row: &serde_json::Value) -> Option<AtelierItemRow> {
@@ -7766,6 +7926,111 @@ fn parse_atelier_intake_classification_row(
         collection_ref,
         collection_inserted,
         requested_by: requested_by.to_owned(),
+    })
+}
+
+fn parse_atelier_intake_batch_classification_outcome(
+    request_id: String,
+    expected_batch_id: &str,
+    expected_requested_by: &str,
+    value: &serde_json::Value,
+) -> Result<AtelierIntakeClassificationOutcome, AppError> {
+    let batch_id = value
+        .get("batch_id")
+        .and_then(|x| x.as_str())
+        .ok_or_else(|| AppError::Parse("missing intake batch apply batch_id".to_owned()))?;
+    if batch_id != expected_batch_id {
+        return Err(AppError::Parse(format!(
+            "intake batch apply response batch_id mismatch: expected {expected_batch_id}, got {batch_id}"
+        )));
+    }
+    let total_item_count = value
+        .get("total_item_count")
+        .and_then(|x| x.as_u64())
+        .and_then(|count| usize::try_from(count).ok())
+        .ok_or_else(|| AppError::Parse("missing intake batch apply total_item_count".to_owned()))?;
+    let requested_by = value
+        .get("requested_by")
+        .and_then(|x| x.as_str())
+        .map(str::trim)
+        .filter(|x| !x.is_empty())
+        .ok_or_else(|| AppError::Parse("missing intake batch apply requested_by".to_owned()))?;
+    if requested_by != expected_requested_by {
+        return Err(AppError::Parse(format!(
+            "intake batch apply requested_by mismatch: expected {expected_requested_by}, got {requested_by}"
+        )));
+    }
+    let applied_count = value
+        .get("applied_count")
+        .and_then(|x| x.as_u64())
+        .and_then(|count| usize::try_from(count).ok())
+        .ok_or_else(|| AppError::Parse("missing intake batch apply applied_count".to_owned()))?;
+    let applied_values = value
+        .get("applied")
+        .and_then(|x| x.as_array())
+        .ok_or_else(|| AppError::Parse("missing intake batch apply rows".to_owned()))?;
+    let mut applied = Vec::with_capacity(applied_values.len());
+    for row in applied_values {
+        let parsed = parse_atelier_intake_classification_row(row)
+            .ok_or_else(|| AppError::Parse("invalid intake batch classification row".to_owned()))?;
+        if parsed.requested_by != requested_by {
+            return Err(AppError::Parse(
+                "intake batch apply row requested_by mismatch".to_owned(),
+            ));
+        }
+        applied.push(parsed);
+    }
+    let failed = match value.get("failed") {
+        Some(serde_json::Value::Null) | None => None,
+        Some(raw) => {
+            let item_id = raw
+                .get("item_id")
+                .and_then(|x| x.as_str())
+                .filter(|x| !x.trim().is_empty())
+                .ok_or_else(|| AppError::Parse("missing intake batch failed item_id".to_owned()))?
+                .to_owned();
+            let index = raw
+                .get("index")
+                .and_then(|x| x.as_u64())
+                .and_then(|index| usize::try_from(index).ok())
+                .ok_or_else(|| AppError::Parse("missing intake batch failed index".to_owned()))?;
+            let error = raw
+                .get("error")
+                .and_then(|x| x.as_str())
+                .filter(|x| !x.trim().is_empty())
+                .ok_or_else(|| AppError::Parse("missing intake batch failed error".to_owned()))?
+                .to_owned();
+            Some(AtelierIntakeClassificationFailure {
+                item_id,
+                index,
+                error,
+            })
+        }
+    };
+    if applied.len() > applied_count {
+        return Err(AppError::Parse(format!(
+            "intake batch apply preview exceeds applied_count: preview={} applied_count={applied_count}",
+            applied.len()
+        )));
+    }
+    if applied_count > total_item_count {
+        return Err(AppError::Parse(format!(
+            "intake batch apply count mismatch: applied_count={applied_count} total={total_item_count}"
+        )));
+    }
+    if failed.is_none() && applied_count != total_item_count {
+        return Err(AppError::Parse(format!(
+            "intake batch apply count mismatch: applied_count={applied_count} total={total_item_count}"
+        )));
+    }
+    Ok(AtelierIntakeClassificationOutcome {
+        request_id,
+        batch_id: Some(batch_id.to_owned()),
+        total_item_count: Some(total_item_count),
+        applied_count,
+        requested_by: requested_by.to_owned(),
+        applied,
+        failed,
     })
 }
 
@@ -8994,6 +9259,100 @@ mod tests {
     }
 
     #[test]
+    fn atelier_client_builds_actor_attributed_intake_batch_classification_request() {
+        let rt = rt();
+        let c = AtelierClient::new_with_actor_id(BASE, rt.handle().clone(), "ingest-agent-017");
+        let spec = c.apply_intake_batch_classifications_actor_request(
+            "018f7848-1111-7000-9000-00000000b001",
+            "accepted",
+            Some("canonical batch pass with visible overrides"),
+            serde_json::json!({
+                "request_id": "atelier-ingest-request-17",
+                "batch_id": "018f7848-1111-7000-9000-00000000b001",
+                "dataset_ref": "dataset://leeseo/full-batch",
+                "character_ref": "atelier://character/018f7848-1111-7000-9000-000000000017",
+                "link_passed": true,
+                "tags": ["event", "location"],
+                "loaded_item_count": 3,
+            }),
+            &[AtelierIntakeClassificationDecision {
+                item_id: "018f7848-1111-7000-9000-00000000e002".to_owned(),
+                lane: "rejected".to_owned(),
+                reason: Some("visible override reject".to_owned()),
+                metadata: serde_json::json!({}),
+            }],
+            c.actor_id(),
+        );
+        assert_eq!(spec.method, HttpMethod::Post);
+        assert_eq!(
+            spec.url,
+            format!(
+                "{BASE}/atelier/intake/batches/018f7848-1111-7000-9000-00000000b001/classifications"
+            )
+        );
+        assert_eq!(
+            spec.headers,
+            vec![(
+                HSK_HEADER_ACTOR_ID.to_owned(),
+                "ingest-agent-017".to_owned()
+            )]
+        );
+        let body = spec.body.expect("batch classification body");
+        assert_eq!(body["default_lane"], "accepted");
+        assert_eq!(
+            body["default_reason"],
+            "canonical batch pass with visible overrides"
+        );
+        assert_eq!(body["metadata"]["request_id"], "atelier-ingest-request-17");
+        assert_eq!(body["metadata"]["link_passed"], true);
+        assert_eq!(
+            body["overrides"][0]["item_id"],
+            "018f7848-1111-7000-9000-00000000e002"
+        );
+        assert_eq!(body["overrides"][0]["lane"], "rejected");
+        assert_eq!(body["overrides"][0]["reason"], "visible override reject");
+    }
+
+    #[test]
+    fn atelier_intake_items_projection_preserves_canonical_lane_counts() {
+        let value = serde_json::json!({
+            "lane_counts": {
+                "pending": 1200,
+                "accepted": 34,
+                "rejected": 56,
+                "deferred": 7,
+                "skipped": 8,
+                "failed": 9,
+            },
+            "items": [{
+                "item_id": "018f7848-1111-7000-9000-00000000e001",
+                "file_name": "preview-001.png",
+                "source_path": "dataset://preview-001.png",
+                "lane": "accepted",
+                "byte_len": 1234,
+            }],
+        });
+        let projection =
+            parse_atelier_batch_items_projection(&value).expect("valid batch item projection");
+        assert_eq!(projection.items.len(), 1);
+        assert_eq!(projection.lane_counts.pending, 1200);
+        assert_eq!(projection.lane_counts.accepted, 34);
+        assert_eq!(projection.lane_counts.rejected, 56);
+        assert_eq!(projection.lane_counts.deferred, 7);
+        assert_eq!(projection.lane_counts.skipped, 8);
+        assert_eq!(projection.lane_counts.failed, 9);
+        assert_eq!(projection.lane_counts.total(), 1314);
+
+        let missing_counts = serde_json::json!({ "items": [] });
+        let err = parse_atelier_batch_items_projection(&missing_counts)
+            .expect_err("items response without canonical lane_counts must fail");
+        assert!(
+            err.to_string().contains("lane_counts"),
+            "missing lane_counts should be explicit; got {err:?}"
+        );
+    }
+
+    #[test]
     fn atelier_intake_classification_parser_requires_receipt_fields() {
         let valid = serde_json::json!({
             "item": {
@@ -9069,6 +9428,99 @@ mod tests {
             parse_atelier_intake_classification_row(&missing_lane).is_none(),
             "classification receipt must reject unknown item lanes"
         );
+    }
+
+    #[test]
+    fn atelier_intake_batch_classification_parser_requires_canonical_count() {
+        let valid = serde_json::json!({
+            "batch_id": "018f7848-1111-7000-9000-00000000b001",
+            "total_item_count": 1,
+            "applied_count": 1,
+            "requested_by": "ingest-agent-017",
+            "applied": [{
+                "item": {
+                    "item_id": "018f7848-1111-7000-9000-00000000e001",
+                    "file_name": "frame.png",
+                    "source_path": "dataset://frame.png",
+                    "lane": "accepted",
+                },
+                "asset_id": "018f7848-1111-7000-9000-00000000a001",
+                "media_ref": "atelier://media/018f7848-1111-7000-9000-00000000a001",
+                "collection_id": "018f7848-1111-7000-9000-00000000c001",
+                "collection_ref": "atelier://collection/018f7848-1111-7000-9000-00000000c001",
+                "collection_inserted": true,
+                "requested_by": "ingest-agent-017",
+            }],
+            "failed": null,
+        });
+        let outcome = parse_atelier_intake_batch_classification_outcome(
+            "atelier-ingest-request-17".to_owned(),
+            "018f7848-1111-7000-9000-00000000b001",
+            "ingest-agent-017",
+            &valid,
+        )
+        .expect("valid batch apply response");
+        assert_eq!(outcome.total_item_count, Some(1));
+        assert_eq!(outcome.applied_count, 1);
+        assert_eq!(outcome.requested_by, "ingest-agent-017");
+        assert_eq!(outcome.applied.len(), 1);
+        assert_eq!(outcome.failed, None);
+
+        let mut wrong_total = valid.clone();
+        wrong_total["total_item_count"] = serde_json::json!(2);
+        let err = parse_atelier_intake_batch_classification_outcome(
+            "atelier-ingest-request-17".to_owned(),
+            "018f7848-1111-7000-9000-00000000b001",
+            "ingest-agent-017",
+            &wrong_total,
+        )
+        .expect_err("success response must not under-report applied count");
+        assert!(
+            err.to_string().contains("count mismatch"),
+            "count mismatch should be explicit; got {err:?}"
+        );
+
+        let mut wrong_actor = valid.clone();
+        wrong_actor["applied"][0]["requested_by"] = serde_json::json!("other-agent");
+        let err = parse_atelier_intake_batch_classification_outcome(
+            "atelier-ingest-request-17".to_owned(),
+            "018f7848-1111-7000-9000-00000000b001",
+            "ingest-agent-017",
+            &wrong_actor,
+        )
+        .expect_err("row actor must match batch actor");
+        assert!(
+            err.to_string().contains("requested_by mismatch"),
+            "actor mismatch should be explicit; got {err:?}"
+        );
+
+        let mut wrong_top_actor = valid.clone();
+        wrong_top_actor["requested_by"] = serde_json::json!("other-agent");
+        let err = parse_atelier_intake_batch_classification_outcome(
+            "atelier-ingest-request-17".to_owned(),
+            "018f7848-1111-7000-9000-00000000b001",
+            "ingest-agent-017",
+            &wrong_top_actor,
+        )
+        .expect_err("batch actor must match request actor");
+        assert!(
+            err.to_string().contains("requested_by mismatch"),
+            "top-level actor mismatch should be explicit; got {err:?}"
+        );
+
+        let mut preview = valid.clone();
+        preview["total_item_count"] = serde_json::json!(20);
+        preview["applied_count"] = serde_json::json!(20);
+        let outcome = parse_atelier_intake_batch_classification_outcome(
+            "atelier-ingest-request-17".to_owned(),
+            "018f7848-1111-7000-9000-00000000b001",
+            "ingest-agent-017",
+            &preview,
+        )
+        .expect("large-batch response may carry a capped applied preview");
+        assert_eq!(outcome.total_item_count, Some(20));
+        assert_eq!(outcome.applied_count, 20);
+        assert_eq!(outcome.applied.len(), 1);
     }
 
     #[test]

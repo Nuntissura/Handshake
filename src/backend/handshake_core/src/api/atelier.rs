@@ -36,8 +36,10 @@ use crate::atelier::documents::{
     StoryCard,
 };
 use crate::atelier::intake::{
-    ApplyIntakeClassificationRequest, IntakeBatchMode, IntakeClassificationMetadata, IntakeLane,
-    IntakeLaneCounts, IntakeProfileMode, NewIntakeBatch,
+    ApplyIntakeBatchClassificationOverride, ApplyIntakeBatchClassificationsRequest,
+    ApplyIntakeClassificationRequest, IntakeBatchClassificationFailure, IntakeBatchMode,
+    IntakeClassificationApplyResult, IntakeClassificationMetadata, IntakeLane, IntakeLaneCounts,
+    IntakeProfileMode, NewIntakeBatch,
 };
 use crate::atelier::moodboards::{MoodboardSnapshot, NewMoodboardSnapshot};
 use crate::atelier::pose::{
@@ -172,6 +174,10 @@ pub fn routes(state: AppState) -> Router {
         .route(
             "/atelier/intake/batches/:batch_id/items",
             get(list_intake_batch_items),
+        )
+        .route(
+            "/atelier/intake/batches/:batch_id/classifications",
+            post(apply_intake_batch_classifications),
         )
         .route(
             "/atelier/intake/items/:item_id/classification",
@@ -3473,7 +3479,7 @@ async fn list_intake_batch_items(
         r#"SELECT item_id, source_path, file_name, lane, byte_len
            FROM atelier_intake_item
            WHERE batch_id = $1
-           ORDER BY created_at_utc ASC
+           ORDER BY created_at_utc ASC, item_id ASC
            LIMIT $2"#,
     )
     .bind(batch_id)
@@ -3519,6 +3525,126 @@ struct IntakeClassificationApplyResponse {
     requested_by: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct ApplyIntakeBatchClassificationOverrideRequest {
+    item_id: Uuid,
+    lane: String,
+    reason: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ApplyIntakeBatchClassificationsApiRequest {
+    default_lane: String,
+    default_reason: Option<String>,
+    metadata: Option<IntakeClassificationMetadata>,
+    #[serde(default)]
+    overrides: Vec<ApplyIntakeBatchClassificationOverrideRequest>,
+}
+
+#[derive(Debug, Serialize)]
+struct IntakeBatchClassificationFailureResponse {
+    item_id: Uuid,
+    index: usize,
+    error: String,
+}
+
+#[derive(Debug, Serialize)]
+struct IntakeBatchClassificationApplyResponse {
+    batch_id: Uuid,
+    total_item_count: usize,
+    applied_count: usize,
+    applied: Vec<IntakeClassificationApplyResponse>,
+    failed: Option<IntakeBatchClassificationFailureResponse>,
+    requested_by: String,
+}
+
+const INTAKE_BATCH_APPLY_PREVIEW_LIMIT: usize = 64;
+
+fn intake_classification_apply_response(
+    applied: IntakeClassificationApplyResult,
+    requested_by: &str,
+) -> IntakeClassificationApplyResponse {
+    IntakeClassificationApplyResponse {
+        item: intake_item_response(applied.item),
+        asset_id: applied.asset_id,
+        media_ref: applied.asset_id.map(media_asset_ref),
+        collection_id: applied.collection_id,
+        collection_ref: applied.collection_id.map(collection_ref),
+        collection_inserted: applied.collection_inserted,
+        requested_by: requested_by.to_owned(),
+    }
+}
+
+fn intake_batch_classification_failure_response(
+    failed: IntakeBatchClassificationFailure,
+) -> IntakeBatchClassificationFailureResponse {
+    IntakeBatchClassificationFailureResponse {
+        item_id: failed.item_id,
+        index: failed.index,
+        error: failed.error,
+    }
+}
+
+/// POST /atelier/intake/batches/:batch_id/classifications — persist a full-batch triage plan.
+async fn apply_intake_batch_classifications(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(batch_id): Path<Uuid>,
+    Json(payload): Json<ApplyIntakeBatchClassificationsApiRequest>,
+) -> Result<Json<IntakeBatchClassificationApplyResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let actor = calling_actor(&headers)?;
+    let default_lane = IntakeLane::parse(&payload.default_lane).map_err(atelier_error)?;
+    let mut overrides = Vec::with_capacity(payload.overrides.len());
+    for override_row in payload.overrides {
+        overrides.push(ApplyIntakeBatchClassificationOverride {
+            item_id: override_row.item_id,
+            lane: IntakeLane::parse(&override_row.lane).map_err(atelier_error)?,
+            reason: override_row.reason,
+        });
+    }
+    let store = atelier_store(&state);
+    let applied = store
+        .apply_intake_batch_classifications(&ApplyIntakeBatchClassificationsRequest {
+            batch_id,
+            default_lane,
+            default_reason: payload.default_reason,
+            requested_by: actor.clone(),
+            metadata: payload.metadata,
+            overrides,
+        })
+        .await
+        .map_err(atelier_error)?;
+
+    tracing::info!(
+        target: "handshake_core::atelier",
+        route = "/atelier/intake/batches/:batch_id/classifications",
+        status = "ok",
+        actor = %actor,
+        batch_id = %batch_id,
+        applied_count = applied.applied.len(),
+        total_item_count = applied.total_item_count,
+        failed = applied.failed.is_some(),
+        "apply intake batch classifications"
+    );
+
+    let applied_count = applied.applied.len();
+    Ok(Json(IntakeBatchClassificationApplyResponse {
+        batch_id: applied.batch_id,
+        total_item_count: applied.total_item_count,
+        applied_count,
+        applied: applied
+            .applied
+            .into_iter()
+            .take(INTAKE_BATCH_APPLY_PREVIEW_LIMIT)
+            .map(|row| intake_classification_apply_response(row, &actor))
+            .collect(),
+        failed: applied
+            .failed
+            .map(intake_batch_classification_failure_response),
+        requested_by: actor,
+    }))
+}
+
 /// POST /atelier/intake/items/:item_id/classification — persist one item triage decision.
 async fn apply_intake_item_classification(
     State(state): State<AppState>,
@@ -3550,15 +3676,7 @@ async fn apply_intake_item_classification(
         "apply intake item classification"
     );
 
-    Ok(Json(IntakeClassificationApplyResponse {
-        item: intake_item_response(applied.item),
-        asset_id: applied.asset_id,
-        media_ref: applied.asset_id.map(media_asset_ref),
-        collection_id: applied.collection_id,
-        collection_ref: applied.collection_id.map(collection_ref),
-        collection_inserted: applied.collection_inserted,
-        requested_by: actor,
-    }))
+    Ok(Json(intake_classification_apply_response(applied, &actor)))
 }
 
 #[derive(Debug, Serialize)]

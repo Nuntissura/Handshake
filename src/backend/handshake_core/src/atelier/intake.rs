@@ -26,14 +26,15 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sqlx::{Postgres, Row, Transaction};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 use super::{
     collections::collections_event_family, event_ref_for_text,
-    media::MEDIA_ORIGINAL_RETENTION_CLASS, reject_legacy_runtime_ref, AtelierError, AtelierResult,
-    AtelierStore,
+    media::MEDIA_ORIGINAL_RETENTION_CLASS, reject_legacy_runtime_ref, search::normalize_tag,
+    AtelierError, AtelierResult, AtelierStore,
 };
 
 pub const ORPHAN_MANIFEST_SCHEMA_ID: &str = "hsk.atelier.orphan_manifest@1";
@@ -334,12 +335,44 @@ pub struct ApplyIntakeClassificationRequest {
     pub metadata: Option<IntakeClassificationMetadata>,
 }
 
+#[derive(Clone, Debug)]
+pub struct ApplyIntakeBatchClassificationOverride {
+    pub item_id: Uuid,
+    pub lane: IntakeLane,
+    pub reason: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ApplyIntakeBatchClassificationsRequest {
+    pub batch_id: Uuid,
+    pub default_lane: IntakeLane,
+    pub default_reason: Option<String>,
+    pub requested_by: String,
+    pub metadata: Option<IntakeClassificationMetadata>,
+    pub overrides: Vec<ApplyIntakeBatchClassificationOverride>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct IntakeClassificationApplyResult {
     pub item: IntakeItem,
     pub asset_id: Option<Uuid>,
     pub collection_id: Option<Uuid>,
     pub collection_inserted: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct IntakeBatchClassificationFailure {
+    pub item_id: Uuid,
+    pub index: usize,
+    pub error: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct IntakeBatchClassificationApplyResult {
+    pub batch_id: Uuid,
+    pub total_item_count: usize,
+    pub applied: Vec<IntakeClassificationApplyResult>,
+    pub failed: Option<IntakeBatchClassificationFailure>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -600,6 +633,160 @@ fn normalize_lane_reason(lane: IntakeLane, reason: Option<&str>) -> AtelierResul
         ))),
         None => Ok(None),
     }
+}
+
+fn normalize_metadata_text(
+    field: &str,
+    value: &Option<String>,
+    reject_runtime_ref: bool,
+) -> AtelierResult<Option<String>> {
+    match value.as_deref() {
+        None => Ok(None),
+        Some(raw) => {
+            let trimmed = raw.trim();
+            if trimmed.is_empty() || trimmed != raw {
+                return Err(AtelierError::Validation(format!(
+                    "metadata.{field} must not be empty or padded"
+                )));
+            }
+            if reject_runtime_ref {
+                reject_legacy_runtime_ref(&format!("metadata.{field}"), raw)?;
+            }
+            Ok(Some(raw.to_string()))
+        }
+    }
+}
+
+fn normalize_metadata_request_id(
+    metadata: &IntakeClassificationMetadata,
+    required: bool,
+) -> AtelierResult<Option<String>> {
+    let normalized = normalize_metadata_text("request_id", &metadata.request_id, true)?;
+    if required && normalized.is_none() {
+        return Err(AtelierError::Validation(
+            "metadata.request_id is required for batch intake classification".into(),
+        ));
+    }
+    Ok(normalized)
+}
+
+fn normalize_metadata_loaded_count(value: Option<i64>) -> AtelierResult<Option<i64>> {
+    if let Some(count) = value {
+        if count < 0 {
+            return Err(AtelierError::Validation(
+                "metadata.loaded_item_count must not be negative".into(),
+            ));
+        }
+    }
+    Ok(value)
+}
+
+fn normalize_contact_sheet_metadata(
+    value: &Option<IntakeClassificationContactSheetMetadata>,
+) -> AtelierResult<Option<IntakeClassificationContactSheetMetadata>> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    for (field, candidate) in [
+        ("rows", value.rows),
+        ("columns", value.columns),
+        ("dpi", value.dpi),
+        ("cells", value.cells),
+    ] {
+        if let Some(candidate) = candidate {
+            if candidate <= 0 {
+                return Err(AtelierError::Validation(format!(
+                    "metadata.contact_sheet.{field} must be positive"
+                )));
+            }
+        }
+    }
+    Ok(Some(value.clone()))
+}
+
+fn normalize_classification_metadata(
+    metadata: Option<&IntakeClassificationMetadata>,
+    expected_batch_id: Option<Uuid>,
+    canonical_item_count: Option<i64>,
+    require_request_id: bool,
+) -> AtelierResult<(Option<IntakeClassificationMetadata>, Option<String>)> {
+    let Some(metadata) = metadata else {
+        if require_request_id {
+            return Err(AtelierError::Validation(
+                "metadata with request_id is required for batch intake classification".into(),
+            ));
+        }
+        return Ok((None, None));
+    };
+
+    let request_id = normalize_metadata_request_id(metadata, require_request_id)?;
+    let mut batch_id = normalize_metadata_text("batch_id", &metadata.batch_id, true)?;
+    if let Some(expected_batch_id) = expected_batch_id {
+        let expected = expected_batch_id.to_string();
+        if let Some(actual) = batch_id.as_deref() {
+            if actual != expected {
+                return Err(AtelierError::Validation(format!(
+                    "metadata.batch_id {actual} does not match intake batch {expected}"
+                )));
+            }
+        } else {
+            batch_id = Some(expected);
+        }
+    }
+
+    let mut tags = Vec::new();
+    let mut seen_tags = BTreeSet::new();
+    for raw_tag in &metadata.tags {
+        let normalized = normalize_tag(raw_tag);
+        if normalized.is_empty() {
+            continue;
+        }
+        if seen_tags.insert(normalized.clone()) {
+            tags.push(normalized);
+        }
+    }
+
+    let loaded_item_count = match canonical_item_count {
+        Some(count) => Some(count),
+        None => normalize_metadata_loaded_count(metadata.loaded_item_count)?,
+    };
+
+    Ok((
+        Some(IntakeClassificationMetadata {
+            request_id: request_id.clone(),
+            batch_id,
+            dataset_ref: normalize_metadata_text("dataset_ref", &metadata.dataset_ref, true)?,
+            character_ref: normalize_metadata_text("character_ref", &metadata.character_ref, true)?,
+            link_passed: metadata.link_passed,
+            tags,
+            note: normalize_metadata_text("note", &metadata.note, false)?,
+            event: normalize_metadata_text("event", &metadata.event, false)?,
+            date: normalize_metadata_text("date", &metadata.date, false)?,
+            location: normalize_metadata_text("location", &metadata.location, false)?,
+            facial_profile: normalize_metadata_text(
+                "facial_profile",
+                &metadata.facial_profile,
+                false,
+            )?,
+            loaded_item_count,
+            contact_sheet: normalize_contact_sheet_metadata(&metadata.contact_sheet)?,
+        }),
+        request_id,
+    ))
+}
+
+fn metadata_tags_from_json(value: Option<serde_json::Value>) -> Vec<String> {
+    let Some(serde_json::Value::Array(values)) = value else {
+        return Vec::new();
+    };
+    values
+        .into_iter()
+        .filter_map(|value| match value {
+            serde_json::Value::String(text) => Some(normalize_tag(&text)),
+            _ => None,
+        })
+        .filter(|tag| !tag.is_empty())
+        .collect()
 }
 
 async fn recorded_request_payload_in_tx(
@@ -1343,6 +1530,106 @@ impl AtelierStore {
         Ok(Some((rejection_audit_from_row(&row)?, inserted)))
     }
 
+    async fn upsert_intake_item_metadata_in_tx(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        item: &IntakeItem,
+        asset_id: Option<Uuid>,
+        requested_by: &str,
+        metadata: Option<&IntakeClassificationMetadata>,
+    ) -> AtelierResult<()> {
+        let Some(metadata) = metadata else {
+            return Ok(());
+        };
+        let Some(request_id) = metadata.request_id.as_deref() else {
+            return Ok(());
+        };
+
+        let existing = sqlx::query(
+            r#"SELECT tags_json, note
+               FROM atelier_intake_item_metadata
+               WHERE item_id = $1
+               FOR UPDATE"#,
+        )
+        .bind(item.item_id)
+        .fetch_optional(&mut **tx)
+        .await?;
+
+        let mut merged_tags = Vec::new();
+        let mut seen_tags = BTreeSet::new();
+        if let Some(row) = existing.as_ref() {
+            let existing_tags: Option<serde_json::Value> = row.get("tags_json");
+            for tag in metadata_tags_from_json(existing_tags) {
+                if seen_tags.insert(tag.clone()) {
+                    merged_tags.push(tag);
+                }
+            }
+        }
+        for tag in &metadata.tags {
+            let normalized = normalize_tag(tag);
+            if normalized.is_empty() {
+                continue;
+            }
+            if seen_tags.insert(normalized.clone()) {
+                merged_tags.push(normalized);
+            }
+        }
+
+        let existing_note = existing
+            .as_ref()
+            .and_then(|row| row.get::<Option<String>, _>("note"));
+        let note = existing_note.or_else(|| metadata.note.clone());
+        let tags_json = serde_json::Value::from(merged_tags);
+        let contact_sheet_json = metadata.contact_sheet.as_ref().map(|contact_sheet| {
+            serde_json::to_value(contact_sheet).unwrap_or_else(|_| serde_json::json!({}))
+        });
+
+        sqlx::query(
+            r#"INSERT INTO atelier_intake_item_metadata
+                 (item_id, batch_id, asset_id, request_id, dataset_ref, character_ref,
+                  link_passed, tags_json, note, event_label, event_date, location,
+                  facial_profile, loaded_item_count, contact_sheet_json, requested_by)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+               ON CONFLICT (item_id) DO UPDATE SET
+                   batch_id = EXCLUDED.batch_id,
+                   asset_id = COALESCE(EXCLUDED.asset_id, atelier_intake_item_metadata.asset_id),
+                   request_id = EXCLUDED.request_id,
+                   dataset_ref = COALESCE(EXCLUDED.dataset_ref, atelier_intake_item_metadata.dataset_ref),
+                   character_ref = COALESCE(EXCLUDED.character_ref, atelier_intake_item_metadata.character_ref),
+                   link_passed = EXCLUDED.link_passed,
+                   tags_json = EXCLUDED.tags_json,
+                   note = COALESCE(atelier_intake_item_metadata.note, EXCLUDED.note),
+                   event_label = COALESCE(EXCLUDED.event_label, atelier_intake_item_metadata.event_label),
+                   event_date = COALESCE(EXCLUDED.event_date, atelier_intake_item_metadata.event_date),
+                   location = COALESCE(EXCLUDED.location, atelier_intake_item_metadata.location),
+                   facial_profile = COALESCE(EXCLUDED.facial_profile, atelier_intake_item_metadata.facial_profile),
+                   loaded_item_count = COALESCE(EXCLUDED.loaded_item_count, atelier_intake_item_metadata.loaded_item_count),
+                   contact_sheet_json = COALESCE(EXCLUDED.contact_sheet_json, atelier_intake_item_metadata.contact_sheet_json),
+                   requested_by = EXCLUDED.requested_by,
+                   updated_at_utc = NOW()"#,
+        )
+        .bind(item.item_id)
+        .bind(item.batch_id)
+        .bind(asset_id)
+        .bind(request_id)
+        .bind(&metadata.dataset_ref)
+        .bind(&metadata.character_ref)
+        .bind(metadata.link_passed)
+        .bind(&tags_json)
+        .bind(&note)
+        .bind(&metadata.event)
+        .bind(&metadata.date)
+        .bind(&metadata.location)
+        .bind(&metadata.facial_profile)
+        .bind(metadata.loaded_item_count)
+        .bind(&contact_sheet_json)
+        .bind(requested_by)
+        .execute(&mut **tx)
+        .await?;
+
+        Ok(())
+    }
+
     /// Open a persistent intake batch, or return the existing one for the same
     /// `idempotency_key`. Re-scanning the same source is therefore safe and
     /// never creates a duplicate batch (legacy source `createIntakeBatch` intent).
@@ -1627,7 +1914,7 @@ impl AtelierStore {
                       content_hash, lane, lane_reason, created_at_utc, updated_at_utc
                FROM atelier_intake_item
                WHERE batch_id = $1 AND ($2::TEXT IS NULL OR lane = $2)
-               ORDER BY created_at_utc ASC"#,
+               ORDER BY created_at_utc ASC, item_id ASC"#,
         )
         .bind(batch_id)
         .bind(lane.map(|l| l.as_str()))
@@ -2107,6 +2394,192 @@ impl AtelierStore {
         Ok(item)
     }
 
+    /// Apply a classification plan to the canonical persisted item set for one
+    /// batch. Loaded UI rows may provide per-item overrides, but the backend
+    /// owns the full item enumeration so large batches are never limited to the
+    /// currently rendered or expanded subset.
+    pub async fn apply_intake_batch_classifications(
+        &self,
+        request: &ApplyIntakeBatchClassificationsRequest,
+    ) -> AtelierResult<IntakeBatchClassificationApplyResult> {
+        let requested_by = request.requested_by.trim();
+        if requested_by.is_empty() || requested_by != request.requested_by {
+            return Err(AtelierError::Validation(
+                "requested_by must not be empty or padded".into(),
+            ));
+        }
+        reject_legacy_runtime_ref("requested_by", requested_by)?;
+
+        let request_metadata = request.metadata.as_ref().ok_or_else(|| {
+            AtelierError::Validation(
+                "metadata with request_id and batch_id is required for batch intake classification"
+                    .into(),
+            )
+        })?;
+        if request_metadata.batch_id.is_none() {
+            return Err(AtelierError::Validation(
+                "metadata.batch_id is required for batch intake classification".into(),
+            ));
+        }
+        let (_preflight_metadata, preflight_request_id) = normalize_classification_metadata(
+            request.metadata.as_ref(),
+            Some(request.batch_id),
+            None,
+            true,
+        )?;
+        let preflight_request_id = preflight_request_id.ok_or_else(|| {
+            AtelierError::Validation(
+                "metadata.request_id is required for batch intake classification".into(),
+            )
+        })?;
+
+        let mut tx = self.pool().begin().await?;
+        sqlx::query("SELECT pg_advisory_xact_lock($1)")
+            .bind(advisory_lock_key(&format!(
+                "atelier-intake-batch-request:{}",
+                preflight_request_id
+            )))
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("SELECT pg_advisory_xact_lock($1)")
+            .bind(advisory_lock_key(&format!(
+                "atelier-intake-batch-apply:{}",
+                request.batch_id
+            )))
+            .execute(&mut *tx)
+            .await?;
+
+        let batch_exists: Option<Uuid> = sqlx::query_scalar(
+            r#"SELECT batch_id
+               FROM atelier_intake_batch
+               WHERE batch_id = $1
+               FOR UPDATE"#,
+        )
+        .bind(request.batch_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        if batch_exists.is_none() {
+            return Err(AtelierError::NotFound(format!(
+                "intake batch {}",
+                request.batch_id
+            )));
+        }
+
+        let rows = sqlx::query(
+            r#"SELECT item_id, batch_id, source_path, file_name, byte_len,
+                      content_hash, lane, lane_reason, created_at_utc, updated_at_utc
+               FROM atelier_intake_item
+               WHERE batch_id = $1
+               ORDER BY created_at_utc ASC, item_id ASC
+               FOR UPDATE"#,
+        )
+        .bind(request.batch_id)
+        .fetch_all(&mut *tx)
+        .await?;
+        let items = rows
+            .iter()
+            .map(item_from_row)
+            .collect::<AtelierResult<Vec<_>>>()?;
+        let canonical_item_count = checked_usize_to_i64("intake batch item count", items.len())?;
+        let (metadata, request_id) = normalize_classification_metadata(
+            request.metadata.as_ref(),
+            Some(request.batch_id),
+            Some(canonical_item_count),
+            true,
+        )?;
+        let request_id = request_id.ok_or_else(|| {
+            AtelierError::Validation(
+                "metadata.request_id is required for batch intake classification".into(),
+            )
+        })?;
+        let conflicting_batch_id: Option<Uuid> = sqlx::query_scalar(
+            r#"SELECT batch_id
+               FROM atelier_intake_item_metadata
+               WHERE request_id = $1
+                 AND batch_id <> $2
+               LIMIT 1"#,
+        )
+        .bind(request_id.as_str())
+        .bind(request.batch_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        if let Some(conflicting_batch_id) = conflicting_batch_id {
+            return Err(AtelierError::Validation(format!(
+                "metadata.request_id {request_id} is already bound to intake batch {conflicting_batch_id}"
+            )));
+        }
+
+        let mut item_ids = BTreeSet::new();
+        for item in &items {
+            item_ids.insert(item.item_id);
+        }
+
+        let mut overrides = BTreeMap::new();
+        for override_row in &request.overrides {
+            if !item_ids.contains(&override_row.item_id) {
+                return Err(AtelierError::Validation(format!(
+                    "intake batch override item_id {} does not belong to batch {}",
+                    override_row.item_id, request.batch_id
+                )));
+            }
+            if overrides
+                .insert(
+                    override_row.item_id,
+                    (override_row.lane, override_row.reason.clone()),
+                )
+                .is_some()
+            {
+                return Err(AtelierError::Validation(format!(
+                    "duplicate intake batch override item_id {}",
+                    override_row.item_id
+                )));
+            }
+        }
+
+        let mut planned = Vec::with_capacity(items.len());
+        for item in &items {
+            let (lane, reason) = overrides
+                .get(&item.item_id)
+                .cloned()
+                .unwrap_or((request.default_lane, request.default_reason.clone()));
+            let normalized_reason = normalize_lane_reason(lane, reason.as_deref())?;
+            planned.push((item.item_id, lane, normalized_reason));
+        }
+
+        let mut applied = Vec::with_capacity(items.len());
+        for (item_id, lane, reason) in planned {
+            let row = self
+                .apply_intake_classification_in_tx(
+                    &mut tx,
+                    &ApplyIntakeClassificationRequest {
+                        item_id,
+                        lane,
+                        reason,
+                        requested_by: Some(requested_by.to_owned()),
+                        metadata: metadata.clone(),
+                    },
+                )
+                .await?;
+            self.upsert_intake_item_metadata_in_tx(
+                &mut tx,
+                &row.item,
+                row.asset_id,
+                requested_by,
+                metadata.as_ref(),
+            )
+            .await?;
+            applied.push(row);
+        }
+
+        tx.commit().await?;
+        Ok(IntakeBatchClassificationApplyResult {
+            batch_id: request.batch_id,
+            total_item_count: items.len(),
+            applied,
+            failed: None,
+        })
+    }
+
     /// Apply an intake lane decision to the media workflow. Accepted decisions
     /// resolve the item's `content_hash` to an existing media asset and attach
     /// that asset to the batch target collection when configured. All writes
@@ -2115,9 +2588,41 @@ impl AtelierStore {
         &self,
         request: &ApplyIntakeClassificationRequest,
     ) -> AtelierResult<IntakeClassificationApplyResult> {
-        let normalized_reason = normalize_lane_reason(request.lane, request.reason.as_deref())?;
         let mut tx = self.pool().begin().await?;
+        let result = self
+            .apply_intake_classification_in_tx(&mut tx, request)
+            .await?;
+        if let Some(requested_by) = request
+            .requested_by
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            let (metadata, _request_id) = normalize_classification_metadata(
+                request.metadata.as_ref(),
+                Some(result.item.batch_id),
+                None,
+                false,
+            )?;
+            self.upsert_intake_item_metadata_in_tx(
+                &mut tx,
+                &result.item,
+                result.asset_id,
+                requested_by,
+                metadata.as_ref(),
+            )
+            .await?;
+        }
+        tx.commit().await?;
+        Ok(result)
+    }
 
+    async fn apply_intake_classification_in_tx(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        request: &ApplyIntakeClassificationRequest,
+    ) -> AtelierResult<IntakeClassificationApplyResult> {
+        let normalized_reason = normalize_lane_reason(request.lane, request.reason.as_deref())?;
         let existing_row = sqlx::query(
             r#"SELECT item_id, batch_id, source_path, file_name, byte_len,
                       content_hash, lane, lane_reason, created_at_utc, updated_at_utc
@@ -2126,28 +2631,33 @@ impl AtelierStore {
                FOR UPDATE"#,
         )
         .bind(request.item_id)
-        .fetch_optional(&mut *tx)
+        .fetch_optional(&mut **tx)
         .await?
         .ok_or_else(|| AtelierError::NotFound(format!("intake item {}", request.item_id)))?;
         let existing = item_from_row(&existing_row)?;
+        let (metadata, request_id) = normalize_classification_metadata(
+            request.metadata.as_ref(),
+            Some(existing.batch_id),
+            None,
+            false,
+        )?;
+        let requested_by = match request.requested_by.as_deref() {
+            None => None,
+            Some(raw) => {
+                let trimmed = raw.trim();
+                if trimmed.is_empty() || trimmed != raw {
+                    return Err(AtelierError::Validation(
+                        "requested_by must not be empty or padded".into(),
+                    ));
+                }
+                reject_legacy_runtime_ref("requested_by", raw)?;
+                Some(raw.to_string())
+            }
+        };
         let changed = existing.lane != request.lane || existing.lane_reason != normalized_reason;
-        let has_request_context = request
-            .requested_by
-            .as_ref()
-            .map_or(false, |value| !value.trim().is_empty())
-            || request.metadata.is_some();
-        let recorded_request_payload = recorded_request_payload_in_tx(
-            &mut tx,
-            existing.item_id,
-            request.metadata.as_ref().and_then(|metadata| {
-                metadata
-                    .request_id
-                    .as_deref()
-                    .map(str::trim)
-                    .filter(|value| !value.is_empty())
-            }),
-        )
-        .await?;
+        let has_request_context = requested_by.is_some() || metadata.is_some();
+        let recorded_request_payload =
+            recorded_request_payload_in_tx(tx, existing.item_id, request_id.as_deref()).await?;
         let duplicate_request_id = recorded_request_payload.is_some();
         if let Some(recorded_payload) = recorded_request_payload.as_ref() {
             let recorded_lane = recorded_payload
@@ -2173,21 +2683,23 @@ impl AtelierStore {
         }
 
         let batch_row = sqlx::query(
-            r#"SELECT batch_id, target_collection_id
+            r#"SELECT batch_id, target_character_id, target_sheet_version_id, target_collection_id
                FROM atelier_intake_batch
                WHERE batch_id = $1
                FOR UPDATE"#,
         )
         .bind(existing.batch_id)
-        .fetch_optional(&mut *tx)
+        .fetch_optional(&mut **tx)
         .await?
         .ok_or_else(|| AtelierError::NotFound(format!("intake batch {}", existing.batch_id)))?;
+        let target_character_id: Option<Uuid> = batch_row.get("target_character_id");
+        let target_sheet_version_id: Option<Uuid> = batch_row.get("target_sheet_version_id");
         let target_collection_id: Option<Uuid> = batch_row.get("target_collection_id");
 
         let mut asset_id = None;
         let mut collection_id = None;
         let mut collection_inserted = false;
-        if request.lane == IntakeLane::Accepted && !duplicate_request_id {
+        if request.lane == IntakeLane::Accepted {
             let content_hash = existing.content_hash.as_deref().ok_or_else(|| {
                 AtelierError::Validation(
                     "accepted intake item requires target media asset content_hash".into(),
@@ -2197,7 +2709,7 @@ impl AtelierStore {
                 "SELECT asset_id FROM atelier_media_asset WHERE content_hash = $1",
             )
             .bind(content_hash)
-            .fetch_optional(&mut *tx)
+            .fetch_optional(&mut **tx)
             .await?
             .ok_or_else(|| {
                 AtelierError::NotFound(format!(
@@ -2208,16 +2720,35 @@ impl AtelierStore {
             asset_id = Some(resolved_asset_id);
 
             if let Some(target_collection_id) = target_collection_id {
-                let collection_exists: Option<Uuid> = sqlx::query_scalar(
-                    "SELECT collection_id FROM atelier_collection WHERE collection_id = $1 FOR UPDATE",
+                let collection_row = sqlx::query(
+                    r#"SELECT collection_id, character_internal_id, sheet_version_id
+                       FROM atelier_collection
+                       WHERE collection_id = $1
+                       FOR UPDATE"#,
                 )
                 .bind(target_collection_id)
-                .fetch_optional(&mut *tx)
-                .await?;
-                if collection_exists.is_none() {
-                    return Err(AtelierError::NotFound(format!(
-                        "target collection {target_collection_id}"
-                    )));
+                .fetch_optional(&mut **tx)
+                .await?
+                .ok_or_else(|| {
+                    AtelierError::NotFound(format!("target collection {target_collection_id}"))
+                })?;
+                let collection_character_id: Option<Uuid> =
+                    collection_row.get("character_internal_id");
+                let collection_sheet_version_id: Option<Uuid> =
+                    collection_row.get("sheet_version_id");
+                if let Some(target_character_id) = target_character_id {
+                    if collection_character_id != Some(target_character_id) {
+                        return Err(AtelierError::Validation(format!(
+                            "target collection {target_collection_id} does not belong to intake batch target_character_id {target_character_id}"
+                        )));
+                    }
+                }
+                if let Some(target_sheet_version_id) = target_sheet_version_id {
+                    if collection_sheet_version_id != Some(target_sheet_version_id) {
+                        return Err(AtelierError::Validation(format!(
+                            "target collection {target_collection_id} does not belong to intake batch target_sheet_version_id {target_sheet_version_id}"
+                        )));
+                    }
                 }
 
                 let source_path_ref = event_ref_for_text(&existing.source_path);
@@ -2225,7 +2756,7 @@ impl AtelierStore {
                     "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM atelier_collection_item WHERE collection_id = $1",
                 )
                 .bind(target_collection_id)
-                .fetch_one(&mut *tx)
+                .fetch_one(&mut **tx)
                 .await?;
                 let inserted = sqlx::query(
                     r#"INSERT INTO atelier_collection_item
@@ -2237,7 +2768,7 @@ impl AtelierStore {
                 .bind(resolved_asset_id)
                 .bind(next_order)
                 .bind(&source_path_ref)
-                .execute(&mut *tx)
+                .execute(&mut **tx)
                 .await?
                 .rows_affected()
                     > 0;
@@ -2254,7 +2785,7 @@ impl AtelierStore {
                     .bind(target_collection_id)
                     .bind(resolved_asset_id)
                     .bind(&source_path_ref)
-                    .execute(&mut *tx)
+                    .execute(&mut **tx)
                     .await?
                     .rows_affected()
                         > 0
@@ -2266,10 +2797,10 @@ impl AtelierStore {
                         "UPDATE atelier_collection SET updated_at_utc = NOW() WHERE collection_id = $1",
                     )
                     .bind(target_collection_id)
-                    .execute(&mut *tx)
+                    .execute(&mut **tx)
                     .await?;
                     self.record_event_in_tx(
-                        &mut tx,
+                        tx,
                         collections_event_family::COLLECTION_IMAGES_ADDED,
                         "atelier_collection",
                         &target_collection_id.to_string(),
@@ -2280,11 +2811,8 @@ impl AtelierStore {
                             "asset_id": resolved_asset_id,
                             "intake_item_id": existing.item_id,
                             "source_path_ref": source_path_ref,
-                            "requested_by": request.requested_by.as_deref(),
-                            "request_id": request
-                                .metadata
-                                .as_ref()
-                                .and_then(|metadata| metadata.request_id.as_deref()),
+                            "requested_by": requested_by.as_deref(),
+                            "request_id": request_id.as_deref(),
                         }),
                     )
                     .await?;
@@ -2305,11 +2833,11 @@ impl AtelierStore {
             .bind(request.item_id)
             .bind(request.lane.as_str())
             .bind(normalized_reason.as_deref())
-            .fetch_one(&mut *tx)
+            .fetch_one(&mut **tx)
             .await?;
 
             item = item_from_row(&row)?;
-            rejection_audit = self.insert_rejection_audit_in_tx(&mut tx, &item).await?;
+            rejection_audit = self.insert_rejection_audit_in_tx(tx, &item).await?;
         }
 
         if (changed || has_request_context) && !duplicate_request_id {
@@ -2317,11 +2845,11 @@ impl AtelierStore {
                 "UPDATE atelier_intake_batch SET updated_at_utc = NOW() WHERE batch_id = $1",
             )
             .bind(item.batch_id)
-            .execute(&mut *tx)
+            .execute(&mut **tx)
             .await?;
 
             self.record_event_in_tx(
-                &mut tx,
+                tx,
                 intake_event_family::INTAKE_ITEM_CLASSIFIED,
                 "atelier_intake_item",
                 &item.item_id.to_string(),
@@ -2334,8 +2862,8 @@ impl AtelierStore {
                     "collection_id": collection_id,
                     "apply_workflow": true,
                     "changed": changed,
-                    "requested_by": request.requested_by.as_deref(),
-                    "metadata": request.metadata.as_ref(),
+                    "requested_by": requested_by.as_deref(),
+                    "metadata": metadata.as_ref(),
                 }),
             )
             .await?;
@@ -2343,7 +2871,7 @@ impl AtelierStore {
             if let Some((audit, inserted)) = rejection_audit {
                 if inserted {
                     self.record_event_in_tx(
-                        &mut tx,
+                        tx,
                         intake_event_family::INTAKE_ITEM_REJECTION_AUDITED,
                         "atelier_intake_item",
                         &item.item_id.to_string(),
@@ -2360,7 +2888,6 @@ impl AtelierStore {
             }
         }
 
-        tx.commit().await?;
         Ok(IntakeClassificationApplyResult {
             item,
             asset_id,
