@@ -14,7 +14,7 @@
   "title": "U4-MT-100-TerminalLaunchInRepoFolderWithWrapper",
   "group": "U1 Usable-Product Expansion (notes+chat worksurface, §product-vision 2026-06-27)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-06-27T00:00:00Z",
+  "updated_at_utc": "2026-06-30T12:38:10Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-100.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,8 +25,11 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
+    "claimed_by": "KERNEL_BUILDER",
+    "claimed_at_utc": "2026-06-30T12:38:10Z",
+    "claim_session": "KERNEL_BUILDER-20260630-064524",
     "depends_on": [
       "MT-097",
       "MT-102",
@@ -104,7 +107,7 @@
     }
   ],
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260630-064524 product_commit=117fb78d; tests=test_terminal_launch 4/4, test_manual_content 7/7, test_top_menu_bar 13/13, test_command_palette 8/8, test_manual_pane_editors 8/8; post_review_pass=Curie,Meitner; residual=active workspace folder currently process cwd until canonical workspace filesystem root lands in MT-101",
     "wp_validator_session": null
   },
   "red_team": {
