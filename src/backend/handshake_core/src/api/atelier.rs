@@ -54,12 +54,12 @@ use crate::atelier::sheet::{
 use crate::atelier::stealth_window::ResolvedContentRef;
 use crate::atelier::{
     builtin_character_sheet_template, builtin_safe_subset, character_ref, collection_ref,
-    default_character_sheet_text, media_asset_ref, reject_legacy_runtime_ref, sheet_version_ref,
-    text_hash, AtelierError, AtelierStore, BulkOperationReceipt, Character,
+    default_character_sheet_text, event_ref_for_text, media_asset_ref, reject_legacy_runtime_ref,
+    sheet_version_ref, text_hash, AtelierError, AtelierStore, BulkOperationReceipt, Character,
     ClipboardImageImportRequest, DeletionArchiveRequest, DeletionImpactPreview,
     DeletionImpactPreviewRequest, DeletionRestoreRequest, DeletionTargetRef, ImageImportRecord,
-    MediaReviewMetadataUpdate, NewCharacter, NewSheetVersion, SetMediaSourceProvenanceRefs,
-    SheetVersion, UrlImageImportRequest, CHARACTER_SHEET_V2_TEMPLATE_VERSION, DEFAULT_SHEET_TOOL,
+    NewCharacter, NewSheetVersion, SheetVersion, UrlImageImportRequest,
+    CHARACTER_SHEET_V2_TEMPLATE_VERSION, DEFAULT_SHEET_TOOL,
 };
 use crate::storage::artifacts::{
     artifact_root_rel, resolve_workspace_root, validate_artifact_content_hash, write_file_artifact,
@@ -1017,20 +1017,28 @@ fn normalize_media_tags_for_api(tags: &[String]) -> Vec<String> {
     normalized
 }
 
-fn normalize_media_review_status_for_api(status: Option<&str>) -> String {
+fn normalize_media_review_status_for_api(
+    status: Option<&str>,
+) -> Result<String, (StatusCode, Json<ErrorResponse>)> {
     match status
         .map(str::trim)
         .filter(|status| !status.is_empty())
         .map(str::to_ascii_lowercase)
         .as_deref()
     {
-        Some("pass" | "passed" | "approve" | "approved") => "approved".to_owned(),
-        Some("reject" | "rejected") => "rejected".to_owned(),
-        Some("unsure" | "hold" | "defer" | "deferred") => "deferred".to_owned(),
-        Some("review") => "review".to_owned(),
-        Some("unreviewed") | None => "unreviewed".to_owned(),
-        Some(other) => other.to_owned(),
+        Some("pass" | "passed" | "approve" | "approved") => Ok("approved".to_owned()),
+        Some("reject" | "rejected") => Ok("rejected".to_owned()),
+        Some("unsure" | "hold" | "defer" | "deferred") => Ok("deferred".to_owned()),
+        Some("review") => Ok("review".to_owned()),
+        Some("unreviewed") | None => Ok("unreviewed".to_owned()),
+        Some(other) => Err(atelier_error(AtelierError::Validation(format!(
+            "unsupported review_status: {other}"
+        )))),
     }
+}
+
+fn media_notes_ref_for_api(notes: &str) -> String {
+    format!("sha256:{}", text_hash(notes))
 }
 
 fn validate_optional_provenance_ref_for_api(
@@ -1989,116 +1997,314 @@ async fn update_media_notes_tags(
         payload.source_path_ref.as_deref(),
     )?;
     validate_optional_provenance_ref_for_api("source_url_ref", payload.source_url_ref.as_deref())?;
-    let existing_metadata = store
-        .get_media_review_metadata(asset_id)
+    reject_legacy_runtime_ref("source provenance updated_by", &actor).map_err(atelier_error)?;
+    let MediaNotesTagsRequest {
+        notes,
+        tags,
+        review_status,
+        source_path_ref,
+        source_url_ref,
+    } = payload;
+    let desired_tags = tags.as_ref().map(|tags| normalize_media_tags_for_api(tags));
+
+    let mut tx = store
+        .pool()
+        .begin()
         .await
-        .map_err(atelier_error)?;
-    let review_status =
-        normalize_media_review_status_for_api(payload.review_status.as_deref().or_else(|| {
-            existing_metadata
-                .as_ref()
-                .map(|row| row.review_status.as_str())
-        }));
-    let updated = store
-        .bulk_update_media_review_metadata(
-            &[MediaReviewMetadataUpdate {
-                asset_id,
-                favorite: existing_metadata
-                    .as_ref()
-                    .map(|row| row.favorite)
-                    .unwrap_or(false),
-                rating: existing_metadata
-                    .as_ref()
-                    .map(|row| row.rating)
-                    .unwrap_or(0),
-                frontpage: existing_metadata
-                    .as_ref()
-                    .map(|row| row.frontpage)
-                    .unwrap_or(false),
-                carousel: existing_metadata
-                    .as_ref()
-                    .map(|row| row.carousel)
-                    .unwrap_or(false),
-                notes: payload
-                    .notes
-                    .or_else(|| existing_metadata.as_ref().and_then(|row| row.notes.clone())),
-                review_status,
-            }],
-            &actor,
+        .map_err(|err| atelier_error(AtelierError::Database(err)))?;
+    let asset_exists: bool =
+        sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM atelier_media_asset WHERE asset_id = $1)")
+            .bind(asset_id)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(|err| atelier_error(AtelierError::Database(err)))?;
+    if !asset_exists {
+        return Err(atelier_error(AtelierError::NotFound(format!(
+            "media asset_id={asset_id}"
+        ))));
+    }
+
+    let existing_metadata = sqlx::query(
+        r#"SELECT asset_id, favorite, rating, frontpage, carousel, notes,
+                  review_status, updated_by, updated_at_utc
+           FROM atelier_media_review_metadata
+           WHERE asset_id = $1
+           FOR UPDATE"#,
+    )
+    .bind(asset_id)
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(|err| atelier_error(AtelierError::Database(err)))?;
+    let favorite: bool = existing_metadata
+        .as_ref()
+        .map(|row| row.get("favorite"))
+        .unwrap_or(false);
+    let rating: i16 = existing_metadata
+        .as_ref()
+        .map(|row| row.get("rating"))
+        .unwrap_or(0);
+    let frontpage: bool = existing_metadata
+        .as_ref()
+        .map(|row| row.get("frontpage"))
+        .unwrap_or(false);
+    let carousel: bool = existing_metadata
+        .as_ref()
+        .map(|row| row.get("carousel"))
+        .unwrap_or(false);
+    let existing_notes: Option<String> =
+        existing_metadata.as_ref().and_then(|row| row.get("notes"));
+    let existing_review_status: Option<String> = existing_metadata
+        .as_ref()
+        .map(|row| row.get("review_status"));
+    let notes = notes.or(existing_notes);
+    let review_status = normalize_media_review_status_for_api(
+        review_status
+            .as_deref()
+            .or(existing_review_status.as_deref()),
+    )?;
+    let metadata_row = sqlx::query(
+        r#"INSERT INTO atelier_media_review_metadata (
+               asset_id, favorite, rating, frontpage, carousel, notes,
+               review_status, updated_by, updated_at_utc
+           )
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+           ON CONFLICT (asset_id) DO UPDATE SET
+               favorite = EXCLUDED.favorite,
+               rating = EXCLUDED.rating,
+               frontpage = EXCLUDED.frontpage,
+               carousel = EXCLUDED.carousel,
+               notes = EXCLUDED.notes,
+               review_status = EXCLUDED.review_status,
+               updated_by = EXCLUDED.updated_by,
+               updated_at_utc = NOW()
+           RETURNING asset_id, favorite, rating, frontpage, carousel, notes,
+                     review_status, updated_by, updated_at_utc"#,
+    )
+    .bind(asset_id)
+    .bind(favorite)
+    .bind(rating)
+    .bind(frontpage)
+    .bind(carousel)
+    .bind(&notes)
+    .bind(&review_status)
+    .bind(&actor)
+    .fetch_one(&mut *tx)
+    .await
+    .map_err(|err| atelier_error(AtelierError::Database(err)))?;
+    let notes: Option<String> = metadata_row.get("notes");
+    let review_status: String = metadata_row.get("review_status");
+    store
+        .record_event_in_tx(
+            &mut tx,
+            crate::atelier::event_family::MEDIA_REVIEW_METADATA_UPDATED,
+            "atelier_media_review_metadata",
+            &asset_id.to_string(),
+            serde_json::json!({
+                "asset_id": asset_id,
+                "favorite": favorite,
+                "rating": rating,
+                "frontpage": frontpage,
+                "carousel": carousel,
+                "review_status": &review_status,
+                "notes_present": notes.is_some(),
+                "notes_ref": notes.as_deref().map(media_notes_ref_for_api),
+                "requested_by": &actor,
+            }),
         )
         .await
         .map_err(atelier_error)?;
-    let metadata = updated
-        .metadata
-        .into_iter()
-        .next()
-        .ok_or_else(|| internal_error("media notes/tags update returned no metadata row"))?;
 
-    if let Some(requested_tags) = payload.tags {
-        let desired = normalize_media_tags_for_api(&requested_tags);
-        let existing_tags = store
-            .list_media_asset_tags(asset_id)
-            .await
-            .map_err(atelier_error)?;
-        for tag in existing_tags {
-            if !desired.iter().any(|value| value == &tag.text) {
-                store
-                    .untag_media_asset(asset_id, &tag.text)
-                    .await
-                    .map_err(atelier_error)?;
+    if let Some(desired) = desired_tags {
+        let existing_tag_rows = sqlx::query(
+            r#"SELECT mat.tag_id, t.text
+               FROM atelier_media_asset_tag mat
+               JOIN atelier_tag t ON t.tag_id = mat.tag_id
+               WHERE mat.asset_id = $1
+               FOR UPDATE OF mat"#,
+        )
+        .bind(asset_id)
+        .fetch_all(&mut *tx)
+        .await
+        .map_err(|err| atelier_error(AtelierError::Database(err)))?;
+        for row in existing_tag_rows {
+            let tag_id: Uuid = row.get("tag_id");
+            let tag_text: String = row.get("text");
+            if desired.iter().any(|value| value == &tag_text) {
+                continue;
             }
-        }
-        for tag in &desired {
+            sqlx::query("DELETE FROM atelier_media_asset_tag WHERE asset_id = $1 AND tag_id = $2")
+                .bind(asset_id)
+                .bind(tag_id)
+                .execute(&mut *tx)
+                .await
+                .map_err(|err| atelier_error(AtelierError::Database(err)))?;
             store
-                .tag_media_asset(asset_id, tag, &actor)
+                .record_event_in_tx(
+                    &mut tx,
+                    crate::atelier::collections::collections_event_family::MEDIA_ASSET_UNTAGGED,
+                    "atelier_media_asset_tag",
+                    &event_ref_for_text(&format!("media-asset-untag:{}:{}", asset_id, tag_text)),
+                    serde_json::json!({
+                        "asset_id": asset_id,
+                        "text": tag_text,
+                    }),
+                )
+                .await
+                .map_err(atelier_error)?;
+        }
+        for tag_text in &desired {
+            let tag_row = sqlx::query(
+                r#"INSERT INTO atelier_tag (text)
+                   VALUES ($1)
+                   ON CONFLICT (text) DO UPDATE SET text = EXCLUDED.text
+                   RETURNING tag_id, text"#,
+            )
+            .bind(tag_text)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(|err| atelier_error(AtelierError::Database(err)))?;
+            let tag_id: Uuid = tag_row.get("tag_id");
+            let persisted_text: String = tag_row.get("text");
+            sqlx::query(
+                r#"INSERT INTO atelier_media_asset_tag (asset_id, tag_id, source)
+                   VALUES ($1, $2, $3)
+                   ON CONFLICT (asset_id, tag_id)
+                     DO UPDATE SET source = EXCLUDED.source"#,
+            )
+            .bind(asset_id)
+            .bind(tag_id)
+            .bind(&actor)
+            .execute(&mut *tx)
+            .await
+            .map_err(|err| atelier_error(AtelierError::Database(err)))?;
+            store
+                .record_event_in_tx(
+                    &mut tx,
+                    crate::atelier::collections::collections_event_family::MEDIA_ASSET_TAGGED,
+                    "atelier_media_asset_tag",
+                    &event_ref_for_text(&format!("media-asset-tag:{}:{}", asset_id, tag_id)),
+                    serde_json::json!({
+                        "asset_id": asset_id,
+                        "tag_id": tag_id,
+                        "text": persisted_text,
+                        "tag_source_ref": event_ref_for_text(&actor),
+                    }),
+                )
                 .await
                 .map_err(atelier_error)?;
         }
     }
 
-    if payload.source_path_ref.is_some() || payload.source_url_ref.is_some() {
-        let existing_refs = store
-            .get_media_source_provenance_refs(asset_id)
-            .await
-            .map_err(atelier_error)?;
+    let existing_refs = sqlx::query(
+        r#"SELECT asset_id, source_url_ref, source_path_ref, source_note_ref,
+                  contact_sheet_ref, task_ref, run_ref, updated_by, updated_at_utc
+           FROM atelier_media_source_provenance_ref
+           WHERE asset_id = $1
+           FOR UPDATE"#,
+    )
+    .bind(asset_id)
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(|err| atelier_error(AtelierError::Database(err)))?;
+    let mut final_source_url_ref: Option<String> = existing_refs
+        .as_ref()
+        .and_then(|row| row.get("source_url_ref"));
+    let mut final_source_path_ref: Option<String> = existing_refs
+        .as_ref()
+        .and_then(|row| row.get("source_path_ref"));
+    let source_note_ref: Option<String> = existing_refs
+        .as_ref()
+        .and_then(|row| row.get("source_note_ref"));
+    let contact_sheet_ref: Option<String> = existing_refs
+        .as_ref()
+        .and_then(|row| row.get("contact_sheet_ref"));
+    let task_ref: Option<String> = existing_refs.as_ref().and_then(|row| row.get("task_ref"));
+    let run_ref: Option<String> = existing_refs.as_ref().and_then(|row| row.get("run_ref"));
+    if source_url_ref.is_some() || source_path_ref.is_some() {
+        if source_url_ref.is_some() {
+            final_source_url_ref = source_url_ref;
+        }
+        if source_path_ref.is_some() {
+            final_source_path_ref = source_path_ref;
+        }
+        validate_optional_provenance_ref_for_api(
+            "source_url_ref",
+            final_source_url_ref.as_deref(),
+        )?;
+        validate_optional_provenance_ref_for_api(
+            "source_path_ref",
+            final_source_path_ref.as_deref(),
+        )?;
+        validate_optional_provenance_ref_for_api("source_note_ref", source_note_ref.as_deref())?;
+        validate_optional_provenance_ref_for_api(
+            "contact_sheet_ref",
+            contact_sheet_ref.as_deref(),
+        )?;
+        validate_optional_provenance_ref_for_api("task_ref", task_ref.as_deref())?;
+        validate_optional_provenance_ref_for_api("run_ref", run_ref.as_deref())?;
+        sqlx::query(
+            r#"INSERT INTO atelier_media_source_provenance_ref
+                 (asset_id, source_url_ref, source_path_ref, source_note_ref,
+                  contact_sheet_ref, task_ref, run_ref, updated_by, updated_at_utc)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+               ON CONFLICT (asset_id)
+               DO UPDATE SET
+                   source_url_ref = EXCLUDED.source_url_ref,
+                   source_path_ref = EXCLUDED.source_path_ref,
+                   source_note_ref = EXCLUDED.source_note_ref,
+                   contact_sheet_ref = EXCLUDED.contact_sheet_ref,
+                   task_ref = EXCLUDED.task_ref,
+                   run_ref = EXCLUDED.run_ref,
+                   updated_by = EXCLUDED.updated_by,
+                   updated_at_utc = NOW()"#,
+        )
+        .bind(asset_id)
+        .bind(&final_source_url_ref)
+        .bind(&final_source_path_ref)
+        .bind(&source_note_ref)
+        .bind(&contact_sheet_ref)
+        .bind(&task_ref)
+        .bind(&run_ref)
+        .bind(&actor)
+        .execute(&mut *tx)
+        .await
+        .map_err(|err| atelier_error(AtelierError::Database(err)))?;
         store
-            .set_media_source_provenance_refs(&SetMediaSourceProvenanceRefs {
-                asset_id,
-                source_url_ref: payload.source_url_ref.or_else(|| {
-                    existing_refs
-                        .as_ref()
-                        .and_then(|row| row.source_url_ref.clone())
+            .record_event_in_tx(
+                &mut tx,
+                crate::atelier::event_family::MEDIA_SOURCE_PROVENANCE_REFS_SET,
+                "atelier_media_asset",
+                &asset_id.to_string(),
+                serde_json::json!({
+                    "asset_id": asset_id,
+                    "source_url_ref": &final_source_url_ref,
+                    "source_path_ref": &final_source_path_ref,
+                    "source_note_ref": &source_note_ref,
+                    "contact_sheet_ref": &contact_sheet_ref,
+                    "task_ref": &task_ref,
+                    "run_ref": &run_ref,
+                    "updated_by": &actor,
                 }),
-                source_path_ref: payload.source_path_ref.or_else(|| {
-                    existing_refs
-                        .as_ref()
-                        .and_then(|row| row.source_path_ref.clone())
-                }),
-                source_note_ref: existing_refs
-                    .as_ref()
-                    .and_then(|row| row.source_note_ref.clone()),
-                contact_sheet_ref: existing_refs
-                    .as_ref()
-                    .and_then(|row| row.contact_sheet_ref.clone()),
-                task_ref: existing_refs.as_ref().and_then(|row| row.task_ref.clone()),
-                run_ref: existing_refs.as_ref().and_then(|row| row.run_ref.clone()),
-                updated_by: actor.clone(),
-            })
+            )
             .await
             .map_err(atelier_error)?;
     }
 
-    let tags = store
-        .list_media_asset_tags(asset_id)
+    let tag_rows = sqlx::query(
+        r#"SELECT t.text
+           FROM atelier_media_asset_tag mat
+           JOIN atelier_tag t ON t.tag_id = mat.tag_id
+           WHERE mat.asset_id = $1
+           ORDER BY t.text ASC"#,
+    )
+    .bind(asset_id)
+    .fetch_all(&mut *tx)
+    .await
+    .map_err(|err| atelier_error(AtelierError::Database(err)))?;
+    let tags = tag_rows.iter().map(|row| row.get("text")).collect();
+    tx.commit()
         .await
-        .map_err(atelier_error)?
-        .into_iter()
-        .map(|tag| tag.text)
-        .collect();
-    let refs = store
-        .get_media_source_provenance_refs(asset_id)
-        .await
-        .map_err(atelier_error)?;
+        .map_err(|err| atelier_error(AtelierError::Database(err)))?;
     tracing::info!(
         target: "handshake_core::atelier",
         route = "/atelier/media-assets/:asset_id/notes-tags",
@@ -2110,11 +2316,11 @@ async fn update_media_notes_tags(
     Ok(Json(MediaNotesTagsResponse {
         asset_id,
         media_ref: media_asset_ref(asset_id),
-        notes: metadata.notes,
-        review_status: metadata.review_status,
+        notes,
+        review_status,
         tags,
-        source_path_ref: refs.as_ref().and_then(|row| row.source_path_ref.clone()),
-        source_url_ref: refs.as_ref().and_then(|row| row.source_url_ref.clone()),
+        source_path_ref: final_source_path_ref,
+        source_url_ref: final_source_url_ref,
     }))
 }
 
@@ -3424,4 +3630,47 @@ async fn resolve_stealth_ref(
     );
 
     Ok(Json(resolved))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn media_review_status_normalizer_accepts_operator_aliases() {
+        let cases = [
+            (None, "unreviewed"),
+            (Some("pass"), "approved"),
+            (Some("approved"), "approved"),
+            (Some("reject"), "rejected"),
+            (Some("unsure"), "deferred"),
+            (Some("review"), "review"),
+        ];
+
+        for (input, expected) in cases {
+            assert_eq!(
+                normalize_media_review_status_for_api(input).unwrap(),
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn media_review_status_normalizer_rejects_unknown_status_before_storage() {
+        let err = normalize_media_review_status_for_api(Some("ship-it")).unwrap_err();
+
+        assert_eq!(err.0, StatusCode::BAD_REQUEST);
+        assert_eq!(err.1 .0.error, "bad_request");
+    }
+
+    #[test]
+    fn media_notes_ref_uses_store_hash_prefix_contract() {
+        let notes_ref = media_notes_ref_for_api("same note");
+
+        assert!(notes_ref.starts_with("sha256:"));
+        assert_eq!(
+            notes_ref,
+            format!("sha256:{}", crate::atelier::text_hash("same note"))
+        );
+    }
 }
