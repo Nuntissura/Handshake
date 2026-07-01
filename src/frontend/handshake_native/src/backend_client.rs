@@ -5712,6 +5712,63 @@ pub struct AtelierFacialIngestAnalysisRow {
     pub receipt_artifact: AtelierFacialIngestArtifactRow,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierFacialCommandRouteRow {
+    pub command: String,
+    pub method: String,
+    pub path: String,
+    pub response_schema_id: String,
+    pub result_schema_id: Option<String>,
+    pub output_schema_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AtelierFacialFeatureListRow {
+    pub schema_id: String,
+    pub registry_schema_id: String,
+    pub feature_count: usize,
+    pub features: serde_json::Value,
+    pub command_routes: Vec<AtelierFacialCommandRouteRow>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AtelierFacialArtifactReadRow {
+    pub schema_id: String,
+    pub artifact_ref: String,
+    pub manifest_ref: String,
+    pub content_hash: String,
+    pub byte_len: u64,
+    pub mime: String,
+    pub file_name: Option<String>,
+    pub payload_schema_id: Option<String>,
+    pub payload: serde_json::Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierFacialCommandArtifactRow {
+    pub artifact_ref: String,
+    pub manifest_ref: String,
+    pub content_hash: String,
+    pub byte_len: u64,
+    pub mime: String,
+    pub file_name: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AtelierFacialCommandResponseRow {
+    pub schema_id: String,
+    pub command: String,
+    pub status: String,
+    pub actor: String,
+    pub result: serde_json::Value,
+    pub result_artifact: Option<AtelierFacialCommandArtifactRow>,
+    pub receipt_ref: Option<String>,
+    pub receipt_artifact: Option<AtelierFacialCommandArtifactRow>,
+    pub error: Option<String>,
+    pub degraded_reasons: Vec<String>,
+    pub recovery_hint: Option<String>,
+}
+
 /// One command-corpus entry row (the verified subset of `CommandCorpusEntryResponse`). `action_id` is the
 /// row label; `owner` + `execution_class` are muted detail.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -6354,6 +6411,172 @@ impl AtelierClient {
             ),
             body: Some(serde_json::json!({
                 "profile": profile,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure request builder for `GET /atelier/facial/features`.
+    pub fn facial_features_request(&self) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/facial/features", self.base_url),
+            query: vec![],
+        }
+    }
+
+    /// Pure request builder for reading a JSON Facial ArtifactStore payload by ref.
+    pub fn facial_artifact_read_request(&self, artifact_ref: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/facial/artifacts/read", self.base_url),
+            query: vec![("artifact_ref".to_owned(), artifact_ref.to_owned())],
+        }
+    }
+
+    /// Pure actor-attributed request builder for review session creation over a canonical intake batch.
+    pub fn facial_review_session_actor_request(
+        &self,
+        batch_id: &str,
+        profile: Option<&str>,
+        shard_count: Option<usize>,
+        claim_ttl_seconds: Option<u64>,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/atelier/intake/batches/{}/facial/review/session",
+                self.base_url, batch_id
+            ),
+            body: Some(serde_json::json!({
+                "profile": profile,
+                "shard_count": shard_count,
+                "claim_ttl_seconds": claim_ttl_seconds,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure actor-attributed request builder for claiming a review shard.
+    pub fn facial_review_claim_actor_request(
+        &self,
+        session_artifact_ref: &str,
+        existing_claim_artifact_refs: &[String],
+        decision_artifact_refs: &[String],
+        shard: Option<usize>,
+        steal_expired: bool,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/facial/review/claims", self.base_url),
+            body: Some(serde_json::json!({
+                "session_artifact_ref": session_artifact_ref,
+                "existing_claim_artifact_refs": existing_claim_artifact_refs,
+                "decision_artifact_refs": decision_artifact_refs,
+                "shard": shard,
+                "steal_expired": steal_expired,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure actor-attributed request builder for recording one review decision.
+    pub fn facial_review_decision_actor_request(
+        &self,
+        session_artifact_ref: &str,
+        claim_artifact_ref: &str,
+        item_id: &str,
+        decision: &str,
+        reason: &str,
+        tags: &[String],
+        notes: Option<&str>,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/facial/review/decisions", self.base_url),
+            body: Some(serde_json::json!({
+                "session_artifact_ref": session_artifact_ref,
+                "claim_artifact_ref": claim_artifact_ref,
+                "item_id": item_id,
+                "decision": decision,
+                "reason": reason,
+                "tags": tags,
+                "notes": notes,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure actor-attributed request builder for replaying review status from persisted refs.
+    pub fn facial_review_status_actor_request(
+        &self,
+        session_artifact_ref: &str,
+        claim_artifact_refs: &[String],
+        decision_artifact_refs: &[String],
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/facial/review/status", self.base_url),
+            body: Some(serde_json::json!({
+                "session_artifact_ref": session_artifact_ref,
+                "claim_artifact_refs": claim_artifact_refs,
+                "decision_artifact_refs": decision_artifact_refs,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure actor-attributed request builder for an Argus-addressable review montage tile map.
+    pub fn facial_review_montage_actor_request(
+        &self,
+        session_artifact_ref: &str,
+        decision_artifact_refs: &[String],
+        page: usize,
+        columns: usize,
+        rows: usize,
+        decision_filter: Option<&str>,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/facial/review/montage", self.base_url),
+            body: Some(serde_json::json!({
+                "session_artifact_ref": session_artifact_ref,
+                "decision_artifact_refs": decision_artifact_refs,
+                "page": page,
+                "columns": columns,
+                "rows": rows,
+                "decision_filter": decision_filter,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// Pure actor-attributed request builder for non-destructive Facial review export manifests.
+    pub fn facial_review_export_actor_request(
+        &self,
+        session_artifact_ref: &str,
+        decision_artifact_refs: &[String],
+        dataset_name: &str,
+        repeats: u32,
+        allow_partial: bool,
+        output_root_ref: &str,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/facial/review/export", self.base_url),
+            body: Some(serde_json::json!({
+                "session_artifact_ref": session_artifact_ref,
+                "decision_artifact_refs": decision_artifact_refs,
+                "dataset_name": dataset_name,
+                "repeats": repeats,
+                "allow_partial": allow_partial,
+                "output_root_ref": output_root_ref,
             })),
             headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
         }
@@ -9379,6 +9602,169 @@ fn parse_atelier_facial_ingest_analysis_row(
     })
 }
 
+fn parse_atelier_facial_command_artifact_row(
+    row: &serde_json::Value,
+) -> Option<AtelierFacialCommandArtifactRow> {
+    Some(AtelierFacialCommandArtifactRow {
+        artifact_ref: json_required_nonempty_string(row, "artifact_ref")?,
+        manifest_ref: json_required_nonempty_string(row, "manifest_ref")?,
+        content_hash: json_required_nonempty_string(row, "content_hash")?,
+        byte_len: row.get("byte_len").and_then(|value| value.as_u64())?,
+        mime: json_required_nonempty_string(row, "mime")?,
+        file_name: json_required_nonempty_string(row, "file_name")?,
+    })
+}
+
+fn parse_atelier_facial_command_route_row(
+    row: &serde_json::Value,
+) -> Option<AtelierFacialCommandRouteRow> {
+    Some(AtelierFacialCommandRouteRow {
+        command: json_required_nonempty_string(row, "command")?,
+        method: json_required_nonempty_string(row, "method")?,
+        path: json_required_nonempty_string(row, "path")?,
+        response_schema_id: json_required_nonempty_string(row, "response_schema_id")?,
+        result_schema_id: row
+            .get("result_schema_id")
+            .and_then(|value| value.as_str())
+            .map(ToOwned::to_owned),
+        output_schema_id: json_required_nonempty_string(row, "output_schema_id")?,
+    })
+}
+
+fn parse_atelier_facial_feature_list_row(
+    row: &serde_json::Value,
+) -> Option<AtelierFacialFeatureListRow> {
+    let schema_id = json_required_nonempty_string(row, "schema_id")?;
+    if schema_id != "hsk.atelier.facial.features@1" {
+        return None;
+    }
+    let registry_schema_id = json_required_nonempty_string(row, "registry_schema_id")?;
+    let feature_count = row.get("feature_count").and_then(|value| value.as_u64())? as usize;
+    let features = row.get("features")?.as_array()?;
+    if features.len() != feature_count || features.is_empty() {
+        return None;
+    }
+    let command_routes = row
+        .get("command_routes")?
+        .as_array()?
+        .iter()
+        .map(parse_atelier_facial_command_route_row)
+        .collect::<Option<Vec<_>>>()?;
+    if command_routes.is_empty() {
+        return None;
+    }
+    Some(AtelierFacialFeatureListRow {
+        schema_id,
+        registry_schema_id,
+        feature_count,
+        features: row.get("features")?.clone(),
+        command_routes,
+    })
+}
+
+fn parse_atelier_facial_artifact_read_row(
+    row: &serde_json::Value,
+) -> Option<AtelierFacialArtifactReadRow> {
+    let schema_id = json_required_nonempty_string(row, "schema_id")?;
+    if schema_id != "hsk.atelier.facial.artifact_read@1" {
+        return None;
+    }
+    Some(AtelierFacialArtifactReadRow {
+        schema_id,
+        artifact_ref: json_required_nonempty_string(row, "artifact_ref")?,
+        manifest_ref: json_required_nonempty_string(row, "manifest_ref")?,
+        content_hash: json_required_nonempty_string(row, "content_hash")?,
+        byte_len: row.get("byte_len").and_then(|value| value.as_u64())?,
+        mime: json_required_nonempty_string(row, "mime")?,
+        file_name: row
+            .get("file_name")
+            .and_then(|value| value.as_str())
+            .map(ToOwned::to_owned),
+        payload_schema_id: row
+            .get("payload_schema_id")
+            .and_then(|value| value.as_str())
+            .map(ToOwned::to_owned),
+        payload: row.get("payload")?.clone(),
+    })
+}
+
+fn parse_atelier_facial_command_response_row(
+    row: &serde_json::Value,
+) -> Result<AtelierFacialCommandResponseRow, AppError> {
+    let schema_id = json_required_nonempty_string(row, "schema_id")
+        .ok_or_else(|| AppError::Parse("Facial command response missing schema_id".to_owned()))?;
+    if schema_id != "hsk.atelier.facial_api.command_response@1" {
+        return Err(AppError::Parse(format!(
+            "unexpected Facial command response schema {schema_id}"
+        )));
+    }
+    let command = json_required_nonempty_string(row, "command")
+        .ok_or_else(|| AppError::Parse("Facial command response missing command".to_owned()))?;
+    let status = json_required_nonempty_string(row, "status")
+        .ok_or_else(|| AppError::Parse("Facial command response missing status".to_owned()))?;
+    if status != "succeeded" {
+        return Err(AppError::Parse(format!(
+            "unsupported live Facial command response status {status}; backend currently returns HTTP errors for non-success command paths"
+        )));
+    }
+    let actor = json_required_nonempty_string(row, "actor")
+        .ok_or_else(|| AppError::Parse("Facial command response missing actor".to_owned()))?;
+    let result = row
+        .get("result")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+    let result_artifact = row
+        .get("result_artifact")
+        .filter(|value| value.is_object())
+        .and_then(parse_atelier_facial_command_artifact_row);
+    let receipt_ref = row
+        .get("receipt_ref")
+        .and_then(|value| value.as_str())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned);
+    let receipt_artifact = row
+        .get("receipt_artifact")
+        .filter(|value| value.is_object())
+        .and_then(parse_atelier_facial_command_artifact_row);
+    if result_artifact.is_none() || receipt_artifact.is_none() || receipt_ref.is_none() {
+        return Err(AppError::Parse(
+            "successful Facial command response missing result/receipt artifacts".to_owned(),
+        ));
+    }
+    let degraded_reasons = row
+        .get("degraded_reasons")
+        .and_then(|value| value.as_array())
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(|value| value.as_str().map(ToOwned::to_owned))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let error = row
+        .get("error")
+        .and_then(|value| value.as_str())
+        .map(ToOwned::to_owned);
+    let recovery_hint = row
+        .get("recovery_hint")
+        .and_then(|value| value.as_str())
+        .map(ToOwned::to_owned);
+    Ok(AtelierFacialCommandResponseRow {
+        schema_id,
+        command,
+        status,
+        actor,
+        result,
+        result_artifact,
+        receipt_ref,
+        receipt_artifact,
+        error,
+        degraded_reasons,
+        recovery_hint,
+    })
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // MT-021 hardening tests (MAJOR #1/#2/#3): prove every menu-action backend call constructs the EXACT
 // verified URL + JSON body. Two layers:
@@ -10310,6 +10696,276 @@ mod tests {
         );
         let body = spec.body.expect("facial body");
         assert_eq!(body["profile"], "quality+dedupe+identity");
+    }
+
+    #[test]
+    fn atelier_client_builds_facial_command_and_review_requests() {
+        let rt = rt();
+        let c = AtelierClient::new_with_actor_id(BASE, rt.handle().clone(), "facial-agent-029");
+        let features = c.facial_features_request();
+        assert_eq!(features.method, HttpMethod::Get);
+        assert_eq!(features.url, format!("{BASE}/atelier/facial/features"));
+
+        let artifact = c.facial_artifact_read_request(
+            "artifact://.handshake/artifacts/L1/018f7848-1111-7000-9000-00000000f029/payload",
+        );
+        assert_eq!(artifact.method, HttpMethod::Get);
+        assert_eq!(
+            artifact.url,
+            format!("{BASE}/atelier/facial/artifacts/read")
+        );
+        assert_eq!(
+            artifact.query,
+            vec![(
+                "artifact_ref".to_owned(),
+                "artifact://.handshake/artifacts/L1/018f7848-1111-7000-9000-00000000f029/payload"
+                    .to_owned()
+            )]
+        );
+
+        let session = c.facial_review_session_actor_request(
+            "018f7848-1111-7000-9000-00000000b029",
+            Some("quality+dedupe+identity+review"),
+            Some(8),
+            Some(900),
+            c.actor_id(),
+        );
+        assert_eq!(session.method, HttpMethod::Post);
+        assert_eq!(
+            session.url,
+            format!(
+                "{BASE}/atelier/intake/batches/018f7848-1111-7000-9000-00000000b029/facial/review/session"
+            )
+        );
+        assert_eq!(
+            session.headers,
+            vec![(
+                HSK_HEADER_ACTOR_ID.to_owned(),
+                "facial-agent-029".to_owned()
+            )]
+        );
+        let session_body = session.body.expect("session body");
+        assert_eq!(session_body["profile"], "quality+dedupe+identity+review");
+        assert_eq!(session_body["shard_count"], 8);
+        assert_eq!(session_body["claim_ttl_seconds"], 900);
+
+        let decision_refs = vec!["artifact://decision-a".to_owned()];
+        let claim_refs = vec!["artifact://claim-a".to_owned()];
+        let claim = c.facial_review_claim_actor_request(
+            "artifact://session",
+            &claim_refs,
+            &decision_refs,
+            Some(2),
+            true,
+            c.actor_id(),
+        );
+        assert_eq!(claim.url, format!("{BASE}/atelier/facial/review/claims"));
+        let claim_body = claim.body.expect("claim body");
+        assert_eq!(claim_body["session_artifact_ref"], "artifact://session");
+        assert_eq!(
+            claim_body["existing_claim_artifact_refs"][0],
+            "artifact://claim-a"
+        );
+        assert_eq!(
+            claim_body["decision_artifact_refs"][0],
+            "artifact://decision-a"
+        );
+        assert_eq!(claim_body["shard"], 2);
+        assert_eq!(claim_body["steal_expired"], true);
+
+        let tags = vec!["keeper".to_owned(), "face-clear".to_owned()];
+        let decision = c.facial_review_decision_actor_request(
+            "artifact://session",
+            "artifact://claim",
+            "item-a",
+            "pass",
+            "clean face",
+            &tags,
+            Some("operator note"),
+            c.actor_id(),
+        );
+        assert_eq!(
+            decision.url,
+            format!("{BASE}/atelier/facial/review/decisions")
+        );
+        let decision_body = decision.body.expect("decision body");
+        assert_eq!(decision_body["decision"], "pass");
+        assert_eq!(decision_body["tags"][1], "face-clear");
+        assert_eq!(decision_body["notes"], "operator note");
+
+        let status = c.facial_review_status_actor_request(
+            "artifact://session",
+            &claim_refs,
+            &decision_refs,
+            c.actor_id(),
+        );
+        assert_eq!(status.url, format!("{BASE}/atelier/facial/review/status"));
+
+        let montage = c.facial_review_montage_actor_request(
+            "artifact://session",
+            &decision_refs,
+            1,
+            6,
+            5,
+            Some("unsure"),
+            c.actor_id(),
+        );
+        assert_eq!(montage.url, format!("{BASE}/atelier/facial/review/montage"));
+        let montage_body = montage.body.expect("montage body");
+        assert_eq!(montage_body["page"], 1);
+        assert_eq!(montage_body["decision_filter"], "unsure");
+
+        let export = c.facial_review_export_actor_request(
+            "artifact://session",
+            &decision_refs,
+            "leeseo-curated",
+            12,
+            true,
+            "artifact://atelier/facial/exports",
+            c.actor_id(),
+        );
+        assert_eq!(export.url, format!("{BASE}/atelier/facial/review/export"));
+        let export_body = export.body.expect("export body");
+        assert_eq!(export_body["dataset_name"], "leeseo-curated");
+        assert_eq!(export_body["repeats"], 12);
+        assert_eq!(export_body["allow_partial"], true);
+    }
+
+    #[test]
+    fn atelier_facial_feature_and_artifact_parsers_preserve_routes_and_payloads() {
+        let feature_list = serde_json::json!({
+            "schema_id": "hsk.atelier.facial.features@1",
+            "registry_schema_id": "hsk.atelier.facial_native.registry@1",
+            "feature_count": 1,
+            "features": [{
+                "feature_id": "review:shard_claims",
+                "capability": "review",
+                "source_family": "Facial review ledger"
+            }],
+            "command_routes": [{
+                "command": "atelier.facial.review.session.create",
+                "method": "POST",
+                "path": "/atelier/intake/batches/:batch_id/facial/review/session",
+                "response_schema_id": "hsk.atelier.facial_api.command_response@1",
+                "result_schema_id": "hsk.atelier.facial_review.session@1",
+                "output_schema_id": "hsk.atelier.facial_api.command_response@1"
+            }]
+        });
+        let parsed =
+            parse_atelier_facial_feature_list_row(&feature_list).expect("feature list parses");
+        assert_eq!(parsed.feature_count, 1);
+        assert_eq!(
+            parsed.command_routes[0].command,
+            "atelier.facial.review.session.create"
+        );
+        assert_eq!(
+            parsed.command_routes[0].response_schema_id,
+            "hsk.atelier.facial_api.command_response@1"
+        );
+        assert_eq!(
+            parsed.command_routes[0].result_schema_id.as_deref(),
+            Some("hsk.atelier.facial_review.session@1")
+        );
+        assert_eq!(
+            parsed.command_routes[0].output_schema_id,
+            "hsk.atelier.facial_api.command_response@1"
+        );
+        assert!(parse_atelier_facial_feature_list_row(&serde_json::json!({
+            "schema_id": "wrong",
+            "registry_schema_id": "hsk.atelier.facial_native.registry@1",
+            "feature_count": 0,
+            "features": [],
+            "command_routes": []
+        }))
+        .is_none());
+
+        let artifact = serde_json::json!({
+            "schema_id": "hsk.atelier.facial.artifact_read@1",
+            "artifact_ref": "artifact://.handshake/artifacts/L1/018f7848-1111-7000-9000-00000000f029/payload",
+            "manifest_ref": "artifact://.handshake/artifacts/L1/018f7848-1111-7000-9000-00000000f029/artifact.json",
+            "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "byte_len": 128,
+            "mime": "application/json",
+            "file_name": "atelier-facial-review-session.json",
+            "payload_schema_id": "hsk.atelier.facial_review.session@1",
+            "payload": {"schema_id": "hsk.atelier.facial_review.session@1", "session_id": "s1"}
+        });
+        let parsed_artifact =
+            parse_atelier_facial_artifact_read_row(&artifact).expect("artifact read parses");
+        assert_eq!(
+            parsed_artifact.payload_schema_id.as_deref(),
+            Some("hsk.atelier.facial_review.session@1")
+        );
+        assert_eq!(parsed_artifact.payload["session_id"], "s1");
+    }
+
+    #[test]
+    fn atelier_facial_command_response_parser_accepts_only_live_success_envelopes() {
+        let artifact = serde_json::json!({
+            "artifact_ref": "artifact://.handshake/artifacts/L1/018f7848-1111-7000-9000-00000000f029/payload",
+            "manifest_ref": "artifact://.handshake/artifacts/L1/018f7848-1111-7000-9000-00000000f029/artifact.json",
+            "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "byte_len": 256,
+            "mime": "application/json",
+            "file_name": "atelier-facial-review-session.json"
+        });
+        let success = serde_json::json!({
+            "schema_id": "hsk.atelier.facial_api.command_response@1",
+            "command": "atelier.facial.review.session.create",
+            "status": "succeeded",
+            "actor": "facial-agent-029",
+            "result": {"session": {"schema_id": "hsk.atelier.facial_review.session@1"}},
+            "result_artifact": artifact,
+            "receipt_ref": "artifact://.handshake/artifacts/L1/018f7848-1111-7000-9000-00000000f030/payload",
+            "receipt_artifact": {
+                "artifact_ref": "artifact://.handshake/artifacts/L1/018f7848-1111-7000-9000-00000000f030/payload",
+                "manifest_ref": "artifact://.handshake/artifacts/L1/018f7848-1111-7000-9000-00000000f030/artifact.json",
+                "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "byte_len": 512,
+                "mime": "application/json",
+                "file_name": "atelier-facial-command-receipt.json"
+            }
+        });
+        let parsed = parse_atelier_facial_command_response_row(&success).expect("success parses");
+        assert_eq!(parsed.status, "succeeded");
+        assert!(parsed.result_artifact.is_some());
+        assert!(parsed.receipt_artifact.is_some());
+
+        let mut unsupported = success.clone();
+        unsupported["status"] = serde_json::json!("degraded");
+        unsupported["degraded_reasons"] = serde_json::json!(["arcface_model_not_configured"]);
+        assert!(
+            parse_atelier_facial_command_response_row(&unsupported).is_err(),
+            "backend command routes currently produce success envelopes or HTTP errors, not degraded envelopes"
+        );
+
+        let blocked = serde_json::json!({
+            "schema_id": "hsk.atelier.facial_api.command_response@1",
+            "command": "atelier.facial.review.export",
+            "status": "blocked",
+            "actor": "facial-agent-029",
+            "result": null,
+            "error": "undecided_items_block_export",
+            "recovery_hint": "Build status and pass allow_partial only when intentional."
+        });
+        assert!(parse_atelier_facial_command_response_row(&blocked).is_err());
+
+        let error = serde_json::json!({
+            "schema_id": "hsk.atelier.facial_api.command_response@1",
+            "command": "atelier.facial.artifacts.read",
+            "status": "error",
+            "actor": "facial-agent-029",
+            "result": null,
+            "error": "artifact_not_found"
+        });
+        assert!(parse_atelier_facial_command_response_row(&error).is_err());
+
+        let mut missing_receipt = success;
+        missing_receipt
+            .as_object_mut()
+            .expect("object")
+            .remove("receipt_artifact");
+        assert!(parse_atelier_facial_command_response_row(&missing_receipt).is_err());
     }
 
     #[test]

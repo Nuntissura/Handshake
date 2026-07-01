@@ -25,7 +25,7 @@ use axum::{
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
-use std::collections::HashSet;
+use std::{collections::HashSet, fs, sync::OnceLock};
 use uuid::Uuid;
 
 use crate::ace::ArtifactHandle;
@@ -42,7 +42,18 @@ use crate::atelier::documents::{
 use crate::atelier::facial::{
     generate_facial_ingest_analysis, FacialIngestAnalysisExport, FacialIngestAnalysisItem,
     FacialIngestAnalysisSummary, GenerateFacialIngestAnalysisRequest,
-    FACIAL_INGEST_ANALYSIS_SCHEMA_ID,
+    FACIAL_INGEST_ANALYSIS_RECEIPT_SCHEMA_ID, FACIAL_INGEST_ANALYSIS_SCHEMA_ID,
+};
+use crate::atelier::facial_native::facial_feature_registry;
+use crate::atelier::facial_native::review::{
+    build_review_export_manifest, build_review_montage, build_review_session, build_review_status,
+    claim_review_shard, record_review_decision, BuildFacialReviewExportRequest,
+    BuildFacialReviewMontageRequest, BuildFacialReviewSessionRequest, FacialReviewClaimReceipt,
+    FacialReviewClaimRequest, FacialReviewDecisionReceipt, FacialReviewDecisionRequest,
+    FacialReviewExportManifest, FacialReviewMontageArtifact, FacialReviewSessionArtifact,
+    FacialReviewStatusArtifact, FACIAL_REVIEW_CLAIM_SCHEMA_ID, FACIAL_REVIEW_DECISION_SCHEMA_ID,
+    FACIAL_REVIEW_EXPORT_SCHEMA_ID, FACIAL_REVIEW_MONTAGE_SCHEMA_ID,
+    FACIAL_REVIEW_SESSION_SCHEMA_ID, FACIAL_REVIEW_STATUS_SCHEMA_ID,
 };
 use crate::atelier::intake::{
     ApplyIntakeBatchClassificationOverride, ApplyIntakeBatchClassificationsRequest,
@@ -75,13 +86,15 @@ use crate::atelier::{
     SheetVersion, UrlImageImportRequest, CHARACTER_SHEET_V2_TEMPLATE_VERSION, DEFAULT_SHEET_TOOL,
 };
 use crate::storage::artifacts::{
-    artifact_root_rel, resolve_workspace_root, validate_artifact_content_hash, write_file_artifact,
+    artifact_root_dir, artifact_root_rel, artifact_store_root, read_artifact_manifest,
+    resolve_workspace_root, validate_artifact_content_hash, write_file_artifact,
     ArtifactClassification, ArtifactLayer, ArtifactManifest, ArtifactPayloadKind,
 };
 use crate::storage::EntityRef;
 use crate::AppState;
 
 const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
+static FACIAL_REVIEW_CLAIM_LOCK: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
@@ -192,6 +205,32 @@ pub fn routes(state: AppState) -> Router {
         .route(
             "/atelier/intake/batches/:batch_id/facial/analyze",
             post(analyze_intake_batch_facial),
+        )
+        .route("/atelier/facial/features", get(list_facial_features))
+        .route("/atelier/facial/artifacts/read", get(read_facial_artifact))
+        .route(
+            "/atelier/intake/batches/:batch_id/facial/review/session",
+            post(create_facial_review_session),
+        )
+        .route(
+            "/atelier/facial/review/claims",
+            post(claim_facial_review_shard),
+        )
+        .route(
+            "/atelier/facial/review/decisions",
+            post(record_facial_review_decision),
+        )
+        .route(
+            "/atelier/facial/review/status",
+            post(build_facial_review_status),
+        )
+        .route(
+            "/atelier/facial/review/montage",
+            post(build_facial_review_montage),
+        )
+        .route(
+            "/atelier/facial/review/export",
+            post(build_facial_review_export),
         )
         .route(
             "/atelier/intake/items/:item_id/classification",
@@ -904,6 +943,164 @@ struct FacialIngestAnalysisResponse {
     receipt_ref: String,
     analysis_artifact: FacialIngestArtifactResponse,
     receipt_artifact: FacialIngestArtifactResponse,
+}
+
+const FACIAL_API_COMMAND_RESPONSE_SCHEMA_ID: &str = "hsk.atelier.facial_api.command_response@1";
+const FACIAL_API_COMMAND_RECEIPT_SCHEMA_ID: &str = "hsk.atelier.facial_api.command_receipt@1";
+const DEFAULT_FACIAL_REVIEW_PROFILE: &str = "quality+dedupe+identity+review";
+
+#[derive(Debug, Deserialize)]
+struct FacialArtifactReadQuery {
+    artifact_ref: String,
+}
+
+#[derive(Debug, Serialize)]
+struct FacialArtifactReadResponse {
+    schema_id: String,
+    artifact_ref: String,
+    manifest_ref: String,
+    content_hash: String,
+    byte_len: u64,
+    mime: String,
+    file_name: Option<String>,
+    payload_schema_id: Option<String>,
+    payload: serde_json::Value,
+}
+
+#[derive(Debug, Serialize)]
+struct FacialFeatureListResponse {
+    schema_id: String,
+    registry_schema_id: String,
+    feature_count: usize,
+    features: Vec<crate::atelier::facial_native::FacialNativeFeature>,
+    command_routes: Vec<FacialCommandRoute>,
+}
+
+#[derive(Debug, Serialize)]
+struct FacialCommandRoute {
+    command: &'static str,
+    method: &'static str,
+    path: &'static str,
+    response_schema_id: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    result_schema_id: Option<&'static str>,
+    output_schema_id: &'static str,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct FacialCommandArtifactResponse {
+    artifact_ref: String,
+    manifest_ref: String,
+    content_hash: String,
+    byte_len: u64,
+    mime: String,
+    file_name: String,
+}
+
+#[derive(Debug, Serialize)]
+struct FacialReviewCommandResponse<T: Serialize> {
+    schema_id: String,
+    command: String,
+    status: String,
+    actor: String,
+    result: T,
+    result_artifact: FacialCommandArtifactResponse,
+    receipt_ref: String,
+    receipt_artifact: FacialCommandArtifactResponse,
+}
+
+#[derive(Debug, Serialize)]
+struct FacialReviewSessionResult {
+    session: FacialReviewSessionArtifact,
+    analysis_artifact: FacialIngestArtifactResponse,
+    analysis_receipt_artifact: FacialIngestArtifactResponse,
+}
+
+#[derive(Debug, Deserialize)]
+struct FacialReviewSessionApiRequest {
+    #[serde(default)]
+    profile: Option<String>,
+    #[serde(default)]
+    shard_count: Option<usize>,
+    #[serde(default)]
+    claim_ttl_seconds: Option<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct FacialReviewClaimApiRequest {
+    session_artifact_ref: String,
+    #[serde(default)]
+    existing_claim_artifact_refs: Vec<String>,
+    #[serde(default)]
+    decision_artifact_refs: Vec<String>,
+    #[serde(default)]
+    shard: Option<usize>,
+    #[serde(default)]
+    claim_ttl_seconds: Option<u64>,
+    #[serde(default)]
+    steal_expired: Option<bool>,
+    #[serde(default)]
+    claimed_at_utc: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct FacialReviewDecisionApiRequest {
+    session_artifact_ref: String,
+    claim_artifact_ref: String,
+    item_id: String,
+    decision: String,
+    reason: String,
+    #[serde(default)]
+    tags: Vec<String>,
+    #[serde(default)]
+    notes: Option<String>,
+    #[serde(default)]
+    decided_at_utc: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct FacialReviewStatusApiRequest {
+    session_artifact_ref: String,
+    #[serde(default)]
+    claim_artifact_refs: Vec<String>,
+    #[serde(default)]
+    decision_artifact_refs: Vec<String>,
+    #[serde(default)]
+    now_utc: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct FacialReviewMontageApiRequest {
+    session_artifact_ref: String,
+    #[serde(default)]
+    decision_artifact_refs: Vec<String>,
+    #[serde(default)]
+    page: Option<usize>,
+    #[serde(default)]
+    columns: Option<usize>,
+    #[serde(default)]
+    rows: Option<usize>,
+    #[serde(default)]
+    tile_width: Option<u32>,
+    #[serde(default)]
+    tile_height: Option<u32>,
+    #[serde(default)]
+    decision_filter: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct FacialReviewExportApiRequest {
+    session_artifact_ref: String,
+    #[serde(default)]
+    decision_artifact_refs: Vec<String>,
+    dataset_name: String,
+    #[serde(default)]
+    repeats: Option<u32>,
+    #[serde(default)]
+    allow_partial: Option<bool>,
+    output_root_ref: String,
+    #[serde(default)]
+    exported_at_utc: Option<String>,
 }
 
 fn character_response(character: Character) -> CharacterResponse {
@@ -4102,6 +4299,908 @@ async fn analyze_intake_batch_facial(
         "analyze intake batch with native Facial bridge"
     );
     Ok(Json(response))
+}
+
+/// GET /atelier/facial/features — native Facial feature registry plus route map for agents.
+async fn list_facial_features() -> Json<FacialFeatureListResponse> {
+    let features = facial_feature_registry();
+    Json(FacialFeatureListResponse {
+        schema_id: "hsk.atelier.facial.features@1".to_owned(),
+        registry_schema_id: crate::atelier::facial_native::FACIAL_NATIVE_REGISTRY_SCHEMA_ID
+            .to_owned(),
+        feature_count: features.len(),
+        features,
+        command_routes: facial_command_routes(),
+    })
+}
+
+/// GET /atelier/facial/artifacts/read?artifact_ref=... — read one JSON ArtifactStore payload.
+async fn read_facial_artifact(
+    Query(query): Query<FacialArtifactReadQuery>,
+) -> Result<Json<FacialArtifactReadResponse>, (StatusCode, Json<ErrorResponse>)> {
+    read_facial_json_artifact_value(&query.artifact_ref).map(Json)
+}
+
+/// POST /atelier/intake/batches/:batch_id/facial/review/session — create a review session over the canonical batch item set.
+async fn create_facial_review_session(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(batch_id): Path<Uuid>,
+    Json(payload): Json<FacialReviewSessionApiRequest>,
+) -> Result<
+    Json<FacialReviewCommandResponse<FacialReviewSessionResult>>,
+    (StatusCode, Json<ErrorResponse>),
+> {
+    let actor = calling_actor(&headers)?;
+    let profile = payload
+        .profile
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(DEFAULT_FACIAL_REVIEW_PROFILE)
+        .to_owned();
+    let export = generate_facial_export_for_batch(&state, batch_id, profile, actor.clone()).await?;
+
+    let analysis_payload = serde_json::to_vec(&export.analysis_json).map_err(internal_error)?;
+    let analysis_artifact = write_facial_ingest_artifact(
+        &export,
+        &analysis_payload,
+        &export.analysis_sha256,
+        "application/json",
+        "atelier-facial-ingest-analysis.json",
+        &actor,
+        &export.content_hash,
+        &[],
+    )?;
+    let analysis_receipt_artifact =
+        write_facial_ingest_receipt_artifact(&export, &analysis_artifact, &actor)?;
+
+    let session = build_review_session(BuildFacialReviewSessionRequest {
+        batch_id: batch_id.to_string(),
+        analysis_sha256: export.analysis_sha256.clone(),
+        receipt_sha256: analysis_receipt_artifact.content_hash.clone(),
+        created_by: actor.clone(),
+        created_at_utc: Utc::now().to_rfc3339(),
+        shard_count: payload.shard_count.unwrap_or(4),
+        claim_ttl_seconds: payload.claim_ttl_seconds,
+        rows: export.rows.clone(),
+    })
+    .map_err(|err| atelier_error(AtelierError::Validation(err)))?;
+
+    let result = FacialReviewSessionResult {
+        session,
+        analysis_artifact,
+        analysis_receipt_artifact,
+    };
+    let session_artifact_payload = result.session.clone();
+    facial_review_command_response(
+        "atelier.facial.review.session.create",
+        &actor,
+        FACIAL_REVIEW_SESSION_SCHEMA_ID,
+        "atelier-facial-review-session.json",
+        &session_artifact_payload,
+        result,
+        &[],
+    )
+}
+
+/// POST /atelier/facial/review/claims — claim one review shard using persisted session/decision refs.
+async fn claim_facial_review_shard(
+    headers: HeaderMap,
+    Json(payload): Json<FacialReviewClaimApiRequest>,
+) -> Result<
+    Json<FacialReviewCommandResponse<FacialReviewClaimReceipt>>,
+    (StatusCode, Json<ErrorResponse>),
+> {
+    let actor = calling_actor(&headers)?;
+    let session: FacialReviewSessionArtifact = read_facial_json_artifact_as(
+        &payload.session_artifact_ref,
+        FACIAL_REVIEW_SESSION_SCHEMA_ID,
+    )?;
+    let _claim_guard = facial_review_claim_lock().lock().await;
+    let provided_claims: Vec<FacialReviewClaimReceipt> = read_facial_json_artifact_refs_as(
+        &payload.existing_claim_artifact_refs,
+        FACIAL_REVIEW_CLAIM_SCHEMA_ID,
+    )?;
+    let discovered_claims = discover_facial_review_claims(&session.session_id)?;
+    let claims = merge_facial_review_claims(discovered_claims, provided_claims);
+    let provided_decisions: Vec<FacialReviewDecisionReceipt> = read_facial_json_artifact_refs_as(
+        &payload.decision_artifact_refs,
+        FACIAL_REVIEW_DECISION_SCHEMA_ID,
+    )?;
+    let discovered_decisions = discover_facial_review_decisions(&session.session_id)?;
+    let decisions = merge_facial_review_decisions(discovered_decisions, provided_decisions);
+    let claim = claim_review_shard(
+        &session,
+        &claims,
+        &decisions,
+        FacialReviewClaimRequest {
+            actor: actor.clone(),
+            claimed_at_utc: payload
+                .claimed_at_utc
+                .unwrap_or_else(|| Utc::now().to_rfc3339()),
+            shard: payload.shard,
+            claim_ttl_seconds: payload.claim_ttl_seconds,
+            steal_expired: payload.steal_expired.unwrap_or(false),
+        },
+    )
+    .map_err(|err| atelier_error(AtelierError::Validation(err)))?;
+    let sources = artifact_handles_from_refs(
+        &[
+            std::slice::from_ref(&payload.session_artifact_ref),
+            payload.existing_claim_artifact_refs.as_slice(),
+            payload.decision_artifact_refs.as_slice(),
+        ]
+        .concat(),
+    );
+    let claim_artifact_payload = claim.clone();
+    facial_review_command_response(
+        "atelier.facial.review.claim",
+        &actor,
+        FACIAL_REVIEW_CLAIM_SCHEMA_ID,
+        "atelier-facial-review-claim.json",
+        &claim_artifact_payload,
+        claim,
+        &sources,
+    )
+}
+
+/// POST /atelier/facial/review/decisions — persist one actor decision receipt from a claim.
+async fn record_facial_review_decision(
+    headers: HeaderMap,
+    Json(payload): Json<FacialReviewDecisionApiRequest>,
+) -> Result<
+    Json<FacialReviewCommandResponse<FacialReviewDecisionReceipt>>,
+    (StatusCode, Json<ErrorResponse>),
+> {
+    let actor = calling_actor(&headers)?;
+    let session: FacialReviewSessionArtifact = read_facial_json_artifact_as(
+        &payload.session_artifact_ref,
+        FACIAL_REVIEW_SESSION_SCHEMA_ID,
+    )?;
+    let claim: FacialReviewClaimReceipt =
+        read_facial_json_artifact_as(&payload.claim_artifact_ref, FACIAL_REVIEW_CLAIM_SCHEMA_ID)?;
+    let decision = record_review_decision(
+        &session,
+        &claim,
+        FacialReviewDecisionRequest {
+            actor: actor.clone(),
+            decided_at_utc: payload
+                .decided_at_utc
+                .unwrap_or_else(|| Utc::now().to_rfc3339()),
+            item_id: payload.item_id,
+            claim_id: claim.claim_id.clone(),
+            decision: payload.decision,
+            reason: payload.reason,
+            tags: payload.tags,
+            notes: payload.notes,
+        },
+    )
+    .map_err(|err| atelier_error(AtelierError::Validation(err)))?;
+    let sources = artifact_handles_from_refs(&[
+        payload.session_artifact_ref.as_str(),
+        payload.claim_artifact_ref.as_str(),
+    ]);
+    let decision_artifact_payload = decision.clone();
+    facial_review_command_response(
+        "atelier.facial.review.decision",
+        &actor,
+        FACIAL_REVIEW_DECISION_SCHEMA_ID,
+        "atelier-facial-review-decision.json",
+        &decision_artifact_payload,
+        decision,
+        &sources,
+    )
+}
+
+/// POST /atelier/facial/review/status — replay claim/decision refs into recoverable status.
+async fn build_facial_review_status(
+    headers: HeaderMap,
+    Json(payload): Json<FacialReviewStatusApiRequest>,
+) -> Result<
+    Json<FacialReviewCommandResponse<FacialReviewStatusArtifact>>,
+    (StatusCode, Json<ErrorResponse>),
+> {
+    let actor = calling_actor(&headers)?;
+    let session: FacialReviewSessionArtifact = read_facial_json_artifact_as(
+        &payload.session_artifact_ref,
+        FACIAL_REVIEW_SESSION_SCHEMA_ID,
+    )?;
+    let provided_claims: Vec<FacialReviewClaimReceipt> = read_facial_json_artifact_refs_as(
+        &payload.claim_artifact_refs,
+        FACIAL_REVIEW_CLAIM_SCHEMA_ID,
+    )?;
+    let discovered_claims = discover_facial_review_claims(&session.session_id)?;
+    let claims = merge_facial_review_claims(discovered_claims, provided_claims);
+    let provided_decisions: Vec<FacialReviewDecisionReceipt> = read_facial_json_artifact_refs_as(
+        &payload.decision_artifact_refs,
+        FACIAL_REVIEW_DECISION_SCHEMA_ID,
+    )?;
+    let discovered_decisions = discover_facial_review_decisions(&session.session_id)?;
+    let decisions = merge_facial_review_decisions(discovered_decisions, provided_decisions);
+    let status = build_review_status(
+        &session,
+        &claims,
+        &decisions,
+        &payload.now_utc.unwrap_or_else(|| Utc::now().to_rfc3339()),
+    )
+    .map_err(|err| atelier_error(AtelierError::Validation(err)))?;
+    let sources = artifact_handles_from_refs(
+        &[
+            std::slice::from_ref(&payload.session_artifact_ref),
+            payload.claim_artifact_refs.as_slice(),
+            payload.decision_artifact_refs.as_slice(),
+        ]
+        .concat(),
+    );
+    let status_artifact_payload = status.clone();
+    facial_review_command_response(
+        "atelier.facial.review.status",
+        &actor,
+        FACIAL_REVIEW_STATUS_SCHEMA_ID,
+        "atelier-facial-review-status.json",
+        &status_artifact_payload,
+        status,
+        &sources,
+    )
+}
+
+/// POST /atelier/facial/review/montage — build an Argus-addressable review tile-map artifact.
+async fn build_facial_review_montage(
+    headers: HeaderMap,
+    Json(payload): Json<FacialReviewMontageApiRequest>,
+) -> Result<
+    Json<FacialReviewCommandResponse<FacialReviewMontageArtifact>>,
+    (StatusCode, Json<ErrorResponse>),
+> {
+    let actor = calling_actor(&headers)?;
+    let session: FacialReviewSessionArtifact = read_facial_json_artifact_as(
+        &payload.session_artifact_ref,
+        FACIAL_REVIEW_SESSION_SCHEMA_ID,
+    )?;
+    let provided_decisions: Vec<FacialReviewDecisionReceipt> = read_facial_json_artifact_refs_as(
+        &payload.decision_artifact_refs,
+        FACIAL_REVIEW_DECISION_SCHEMA_ID,
+    )?;
+    let discovered_decisions = discover_facial_review_decisions(&session.session_id)?;
+    let decisions = merge_facial_review_decisions(discovered_decisions, provided_decisions);
+    let montage = build_review_montage(
+        &session,
+        &decisions,
+        BuildFacialReviewMontageRequest {
+            requested_by: actor.clone(),
+            page: payload.page.unwrap_or(0),
+            columns: payload.columns.unwrap_or(5),
+            rows: payload.rows.unwrap_or(4),
+            tile_width: payload.tile_width.unwrap_or(256),
+            tile_height: payload.tile_height.unwrap_or(256),
+            decision_filter: payload.decision_filter,
+        },
+    )
+    .map_err(|err| atelier_error(AtelierError::Validation(err)))?;
+    let sources = artifact_handles_from_refs(
+        &[
+            std::slice::from_ref(&payload.session_artifact_ref),
+            payload.decision_artifact_refs.as_slice(),
+        ]
+        .concat(),
+    );
+    let montage_artifact_payload = montage.clone();
+    facial_review_command_response(
+        "atelier.facial.review.montage",
+        &actor,
+        FACIAL_REVIEW_MONTAGE_SCHEMA_ID,
+        "atelier-facial-review-montage.json",
+        &montage_artifact_payload,
+        montage,
+        &sources,
+    )
+}
+
+/// POST /atelier/facial/review/export — build a non-destructive LoRA dataset export manifest.
+async fn build_facial_review_export(
+    headers: HeaderMap,
+    Json(payload): Json<FacialReviewExportApiRequest>,
+) -> Result<
+    Json<FacialReviewCommandResponse<FacialReviewExportManifest>>,
+    (StatusCode, Json<ErrorResponse>),
+> {
+    let actor = calling_actor(&headers)?;
+    let session: FacialReviewSessionArtifact = read_facial_json_artifact_as(
+        &payload.session_artifact_ref,
+        FACIAL_REVIEW_SESSION_SCHEMA_ID,
+    )?;
+    let provided_decisions: Vec<FacialReviewDecisionReceipt> = read_facial_json_artifact_refs_as(
+        &payload.decision_artifact_refs,
+        FACIAL_REVIEW_DECISION_SCHEMA_ID,
+    )?;
+    let discovered_decisions = discover_facial_review_decisions(&session.session_id)?;
+    let decisions = merge_facial_review_decisions(discovered_decisions, provided_decisions);
+    let manifest = build_review_export_manifest(
+        &session,
+        &decisions,
+        BuildFacialReviewExportRequest {
+            requested_by: actor.clone(),
+            exported_at_utc: payload
+                .exported_at_utc
+                .unwrap_or_else(|| Utc::now().to_rfc3339()),
+            dataset_name: payload.dataset_name,
+            repeats: payload.repeats.unwrap_or(10),
+            allow_partial: payload.allow_partial.unwrap_or(false),
+            output_root_ref: payload.output_root_ref,
+        },
+    )
+    .map_err(|err| atelier_error(AtelierError::Validation(err)))?;
+    let sources = artifact_handles_from_refs(
+        &[
+            std::slice::from_ref(&payload.session_artifact_ref),
+            payload.decision_artifact_refs.as_slice(),
+        ]
+        .concat(),
+    );
+    let manifest_artifact_payload = manifest.clone();
+    facial_review_command_response(
+        "atelier.facial.review.export",
+        &actor,
+        FACIAL_REVIEW_EXPORT_SCHEMA_ID,
+        "atelier-facial-review-export.json",
+        &manifest_artifact_payload,
+        manifest,
+        &sources,
+    )
+}
+
+fn facial_command_routes() -> Vec<FacialCommandRoute> {
+    vec![
+        FacialCommandRoute {
+            command: "atelier.facial.features.list",
+            method: "GET",
+            path: "/atelier/facial/features",
+            response_schema_id: "hsk.atelier.facial.features@1",
+            result_schema_id: None,
+            output_schema_id: "hsk.atelier.facial.features@1",
+        },
+        FacialCommandRoute {
+            command: "atelier.facial.artifacts.read",
+            method: "GET",
+            path: "/atelier/facial/artifacts/read?artifact_ref=...",
+            response_schema_id: "hsk.atelier.facial.artifact_read@1",
+            result_schema_id: None,
+            output_schema_id: "hsk.atelier.facial.artifact_read@1",
+        },
+        FacialCommandRoute {
+            command: "atelier.facial.review.session.create",
+            method: "POST",
+            path: "/atelier/intake/batches/:batch_id/facial/review/session",
+            response_schema_id: FACIAL_API_COMMAND_RESPONSE_SCHEMA_ID,
+            result_schema_id: Some(FACIAL_REVIEW_SESSION_SCHEMA_ID),
+            output_schema_id: FACIAL_API_COMMAND_RESPONSE_SCHEMA_ID,
+        },
+        FacialCommandRoute {
+            command: "atelier.facial.review.claim",
+            method: "POST",
+            path: "/atelier/facial/review/claims",
+            response_schema_id: FACIAL_API_COMMAND_RESPONSE_SCHEMA_ID,
+            result_schema_id: Some(FACIAL_REVIEW_CLAIM_SCHEMA_ID),
+            output_schema_id: FACIAL_API_COMMAND_RESPONSE_SCHEMA_ID,
+        },
+        FacialCommandRoute {
+            command: "atelier.facial.review.decision",
+            method: "POST",
+            path: "/atelier/facial/review/decisions",
+            response_schema_id: FACIAL_API_COMMAND_RESPONSE_SCHEMA_ID,
+            result_schema_id: Some(FACIAL_REVIEW_DECISION_SCHEMA_ID),
+            output_schema_id: FACIAL_API_COMMAND_RESPONSE_SCHEMA_ID,
+        },
+        FacialCommandRoute {
+            command: "atelier.facial.review.status",
+            method: "POST",
+            path: "/atelier/facial/review/status",
+            response_schema_id: FACIAL_API_COMMAND_RESPONSE_SCHEMA_ID,
+            result_schema_id: Some(FACIAL_REVIEW_STATUS_SCHEMA_ID),
+            output_schema_id: FACIAL_API_COMMAND_RESPONSE_SCHEMA_ID,
+        },
+        FacialCommandRoute {
+            command: "atelier.facial.review.montage",
+            method: "POST",
+            path: "/atelier/facial/review/montage",
+            response_schema_id: FACIAL_API_COMMAND_RESPONSE_SCHEMA_ID,
+            result_schema_id: Some(FACIAL_REVIEW_MONTAGE_SCHEMA_ID),
+            output_schema_id: FACIAL_API_COMMAND_RESPONSE_SCHEMA_ID,
+        },
+        FacialCommandRoute {
+            command: "atelier.facial.review.export",
+            method: "POST",
+            path: "/atelier/facial/review/export",
+            response_schema_id: FACIAL_API_COMMAND_RESPONSE_SCHEMA_ID,
+            result_schema_id: Some(FACIAL_REVIEW_EXPORT_SCHEMA_ID),
+            output_schema_id: FACIAL_API_COMMAND_RESPONSE_SCHEMA_ID,
+        },
+    ]
+}
+
+async fn generate_facial_export_for_batch(
+    state: &AppState,
+    batch_id: Uuid,
+    profile: String,
+    actor: String,
+) -> Result<FacialIngestAnalysisExport, (StatusCode, Json<ErrorResponse>)> {
+    let store = atelier_store(state);
+    let canonical_items = store
+        .list_intake_items(batch_id, None)
+        .await
+        .map_err(atelier_error)?;
+    let analysis_items = canonical_items
+        .into_iter()
+        .map(|item| {
+            let source_path = item.source_path;
+            let local_path_hint = resolve_facial_ingest_local_path(&source_path);
+            FacialIngestAnalysisItem {
+                item_id: item.item_id.to_string(),
+                source_ref: source_path,
+                local_path_hint,
+                file_name: item.file_name,
+                byte_len: item.byte_len,
+                content_hash: item.content_hash,
+                lane: item.lane.as_str().to_owned(),
+            }
+        })
+        .collect::<Vec<_>>();
+    generate_facial_ingest_analysis(GenerateFacialIngestAnalysisRequest {
+        batch_id: batch_id.to_string(),
+        profile,
+        requested_by: actor,
+        items: analysis_items,
+    })
+    .map_err(|err| atelier_error(AtelierError::Validation(err)))
+}
+
+fn facial_review_command_response<T, P>(
+    command: &str,
+    actor: &str,
+    result_schema_id: &str,
+    result_file_name: &str,
+    artifact_payload: &P,
+    result: T,
+    source_artifact_refs: &[ArtifactHandle],
+) -> Result<Json<FacialReviewCommandResponse<T>>, (StatusCode, Json<ErrorResponse>)>
+where
+    T: Serialize,
+    P: Serialize,
+{
+    let result_artifact = write_facial_json_artifact(
+        artifact_payload,
+        result_schema_id,
+        result_file_name,
+        actor,
+        command,
+        source_artifact_refs,
+    )?;
+    let result_value = serde_json::to_value(&result).map_err(internal_error)?;
+    let mut receipt_sources = source_artifact_refs.to_vec();
+    receipt_sources.push(facial_command_artifact_handle(&result_artifact));
+    let receipt_payload = serde_json::json!({
+        "schema_id": FACIAL_API_COMMAND_RECEIPT_SCHEMA_ID,
+        "command": command,
+        "status": "succeeded",
+        "actor": actor,
+        "actor_ref": format!("actor://sha256/{}", text_hash(actor)),
+        "created_at_utc": Utc::now().to_rfc3339(),
+        "result_schema_id": result_schema_id,
+        "result_artifact_ref": result_artifact.artifact_ref.clone(),
+        "result_manifest_ref": result_artifact.manifest_ref.clone(),
+        "result_content_hash": result_artifact.content_hash.clone(),
+        "result": result_value,
+    });
+    let receipt_artifact = write_facial_json_artifact(
+        &receipt_payload,
+        FACIAL_API_COMMAND_RECEIPT_SCHEMA_ID,
+        "atelier-facial-command-receipt.json",
+        actor,
+        command,
+        &receipt_sources,
+    )?;
+    Ok(Json(FacialReviewCommandResponse {
+        schema_id: FACIAL_API_COMMAND_RESPONSE_SCHEMA_ID.to_owned(),
+        command: command.to_owned(),
+        status: "succeeded".to_owned(),
+        actor: actor.to_owned(),
+        result,
+        result_artifact,
+        receipt_ref: receipt_artifact.artifact_ref.clone(),
+        receipt_artifact,
+    }))
+}
+
+fn write_facial_json_artifact<T: Serialize>(
+    payload: &T,
+    schema_id: &str,
+    file_name: &str,
+    actor: &str,
+    command: &str,
+    source_artifact_refs: &[ArtifactHandle],
+) -> Result<FacialCommandArtifactResponse, (StatusCode, Json<ErrorResponse>)> {
+    let workspace_root = resolve_workspace_root().map_err(internal_error)?;
+    let payload_value = serde_json::to_value(payload).map_err(internal_error)?;
+    let payload_bytes = serde_json::to_vec(payload).map_err(internal_error)?;
+    let payload_str = std::str::from_utf8(&payload_bytes).map_err(internal_error)?;
+    let content_hash = text_hash(payload_str);
+    let artifact_id = Uuid::now_v7();
+    let mut source_entity_refs = facial_command_source_entity_refs(actor, command, schema_id);
+    source_entity_refs.extend(facial_payload_source_entity_refs(&payload_value));
+    let manifest = ArtifactManifest {
+        artifact_id,
+        layer: ArtifactLayer::L1,
+        kind: ArtifactPayloadKind::File,
+        mime: "application/json".to_owned(),
+        filename_hint: Some(file_name.to_owned()),
+        created_at: Utc::now(),
+        created_by_job_id: None,
+        source_entity_refs,
+        source_artifact_refs: source_artifact_refs.to_vec(),
+        content_hash: content_hash.clone(),
+        size_bytes: payload_bytes.len() as u64,
+        classification: ArtifactClassification::Low,
+        exportable: true,
+        retention_ttl_days: None,
+        pinned: Some(true),
+        hash_basis: Some(format!(
+            "{}|command={}|actor={}|payload={}",
+            schema_id,
+            command,
+            text_hash(actor),
+            content_hash
+        )),
+        hash_exclude_paths: Vec::new(),
+    };
+    write_file_artifact(&workspace_root, &manifest, &payload_bytes).map_err(internal_error)?;
+    validate_artifact_content_hash(&workspace_root, ArtifactLayer::L1, artifact_id)
+        .map_err(internal_error)?;
+    let root = artifact_root_rel(ArtifactLayer::L1, artifact_id);
+    Ok(FacialCommandArtifactResponse {
+        artifact_ref: format!("artifact://{root}/payload"),
+        manifest_ref: format!("artifact://{root}/artifact.json"),
+        content_hash,
+        byte_len: payload_bytes.len() as u64,
+        mime: "application/json".to_owned(),
+        file_name: file_name.to_owned(),
+    })
+}
+
+fn read_facial_json_artifact_value(
+    artifact_ref: &str,
+) -> Result<FacialArtifactReadResponse, (StatusCode, Json<ErrorResponse>)> {
+    let (layer, artifact_id) = parse_artifact_ref(artifact_ref)?;
+    let workspace_root = resolve_workspace_root().map_err(internal_error)?;
+    validate_artifact_content_hash(&workspace_root, layer, artifact_id).map_err(internal_error)?;
+    let manifest =
+        read_artifact_manifest(&workspace_root, layer, artifact_id).map_err(internal_error)?;
+    if !facial_artifact_manifest_is_readable(&manifest) {
+        return Err(atelier_error(AtelierError::Validation(
+            "facial artifact read only accepts Facial-owned L1 JSON artifacts".to_owned(),
+        )));
+    }
+    if manifest.mime != "application/json" {
+        return Err(atelier_error(AtelierError::Validation(format!(
+            "facial artifact read expected application/json, got {}",
+            manifest.mime
+        ))));
+    }
+    let payload_path = artifact_root_dir(&workspace_root, layer, artifact_id).join("payload");
+    let payload_bytes = fs::read(payload_path).map_err(internal_error)?;
+    let payload: serde_json::Value =
+        serde_json::from_slice(&payload_bytes).map_err(internal_error)?;
+    let payload_schema_id = payload
+        .get("schema_id")
+        .and_then(|value| value.as_str())
+        .map(ToOwned::to_owned)
+        .ok_or_else(|| {
+            atelier_error(AtelierError::Validation(
+                "facial artifact payload missing schema_id".to_owned(),
+            ))
+        })?;
+    if !facial_schema_id_is_readable(&payload_schema_id) {
+        return Err(atelier_error(AtelierError::Validation(format!(
+            "facial artifact schema is not readable through this endpoint: {payload_schema_id}"
+        ))));
+    }
+    let root = artifact_root_rel(layer, artifact_id);
+    Ok(FacialArtifactReadResponse {
+        schema_id: "hsk.atelier.facial.artifact_read@1".to_owned(),
+        artifact_ref: format!("artifact://{root}/payload"),
+        manifest_ref: format!("artifact://{root}/artifact.json"),
+        content_hash: manifest.content_hash,
+        byte_len: manifest.size_bytes,
+        mime: manifest.mime,
+        file_name: manifest.filename_hint,
+        payload_schema_id: Some(payload_schema_id),
+        payload,
+    })
+}
+
+fn read_facial_json_artifact_as<T: serde::de::DeserializeOwned>(
+    artifact_ref: &str,
+    expected_schema_id: &str,
+) -> Result<T, (StatusCode, Json<ErrorResponse>)> {
+    let response = read_facial_json_artifact_value(artifact_ref)?;
+    let actual_schema = response
+        .payload
+        .get("schema_id")
+        .and_then(|value| value.as_str())
+        .unwrap_or_default();
+    if actual_schema != expected_schema_id {
+        return Err(atelier_error(AtelierError::Validation(format!(
+            "facial artifact schema mismatch: expected {expected_schema_id}, got {actual_schema}"
+        ))));
+    }
+    serde_json::from_value(response.payload).map_err(internal_error)
+}
+
+fn read_facial_json_artifact_refs_as<T: serde::de::DeserializeOwned>(
+    artifact_refs: &[String],
+    expected_schema_id: &str,
+) -> Result<Vec<T>, (StatusCode, Json<ErrorResponse>)> {
+    artifact_refs
+        .iter()
+        .map(|artifact_ref| read_facial_json_artifact_as(artifact_ref, expected_schema_id))
+        .collect()
+}
+
+fn parse_artifact_ref(
+    artifact_ref: &str,
+) -> Result<(ArtifactLayer, Uuid), (StatusCode, Json<ErrorResponse>)> {
+    let trimmed = artifact_ref.trim();
+    let Some(rest) = trimmed.strip_prefix("artifact://.handshake/artifacts/") else {
+        return Err(atelier_error(AtelierError::Validation(
+            "facial artifact_ref must be an ArtifactStore payload ref".to_owned(),
+        )));
+    };
+    let parts = rest.split('/').collect::<Vec<_>>();
+    if parts.len() != 3 || parts[2] != "payload" {
+        return Err(atelier_error(AtelierError::Validation(
+            "facial artifact_ref must point to an ArtifactStore payload".to_owned(),
+        )));
+    }
+    let layer = match parts[0] {
+        "L1" => ArtifactLayer::L1,
+        other => {
+            return Err(atelier_error(AtelierError::Validation(format!(
+                "facial artifact reads only support L1 command artifacts, got {other}"
+            ))));
+        }
+    };
+    let artifact_id = Uuid::parse_str(parts[1]).map_err(|err| {
+        atelier_error(AtelierError::Validation(format!(
+            "invalid facial artifact UUID: {err}"
+        )))
+    })?;
+    Ok((layer, artifact_id))
+}
+
+fn facial_review_claim_lock() -> &'static tokio::sync::Mutex<()> {
+    FACIAL_REVIEW_CLAIM_LOCK.get_or_init(|| tokio::sync::Mutex::new(()))
+}
+
+fn discover_facial_review_claims(
+    session_id: &str,
+) -> Result<Vec<FacialReviewClaimReceipt>, (StatusCode, Json<ErrorResponse>)> {
+    discover_facial_review_artifacts(session_id, FACIAL_REVIEW_CLAIM_SCHEMA_ID)
+}
+
+fn discover_facial_review_decisions(
+    session_id: &str,
+) -> Result<Vec<FacialReviewDecisionReceipt>, (StatusCode, Json<ErrorResponse>)> {
+    discover_facial_review_artifacts(session_id, FACIAL_REVIEW_DECISION_SCHEMA_ID)
+}
+
+fn discover_facial_review_artifacts<T: serde::de::DeserializeOwned>(
+    session_id: &str,
+    expected_schema_id: &str,
+) -> Result<Vec<T>, (StatusCode, Json<ErrorResponse>)> {
+    let workspace_root = resolve_workspace_root().map_err(internal_error)?;
+    let layer = ArtifactLayer::L1;
+    let layer_root = artifact_store_root(&workspace_root).join(layer.as_str());
+    if !layer_root.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut artifact_ids = Vec::new();
+    for entry in fs::read_dir(&layer_root).map_err(internal_error)? {
+        let entry = entry.map_err(internal_error)?;
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|value| value.to_str()) else {
+            continue;
+        };
+        let Ok(artifact_id) = Uuid::parse_str(name) else {
+            continue;
+        };
+        artifact_ids.push(artifact_id);
+    }
+    artifact_ids.sort();
+
+    let mut artifacts = Vec::new();
+    for artifact_id in artifact_ids {
+        let artifact_ref = format!(
+            "artifact://{}/payload",
+            artifact_root_rel(layer, artifact_id)
+        );
+        let response = match read_facial_json_artifact_value(&artifact_ref) {
+            Ok(response) => response,
+            Err((StatusCode::BAD_REQUEST, _)) | Err((StatusCode::NOT_FOUND, _)) => continue,
+            Err(err) => return Err(err),
+        };
+        if response.payload_schema_id.as_deref() != Some(expected_schema_id) {
+            continue;
+        }
+        if response
+            .payload
+            .get("session_id")
+            .and_then(|value| value.as_str())
+            != Some(session_id)
+        {
+            continue;
+        }
+        artifacts.push(serde_json::from_value(response.payload).map_err(internal_error)?);
+    }
+    Ok(artifacts)
+}
+
+fn merge_facial_review_claims(
+    discovered: Vec<FacialReviewClaimReceipt>,
+    provided: Vec<FacialReviewClaimReceipt>,
+) -> Vec<FacialReviewClaimReceipt> {
+    let mut seen = HashSet::new();
+    let mut merged = Vec::new();
+    for claim in discovered.into_iter().chain(provided) {
+        if seen.insert(claim.claim_id.clone()) {
+            merged.push(claim);
+        }
+    }
+    merged
+}
+
+fn merge_facial_review_decisions(
+    discovered: Vec<FacialReviewDecisionReceipt>,
+    provided: Vec<FacialReviewDecisionReceipt>,
+) -> Vec<FacialReviewDecisionReceipt> {
+    let mut seen = HashSet::new();
+    let mut merged = Vec::new();
+    for decision in discovered.into_iter().chain(provided) {
+        if seen.insert(decision.decision_id.clone()) {
+            merged.push(decision);
+        }
+    }
+    merged
+}
+
+fn facial_artifact_manifest_is_readable(manifest: &ArtifactManifest) -> bool {
+    manifest.layer == ArtifactLayer::L1
+        && manifest.kind == ArtifactPayloadKind::File
+        && manifest.mime == "application/json"
+        && manifest.classification == ArtifactClassification::Low
+        && manifest.exportable
+        && manifest.source_entity_refs.iter().any(|entity| {
+            matches!(
+                entity.entity_kind.as_str(),
+                "facial_command" | "facial_schema" | "facial_ingest_analysis"
+            )
+        })
+}
+
+fn facial_schema_id_is_readable(schema_id: &str) -> bool {
+    matches!(
+        schema_id,
+        FACIAL_INGEST_ANALYSIS_SCHEMA_ID
+            | FACIAL_INGEST_ANALYSIS_RECEIPT_SCHEMA_ID
+            | FACIAL_REVIEW_SESSION_SCHEMA_ID
+            | FACIAL_REVIEW_CLAIM_SCHEMA_ID
+            | FACIAL_REVIEW_DECISION_SCHEMA_ID
+            | FACIAL_REVIEW_STATUS_SCHEMA_ID
+            | FACIAL_REVIEW_MONTAGE_SCHEMA_ID
+            | FACIAL_REVIEW_EXPORT_SCHEMA_ID
+            | FACIAL_API_COMMAND_RECEIPT_SCHEMA_ID
+    )
+}
+
+fn facial_command_artifact_handle(artifact: &FacialCommandArtifactResponse) -> ArtifactHandle {
+    artifact_handle_from_ref(&artifact.artifact_ref)
+        .unwrap_or_else(|| ArtifactHandle::new(Uuid::now_v7(), artifact.artifact_ref.clone()))
+}
+
+fn artifact_handle_from_ref(artifact_ref: &str) -> Option<ArtifactHandle> {
+    parse_artifact_ref(artifact_ref)
+        .ok()
+        .map(|(_, artifact_id)| ArtifactHandle::new(artifact_id, artifact_ref.to_owned()))
+}
+
+fn artifact_handles_from_refs<S: AsRef<str>>(artifact_refs: &[S]) -> Vec<ArtifactHandle> {
+    artifact_refs
+        .iter()
+        .filter_map(|artifact_ref| artifact_handle_from_ref(artifact_ref.as_ref()))
+        .collect()
+}
+
+fn facial_command_source_entity_refs(
+    actor: &str,
+    command: &str,
+    schema_id: &str,
+) -> Vec<EntityRef> {
+    vec![
+        EntityRef {
+            entity_kind: "facial_command".to_owned(),
+            entity_id: command.to_owned(),
+        },
+        EntityRef {
+            entity_kind: "facial_schema".to_owned(),
+            entity_id: schema_id.to_owned(),
+        },
+        EntityRef {
+            entity_kind: "actor_sha256".to_owned(),
+            entity_id: text_hash(actor),
+        },
+    ]
+}
+
+fn facial_payload_source_entity_refs(payload: &serde_json::Value) -> Vec<EntityRef> {
+    let mut refs = Vec::new();
+    if let Some(schema_id) = payload.get("schema_id").and_then(|value| value.as_str()) {
+        refs.push(EntityRef {
+            entity_kind: "facial_schema".to_owned(),
+            entity_id: schema_id.to_owned(),
+        });
+    }
+    let session_id = payload
+        .get("session_id")
+        .and_then(|value| value.as_str())
+        .or_else(|| {
+            payload
+                .pointer("/session/session_id")
+                .and_then(|value| value.as_str())
+        })
+        .or_else(|| {
+            payload
+                .pointer("/result/session_id")
+                .and_then(|value| value.as_str())
+        })
+        .or_else(|| {
+            payload
+                .pointer("/result/session/session_id")
+                .and_then(|value| value.as_str())
+        });
+    if let Some(session_id) = session_id {
+        refs.push(EntityRef {
+            entity_kind: "facial_review_session".to_owned(),
+            entity_id: session_id.to_owned(),
+        });
+    }
+    let batch_id = payload
+        .get("batch_id")
+        .and_then(|value| value.as_str())
+        .or_else(|| {
+            payload
+                .pointer("/session/batch_id")
+                .and_then(|value| value.as_str())
+        })
+        .or_else(|| {
+            payload
+                .pointer("/result/batch_id")
+                .and_then(|value| value.as_str())
+        })
+        .or_else(|| {
+            payload
+                .pointer("/result/session/batch_id")
+                .and_then(|value| value.as_str())
+        });
+    if let Some(batch_id) = batch_id {
+        refs.push(EntityRef {
+            entity_kind: "intake_batch".to_owned(),
+            entity_id: batch_id.to_owned(),
+        });
+    }
+    refs
 }
 
 #[derive(Debug, Deserialize)]
