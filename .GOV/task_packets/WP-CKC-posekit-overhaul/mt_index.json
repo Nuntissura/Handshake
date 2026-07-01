@@ -2,9 +2,9 @@
   "schema_id": "hsk.microtask_index@1",
   "schema_version": "microtask_index_v1",
   "wp_id": "WP-CKC-posekit-overhaul",
-  "updated_at_utc": "2026-07-01T13:20:45.027Z",
-  "active_mt_id": "MT-010",
-  "next_mt_id": "MT-039",
+  "updated_at_utc": "2026-07-01T13:59:07.293Z",
+  "active_mt_id": "MT-039",
+  "next_mt_id": "MT-040",
   "microtask_contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
   "policy": {
     "create_before_product_edit": true,
@@ -99,11 +99,13 @@
     },
     {
       "mt_id": "MT-010",
-      "status": "IN_PROGRESS",
+      "status": "READY_FOR_VALIDATION",
       "title": "Restore CKC linked images, folders, albums, and media notes",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-010.json",
       "product_edit_allowed": true,
-      "started_at_utc": "2026-06-29T12:04:21.384Z"
+      "started_at_utc": "2026-06-29T12:04:21.384Z",
+      "ready_for_validation_at_utc": "2026-07-01T13:59:07.293Z",
+      "parallel_lane_note": "Focused ckc_media tests passed; backend reload/refetch persistence proof remains active in MT-039 before end-to-end persistence can be claimed."
     },
     {
       "mt_id": "MT-011",
@@ -358,6 +360,15 @@
       "product_edit_allowed": true,
       "started_at_utc": null,
       "parallel_lane_note": "Follow-up from MT-010 review; captures runtime Argus/manual proof and artifact-size control."
+    },
+    {
+      "mt_id": "MT-039",
+      "status": "IN_PROGRESS",
+      "title": "Add CKC linked-media backend roundtrip panel proof",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-039.json",
+      "product_edit_allowed": true,
+      "started_at_utc": "2026-07-01T13:59:07.293Z",
+      "parallel_lane_note": "Next active recovery point after MT-010 ready-for-validation; captures full panel/backend roundtrip plus reload/refetch proof beyond local fallback and request-spec tests."
     }
   ],
   "baseline": {

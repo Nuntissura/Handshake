@@ -5,9 +5,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-010",
   "title": "Restore CKC linked images, folders, albums, and media notes",
-  "status": "PENDING",
+  "status": "READY_FOR_VALIDATION",
   "created_at_utc": "2026-06-28T21:53:53.761Z",
-  "updated_at_utc": "2026-06-28T21:53:53.761Z",
+  "updated_at_utc": "2026-07-01T13:59:07.293Z",
   "product_edit_allowed": true,
   "operator_request": "CKC links images and folders to a character sheet, creates albums per character, and supports image-specific notes and tags.",
   "authority_files": {
@@ -22,16 +22,24 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-010.json"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-009"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PENDING",
+    "started_at_utc": "2026-06-29T12:04:21.384Z",
+    "ready_for_validation_at_utc": "2026-07-01T13:59:07.293Z"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
-    "recovery_rule": "Resume from CKC character sheet model and existing Atelier media refs. Do not invent a separate media database if Loom/assets already own the file authority."
+    "recovery_rule": "MT-010 product patch is ready for validation in ../wtc-ckc-posekit-overhaul. Verify the focused ckc_media test filter and then continue with MT-039 for backend reload/refetch persistence proof before claiming CKC linked-media persistence complete.",
+    "validation_evidence": [
+      "rustfmt --edition 2021 src/frontend/handshake_native/src/atelier_panel.rs src/frontend/handshake_native/tests/test_atelier_panel.rs src/frontend/handshake_native/src/manual_content_editors.rs",
+      "cargo test -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel ckc_media -- --nocapture",
+      "3 passed; 0 failed; 21 filtered out"
+    ],
+    "remaining_followup_mt": "MT-039"
   },
   "scope": {
     "summary": "Bring CKC media linking back to production parity: character-linked images/folders/albums, media notes, and reusable typed media refs.",
@@ -74,6 +82,8 @@
   },
   "manual_requirement": "Required in this MT.",
   "handoff": {
-    "status": "PENDING"
-  }
+    "status": "READY_FOR_VALIDATION",
+    "summary": "Patched native Atelier CKC linked-media surface with explicit album target readout, media backend mode, parallel actor field, selected album/media/folder/source/status readouts, no implicit first-album fallback for links, local non-persistence status warnings, Argus-steerable media notes/tags save, and internal manual coverage. Focused ckc_media tests passed. Do not claim full backend persistence complete until MT-039 proves backend roundtrip plus reload/refetch reconstruction."
+  },
+  "started_at_utc": "2026-06-29T12:04:21.384Z"
 }

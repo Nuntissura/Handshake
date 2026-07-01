@@ -1,0 +1,105 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-039",
+  "title": "Add CKC linked-media backend roundtrip panel proof",
+  "status": "IN_PROGRESS",
+  "created_at_utc": "2026-07-01T13:45:51.851Z",
+  "updated_at_utc": "2026-07-01T13:59:07.293Z",
+  "product_edit_allowed": true,
+  "operator_request": "Capture the remaining MT-010 proof gap: CKC linked-media panel actions should be verified against a backend/mock roundtrip, not only local fallback UI and pure request builders.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-039.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-039.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-039.json"
+  },
+  "lifecycle": {
+    "status": "IN_PROGRESS",
+    "active": true,
+    "depends_on": [
+      "MT-010",
+      "MT-032",
+      "MT-037"
+    ],
+    "validator_verdict": "PENDING",
+    "started_at_utc": "2026-07-01T13:59:07.293Z"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_references": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/backend_client.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs",
+      ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-010.json"
+    ],
+    "recovery_rule": "Resume by proving live panel actions against an in-process backend/mock that captures POST paths, JSON bodies, x-hsk-actor-id, returned rows, reload/refetch/new-panel reconstruction, and Argus-visible status/readouts. Do not treat local fallback, POST echo, or request-spec tests as full backend roundtrip proof.",
+    "closeout_dependency": "MT-010 can move to ready-for-validation after focused local/Argus/request-spec checks, but CKC linked-media backend persistence must not be claimed complete until this MT proves backend-authority reload/refetch reconstruction."
+  },
+  "scope": {
+    "summary": "Add a focused native panel/backend roundtrip proof for CKC media album create, media link, and image notes/tags save.",
+    "base_scope": [
+      "Build or reuse an in-process TcpListener mock backend for the AtelierClient CKC media routes without adding new dependencies.",
+      "Load a CKC character with at least one album/media row through the client path, not the local fallback harness only.",
+      "Drive Argus click/set_value on album create, media link, and media notes/tags save from the Atelier CKC tab.",
+      "Assert captured backend requests include the exact POST routes, JSON bodies, and x-hsk-actor-id for the selected actor.",
+      "Return backend rows from the mock and assert the panel updates Argus-visible album/media/readout/status nodes from those rows.",
+      "After create/link/save, force a reload/refetch/new-panel path and assert albums, linked media, notes, tags, actor-visible status, and selected refs reconstruct from backend authority rather than in-memory state.",
+      "Document the proof in the internal manual or MT closeout so future models know this is the backend-authority proof path."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/tests/test_atelier_panel.rs",
+      "src/frontend/handshake_native/src/atelier_panel.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs"
+    ],
+    "acceptance_criteria": [
+      "The test drives the production AtelierPanel with an AtelierClient, not only a no-client local fallback harness.",
+      "The mock backend captures album create, album link, and media notes/tags save requests with correct paths, bodies, and actor headers.",
+      "The mock backend responses are parsed and reflected in Argus-visible CKC album/media/status/readout nodes.",
+      "The proof reloads/refetches/rebuilds the panel after write operations and verifies the same album/media/notes/tags state comes back from backend authority.",
+      "The proof distinguishes backend:persistent from local-preview:not-persisted and does not overclaim local fallback persistence.",
+      "The test is focused and runnable without launching the foreground Handshake GUI."
+    ],
+    "risks_and_controls": [
+      "Risk: a mock can drift from backend response shape. Control: use existing parser DTO shapes and include route/body/header assertions.",
+      "Risk: the panel passes from POST echo or in-memory state without persistence. Control: require reload/refetch/new-panel reconstruction from backend-returned authority state after the write sequence.",
+      "Risk: the test becomes slow or flaky. Control: use bounded TcpListener timeouts and a narrow route sequence.",
+      "Risk: panel starts on the wrong tab. Control: steer the tab through Argus or set the panel active tab before proof, then assert CKC author_ids are visible."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel ckc_linked_media_backend_roundtrip_reaches_argus -- --nocapture",
+      "git diff --check"
+    ],
+    "verification": [
+      "Focused frontend panel/backend mock test.",
+      "Request capture assertions for route/body/header.",
+      "Argus snapshot assertions after backend responses."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "backend authority proof",
+      "producer-consumer response shape",
+      "Argus runtime state",
+      "non-intrusive execution"
+    ]
+  },
+  "manual_requirement": "Required if proof path changes operator/model workflow.",
+  "handoff": {
+    "status": "IN_PROGRESS",
+    "note": "Next active recovery point after MT-010 reached ready-for-validation. Implementation has not yet started beyond this contract/refinement. Created during MT-010 closeout after adversarial review found that local fallback and request-spec tests are not a full panel/backend roundtrip proof. This MT is the backend-authority proof gate for CKC linked-media persistence before MT-038 or WP closeout can claim the workflow is proven end to end."
+  }
+}

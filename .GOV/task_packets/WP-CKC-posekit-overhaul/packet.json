@@ -16,7 +16,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "base_wp_id": "WP-CKC-posekit-overhaul",
   "created_at_utc": "2026-06-28T12:26:14.447Z",
-  "updated_at_utc": "2026-07-01T13:20:45.027Z",
+  "updated_at_utc": "2026-07-01T13:59:07.293Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
     "packet_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.md",
@@ -73,8 +73,8 @@
       "state_recovery": "Subagents must write results back to MT contracts or WP communications, not to chat-only memory."
     },
     "last_state_update": {
-      "updated_at_utc": "2026-07-01T13:20:45.027Z",
-      "summary": "MT-032 through MT-038 were added to capture MT-010 CKC linked-media follow-up risks: Argus readouts/actor, large-library pagination, album mutation APIs, folder/source authority, row-level attribution, local fallback containment, and runtime Argus/manual proof. MT-010 remains active."
+      "updated_at_utc": "2026-07-01T13:59:07.293Z",
+      "summary": "MT-010 reached ready-for-validation after focused ckc_media tests passed. MT-039 is the next active recovery point for CKC linked-media backend roundtrip plus reload/refetch proof before end-to-end persistence can be claimed."
     }
   },
   "source_control": {
@@ -178,10 +178,10 @@
     "enforcement_profile": "HOTFIX_ADHOC_MICROTASK_WITH_RECOVERY_POINTERS"
   },
   "microtasks": {
-    "active_id": "MT-010",
+    "active_id": "MT-039",
     "contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
     "index_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
-    "count": 38,
+    "count": 39,
     "declared_ids": [
       "MT-001",
       "MT-002",
@@ -220,13 +220,14 @@
       "MT-035",
       "MT-036",
       "MT-037",
-      "MT-038"
+      "MT-038",
+      "MT-039"
     ],
-    "next_id": "MT-039",
+    "next_id": "MT-040",
     "latest_completed_id": "MT-005",
     "latest_completed_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-005.json",
-    "latest_ready_for_validation_id": "MT-029",
-    "latest_ready_for_validation_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-029.json"
+    "latest_ready_for_validation_id": "MT-010",
+    "latest_ready_for_validation_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-010.json"
   },
   "research_basis": {
     "sources_checked": [
@@ -328,8 +329,8 @@
   ],
   "execution": {
     "last_state_update": {
-      "updated_at_utc": "2026-07-01T13:20:45.027Z",
-      "summary": "MT-032 through MT-038 now capture the CKC linked-media risks and concerns found during MT-010 review. Do not lose these gaps if MT-010 is resumed or narrowed."
+      "updated_at_utc": "2026-07-01T13:59:07.293Z",
+      "summary": "MT-010 product patch is ready for validation with focused local/Argus/request-spec proof. MT-039 is active next and captures the full panel/backend roundtrip proof gap for CKC linked-media create/link/save plus reload/refetch reconstruction."
     }
   }
 }

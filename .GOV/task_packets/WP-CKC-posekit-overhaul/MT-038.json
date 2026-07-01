@@ -7,7 +7,7 @@
   "title": "Run CKC linked-media runtime Argus and manual proof pass",
   "status": "PENDING",
   "created_at_utc": "2026-07-01T13:20:45.027Z",
-  "updated_at_utc": "2026-07-01T13:20:45.027Z",
+  "updated_at_utc": "2026-07-01T13:54:29.110Z",
   "product_edit_allowed": true,
   "operator_request": "Capture the validation risk around MT-010: CKC linked media must be proven in runtime/headless Argus and documented in the internal manual, not only inferred from code/tests.",
   "authority_files": {
@@ -27,7 +27,8 @@
       "MT-010",
       "MT-032",
       "MT-033",
-      "MT-037"
+      "MT-037",
+      "MT-039"
     ],
     "validator_verdict": "PENDING"
   },
@@ -39,7 +40,7 @@
       "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
       "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs"
     ],
-    "recovery_rule": "Resume by proving CKC linked-media workflows through headless Argus inspect/click/set_value/screenshot. Do not launch foreground Handshake or steal focus."
+    "recovery_rule": "Resume by proving CKC linked-media workflows through headless Argus inspect/click/set_value/screenshot after MT-039 has proven backend reload/refetch persistence. Do not launch foreground Handshake or steal focus."
   },
   "scope": {
     "summary": "Perform the dedicated runtime proof pass for CKC linked-media workflows after the structural media gaps are fixed, including manual coverage and headless Argus evidence.",
@@ -98,6 +99,6 @@
   "manual_requirement": "Required.",
   "handoff": {
     "status": "PENDING",
-    "note": "Created after MT-010 work exposed that code-level UI tests are not enough for the CKC linked-media backbone."
+    "note": "Created after MT-010 work exposed that code-level UI tests are not enough for the CKC linked-media backbone. Depends on MT-039 so runtime Argus/manual closeout does not claim persistence before the backend roundtrip/reload proof exists."
   }
 }
