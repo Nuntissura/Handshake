@@ -318,7 +318,7 @@
   },
   "microtasks": {
     "contract_glob": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-*.json",
-    "count": 14,
+    "count": 15,
     "declared_ids": [
       "MT-001",
       "MT-002",
@@ -333,7 +333,8 @@
       "MT-011",
       "MT-012",
       "MT-013",
-      "MT-014"
+      "MT-014",
+      "MT-015"
     ],
     "active_id": "MT-003",
     "next_id": "MT-003"

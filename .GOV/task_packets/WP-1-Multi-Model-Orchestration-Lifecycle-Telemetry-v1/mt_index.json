@@ -2,8 +2,8 @@
   "schema": "hsk.microtask_index@1",
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "generated_at_utc": "2026-07-01T19:02:22Z",
-  "total": 14,
-  "range": "MT-001..MT-014",
+  "total": 15,
+  "range": "MT-001..MT-015",
   "note": "Research-backed Activation Manager MT set. Operator may add, remove, split, or reorder MTs ad hoc; packet.json microtasks.declared_ids must be kept in sync when the MT set changes.",
   "microtasks": [
     {
@@ -264,6 +264,21 @@
       ],
       "summary": "Shared/enumerable/labeled default-LlmClient model registry (UUIDv7->display_name) for MT-008 labeling, MT-012 picker, Work Profiles provider_ref resolution; + LoomSearchV2 embedding-model contract (degrade-not-error on 768-dim mismatch). DEFERRED_FROM_MT-003 2026-07-01.",
       "unlocks": "Unlocks local-model labeling in diagnostics, enumeration in the operator picker, Work Profiles resolution, and crash-free Loom reindex on embedding-dim mismatch.",
+      "blocks": [],
+      "proof_status": "NOT_RUN",
+      "hbr_status": "PENDING",
+      "pre_implementation_adversarial_review_status": "NOT_RUN",
+      "post_implementation_adversarial_review_status": "NOT_RUN",
+      "adversarial_findings_status": "NOT_RUN"
+    },
+    {
+      "mt_id": "MT-015",
+      "status": "PENDING",
+      "depends_on": [
+        "MT-006"
+      ],
+      "summary": "Operator-facing cloud-model access config surface: CLI-bridge/plan auth+login status for Claude Code + GPT/Codex (operator's primary), and BYOK API-key entry (Anthropic/OpenAI) stored in the OS-keychain secrets vault for other users. Gemini excluded (CLI deprecating). Backends exist (WP-KERNEL-004); this builds the config UI. OPERATOR_REQUESTED_ADDITION 2026-07-02.",
+      "unlocks": "Unlocks operator/other-user cloud-model access (plan login + BYOK key) so cloud lanes are reachable from the operator surface and enumerable by the MT-012 picker.",
       "blocks": [],
       "proof_status": "NOT_RUN",
       "hbr_status": "PENDING",

@@ -1,0 +1,140 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "mt_id": "MT-015",
+  "created_at_utc": "2026-07-01T23:23:30Z",
+  "updated_at_utc": "2026-07-01T23:23:30Z",
+  "scope_status": "OPERATOR_REQUESTED_ADDITION_2026-07-02_PENDING_SCOPE_CONFIRMATION",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-015.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "",
+    "status": "SKIPPED_MINIMAL_GOVERNANCE"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-006"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING",
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
+    "completed_by": null,
+    "blocker": null,
+    "missing_resource": null,
+    "proof_status": "NOT_RUN",
+    "hbr_status": "PENDING",
+    "pre_implementation_adversarial_review_status": "NOT_RUN",
+    "post_implementation_adversarial_review_status": "NOT_RUN",
+    "adversarial_findings_status": "NOT_RUN"
+  },
+  "scope": {
+    "summary": "Operator-facing cloud-model access configuration surface: (a) CLI-bridge / subscription-plan auth-and-login status + config for the official-CLI providers the operator uses (Claude Code, GPT/Codex), and (b) a BYOK API-key entry (Anthropic, OpenAI) stored in the existing OS-keychain secrets vault for users who bring their own keys. Gemini is explicitly excluded (CLI deprecating).",
+    "origin": "Operator request 2026-07-02: there is no login screen or key-entry surface for cloud models. The operator personally does NOT use BYOK (they use Claude Code + GPT via subscription PLANS through the official CLI bridge), but BYOK MUST be AVAILABLE for other users. Do NOT add Gemini (its CLI is being discontinued). WP-KERNEL-004 already built the backends (model_runtime/cloud/openai_byok.rs, anthropic_byok.rs, official_cli_bridge.rs, cli_bridge_runtime.rs, secrets_vault.rs OS-keychain, consent_gate.rs); what is missing is the operator-facing configuration UI that reaches them.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/",
+      "src/backend/handshake_core/src/model_runtime/cloud/",
+      "src/backend/handshake_core/src/api/",
+      "src/backend/handshake_core/src/user_manual/",
+      "src/backend/handshake_core/tests/"
+    ],
+    "forbidden_paths": [
+      "unofficial consumer-web automation / cookie or OAuth-token scraping / browser control to impersonate an official client (reset brief 6.11; spec cloud constraints)",
+      "storing API keys in plaintext, logs, EventLedger, or any non-keychain store",
+      "adding a Gemini provider lane/config",
+      "new TypeScript/React/app/src implementation",
+      "SQLite runtime/test/fixture additions"
+    ],
+    "acceptance_criteria": [
+      "A native egui settings surface (in the existing Settings Swarm/Models section) lets the operator configure cloud model access. It is reachable from the operator settings and Argus-inspectable with stable author_id targets.",
+      "CLI-BRIDGE / PLAN path (operator's primary): the surface shows auth/login status for the official-CLI providers Claude Code and GPT/Codex (logged-in / not-logged-in / expired) and, where the provider's official path allows, guides or triggers the provider's own login. It uses the provider's subscription-plan auth via the official CLI bridge (official_cli_bridge.rs) and stores NO Handshake-held credential for this path. No unofficial automation.",
+      "BYOK path (available, not required): a per-provider API-key entry (Anthropic, OpenAI) that stores the key ONLY in the existing OS-keychain secrets vault (secrets_vault.rs / keyring); the key is never written to logs, Flight Recorder, EventLedger, or plaintext. The CloudLane/BYOK backend (openai_byok.rs / anthropic_byok.rs, MT-006 boundary) consumes the stored key. A negative test proves the key never appears in logs/FR/plaintext.",
+      "Gemini is NOT offered as a provider in the surface (CLI deprecating).",
+      "The configured/authed cloud lanes are enumerable so the MT-012 operator model-picker can list available cloud lanes; an un-authed / un-keyed provider shows as unavailable rather than erroring.",
+      "Same-change in-product UserManual coverage (how to log in via plan / enter a BYOK key / which providers are supported); HBR-INT-009 posture recorded; Flight Recorder/EventLedger evidence where the surface affects lane launch or consent.",
+      "Pre- and post-implementation adversarial review (incl. a secrets-leakage lens) before READY_FOR_VALIDATION; implementer does not self-certify COMPLETED."
+    ],
+    "proof_targets": [
+      "TO_BE_FINALIZED_AT_ACTIVATION: exact Rust tests for (a) BYOK key stored only in the OS-keychain vault and NEVER in logs/FR/plaintext (negative/leak test), (b) CLI-bridge auth-status surfacing for Claude Code + GPT/Codex, (c) cloud-lane enumeration reflecting configured/authed providers (no Gemini), plus Argus proof of the settings surface. Proof commands MUST name exact tests and fail on zero matching tests."
+    ],
+    "risk_if_missed": "Operators (especially BYOK users) have no way to configure cloud model access; the CLI-bridge and BYOK backends WP-KERNEL-004 already built are unreachable from the operator surface, so cloud lanes cannot be used by anyone who is not already logged into a CLI out-of-band.",
+    "reference_only_paths": [
+      "app/src-tauri/",
+      "app/src/"
+    ]
+  },
+  "implementation_notes": [
+    "Backends already exist (WP-KERNEL-004): model_runtime/cloud/{openai_byok.rs (MT-125), anthropic_byok.rs (MT-126), official_cli_bridge.rs + cli_bridge_runtime.rs (MT-127), secrets_vault.rs (MT-128 OS-keychain), consent_gate.rs}. This MT builds the operator-facing CONFIG surface + wiring, not new provider adapters.",
+    "Operator's primary path = subscription PLANS via official CLI bridge (Claude Code, GPT/Codex). BYOK is available for other users; the operator does not use it. Gemini is excluded (CLI deprecating).",
+    "Never store or log BYOK keys outside the OS-keychain secrets vault. CLI-bridge auth uses the provider's own login; do not persist provider credentials in Handshake.",
+    "Cloud usage must still pass the MT-006 CloudLane/BYOK ProjectionPlan + ConsentReceipt boundary; this surface configures access, it does not bypass consent/projection.",
+    "Feeds the MT-012 operator model-picker (enumerable authed cloud lanes) and consumes the MT-006 cloud backend.",
+    "Rust-only; Rust backend + native egui/Argus. Confirm/adjust scope (esp. how much CLI-login triggering is feasible per each provider's official path) before activation."
+  ],
+  "required_build_rules": [
+    "HBR-VIS-001",
+    "HBR-INT-002",
+    "HBR-INT-005",
+    "HBR-MAN-004",
+    "HBR-INT-009",
+    "HBR-QUIET-001"
+  ],
+  "hbr_obligations": [
+    "VIS",
+    "INT",
+    "MAN"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "post_implementation_adversarial_review_required": true,
+    "post_implementation_review_lenses": [
+      "secrets_leakage_byok_key_never_in_logs_fr_plaintext",
+      "cli_bridge_auth_no_unofficial_automation",
+      "cloud_lane_enumeration_and_consent_boundary_intact",
+      "rust_native_argus_settings_surface_and_usermanual"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "A BYOK key could be logged, written to Flight Recorder/EventLedger, or persisted in plaintext.",
+      "The CLI-bridge login could drift into unofficial automation / token scraping.",
+      "The config surface could bypass the MT-006 consent/projection boundary."
+    ],
+    "minimum_controls": [
+      "BYOK key stored ONLY in the OS-keychain vault; leak test proves absence from logs/FR/plaintext.",
+      "CLI-bridge auth uses only the provider's official path.",
+      "Cloud usage still requires ProjectionPlan + ConsentReceipt (MT-006)."
+    ]
+  },
+  "research_basis": {
+    "authority_posture": "Master spec/SPEC_CURRENT/product code are authority; reset brief 6.11 (cloud constraints: official CLI bridge / BYOK only, no unofficial automation) is operator-vision context.",
+    "local_authority_checked": [
+      ".GOV/spec/master-spec-v02.197/spec-modules/04-llm-infrastructure.md (cloud/BYOK/CLI lanes)",
+      ".GOV/operator/docs_local/handshake-v2-kernel-reset-brief.md 6.11",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+    ],
+    "product_code_evidence": [
+      "src/backend/handshake_core/src/model_runtime/cloud/openai_byok.rs / anthropic_byok.rs / official_cli_bridge.rs / cli_bridge_runtime.rs / secrets_vault.rs / consent_gate.rs (WP-KERNEL-004 backends)",
+      "src/frontend/handshake_native/src/settings_dialog.rs (Swarm settings section)",
+      "os-keychain feature / keyring dependency (Cargo.toml)"
+    ]
+  },
+  "handshake_compatibility": {
+    "native_rust_backend_first": true,
+    "rust_only_implementation": "Rust backend plus native egui/Argus only.",
+    "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after real proofs (incl. the secrets-leak negative test); COMPLETED is validator-only."
+  }
+}
