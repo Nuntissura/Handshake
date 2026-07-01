@@ -2472,7 +2472,11 @@ impl ModelLaneStore {
         let mut run_ids = select_records_by_any_artifact_ref(&self.pool, value)
             .await?
             .into_iter()
-            .map(|row| row.run_id)
+            // MT-003 unblock (out-of-scope, pre-existing WIP commit 0adac5d8):
+            // `select_records_by_any_artifact_ref` yields borrowed rows, so
+            // `run_id` (String, not Copy) must be cloned out. Compiler-suggested
+            // fix; behavior-preserving.
+            .map(|row| row.run_id.clone())
             .collect::<Vec<_>>();
         run_ids.extend(
             select_run_ids_by_column(&self.pool, "model_lane_messages", "payload_ref", value)
@@ -7607,7 +7611,11 @@ async fn latest_recovery_checkpoint(
             "checkpoint.record.event_ledger_stream_id",
             &record.event_ledger_stream_id,
         )?;
-        Ok(record)
+        // MT-003 unblock (out-of-scope, pre-existing WIP commit 0adac5d8): the
+        // closure's error type is ambiguous (ModelLaneError has From<sqlx::Error>
+        // + From<StorageError> + From<serde_json::Error>), so pin it to the
+        // function's own ModelLaneResult error type. Compiler-suggested fix.
+        Ok::<_, ModelLaneError>(record)
     })
     .transpose()?
     .ok_or_else(|| {

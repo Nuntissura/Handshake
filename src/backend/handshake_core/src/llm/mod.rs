@@ -4,6 +4,7 @@
 //! through the `LlmClient` trait. This ensures provider portability and
 //! centralized observability via Flight Recorder.
 
+pub mod boot;
 pub mod guard;
 pub mod local_router;
 pub mod ollama;

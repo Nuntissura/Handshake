@@ -25,7 +25,10 @@ use crate::{
     },
 };
 
-use super::{CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage};
+use super::{
+    CompletionRequest, CompletionResponse, EmbeddingRequest, EmbeddingResponse, LlmClient,
+    LlmError, ModelProfile, TokenUsage,
+};
 
 #[derive(Clone)]
 pub struct LocalRouter {
@@ -349,6 +352,43 @@ impl LlmClient for LocalModelRuntimeLlmClient {
             .await;
 
         Ok(response)
+    }
+
+    /// MT-003 (WP-1) HIGH regression guard 2: wire `LlmClient::embedding()` to
+    /// the embedded `ModelRuntime::embed()` so semantic embeddings are NOT
+    /// silently dropped when the Ollama adapter (which implemented a real
+    /// `embedding()`) is removed as the default. Without this, the bridge would
+    /// inherit the trait default `embedding() -> EmbeddingUnsupported`, silently
+    /// degrading LoomSearchV2 (WP-KERNEL-009 MT-264) to keyword/trigram.
+    ///
+    /// Routing mirrors `completion()`: a UUIDv7 `model_id` resolves to the local
+    /// ModelRuntime; any non-UUIDv7 id falls back to the wrapped client so an
+    /// external embedding provider is still reachable. A genuinely empty vector
+    /// is rejected (never fabricated) so callers see a typed error rather than a
+    /// zero-length embedding.
+    async fn embedding(&self, req: EmbeddingRequest) -> Result<EmbeddingResponse, LlmError> {
+        let Some(model_id) = Self::parse_local_model_id(&req.model_id)? else {
+            return self.fallback.embedding(req).await;
+        };
+
+        let started = Instant::now();
+        let runtime = self.router.resolve(model_id)?;
+        let embedding = runtime
+            .embed(model_id, &req.input)
+            .await
+            .map_err(Self::map_runtime_error)?;
+
+        if embedding.vector.is_empty() {
+            return Err(LlmError::ProviderError(format!(
+                "local ModelRuntime returned an empty embedding vector for {model_id}"
+            )));
+        }
+
+        Ok(EmbeddingResponse {
+            vector: embedding.vector,
+            model_id: req.model_id,
+            latency_ms: (started.elapsed().as_millis() as u64).max(1),
+        })
     }
 
     fn cancel(&self, model_id: &str, token: CancellationToken) {

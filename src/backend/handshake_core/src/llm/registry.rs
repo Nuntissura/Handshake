@@ -6,13 +6,38 @@
 //! - base_url inputs are treated as untrusted (SSRF guard for Cloud tier).
 
 use super::{LlmError, ModelTier};
+use crate::model_runtime::RuntimeBinding;
 use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProviderKind {
-    Ollama,
+    /// MT-003 (WP-1) Ollama-kill: the default provider. Local inference resolves
+    /// through the embedded ModelRuntime (Candle default / llama.cpp opt-in), NOT
+    /// an auto-detected third-party daemon. Replaces the removed `Ollama` variant.
+    LocalRuntime,
     OpenAiCompat,
+}
+
+/// Net-new (MT-003) local-model configuration read from the environment for the
+/// [`ProviderKind::LocalRuntime`] default provider. This is the config the boot
+/// path turns into a [`crate::model_runtime::ModelRegistration`] + `LoadSpec`
+/// before it is loaded into the embedded ModelRuntime.
+///
+/// `ModelRegistry::register` requires a non-empty `artifact_path` and a non-zero
+/// `sha256`; both invariants are enforced when this config is decoded from env.
+#[derive(Debug, Clone)]
+pub struct LocalModelConfig {
+    /// Filesystem path to the local model artifact (GGUF for llama.cpp,
+    /// safetensors for Candle). Never empty (validated at decode time).
+    pub artifact_path: PathBuf,
+    /// Expected SHA-256 of the artifact. Never all-zeroes (validated at decode).
+    pub sha256: [u8; 32],
+    /// Which embedded runtime binding the artifact loads under.
+    pub runtime_binding: RuntimeBinding,
+    /// Operator-facing display name / base-model tag for the registration.
+    pub display_name: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -31,6 +56,10 @@ pub struct ProviderRecord {
     pub base_url: String,
     pub default_model_id: String,
     pub api_key_env: Option<String>,
+    /// Present only for [`ProviderKind::LocalRuntime`] when a local model is
+    /// configured. `None` means "no local model configured" and the boot path
+    /// fails closed to `DisabledLlmClient` (no daemon fallback).
+    pub local_model: Option<LocalModelConfig>,
 }
 
 #[derive(Debug, Clone)]
@@ -48,6 +77,8 @@ pub struct ResolvedProvider {
     pub base_url: String,
     pub model_id: String,
     pub api_key_env: Option<String>,
+    /// See [`ProviderRecord::local_model`].
+    pub local_model: Option<LocalModelConfig>,
 }
 
 #[derive(Debug, Clone)]
@@ -59,14 +90,21 @@ pub struct ProviderRegistry {
 impl ProviderRegistry {
     /// Loads a deterministic registry from env vars.
     ///
-    /// v1 config:
-    /// - `HANDSHAKE_LLM_PROVIDER` in {`ollama`, `openai_compat`} (default: `ollama`)
+    /// MT-003 (WP-1) Ollama-kill config:
+    /// - `HANDSHAKE_LLM_PROVIDER` in {`local_runtime`, `openai_compat`}
+    ///   (default: `local_runtime`). The removed `ollama` daemon default and its
+    ///   `/api/tags` auto-detect no longer exist.
     ///
-    /// Ollama:
-    /// - `OLLAMA_URL` (default: http://localhost:11434)
-    /// - `OLLAMA_MODEL` (default: llama3)
+    /// Local runtime (default; resolves through the embedded ModelRuntime):
+    /// - `HANDSHAKE_LOCAL_MODEL_PATH` (optional; when unset the boot path fails
+    ///   closed to `DisabledLlmClient` with NO daemon fallback)
+    /// - `HANDSHAKE_LOCAL_MODEL_SHA256` (required when the path is set; 64 hex
+    ///   chars, non-zero)
+    /// - `HANDSHAKE_LOCAL_MODEL_BINDING` in {`candle`, `llama_cpp`}
+    ///   (default: `candle`, the compiled-in CPU baseline engine)
+    /// - `HANDSHAKE_LOCAL_MODEL_NAME` (optional display name / base-model tag)
     ///
-    /// OpenAI-compatible:
+    /// OpenAI-compatible (retained non-authoritative external_compat compat lane):
     /// - `OPENAI_COMPAT_BASE_URL` (required)
     /// - `OPENAI_COMPAT_MODEL` (required)
     /// - `OPENAI_COMPAT_TIER` in {`local`, `cloud`} (default: `cloud`)
@@ -76,23 +114,28 @@ impl ProviderRegistry {
             .ok()
             .map(|v| v.trim().to_lowercase())
             .filter(|v| !v.is_empty())
-            .unwrap_or_else(|| "ollama".to_string());
+            .unwrap_or_else(|| "local_runtime".to_string());
 
         match provider.as_str() {
-            "ollama" => {
-                let base_url = std::env::var("OLLAMA_URL")
-                    .unwrap_or_else(|_| "http://localhost:11434".to_string());
-                let base_url = base_url.trim_end_matches('/').to_string();
-                let model_id =
-                    std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "llama3".to_string());
+            "local_runtime" | "local" => {
+                let local_model = local_model_config_from_env()?;
+                // The role-level `model_id` is the display name when a local
+                // model is configured; otherwise a stable placeholder used only
+                // for the DisabledLlmClient identity when the boot path fails
+                // closed.
+                let model_id = local_model
+                    .as_ref()
+                    .map(|cfg| cfg.display_name.clone())
+                    .unwrap_or_else(|| "embedded-local-unconfigured".to_string());
 
                 let record = ProviderRecord {
-                    provider_id: "ollama".to_string(),
-                    kind: ProviderKind::Ollama,
+                    provider_id: "local_runtime".to_string(),
+                    kind: ProviderKind::LocalRuntime,
                     tier: ModelTier::Local,
-                    base_url,
+                    base_url: String::new(),
                     default_model_id: model_id.clone(),
                     api_key_env: None,
+                    local_model,
                 };
 
                 let mut providers = BTreeMap::new();
@@ -109,7 +152,7 @@ impl ProviderRegistry {
                         role,
                         RoleAssignment {
                             role,
-                            provider_id: "ollama".to_string(),
+                            provider_id: "local_runtime".to_string(),
                             model_id: model_id.clone(),
                         },
                     );
@@ -155,6 +198,7 @@ impl ProviderRegistry {
                     base_url: validated_base_url,
                     default_model_id: model_id.clone(),
                     api_key_env,
+                    local_model: None,
                 };
 
                 let mut providers = BTreeMap::new();
@@ -202,8 +246,99 @@ impl ProviderRegistry {
             base_url: record.base_url.clone(),
             model_id: assignment.model_id.clone(),
             api_key_env: record.api_key_env.clone(),
+            local_model: record.local_model.clone(),
         })
     }
+}
+
+/// Decodes the [`LocalModelConfig`] from the `HANDSHAKE_LOCAL_MODEL_*` env vars.
+///
+/// Returns `Ok(None)` when `HANDSHAKE_LOCAL_MODEL_PATH` is unset/empty (no local
+/// model configured -> boot path fails closed). When the path IS set, the sha256
+/// is required and validated so the downstream `ModelRegistry::register`
+/// invariants (non-empty artifact_path, non-zero sha256) cannot be violated.
+fn local_model_config_from_env() -> Result<Option<LocalModelConfig>, LlmError> {
+    let Some(path) = std::env::var("HANDSHAKE_LOCAL_MODEL_PATH")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+    else {
+        return Ok(None);
+    };
+
+    let sha_hex = std::env::var("HANDSHAKE_LOCAL_MODEL_SHA256")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .ok_or_else(|| {
+            LlmError::ProviderError(
+                "HSK-400-INVALID-CONFIG: HANDSHAKE_LOCAL_MODEL_SHA256 is required when \
+                 HANDSHAKE_LOCAL_MODEL_PATH is set"
+                    .to_string(),
+            )
+        })?;
+    let sha256 = decode_sha256(&sha_hex)?;
+
+    let runtime_binding = match std::env::var("HANDSHAKE_LOCAL_MODEL_BINDING")
+        .ok()
+        .map(|v| v.trim().to_lowercase())
+        .as_deref()
+    {
+        Some("llama_cpp") | Some("llamacpp") | Some("llama-cpp") => RuntimeBinding::LlamaCpp,
+        Some("candle") | None => RuntimeBinding::Candle,
+        Some(other) => {
+            return Err(LlmError::ProviderError(format!(
+                "HSK-400-INVALID-CONFIG: unknown HANDSHAKE_LOCAL_MODEL_BINDING={other} \
+                 (expected candle|llama_cpp)"
+            )));
+        }
+    };
+
+    let display_name = std::env::var("HANDSHAKE_LOCAL_MODEL_NAME")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| default_local_display_name(&path));
+
+    Ok(Some(LocalModelConfig {
+        artifact_path: PathBuf::from(path),
+        sha256,
+        runtime_binding,
+        display_name,
+    }))
+}
+
+/// Parses a 64-char hex SHA-256 into a non-zero `[u8; 32]`.
+fn decode_sha256(hex_str: &str) -> Result<[u8; 32], LlmError> {
+    let bytes = hex::decode(hex_str.trim()).map_err(|err| {
+        LlmError::ProviderError(format!(
+            "HSK-400-INVALID-CONFIG: HANDSHAKE_LOCAL_MODEL_SHA256 is not valid hex: {err}"
+        ))
+    })?;
+    let arr: [u8; 32] = bytes.as_slice().try_into().map_err(|_| {
+        LlmError::ProviderError(format!(
+            "HSK-400-INVALID-CONFIG: HANDSHAKE_LOCAL_MODEL_SHA256 must be 32 bytes \
+             (64 hex chars), got {} bytes",
+            bytes.len()
+        ))
+    })?;
+    if arr == [0u8; 32] {
+        return Err(LlmError::ProviderError(
+            "HSK-400-INVALID-CONFIG: HANDSHAKE_LOCAL_MODEL_SHA256 must not be all zeroes"
+                .to_string(),
+        ));
+    }
+    Ok(arr)
+}
+
+/// Derives a display name from the artifact path file stem.
+fn default_local_display_name(path: &str) -> String {
+    std::path::Path::new(path)
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .map(|stem| stem.to_string())
+        .filter(|stem| !stem.is_empty())
+        .unwrap_or_else(|| "embedded-local".to_string())
 }
 
 /// Validates base_url deterministically (no DNS resolution).
@@ -422,18 +557,20 @@ mod tests {
     }
 
     #[test]
-    fn provider_registry_from_env_ollama_is_deterministic_for_roles() {
+    fn provider_registry_from_env_defaults_to_local_runtime_without_daemon() {
         let _lock = match ENV_LOCK.lock() {
             Ok(guard) => guard,
             Err(poisoned) => poisoned.into_inner(),
         };
 
-        let _provider = EnvGuard::set("HANDSHAKE_LLM_PROVIDER", "ollama");
-        let _url = EnvGuard::set("OLLAMA_URL", "http://localhost:11434/");
-        let _model = EnvGuard::set("OLLAMA_MODEL", "llama3-test");
-        let _openai_base = EnvGuard::remove("OPENAI_COMPAT_BASE_URL");
-        let _openai_model = EnvGuard::remove("OPENAI_COMPAT_MODEL");
-        let _openai_tier = EnvGuard::remove("OPENAI_COMPAT_TIER");
+        // MT-003 Ollama-kill: with nothing configured, the default provider is
+        // the embedded LocalRuntime, NOT a daemon, and no local model is
+        // configured so the boot path will fail closed to DisabledLlmClient.
+        let _provider = EnvGuard::remove("HANDSHAKE_LLM_PROVIDER");
+        let _path = EnvGuard::remove("HANDSHAKE_LOCAL_MODEL_PATH");
+        let _sha = EnvGuard::remove("HANDSHAKE_LOCAL_MODEL_SHA256");
+        let _binding = EnvGuard::remove("HANDSHAKE_LOCAL_MODEL_BINDING");
+        let _name = EnvGuard::remove("HANDSHAKE_LOCAL_MODEL_NAME");
 
         let registry = match ProviderRegistry::from_env() {
             Ok(value) => value,
@@ -456,13 +593,89 @@ mod tests {
                     return;
                 }
             };
-            assert_eq!(resolved.provider_id, "ollama");
-            assert!(matches!(resolved.kind, ProviderKind::Ollama));
-            assert_eq!(resolved.base_url, "http://localhost:11434");
-            assert_eq!(resolved.model_id, "llama3-test");
+            assert_eq!(resolved.provider_id, "local_runtime");
+            assert!(matches!(resolved.kind, ProviderKind::LocalRuntime));
             assert!(matches!(resolved.tier, ModelTier::Local));
             assert!(resolved.api_key_env.is_none());
+            assert!(
+                resolved.local_model.is_none(),
+                "no local model must be configured by default"
+            );
         }
+    }
+
+    #[test]
+    fn provider_registry_from_env_local_runtime_reads_local_model_config() {
+        let _lock = match ENV_LOCK.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+
+        let _provider = EnvGuard::set("HANDSHAKE_LLM_PROVIDER", "local_runtime");
+        let _path = EnvGuard::set("HANDSHAKE_LOCAL_MODEL_PATH", "/models/qwen.gguf");
+        // A valid 64-char (32-byte) non-zero hex string; the registry only
+        // decodes/validates the hex, it does not hash the artifact here.
+        let _sha = EnvGuard::set(
+            "HANDSHAKE_LOCAL_MODEL_SHA256",
+            "9b871512327c09ce91dd649b3f96a63b7408ef267c8cc5710114e629730cb61f",
+        );
+        let _binding = EnvGuard::set("HANDSHAKE_LOCAL_MODEL_BINDING", "candle");
+        let _name = EnvGuard::set("HANDSHAKE_LOCAL_MODEL_NAME", "qwen-local");
+
+        let registry = match ProviderRegistry::from_env() {
+            Ok(value) => value,
+            Err(err) => {
+                assert!(false, "expected Ok registry, got Err: {err}");
+                return;
+            }
+        };
+
+        let resolved = match registry.resolve(RuntimeRole::Orchestrator) {
+            Ok(value) => value,
+            Err(err) => {
+                assert!(false, "resolve returned Err: {err}");
+                return;
+            }
+        };
+
+        assert!(matches!(resolved.kind, ProviderKind::LocalRuntime));
+        let local = match resolved.local_model {
+            Some(local) => local,
+            None => {
+                assert!(false, "expected a configured local model");
+                return;
+            }
+        };
+        assert_eq!(
+            local.artifact_path,
+            std::path::PathBuf::from("/models/qwen.gguf")
+        );
+        assert_eq!(local.runtime_binding, RuntimeBinding::Candle);
+        assert_eq!(local.display_name, "qwen-local");
+        assert_ne!(local.sha256, [0u8; 32]);
+    }
+
+    #[test]
+    fn provider_registry_from_env_local_runtime_rejects_bad_sha256() {
+        let _lock = match ENV_LOCK.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+
+        let _provider = EnvGuard::set("HANDSHAKE_LLM_PROVIDER", "local_runtime");
+        let _path = EnvGuard::set("HANDSHAKE_LOCAL_MODEL_PATH", "/models/qwen.gguf");
+        let _sha = EnvGuard::set("HANDSHAKE_LOCAL_MODEL_SHA256", "not-hex");
+        let _binding = EnvGuard::remove("HANDSHAKE_LOCAL_MODEL_BINDING");
+        let _name = EnvGuard::remove("HANDSHAKE_LOCAL_MODEL_NAME");
+
+        let err = match ProviderRegistry::from_env() {
+            Ok(_) => {
+                assert!(false, "expected Err for invalid sha256");
+                return;
+            }
+            Err(err) => err,
+        };
+        assert!(matches!(err, LlmError::ProviderError(_)), "{err}");
     }
 
     #[test]

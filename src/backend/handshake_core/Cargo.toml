@@ -256,16 +256,32 @@ windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_UI_Input_
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_JobObjects", "Win32_System_LibraryLoader", "Win32_System_Pipes", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
 
 [features]
-default = ["runtime-full", "os-keychain"]
+default = ["runtime-full", "os-keychain", "local-inference-default"]
 kernel-runtime = []
 runtime-full = ["kernel-runtime", "tokenization"]
 os-keychain = ["dep:keyring"]
 kernel-proof = ["runtime-full"]
 inspector = []
 swarm_ipc = []
+# MT-003 (WP-1) Ollama-kill: Candle (pure-Rust, CPU baseline) is the compiled-in
+# default embedded engine so the default LlmClient resolves local inference
+# through the embedded ModelRuntime instead of an external daemon. It is pure
+# Rust (no host C++ toolchain), so it is safe to keep in `default`. llama.cpp
+# (`llama-cpp-runtime-engine`, heavy C++ `llama-cpp-sys-2`) stays OPT-IN and MUST
+# NOT be added to `default`: it breaks the RC-004 non-target `cargo check` and
+# forces a C++ compile on every proof run. "CPU-only baseline" means the enabled
+# engine selects the CPU backend; GPU is a separate opt-in (below).
+local-inference-default = ["candle-runtime-engine"]
 candle-runtime-engine = ["dep:candle-core", "dep:candle-nn", "dep:candle-transformers", "dep:tokenizers"]
 llama-cpp-runtime-engine = ["dep:llama-cpp-2", "dep:llama-cpp-sys-2"]
 model-runtime-engines = ["llama-cpp-runtime-engine", "candle-runtime-engine"]
+# GPU backends are declared opt-in ONLY. They are never placed in `default` and
+# are not built under load; enabling one selects that engine's GPU backend.
+candle-cuda = ["candle-runtime-engine", "candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
+candle-metal = ["candle-runtime-engine", "candle-core/metal", "candle-nn/metal", "candle-transformers/metal"]
+llama-cpp-cuda = ["llama-cpp-runtime-engine", "llama-cpp-2/cuda"]
+llama-cpp-metal = ["llama-cpp-runtime-engine", "llama-cpp-2/metal"]
+llama-cpp-vulkan = ["llama-cpp-runtime-engine", "llama-cpp-2/vulkan"]
 app-runtime = ["runtime-full", "duckdb-flight-recorder"]
 duckdb-flight-recorder = ["dep:duckdb"]
 tokenization = ["dep:tiktoken-rs", "dep:tokenizers"]
@@ -701,6 +717,14 @@ required-features = ["test-utils"]
 [[test]]
 name = "model_lane_launch_tests"
 path = "tests/model_lane_launch_tests.rs"
+required-features = ["test-utils"]
+
+# MT-003 (WP-1) Ollama-kill: engine-free proof for the default LlmClient boot
+# resolution (embedded ModelRuntime default, DisabledLlmClient fail-closed,
+# retained external_compat compat lane). Uses fakes; no PostgreSQL, no engine.
+[[test]]
+name = "llm_default_boot_resolution_tests"
+path = "tests/llm_default_boot_resolution_tests.rs"
 required-features = ["test-utils"]
 
 [[test]]
