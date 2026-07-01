@@ -12,6 +12,7 @@ use super::facial_native::{
     build_facial_native_run_report, facial_feature_registry, FacialNativeImageContext,
     FacialNativeRunItem, FacialNativeRunReport, FacialNativeRunRequest,
 };
+use super::facial_native::{identity, landmarks, models};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
@@ -90,7 +91,55 @@ pub struct FacialIngestAnalysisRow {
     pub dedupe_record: serde_json::Value,
     pub identity_proxy_key: String,
     pub identity_source: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identity_source_family: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identity_feature_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identity_method: Option<String>,
     pub identity_verdict: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identity_model_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detector_source: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detector_model_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub landmark_model_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identity_threshold: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identity_required_margin: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identity_count_threshold: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub face_box: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub face_frac: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub face_score: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub face_crop_sharpness: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub yaw_estimate: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub yaw_ratio: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub eyes_open: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ear_left: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ear_right: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub landmark_conf_min: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub embedding_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub embedding_dimensions: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identity_error: Option<String>,
+    #[serde(default = "legacy_identity_record")]
+    pub identity_record: serde_json::Value,
     pub review_recommendation: String,
     pub reasons: Vec<String>,
 }
@@ -122,6 +171,8 @@ pub struct FacialIngestAnalysisSummary {
     pub profile_tokens: Vec<String>,
     pub quality_source: String,
     pub identity_source: String,
+    #[serde(default = "legacy_identity_provenance")]
+    pub identity_provenance: serde_json::Value,
     pub dedupe_source: String,
     #[serde(default = "legacy_native_feature_outputs")]
     pub native_feature_outputs: serde_json::Value,
@@ -178,6 +229,20 @@ fn legacy_dedupe_record() -> serde_json::Value {
     })
 }
 
+fn legacy_identity_record() -> serde_json::Value {
+    serde_json::json!({
+        "status": "legacy_missing",
+        "reason": "identity_record_field_added_after_initial_v1_artifacts",
+    })
+}
+
+fn legacy_identity_provenance() -> serde_json::Value {
+    serde_json::json!({
+        "status": "legacy_missing",
+        "reason": "identity_provenance_field_added_after_initial_v1_artifacts",
+    })
+}
+
 fn legacy_native_feature_outputs() -> serde_json::Value {
     serde_json::json!({
         "status": "legacy_missing",
@@ -230,6 +295,7 @@ pub fn generate_facial_ingest_analysis(
             FacialNativeImageContext {
                 item_id: item.item_id.clone(),
                 source_ref: item.source_ref.clone(),
+                local_path_hint: item.local_path_hint.clone(),
                 file_name: item.file_name.clone(),
                 lane: item.lane.clone(),
                 byte_len: item.byte_len,
@@ -242,6 +308,8 @@ pub fn generate_facial_ingest_analysis(
         })
         .collect::<Vec<_>>();
     let dedupe_assignments = imagededup::exact_hash_assignments(&contexts);
+    let identity_config = models::discover_identity_model_config_from_env();
+    let identity_runtime = identity::FacialIdentityRuntime::load(&identity_config);
 
     let mut rows = Vec::with_capacity(request.items.len());
     for ctx in &contexts {
@@ -253,14 +321,26 @@ pub fn generate_facial_ingest_analysis(
         let quality_metrics = facet::quality_metrics(ctx, quality);
         let ofiq_quality = python_ofiq::vector_quality(ctx, quality);
         let dedupe_record = imagededup::assignment_payload(ctx, assignment);
-        let (review_recommendation, reasons) =
-            review_recommendation(ctx, quality, quality_band, &assignment.role);
         let identity_basis = ctx
             .content_hash
             .as_deref()
             .filter(|value| !value.trim().is_empty())
             .unwrap_or(ctx.source_ref.as_str())
             .to_owned();
+        let identity_proxy_key = format!("facial-identity-proxy-{}", stable_hash(&identity_basis));
+        let identity_analysis = identity::analyze_identity(
+            ctx,
+            &identity_config,
+            &identity_runtime,
+            identity_proxy_key.clone(),
+        );
+        let (review_recommendation, reasons) = review_recommendation(
+            ctx,
+            quality,
+            quality_band,
+            &assignment.role,
+            &identity_analysis.verdict,
+        );
         rows.push(FacialIngestAnalysisRow {
             item_id: ctx.item_id.clone(),
             source_ref: ctx.source_ref.clone(),
@@ -290,15 +370,40 @@ pub fn generate_facial_ingest_analysis(
             dedupe_feature_id: imagededup::HASH_FEATURE_ID.to_owned(),
             dedupe_method: imagededup::HASH_METHOD.to_owned(),
             dedupe_record,
-            identity_proxy_key: format!("facial-identity-proxy-{}", stable_hash(&identity_basis)),
-            identity_source: "handshake_proxy_no_model".to_owned(),
-            identity_verdict: "proxy_unverified".to_owned(),
+            identity_proxy_key,
+            identity_source: identity_analysis.source,
+            identity_source_family: Some(identity_analysis.source_family),
+            identity_feature_id: Some(identity_analysis.feature_id),
+            identity_method: Some(identity_analysis.method),
+            identity_verdict: identity_analysis.verdict,
+            identity_model_sha256: identity_analysis.model_sha256,
+            detector_source: identity_analysis.detector_source,
+            detector_model_sha256: identity_analysis.detector_model_sha256,
+            landmark_model_sha256: identity_analysis.landmark_model_sha256,
+            identity_threshold: identity_analysis.threshold,
+            identity_required_margin: identity_analysis.required_margin,
+            identity_count_threshold: identity_analysis.count_threshold,
+            face_box: identity_analysis.face_box,
+            face_frac: identity_analysis.face_frac,
+            face_score: identity_analysis.face_score,
+            face_crop_sharpness: identity_analysis.face_crop_sharpness,
+            yaw_estimate: identity_analysis.yaw_estimate,
+            yaw_ratio: identity_analysis.yaw_ratio,
+            eyes_open: identity_analysis.eyes_open,
+            ear_left: identity_analysis.ear_left,
+            ear_right: identity_analysis.ear_right,
+            landmark_conf_min: identity_analysis.landmark_conf_min,
+            embedding_sha256: identity_analysis.embedding_sha256,
+            embedding_dimensions: identity_analysis.embedding_dimensions,
+            identity_error: identity_analysis.error,
+            identity_record: identity_analysis.record,
             review_recommendation,
             reasons,
         });
     }
 
-    let native_feature_outputs = native_feature_outputs(&contexts, &dedupe_assignments, &rows);
+    let native_feature_outputs =
+        native_feature_outputs(&contexts, &dedupe_assignments, &rows, &identity_config);
     let summary = summarize_rows(
         &batch_id,
         &profile,
@@ -306,6 +411,7 @@ pub fn generate_facial_ingest_analysis(
         &profile_tokens,
         &rows,
         native_feature_outputs,
+        &identity_config,
     )?;
     let analysis_json = serde_json::json!({
         "schema_id": FACIAL_INGEST_ANALYSIS_SCHEMA_ID,
@@ -331,6 +437,7 @@ pub fn generate_facial_ingest_analysis(
         "duplicate_item_count": summary.duplicate_item_count,
         "quality_source": summary.quality_source,
         "identity_source": summary.identity_source,
+        "identity_provenance": summary.identity_provenance,
         "dedupe_source": summary.dedupe_source,
         "native_run": summary.native_run,
         "analysis_sha256": analysis_sha256,
@@ -473,13 +580,14 @@ fn review_recommendation(
     score: u8,
     quality_band: &str,
     duplicate_role: &str,
+    identity_verdict: &str,
 ) -> (String, Vec<String>) {
     let mut reasons = Vec::new();
     reasons.push(format!("quality_score={score}"));
     reasons.push(format!("quality_band={quality_band}"));
     reasons.push(format!("decode_status={}", ctx.decode_status));
     reasons.push(format!("quality_source={}", facet::QUALITY_SOURCE));
-    reasons.push("identity_verdict=proxy_unverified".to_owned());
+    reasons.push(format!("identity_verdict={identity_verdict}"));
     if duplicate_role != "singleton" {
         reasons.push(format!("duplicate_role={duplicate_role}"));
     }
@@ -489,7 +597,14 @@ fn review_recommendation(
 
     let recommendation = if matches!(quality_band, "reject" | "weak") {
         "cull"
-    } else if duplicate_role == "duplicate" || !ctx.is_decoded() || quality_band == "usable" {
+    } else if duplicate_role == "duplicate"
+        || !ctx.is_decoded()
+        || quality_band == "usable"
+        || matches!(
+            identity_verdict,
+            identity::IDENTITY_VERDICT_MODEL_UNAVAILABLE
+        )
+    {
         "review"
     } else {
         "keep"
@@ -501,6 +616,7 @@ fn native_feature_outputs(
     contexts: &[FacialNativeImageContext],
     dedupe_assignments: &BTreeMap<String, imagededup::DedupeAssignment>,
     rows: &[FacialIngestAnalysisRow],
+    identity_config: &models::FacialIdentityModelConfig,
 ) -> serde_json::Value {
     let mut quality_band_counts = BTreeMap::<String, usize>::new();
     for row in rows {
@@ -522,6 +638,10 @@ fn native_feature_outputs(
         .first()
         .and_then(|row| row.ofiq_quality.get("missing_source_dimensions").cloned())
         .unwrap_or_else(|| serde_json::json!([]));
+    let identity_records = rows
+        .iter()
+        .map(|row| row.identity_record.clone())
+        .collect::<Vec<_>>();
 
     serde_json::json!({
         "facet:quality_pass": {
@@ -572,6 +692,8 @@ fn native_feature_outputs(
         },
         "imagededup:hash_duplicates": imagededup::group_summary(contexts, dedupe_assignments),
         "imagededup:remove_candidates": imagededup::remove_candidates(contexts, dedupe_assignments),
+        "identity_gate:arcface_embedding": identity::native_feature_output(identity_config, &identity_records),
+        "identity_gate:pipnet_landmarks": landmarks::landmark_feature_output(identity_config),
         "ediffiqa": {
             "source_family": ediffiqa::SOURCE_FAMILY,
             "status": "unavailable",
@@ -587,15 +709,20 @@ fn summarize_rows(
     profile_tokens: &[String],
     rows: &[FacialIngestAnalysisRow],
     native_feature_outputs: serde_json::Value,
+    identity_config: &models::FacialIdentityModelConfig,
 ) -> Result<FacialIngestAnalysisSummary, String> {
     let mut quality_band_counts = BTreeMap::new();
     let mut review_recommendation_counts = BTreeMap::new();
+    let mut identity_source_counts = BTreeMap::<String, usize>::new();
     for row in rows {
         *quality_band_counts
             .entry(row.quality_band.clone())
             .or_insert(0) += 1;
         *review_recommendation_counts
             .entry(row.review_recommendation.clone())
+            .or_insert(0) += 1;
+        *identity_source_counts
+            .entry(row.identity_source.clone())
             .or_insert(0) += 1;
     }
     let duplicate_group_count = rows
@@ -623,6 +750,21 @@ fn summarize_rows(
             .collect(),
     })?;
 
+    let identity_source = if identity_source_counts.len() == 1 {
+        identity_source_counts
+            .keys()
+            .next()
+            .cloned()
+            .unwrap_or_else(|| identity::IDENTITY_SOURCE_NO_MODEL.to_owned())
+    } else {
+        "mixed_identity_sources".to_owned()
+    };
+    let row_identity_records = rows
+        .iter()
+        .map(|row| row.identity_record.clone())
+        .collect::<Vec<_>>();
+    let identity_provenance = identity_config.to_summary_json(&row_identity_records);
+
     Ok(FacialIngestAnalysisSummary {
         item_count: rows.len(),
         decoded_count: rows
@@ -636,7 +778,8 @@ fn summarize_rows(
         profile: profile.to_owned(),
         profile_tokens: profile_tokens.to_vec(),
         quality_source: facet::QUALITY_SOURCE.to_owned(),
-        identity_source: "handshake_proxy_no_model".to_owned(),
+        identity_source,
+        identity_provenance,
         dedupe_source: imagededup::HASH_SOURCE.to_owned(),
         native_feature_outputs,
         capability_map: capability_map(),
@@ -656,9 +799,11 @@ fn analysis_summary_json(summary: &FacialIngestAnalysisSummary) -> serde_json::V
         "profile_tokens": summary.profile_tokens,
         "quality_source": summary.quality_source,
         "identity_source": summary.identity_source,
+        "identity_provenance": summary.identity_provenance,
         "dedupe_source": summary.dedupe_source,
         "native_feature_outputs": summary.native_feature_outputs,
         "capability_map": summary.capability_map,
+        "native_run": summary.native_run,
     })
 }
 
@@ -797,13 +942,11 @@ mod tests {
             .iter()
             .find(|row| row.source_feature_key == "identity_gate:arcface_embedding")
             .expect("ArcFace row from native registry");
-        assert_eq!(
-            arcface_row.unavailable_reason.as_deref(),
-            Some("arcface_model_not_configured")
-        );
+        assert!(arcface_row.unavailable_reason.is_none());
+        assert_eq!(arcface_row.handshake_status, "runtime_gated_model_backed");
         assert_eq!(
             arcface_row.native_route,
-            "atelier.facial.identity.arcface_unavailable"
+            "atelier.facial.identity.arcface_runtime_gated"
         );
         assert!(export
             .summary
@@ -822,8 +965,13 @@ mod tests {
             "native_partial_degraded"
         );
         assert_eq!(
-            export.analysis_json["summary"]["native_run"].as_object(),
-            None
+            export.analysis_json["summary"]["native_run"]["run_id"].as_str(),
+            Some(export.summary.native_run.run_id.as_str())
+        );
+        assert_eq!(
+            export.analysis_json["summary"]["identity_provenance"]["proxy_unverified_row_count"]
+                .as_u64(),
+            Some(3)
         );
         assert!(export.analysis_json["summary"]["capability_map"]
             .as_array()
@@ -883,6 +1031,10 @@ mod tests {
         assert_eq!(row.dedupe_source_family, "legacy_unknown");
         assert_eq!(row.dedupe_feature_id, "legacy:dedupe_proxy");
         assert_eq!(row.dedupe_record["status"].as_str(), Some("legacy_missing"));
+        assert_eq!(
+            row.identity_record["status"].as_str(),
+            Some("legacy_missing")
+        );
     }
 
     #[test]

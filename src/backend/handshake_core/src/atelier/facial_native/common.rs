@@ -41,6 +41,8 @@ pub struct FacialNativeRunItem {
 pub struct FacialNativeImageContext {
     pub item_id: String,
     pub source_ref: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local_path_hint: Option<String>,
     pub file_name: String,
     pub lane: String,
     pub byte_len: i64,

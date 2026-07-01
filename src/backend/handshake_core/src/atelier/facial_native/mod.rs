@@ -1,4 +1,7 @@
 pub mod common;
+pub mod identity;
+pub mod landmarks;
+pub mod models;
 pub mod plugins;
 pub mod registry;
 pub mod run;

@@ -2,7 +2,16 @@ use handshake_core::atelier::facial::{
     generate_facial_ingest_analysis, FacialIngestAnalysisItem, FacialIngestAnalysisRow,
     GenerateFacialIngestAnalysisRequest,
 };
+use handshake_core::atelier::facial_native::models::{
+    ARCFACE_ENV_KEY, FRAMING_CLOSEUP_ENV_KEY, FRAMING_THREEQUARTER_ENV_KEY,
+    IDENTITY_COUNT_THRESHOLD_ENV_KEY, IDENTITY_MARGIN_ENV_KEY, IDENTITY_THRESHOLD_ENV_KEY,
+    LANDMARK_ENV_KEY, YUNET_ENV_KEY,
+};
 use sha2::{Digest, Sha256};
+use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
+use std::sync::Mutex;
+
+static IDENTITY_ENV_LOCK: Mutex<()> = Mutex::new(());
 
 fn item(
     item_id: &str,
@@ -24,13 +33,49 @@ fn item(
 fn analysis(
     items: Vec<FacialIngestAnalysisItem>,
 ) -> handshake_core::atelier::facial::FacialIngestAnalysisExport {
-    generate_facial_ingest_analysis(GenerateFacialIngestAnalysisRequest {
-        batch_id: "018f7848-1111-7000-9000-000000000026".to_owned(),
-        profile: "quality+dedupe+review".to_owned(),
-        requested_by: "facial-agent-026".to_owned(),
-        items,
+    with_identity_env_cleared(|| {
+        generate_facial_ingest_analysis(GenerateFacialIngestAnalysisRequest {
+            batch_id: "018f7848-1111-7000-9000-000000000026".to_owned(),
+            profile: "quality+dedupe+review".to_owned(),
+            requested_by: "facial-agent-026".to_owned(),
+            items,
+        })
+        .expect("facial analysis")
     })
-    .expect("facial analysis")
+}
+
+fn with_identity_env_cleared<T, F: FnOnce() -> T>(f: F) -> T {
+    let _guard = IDENTITY_ENV_LOCK.lock().expect("identity env lock");
+    let keys = [
+        ARCFACE_ENV_KEY,
+        YUNET_ENV_KEY,
+        LANDMARK_ENV_KEY,
+        IDENTITY_THRESHOLD_ENV_KEY,
+        IDENTITY_MARGIN_ENV_KEY,
+        IDENTITY_COUNT_THRESHOLD_ENV_KEY,
+        FRAMING_CLOSEUP_ENV_KEY,
+        FRAMING_THREEQUARTER_ENV_KEY,
+    ];
+    let saved = keys
+        .iter()
+        .map(|key| (*key, std::env::var(key).ok()))
+        .collect::<Vec<_>>();
+    for key in keys {
+        std::env::remove_var(key);
+    }
+    let result = catch_unwind(AssertUnwindSafe(f));
+    for key in keys {
+        std::env::remove_var(key);
+    }
+    for (key, value) in saved {
+        if let Some(value) = value {
+            std::env::set_var(key, value);
+        }
+    }
+    match result {
+        Ok(value) => value,
+        Err(payload) => resume_unwind(payload),
+    }
 }
 
 #[test]
@@ -239,21 +284,23 @@ fn facial_local_image_inspection_is_read_only() {
     std::fs::write(&image_path, PNG_1X1).expect("write png");
     let before = sha256_file(&image_path);
 
-    let export = generate_facial_ingest_analysis(GenerateFacialIngestAnalysisRequest {
-        batch_id: "018f7848-1111-7000-9000-000000000026".to_owned(),
-        profile: "quality+dedupe".to_owned(),
-        requested_by: "facial-agent-026".to_owned(),
-        items: vec![FacialIngestAnalysisItem {
-            item_id: "item-local".to_owned(),
-            source_ref: image_path.to_string_lossy().into_owned(),
-            local_path_hint: None,
-            file_name: "probe.png".to_owned(),
-            byte_len: PNG_1X1.len() as i64,
-            content_hash: Some("png-content-hash".to_owned()),
-            lane: "pending".to_owned(),
-        }],
-    })
-    .expect("local image analysis");
+    let export = with_identity_env_cleared(|| {
+        generate_facial_ingest_analysis(GenerateFacialIngestAnalysisRequest {
+            batch_id: "018f7848-1111-7000-9000-000000000026".to_owned(),
+            profile: "quality+dedupe".to_owned(),
+            requested_by: "facial-agent-026".to_owned(),
+            items: vec![FacialIngestAnalysisItem {
+                item_id: "item-local".to_owned(),
+                source_ref: image_path.to_string_lossy().into_owned(),
+                local_path_hint: None,
+                file_name: "probe.png".to_owned(),
+                byte_len: PNG_1X1.len() as i64,
+                content_hash: Some("png-content-hash".to_owned()),
+                lane: "pending".to_owned(),
+            }],
+        })
+        .expect("local image analysis")
+    });
 
     let after = sha256_file(&image_path);
     assert_eq!(before, after);

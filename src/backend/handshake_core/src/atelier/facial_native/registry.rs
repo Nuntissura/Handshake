@@ -130,12 +130,13 @@ pub fn facial_feature_registry() -> Vec<FacialNativeFeature> {
             feature_id: "identity_gate:yunet_detection".to_owned(),
             capability: "identity".to_owned(),
             source_family: "YuNet".to_owned(),
-            native_field: "identity_source, identity_verdict".to_owned(),
+            native_field: "detector_source, detector_model_sha256, face_box, face_frac, face_score"
+                .to_owned(),
             artifact_contract: "hsk.atelier.facial_ingest_analysis@1.rows[]".to_owned(),
             status: "deferred_model_backed".to_owned(),
             native_route: "atelier.facial.identity.yunet_unavailable".to_owned(),
             provenance_note:
-                "YuNet face detection is mapped but not claimed until model configuration is wired."
+                "YuNet config is discovered and model hashes are recorded when configured; no face geometry is claimed until native model inference succeeds."
                     .to_owned(),
             required_config_keys: vec!["HANDSHAKE_FACIAL_YUNET_ONNX".to_owned()],
             unavailable_reason: Some("yunet_model_not_configured".to_owned()),
@@ -144,26 +145,30 @@ pub fn facial_feature_registry() -> Vec<FacialNativeFeature> {
             feature_id: "identity_gate:arcface_embedding".to_owned(),
             capability: "identity".to_owned(),
             source_family: "ArcFace".to_owned(),
-            native_field: "identity_proxy_key, identity_source, identity_verdict".to_owned(),
+            native_field:
+                "identity_proxy_key, identity_source, identity_verdict, identity_model_sha256, identity_threshold, identity_record"
+                    .to_owned(),
             artifact_contract: "hsk.atelier.facial_ingest_analysis@1.rows[]".to_owned(),
-            status: "deferred_model_backed".to_owned(),
-            native_route: "atelier.facial.identity.arcface_unavailable".to_owned(),
+            status: "runtime_gated_model_backed".to_owned(),
+            native_route: "atelier.facial.identity.arcface_runtime_gated".to_owned(),
             provenance_note:
-                "Rows expose identity proxy keys but never claim match/no_match without ArcFace assets."
+                "Rows expose identity proxy keys and ArcFace file SHA-256 provenance. Model-backed embedding digests are recorded in row/receipt identity_provenance only when an operator-configured ArcFace ONNX model loads and a local image is available; match/no_match is forbidden without a reference identity."
                     .to_owned(),
             required_config_keys: vec!["HANDSHAKE_FACIAL_ARCFACE_ONNX".to_owned()],
-            unavailable_reason: Some("arcface_model_not_configured".to_owned()),
+            unavailable_reason: None,
         },
         FacialNativeFeature {
             feature_id: "identity_gate:pipnet_landmarks".to_owned(),
             capability: "identity".to_owned(),
             source_family: "PIPNet".to_owned(),
-            native_field: "eyes_open, ear_left, ear_right, landmark_conf_min".to_owned(),
+            native_field:
+                "landmark_model_sha256, eyes_open, ear_left, ear_right, landmark_conf_min"
+                    .to_owned(),
             artifact_contract: "hsk.atelier.facial_ingest_analysis@1.rows[]".to_owned(),
             status: "deferred_model_backed".to_owned(),
             native_route: "atelier.facial.identity.pipnet_landmarks_unavailable".to_owned(),
             provenance_note:
-                "PIPNet 98-point landmark parity is mapped from Facial but not claimed until the native model path is wired."
+                "PIPNet config is discovered and model hashes are recorded when configured; landmark fields stay empty until native model inference succeeds."
                     .to_owned(),
             required_config_keys: vec!["HANDSHAKE_FACIAL_LANDMARK_MODEL".to_owned()],
             unavailable_reason: Some("pipnet_landmark_model_not_configured".to_owned()),

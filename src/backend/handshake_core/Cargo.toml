@@ -213,6 +213,7 @@ caseless = "0.2"
 bytes = { version = "1", features = ["serde"] }
 globset = "0.4"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+tract-onnx = { version = "0.21", optional = true }
 tree-sitter = "0.24"
 tree-sitter-rust = "0.23"
 tree-sitter-javascript = "0.23"
@@ -266,6 +267,7 @@ swarm_ipc = []
 candle-runtime-engine = ["dep:candle-core", "dep:candle-nn", "dep:candle-transformers", "dep:tokenizers"]
 llama-cpp-runtime-engine = ["dep:llama-cpp-2", "dep:llama-cpp-sys-2"]
 model-runtime-engines = ["llama-cpp-runtime-engine", "candle-runtime-engine"]
+facial-onnx-runtime = ["dep:tract-onnx"]
 app-runtime = ["runtime-full", "duckdb-flight-recorder"]
 duckdb-flight-recorder = ["dep:duckdb"]
 tokenization = ["dep:tiktoken-rs", "dep:tokenizers"]

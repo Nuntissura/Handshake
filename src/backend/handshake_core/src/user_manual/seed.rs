@@ -1560,16 +1560,33 @@ fn quickstart_pages() -> Vec<NewUserManualPage> {
              `POST /atelier/intake/batches/:batch_id/facial/analyze` after the intake batch has \
              source items. Outputs are read-only analysis artifacts: rows include \
              `quality_source_family`, `quality_feature_id`, `quality_metrics`, `ofiq_quality`, \
-             `dedupe_record`, and exact content-hash duplicate groups; summary \
-             `native_feature_outputs` records `facet`, `python-ofiq`, `imagededup`, and \
-             unavailable `ediffiqa` features. Missing content hashes stay singletons. Do not \
-             treat metadata-only quality as OFIQ/eDifFIQA model parity or as \
+             `dedupe_record`, `identity_record`, optional `identity_model_sha256`, detector and \
+             landmark SHA fields, and exact content-hash duplicate groups; summary \
+             `identity_provenance` and `native_feature_outputs` record `facet`, `python-ofiq`, \
+             `imagededup`, identity-gate config/provenance, and unavailable `ediffiqa` features. \
+             Missing content hashes stay singletons. A configured model hash is provenance, not \
+             proof: `identity_source` becomes real only after a build with the \
+             `facial-onnx-runtime` feature loads the native ArcFace tract/ONNX runtime and \
+             scores a local image. Real rows use \
+             `arcface_onnx_resize_112_v1`, emit an embedding digest/dimensions, and keep the \
+             verdict `unsure` until a reference identity exists; no-model rows stay \
+             `handshake_proxy_no_model` / `proxy_unverified`, and configured-but-unloaded or \
+             dataset-only rows stay `handshake_identity_model_unavailable` / \
+             `model_unavailable`; the summary uses `runtime_feature_disabled` when an ArcFace \
+             model is configured in a build that does not include `facial-onnx-runtime`, and \
+             `runtime_error_counts` records redacted failure buckets for load, image, and \
+             inference failures. Do not treat metadata-only quality as OFIQ/eDifFIQA model parity or as \
              `handshake_native_proxy_v1`.\n\
-             8. For visual/behavioral polish, use this native state map: source image strip, \
+             8. Configure Facial identity only through environment/config keys such as \
+             `HANDSHAKE_FACIAL_ARCFACE_ONNX`, `HANDSHAKE_FACIAL_YUNET_ONNX`, \
+             `HANDSHAKE_FACIAL_LANDMARK_MODEL`, and `HANDSHAKE_FACIAL_IDENTITY_THRESHOLD`; never \
+             hardcode machine-local model paths in product code, tests, notes, or agent \
+             instructions.\n\
+             9. For visual/behavioral polish, use this native state map: source image strip, \
              open rig tabs, OpenPose sidecar strip, identity crop review, Comfy history/replay, \
              and deferred-feature list. Compare screens to the original CKC app for behavior, \
              but keep Handshake as the implementation authority.\n\
-             9. Before changing UI behavior, read the relevant MT contract and the \
+             10. Before changing UI behavior, read the relevant MT contract and the \
              Pose/Comfy deferred features. Do not fake detector execution, calibration, \
              route wiring, or external bridge authority just to make a screen look complete.",
             vec![

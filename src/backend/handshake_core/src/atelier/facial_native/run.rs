@@ -195,13 +195,15 @@ mod tests {
             .selected_feature_ids
             .contains(&"identity_gate:arcface_embedding".to_owned()));
         assert_eq!(report.run_status, "native_partial_degraded");
-        assert!(
-            report
-                .degraded_reasons
-                .iter()
-                .any(|reason| reason
-                    == "identity_gate:arcface_embedding:arcface_model_not_configured")
-        );
+        assert!(!report
+            .degraded_reasons
+            .iter()
+            .any(|reason| reason.starts_with("identity_gate:arcface_embedding:")));
+        assert!(report.feature_records.iter().any(|record| record.feature_id
+            == "identity_gate:arcface_embedding"
+            && record.status == "runtime_gated_model_backed"
+            && record.native_route == "atelier.facial.identity.arcface_runtime_gated"
+            && record.unavailable_reason.is_none()));
         assert_eq!(
             report
                 .status_counts
