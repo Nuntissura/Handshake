@@ -99,6 +99,15 @@ pub const ATELIER_CKC_ALBUM_LINK_ASSET_IDS_AUTHOR_ID: &str = "atelier-ckc-album-
 pub const ATELIER_CKC_ALBUM_LINK_SOURCE_PATH_AUTHOR_ID: &str = "atelier-ckc-album-link-source-path";
 pub const ATELIER_CKC_ALBUM_LINK_SOURCE_URL_AUTHOR_ID: &str = "atelier-ckc-album-link-source-url";
 pub const ATELIER_CKC_ALBUM_LINK_AUTHOR_ID: &str = "atelier-ckc-album-link-assets";
+pub const ATELIER_CKC_ALBUM_LINK_TARGET_AUTHOR_ID: &str = "atelier-ckc-album-link-target";
+pub const ATELIER_CKC_MEDIA_BACKEND_MODE_AUTHOR_ID: &str = "atelier-ckc-media-backend-mode";
+pub const ATELIER_CKC_MEDIA_ACTOR_AUTHOR_ID: &str = "atelier-ckc-media-actor";
+pub const ATELIER_CKC_SELECTED_ALBUM_REF_AUTHOR_ID: &str = "atelier-ckc-selected-album-ref";
+pub const ATELIER_CKC_SELECTED_MEDIA_REF_AUTHOR_ID: &str = "atelier-ckc-selected-media-ref";
+pub const ATELIER_CKC_SELECTED_FOLDER_REF_AUTHOR_ID: &str = "atelier-ckc-selected-folder-ref";
+pub const ATELIER_CKC_SELECTED_SOURCE_URL_REF_AUTHOR_ID: &str =
+    "atelier-ckc-selected-source-url-ref";
+pub const ATELIER_CKC_SELECTED_MEDIA_STATUS_AUTHOR_ID: &str = "atelier-ckc-selected-media-status";
 pub const ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID: &str = "atelier-ckc-media-notes-editor";
 pub const ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID: &str = "atelier-ckc-media-tags-editor";
 pub const ATELIER_CKC_MEDIA_SAVE_AUTHOR_ID: &str = "atelier-ckc-media-save";
@@ -558,6 +567,7 @@ struct CkcMediaSaveRequest {
     notes: String,
     tags: Vec<String>,
     review_status: Option<String>,
+    actor_id: String,
 }
 
 #[derive(Debug, Clone)]
@@ -567,6 +577,7 @@ struct CkcAlbumCreateRequest {
     notes: Option<String>,
     sheet_version_id: Option<String>,
     tags: Vec<String>,
+    actor_id: String,
 }
 
 #[derive(Debug, Clone)]
@@ -575,6 +586,7 @@ struct CkcAlbumLinkAssetsRequest {
     asset_ids: Vec<String>,
     source_path_ref: Option<String>,
     source_url_ref: Option<String>,
+    actor_id: String,
 }
 
 #[derive(Debug, Clone)]
@@ -2331,6 +2343,7 @@ struct AtelierPanelState {
     ckc_album_link_asset_ids: String,
     ckc_album_link_source_path_ref: String,
     ckc_album_link_source_url_ref: String,
+    ckc_media_actor_id: String,
     ckc_album_create_pending: bool,
     ckc_album_link_pending: bool,
     ckc_album_page_pending: bool,
@@ -2472,6 +2485,7 @@ impl Default for AtelierPanelState {
             ckc_album_link_asset_ids: String::new(),
             ckc_album_link_source_path_ref: String::new(),
             ckc_album_link_source_url_ref: String::new(),
+            ckc_media_actor_id: "local-atelier-panel".to_owned(),
             ckc_album_create_pending: false,
             ckc_album_link_pending: false,
             ckc_album_page_pending: false,
@@ -4160,6 +4174,27 @@ fn local_ckc_media_member(
     }
 }
 
+fn merge_ckc_media_members(
+    album: &mut CkcMediaAlbumRecord,
+    members: Vec<AtelierCkcMediaMemberRow>,
+) -> usize {
+    let mut added = 0usize;
+    for row in members {
+        let member = CkcMediaMemberRecord::from_backend(row);
+        if let Some(existing) = album
+            .members
+            .iter_mut()
+            .find(|existing| existing.asset_id == member.asset_id)
+        {
+            *existing = member;
+        } else {
+            album.members.push(member);
+            added += 1;
+        }
+    }
+    added
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum IngestDecision {
     Pass,
@@ -4667,6 +4702,7 @@ impl AtelierPanel {
         let mut state = AtelierPanelState::default();
         if let Some(client) = ckc_client.as_ref() {
             state.ingest_actor = client.actor_id().to_owned();
+            state.ckc_media_actor_id = client.actor_id().to_owned();
             state.ckc_characters.clear();
             state.ckc_search_results.clear();
             state.ckc_search_status = "Waiting for live CKC database load".to_owned();
@@ -5203,11 +5239,7 @@ impl AtelierPanel {
                                 album.collection_ref = row.collection_ref.clone();
                                 album.member_count = row.member_count;
                                 album.members_next_offset = row.members_next_offset;
-                                album.members = row
-                                    .members
-                                    .into_iter()
-                                    .map(CkcMediaMemberRecord::from_backend)
-                                    .collect();
+                                merge_ckc_media_members(album, row.members);
                                 applied = true;
                                 break;
                             }
@@ -5255,19 +5287,7 @@ impl AtelierPanel {
                                 album.collection_ref = row.collection_ref.clone();
                                 album.member_count = row.member_count;
                                 album.members_next_offset = row.members_next_offset;
-                                for member in row.members {
-                                    if album
-                                        .members
-                                        .iter()
-                                        .any(|existing| existing.asset_id == member.asset_id)
-                                    {
-                                        continue;
-                                    }
-                                    album
-                                        .members
-                                        .push(CkcMediaMemberRecord::from_backend(member));
-                                    appended += 1;
-                                }
+                                appended = merge_ckc_media_members(album, row.members);
                                 applied = true;
                                 break;
                             }
@@ -5315,12 +5335,19 @@ impl AtelierPanel {
                             }
                         }
                         state.ckc_error = if applied_count > 0 {
+                            state.ckc_album_status = format!(
+                                "Saved CKC media notes/tags for {asset_id} through backend; applied to {applied_count} visible row(s)"
+                            );
                             None
                         } else {
+                            state.ckc_album_status = format!(
+                                "Saved CKC media notes/tags for {asset_id} through backend, but the asset is no longer visible"
+                            );
                             Some(format!("saved media asset {asset_id} is no longer visible"))
                         };
                     }
                     Err(err) => {
+                        state.ckc_album_status = format!("CKC media notes/tags save failed: {err}");
                         state.ckc_error = Some(err);
                     }
                 }
@@ -5954,12 +5981,14 @@ impl AtelierPanel {
                     std::mem::take(&mut state.ckc_album_link_source_path_ref);
                 let mut album_link_source_url_ref =
                     std::mem::take(&mut state.ckc_album_link_source_url_ref);
+                let mut media_actor_id = std::mem::take(&mut state.ckc_media_actor_id);
                 let mut pending_media_save = None;
                 let mut pending_media_selection = None;
                 let mut pending_album_selection = None;
                 let mut pending_album_create = None;
                 let mut pending_album_link = None;
                 let mut pending_album_page = None;
+                let mut pending_album_status_update = None;
                 if let Some(character) = state.ckc_characters.get_mut(selected_index) {
                     let (
                         save,
@@ -5968,6 +5997,7 @@ impl AtelierPanel {
                         album_create,
                         album_link,
                         album_page,
+                        album_status_update,
                     ) = self
                         .show_ckc_linked_media(
                         ui,
@@ -5986,6 +6016,7 @@ impl AtelierPanel {
                         &mut album_link_asset_ids,
                         &mut album_link_source_path_ref,
                         &mut album_link_source_url_ref,
+                        &mut media_actor_id,
                     );
                     pending_media_save = save;
                     pending_media_selection = media_selection;
@@ -5993,6 +6024,7 @@ impl AtelierPanel {
                     pending_album_create = album_create;
                     pending_album_link = album_link;
                     pending_album_page = album_page;
+                    pending_album_status_update = album_status_update;
                 }
                 state.ckc_album_create_name = album_create_name;
                 state.ckc_album_create_notes = album_create_notes;
@@ -6000,6 +6032,10 @@ impl AtelierPanel {
                 state.ckc_album_link_asset_ids = album_link_asset_ids;
                 state.ckc_album_link_source_path_ref = album_link_source_path_ref;
                 state.ckc_album_link_source_url_ref = album_link_source_url_ref;
+                state.ckc_media_actor_id = media_actor_id;
+                if let Some(status) = pending_album_status_update {
+                    state.ckc_album_status = status;
+                }
                 if let Some(media_key) = pending_media_selection {
                     state.ckc_selected_media_key = Some(media_key);
                 }
@@ -6017,7 +6053,7 @@ impl AtelierPanel {
                             request.notes.as_deref(),
                             request.sheet_version_id.as_deref(),
                             &request.tags,
-                            client.actor_id(),
+                            &request.actor_id,
                             self.ckc_media_album_create_cell.clone(),
                         );
                     }
@@ -6036,7 +6072,7 @@ impl AtelierPanel {
                             &request.asset_ids,
                             request.source_path_ref.as_deref(),
                             request.source_url_ref.as_deref(),
-                            client.actor_id(),
+                            &request.actor_id,
                             self.ckc_media_album_items_cell.clone(),
                         );
                     }
@@ -6066,7 +6102,7 @@ impl AtelierPanel {
                             Some(&request.notes),
                             Some(&request.tags),
                             request.review_status.as_deref(),
-                            client.actor_id(),
+                            &request.actor_id,
                             self.ckc_media_notes_cell.clone(),
                         );
                     }
@@ -8365,6 +8401,7 @@ impl AtelierPanel {
         album_link_asset_ids: &mut String,
         album_link_source_path_ref: &mut String,
         album_link_source_url_ref: &mut String,
+        media_actor_id: &mut String,
     ) -> (
         Option<CkcMediaSaveRequest>,
         Option<String>,
@@ -8372,11 +8409,13 @@ impl AtelierPanel {
         Option<CkcAlbumCreateRequest>,
         Option<CkcAlbumLinkAssetsRequest>,
         Option<CkcAlbumPageRequest>,
+        Option<String>,
     ) {
         ui.heading(egui::RichText::new("Linked media").color(palette.text));
         let mut pending_album_create = None;
         let mut pending_album_link = None;
         let mut pending_album_page = None;
+        let mut pending_album_status = None;
         let mut pending_album_selection = None;
         let album_status_response = ui.label(album_status);
         emit_node(
@@ -8388,6 +8427,36 @@ impl AtelierPanel {
             album_create_pending || album_link_pending,
         );
         ui.horizontal_wrapped(|ui| {
+            let backend_mode = if self.ckc_client.is_some() {
+                "backend:persistent"
+            } else {
+                "local-preview:not-persisted"
+            };
+            let mode = ui.label(
+                egui::RichText::new(format!("media mode: {backend_mode}"))
+                    .color(palette.text_subtle),
+            );
+            emit_value_node(
+                ui.ctx(),
+                mode.id,
+                accesskit::Role::Label,
+                ATELIER_CKC_MEDIA_BACKEND_MODE_AUTHOR_ID,
+                "CKC media persistence mode",
+                backend_mode,
+            );
+            ui.label(egui::RichText::new("actor").color(palette.text_subtle));
+            let actor = ui.text_edit_singleline(media_actor_id);
+            emit_node(
+                ui.ctx(),
+                actor.id,
+                accesskit::Role::TextInput,
+                ATELIER_CKC_MEDIA_ACTOR_AUTHOR_ID,
+                "Parallel agent actor_id for CKC album and media writes",
+                false,
+            );
+        });
+        ui.horizontal_wrapped(|ui| {
+            ui.label(egui::RichText::new("album name").color(palette.text_subtle));
             let name = ui.text_edit_singleline(album_create_name);
             emit_node(
                 ui.ctx(),
@@ -8397,6 +8466,7 @@ impl AtelierPanel {
                 "CKC album name",
                 false,
             );
+            ui.label(egui::RichText::new("album tags").color(palette.text_subtle));
             let tags = ui.text_edit_singleline(album_create_tags);
             emit_node(
                 ui.ctx(),
@@ -8427,6 +8497,7 @@ impl AtelierPanel {
                             notes,
                             sheet_version_id: character.sheet_version_id.clone(),
                             tags,
+                            actor_id: actor_id_or_default(media_actor_id),
                         });
                     } else {
                         let collection_id = Uuid::new_v4().to_string();
@@ -8442,10 +8513,15 @@ impl AtelierPanel {
                             members: Vec::new(),
                         });
                         pending_album_selection = Some(collection_id);
+                        pending_album_status = Some(format!(
+                            "Created local CKC album for actor {}. Backend is unavailable; this is not persisted.",
+                            actor_id_or_default(media_actor_id)
+                        ));
                     }
                 }
             }
         });
+        ui.label(egui::RichText::new("album notes").color(palette.text_subtle));
         let notes = ui.add(
             egui::TextEdit::multiline(album_create_notes)
                 .desired_rows(2)
@@ -8458,6 +8534,37 @@ impl AtelierPanel {
             ATELIER_CKC_ALBUM_CREATE_NOTES_AUTHOR_ID,
             "CKC album notes",
             false,
+        );
+
+        let selected_album_target = selected_album_collection_id
+            .filter(|collection_id| {
+                character
+                    .media_albums
+                    .iter()
+                    .any(|album| album.collection_id == *collection_id)
+            })
+            .map(ToOwned::to_owned)
+            .or_else(|| pending_album_selection.clone());
+        let selected_album_target_label = selected_album_target
+            .as_ref()
+            .and_then(|collection_id| {
+                character
+                    .media_albums
+                    .iter()
+                    .find(|album| &album.collection_id == collection_id)
+            })
+            .map(|album| format!("target album: {} ({})", album.name, album.collection_ref))
+            .unwrap_or_else(|| "target album: none selected".to_owned());
+        let target = ui.label(
+            egui::RichText::new(selected_album_target_label.as_str()).color(palette.text_subtle),
+        );
+        emit_value_node(
+            ui.ctx(),
+            target.id,
+            accesskit::Role::Label,
+            ATELIER_CKC_ALBUM_LINK_TARGET_AUTHOR_ID,
+            "CKC album link target",
+            &selected_album_target_label,
         );
 
         let resolved_selection = character
@@ -8528,6 +8635,78 @@ impl AtelierPanel {
             "CKC selected image preview and source refs",
             false,
         );
+        let (
+            selected_album_ref,
+            selected_media_ref,
+            selected_folder_ref,
+            selected_source_url_ref,
+            selected_media_status,
+        ) = character
+            .selected_or_first_media_location(resolved_selection.as_deref())
+            .map(|(album_idx, member_idx)| {
+                let album = &character.media_albums[album_idx];
+                let member = &album.members[member_idx];
+                (
+                    album.collection_ref.clone(),
+                    member.media_ref.clone(),
+                    member.source_path_ref.clone().unwrap_or_default(),
+                    member.source_url_ref.clone().unwrap_or_default(),
+                    member
+                        .review_status
+                        .clone()
+                        .unwrap_or_else(|| "unreviewed".to_owned()),
+                )
+            })
+            .unwrap_or_else(|| {
+                (
+                    String::new(),
+                    String::new(),
+                    String::new(),
+                    String::new(),
+                    "no linked media selected".to_owned(),
+                )
+            });
+        ui.vertical(|ui| {
+            for (author_id, label, value) in [
+                (
+                    ATELIER_CKC_SELECTED_ALBUM_REF_AUTHOR_ID,
+                    "selected album ref",
+                    selected_album_ref.as_str(),
+                ),
+                (
+                    ATELIER_CKC_SELECTED_MEDIA_REF_AUTHOR_ID,
+                    "selected media ref",
+                    selected_media_ref.as_str(),
+                ),
+                (
+                    ATELIER_CKC_SELECTED_FOLDER_REF_AUTHOR_ID,
+                    "selected folder ref",
+                    selected_folder_ref.as_str(),
+                ),
+                (
+                    ATELIER_CKC_SELECTED_SOURCE_URL_REF_AUTHOR_ID,
+                    "selected source URL ref",
+                    selected_source_url_ref.as_str(),
+                ),
+                (
+                    ATELIER_CKC_SELECTED_MEDIA_STATUS_AUTHOR_ID,
+                    "selected media status",
+                    selected_media_status.as_str(),
+                ),
+            ] {
+                let response = ui.label(
+                    egui::RichText::new(format!("{label}: {value}")).color(palette.text_subtle),
+                );
+                emit_value_node(
+                    ui.ctx(),
+                    response.id,
+                    accesskit::Role::Label,
+                    author_id,
+                    label,
+                    value,
+                );
+            }
+        });
         let mut pending_selection = None;
         let list_response = ui
             .vertical(|ui| {
@@ -8660,6 +8839,7 @@ impl AtelierPanel {
                         );
                         if media_row.clicked() {
                             pending_selection = Some(media_key);
+                            pending_album_selection = Some(album.collection_id.clone());
                         }
                         if let Some(folder_ref) = &member.source_path_ref {
                             let folder_author_id = ckc_folder_row_author_id(
@@ -8754,6 +8934,7 @@ impl AtelierPanel {
         );
 
         ui.horizontal_wrapped(|ui| {
+            ui.label(egui::RichText::new("media IDs").color(palette.text_subtle));
             let asset_ids = ui.text_edit_singleline(album_link_asset_ids);
             emit_node(
                 ui.ctx(),
@@ -8763,6 +8944,7 @@ impl AtelierPanel {
                 "Existing media asset IDs to link into the selected CKC album",
                 false,
             );
+            ui.label(egui::RichText::new("source path").color(palette.text_subtle));
             let source_path = ui.text_edit_singleline(album_link_source_path_ref);
             emit_node(
                 ui.ctx(),
@@ -8772,6 +8954,7 @@ impl AtelierPanel {
                 "Optional link-scoped CKC source path ref",
                 false,
             );
+            ui.label(egui::RichText::new("source URL").color(palette.text_subtle));
             let source_url = ui.text_edit_singleline(album_link_source_url_ref);
             emit_node(
                 ui.ctx(),
@@ -8781,34 +8964,21 @@ impl AtelierPanel {
                 "Optional link-scoped CKC source URL ref",
                 false,
             );
-            let link = ui.add_enabled(!album_link_pending, egui::Button::new("Link media IDs"));
+            let link_enabled = !album_link_pending && selected_album_target.is_some();
+            let link = ui.add_enabled(link_enabled, egui::Button::new("Link media IDs"));
             emit_node(
                 ui.ctx(),
                 link.id,
                 accesskit::Role::Button,
                 ATELIER_CKC_ALBUM_LINK_AUTHOR_ID,
                 "Link existing media asset IDs into selected CKC album",
-                album_link_pending,
+                !link_enabled,
             );
             if link.clicked() {
                 let asset_ids = ckc_asset_ids_from_buffer(album_link_asset_ids);
                 let source_path_ref = non_empty_trimmed(album_link_source_path_ref);
                 let source_url_ref = non_empty_trimmed(album_link_source_url_ref);
-                let selected_collection_id = selected_album_collection_id
-                    .filter(|collection_id| {
-                        character
-                            .media_albums
-                            .iter()
-                            .any(|album| album.collection_id == *collection_id)
-                    })
-                    .map(ToOwned::to_owned)
-                    .or_else(|| pending_album_selection.clone())
-                    .or_else(|| {
-                        character
-                            .media_albums
-                            .first()
-                            .map(|album| album.collection_id.clone())
-                    });
+                let selected_collection_id = selected_album_target.clone();
                 if let (Some(collection_id), false) = (selected_collection_id, asset_ids.is_empty())
                 {
                     if self.ckc_client.is_some() {
@@ -8817,6 +8987,7 @@ impl AtelierPanel {
                             asset_ids,
                             source_path_ref,
                             source_url_ref,
+                            actor_id: actor_id_or_default(media_actor_id),
                         });
                     } else if let Some(album) = character
                         .media_albums
@@ -8839,7 +9010,21 @@ impl AtelierPanel {
                         }
                         album.member_count = album.members.len();
                         pending_album_selection = Some(album.collection_id.clone());
+                        pending_album_status = Some(format!(
+                            "Linked local media into CKC album {} for actor {}. Backend is unavailable; this is not persisted.",
+                            album.collection_id,
+                            actor_id_or_default(media_actor_id)
+                        ));
                     }
+                } else if asset_ids.is_empty() {
+                    pending_album_status = Some(
+                        "No CKC media IDs entered; paste existing atelier://media/{asset_id} refs before linking."
+                            .to_owned(),
+                    );
+                } else {
+                    pending_album_status = Some(
+                        "No CKC album selected or available for media linking.".to_owned(),
+                    );
                 }
             }
         });
@@ -8857,10 +9042,12 @@ impl AtelierPanel {
                 pending_album_create,
                 pending_album_link,
                 pending_album_page,
+                pending_album_status,
             );
         };
         let member = &mut character.media_albums[album_idx].members[member_idx];
         ui.add_space(4.0);
+        ui.label(egui::RichText::new("image notes").color(palette.text_subtle));
         let notes = ui.add(
             egui::TextEdit::multiline(&mut member.notes)
                 .desired_rows(3)
@@ -8874,6 +9061,7 @@ impl AtelierPanel {
             "CKC image notes editor",
             false,
         );
+        ui.label(egui::RichText::new("image tags").color(palette.text_subtle));
         let tags = ui.text_edit_singleline(&mut member.tags_buffer);
         emit_node(
             ui.ctx(),
@@ -8893,19 +9081,37 @@ impl AtelierPanel {
             media_save_pending,
         );
         if save.clicked() {
-            (
-                Some(CkcMediaSaveRequest {
-                    asset_id: member.asset_id.clone(),
-                    notes: member.notes.clone(),
-                    tags: ckc_tags_from_buffer(&member.tags_buffer),
-                    review_status: member.review_status.clone(),
-                }),
-                pending_selection,
-                pending_album_selection,
-                pending_album_create,
-                pending_album_link,
-                pending_album_page,
-            )
+            if self.ckc_client.is_some() {
+                (
+                    Some(CkcMediaSaveRequest {
+                        asset_id: member.asset_id.clone(),
+                        notes: member.notes.clone(),
+                        tags: ckc_tags_from_buffer(&member.tags_buffer),
+                        review_status: member.review_status.clone(),
+                        actor_id: actor_id_or_default(media_actor_id),
+                    }),
+                    pending_selection,
+                    pending_album_selection,
+                    pending_album_create,
+                    pending_album_link,
+                    pending_album_page,
+                    pending_album_status,
+                )
+            } else {
+                pending_album_status = Some(format!(
+                    "Edited local CKC media notes/tags for actor {}. Backend is unavailable; this is not persisted.",
+                    actor_id_or_default(media_actor_id)
+                ));
+                (
+                    None,
+                    pending_selection,
+                    pending_album_selection,
+                    pending_album_create,
+                    pending_album_link,
+                    pending_album_page,
+                    pending_album_status,
+                )
+            }
         } else {
             (
                 None,
@@ -8914,6 +9120,7 @@ impl AtelierPanel {
                 pending_album_create,
                 pending_album_link,
                 pending_album_page,
+                pending_album_status,
             )
         }
     }

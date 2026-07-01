@@ -22,32 +22,36 @@ use handshake_native::atelier_panel::{
     ATELIER_CKC_ALBUM_CREATE_NOTES_AUTHOR_ID, ATELIER_CKC_ALBUM_CREATE_TAGS_AUTHOR_ID,
     ATELIER_CKC_ALBUM_LINK_ASSET_IDS_AUTHOR_ID, ATELIER_CKC_ALBUM_LINK_AUTHOR_ID,
     ATELIER_CKC_ALBUM_LINK_SOURCE_PATH_AUTHOR_ID, ATELIER_CKC_ALBUM_LINK_SOURCE_URL_AUTHOR_ID,
-    ATELIER_CKC_ALBUM_STATUS_AUTHOR_ID, ATELIER_CKC_BOOK_LAYOUT_AUTHOR_ID,
-    ATELIER_CKC_BOOK_LEFT_MEDIA_AUTHOR_ID, ATELIER_CKC_BOOK_MIDDLE_AUTHOR_ID,
-    ATELIER_CKC_BOOK_RIGHT_SHEET_AUTHOR_ID, ATELIER_CKC_CHARACTER_CREATE_AUTHOR_ID,
-    ATELIER_CKC_CHARACTER_CREATE_NAME_AUTHOR_ID, ATELIER_CKC_CHARACTER_LIST_AUTHOR_ID,
-    ATELIER_CKC_CHARACTER_NOTES_APPLY_AUTHOR_ID, ATELIER_CKC_CHARACTER_NOTES_EDITOR_AUTHOR_ID,
-    ATELIER_CKC_CHARACTER_REF_AUTHOR_ID, ATELIER_CKC_EXPORT_JSON_AUTHOR_ID,
-    ATELIER_CKC_EXPORT_PREVIEW_AUTHOR_ID, ATELIER_CKC_EXPORT_REF_AUTHOR_ID,
-    ATELIER_CKC_EXPORT_SAFE_JSON_AUTHOR_ID, ATELIER_CKC_EXPORT_SAFE_TXT_AUTHOR_ID,
-    ATELIER_CKC_EXPORT_STATUS_AUTHOR_ID, ATELIER_CKC_EXPORT_TXT_AUTHOR_ID,
-    ATELIER_CKC_FIELD_SUGGESTIONS_LIST_AUTHOR_ID, ATELIER_CKC_FIELD_SUGGESTIONS_LOAD_AUTHOR_ID,
-    ATELIER_CKC_FIELD_SUGGESTION_FIELD_AUTHOR_ID, ATELIER_CKC_IMPORT_AUTHOR_ID,
-    ATELIER_CKC_IMPORT_EDITOR_AUTHOR_ID, ATELIER_CKC_LINKED_MEDIA_LIST_AUTHOR_ID,
-    ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID, ATELIER_CKC_MEDIA_SAVE_AUTHOR_ID,
-    ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID, ATELIER_CKC_MEDIA_VIEWER_AUTHOR_ID,
-    ATELIER_CKC_MODE_MOODBOARD_AUTHOR_ID, ATELIER_CKC_MODE_NOTES_AUTHOR_ID,
-    ATELIER_CKC_MODE_SHEET_AUTHOR_ID, ATELIER_CKC_MODE_STORY_AUTHOR_ID,
-    ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID, ATELIER_CKC_MOODBOARD_DOC_REF_AUTHOR_ID,
-    ATELIER_CKC_MOODBOARD_EDITOR_AUTHOR_ID, ATELIER_CKC_MOODBOARD_LATEST_REF_AUTHOR_ID,
-    ATELIER_CKC_MOODBOARD_OPEN_AUTHOR_ID, ATELIER_CKC_MOODBOARD_SAVE_AUTHOR_ID,
-    ATELIER_CKC_SAFE_SUBSET_LOAD_AUTHOR_ID, ATELIER_CKC_SEARCH_FILTER_CHARACTER_AUTHOR_ID,
-    ATELIER_CKC_SEARCH_FILTER_COLLECTION_AUTHOR_ID, ATELIER_CKC_SEARCH_FILTER_MEDIA_AUTHOR_ID,
-    ATELIER_CKC_SEARCH_FILTER_SIMILARITY_AUTHOR_ID, ATELIER_CKC_SEARCH_MODE_COMBINED_AUTHOR_ID,
-    ATELIER_CKC_SEARCH_MODE_FUZZY_AUTHOR_ID, ATELIER_CKC_SEARCH_MODE_VECTOR_AUTHOR_ID,
-    ATELIER_CKC_SEARCH_QUERY_AUTHOR_ID, ATELIER_CKC_SEARCH_RESULTS_AUTHOR_ID,
-    ATELIER_CKC_SEARCH_RUN_AUTHOR_ID, ATELIER_CKC_SEARCH_STATUS_AUTHOR_ID,
-    ATELIER_CKC_SEARCH_TAGS_AUTHOR_ID, ATELIER_CKC_SELECTED_CHARACTER_AUTHOR_ID,
+    ATELIER_CKC_ALBUM_LINK_TARGET_AUTHOR_ID, ATELIER_CKC_ALBUM_STATUS_AUTHOR_ID,
+    ATELIER_CKC_BOOK_LAYOUT_AUTHOR_ID, ATELIER_CKC_BOOK_LEFT_MEDIA_AUTHOR_ID,
+    ATELIER_CKC_BOOK_MIDDLE_AUTHOR_ID, ATELIER_CKC_BOOK_RIGHT_SHEET_AUTHOR_ID,
+    ATELIER_CKC_CHARACTER_CREATE_AUTHOR_ID, ATELIER_CKC_CHARACTER_CREATE_NAME_AUTHOR_ID,
+    ATELIER_CKC_CHARACTER_LIST_AUTHOR_ID, ATELIER_CKC_CHARACTER_NOTES_APPLY_AUTHOR_ID,
+    ATELIER_CKC_CHARACTER_NOTES_EDITOR_AUTHOR_ID, ATELIER_CKC_CHARACTER_REF_AUTHOR_ID,
+    ATELIER_CKC_EXPORT_JSON_AUTHOR_ID, ATELIER_CKC_EXPORT_PREVIEW_AUTHOR_ID,
+    ATELIER_CKC_EXPORT_REF_AUTHOR_ID, ATELIER_CKC_EXPORT_SAFE_JSON_AUTHOR_ID,
+    ATELIER_CKC_EXPORT_SAFE_TXT_AUTHOR_ID, ATELIER_CKC_EXPORT_STATUS_AUTHOR_ID,
+    ATELIER_CKC_EXPORT_TXT_AUTHOR_ID, ATELIER_CKC_FIELD_SUGGESTIONS_LIST_AUTHOR_ID,
+    ATELIER_CKC_FIELD_SUGGESTIONS_LOAD_AUTHOR_ID, ATELIER_CKC_FIELD_SUGGESTION_FIELD_AUTHOR_ID,
+    ATELIER_CKC_IMPORT_AUTHOR_ID, ATELIER_CKC_IMPORT_EDITOR_AUTHOR_ID,
+    ATELIER_CKC_LINKED_MEDIA_LIST_AUTHOR_ID, ATELIER_CKC_MEDIA_ACTOR_AUTHOR_ID,
+    ATELIER_CKC_MEDIA_BACKEND_MODE_AUTHOR_ID, ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID,
+    ATELIER_CKC_MEDIA_SAVE_AUTHOR_ID, ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID,
+    ATELIER_CKC_MEDIA_VIEWER_AUTHOR_ID, ATELIER_CKC_MODE_MOODBOARD_AUTHOR_ID,
+    ATELIER_CKC_MODE_NOTES_AUTHOR_ID, ATELIER_CKC_MODE_SHEET_AUTHOR_ID,
+    ATELIER_CKC_MODE_STORY_AUTHOR_ID, ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID,
+    ATELIER_CKC_MOODBOARD_DOC_REF_AUTHOR_ID, ATELIER_CKC_MOODBOARD_EDITOR_AUTHOR_ID,
+    ATELIER_CKC_MOODBOARD_LATEST_REF_AUTHOR_ID, ATELIER_CKC_MOODBOARD_OPEN_AUTHOR_ID,
+    ATELIER_CKC_MOODBOARD_SAVE_AUTHOR_ID, ATELIER_CKC_SAFE_SUBSET_LOAD_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_FILTER_CHARACTER_AUTHOR_ID, ATELIER_CKC_SEARCH_FILTER_COLLECTION_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_FILTER_MEDIA_AUTHOR_ID, ATELIER_CKC_SEARCH_FILTER_SIMILARITY_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_MODE_COMBINED_AUTHOR_ID, ATELIER_CKC_SEARCH_MODE_FUZZY_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_MODE_VECTOR_AUTHOR_ID, ATELIER_CKC_SEARCH_QUERY_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_RESULTS_AUTHOR_ID, ATELIER_CKC_SEARCH_RUN_AUTHOR_ID,
+    ATELIER_CKC_SEARCH_STATUS_AUTHOR_ID, ATELIER_CKC_SEARCH_TAGS_AUTHOR_ID,
+    ATELIER_CKC_SELECTED_ALBUM_REF_AUTHOR_ID, ATELIER_CKC_SELECTED_CHARACTER_AUTHOR_ID,
+    ATELIER_CKC_SELECTED_FOLDER_REF_AUTHOR_ID, ATELIER_CKC_SELECTED_MEDIA_REF_AUTHOR_ID,
+    ATELIER_CKC_SELECTED_MEDIA_STATUS_AUTHOR_ID, ATELIER_CKC_SELECTED_SOURCE_URL_REF_AUTHOR_ID,
     ATELIER_CKC_SHEET_ARTIFACT_ACTOR_AUTHOR_ID, ATELIER_CKC_SHEET_ARTIFACT_ATTACH_AUTHOR_ID,
     ATELIER_CKC_SHEET_ARTIFACT_ATTACH_POSE_AUTHOR_ID, ATELIER_CKC_SHEET_ARTIFACT_DETACH_AUTHOR_ID,
     ATELIER_CKC_SHEET_ARTIFACT_KIND_AUTHOR_ID, ATELIER_CKC_SHEET_ARTIFACT_LABEL_AUTHOR_ID,
@@ -106,7 +110,9 @@ use handshake_native::atelier_panel::{
 use handshake_native::atelier_side_panel::{
     batch_author_id, item_author_id, AtelierSidePanel, PANEL_AUTHOR_ID,
 };
-use handshake_native::backend_client::{AtelierBatchRow, AtelierClient, AtelierItemRow};
+use handshake_native::backend_client::{
+    AtelierBatchRow, AtelierClient, AtelierItemRow, HttpMethod, HSK_HEADER_ACTOR_ID,
+};
 use handshake_native::graph::canvas_board::{CanvasEvent, LoomCanvasBoard};
 use handshake_native::mcp::{
     dispatch_request, ActionChannel, McpRequest, ScreenshotError, SessionToken,
@@ -2308,6 +2314,535 @@ fn argus_inspects_and_steers_ckc_linked_media_without_touching_sheet_notes() {
         sheet_before, sheet_after,
         "image notes/tags must stay separate from character sheet notes"
     );
+}
+
+#[test]
+fn argus_reads_structured_ckc_media_refs_and_actor_surface() {
+    let mut harness = build_panel_harness();
+    harness.run();
+    harness.run();
+    let snapshot = snapshot_harness(&mut harness);
+    for expected in [
+        ATELIER_CKC_MEDIA_BACKEND_MODE_AUTHOR_ID,
+        ATELIER_CKC_MEDIA_ACTOR_AUTHOR_ID,
+        ATELIER_CKC_ALBUM_LINK_TARGET_AUTHOR_ID,
+        ATELIER_CKC_SELECTED_ALBUM_REF_AUTHOR_ID,
+        ATELIER_CKC_SELECTED_MEDIA_REF_AUTHOR_ID,
+        ATELIER_CKC_SELECTED_FOLDER_REF_AUTHOR_ID,
+        ATELIER_CKC_SELECTED_SOURCE_URL_REF_AUTHOR_ID,
+        ATELIER_CKC_SELECTED_MEDIA_STATUS_AUTHOR_ID,
+    ] {
+        assert!(
+            snapshot.find_by_author_id(expected).is_some(),
+            "Argus inspect snapshot must include structured CKC media readout {expected}"
+        );
+    }
+
+    let actor = snapshot
+        .find_by_author_id(ATELIER_CKC_MEDIA_ACTOR_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("CKC media actor value visible");
+    assert!(
+        actor.contains("local-atelier-panel"),
+        "CKC media actor field must expose the active writer identity; got {actor:?}"
+    );
+    let backend_mode = snapshot
+        .find_by_author_id(ATELIER_CKC_MEDIA_BACKEND_MODE_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("CKC media backend/local mode visible");
+    assert_eq!(backend_mode, "local-preview:not-persisted");
+    let link_target = snapshot
+        .find_by_author_id(ATELIER_CKC_ALBUM_LINK_TARGET_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("CKC album link target visible");
+    assert!(
+        link_target.contains("none selected"),
+        "CKC album link target must be explicit before a row selection; got {link_target}"
+    );
+    let album_ref = snapshot
+        .find_by_author_id(ATELIER_CKC_SELECTED_ALBUM_REF_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("selected CKC album ref visible");
+    let media_ref = snapshot
+        .find_by_author_id(ATELIER_CKC_SELECTED_MEDIA_REF_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("selected CKC media ref visible");
+    let folder_ref = snapshot
+        .find_by_author_id(ATELIER_CKC_SELECTED_FOLDER_REF_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("selected CKC folder ref visible");
+    let source_url_ref = snapshot
+        .find_by_author_id(ATELIER_CKC_SELECTED_SOURCE_URL_REF_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("selected CKC source URL ref visible");
+    let media_status = snapshot
+        .find_by_author_id(ATELIER_CKC_SELECTED_MEDIA_STATUS_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("selected CKC media status visible");
+    assert!(
+        album_ref.contains(MIRA_DEMO_ALBUM_ID),
+        "album ref: {album_ref}"
+    );
+    assert!(
+        media_ref.contains(MIRA_DEMO_MEDIA_ID),
+        "media ref: {media_ref}"
+    );
+    assert_eq!(folder_ref, MIRA_DEMO_FOLDER_REF);
+    assert_eq!(source_url_ref, MIRA_DEMO_SOURCE_URL_REF);
+    assert_eq!(media_status, "approved");
+
+    let mut channel = ActionChannel::new();
+    let set_actor = dispatch_request(
+        &argus_req(
+            "argus.set_value",
+            serde_json::json!({
+                "target": ATELIER_CKC_MEDIA_ACTOR_AUTHOR_ID,
+                "value": "media-agent-010"
+            }),
+        ),
+        &argus_token(),
+        &snapshot,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(set_actor.to_json()["result"]["queued"], true);
+    let second_media_author_id =
+        ckc_media_row_author_id(MIRA_DEMO_SECOND_ALBUM_ID, MIRA_DEMO_SECOND_MEDIA_ID);
+    let select_second = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": second_media_author_id }),
+        ),
+        &argus_token(),
+        &snapshot,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(select_second.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let after = snapshot_harness(&mut harness);
+    let actor = after
+        .find_by_author_id(ATELIER_CKC_MEDIA_ACTOR_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("updated CKC media actor value visible");
+    assert_eq!(actor, "media-agent-010");
+    let link_target = after
+        .find_by_author_id(ATELIER_CKC_ALBUM_LINK_TARGET_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("selected CKC album link target visible");
+    assert!(
+        link_target.contains(MIRA_DEMO_SECOND_ALBUM_ID),
+        "album link target must follow explicit media/album selection; got {link_target}"
+    );
+    let album_ref = after
+        .find_by_author_id(ATELIER_CKC_SELECTED_ALBUM_REF_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("second selected CKC album ref visible");
+    let media_ref = after
+        .find_by_author_id(ATELIER_CKC_SELECTED_MEDIA_REF_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("second selected CKC media ref visible");
+    let folder_ref = after
+        .find_by_author_id(ATELIER_CKC_SELECTED_FOLDER_REF_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("second selected CKC folder ref visible");
+    let source_url_ref = after
+        .find_by_author_id(ATELIER_CKC_SELECTED_SOURCE_URL_REF_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("second selected CKC source URL ref visible");
+    assert!(
+        album_ref.contains(MIRA_DEMO_SECOND_ALBUM_ID),
+        "second album ref: {album_ref}"
+    );
+    assert!(
+        media_ref.contains(MIRA_DEMO_SECOND_MEDIA_ID),
+        "second media ref: {media_ref}"
+    );
+    assert_eq!(folder_ref, MIRA_DEMO_SECOND_FOLDER_REF);
+    assert_eq!(source_url_ref, MIRA_DEMO_SECOND_SOURCE_URL_REF);
+}
+
+#[test]
+fn argus_creates_and_links_ckc_media_with_actor_status() {
+    let mut harness = build_panel_harness();
+    harness.run();
+    harness.run();
+    let before = snapshot_harness(&mut harness);
+    let sheet_before = before
+        .find_by_author_id(ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("sheet editor value before local media link");
+    let album_count_before = snapshot_author_id_prefix_count(&before, "atelier-ckc-album-");
+    let mut channel = ActionChannel::new();
+    for (target, value) in [
+        (ATELIER_CKC_MEDIA_ACTOR_AUTHOR_ID, "media-agent-010"),
+        (ATELIER_CKC_ALBUM_CREATE_NAME_AUTHOR_ID, "Argus proof album"),
+        (
+            ATELIER_CKC_ALBUM_CREATE_TAGS_AUTHOR_ID,
+            "proof, linked-media",
+        ),
+        (
+            ATELIER_CKC_ALBUM_CREATE_NOTES_AUTHOR_ID,
+            "created through Argus for MT-010",
+        ),
+    ] {
+        let response = dispatch_request(
+            &argus_req(
+                "argus.set_value",
+                serde_json::json!({ "target": target, "value": value }),
+            ),
+            &argus_token(),
+            &before,
+            &mut channel,
+            || Err(ScreenshotError("not used".to_owned())),
+        );
+        assert_eq!(response.to_json()["result"]["queued"], true);
+    }
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let ready_to_create = snapshot_harness(&mut harness);
+    let create = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_CKC_ALBUM_CREATE_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &ready_to_create,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(create.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let after_create = snapshot_harness(&mut harness);
+    let album_count_after = snapshot_author_id_prefix_count(&after_create, "atelier-ckc-album-");
+    assert!(
+        album_count_after > album_count_before,
+        "local Argus album create must add an inspectable album row"
+    );
+    let link_target = after_create
+        .find_by_author_id(ATELIER_CKC_ALBUM_LINK_TARGET_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("created CKC album link target visible");
+    assert!(
+        link_target.contains("Argus proof album"),
+        "newly created album must become the explicit link target; got {link_target}"
+    );
+    let status = after_create
+        .find_by_author_id(ATELIER_CKC_ALBUM_STATUS_AUTHOR_ID)
+        .and_then(|node| node.label.clone())
+        .expect("album status after create");
+    assert!(
+        status.contains("Created local CKC album")
+            && status.contains("media-agent-010")
+            && status.contains("Backend is unavailable")
+            && status.contains("not persisted"),
+        "album create status must cite local non-persistence and actor; got {status}"
+    );
+
+    let new_asset_id = "018f7848-1111-7000-9000-00000000b910";
+    let new_asset_ref = format!("atelier://media/{new_asset_id}");
+    let link_source_path = "atelier://folder/argus-proof-set";
+    let link_source_url = "https://example.invalid/reference/argus-proof-set";
+    for (target, value) in [
+        (
+            ATELIER_CKC_ALBUM_LINK_ASSET_IDS_AUTHOR_ID,
+            new_asset_ref.as_str(),
+        ),
+        (
+            ATELIER_CKC_ALBUM_LINK_SOURCE_PATH_AUTHOR_ID,
+            link_source_path,
+        ),
+        (ATELIER_CKC_ALBUM_LINK_SOURCE_URL_AUTHOR_ID, link_source_url),
+    ] {
+        let response = dispatch_request(
+            &argus_req(
+                "argus.set_value",
+                serde_json::json!({ "target": target, "value": value }),
+            ),
+            &argus_token(),
+            &after_create,
+            &mut channel,
+            || Err(ScreenshotError("not used".to_owned())),
+        );
+        assert_eq!(response.to_json()["result"]["queued"], true);
+    }
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let ready_to_link = snapshot_harness(&mut harness);
+    let link = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_CKC_ALBUM_LINK_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &ready_to_link,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(link.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let after_link = snapshot_harness(&mut harness);
+    let status = after_link
+        .find_by_author_id(ATELIER_CKC_ALBUM_STATUS_AUTHOR_ID)
+        .and_then(|node| node.label.clone())
+        .expect("album status after local link");
+    assert!(
+        status.contains("Linked local")
+            && status.contains("media-agent-010")
+            && status.contains("Backend is unavailable")
+            && status.contains("not persisted"),
+        "album link status must cite local non-persistence and actor; got {status}"
+    );
+    assert!(
+        after_link.iter_nodes().any(|node| {
+            node.label
+                .as_deref()
+                .unwrap_or_default()
+                .contains(new_asset_ref.as_str())
+        }),
+        "linked local media row must expose {new_asset_ref}"
+    );
+    assert!(
+        after_link.iter_nodes().any(|node| {
+            node.label
+                .as_deref()
+                .unwrap_or_default()
+                .contains(link_source_path)
+        }),
+        "linked local folder provenance row must expose {link_source_path}"
+    );
+    assert!(
+        after_link.iter_nodes().any(|node| {
+            node.label
+                .as_deref()
+                .unwrap_or_default()
+                .contains(link_source_url)
+        }),
+        "linked local source URL provenance row must expose {link_source_url}"
+    );
+    let linked_row_author_id = after_link
+        .iter_nodes()
+        .find(|node| {
+            node.author_id
+                .as_deref()
+                .unwrap_or_default()
+                .starts_with("atelier-ckc-media-")
+                && node
+                    .label
+                    .as_deref()
+                    .unwrap_or_default()
+                    .contains(new_asset_ref.as_str())
+        })
+        .and_then(|node| node.author_id.clone())
+        .expect("linked local media row author_id");
+    let select_linked = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": linked_row_author_id }),
+        ),
+        &argus_token(),
+        &after_link,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(select_linked.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let selected = snapshot_harness(&mut harness);
+    let selected_media_ref = selected
+        .find_by_author_id(ATELIER_CKC_SELECTED_MEDIA_REF_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("selected local media ref");
+    let selected_folder_ref = selected
+        .find_by_author_id(ATELIER_CKC_SELECTED_FOLDER_REF_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("selected local folder ref");
+    let selected_source_url_ref = selected
+        .find_by_author_id(ATELIER_CKC_SELECTED_SOURCE_URL_REF_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("selected local source URL ref");
+    assert_eq!(selected_media_ref, new_asset_ref);
+    assert_eq!(selected_folder_ref, link_source_path);
+    assert_eq!(selected_source_url_ref, link_source_url);
+
+    for (target, value) in [
+        (
+            ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID,
+            "local save proof note",
+        ),
+        (
+            ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID,
+            "proof, saved-local",
+        ),
+    ] {
+        let response = dispatch_request(
+            &argus_req(
+                "argus.set_value",
+                serde_json::json!({ "target": target, "value": value }),
+            ),
+            &argus_token(),
+            &selected,
+            &mut channel,
+            || Err(ScreenshotError("not used".to_owned())),
+        );
+        assert_eq!(response.to_json()["result"]["queued"], true);
+    }
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let ready_to_save = snapshot_harness(&mut harness);
+    let save_media_notes = dispatch_request(
+        &argus_req(
+            "argus.click",
+            serde_json::json!({ "target": ATELIER_CKC_MEDIA_SAVE_AUTHOR_ID }),
+        ),
+        &argus_token(),
+        &ready_to_save,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(save_media_notes.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let after_save = snapshot_harness(&mut harness);
+    let save_status = after_save
+        .find_by_author_id(ATELIER_CKC_ALBUM_STATUS_AUTHOR_ID)
+        .and_then(|node| node.label.clone())
+        .expect("album status after local media notes save");
+    assert!(
+        save_status.contains("Edited local CKC media notes/tags")
+            && save_status.contains("media-agent-010")
+            && save_status.contains("Backend is unavailable")
+            && save_status.contains("not persisted"),
+        "media notes/tags save status must cite local non-persistence and actor; got {save_status}"
+    );
+
+    let sheet_after = after_save
+        .find_by_author_id(ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID)
+        .and_then(|node| node.value.clone())
+        .expect("sheet editor value after local media link");
+    assert_eq!(
+        sheet_before, sheet_after,
+        "album creation and media link controls must not mutate character sheet notes"
+    );
+}
+
+#[test]
+fn ckc_media_backend_requests_are_actor_attributed_and_persistence_routes() {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("request-spec runtime");
+    let client = AtelierClient::new_with_actor_id(
+        "http://127.0.0.1:17777",
+        runtime.handle().clone(),
+        "media-agent-010",
+    );
+    let tags = vec!["proof".to_owned(), "linked-media".to_owned()];
+
+    let create = client.create_media_album_actor_request(
+        "character-1",
+        "Argus proof album",
+        Some("created through Argus for MT-010"),
+        Some("sheet-version-1"),
+        &tags,
+        client.actor_id(),
+    );
+    assert_eq!(create.method, HttpMethod::Post);
+    assert_eq!(
+        create.url,
+        "http://127.0.0.1:17777/atelier/characters/character-1/media-albums"
+    );
+    assert_eq!(
+        create.headers,
+        vec![(HSK_HEADER_ACTOR_ID.to_owned(), "media-agent-010".to_owned())]
+    );
+    let create_body = create.body.expect("album create body");
+    assert_eq!(create_body["name"], "Argus proof album");
+    assert_eq!(create_body["notes"], "created through Argus for MT-010");
+    assert_eq!(create_body["sheet_version_id"], "sheet-version-1");
+    assert_eq!(create_body["tags"][1], "linked-media");
+
+    let asset_ids = vec!["018f7848-1111-7000-9000-00000000b910".to_owned()];
+    let link = client.add_media_album_items_actor_request(
+        "collection-1",
+        &asset_ids,
+        Some("atelier://folder/argus-proof-set"),
+        Some("https://example.invalid/reference/argus-proof-set"),
+        client.actor_id(),
+    );
+    assert_eq!(link.method, HttpMethod::Post);
+    assert_eq!(
+        link.url,
+        "http://127.0.0.1:17777/atelier/media-albums/collection-1/items"
+    );
+    assert_eq!(
+        link.headers,
+        vec![(HSK_HEADER_ACTOR_ID.to_owned(), "media-agent-010".to_owned())]
+    );
+    let link_body = link.body.expect("album link body");
+    assert_eq!(
+        link_body["asset_ids"][0],
+        "018f7848-1111-7000-9000-00000000b910"
+    );
+    assert_eq!(
+        link_body["source_path_ref"],
+        "atelier://folder/argus-proof-set"
+    );
+    assert_eq!(
+        link_body["source_url_ref"],
+        "https://example.invalid/reference/argus-proof-set"
+    );
+
+    let save = client.media_notes_tags_actor_request(
+        "018f7848-1111-7000-9000-00000000b910",
+        Some("image-level note, separate from the sheet"),
+        Some(&tags),
+        Some("approved"),
+        client.actor_id(),
+    );
+    assert_eq!(save.method, HttpMethod::Post);
+    assert_eq!(
+        save.url,
+        "http://127.0.0.1:17777/atelier/media-assets/018f7848-1111-7000-9000-00000000b910/notes-tags"
+    );
+    assert_eq!(
+        save.headers,
+        vec![(HSK_HEADER_ACTOR_ID.to_owned(), "media-agent-010".to_owned())]
+    );
+    let save_body = save.body.expect("media notes/tags body");
+    assert_eq!(
+        save_body["notes"],
+        "image-level note, separate from the sheet"
+    );
+    assert_eq!(save_body["tags"][0], "proof");
+    assert_eq!(save_body["review_status"], "approved");
 }
 
 #[test]

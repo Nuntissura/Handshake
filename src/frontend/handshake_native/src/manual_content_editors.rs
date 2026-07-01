@@ -382,14 +382,22 @@ album embeds. Media rows use hsLink refKind media and folder provenance rows use
 source URL rows use hsLink refKind source_url. Argus descriptions must include draggable atelier-ref \
 metadata before a model treats a row as reusable. \
 Create albums with atelier-ckc-album-create-name, atelier-ckc-album-create-tags, \
-atelier-ckc-album-create-notes, and atelier-ckc-album-create. Select an album row, paste existing \
+atelier-ckc-album-create-notes, and atelier-ckc-album-create. Select an album row, then inspect \
+atelier-ckc-album-link-target to confirm the exact target album. Paste existing \
 atelier://media/{asset_id} refs or raw UUIDs into atelier-ckc-album-link-asset-ids, optionally set \
 atelier-ckc-album-link-source-path and atelier-ckc-album-link-source-url for per-album link provenance, \
-then click atelier-ckc-album-link-assets; atelier-ckc-album-status reports create/link results. When an album \
+set atelier-ckc-media-actor to the parallel agent actor_id that owns the write, then click \
+atelier-ckc-album-link-assets; atelier-ckc-album-status reports create/link results with backend/local \
+persistence status, and atelier-ckc-media-backend-mode states whether writes are backend:persistent or \
+local-preview:not-persisted. If atelier-ckc-album-link-target says no album is selected, select an album \
+row before linking; CKC does not silently fall back to the first album. When an album \
 shows members_next_offset, click its dynamic atelier-ckc-album-load-more-* row to fetch the next page \
 through GET /atelier/media-albums/{collection_id}/items?offset=...&limit=200. Link requests \
 may carry link-scoped source_path_ref/source_url_ref through POST /atelier/media-albums/{collection_id}/items \
-so the same image asset can belong to different albums without losing per-link provenance. Edit image notes in atelier-ckc-media-notes-editor and image tags in \
+so the same image asset can belong to different albums without losing per-link provenance. Inspect \
+atelier-ckc-selected-album-ref, atelier-ckc-selected-media-ref, atelier-ckc-selected-folder-ref, \
+atelier-ckc-selected-source-url-ref, and atelier-ckc-selected-media-status before reusing a selected image \
+in another pillar. Edit image notes in atelier-ckc-media-notes-editor and image tags in \
 atelier-ckc-media-tags-editor, then click atelier-ckc-media-save. These image notes and image tags are \
 stored on media metadata and must stay separate from the character sheet notes in \
 atelier-ckc-sheet-editor. The matching backend routes are GET/POST \
@@ -949,6 +957,70 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         action_label: "Read CKC album status",
         mcp_tool: "argus.inspect",
         description: "argus.inspect reads atelier-ckc-album-status for album create/link results.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_MEDIA_BACKEND_MODE_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Read CKC media persistence mode",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads whether CKC linked-media writes are backend:persistent or local-preview:not-persisted.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_MEDIA_ACTOR_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Set CKC media actor",
+        mcp_tool: "argus.set_value",
+        description:
+            "argus.set_value{target:'atelier-ckc-media-actor', value:'<agent actor_id>'} sets attribution for CKC album and media writes.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SELECTED_ALBUM_REF_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Read selected CKC album ref",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads the selected atelier://collection/{collection_id} ref for reuse and provenance checks.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SELECTED_MEDIA_REF_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Read selected CKC media ref",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads the selected atelier://media/{asset_id} ref before another pillar reuses the image.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SELECTED_FOLDER_REF_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Read selected CKC folder ref",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads selected source_path_ref folder provenance for the current CKC media row.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SELECTED_SOURCE_URL_REF_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Read selected CKC source URL",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads selected source_url_ref provenance for the current CKC media row.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_SELECTED_MEDIA_STATUS_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Read selected CKC media status",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads the selected CKC media review status before pass/reject/unsure workflows reuse it.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::atelier_panel::ATELIER_CKC_ALBUM_LINK_TARGET_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Read CKC album link target",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads the exact CKC album that atelier-ckc-album-link-assets will write to; if no target is selected, click an album row first.",
     });
     rows.push(AgentToolRow {
         author_id: crate::atelier_panel::ATELIER_CKC_ALBUM_CREATE_NAME_AUTHOR_ID,
