@@ -7,7 +7,7 @@
   "title": "Retire or contain legacy non-Rust CKC/Posekit surfaces after native parity",
   "status": "PENDING",
   "created_at_utc": "2026-06-28T21:53:53.761Z",
-  "updated_at_utc": "2026-06-28T21:53:53.761Z",
+  "updated_at_utc": "2026-06-30T23:20:00.000Z",
   "product_edit_allowed": true,
   "operator_request": "Address the non-Rust language things first, but do not delete useful behavior before native Handshake parity exists.",
   "authority_files": {
@@ -25,13 +25,14 @@
     "status": "PENDING",
     "active": false,
     "depends_on": [
-      "MT-023"
+      "MT-023",
+      "MT-030"
     ],
     "validator_verdict": "PENDING"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
-    "recovery_rule": "Use MT-001 inventory. Only retire/contain a non-Rust surface when a native Rust/Handshake path is proven for the same behavior or the operator accepts deletion."
+    "recovery_rule": "Use MT-001 inventory and wait for native parity slices including MT-030. Only retire/contain a non-Rust surface when a native Rust/Handshake path is proven for the same behavior or the operator accepts deletion."
   },
   "scope": {
     "summary": "Finish the language-surface cleanup by retiring, containing, or documenting legacy React/TypeScript/JavaScript CKC/Posekit surfaces after native parity is proven.",

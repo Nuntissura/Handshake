@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-005",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-06-28T21:51:59.965Z",
+  "updated_at_utc": "2026-06-29T18:18:03.513Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-005.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-002",
       "MT-004"
@@ -28,20 +28,20 @@
     "validator_verdict": "PENDING",
     "claimed_by": null,
     "claimed_at_utc": null,
-    "ready_for_validation_by": null,
-    "ready_for_validation_at_utc": null,
+    "ready_for_validation_by": "KERNEL_BUILDER-MT005",
+    "ready_for_validation_at_utc": "2026-06-29T18:18:03.513Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "NOT_RUN",
-    "hbr_status": "PENDING",
+    "proof_status": "PASS_MT005_RUST_POSTGRES_EVENTLEDGER_USERMANUAL_RUNTIME_PROOFS",
+    "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT005_SCOPE_EVENTLEDGER_WIRED_FLIGHT_RECORDER_EVIDENCE_REFS_DIRECT_FR_EMIT_DEFERRED_TO_MT008",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
     "last_recovery_event_ref": null,
-    "last_runtime_status_ref": null,
+    "last_runtime_status_ref": "cargo-test://handshake_core/model_lane_context_bundle_pg_tests/full-target/2026-06-29T18:18:03.513Z",
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-    "post_implementation_adversarial_review_status": "NOT_RUN",
-    "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+    "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-29",
+    "adversarial_findings_status": "POST_REVIEW_FINDINGS_ADDRESSED_IN_PRODUCT_CODE_TESTS_USERMANUAL_SPEC_AND_MT_STATUS; DIRECT_FLIGHT_RECORDER_EVENT_EMIT_RECORDED_AS_DEFERRED_TO_MT008"
   },
   "scope": {
     "summary": "Route model-to-model handoff through ContextBundle and artifact references.",
@@ -80,9 +80,12 @@
       "After implementation and before READY_FOR_VALIDATION, this MT MUST receive post-implementation adversarial review against the actual diff. Findings must be fixed or converted into explicit lifecycle blocker/missing_resource/proof_status state; the implementer may not self-certify COMPLETED."
     ],
     "proof_targets": [
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_context_bundle_pg_tests model_lane_context_bundle_persists_selection_state_and_replays -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_context_bundle_pg_tests model_lane_context_bundle_missing_artifact_ref_fails_closed -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_context_bundle_pg_tests model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayable -- --exact"
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests -- --nocapture",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_persists_selection_state_and_replays -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_missing_artifact_ref_fails_closed -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayable -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_context_bundle_user_manual_entry_is_current -- --exact",
+      "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils -q"
     ],
     "risk_if_missed": "Cloud and local models cannot reliably speak across restart or validator review.",
     "reference_only_paths": [
@@ -101,8 +104,8 @@
     "No raw prompt replay should be required to reconstruct a handoff; the project-named internal viewing tool must show enough artifact/message state for recovery.",
     "LangGraph-style checkpoint/store separation maps to ContextBundle for run-local handoff and FEMS/Loom/UserManual for durable cross-run memory/knowledge, all under PostgreSQL/EventLedger authority.",
     "Peritext-style user-intent risk means rich text or work-surface CRDT merges need validation/preview/promotion records before becoming authority.",
-    "Payload refs should be large-data references with bounded summaries because Flight Recorder/EventLedger events should not carry unbounded model output bodies.",
-    "Use Flight Recorder/EventLedger payloads as bounded events plus artifact refs; do not put unbounded model output, raw secrets, or prompt-only state in event payloads.",
+    "Payload refs should be large-data references with bounded summaries because EventLedger and Flight Recorder evidence refs should not carry unbounded model output bodies.",
+    "Use EventLedger payloads plus Flight Recorder evidence refs as bounded events/artifact refs; do not put unbounded model output, raw secrets, or prompt-only state in event payloads. Direct Flight Recorder event emission for this surface is deferred to MT-008 diagnostics.",
     "If this MT changes any product behavior, storage/event contract, command, IPC/API path, diagnostic surface, model lane, or navigation path, update the in-product UserManual in the same implementation change per HBR-MAN-004.",
     "Product implementation for this MT must be Rust-only: Rust backend plus Rust native egui/Argus surfaces where UI is touched. Legacy app/src, app/src-tauri, React, Tauri/WebView, TypeScript, JavaScript, docs/model-manual, and npm proof targets are reference-only or forbidden and MUST NOT satisfy implementation/proof authority.",
     "Proof commands must name exact Rust test targets or exact test names. Zero matching tests is a hard failure. Deterministic provider fakes are allowed for cloud/local model calls, but PostgreSQL/EventLedger/ArtifactStore/CRDT/UserManual/Argus authority must touch real Handshake-owned Rust resources or an explicit real PostgreSQL URL.",

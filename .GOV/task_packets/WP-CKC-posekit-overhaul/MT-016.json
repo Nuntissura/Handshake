@@ -5,9 +5,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-016",
   "title": "Link CKC sheet versions to ComfyUI renders and OpenPose artifacts",
-  "status": "PENDING",
+  "status": "READY_FOR_VALIDATION",
   "created_at_utc": "2026-06-28T21:53:53.761Z",
-  "updated_at_utc": "2026-06-28T21:53:53.761Z",
+  "updated_at_utc": "2026-06-30T21:03:12.941Z",
   "product_edit_allowed": true,
   "operator_request": "CKC should store good CUI-ready OpenPose images, CUI renders, and linked objects on character sheets or sheet versions for reuse.",
   "authority_files": {
@@ -22,7 +22,7 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-016.json"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-009",
@@ -74,6 +74,23 @@
   },
   "manual_requirement": "Required in this MT.",
   "handoff": {
-    "status": "PENDING"
+    "status": "READY_FOR_VALIDATION",
+    "implemented_at_utc": "2026-06-30T21:03:12.941Z",
+    "implementation_summary": [
+      "Added backend CKC sheet artifact link persistence for OpenPose/Comfy refs with typed atelier://sheet-artifact/{link_id} reuse refs.",
+      "Added API list/get/attach/detach routes with actor attribution, idempotent duplicate attach status, soft detach, event emission, and portable-ref validation.",
+      "Added native CKC UI controls and Argus author IDs for browsing, attaching, detaching, attaching latest Posekit export, actor attribution, status, and reuse refs.",
+      "Updated internal manual/tool rows for no-context model operation and parallel-agent attribution."
+    ],
+    "validation_summary": [
+      "rustfmt --check passed for focused backend and frontend files.",
+      "git diff --check passed for focused files, with CRLF warnings only.",
+      "cargo metadata --no-deps passed for backend and frontend manifests.",
+      "Backend source-level adversarial review passed.",
+      "Frontend source-level adversarial review passed after fixing async result ownership and required linked_by parsing."
+    ],
+    "validation_blockers": [
+      "Focused cargo test commands for backend and frontend timed out during rustc compilation with no verdict; runtime PostgreSQL and Argus test pass is not claimed."
+    ]
   }
 }

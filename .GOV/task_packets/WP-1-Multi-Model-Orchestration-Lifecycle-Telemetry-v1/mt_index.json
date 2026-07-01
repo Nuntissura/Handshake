@@ -1,7 +1,7 @@
 {
   "schema": "hsk.microtask_index@1",
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
-  "generated_at_utc": "2026-06-28T23:46:43.220Z",
+  "generated_at_utc": "2026-06-29T21:26:03.058Z",
   "total": 11,
   "range": "MT-001..MT-011",
   "note": "Research-backed Activation Manager MT set. Operator may add, remove, split, or reorder MTs ad hoc; packet.json microtasks.declared_ids must be kept in sync when the MT set changes.",
@@ -52,7 +52,7 @@
     },
     {
       "mt_id": "MT-003",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "depends_on": [
         "MT-002"
       ],
@@ -63,15 +63,15 @@
         "MT-007",
         "MT-009"
       ],
-      "proof_status": "NOT_RUN",
-      "hbr_status": "PENDING",
+      "proof_status": "PASS_MT003_8_LAUNCH_4_SCHEMA_2_USERMANUAL_RUST_AUTHORITY_PROOFS_PUBLIC_CONSTRUCTOR_BYPASS_CLOSED_PLUS_APP_REQUEST_SOURCE_GUARD_EVIDENCE_SPEC_MANIFEST_EXTERNAL_DRIFT",
+      "hbr_status": "PASS_HBR_MATRIX_CHECK",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-      "post_implementation_adversarial_review_status": "NOT_RUN",
-      "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+      "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-29",
+      "adversarial_findings_status": "POST_REVIEW_BLOCKERS_ADDRESSED_IN_PRODUCT_CODE_TESTS_AND_MT_STATUS; MISSING_DEXTERITY_CONTRACT_BYPASS_CLOSED; LIVE_TAURI_IPC_AND_SCHEDULE_REQUEST_SOURCE_BYPASS_CLOSED; PUBLIC_COORDINATOR_AND_SCHEDULER_CONSTRUCTOR_BYPASS_CLOSED_AFTER_ADVERSARIAL_FAIL_REVIEW_RETRY_PASS; APP_REQUEST_SOURCE_EVIDENCE_RECLASSIFIED_NON_AUTHORITY; EXTERNAL_SPEC_MANIFEST_DRIFT_RECORDED"
     },
     {
       "mt_id": "MT-004",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "depends_on": [
         "MT-002"
       ],
@@ -82,15 +82,15 @@
         "MT-006",
         "MT-009"
       ],
-      "proof_status": "NOT_RUN",
-      "hbr_status": "PENDING",
+      "proof_status": "PASS_MT004_EXACT_RUST_POSTGRES_EVENTLEDGER_USERMANUAL_PROOFS",
+      "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT004_SCOPE",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-      "post_implementation_adversarial_review_status": "NOT_RUN",
-      "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+      "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-29",
+      "adversarial_findings_status": "POST_REVIEW_BLOCKERS_ADDRESSED_IN_PRODUCT_CODE_TESTS_USERMANUAL_AND_MT_STATUS"
     },
     {
       "mt_id": "MT-005",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "depends_on": [
         "MT-002",
         "MT-004"
@@ -101,15 +101,15 @@
         "MT-007",
         "MT-009"
       ],
-      "proof_status": "NOT_RUN",
-      "hbr_status": "PENDING",
+      "proof_status": "PASS_MT005_RUST_POSTGRES_EVENTLEDGER_USERMANUAL_RUNTIME_PROOFS",
+      "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT005_SCOPE_EVENTLEDGER_WIRED_FLIGHT_RECORDER_EVIDENCE_REFS_DIRECT_FR_EMIT_DEFERRED_TO_MT008",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-      "post_implementation_adversarial_review_status": "NOT_RUN",
-      "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+      "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-29",
+      "adversarial_findings_status": "POST_REVIEW_FINDINGS_ADDRESSED_IN_PRODUCT_CODE_TESTS_USERMANUAL_SPEC_AND_MT_STATUS; DIRECT_FLIGHT_RECORDER_EVENT_EMIT_RECORDED_AS_DEFERRED_TO_MT008"
     },
     {
       "mt_id": "MT-006",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "depends_on": [
         "MT-003",
         "MT-004",
@@ -120,11 +120,11 @@
       "blocks": [
         "MT-009"
       ],
-      "proof_status": "NOT_RUN",
-      "hbr_status": "PENDING",
+      "proof_status": "PASS_MT006_EXACT_RUST_POSTGRES_EVENTLEDGER_USERMANUAL_RUNTIME_PROOFS",
+      "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT006_SCOPE_EVENTLEDGER_WIRED_DIRECT_FR_EVT_CLOUD_EMIT_DEFERRED_TO_FOLLOW_ON_INTERNAL_DIAGNOSTICS_AND_PALMISTRY_DEFERRED_WITH_REASON",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-      "post_implementation_adversarial_review_status": "NOT_RUN",
-      "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+      "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-29",
+      "adversarial_findings_status": "POST_REVIEW_FINDINGS_ADDRESSED_IN_PRODUCT_CODE_TESTS_USERMANUAL_SPEC_AND_MT_STATUS; DIRECT_FR_EVT_CLOUD_EMIT_RECORDED_AS_FOLLOW_ON_NOT_CLAIMED_WIRED"
     },
     {
       "mt_id": "MT-007",

@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-003",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-06-29T01:11:12.746Z",
+  "updated_at_utc": "2026-06-29T09:04:44.776Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-003.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-002"
     ],
@@ -24,24 +24,24 @@
       "MT-007",
       "MT-009"
     ],
-    "active": false,
+    "active": true,
     "validator_verdict": "PENDING",
-    "claimed_by": null,
-    "claimed_at_utc": null,
-    "ready_for_validation_by": null,
-    "ready_for_validation_at_utc": null,
+    "claimed_by": "KERNEL_BUILDER-20260629-MT003",
+    "claimed_at_utc": "2026-06-29T03:20:06.191Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260629-MT003",
+    "ready_for_validation_at_utc": "2026-06-29T03:20:06.191Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "NOT_RUN",
-    "hbr_status": "PENDING",
+    "proof_status": "PASS_MT003_8_LAUNCH_4_SCHEMA_2_USERMANUAL_RUST_AUTHORITY_PROOFS_PUBLIC_CONSTRUCTOR_BYPASS_CLOSED_PLUS_APP_REQUEST_SOURCE_GUARD_EVIDENCE_SPEC_MANIFEST_EXTERNAL_DRIFT",
+    "hbr_status": "PASS_HBR_MATRIX_CHECK",
     "kb_ready_checklist_receipt_id": null,
-    "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
+    "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
     "last_recovery_event_ref": null,
-    "last_runtime_status_ref": null,
+    "last_runtime_status_ref": "PASS: cargo test --test model_lane_launch_tests 8/8 including missing SpawnRequest::with_dexterity_launch rejection before factory creation and public constructor fail-closed proof; cargo test --test model_lane_schema_pg_tests 4/4; exact UserManual schema and launch tests passed. POST_REVIEW_P1_FIXED: public SwarmCoordinator::new now requires Dexterity and fails closed without ModelLaneStore, new_with_model_lane_store requires a concrete ModelLaneStore, legacy no-Dexterity construction is test/test-utils named only, and SwarmSchedulerState::new attaches Dexterity by default. REQUEST_SOURCE_GUARD_EVIDENCE_ONLY: cargo test --manifest-path app/src-tauri/Cargo.toml --lib dexterity_contract passed 5/5, exact production_runtime_without_model_lane_store_fails_closed_for_dexterity_command_spawn passed 1/1, and cargo check --manifest-path app/src-tauri/Cargo.toml --lib passed, proving live Rust Tauri IPC/scheduled request sources attach core-generated Dexterity launch contracts, BYOK scheduled spin-ups require byok_cloud_provider, no-store production request paths fail closed, and test-only helpers do not block production app compilation. App/src-tauri evidence is bypass-closure evidence and does not satisfy WP proof authority. PASS: JSON parse, git diff --check, and hbr-matrix-check after live-path/spec/status patch. BLOCKED_EXTERNAL: spec-current/spec-bundle fail on indexed hash mismatch for spec-modules/04-llm-infrastructure.md.",
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-    "post_implementation_adversarial_review_status": "NOT_RUN",
-    "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+    "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-29",
+    "adversarial_findings_status": "POST_REVIEW_BLOCKERS_ADDRESSED_IN_PRODUCT_CODE_TESTS_AND_MT_STATUS; MISSING_DEXTERITY_CONTRACT_BYPASS_CLOSED; LIVE_TAURI_IPC_AND_SCHEDULE_REQUEST_SOURCE_BYPASS_CLOSED; PUBLIC_COORDINATOR_AND_SCHEDULER_CONSTRUCTOR_BYPASS_CLOSED_AFTER_ADVERSARIAL_FAIL_REVIEW_RETRY_PASS; APP_REQUEST_SOURCE_EVIDENCE_RECLASSIFIED_NON_AUTHORITY; EXTERNAL_SPEC_MANIFEST_DRIFT_RECORDED"
   },
   "scope": {
     "summary": "Normalize launch adapters for local, cloud, CLI, human, subagent, and validator lanes.",
@@ -82,7 +82,13 @@
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_cancellation_reclaim_contracts_all_lane_kinds -- --exact",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_records_factory_failure_through_swarm_coordinator -- --exact",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests production_builder_wires_model_lane_store_for_failed_dexterity_launch -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_rejects_ready_transition_before_persistence_commit -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_cancel_session_records_terminal_model_lane_state -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_reaper_records_terminal_state_before_teardown -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests dexterity_launch_records_real_swarm_spawn_session_runtime_path -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_serializes_competing_terminal_updates -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflict -- --exact",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_launch_user_manual_entry_is_current -- --exact",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_schema_user_manual_entry_is_current -- --exact"
     ],
@@ -110,7 +116,8 @@
     "Product implementation for this MT must be Rust-only: Rust backend plus Rust native egui/Argus surfaces where UI is touched. Legacy app/src, app/src-tauri, React, Tauri/WebView, TypeScript, JavaScript, docs/model-manual, and npm proof targets are reference-only or forbidden and MUST NOT satisfy implementation/proof authority.",
     "Proof commands must name exact Rust test targets or exact test names. Zero matching tests is a hard failure. Deterministic provider fakes are allowed for cloud/local model calls, but PostgreSQL/EventLedger/ArtifactStore/CRDT/UserManual/Argus authority must touch real Handshake-owned Rust resources or an explicit real PostgreSQL URL.",
     "Each behavior-changing MT must include same-change UserManual coverage for the changed behavior; MT-011 audits coverage and cannot substitute for same-change HBR-MAN-004 proof.",
-    "This pre-implementation contract review does not replace post-implementation review. After coding, run adversarial review against the actual diff through the listed lenses and update MT status signaling before handoff."
+    "This pre-implementation contract review does not replace post-implementation review. After coding, run adversarial review against the actual diff through the listed lenses and update MT status signaling before handoff.",
+    "The live Rust Tauri backend request-source path was patched only to close a Dexterity launch-authority bypass: app/src-tauri IPC and scheduled spin-up now attach core Dexterity launch contracts before SwarmCoordinator dispatch and fail closed when PostgreSQL ModelLaneStore is unavailable. This does not make Tauri/app IPC launch authority for this WP."
   ],
   "required_build_rules": [
     "HBR-INT-002",

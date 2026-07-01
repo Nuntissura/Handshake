@@ -14,7 +14,7 @@
   "title": "U8-MT-104-InternalManualUpdate-NotesChatTerminalModel-DiagnosticToolTopics",
   "group": "U1 Usable-Product Expansion (notes+chat worksurface, §product-vision 2026-06-27)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-06-29T21:58:00Z",
+  "updated_at_utc": "2026-07-01T04:08:49Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-104.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -109,7 +109,7 @@
     }
   ],
   "handoff": {
-    "coder_session": null,
+    "coder_session": "CODEX-20260701-MT104 state-recovery update: manual honesty regression fixed in src/frontend/handshake_native/src/manual_content_editors.rs; model-session manual now explicitly says the request session_id is correlation only and must not be fabricated as runtime proof. Fresh proof: cargo test -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_manual_content -- --nocapture => 7/7 passed on 2026-07-01. Also refreshed settings proof: test_settings_dialog => 10/10 passed.",
     "wp_validator_session": null
   },
   "red_team": {

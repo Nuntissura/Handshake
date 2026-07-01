@@ -12,7 +12,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "base_wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-06-30T15:06:33Z",
+  "updated_at_utc": "2026-07-01T15:14:22Z",
   "title": "Native Editors: Obsidian + VS Code parity + interconnection (Rust)",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
@@ -56,7 +56,7 @@
     "note": "CANONICAL build target for ALL WP-012 MTs - do not drift. The first MT-authoring workflow fabricated crate names (handshake_frontend / handshake_native_editors / handshake_native_frontend) and a nonexistent folder tree (src/frontend/code_editor|panes|panels|shared|interop|fems, tests/native_editors), none of which exist. The audit (wf_29d00c37-f8b) caught it; all 74 MTs were re-anchored to this real crate + flat module layout (wf_775937ef-e81, 2026-06-21: 346 crate refs + 734 paths corrected) and deterministically verified clean (0 fabricated crate names, 0 fabricated paths, contract-check OK). MTs REUSE existing WP-011 modules by their real flat names (command_registry.rs, command_palette.rs, event_bus.rs, pane_registry.rs, pane_header.rs, canvas_board.rs, loom_graph.rs, settings_dialog.rs, workspace_settings.rs, context_menu.rs, context_menu_surfaces.rs, search_rail.rs, top_menu_bar.rs, quick_switcher.rs, source_control.rs, backend_client.rs, layout_persistence.rs, split_layout.rs, tab_bar.rs, accessibility/*, mcp/*, theme/*, quiet_mode/*) and CREATE new editor modules under code_root."
   },
   "lifecycle": {
-    "status": "Ready for Dev",
+    "status": "In Progress",
     "main_containment_status": "NOT_STARTED",
     "current_main_compatibility_status": "NOT_RUN",
     "risk_tier": "HIGH",
@@ -64,7 +64,7 @@
     "signature_policy": "Operator-supplied unique signature ilja210620262303 (2026-06-21) authorizing WP-KERNEL-012 activation. No ACP; folded implementation; coder/execution owner = KERNEL_BUILDER. Recorded per CX-585C (operator-provided, not fabricated). Recorded directly in packet.json + refinement.json per the folded KERNEL_BUILDER no-ACP convention (matching WP-KERNEL-011; no ORCHESTRATOR_GATES entry).",
     "workflow_lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
     "execution_owner": "KERNEL_BUILDER",
-    "activation_status": "ACTIVATED_READY_FOR_DEV",
+    "activation_status": "ACTIVATED_IN_PROGRESS",
     "operator_execution_order": {
       "at_utc": "2026-06-19T00:00:00Z",
       "order": "Operator 2026-06-19: rebuild the Obsidian + VS Code clones as native Rust Handshake tools with FULL feature parity to the existing React surfaces, interconnected with EACH OTHER and with CKC + Loom. Hosted in the WP-KERNEL-011 native shell. Reuse the existing Rust backend (do not rebuild it). As many MTs as needed, each executable by a small no-context local model. Minimal governance paperwork."
@@ -388,6 +388,8 @@
       "MT-076",
       "MT-077",
       "MT-078",
+      "MT-079",
+      "MT-080",
       "MT-081",
       "MT-082",
       "MT-083",
@@ -404,9 +406,9 @@
       "MT-094",
       "MT-095",
       "MT-096",
-      "MT-97",
-      "MT-98",
-      "MT-99",
+      "MT-097",
+      "MT-098",
+      "MT-099",
       "MT-100",
       "MT-101",
       "MT-102",
@@ -415,8 +417,8 @@
       "MT-105",
       "MT-106"
     ],
-    "active_id": null,
-    "next_id": null,
+    "active_id": "MT-101",
+    "next_id": "MT-102",
     "mt_status": {
       "MT-001": "READY_FOR_VALIDATION",
       "MT-002": "READY_FOR_VALIDATION",
@@ -514,11 +516,11 @@
       "MT-094": "READY_FOR_VALIDATION",
       "MT-095": "READY_FOR_VALIDATION",
       "MT-096": "READY_FOR_VALIDATION",
-      "MT-97": "READY_FOR_VALIDATION",
-      "MT-98": "READY_FOR_VALIDATION",
-      "MT-99": "READY_FOR_VALIDATION",
+      "MT-097": "READY_FOR_VALIDATION",
+      "MT-098": "READY_FOR_VALIDATION",
+      "MT-099": "READY_FOR_VALIDATION",
       "MT-100": "READY_FOR_VALIDATION",
-      "MT-101": "READY_FOR_VALIDATION",
+      "MT-101": "IN_PROGRESS",
       "MT-102": "READY_FOR_VALIDATION",
       "MT-103": "READY_FOR_VALIDATION",
       "MT-104": "READY_FOR_VALIDATION",
@@ -526,14 +528,15 @@
       "MT-106": "READY_FOR_VALIDATION"
     },
     "kernel_builder_sequence_note": "KERNEL_BUILDER re-sequence 2026-06-24: the E8 proof capstones MT-044 (parity suite, depends_on 001-043+047-062), MT-045 (perf proof), MT-046 (interconnection proof) are DEFERRED to the END of the WP - they prove the whole editor set + most of their proofs need a live managed PostgreSQL (NEEDS_MANAGED_RESOURCE_PROOF). Build the remaining FEATURE MTs first in numeric order: E1-deepening 047-054, E2-deepening 055-059, E3-deepening 060-062, E9 063-065, E10 066-068+074, E11 host-mount 069-071 (the convergence point that mounts the editors live + clears the carry-forwards), E12 072-073, E13 i18n 075-078. THEN run the 044-046 capstones last for a truthful comprehensive parity manifest.",
-    "wp_status": "DIAGNOSTIC_EXPANSION_READY_FOR_DEV",
+    "wp_status": "IN_PROGRESS_MT101_REWORK",
     "diagnostic_expansion_note": "WP SCOPE ADJUSTMENT (operator 2026-06-27): MT-081..MT-096 added to THIS WP build the three-tier diagnostic tools decoupled from the Flight Recorder (Master Spec v02.196 §5.8 internal_diagnostics + §6.13 Palmistry): internal_diagnostics (in-app native-egui self-diagnostics: shm ring, panic hook, heartbeat, frame-time, CPU/RSS/GPU, open diagnostic-event API, in-app panel, backend-down freeze fix) + Palmistry (external out-of-process watcher: ring reader, freeze/crash detection, minidump, survivor store, FR-forward). FR kept as-is. Same ultracode per-MT pipeline as the editor MTs. MT-081=ring substrate; 082-088=internal_diagnostics; 089-094=Palmistry; 095=HBR-INT-009 gate; 096=end-to-end freeze+crash proof. The retrofit of already-built features = WP-KERNEL-016 stub (future).",
     "usability_expansion_note": "WP SCOPE EXPANSION #2 (operator 2026-06-27): MT-097..MT-104 = make Handshake actually USABLE as the product - a work surface with a chatbox beside it (like Obsidian + VS Code/Cursor/Antigravity; Handshake goes deeper later with more tools/workflows). Operator currently CANNOT use notes in the running GUI. MT-097 notes-ONLY default worksurface (strip/hide all non-notes feature panes for now - add+rewire per-feature later); MT-098 chatbox panel beside the worksurface (the editor+chat core layout); MT-099 end-to-end notes usability (open->edit->save a document in the running app, proven live); MT-100 terminal-session launch inside a repo folder with the correct wrapper; MT-101 local/cloud MODEL launch inside a repo folder with the correct wrapper; MT-102 visual debugger inspects operator worksurfaces/window-structure/tooling; MT-103 foreground-SAFE front-end navigation (drive+test the GUI WITHOUT stealing operator mouse/keyboard) - patch+expand so models can test inside Handshake; MT-104 internal manual updated for notes/editors + terminal/model launch + visual debugger. ORDER: built AFTER the diagnostic MTs 081-096. The VS Code/Obsidian clone is a main selling ticket - inaccessible = broken. DIAGNOSTICS PLACEMENT (operator 2026-06-27): the in-app diagnostics panel (MT-087) lives in the OPTIONS/SETTINGS window (Settings->Diagnostics), NOT as a worksurface feature pane - so MT-097 notes-only worksurface excludes it and MT-104 manual documents it under Settings.",
     "preexisting_suite_failures": "As of MT-085 full-suite: (1) test_menu_wireup::file_save (MT-069/020 FILE>Save dispatch) -> notes-save broken, pinned MT-099; (2) test_quick_switcher nav/focus kittest flakiness (MT-017/030) -> open-file nav, check in MT-097/099; (3) test_perf_large_code::perf_lc07_minimap (MT-045) -> -j2 concurrency flake, passes isolated. All baseline-proven pre-existing (NOT diagnostic-build regressions).",
     "diagnostic_gate_policy": "DIAGNOSTIC MT GATE (from MT-086 on): a diagnostic MT (081-096) is gated on (a) its OWN feature tests GREEN + (b) NO NEW full-suite regression vs the feat/WP-KERNEL-012 baseline (proven by baseline-stash isolation), NOT on a fully-green -j2 suite. The pre-existing editor-MT flakes are a documented carve-out (WP-level test-stabilization debt): test_menu_wireup::file_save (MT-069/020, FILE>Save - real bug, pinned MT-099), test_quick_switcher (MT-017/030, non-deterministic kittest timing), test_settings_dialog::reset_panes (kittest timing), test_perf_large_code::perf_lc07 (MT-045, -j2 concurrency flake, passes isolated). These are owned by their editor MTs + the usability cluster (097-099) / WP validation to stabilize.",
     "palmistry_test_bound_policy": "MT-092 PRECEDENT (hard rule for MT-093/094/096): ANY test that spawns the palmistry binary, does minidumper-IPC, or waits on a child MUST be hard-bounded (wait_for_exit/connect/read with an explicit timeout - NEVER an unbounded Command::output() or socket read_line). #[ignore] with a typed reason any test that deadlocks under this headless/sandboxed harness (minidumper out-of-process IPC + simulate_exception are the known hangers; run them with --ignored on a real host). The coder must run palmistry tests under a hard external bound. This prevents the multi-hour hang MT-092 hit.",
     "stall_detection_expansion_note": "WP SCOPE EXPANSION #3 (operator 2026-06-28): MT-105/106 = make the hours-long SILENT HANG that just wasted operator time IMPOSSIBLE inside Handshake. Generalize freeze detection from Handshake+'+s own UI thread to ANY operation + spawned subprocess, caught by BOTH internal_diagnostics and Palmistry. MT-105 internal_diagnostics OPERATION/SUBPROCESS STALL WATCHDOG: any in-app operation (backend call, spawned terminal/model session MT-100/101, tool run, workflow step) registers a deadline + periodic progress heartbeat; a stall past the deadline WITHOUT progress emits a typed StalledOperation diagnostic + surfaces it (Settings->Diagnostics + status) within a BOUNDED time - never silent. MT-106 Palmistry CHILD-PROCESS STALL WATCH + end-to-end NO-SILENT-HANG proof: Palmistry watches the child processes Handshake SPAWNS (sessions/tools/terminals/models), detecting a hung child (alive but no progress) the same way it detects Handshake+'+s freeze + surfacing it; the capstone proof spawns a DELIBERATELY-hung operation AND a deliberately-hung child and asserts internal_diagnostics emits StalledOperation AND Palmistry surfaces the hung child, BOTH within a bounded time (seconds, not hours). ORDER: implemented AFTER the current diagnostic (081-096) + usability (097-104) MTs; created now so state is not lost. depends_on: 105 -> internal_diagnostics tier (082-088); 106 -> Palmistry (089-094) + 105.",
-    "pipeline_speed_note": "Lightened pipeline 2026-06-28 (operator: too much time): per-MT tests scoped to the TOUCHED crate + clippy + build; the full ~90-bin no-regression suite runs ONCE at WP validation, not per-MT. Anti-hang rules baked in (no windowed-app launch in tests, all child/IPC tests bounded). Watchdog bgsw0lgfb auto-kills runaway apps."
+    "pipeline_speed_note": "Lightened pipeline 2026-06-28 (operator: too much time): per-MT tests scoped to the TOUCHED crate + clippy + build; the full ~90-bin no-regression suite runs ONCE at WP validation, not per-MT. Anti-hang rules baked in (no windowed-app launch in tests, all child/IPC tests bounded). Watchdog bgsw0lgfb auto-kills runaway apps.",
+    "status_sync_note_2026_07_01": "Tracker refreshed after operator correction. WP is active on branch feat/WP-KERNEL-012, worktree ../wtc-native-editors-v1. MT-101 is reopened for active rework because reviewer proof gaps remain around workflow_run_id UI/status binding and duplicate-submit request proof. Cross-cutting PostgreSQL test harness recovery is in progress/proven at handshake_core level: missing POSTGRES_TEST_URL now falls back to managed PostgreSQL by default and the no-env bootstrap test executed SELECT 1 against a real managed PostgreSQL. Live local/cloud model running-state proof is still not claimed."
   },
   "microtasks": {
     "contract_glob": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-*.json",

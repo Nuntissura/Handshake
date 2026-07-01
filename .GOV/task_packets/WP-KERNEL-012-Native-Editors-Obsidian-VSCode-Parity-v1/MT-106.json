@@ -14,7 +14,7 @@
   "title": "P6-MT-106-ChildProcessStallWatch-EndToEndNoSilentHangProof",
   "group": "P1 Palmistry (Tier 3 external watcher) — child-process stall watch + no-silent-hang capstone",
   "created_at_utc": "2026-06-28T00:00:00Z",
-  "updated_at_utc": "2026-06-30T06:35:37Z",
+  "updated_at_utc": "2026-07-01T04:08:49Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-106.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -121,7 +121,7 @@
     }
   ],
   "handoff": {
-    "coder_session": "KERNEL_BUILDER-20260630-061317 product_commit=547b29c9",
+    "coder_session": "KERNEL_BUILDER-20260630-061317 product_commit=547b29c9; CODEX-20260701 state-recovery proof refresh: built real palmistry.exe with CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target, then cargo test -j 1 --manifest-path src/frontend/palmistry/Cargo.toml --test test_child_stall -- --nocapture => 6/6 passed; then HANDSHAKE_PALMISTRY_EXE=../Handshake_Artifacts/handshake-cargo-target/debug/palmistry.exe cargo test -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_no_silent_hang_end_to_end -- --include-ignored --nocapture => ignored real-binary capstone 1/1 passed in 2.55s on 2026-07-01. Post-review subagents Raman/Kuhn found no MT-106 product blockers after capstone proof; residual clean-shutdown proof is outside the no-silent-hang contract.",
     "wp_validator_session": null,
     "depends_on_note": "Requires MT-105's DiagEventCode::StalledOperation + the in-app OperationWatchdog (the capstone asserts a StalledOperation fires for the hung operation). MT-105 must land first; this MT reuses its typed code via the MT-090 reader, it does not re-add it."
   },

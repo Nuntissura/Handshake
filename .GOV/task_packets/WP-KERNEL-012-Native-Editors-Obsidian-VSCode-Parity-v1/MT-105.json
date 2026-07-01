@@ -14,7 +14,7 @@
   "title": "D9-MT-105-OperationSubprocessStallWatchdog-DeadlineProgressTicks",
   "group": "D2 internal_diagnostics (Tier 2 — generalized stall/hang detection)",
   "created_at_utc": "2026-06-28T00:00:00Z",
-  "updated_at_utc": "2026-06-30T03:56:25Z",
+  "updated_at_utc": "2026-07-01T04:08:49Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-105.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -118,7 +118,7 @@
     }
   ],
   "handoff": {
-    "coder_session": null,
+    "coder_session": "CODEX-20260701-MT105 state-recovery update: focused operation-watchdog proof refreshed. Fresh proof: cargo test -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_operation_watchdog -- --nocapture => 10/10 passed on 2026-07-01, covering bounded StalledOperation emission, no false positives, debounce, shipped backend hang path, diagnostics panel/status-bar surface, and typed/no-free-text payload gates.",
     "wp_validator_session": null,
     "cross_mt_schema_edit": "REQUIRES adding DiagEventCode::StalledOperation = 11 + DiagEvent::stalled_operation(...) to the MT-081-owned diag_ring/src/schema.rs (the typed-allowlist gate). This is the single allowed touch of the otherwise-forbidden ring crate; it is an append-only, no-renumber, no-new-field change (reuses existing DiagEvent counter fields so DIAG_EVENT_SIZE is unchanged). MT-081's owner/reviewer must confirm the allowlist-gate addition. Surface it explicitly; never substitute free text for the typed code."
   },

@@ -299,6 +299,7 @@ Designed-in pillar × pillar interactions. These are intentional architectural c
 | Media Downloader × Stage | Stage, Loom | Media downloads reuse Stage sessions for auth | IMX-009 |
 | Role Mailbox × AI-Ready Data | Execution, RAG | Message content indexed for retrieval | IMX-016 |
 | PostgreSQL Authority × FR | PostgreSQL, FR | Artifact lineage and runtime authority logging for PostgreSQL-backed control-plane records | IMX-020 |
+| Dexterity × ModelRuntime × CloudLane × FR | Execution, ModelRuntime, CloudLane, FR | Model switching/launching is normalized into ModelLaneRun/ModelLane/ModelLaneMessage records before runtime exposure; local and cloud lanes communicate through coordinator-mediated messages, ContextBundle/artifact refs, PostgreSQL/EventLedger authority, and Flight Recorder correlation | §4.3.9.2.5 |
 | Locus × Debug Bundle | Locus, FR | WP export anchor for debug bundles | IMX-019 |
 | Spec Router × Capabilities | Spec to prompt, ACE | CapabilitySnapshot injected into compiled prompts | IMX-018 |
 | Native Editors × Loom | Code/Rich-text editors (WP-012), Loom | Editor blocks are block-as-unit-of-meaning artifacts retrievable through the Loom library | (WP-012 interconnection) |
@@ -324,6 +325,9 @@ All tool calls (MCP and native) route through the same governance gates: capabil
 | Mechanical engines | 22 engine adapters (§11.8) exposed as governed tool calls | §11.8 |
 | Workspace ops | File/entity CRUD, search, navigation — all through Workflow Engine | §2.6 |
 | AI ops | Model invocation, prompt compilation, job lifecycle | §2.6.6 |
+| Dexterity / ModelLane launch | Internal model switching and launch kernel: all local, cloud/BYOK, CLI, human, subagent, and validator lanes enter through coordinator-owned ModelLane records, PostgreSQL/EventLedger persistence, and Flight Recorder correlation. IPC, schedules, and GUI controls are request sources only; `SwarmCoordinator::spawn_session` plus the Dexterity launch contract is launch authority. | §4.3.9.2.5 |
+| Dexterity cloud ProjectionPlan / ConsentReceipt | Cloud/BYOK lanes must resolve durable `ModelLaneCloudProjectionPlanRecord` and `ModelLaneCloudConsentReceiptRecord` authority before provider launch. `SwarmCoordinator::spawn_session` preflights consent before `factory.create`; missing, expired, mismatched, or revoked consent fails closed as `CX-MM-007`, records EventLedger evidence, suppresses provider calls, and keeps cloud output advisory until PromotionGate approval. Direct typed Flight Recorder `FR-EVT-CLOUD-*` emission is a follow-on wiring requirement and is not claimed wired by MT-006. | §4.3.9.2.5 |
+| Dexterity ContextBundle handoff | Local and cloud lanes speak through artifact-backed `ModelLaneContextBundleHandoff` records, not hidden provider memory or chat history. Source outputs must first bind a canonical artifact payload in PostgreSQL/EventLedger, then downstream lanes consume lane-addressed ContextBundles in EventLedger order through Dexterity APIs. CRDT handoffs require Yjs-compatible replay metadata, Loom refs require EventLedger/Flight Recorder evidence, and FEMS MemoryPack refs are bounded/reviewed/cloud-safe before cloud use. | §4.3.9.2.5 |
 
 ### 7.2 DCC Panels
 
