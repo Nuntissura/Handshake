@@ -5,9 +5,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-027",
   "title": "Implement real Facial identity gate and model provenance",
-  "status": "PENDING",
+  "status": "READY_FOR_VALIDATION",
   "created_at_utc": "2026-06-30T23:20:00.000Z",
-  "updated_at_utc": "2026-06-30T23:20:00.000Z",
+  "updated_at_utc": "2026-07-01T10:46:59.884Z",
   "product_edit_allowed": true,
   "operator_request": "Facial’s identity gate is a backbone need for LoRA mining. MT-019 only records proxy identity keys, so real optional model-backed identity must be added without fake success states.",
   "authority_files": {
@@ -21,12 +21,13 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-027.json"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-025"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PENDING",
+    "ready_for_validation_at_utc": "2026-07-01T10:46:59.884Z"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -55,12 +56,19 @@
     ],
     "allowed_paths": [
       "src/backend/handshake_core/Cargo.toml",
+      "src/backend/handshake_core/Cargo.lock",
       "src/backend/handshake_core/src/atelier/facial.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/common.rs",
       "src/backend/handshake_core/src/atelier/facial_native/identity.rs",
       "src/backend/handshake_core/src/atelier/facial_native/landmarks.rs",
       "src/backend/handshake_core/src/atelier/facial_native/models.rs",
       "src/backend/handshake_core/src/atelier/facial_native/mod.rs",
-      "src/backend/handshake_core/tests/atelier_facial_identity_tests.rs"
+      "src/backend/handshake_core/src/atelier/facial_native/registry.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/run.rs",
+      "src/backend/handshake_core/tests/atelier_facial_identity_tests.rs",
+      "src/backend/handshake_core/tests/atelier_facial_quality_dedupe_tests.rs",
+      "src/backend/handshake_core/src/user_manual/seed.rs",
+      "src/backend/handshake_core/tests/user_manual_content_tests.rs"
     ],
     "acceptance_criteria": [
       "No fake identity match verdicts are emitted in no-model mode.",
@@ -97,6 +105,68 @@
   },
   "manual_requirement": "Required if this MT exposes or changes operator/model-visible Facial behavior.",
   "handoff": {
-    "status": "PENDING"
+    "status": "READY_FOR_VALIDATION",
+    "product_commit": "22ce409b",
+    "pushed_to_origin": true,
+    "next_actor": "WP_VALIDATOR",
+    "validation_note": "MT-027 product commit pushed. Targeted backend, real ArcFace smoke, quality/dedupe, formatting, path-leak, and static route scans passed. Broad cargo check/manual cargo reruns had process-level inconclusive exits and are not claimed as passing."
+  },
+  "implementation": {
+    "status": "READY_FOR_VALIDATION",
+    "product_commit": "22ce409b",
+    "product_branch": "feat/WP-CKC-posekit-overhaul",
+    "pushed_to_origin": true,
+    "summary": [
+      "Added optional feature-gated native ArcFace ONNX identity runtime behind facial-onnx-runtime using tract-onnx.",
+      "Added configuration-driven model loading and SHA-256 provenance for identity model assets without hardcoded product paths.",
+      "Changed no-model behavior to explicit proxy_unverified/no-model records instead of fake identity match or no-match success states.",
+      "Added real-model identity rows with identity_source=real, model_backed=true, embedding hash/dimension provenance, and reversible unsure verdicts when no reference identity is configured.",
+      "Added runtime status/error buckets for feature-disabled, model-unavailable, no-local-image, load, image, embedding, and inference failure paths.",
+      "Updated Facial registry/run summaries so ArcFace is runtime-gated/model-backed instead of statically unavailable.",
+      "Updated the internal UserManual with identity_record, identity_model_sha256, identity_provenance, runtime_error_counts, and ArcFace env-gated operation notes."
+    ],
+    "scope_expansions": [
+      "Cargo.lock was updated for optional tract-onnx dependency resolution.",
+      "facial_native/common.rs, registry.rs, and run.rs were updated after post-review found stale static ArcFace unavailable routing.",
+      "facial.rs and atelier_facial_quality_dedupe_tests.rs were updated so identity provenance is present in Facial analysis summaries and existing quality/dedupe tests remain compatible.",
+      "UserManual seed/tests were updated because MT-027 changes model/operator-visible Facial behavior."
+    ]
+  },
+  "verification_result": {
+    "status": "TARGETED_PROOFS_AND_REAL_MODEL_SMOKE_PASSED_WITH_BROAD_CARGO_RERUN_CAVEATS",
+    "passed": [
+      "cargo test --lib facial_native_run_selects_profile_features_and_degraded_reasons -- --nocapture (1 passed)",
+      "cargo test --lib facial_ingest_analysis_groups_duplicates_and_scores_quality -- --nocapture (1 passed)",
+      "cargo test --test atelier_facial_identity_tests -- --nocapture (5 passed, 1 ignored)",
+      "HANDSHAKE_TEST_FACIAL_ARCFACE_ONNX=<local Facial ArcFace model>; cargo test --features facial-onnx-runtime --test atelier_facial_identity_tests facial_identity_real_model_env_gate_smoke -- --ignored --exact --nocapture (1 passed; proves local_path_hint and source_ref-only local image paths)",
+      "cargo test --test atelier_facial_quality_dedupe_tests -- --nocapture (7 passed)",
+      "Direct execution of the rebuilt user_manual_content_tests binary passed ckc_posekit_quickstart_is_native_first_and_reachable; manual anchor scan found identity_record, identity_model_sha256, identity_provenance, configured model hash provenance wording, runtime_error_counts, arcface_onnx_resize_112_v1, HANDSHAKE_FACIAL_ARCFACE_ONNX, and model_unavailable.",
+      "rustfmt --edition 2021 --check on MT-027 touched Rust files",
+      "git diff --check on MT-027 touched files",
+      "Scoped hardcoded path scan found no D:, C:/Users, LLM projects, facial/product, or CastKit-Codex leakage in MT-027 product files",
+      "Stale static ArcFace route scan found no identity.arcface_unavailable, identity_gate:arcface_embedding:arcface_model_not_configured, or native_onnx_identity_runtime_not_wired strings; remaining arcface_model_not_configured strings are legitimate no-model fallback reasons."
+    ],
+    "inconclusive": [
+      "Final cargo check --lib rerun exited -1 immediately after Checking handshake_core with no rustc/cargo/link process left; no passing check verdict is claimed.",
+      "Final cargo rerun of the manual integration test exited -1 before test verdict; no Cargo manual rerun pass is claimed. Manual files were older than the previously rebuilt binary, direct binary execution passed, and anchor scan passed."
+    ],
+    "logs": [
+      "E:/Handshake_Artifacts/handshake-test/mt027-lib-run-registry-after-review-fix.log",
+      "E:/Handshake_Artifacts/handshake-test/mt027-lib-facial-ingest-after-review-fix.log",
+      "E:/Handshake_Artifacts/handshake-test/mt027-identity-tests-after-review-fix.log",
+      "E:/Handshake_Artifacts/handshake-test/mt027-real-arcface-smoke-after-review-fix.log",
+      "E:/Handshake_Artifacts/handshake-test/mt027-quality-dedupe-after-review-fix.log"
+    ]
+  },
+  "review_result": {
+    "pre_implementation_adversarial_review": "COMPLETED",
+    "post_implementation_adversarial_review": "COMPLETED",
+    "reviewer": "Gauss the 2nd",
+    "initial_post_review_verdict": "FAIL",
+    "final_post_review_verdict": "PASS",
+    "findings_addressed": [
+      "Source-ref-only local image rows bypassed the real ArcFace runtime. Fixed identity path resolution to use local_path_hint first and source_ref local filesystem paths second; real ONNX smoke covers both paths.",
+      "ArcFace registry/run summary still advertised static unavailable routing after runtime implementation. Fixed registry/run/model summary wording and added assertions for runtime-gated model-backed ArcFace routing."
+    ]
   }
 }
