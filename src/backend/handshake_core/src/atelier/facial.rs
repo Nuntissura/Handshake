@@ -565,25 +565,6 @@ fn analysis_summary_json(summary: &FacialIngestAnalysisSummary) -> serde_json::V
         "identity_source": summary.identity_source,
         "dedupe_source": summary.dedupe_source,
         "capability_map": summary.capability_map,
-        "native_run": analysis_native_run_json(&summary.native_run),
-    })
-}
-
-fn analysis_native_run_json(native_run: &FacialNativeRunReport) -> serde_json::Value {
-    serde_json::json!({
-        "schema_id": native_run.schema_id,
-        "registry_schema_id": native_run.registry_schema_id,
-        "batch_id": native_run.batch_id,
-        "profile": native_run.profile,
-        "profile_tokens": native_run.profile_tokens,
-        "item_count": native_run.item_count,
-        "decoded_count": native_run.decoded_count,
-        "selected_feature_ids": native_run.selected_feature_ids,
-        "run_status": native_run.run_status,
-        "status_counts": native_run.status_counts,
-        "degraded_reasons": native_run.degraded_reasons,
-        "feature_records": native_run.feature_records,
-        "run_hash": native_run.run_hash,
     })
 }
 
@@ -706,15 +687,7 @@ mod tests {
             "native_partial_degraded"
         );
         assert_eq!(
-            export.analysis_json["summary"]["native_run"]["run_hash"].as_str(),
-            Some(export.summary.native_run.run_hash.as_str())
-        );
-        assert_eq!(
-            export.analysis_json["summary"]["native_run"]["run_id"].as_str(),
-            None
-        );
-        assert_eq!(
-            export.analysis_json["summary"]["native_run"]["requested_by"].as_str(),
+            export.analysis_json["summary"]["native_run"].as_object(),
             None
         );
         assert!(export.analysis_json["summary"]["capability_map"]

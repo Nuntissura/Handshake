@@ -3213,6 +3213,19 @@ fn write_facial_ingest_receipt_artifact(
             "analysis_manifest_ref".to_owned(),
             serde_json::json!(analysis_artifact.manifest_ref.clone()),
         );
+        if let Some(native_run) = receipt
+            .get_mut("native_run")
+            .and_then(|value| value.as_object_mut())
+        {
+            native_run.insert(
+                "artifact_refs".to_owned(),
+                serde_json::json!([analysis_artifact.artifact_ref.clone()]),
+            );
+            native_run.insert(
+                "manifest_refs".to_owned(),
+                serde_json::json!([analysis_artifact.manifest_ref.clone()]),
+            );
+        }
     }
     let payload_bytes = serde_json::to_vec(&receipt).map_err(internal_error)?;
     let content_hash = text_hash(
@@ -4052,13 +4065,22 @@ async fn analyze_intake_batch_facial(
     let receipt_artifact =
         write_facial_ingest_receipt_artifact(&export, &analysis_artifact, &actor)?;
     let receipt_sha256 = receipt_artifact.content_hash.clone();
+    let mut response_summary = export.summary.clone();
+    response_summary.native_run.artifact_refs = vec![
+        analysis_artifact.artifact_ref.clone(),
+        receipt_artifact.artifact_ref.clone(),
+    ];
+    response_summary.native_run.manifest_refs = vec![
+        analysis_artifact.manifest_ref.clone(),
+        receipt_artifact.manifest_ref.clone(),
+    ];
     let response = FacialIngestAnalysisResponse {
         schema_id: FACIAL_INGEST_ANALYSIS_SCHEMA_ID.to_owned(),
         batch_id,
         profile: export.profile.clone(),
         profile_tokens: export.profile_tokens.clone(),
         item_count: export.item_count,
-        summary: export.summary.clone(),
+        summary: response_summary,
         analysis_sha256: export.analysis_sha256.clone(),
         receipt_sha256,
         content_hash: export.content_hash.clone(),
