@@ -4,6 +4,7 @@ pub mod landmarks;
 pub mod models;
 pub mod plugins;
 pub mod registry;
+pub mod review;
 pub mod run;
 
 pub use common::{

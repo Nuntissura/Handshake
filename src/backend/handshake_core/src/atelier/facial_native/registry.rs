@@ -204,12 +204,32 @@ pub fn facial_feature_registry() -> Vec<FacialNativeFeature> {
             feature_id: "review:shard_claims".to_owned(),
             capability: "review".to_owned(),
             source_family: "Facial review ledger".to_owned(),
-            native_field: "review_recommendation, reasons".to_owned(),
-            artifact_contract: "hsk.atelier.facial_ingest_analysis@1.rows[]".to_owned(),
-            status: "native_recommendation_v1".to_owned(),
-            native_route: "atelier.facial.review.recommendation_v1".to_owned(),
+            native_field: "session_id, stable_image_id, claim_id, actor, shard, expires_at_utc"
+                .to_owned(),
+            artifact_contract:
+                "hsk.atelier.facial_review.session@1 + hsk.atelier.facial_review.claim@1"
+                    .to_owned(),
+            status: "native_review_session_claims_v1".to_owned(),
+            native_route: "atelier.facial.review.session_claims_v1".to_owned(),
             provenance_note:
-                "Rows emit keep/review/cull recommendations for Argus and parallel Ingest reviewers."
+                "Handshake creates content-hash/source-ref review sessions and disjoint shard claim receipts for parallel Ingest reviewers."
+                    .to_owned(),
+            required_config_keys: vec![],
+            unavailable_reason: None,
+        },
+        FacialNativeFeature {
+            feature_id: "review:decision_ledger".to_owned(),
+            capability: "review".to_owned(),
+            source_family: "Facial review ledger".to_owned(),
+            native_field: "decision_id, entered_decision, canonical_decision, reason, tags, notes"
+                .to_owned(),
+            artifact_contract:
+                "hsk.atelier.facial_review.decision@1 + hsk.atelier.facial_review.status@1"
+                    .to_owned(),
+            status: "native_review_decision_ledger_v1".to_owned(),
+            native_route: "atelier.facial.review.decision_ledger_v1".to_owned(),
+            provenance_note:
+                "Decision receipts preserve actor attribution, entered pass/reject/unsure wording, canonical accept/reject/hold state, and replayable status counts."
                     .to_owned(),
             required_config_keys: vec![],
             unavailable_reason: None,
@@ -218,15 +238,18 @@ pub fn facial_feature_registry() -> Vec<FacialNativeFeature> {
             feature_id: "review:montage_export".to_owned(),
             capability: "review".to_owned(),
             source_family: "Facial review montage".to_owned(),
-            native_field: "analysis_artifact_ref, receipt_ref".to_owned(),
-            artifact_contract: "ArtifactStore application/json analysis and receipt".to_owned(),
-            status: "unsupported_visual_export".to_owned(),
-            native_route: "atelier.facial.review.montage_unavailable".to_owned(),
+            native_field: "tile_id, tile coordinates, argus_selector, export manifest lineage"
+                .to_owned(),
+            artifact_contract:
+                "hsk.atelier.facial_review.montage@1 + hsk.atelier.facial_review.export@1"
+                    .to_owned(),
+            status: "native_review_montage_export_v1".to_owned(),
+            native_route: "atelier.facial.review.montage_export_v1".to_owned(),
             provenance_note:
-                "Analysis JSON/receipt exist; montage/contact-sheet visual export is tracked separately."
+                "Handshake emits contact-sheet tile-map artifacts for Argus/operator inspection and non-destructive export manifests for accepted LoRA candidates."
                     .to_owned(),
             required_config_keys: vec![],
-            unavailable_reason: Some("montage_export_not_implemented".to_owned()),
+            unavailable_reason: None,
         },
     ]
 }
@@ -250,6 +273,7 @@ mod tests {
             "identity_gate:arcface_embedding",
             "identity_gate:pipnet_landmarks",
             "review:shard_claims",
+            "review:decision_ledger",
         ] {
             assert!(
                 registry
@@ -260,8 +284,8 @@ mod tests {
         }
         assert!(registry.iter().any(|feature| {
             feature.feature_id == "review:montage_export"
-                && feature.status == "unsupported_visual_export"
-                && feature.unavailable_reason.as_deref() == Some("montage_export_not_implemented")
+                && feature.status == "native_review_montage_export_v1"
+                && feature.unavailable_reason.is_none()
         }));
     }
 }

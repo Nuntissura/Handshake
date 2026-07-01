@@ -1577,16 +1577,33 @@ fn quickstart_pages() -> Vec<NewUserManualPage> {
              `runtime_error_counts` records redacted failure buckets for load, image, and \
              inference failures. Do not treat metadata-only quality as OFIQ/eDifFIQA model parity or as \
              `handshake_native_proxy_v1`.\n\
-             8. Configure Facial identity only through environment/config keys such as \
+             8. For Facial review queues, build a `hsk.atelier.facial_review.session@1` \
+             artifact from the Facial analysis rows. Stable candidate IDs use \
+             `content_hash_plus_source_ref` when a content hash exists and `source_ref` when it \
+             does not, so duplicate files do not collapse into one review item. Parallel agents \
+             claim disjoint shards with `hsk.atelier.facial_review.claim@1`; expired claims must \
+             be explicitly recovered. Review decisions are append-only \
+             `hsk.atelier.facial_review.decision@1` receipts with actor, timestamp, reason, \
+             tags, and notes. Operator wording maps `pass` to canonical `accept`, `reject` to \
+             `reject`, and `unsure` to canonical `hold`; keep both entered and canonical values. \
+             `hsk.atelier.facial_review.montage@1` is a contact-sheet tile-map artifact with \
+             `tile_id`, row/column coordinates, `stable_image_id`, source refs, current decision, \
+             and `argus://facial-review/` selectors for headless visual inspection. \
+             `hsk.atelier.facial_review.export@1` is a non-destructive Kohya/LoRA export \
+             manifest: it records accepted candidates, decision receipts, analysis/receipt \
+             SHA-256 lineage, dedupe/identity/quality fields, output refs, skipped rejects/holds, \
+             and `source_mutation=false`; undecided items block export unless partial export is \
+             explicit.\n\
+             9. Configure Facial identity only through environment/config keys such as \
              `HANDSHAKE_FACIAL_ARCFACE_ONNX`, `HANDSHAKE_FACIAL_YUNET_ONNX`, \
              `HANDSHAKE_FACIAL_LANDMARK_MODEL`, and `HANDSHAKE_FACIAL_IDENTITY_THRESHOLD`; never \
              hardcode machine-local model paths in product code, tests, notes, or agent \
              instructions.\n\
-             9. For visual/behavioral polish, use this native state map: source image strip, \
+             10. For visual/behavioral polish, use this native state map: source image strip, \
              open rig tabs, OpenPose sidecar strip, identity crop review, Comfy history/replay, \
              and deferred-feature list. Compare screens to the original CKC app for behavior, \
              but keep Handshake as the implementation authority.\n\
-             10. Before changing UI behavior, read the relevant MT contract and the \
+             11. Before changing UI behavior, read the relevant MT contract and the \
              Pose/Comfy deferred features. Do not fake detector execution, calibration, \
              route wiring, or external bridge authority just to make a screen look complete.",
             vec![
