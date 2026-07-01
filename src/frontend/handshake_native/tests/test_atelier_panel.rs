@@ -531,6 +531,44 @@ fn contact_sheet_backend_export_response() -> serde_json::Value {
 }
 
 fn facial_backend_analysis_response() -> serde_json::Value {
+    let capability_map = serde_json::json!([{
+        "capability": "identity",
+        "source_feature_key": "identity_gate:arcface_embedding",
+        "facial_source_family": "ArcFace/YuNet identity_gate",
+        "native_field": "identity_proxy_key, identity_source, identity_verdict",
+        "artifact_contract": "hsk.atelier.facial_ingest_analysis@1.rows[]",
+        "handshake_status": "proxy_unverified_until_models_configured",
+        "native_route": "atelier.facial.identity.arcface_unavailable",
+        "required_config_keys": ["facial.arcface_model_path"],
+        "unavailable_reason": "arcface_model_not_configured",
+        "provenance_note": "Rows expose identity proxy keys but never claim real face match/no_match without model assets."
+    }]);
+    let native_run = serde_json::json!({
+        "schema_id": "hsk.atelier.facial_native.run@1",
+        "registry_schema_id": "hsk.atelier.facial_native.registry@1",
+        "run_id": "facial-native-run-aaaaaaaa",
+        "batch_id": "batch-1",
+        "profile": "quality+dedupe+identity",
+        "requested_by": "facial-agent-019",
+        "profile_tokens": ["quality", "dedupe", "identity"],
+        "item_count": 3,
+        "decoded_count": 2,
+        "selected_feature_ids": ["facet:quality_pass", "imagededup:hash_duplicates", "identity_gate:arcface_embedding"],
+        "run_status": "native_partial_degraded",
+        "status_counts": {"native_proxy_v1": 1, "native_content_hash_exact": 1, "deferred_model_backed": 4},
+        "degraded_reasons": ["identity_gate:arcface_embedding:arcface_model_not_configured"],
+        "feature_records": [{
+            "feature_id": "identity_gate:arcface_embedding",
+            "capability": "identity",
+            "source_family": "ArcFace",
+            "status": "deferred_model_backed",
+            "native_route": "atelier.facial.identity.arcface_unavailable",
+            "artifact_contract": "hsk.atelier.facial_ingest_analysis@1.rows[]",
+            "selected": true,
+            "unavailable_reason": "arcface_model_not_configured"
+        }],
+        "run_hash": "aaaaaaaa"
+    });
     serde_json::json!({
         "schema_id": "hsk.atelier.facial_ingest_analysis@1",
         "batch_id": "batch-1",
@@ -549,12 +587,8 @@ fn facial_backend_analysis_response() -> serde_json::Value {
             "quality_source": "handshake_native_proxy_v1",
             "identity_source": "handshake_proxy_no_model",
             "dedupe_source": "content_hash_exact_or_singleton",
-            "capability_map": [{
-                "capability": "identity",
-                "facial_source_family": "ArcFace/YuNet identity_gate",
-                "handshake_status": "proxy_unverified_until_models_configured",
-                "provenance_note": "Rows expose identity proxy keys but never claim real face match/no_match without model assets."
-            }]
+            "capability_map": capability_map,
+            "native_run": native_run
         },
         "analysis_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "receipt_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",

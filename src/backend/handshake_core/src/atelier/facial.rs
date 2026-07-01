@@ -6,6 +6,10 @@
 //! those model assets are wired into Handshake. Rows that need a real model are
 //! explicitly marked as proxy-derived.
 
+use super::facial_native::{
+    build_facial_native_run_report, facial_feature_registry, FacialNativeRunItem,
+    FacialNativeRunReport, FacialNativeRunRequest,
+};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, HashMap};
@@ -77,7 +81,11 @@ pub struct FacialCapabilityMapRow {
     pub native_field: String,
     pub artifact_contract: String,
     pub handshake_status: String,
+    pub native_route: String,
     pub provenance_note: String,
+    pub required_config_keys: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unavailable_reason: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -94,6 +102,7 @@ pub struct FacialIngestAnalysisSummary {
     pub identity_source: String,
     pub dedupe_source: String,
     pub capability_map: Vec<FacialCapabilityMapRow>,
+    pub native_run: FacialNativeRunReport,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -209,20 +218,21 @@ pub fn generate_facial_ingest_analysis(
         });
     }
 
-    let summary = summarize_rows(&profile, &profile_tokens, &rows);
+    let summary = summarize_rows(&batch_id, &profile, &requested_by, &profile_tokens, &rows)?;
     let analysis_json = serde_json::json!({
         "schema_id": FACIAL_INGEST_ANALYSIS_SCHEMA_ID,
         "batch_id": batch_id,
         "profile": profile,
         "profile_tokens": profile_tokens,
         "item_count": rows.len(),
-        "summary": summary,
+        "summary": analysis_summary_json(&summary),
         "rows": rows,
     });
     let analysis_sha256 = json_sha256(&analysis_json)?;
     let receipt_json = serde_json::json!({
         "schema_id": FACIAL_INGEST_ANALYSIS_RECEIPT_SCHEMA_ID,
         "analysis_schema_id": FACIAL_INGEST_ANALYSIS_SCHEMA_ID,
+        "native_extension_schema_id": summary.native_run.schema_id,
         "batch_id": batch_id,
         "profile": profile,
         "profile_tokens": profile_tokens,
@@ -234,6 +244,7 @@ pub fn generate_facial_ingest_analysis(
         "quality_source": summary.quality_source,
         "identity_source": summary.identity_source,
         "dedupe_source": summary.dedupe_source,
+        "native_run": summary.native_run,
         "analysis_sha256": analysis_sha256,
         "capability_map": summary.capability_map,
     });
@@ -479,10 +490,12 @@ fn review_recommendation(
 }
 
 fn summarize_rows(
+    batch_id: &str,
     profile: &str,
+    requested_by: &str,
     profile_tokens: &[String],
     rows: &[FacialIngestAnalysisRow],
-) -> FacialIngestAnalysisSummary {
+) -> Result<FacialIngestAnalysisSummary, String> {
     let mut quality_band_counts = BTreeMap::new();
     let mut review_recommendation_counts = BTreeMap::new();
     for row in rows {
@@ -501,7 +514,24 @@ fn summarize_rows(
         .iter()
         .filter(|row| row.duplicate_group_size > 1)
         .count();
-    FacialIngestAnalysisSummary {
+    let native_run = build_facial_native_run_report(FacialNativeRunRequest {
+        batch_id: batch_id.to_owned(),
+        profile: profile.to_owned(),
+        requested_by: requested_by.to_owned(),
+        profile_tokens: profile_tokens.to_vec(),
+        items: rows
+            .iter()
+            .map(|row| FacialNativeRunItem {
+                item_id: row.item_id.clone(),
+                source_ref: row.source_ref.clone(),
+                lane: row.lane.clone(),
+                decode_status: row.decode_status.clone(),
+                content_hash: row.content_hash.clone(),
+            })
+            .collect(),
+    })?;
+
+    Ok(FacialIngestAnalysisSummary {
         item_count: rows.len(),
         decoded_count: rows
             .iter()
@@ -517,134 +547,62 @@ fn summarize_rows(
         identity_source: "handshake_proxy_no_model".to_owned(),
         dedupe_source: "content_hash_exact_or_singleton".to_owned(),
         capability_map: capability_map(),
-    }
+        native_run,
+    })
+}
+
+fn analysis_summary_json(summary: &FacialIngestAnalysisSummary) -> serde_json::Value {
+    serde_json::json!({
+        "item_count": summary.item_count,
+        "decoded_count": summary.decoded_count,
+        "duplicate_group_count": summary.duplicate_group_count,
+        "duplicate_item_count": summary.duplicate_item_count,
+        "quality_band_counts": summary.quality_band_counts,
+        "review_recommendation_counts": summary.review_recommendation_counts,
+        "profile": summary.profile,
+        "profile_tokens": summary.profile_tokens,
+        "quality_source": summary.quality_source,
+        "identity_source": summary.identity_source,
+        "dedupe_source": summary.dedupe_source,
+        "capability_map": summary.capability_map,
+        "native_run": analysis_native_run_json(&summary.native_run),
+    })
+}
+
+fn analysis_native_run_json(native_run: &FacialNativeRunReport) -> serde_json::Value {
+    serde_json::json!({
+        "schema_id": native_run.schema_id,
+        "registry_schema_id": native_run.registry_schema_id,
+        "batch_id": native_run.batch_id,
+        "profile": native_run.profile,
+        "profile_tokens": native_run.profile_tokens,
+        "item_count": native_run.item_count,
+        "decoded_count": native_run.decoded_count,
+        "selected_feature_ids": native_run.selected_feature_ids,
+        "run_status": native_run.run_status,
+        "status_counts": native_run.status_counts,
+        "degraded_reasons": native_run.degraded_reasons,
+        "feature_records": native_run.feature_records,
+        "run_hash": native_run.run_hash,
+    })
 }
 
 fn capability_map() -> Vec<FacialCapabilityMapRow> {
-    vec![
-        FacialCapabilityMapRow {
-            capability: "quality".to_owned(),
-            source_feature_key: "facet:quality_pass".to_owned(),
-            facial_source_family: "facet".to_owned(),
-            native_field: "quality_score, quality_band, headshot_candidate".to_owned(),
-            artifact_contract: "hsk.atelier.facial_ingest_analysis@1.rows[]".to_owned(),
-            handshake_status: "native_proxy_v1".to_owned(),
-            provenance_note:
-                "Handshake computes deterministic image/ref quality proxies until facet thresholds are ported."
-                    .to_owned(),
-        },
-        FacialCapabilityMapRow {
-            capability: "quality".to_owned(),
-            source_feature_key: "python-ofiq:scalar_quality".to_owned(),
-            facial_source_family: "python-ofiq".to_owned(),
-            native_field: "quality_score, quality_source".to_owned(),
-            artifact_contract: "hsk.atelier.facial_ingest_analysis@1.summary.quality_source"
-                .to_owned(),
-            handshake_status: "deferred_model_backed".to_owned(),
-            provenance_note:
-                "OFIQ scalar/vector quality is not claimed by MT-019; rows identify proxy quality."
-                    .to_owned(),
-        },
-        FacialCapabilityMapRow {
-            capability: "quality".to_owned(),
-            source_feature_key: "ediffiqa:quality_score".to_owned(),
-            facial_source_family: "ediffiqa".to_owned(),
-            native_field: "quality_score, quality_band".to_owned(),
-            artifact_contract: "hsk.atelier.facial_ingest_analysis@1.rows[]".to_owned(),
-            handshake_status: "deferred_model_backed".to_owned(),
-            provenance_note:
-                "eDifFIQA is mapped for future model-backed quality; MT-019 keeps proxy provenance explicit."
-                    .to_owned(),
-        },
-        FacialCapabilityMapRow {
-            capability: "dedupe".to_owned(),
-            source_feature_key: "imagededup:hash_duplicates".to_owned(),
-            facial_source_family: "imagededup".to_owned(),
-            native_field: "duplicate_group_id, duplicate_group_size, duplicate_role".to_owned(),
-            artifact_contract: "hsk.atelier.facial_ingest_analysis@1.rows[]".to_owned(),
-            handshake_status: "native_content_hash_exact".to_owned(),
-            provenance_note:
-                "Handshake groups exact content_hash duplicates and leaves missing hashes as singletons."
-                    .to_owned(),
-        },
-        FacialCapabilityMapRow {
-            capability: "dedupe".to_owned(),
-            source_feature_key: "imagededup:cnn_duplicates".to_owned(),
-            facial_source_family: "imagededup".to_owned(),
-            native_field: "duplicate_group_id".to_owned(),
-            artifact_contract: "hsk.atelier.facial_ingest_analysis@1.rows[]".to_owned(),
-            handshake_status: "deferred_model_backed".to_owned(),
-            provenance_note:
-                "CNN perceptual duplicate grouping is not claimed until the native model path is wired."
-                    .to_owned(),
-        },
-        FacialCapabilityMapRow {
-            capability: "identity".to_owned(),
-            source_feature_key: "identity_gate:yunet_detection".to_owned(),
-            facial_source_family: "YuNet".to_owned(),
-            native_field: "identity_source, identity_verdict".to_owned(),
-            artifact_contract: "hsk.atelier.facial_ingest_analysis@1.rows[]".to_owned(),
-            handshake_status: "proxy_unverified_until_models_configured".to_owned(),
-            provenance_note:
-                "YuNet face detection is mapped but not claimed by MT-019; rows stay proxy_unverified."
-                    .to_owned(),
-        },
-        FacialCapabilityMapRow {
-            capability: "identity".to_owned(),
-            source_feature_key: "identity_gate:arcface_embedding".to_owned(),
-            facial_source_family: "ArcFace".to_owned(),
-            native_field: "identity_proxy_key, identity_source, identity_verdict".to_owned(),
-            artifact_contract: "hsk.atelier.facial_ingest_analysis@1.rows[]".to_owned(),
-            handshake_status: "proxy_unverified_until_models_configured".to_owned(),
-            provenance_note:
-                "Rows expose identity proxy keys but never claim real match/no_match without ArcFace assets."
-                    .to_owned(),
-        },
-        FacialCapabilityMapRow {
-            capability: "identity".to_owned(),
-            source_feature_key: "deepface:detect".to_owned(),
-            facial_source_family: "deepface".to_owned(),
-            native_field: "decode_status, identity_source".to_owned(),
-            artifact_contract: "hsk.atelier.facial_ingest_analysis@1.rows[]".to_owned(),
-            handshake_status: "deferred_model_backed".to_owned(),
-            provenance_note:
-                "DeepFace detection parity is not claimed; MT-019 only records decode/proxy state."
-                    .to_owned(),
-        },
-        FacialCapabilityMapRow {
-            capability: "identity".to_owned(),
-            source_feature_key: "deepface:represent".to_owned(),
-            facial_source_family: "deepface".to_owned(),
-            native_field: "identity_proxy_key".to_owned(),
-            artifact_contract: "hsk.atelier.facial_ingest_analysis@1.rows[]".to_owned(),
-            handshake_status: "deferred_model_backed".to_owned(),
-            provenance_note:
-                "DeepFace embedding/representation is mapped for later native model-backed implementation."
-                    .to_owned(),
-        },
-        FacialCapabilityMapRow {
-            capability: "review".to_owned(),
-            source_feature_key: "review:shard_claims".to_owned(),
-            facial_source_family: "Facial review ledger".to_owned(),
-            native_field: "review_recommendation, reasons".to_owned(),
-            artifact_contract: "hsk.atelier.facial_ingest_analysis@1.rows[]".to_owned(),
-            handshake_status: "native_recommendation_v1".to_owned(),
-            provenance_note:
-                "Rows emit keep/review/cull recommendations for Argus and parallel Ingest reviewers."
-                    .to_owned(),
-        },
-        FacialCapabilityMapRow {
-            capability: "review".to_owned(),
-            source_feature_key: "review:montage_export".to_owned(),
-            facial_source_family: "Facial review montage".to_owned(),
-            native_field: "analysis_artifact_ref, receipt_ref".to_owned(),
-            artifact_contract: "ArtifactStore application/json analysis and receipt".to_owned(),
-            handshake_status: "deferred_visual_export".to_owned(),
-            provenance_note:
-                "MT-019 writes analysis JSON/receipt only; montage/contact-sheet visual export remains separate."
-                    .to_owned(),
-        },
-    ]
+    facial_feature_registry()
+        .into_iter()
+        .map(|feature| FacialCapabilityMapRow {
+            capability: feature.capability,
+            source_feature_key: feature.feature_id,
+            facial_source_family: feature.source_family,
+            native_field: feature.native_field,
+            artifact_contract: feature.artifact_contract,
+            handshake_status: feature.status,
+            native_route: feature.native_route,
+            provenance_note: feature.provenance_note,
+            required_config_keys: feature.required_config_keys,
+            unavailable_reason: feature.unavailable_reason,
+        })
+        .collect()
 }
 
 fn json_sha256(value: &serde_json::Value) -> Result<String, String> {
@@ -717,6 +675,56 @@ mod tests {
             .capability_map
             .iter()
             .any(|row| row.source_feature_key == "identity_gate:arcface_embedding"));
+        let arcface_row = export
+            .summary
+            .capability_map
+            .iter()
+            .find(|row| row.source_feature_key == "identity_gate:arcface_embedding")
+            .expect("ArcFace row from native registry");
+        assert_eq!(
+            arcface_row.unavailable_reason.as_deref(),
+            Some("arcface_model_not_configured")
+        );
+        assert_eq!(
+            arcface_row.native_route,
+            "atelier.facial.identity.arcface_unavailable"
+        );
+        assert!(export
+            .summary
+            .native_run
+            .selected_feature_ids
+            .contains(&"identity_gate:arcface_embedding".to_owned()));
+        assert!(export
+            .summary
+            .native_run
+            .selected_feature_ids
+            .contains(&"identity_gate:pipnet_landmarks".to_owned()));
+        assert_eq!(export.summary.native_run.requested_by, "facial-agent-019");
+        assert_eq!(export.summary.native_run.decoded_count, 0);
+        assert_eq!(
+            export.summary.native_run.run_status,
+            "native_partial_degraded"
+        );
+        assert_eq!(
+            export.analysis_json["summary"]["native_run"]["run_hash"].as_str(),
+            Some(export.summary.native_run.run_hash.as_str())
+        );
+        assert_eq!(
+            export.analysis_json["summary"]["native_run"]["run_id"].as_str(),
+            None
+        );
+        assert_eq!(
+            export.analysis_json["summary"]["native_run"]["requested_by"].as_str(),
+            None
+        );
+        assert_eq!(
+            export.receipt_json["native_run"]["run_id"].as_str(),
+            Some(export.summary.native_run.run_id.as_str())
+        );
+        assert_eq!(
+            export.receipt_json["native_extension_schema_id"].as_str(),
+            Some("hsk.atelier.facial_native.run@1")
+        );
         assert_eq!(
             export.analysis_json["schema_id"],
             FACIAL_INGEST_ANALYSIS_SCHEMA_ID
@@ -781,6 +789,18 @@ mod tests {
         .expect("export b");
         assert_eq!(export_a.analysis_sha256, export_b.analysis_sha256);
         assert_eq!(export_a.content_hash, export_b.content_hash);
+        assert_eq!(
+            export_a.summary.native_run.run_hash,
+            export_b.summary.native_run.run_hash
+        );
+        assert_ne!(
+            export_a.summary.native_run.run_id,
+            export_b.summary.native_run.run_id
+        );
+        assert_ne!(
+            export_a.summary.native_run.requested_by,
+            export_b.summary.native_run.requested_by
+        );
         assert_ne!(export_a.receipt_sha256, export_b.receipt_sha256);
     }
 

@@ -9281,7 +9281,71 @@ fn parse_atelier_facial_ingest_analysis_row(
     }
     summary.get("quality_band_counts")?.as_object()?;
     summary.get("review_recommendation_counts")?.as_object()?;
-    summary.get("capability_map")?.as_array()?;
+    let native_run = summary.get("native_run")?.as_object()?;
+    for field in [
+        "schema_id",
+        "registry_schema_id",
+        "run_id",
+        "batch_id",
+        "profile",
+        "requested_by",
+        "run_status",
+        "run_hash",
+    ] {
+        let value = native_run.get(field)?.as_str()?.trim();
+        if value.is_empty() {
+            return None;
+        }
+    }
+    if native_run.get("schema_id")?.as_str()? != "hsk.atelier.facial_native.run@1"
+        || native_run.get("registry_schema_id")?.as_str()? != "hsk.atelier.facial_native.registry@1"
+        || native_run.get("batch_id")?.as_str()? != batch_id.as_str()
+        || native_run.get("profile")?.as_str()? != profile.as_str()
+    {
+        return None;
+    }
+    if native_run.get("item_count")?.as_u64()? as usize != item_count {
+        return None;
+    }
+    native_run.get("decoded_count")?.as_u64()?;
+    native_run.get("status_counts")?.as_object()?;
+    for field in [
+        "profile_tokens",
+        "selected_feature_ids",
+        "degraded_reasons",
+        "feature_records",
+    ] {
+        let values = native_run.get(field)?.as_array()?;
+        if matches!(
+            field,
+            "profile_tokens" | "selected_feature_ids" | "feature_records"
+        ) && values.is_empty()
+        {
+            return None;
+        }
+    }
+    let capability_map = summary.get("capability_map")?.as_array()?;
+    if capability_map.is_empty() {
+        return None;
+    }
+    for capability in capability_map {
+        for field in [
+            "capability",
+            "source_feature_key",
+            "facial_source_family",
+            "native_field",
+            "artifact_contract",
+            "handshake_status",
+            "native_route",
+            "provenance_note",
+        ] {
+            let value = capability.get(field)?.as_str()?.trim();
+            if value.is_empty() {
+                return None;
+            }
+        }
+        capability.get("required_config_keys")?.as_array()?;
+    }
     let analysis_artifact =
         parse_atelier_facial_ingest_artifact_row(row.get("analysis_artifact")?)?;
     let receipt_artifact = parse_atelier_facial_ingest_artifact_row(row.get("receipt_artifact")?)?;
@@ -10250,6 +10314,44 @@ mod tests {
 
     #[test]
     fn atelier_facial_ingest_analysis_parser_requires_summary_artifacts_and_schema() {
+        let capability_map = serde_json::json!([{
+            "capability": "identity",
+            "source_feature_key": "identity_gate:arcface_embedding",
+            "facial_source_family": "ArcFace",
+            "native_field": "identity_proxy_key, identity_source, identity_verdict",
+            "artifact_contract": "hsk.atelier.facial_ingest_analysis@1.rows[]",
+            "handshake_status": "proxy_unverified_until_models_configured",
+            "native_route": "atelier.facial.identity.arcface_unavailable",
+            "provenance_note": "Rows expose identity proxy keys but never claim real match/no_match without ArcFace assets.",
+            "required_config_keys": ["facial.arcface_model_path"],
+            "unavailable_reason": "arcface_model_not_configured"
+        }]);
+        let native_run = serde_json::json!({
+            "schema_id": "hsk.atelier.facial_native.run@1",
+            "registry_schema_id": "hsk.atelier.facial_native.registry@1",
+            "run_id": "facial-native-run-aaaaaaaa",
+            "batch_id": "018f7848-1111-7000-9000-00000000b019",
+            "profile": "quality+dedupe+identity",
+            "requested_by": "facial-agent-019",
+            "profile_tokens": ["quality", "dedupe", "identity"],
+            "item_count": 3,
+            "decoded_count": 2,
+            "selected_feature_ids": ["facet:quality_pass", "imagededup:hash_duplicates", "identity_gate:arcface_embedding"],
+            "run_status": "native_partial_degraded",
+            "status_counts": {"native_proxy_v1": 1, "native_content_hash_exact": 1, "deferred_model_backed": 4},
+            "degraded_reasons": ["identity_gate:arcface_embedding:arcface_model_not_configured"],
+            "feature_records": [{
+                "feature_id": "identity_gate:arcface_embedding",
+                "capability": "identity",
+                "source_family": "ArcFace",
+                "status": "deferred_model_backed",
+                "native_route": "atelier.facial.identity.arcface_unavailable",
+                "artifact_contract": "hsk.atelier.facial_ingest_analysis@1.rows[]",
+                "selected": true,
+                "unavailable_reason": "arcface_model_not_configured"
+            }],
+            "run_hash": "aaaaaaaa"
+        });
         let row = serde_json::json!({
             "schema_id": "hsk.atelier.facial_ingest_analysis@1",
             "batch_id": "018f7848-1111-7000-9000-00000000b019",
@@ -10268,7 +10370,8 @@ mod tests {
                 "quality_source": "handshake_native_proxy_v1",
                 "identity_source": "handshake_proxy_no_model",
                 "dedupe_source": "content_hash_exact_or_singleton",
-                "capability_map": []
+                "capability_map": capability_map,
+                "native_run": native_run
             },
             "analysis_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             "receipt_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
@@ -10318,6 +10421,13 @@ mod tests {
             .remove("identity_source");
         assert!(parse_atelier_facial_ingest_analysis_row(&missing_provenance).is_none());
 
+        let mut missing_native_run = row.clone();
+        missing_native_run["summary"]
+            .as_object_mut()
+            .expect("summary object")
+            .remove("native_run");
+        assert!(parse_atelier_facial_ingest_analysis_row(&missing_native_run).is_none());
+
         let mut empty_provenance = row.clone();
         empty_provenance["summary"]["quality_source"] = serde_json::json!(" ");
         assert!(parse_atelier_facial_ingest_analysis_row(&empty_provenance).is_none());
@@ -10332,6 +10442,19 @@ mod tests {
         let mut bad_capability_map = row.clone();
         bad_capability_map["summary"]["capability_map"] = serde_json::json!("not-an-array");
         assert!(parse_atelier_facial_ingest_analysis_row(&bad_capability_map).is_none());
+
+        let mut incomplete_capability = row.clone();
+        incomplete_capability["summary"]["capability_map"] = serde_json::json!([{
+            "capability": "identity",
+            "source_feature_key": "identity_gate:arcface_embedding",
+            "facial_source_family": "ArcFace/YuNet identity_gate",
+            "native_field": "identity_proxy_key",
+            "artifact_contract": "summary.capability_map[]",
+            "native_route": "atelier.facial.identity.arcface_unavailable",
+            "required_config_keys": ["facial.arcface_model_path"],
+            "handshake_status": "proxy_unverified_until_models_configured"
+        }]);
+        assert!(parse_atelier_facial_ingest_analysis_row(&incomplete_capability).is_none());
 
         let mut bad_artifact_hash = row.clone();
         bad_artifact_hash["analysis_artifact"]["content_hash"] = serde_json::json!("wrong");

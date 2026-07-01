@@ -39,6 +39,8 @@ pub mod downloader;
 pub mod editable_surface_authority;
 pub mod exports;
 pub mod facial;
+#[path = "facial_native/mod.rs"]
+pub mod facial_native;
 pub mod filesystem_health;
 pub mod image_import;
 pub mod intake;

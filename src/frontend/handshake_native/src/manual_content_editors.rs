@@ -475,7 +475,10 @@ atelier-ingest-facial-profile and atelier-ingest-facial-analyze. The backend loa
 batch, writes hsk.atelier.facial_ingest_analysis@1 JSON plus receipt artifacts, and projects \
 atelier-ingest-facial-summary / atelier-ingest-facial-receipt for Argus. Current MT-019 Facial \
 quality, dedupe, identity, and review fields are explicit native proxies: quality_source=handshake_native_proxy_v1, \
-dedupe_source=content_hash_exact_or_singleton, and identity_source=handshake_proxy_no_model. Do not claim \
+dedupe_source=content_hash_exact_or_singleton, and identity_source=handshake_proxy_no_model. The summary \
+also exposes native_run selected_feature_ids, degraded_feature_ids, run_status, and capability_map \
+rows with native_route, required_config_keys, and unavailable_reason so models can tell native proxy \
+work from deferred model-backed parity. Do not claim \
 ArcFace/YuNet match/no_match parity until a later model-backed MT wires those assets. Real \
 expanded intake rows are exposed as atelier-ingest-item-{stable_item_id}; per-item triage buttons are \
 atelier-ingest-item-{stable_item_id}-pass, atelier-ingest-item-{stable_item_id}-reject, and \
