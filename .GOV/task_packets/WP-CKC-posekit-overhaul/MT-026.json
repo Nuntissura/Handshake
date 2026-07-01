@@ -5,9 +5,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-026",
   "title": "Port Facial quality, IQ, and dedupe plugin parity",
-  "status": "PENDING",
+  "status": "READY_FOR_VALIDATION",
   "created_at_utc": "2026-06-30T23:20:00.000Z",
-  "updated_at_utc": "2026-06-30T23:20:00.000Z",
+  "updated_at_utc": "2026-07-01T04:59:46.762Z",
   "product_edit_allowed": true,
   "operator_request": "The operator needs Facial-quality image mining inside Handshake Ingest for LoRA dataset work; MT-019 proxy quality/dedupe is not enough.",
   "authority_files": {
@@ -21,12 +21,13 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-026.json"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-025"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PENDING",
+    "ready_for_validation_at_utc": "2026-07-01T04:59:46.762Z"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -93,7 +94,55 @@
     ]
   },
   "manual_requirement": "Required if this MT exposes or changes operator/model-visible Facial behavior.",
+  "implementation": {
+    "status": "READY_FOR_VALIDATION",
+    "product_commit": "8eabf0d6",
+    "product_branch": "feat/WP-CKC-posekit-overhaul",
+    "pushed_to_origin": true,
+    "summary": [
+      "Added native Facial plugin modules for facet metadata quality, python-ofiq metadata vector output, exact-hash imagededup, and eDifFIQA unavailable records.",
+      "Updated Facial ingest analysis rows and summary artifacts with source_family, feature_id, method, quality_metrics, ofiq_quality, dedupe_record, and native_feature_outputs.",
+      "Kept metadata-only quality explicitly degraded and model-backed eDifFIQA/identity lanes unavailable instead of claiming model parity.",
+      "Aligned duplicate representative selection with non-destructive remove-candidate keeper policy.",
+      "Added @1 compatibility defaults for newly added serialized fields and changed internal row reparse from fail-open empty rows to fail-closed error.",
+      "Updated the in-product UserManual CKC/PoseKit quickstart with the Facial analyze route and output contract."
+    ],
+    "scope_expansions": [
+      "src/backend/handshake_core/src/atelier/facial_native/mod.rs and plugins/mod.rs were updated for module wiring.",
+      "src/backend/handshake_core/src/atelier/facial_native/registry.rs and run.rs were updated so the native run report and registry match the new plugin outputs.",
+      "src/backend/handshake_core/src/user_manual/seed.rs and tests/user_manual_content_tests.rs were updated to satisfy the MT manual requirement."
+    ]
+  },
+  "verification_result": {
+    "status": "TARGETED_PROOFS_PASSED_WITH_ONE_INCONCLUSIVE_RERUN",
+    "passed": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_facial_quality_dedupe_tests -j 2 -- --nocapture (6 passed before post-review compatibility patch; critical compatibility/read-only/keeper assertions were then mirrored into lib tests)",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml facial_ingest --lib -j 2 -- --nocapture (8 passed after post-review fixes)",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml facial_native --lib -j 2 -- --nocapture (6 passed)",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_content_tests ckc_posekit_quickstart_is_native_first_and_reachable -j 2 -- --exact --nocapture (1 passed before post-review compatibility patch; manual files were unchanged after that pass)",
+      "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib -j 2",
+      "git diff --check on MT-026 touched files"
+    ],
+    "inconclusive": [
+      "Final reruns of the full atelier_facial_quality_dedupe_tests integration binary and the manual content test intermittently exited/timed out during compile/link under concurrent Cargo load before a test harness verdict. No failing assertion was observed; the acceptance-critical checks were covered by passing lib tests and the earlier manual pass."
+    ],
+    "static_checks": [
+      "Stale proxy-source scan found handshake_native_proxy_v1 only in explicit negative tests, legacy compatibility tests, and manual warning text.",
+      "Fail-open row reparse scan found no from_value(...).ok().unwrap_or_default() pattern in facial.rs."
+    ]
+  },
+  "review_result": {
+    "pre_implementation_adversarial_review": "COMPLETED",
+    "post_implementation_adversarial_review": "COMPLETED",
+    "findings_addressed": [
+      "Representative/keeper mismatch: fixed by sharing largest-file-then-path keeper preference for duplicate representative and remove_candidates.keep.",
+      "Schema @1 compatibility failure: fixed by adding serde defaults for new row/summary fields and fail-closed row reparse; regression test added."
+    ]
+  },
   "handoff": {
-    "status": "PENDING"
+    "status": "READY_FOR_VALIDATION",
+    "product_commit": "8eabf0d6",
+    "pushed_to_origin": true,
+    "next_actor": "WP_VALIDATOR"
   }
 }

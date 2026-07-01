@@ -320,8 +320,8 @@
   ],
   "execution": {
     "last_state_update": {
-      "updated_at_utc": "2026-07-01T03:00:32.155Z",
-      "summary": "MT-025 product commit 97646510 is ready for validation; MT-026 through MT-030 remain pending Facial parity backlog without disturbing active MT-010."
+      "updated_at_utc": "2026-07-01T04:59:46.762Z",
+      "summary": "MT-026 product commit 8eabf0d6 is ready for validation with native Facial quality/IQ/dedupe plugin parity, compatibility hardening, and UserManual coverage; MT-010 remains the separate active media/linking lane."
     }
   }
 }
