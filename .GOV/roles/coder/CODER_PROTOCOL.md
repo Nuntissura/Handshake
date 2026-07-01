@@ -1476,21 +1476,23 @@ COVERAGE WAIVER [CX-572A-VARIANCE]
 RISK_TIER: MEDIUM
 Current Coverage: 75% (below 80% target)
 
-Reason: Database mocking complexity; 3 integration tests cover happy path
+Reason: Remaining uncovered lines are defensive error branches that are hard to trigger deterministically; the critical path is exercised end-to-end against real resources.
 
 Justification:
-- Critical path (query execution) at 92% coverage
-- Database layer (out of scope) at 40% coverage
-- Cannot improve without mocking framework (blocker)
+- Critical path (query execution) at 92% coverage, proven against a real PostgreSQL/EventLedger boundary (Spec-Realism Gate sub-rule 2)
+- Remaining gap is in rare I/O-error / retry branches
+- Deterministic reproduction of those branches is a follow-on test task, not a proof blocker
 
 Risk Assessment:
-- Acceptability: ACCEPTABLE (critical path well-tested)
+- Acceptability: ACCEPTABLE (critical path proven against real resources)
 - Impact: LOW (failure only in edge case)
 
 Approved by: {orchestrator decision or team agreement}
 ```
 
 **Rule:** Do NOT proceed to the handoff phase check if coverage is below threshold and no approved waiver exists.
+
+**Scope of a coverage waiver:** it excuses only a coverage-*percentage* gap on genuinely hard-to-trigger branches. It never waives the Spec-Realism Gate — durable storage, EventLedger, runtime, UI, or replay MUSTs still require real-resource proof (Handshake-managed PostgreSQL or an explicit real PostgreSQL URL), and mock / in-memory / SQLite substitutes are never acceptable as that proof [CX-573F, CX-503R].
 
 ---
 
