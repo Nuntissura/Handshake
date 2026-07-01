@@ -2,8 +2,8 @@
   "schema_id": "hsk.microtask_index@1",
   "schema_version": "microtask_index_v1",
   "wp_id": "WP-CKC-posekit-overhaul",
-  "updated_at_utc": "2026-07-01T18:58:35.486Z",
-  "active_mt_id": "MT-006",
+  "updated_at_utc": "2026-07-01T23:16:41.315Z",
+  "active_mt_id": null,
   "next_mt_id": "MT-043",
   "microtask_contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
   "policy": {
@@ -65,13 +65,15 @@
     },
     {
       "mt_id": "MT-006",
-      "status": "IN_PROGRESS",
+      "status": "READY_FOR_VALIDATION",
       "title": "Promote Atelier to the main filling panel with CKC, Posekit, and Ingest sibling tabs",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-006.json",
       "product_edit_allowed": true,
       "started_at_utc": "2026-06-28T16:56:35.333Z",
       "reopened_at_utc": "2026-07-01T18:34:39.251Z",
-      "reopen_reason": "MT-040 audit: remediate Atelier to a clean full-window module (P1 chrome-suppression, P2 single CKC/INGEST/PoseKit tab bar, P3 module-ckc/ingest reconcile). Pre-impl adversarial review in progress."
+      "ready_for_validation_at_utc": "2026-07-01T23:16:41.315Z",
+      "product_commit": "565c6102",
+      "reopen_reason": "MT-040 audit remediation. P1 chrome-suppression at both render sites, P2 single CKC/PoseKit/Ingest tab bar (no MODULE_DEFINITIONS trim), P3 set_module->internal-tab deep-link. RUNTIME PROVEN: test_ckc_embed 17/17 (ac6 Argus steer of full-window Atelier; negative-chrome; R1 chrome-reappears; R2 MAIN keeps chrome; module-ingest->Ingest landing). Pre-existing baseline failures NOT caused/included: test_accesskit_ids (KERNEL-011 4-pane), test_module_switcher switcher_paints (pre-existing dual-Atelier label), test_atelier_panel posekit preview:// local (MT-014 scaffolding)."
     },
     {
       "mt_id": "MT-007",
@@ -120,35 +122,39 @@
     },
     {
       "mt_id": "MT-012",
-      "status": "PENDING",
+      "status": "IN_PROGRESS",
       "title": "Restore CKC story panels and native moodboard integration",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-012.json",
       "product_edit_allowed": true,
-      "started_at_utc": null
+      "started_at_utc": null,
+      "reality": "Stale-PENDING corrected 2026-07-02: implementation ALREADY COMMITTED (776c4a47 story/moodboard surfaces), verified by MT-012 review reading the code. Residual gaps: moodboard live-canvas edits persist to a separate Loom canvas block, NOT the saved atelier snapshot (split-brain); shared canvas singleton (SWARM -> MT-022); story linked to character not sheet-version. Sequence gap-closure after MT-006 commits, then verify -> RFV."
     },
     {
       "mt_id": "MT-013",
-      "status": "PENDING",
+      "status": "IN_PROGRESS",
       "title": "Restore CKC book-style visual layout and work-surface behavior",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-013.json",
       "product_edit_allowed": true,
-      "started_at_utc": null
+      "started_at_utc": null,
+      "reality": "Stale-PENDING corrected 2026-07-02: implementation ALREADY COMMITTED (ad818ca0 book layout), verified by MT-013 review. Mode-gating/notes-separation/no-four-window-grid/Argus ids/manual/panel-tests exist. Residual gaps: media viewer is a placeholder box, not real raster (scaffolding); no live-shell/narrow-width/empty-state capture matrix; 3-panel min-width overflow below ~700px; singleton book-mode (SWARM->MT-022). Sequence after MT-006 commits, then verify -> RFV."
     },
     {
       "mt_id": "MT-014",
-      "status": "PENDING",
+      "status": "IN_PROGRESS",
       "title": "Restore Posekit 3D-to-OpenPose split-view generation",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-014.json",
       "product_edit_allowed": true,
-      "started_at_utc": null
+      "started_at_utc": null,
+      "reality": "Stale-PENDING corrected 2026-07-02: split-view/controls/backend-export ALREADY COMMITTED (7e76a087 + 6357a741 OpenPose), verified by MT-014 review; backend generate/export to ArtifactStore is real. SCAFFOLDING gaps (violate no-scaffolding rule): left '3D' viewport paints a hash-tile not the source image; right OpenPose viewport paints a schematic NOT bound to render_posekit_openpose_png output; -slider ids are text inputs; no-backend path emits preview:// with no PNG; frontend duplicates backend keypoint generator. Close these + prove rotation->rerender->real-artifact after MT-006 commits. Note: MT-015 marker pieces largely coded too (27efcfcc)."
     },
     {
       "mt_id": "MT-015",
-      "status": "PENDING",
+      "status": "IN_PROGRESS",
       "title": "Restore Posekit marker editing, zoom/lens controls, and failure containment",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-015.json",
       "product_edit_allowed": true,
-      "started_at_utc": null
+      "started_at_utc": null,
+      "reality": "Stale-PENDING corrected 2026-07-01 (WP-state audit): marker validate/stage/nudge + framing + failure-containment logic ALREADY COMMITTED (b1eca87a, 27efcfcc) and tested, but markers render on the SAME schematic posekit viewport as MT-014 and controls are text-inputs -> shares MT-014's de-scaffolding gap. Close alongside MT-014, then verify -> RFV."
     },
     {
       "mt_id": "MT-016",
@@ -162,19 +168,21 @@
     },
     {
       "mt_id": "MT-017",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "title": "Build CKC/Ingest dataset mining review pipeline",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-017.json",
       "product_edit_allowed": true,
-      "started_at_utc": null
+      "started_at_utc": null,
+      "reality": "Stale-PENDING corrected 2026-07-01 (WP-state audit): ALREADY COMMITTED (97a87db0 intake pipeline + migration 0341; plus commits mislabeled 'MT-013' 5fdf5845/40686b7b are actually this MT's Ingest work). Backend atelier/intake.rs (2971 lines) + tests; frontend show_ingest. Needs validator sign-off (verify frontend Ingest surface vs review-pipeline acceptance)."
     },
     {
       "mt_id": "MT-018",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "title": "Add native contact sheet generator for image mining and LoRA review",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-018.json",
       "product_edit_allowed": true,
-      "started_at_utc": null
+      "started_at_utc": null,
+      "reality": "Stale-PENDING corrected 2026-07-01 (WP-state audit): ALREADY COMMITTED (ff2d19cb). Backend atelier/contact_sheet.rs (468 lines, 5 inline tests) + api; frontend ContactSheetExportSnapshot. Verify contact-sheet artifact refs emit real SVG bytes (not just preview://); consider a dedicated backend test file. Needs validator sign-off."
     },
     {
       "mt_id": "MT-019",

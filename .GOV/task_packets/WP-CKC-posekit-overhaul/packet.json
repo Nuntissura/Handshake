@@ -196,7 +196,7 @@
     "enforcement_profile": "HOTFIX_ADHOC_MICROTASK_WITH_RECOVERY_POINTERS"
   },
   "microtasks": {
-    "active_id": "MT-006",
+    "active_id": null,
     "contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
     "index_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
     "count": 42,
