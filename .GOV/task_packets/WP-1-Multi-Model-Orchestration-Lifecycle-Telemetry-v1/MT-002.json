@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-001"
     ],
@@ -30,13 +30,13 @@
     "validator_verdict": "PENDING",
     "claimed_by": "KERNEL_BUILDER-20260628-220906",
     "claimed_at_utc": "2026-06-28T22:32:08.601Z",
-    "ready_for_validation_by": null,
-    "ready_for_validation_at_utc": null,
+    "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
+    "ready_for_validation_at_utc": "2026-07-01T23:08:42Z",
     "completed_by": null,
-    "blocker": "MT002_SCHEMA_PG_TESTS_FAIL_3_OF_4",
+    "blocker": null,
     "missing_resource": null,
-    "proof_status": "FAIL_MT002_2026-07-01: cargo test --test model_lane_schema_pg_tests --features test-utils = 1 passed / 3 FAILED (managed PG 127.0.0.1:5544, 521s). (1) model_lane_schema_persists_and_replays_eventledger_rows AND (3) model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflict panic 'ProjectionPlan projection-plan://cloud/redacted-workspace is not durable': record_lane (swarm_orchestration/model_lane.rs:7277-7282) requires the cloud lane's ProjectionPlan+ConsentReceipt to be durably persisted (migration 0341 tables) BEFORE the cloud lane is recorded, but the schema test never persists them (MT-002-schema-test vs MT-006-cloud-durability-gate inconsistency). (2) model_lane_schema_serializes_competing_terminal_updates panic 'model_lane EventLedger payload missing record'. The prior PASS self-certification was FALSE: the crate did not compile (2 breaks in model_lane.rs) so these tests never ran. NEEDS: persist the cloud projection/consent prerequisites in the schema test (or scope the durability gate) + fix the EventLedger-payload-missing path; re-run to green. Likely shared with MT-004/005/006/007/009 test suites.",
-    "hbr_status": "PENDING_MT002_PROOFS_FAILING",
+    "proof_status": "PASS_MT002_2026-07-01: cargo test --test model_lane_schema_pg_tests --features test-utils = 4 passed / 0 failed (managed PG 127.0.0.1:5544, 351s); commit e083e0d2. Prior FALSE self-cert corrected. FIXES (spec-grounded, cloud gate NOT weakened): (A/C) schema test now seeds durable cloud ProjectionPlan+ConsentReceipt via new shared tests/model_lane_cloud_support.rs::seed_cloud_lane_authority (spec 4.3.9.2.5 confirms the fail-closed durability gate is correct); (B) CODE bug fixed - record_lane_terminal_status re-stamps the terminal EventLedger payload with the full lane record for replay authority; record_message idempotency now normalizes only per-attempt message_id/span_id while still failing closed on authority/routing divergence (spec 4.3.9.2.5 idempotent-retry); adjacent revoke_cloud_consent_receipt same re-stamp (MT-006 code in MT-002 allowed path, disclosed, prevents MT-006 revocation regression - cloud_consent_revocation test PASS). KB-reviewed the 3 model_lane.rs hunks: correct, not scaffolding. Shared cloud-seed helper reusable by MT-004/005/006/007/009.",
+    "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT002_SCHEMA_GREEN",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
     "last_recovery_event_ref": null,
