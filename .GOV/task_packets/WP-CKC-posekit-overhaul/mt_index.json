@@ -2,9 +2,9 @@
   "schema_id": "hsk.microtask_index@1",
   "schema_version": "microtask_index_v1",
   "wp_id": "WP-CKC-posekit-overhaul",
-  "updated_at_utc": "2026-07-01T18:34:39.251Z",
+  "updated_at_utc": "2026-07-01T18:58:35.486Z",
   "active_mt_id": "MT-006",
-  "next_mt_id": "MT-041",
+  "next_mt_id": "MT-043",
   "microtask_contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
   "policy": {
     "create_before_product_edit": true,
@@ -389,6 +389,24 @@
         "MT-006"
       ],
       "note": "Read-only inspection MT. Created 2026-07-01 at operator request to determine whether Atelier is mounted as a full-window module vs a workbench PaneType (compartmentalized sub-window). Not activated; awaiting operator session goal."
+    },
+    {
+      "mt_id": "MT-041",
+      "status": "PENDING",
+      "title": "Add operator-facing dropdown menu-bar item for Atelier + required Argus menu-leaf expansion",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-041.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null,
+      "origin": "MT-040 audit P4 + operator goal (operator menu-bar item)."
+    },
+    {
+      "mt_id": "MT-042",
+      "status": "PENDING",
+      "title": "Surface Atelier/CKC/PoseKit/Ingest settings-options features in the operator settings surface",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-042.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null,
+      "origin": "MT-040 audit P5 + operator goal (settings/options features)."
     }
   ],
   "baseline": {

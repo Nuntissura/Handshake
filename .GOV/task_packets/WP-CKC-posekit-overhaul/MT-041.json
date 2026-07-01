@@ -1,0 +1,42 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "markdown_projection_intentionally_omitted": true
+  },
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-041",
+  "title": "Add operator-facing dropdown menu-bar item for Atelier + required Argus menu-leaf expansion",
+  "status": "PENDING",
+  "created_at_utc": "2026-07-01T18:58:35.486Z",
+  "updated_at_utc": "2026-07-01T18:58:35.486Z",
+  "started_at_utc": null,
+  "product_edit_allowed": true,
+  "origin": "MT-040 audit P4 (out of MT-006 scope) + operator goal directive 'make sure there is an operator facing drop down menu bar item for this wp'.",
+  "scope": {
+    "summary": "Add an operator-facing dropdown menu-bar entry for Atelier to the shell menu bar (handshake_menu_bar, app.rs ~7073-7075 / top_menu_bar.rs). The entry opens the Atelier full-window module and offers jump-to CKC / PoseKit / Ingest sub-module tabs. Because menu leaves are dynamically created only while a menu is open, this MT MUST also perform the mandated Argus expansion so a model can discover and steer menu leaves.",
+    "product_worktree": "../wtc-ckc-posekit-overhaul",
+    "product_edit_allowed": true,
+    "menu_bar_facts": {
+      "menu_bar_panel": "handshake_menu_bar (app.rs ~7073-7075); top-level menu buttons menu-file/-edit/-view/-go/-run/-help are Role::MenuItem with Action::Click/Focus + author_id (top_menu_bar.rs:149-156, :411-417); already Argus-visible (proven test_top_menu_bar.rs live_shell_has_six_top_level_menus_with_stable_ids :59).",
+      "leaf_gap": "Menu leaves (menu.file.quit, menu.edit.undo, menu.view.reset-layout, menu.go.command-palette, menu.run.swarm-board, menu.help.about, menu-go-* nav leaves) exist in the AccessKit tree ONLY while their parent menu is open (top_menu_bar.rs:78-82; asserted absent when closed test_top_menu_bar.rs:114-118). So Argus cannot one-shot a leaf."
+    },
+    "acceptance_criteria": [
+      "AC1: An operator-facing dropdown menu-bar entry exists for Atelier (either a new 'Atelier' top-level menu or an Atelier item under an existing menu) that opens the Atelier module and can select the CKC / PoseKit / Ingest sub-module tabs. Stable author_ids on the entry and its leaves.",
+      "AC2 (Argus expansion, MANDATORY per operator): implement a static leaf-id discovery registry (enumerate menu.<x>.<leaf> author_ids per menu) so Argus/models know valid leaf targets WITHOUT first opening the menu; OR expose the same commands via the command registry/palette as a flat, always-present addressable surface.",
+      "AC3 (Argus expansion): encode a two-step open-then-steer protocol (argus.click menu-<x> -> drain+repaint -> argus.inspect -> argus.click menu.<x>.<leaf>) and prove with a live test that argus.click on the menu OPENS and HOLDS the menu across the headless action-drain frame so the leaf is clickable (egui popups can close on the next synthesized pointer event).",
+      "AC4: Argus can inspect + steer the new Atelier menu entry and its leaves headlessly (HBR-VIS/QUIET). If Argus cannot see/steer, expand Argus (author_ids, AccessKit roles, inspection hooks) in this MT.",
+      "AC5: Update the in-product internal UserManual for the new menu entry + the Argus menu-leaf discovery/steer protocol (HBR-MAN).",
+      "AC6: No scaffolding; runtime proof (Spec-Realism Gate)."
+    ]
+  },
+  "hbr_obligations_note": "HBR-VIS (Argus menu inspect/steer), HBR-QUIET (headless, no focus/input steal), HBR-MAN (UserManual), HBR-SWARM (parallel-agent addressability of menu + leaves).",
+  "lifecycle": { "status": "PENDING", "active": false, "depends_on": [], "validator_verdict": "PENDING" },
+  "handoff": { "status": "PENDING" }
+}
