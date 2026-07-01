@@ -1,0 +1,143 @@
+{
+  "schema_id": "hsk.mt_audit_artifact@1",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-040",
+  "audit_title": "Atelier full-window module vs workbench-pane mounting audit",
+  "generated_at_utc": "2026-07-01T18:26:04.591Z",
+  "generated_by": "KERNEL_BUILDER",
+  "method": "Three parallel read-only Explore lenses synthesized against MT-006.json authority. Lens A = Atelier mount mechanism; Lens B = Notes/workbench-grid contrast + preserve list; Lens C = atelier_panel internal tabs + author_id enumeration + legacy React status + test coverage. All findings carry file:line evidence in the product worktree.",
+  "product_worktree": "../wtc-ckc-posekit-overhaul",
+  "product_branch": "feat/WP-CKC-posekit-overhaul",
+  "product_head_at_audit": "7c0c31cf",
+  "lenses": [
+    { "lens": "A", "focus": "Atelier mount mechanism (module vs pane)", "verdict": "HYBRID" },
+    { "lens": "B", "focus": "Notes surface + workbench-grid contrast + preserve list", "verdict": "grid dormant; module path = single full-window pane" },
+    { "lens": "C", "focus": "atelier_panel internal tab model + author_ids + legacy React + tests", "verdict": "CKC/PoseKit/Ingest are internal tabs of one pane; React dead" }
+  ],
+  "ac1_current_atelier_mount": {
+    "verdict": "HYBRID — module-REACH via a top-rail button, but PANE-RENDER with pane chrome.",
+    "path": "Top-rail module button module-ckc (label 'Atelier') -> HandshakeApp::set_module(ModuleId::Ckc) (app.rs:4569-4601) -> retabs the ACTIVE pane to the module tab set and activates default_tab -> central panel renders that one pane through PaneFactory with PaneHeader + TabBar chrome (app.rs:7307-7456).",
+    "evidence": {
+      "module_defs": "module_switcher.rs:52-60 (ModuleId enum: Main, Ckc, Ingest, Stage, Lab, Studio); no Module trait / render registry — a module is only a ModuleDefinition{id,label,data_id,tabs,default_tab} (module_switcher.rs:129-143).",
+      "atelier_module": "module_switcher.rs:166-184 ModuleId::Ckc label 'Atelier' data_id 'module-ckc' tabs [PaneType::AtelierEditor, PaneType::KernelDcc, ...] default AtelierEditor; module_switcher.rs:185-196 ModuleId::Ingest ALSO label 'Atelier' default AtelierEditor.",
+      "set_module": "app.rs:4569-4601 rebuilds only the active pane's TabBarState via module_tab_list; does not swap a surface.",
+      "pane_render": "PaneType::AtelierEditor defined pane_registry.rs:41; instantiated app.rs:946-955 as AtelierPanelPaneMount; rendered via PaneFactory (atelier_panel.rs:10544-10553).",
+      "chrome": "Central panel renders ONE pane full-width WITH chrome: PaneHeader::show (app.rs:7409-7416) + TabBar::show (app.rs:7435) + factory.render (app.rs:7450). Comment app.rs:7307-7309 confirms the older 4-pane split is retained 'as data/state for compatibility' and is not the visible model.",
+      "module_switcher_is_thin_driver": "module_switcher.rs:5-9, 282-286 — switcher does NOT own pane/tab state; AtelierEditor is a first-class pane reachable without the switcher (open_content_on_active_pane app.rs:4649-4651; quick_switcher.rs:182)."
+    }
+  },
+  "ac2_notes_and_workbench_grid": {
+    "notes_mount": "There is NO dedicated top-level Notes module. Notes surfaces are PaneType tabs of the MAIN module: LoomWikiPage (rich editor -> RichEditorPaneMount app.rs:900), LoomDailyJournal (app.rs:1019-1024), LoomBlock (outgoing-links app.rs:976-983). MAIN tab set: module_switcher.rs:150-165.",
+    "workbench_grid_status": "DORMANT. SplitLayoutWidget (the 2x2 pane grid with per-cell TabBar+PaneHeader, split_layout.rs:270-324) has NO live call site in app.rs; only its SplitWeights data is imported/persisted (app.rs:37). Today EVERY module renders as a single full-window pane in CentralPanel (app.rs:7307-7456).",
+    "grid_forbidden_in_atelier": "manual_content_editors.rs:274 ('opens atelier-main-panel, not a four-window grid'); :288-291 (seeing pane-a..pane-d / SplitLayoutWidget / a four-window grid / a foreground popout inside Atelier is a 'layout regression').",
+    "mechanism_map": {
+      "full_window_module": "module_switcher.rs (ModuleId + MODULE_DEFINITIONS + ModuleSwitcher) driving set_module -> single-pane CentralPanel render (app.rs:7307-7456).",
+      "compartmentalized_pane_grid_to_preserve": "split_layout.rs::SplitLayoutWidget (2x2 + dividers) over pane_registry.rs (PaneRegistry/PaneType/PaneFactory), with tab_bar.rs, pane_header.rs, popout_window.rs, layout_persistence.rs, rails.rs. Currently kept as data/state only; reserving it to Notes is WP-KERNEL-012 work."
+    }
+  },
+  "ac3_operator_observation_verdict": {
+    "operator_claim": "Atelier is still wired as a compartmentalized window inside the main window like a note or terminal pane; current work did not fully address making Atelier a full windowed module experience.",
+    "verdict": "CONFIRMED, with a precision correction.",
+    "confirmed": "Atelier is rendered through the same PaneType/PaneFactory + PaneHeader + TabBar machinery that notes/terminals use, so it wears note/terminal-style pane chrome even though it fills the full central panel. Additionally there are TWO stacked tab bars when Atelier is active (see ac4), which reads as incoherent.",
+    "correction": "Atelier is NOT currently showing a 2x2/four-pane grid — the grid (SplitLayoutWidget) is dormant and rendered nowhere. What makes Atelier read as 'compartmentalized' is the pane CHROME (PaneHeader + outer pane TabBar), not a visible split. The operator's mental model of 'still shows the grid' is not literally what the code does; the real defect is chrome + double tab bar.",
+    "evidence_basis": "ac1 + ac2 + ac4 file:line."
+  },
+  "ac4_tab_model": {
+    "finding": "CKC / PoseKit / Ingest are INTERNAL tabs of ONE pane (PaneType::AtelierEditor), not full-size sub-modules and not separate panes. But a SECOND, outer pane-level TabBar also exists, producing a double-tab-bar.",
+    "internal_atelier_tabs": {
+      "enum": "AtelierPanelTab { CastkitCodex, Posekit, Ingest } (atelier_panel.rs:259-292); default CastkitCodex (atelier_panel.rs:2444).",
+      "render": "show_inner (atelier_panel.rs:4773) -> heading -> show_tab_strip (4789-4827, three egui selectable buttons in a Role::TabList) -> separator -> show_content_region (4829-4848, single match dispatch CastkitCodex->show_ckc / Posekit->show_posekit / Ingest->show_ingest; only the active tab is built each frame).",
+      "single_content_region": "no split; tests assert pane-b/pane-c/pane-d absent (test_ckc_embed.rs:702-707)."
+    },
+    "outer_pane_tab_bar": {
+      "finding": "ModuleId::Ckc tab set = [PaneType::AtelierEditor, PaneType::KernelDcc, ...] (module_switcher.rs:166-184), so the pane's TabBar (app.rs:7435) shows sibling tabs like [Atelier | Kernel DCC | ...] in addition to the atelier internal [Castkit Codex | Posekit | Ingest] strip.",
+      "result": "When Atelier is active the operator sees: module rail + PaneHeader + outer pane TabBar + inner atelier tab strip. This stacked chrome + double tab bar is the incoherence."
+    },
+    "module_redundancy": "module-ckc AND module-ingest are BOTH top-rail buttons labelled 'Atelier' that open the SAME PaneType::AtelierEditor (module_switcher.rs:166-196); Ingest is documented as 'an internal sibling tab of Castkit Codex and Posekit' (module_switcher.rs:146-148). Two 'Atelier' rail buttons is redundant/confusing given the single Atelier surface."
+  },
+  "ac5_target_model": {
+    "atelier": "A clean FULL-WINDOW MODULE experience. When Atelier is active it owns the full work area WITHOUT the generic pane chrome (no PaneHeader, no outer pane TabBar) so it does not read as a note/terminal pane.",
+    "sub_modules": "CKC, INGEST, PoseKit are full-size tabbed sub-modules INSIDE Atelier. The atelier internal tab strip [Castkit Codex | Posekit | Ingest] becomes THE single tab bar; selecting a tab fills the Atelier module area.",
+    "single_tab_bar": "Exactly one tab bar in Atelier (the CKC/INGEST/PoseKit sub-module strip). The outer pane TabBar and PaneHeader are suppressed for the Atelier module surface.",
+    "notes_reservation": "The compartmentalized VS-Code-style pattern (PaneHeader + pane TabBar, and later the re-activated SplitLayoutWidget 2x2 grid) is PRESERVED but reserved to the Notes Module (WP-KERNEL-012). This WP must not regress those files and must not build the Notes grid (that is KERNEL-012 work; this WP later merges into KERNEL-012)."
+  },
+  "ac6_change_plan_parts": [
+    {
+      "part": "P1",
+      "title": "Full-window module render seam / chrome suppression for Atelier",
+      "scope": "MT-006_REMEDIATION",
+      "summary": "In the central-panel render (app.rs:7307-7456), when the active module resolves to a full-window module surface (Atelier = ModuleId::Ckc/Ingest -> PaneType::AtelierEditor), suppress PaneHeader (app.rs:7409-7416) and the outer pane TabBar (app.rs:7435) and render atelier_panel edge-to-edge. Introduce a minimal, explicit 'full-window module surface' marker (module- or pane-level flag) so Notes/other panes keep chrome. Do NOT touch the dormant SplitLayoutWidget grid.",
+      "files": ["src/frontend/handshake_native/src/app.rs", "src/frontend/handshake_native/src/module_switcher.rs", "src/frontend/handshake_native/src/atelier_panel.rs"],
+      "argus_proof": "Live-shell (set_module(ModuleId::Ckc)) AccessKit snapshot shows atelier-main-panel + atelier-tab-list full-window with NO pane-header/outer-tab-bar chrome; pane-b/c/d still absent."
+    },
+    {
+      "part": "P2",
+      "title": "Single coherent CKC/INGEST/PoseKit sub-module tab bar",
+      "scope": "MT-006_REMEDIATION",
+      "summary": "Ensure the ONLY tab bar in Atelier is the internal [Castkit Codex | Posekit | Ingest] strip (atelier_panel.rs:4789-4827). Reconcile the module tab set so KernelDcc and other PaneTypes are not stacked as sibling pane tabs inside the Atelier module surface. Decide (pre-impl review) whether KernelDcc/graph belongs inside Atelier as a sub-module tab or is a separate module — see open_design_decisions.",
+      "files": ["src/frontend/handshake_native/src/module_switcher.rs", "src/frontend/handshake_native/src/atelier_panel.rs", "src/frontend/handshake_native/src/app.rs"],
+      "argus_proof": "Only atelier-tab-ckc/-posekit/-ingest present as the tab surface; clicking each swaps atelier-content-*; no duplicate outer tab strip."
+    },
+    {
+      "part": "P3",
+      "title": "Reconcile module-ckc / module-ingest into one Atelier module",
+      "scope": "MT-006_REMEDIATION",
+      "summary": "module-ckc and module-ingest both open the same Atelier surface; collapse to a single 'Atelier' rail entry (default CKC tab) OR make module-ingest a deep-link that opens Atelier on the Ingest sub-module tab, so there is one coherent Atelier module. Preserve stable author_ids module-ckc and module-ingest per the preserve list; test_module_switcher.rs asserts both exist.",
+      "files": ["src/frontend/handshake_native/src/module_switcher.rs", "src/frontend/handshake_native/src/app.rs"],
+      "argus_proof": "Rail shows a single Atelier entry (or deep-linked Ingest opens Atelier@Ingest); module-ckc/module-ingest ids preserved."
+    },
+    {
+      "part": "P4",
+      "title": "Operator-facing dropdown menu-bar item for Atelier (WP requirement)",
+      "scope": "NEW_MT_OUT_OF_MT006_SCOPE",
+      "summary": "The goal requires an operator-facing dropdown menu-bar item for this WP. This is a distinct operator surface (the shell menu bar), not the module panel MT-006 promotes. Create a new MT to add an Atelier menu-bar dropdown (open Atelier / jump to CKC / PoseKit / Ingest tabs) with stable author_ids and Argus proof.",
+      "files_to_locate": ["shell menu bar / title bar in src/frontend/handshake_native/src/app.rs (TopBottomPanel::top handshake_title_bar) and any menu module"],
+      "proposed_mt": "MT-041"
+    },
+    {
+      "part": "P5",
+      "title": "Settings/options features for the WP (WP requirement)",
+      "scope": "NEW_MT_OUT_OF_MT006_SCOPE",
+      "summary": "The goal requires options/settings to carry the correct features for this WP. Backend atelier settings exist (src/backend/handshake_core/src/atelier/settings.rs). Create a new MT to surface/verify Atelier + CKC + PoseKit + Ingest settings in the operator settings/options surface with runtime proof.",
+      "files_to_locate": ["src/backend/handshake_core/src/atelier/settings.rs", "native settings/options surface in handshake_native"],
+      "proposed_mt": "MT-042"
+    }
+  ],
+  "ac7_notes_non_regression": {
+    "statement": "The change plan MUST NOT alter or regress the Notes/WP-KERNEL-012 pane/workbench model. Atelier's full-window module render must be an ADDITIVE branch (chrome-suppressed path) that leaves the PaneHeader/TabBar/SplitLayoutWidget machinery intact for panes and future Notes grid use.",
+    "preserve_files": ["pane_registry.rs", "split_layout.rs", "tab_bar.rs", "pane_header.rs", "popout_window.rs", "layout_persistence.rs", "rails.rs", "context_menu_surfaces.rs", "editor_pane_factories.rs", "app.rs pane wiring (module_target_pane:4546, CentralPanel:7354, render_popout_body:7688, mount installers:869-984)"],
+    "kernel_012_boundary": "Re-activating SplitLayoutWidget and scoping the grid to Notes is WP-KERNEL-012 work and is OUT OF SCOPE for this WP."
+  },
+  "ac8_disposition": {
+    "directive": "Operator directive (2026-07-01): default = MT-006 remediation-in-parts; new MT only for findings truly out of MT-006 scope.",
+    "mt006_remediation_parts": ["P1", "P2", "P3"],
+    "new_mts": [
+      { "mt": "MT-041", "title": "Atelier operator menu-bar dropdown item", "reason_out_of_scope": "MT-006 scope is the Atelier filling panel + internal tabs; the shell menu bar is a separate operator surface." },
+      { "mt": "MT-042", "title": "Atelier/CKC/PoseKit/Ingest settings-options features", "reason_out_of_scope": "MT-006 scope is the panel/tab structure; the settings/options surface is a separate surface." }
+    ],
+    "hbr_obligations_for_implementation": ["HBR-VIS-001/002/003/005 (Argus)", "HBR-QUIET-001/002 (headless, no focus/input steal)", "HBR-MAN-001/004 (in-product UserManual same change)", "HBR-SWARM-003/004 (parallel-agent addressability of module + tabs)", "HBR-INT-009 (three-tier diagnostics posture; internal_diagnostics/Palmistry DEFERRED-with-reason if absent in this worktree)"]
+  },
+  "preserve_stable_ids": {
+    "note": "Full enumeration lives in code as author_id constants; preserve all of them. Structural ids below; full control set at atelier_panel.rs:45-229 plus dynamic row builders atelier_panel.rs:231-4032.",
+    "module_rail": ["module-main (module_switcher.rs:153)", "module-ckc (:169)", "module-ingest (:188)", "module-stage (:200)", "module-lab (:213)", "module-studio (:227)"],
+    "atelier_structure": ["atelier-main-panel (atelier_panel.rs:45)", "atelier-tab-list (:46)", "atelier-tab-ckc (:47)", "atelier-tab-posekit (:48)", "atelier-tab-ingest (:49)", "atelier-content-ckc (:50)", "atelier-content-posekit (:51)", "atelier-content-ingest (:52)"],
+    "control_sets": ["CKC controls atelier_panel.rs:53-158", "Posekit controls :159-199", "Ingest controls :200-229", "dynamic row builders :231-4032 (atelier-ingest-item-{id}, atelier-ckc-character-{id}, atelier-ckc-album-{id}, atelier-ckc-media-{col}-{asset}, atelier-ckc-search-result-{ref}, story/moodboard rows, etc.)"],
+    "adjacent": ["atelier-side-panel + atelier-item-{id} in atelier_side_panel.rs", "stage-pane in stage_pane.rs"]
+  },
+  "legacy_react_status": {
+    "verdict": "DEAD as the shipped Atelier surface; retained only as a port spec / separate web codebase.",
+    "evidence": "handshake_native is a standalone egui/eframe binary (main.rs:394 eframe::run_native); it never loads app/dist. React Atelier lives at app/src/App.tsx + app/src/components/AtelierPanel.tsx (older Overview/Intake/Command Corpus/Stealth Windows sections, no CKC/PoseKit/Ingest). Rust references App.tsx only as a porting mirror (module_switcher.rs:17,48-51,241).",
+    "implication": "This WP works the native Rust surfaces only. Legacy React containment/removal is separate (packet in_scope item) and NOT required for the module-vs-pane fix."
+  },
+  "test_coverage": {
+    "test_atelier_panel.rs": "Drives AtelierPanel pane widget directly. atelier_main_panel_exposes_ckc_posekit_ingest_tabs (:1416); atelier_internal_tabs_switch_visible_content_regions (:3935); posekit_and_ingest_controls_are_model_addressable (:3962); plus posekit split-view/marker/framing and ingest contact-sheet/facial proofs.",
+    "test_ckc_embed.rs": "MODULE-level live shell. live_shell() builds real HandshakeApp + set_module(ModuleId::Ckc) (:601). ac6_atelier_side_panel_mounted_in_live_shell (:671) asserts atelier ids present and pane-b/c/d absent (:702-707). ac6_posekit_and_ingest_tabs_switch_in_live_shell (:713) via MCP click steering.",
+    "test_module_switcher.rs": "Module rail. live_shell_has_six_module_buttons_with_stable_ids (:239); module-ckc keeps id, label 'Atelier' (:260-264); set_module_updates_active_pane_tabs (:160).",
+    "impact_on_remediation": "P1/P2/P3 must keep these green (or update them deliberately to assert the new chrome-suppressed single-tab-bar model). test_ckc_embed live-shell is the primary MODULE-mount runtime proof; test_atelier_panel is the pane-widget proof."
+  },
+  "open_design_decisions": [
+    "D1: Does KernelDcc (graph/DCC) belong INSIDE Atelier as a sub-module tab, or is it a separate module? Current ModuleId::Ckc lists it as a sibling pane tab. Resolve in P2 pre-implementation adversarial review.",
+    "D2: P3 — collapse module-ckc/module-ingest to one rail entry vs keep module-ingest as an Atelier@Ingest deep-link. Both preserve the stable ids; pick the one that best matches operator intent of one coherent Atelier module.",
+    "D3: The 'full-window module surface' marker (P1) — module-level flag in ModuleDefinition vs pane-level render mode. Choose the minimal change that keeps Notes/pane chrome intact."
+  ]
+}

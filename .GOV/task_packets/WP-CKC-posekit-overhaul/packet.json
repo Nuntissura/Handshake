@@ -73,8 +73,8 @@
       "state_recovery": "Subagents must write results back to MT contracts or WP communications, not to chat-only memory."
     },
     "last_state_update": {
-      "updated_at_utc": "2026-07-01T18:01:26.824Z",
-      "summary": "MT-039 remains ready-for-validation. MT-040 created as a PENDING read-only inspection MT (operator request) to audit whether Atelier is mounted as a full-window module vs a workbench PaneType (compartmentalized sub-window like notes/terminals) and specify CKC/PoseKit/Ingest full-size sub-module rewiring; it audits MT-004/MT-006 outputs. MT-040 is not activated; no active MT is selected. Awaiting operator session goal."
+      "updated_at_utc": "2026-07-01T18:26:04.591Z",
+      "summary": "MT-040 audit COMPLETE (MT-040-atelier-window-audit.json). Verdict HYBRID: Atelier is module-reach but pane-render with PaneHeader + outer pane TabBar chrome plus an inner CKC/PoseKit/Ingest tab strip (double tab bar); 2x2 SplitLayoutWidget grid is dormant (Notes/WP-KERNEL-012 scope, preserve/do-not-regress); legacy React Atelier dead. Disposition: P1 full-window module render/chrome-suppression + P2 single CKC/INGEST/PoseKit tab bar + P3 module-ckc/ingest reconcile -> MT-006 remediation-in-parts; P4 operator menu-bar -> new MT-041; P5 settings/options -> new MT-042. Argus is the mandatory visual driver for all GUI surfaces (expand Argus on the go if it cannot see/steer a surface). Next: begin MT-006 remediation. MT-039 still ready-for-validation."
     }
   },
   "source_control": {
@@ -109,6 +109,24 @@
     "risk_tier": "HIGH",
     "user_signature": "operator-live-2026-06-28",
     "claim_notes": "Operator requested setup and future ad hoc MT execution in a hotfix copy of the active native editors worktree."
+  },
+  "operator_standing_directives": {
+    "recorded_at_utc": "2026-07-01T18:26:04.591Z",
+    "source": "OPERATOR /goal + live directives 2026-07-01",
+    "directives": [
+      "Finish the WP: implement every MT (all PENDING MTs -> READY_FOR_VALIDATION); KERNEL_BUILDER does not self-validate.",
+      "Use parallel sub-agents; adversarially review every MT BEFORE and AFTER implementation through different lenses to harden it; address concerns/risks/gaps; find bridges/links to other Handshake pillars.",
+      "Product-code sub-agents MUST read and follow CODER_PROTOCOL; read-only reviewers need not.",
+      "ARGUS IS THE VISUAL DRIVER for any model working inside/with Handshake. Inspect every panel, overview window, and menu bar via Argus. If Argus cannot see/identify/steer/re-observe a surface, EXPANDING/FIXING Argus is a MANDATORY same-MT/WP scope increase (fix and expand Argus on the go). Per ARGUS-009/010/011 + HBR-VIS-005 + CX-503D1.",
+      "Update the in-product internal UserManual to cover this WP so future models/operators can use it (HBR-MAN-001/004).",
+      "Add an operator-facing dropdown menu-bar item for this WP (-> MT-041).",
+      "Ensure options/settings carries the correct features for this WP (-> MT-042).",
+      "No scaffolding, no vibecoding: everything must work at runtime (Spec-Realism Gate).",
+      "Unexpected gaps: address in the same MT or defer to a future MT in this WP so nothing is forgotten.",
+      "Artifacts root: ../Handshake_Artifacts (D:); scope cargo target dirs there; clean after use; PC under heavy parallel load -> minimal/sequential builds; never close processes not started by this session; close sub-agents when idle.",
+      "Open Handshake internal PostgreSQL when tests/proofs require it.",
+      "Repo governance minimal except state recovery + MT status."
+    ]
   },
   "build_order": {
     "domain": "CROSS_BOUNDARY",
