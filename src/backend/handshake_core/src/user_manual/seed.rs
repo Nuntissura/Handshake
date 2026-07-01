@@ -24,17 +24,17 @@
 
 use serde_json::json;
 
-use super::USER_MANUAL_VERSION;
 use super::migration_plan::naming_migration_plan;
-use super::registry::{SurfaceGroup, user_manual_access_points, wp009_surface_registry};
+use super::registry::{user_manual_access_points, wp009_surface_registry, SurfaceGroup};
 use super::store::{
-    LegacyAliasRow, NewManualAnchor, NewManualSection, NewUserManualPage, UserManualFeatureEntry,
-    UserManualStore, UserManualToolEntry, sha256_hex,
+    sha256_hex, LegacyAliasRow, NewManualAnchor, NewManualSection, NewUserManualPage,
+    UserManualFeatureEntry, UserManualStore, UserManualToolEntry,
 };
+use super::USER_MANUAL_VERSION;
 use crate::kernel::model_manual::kernel002_no_context_model_manual;
-use crate::model_manual::{CommandStatus, model_manual};
-use crate::storage::StorageResult;
+use crate::model_manual::{model_manual, CommandStatus};
 use crate::storage::postgres::PostgresDatabase;
+use crate::storage::StorageResult;
 
 /// Everything the seeder writes.
 pub struct SeedCorpus {
@@ -704,18 +704,16 @@ fn surface_page(
             "navigation",
             "Routes",
             &group_routes_md(group),
-            json!(
-                wp009_surface_registry()
-                    .iter()
-                    .filter(|s| s.group == group)
-                    .map(|s| json!({
-                        "surface_id": s.surface_id,
-                        "method": s.method,
-                        "route": s.route,
-                        "summary": s.summary,
-                    }))
-                    .collect::<Vec<_>>()
-            ),
+            json!(wp009_surface_registry()
+                .iter()
+                .filter(|s| s.group == group)
+                .map(|s| json!({
+                    "surface_id": s.surface_id,
+                    "method": s.method,
+                    "route": s.route,
+                    "summary": s.summary,
+                }))
+                .collect::<Vec<_>>()),
         ),
     ];
     sections.extend(extra_sections);
@@ -747,18 +745,16 @@ fn page_knowledge_index_surface() -> NewUserManualPage {
                 "navigation",
                 "Code navigation routes",
                 &group_routes_md(SurfaceGroup::CodeNavigation),
-                json!(
-                    wp009_surface_registry()
-                        .iter()
-                        .filter(|s| s.group == SurfaceGroup::CodeNavigation)
-                        .map(|s| json!({
-                            "surface_id": s.surface_id,
-                            "method": s.method,
-                            "route": s.route,
-                            "summary": s.summary,
-                        }))
-                        .collect::<Vec<_>>()
-                ),
+                json!(wp009_surface_registry()
+                    .iter()
+                    .filter(|s| s.group == SurfaceGroup::CodeNavigation)
+                    .map(|s| json!({
+                        "surface_id": s.surface_id,
+                        "method": s.method,
+                        "route": s.route,
+                        "summary": s.summary,
+                    }))
+                    .collect::<Vec<_>>()),
             ),
             section(
                 "inputs_outputs",
@@ -1431,18 +1427,17 @@ fn page_legacy_bridge() -> NewUserManualPage {
                  - **P2 (frontend lane)**: rename Tauri commands \
                  (`model_manual_get` -> canonical `/usermanual` routes), app help surface.\n\
                  - **P3 (later WP)**: retire the static legacy module files.",
-                json!(
-                    plan.rows
-                        .iter()
-                        .map(|r| json!({
-                            "row_id": r.row_id,
-                            "legacy_id": r.legacy_id,
-                            "canonical_ref": r.canonical_ref,
-                            "phase": r.phase.as_str(),
-                            "shim_state": r.shim_state.as_str(),
-                        }))
-                        .collect::<Vec<_>>()
-                ),
+                json!(plan
+                    .rows
+                    .iter()
+                    .map(|r| json!({
+                        "row_id": r.row_id,
+                        "legacy_id": r.legacy_id,
+                        "canonical_ref": r.canonical_ref,
+                        "phase": r.phase.as_str(),
+                        "shim_state": r.shim_state.as_str(),
+                    }))
+                    .collect::<Vec<_>>()),
             ),
         ],
         anchors: vec![
@@ -1561,11 +1556,20 @@ fn quickstart_pages() -> Vec<NewUserManualPage> {
              identity crop artifacts, with provenance by reference and no raw secrets.\n\
              6. For ComfyUI, record workflow receipts, replay history, SaveImage fallback \
              reasons, and retryable output-registration failures so saved outputs are not lost.\n\
-             7. For visual/behavioral polish, use this native state map: source image strip, \
+             7. For Facial-backed LoRA mining ingest, run \
+             `POST /atelier/intake/batches/:batch_id/facial/analyze` after the intake batch has \
+             source items. Outputs are read-only analysis artifacts: rows include \
+             `quality_source_family`, `quality_feature_id`, `quality_metrics`, `ofiq_quality`, \
+             `dedupe_record`, and exact content-hash duplicate groups; summary \
+             `native_feature_outputs` records `facet`, `python-ofiq`, `imagededup`, and \
+             unavailable `ediffiqa` features. Missing content hashes stay singletons. Do not \
+             treat metadata-only quality as OFIQ/eDifFIQA model parity or as \
+             `handshake_native_proxy_v1`.\n\
+             8. For visual/behavioral polish, use this native state map: source image strip, \
              open rig tabs, OpenPose sidecar strip, identity crop review, Comfy history/replay, \
              and deferred-feature list. Compare screens to the original CKC app for behavior, \
              but keep Handshake as the implementation authority.\n\
-             8. Before changing UI behavior, read the relevant MT contract and the \
+             9. Before changing UI behavior, read the relevant MT contract and the \
              Pose/Comfy deferred features. Do not fake detector execution, calibration, \
              route wiring, or external bridge authority just to make a screen look complete.",
             vec![
@@ -1573,6 +1577,7 @@ fn quickstart_pages() -> Vec<NewUserManualPage> {
                 page_link("quickstart-validation"),
                 page_link("state-recovery-guide"),
                 route_anchor("POST", "/atelier/image-import/url"),
+                route_anchor("POST", "/atelier/intake/batches/:batch_id/facial/analyze"),
             ],
         ),
         quickstart(

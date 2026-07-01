@@ -37,6 +37,37 @@ pub struct FacialNativeRunItem {
     pub content_hash: Option<String>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct FacialNativeImageContext {
+    pub item_id: String,
+    pub source_ref: String,
+    pub file_name: String,
+    pub lane: String,
+    pub byte_len: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content_hash: Option<String>,
+    pub decode_status: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_width: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_height: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub megapixels: Option<f64>,
+}
+
+impl FacialNativeImageContext {
+    pub fn has_content_hash(&self) -> bool {
+        self.content_hash
+            .as_deref()
+            .map(str::trim)
+            .is_some_and(|value| !value.is_empty())
+    }
+
+    pub fn is_decoded(&self) -> bool {
+        self.decode_status == "decoded"
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FacialNativeRunRequest {
     pub batch_id: String,

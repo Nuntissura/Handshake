@@ -6,12 +6,30 @@ pub fn facial_feature_registry() -> Vec<FacialNativeFeature> {
             feature_id: "facet:quality_pass".to_owned(),
             capability: "quality".to_owned(),
             source_family: "facet".to_owned(),
-            native_field: "quality_score, quality_band, headshot_candidate".to_owned(),
+            native_field:
+                "quality_score, quality_band, headshot_candidate, quality_metrics, limitations"
+                    .to_owned(),
             artifact_contract: "hsk.atelier.facial_ingest_analysis@1.rows[]".to_owned(),
-            status: "native_proxy_v1".to_owned(),
-            native_route: "atelier.facial.quality.proxy_v1".to_owned(),
+            status: "native_quality_metadata_only_v1".to_owned(),
+            native_route: "atelier.facial.quality.facet_metadata_only_v1".to_owned(),
             provenance_note:
-                "Handshake computes deterministic image/ref quality proxies until facet thresholds are ported."
+                "Handshake emits deterministic metadata-only fields mapped to the Facial facet quality_pass contract; this is not pixel-analysis parity."
+                    .to_owned(),
+            required_config_keys: vec![],
+            unavailable_reason: None,
+        },
+        FacialNativeFeature {
+            feature_id: "python-ofiq:setup_data".to_owned(),
+            capability: "quality".to_owned(),
+            source_family: "python-ofiq".to_owned(),
+            native_field: "quality_dimensions, thresholds, schema, missing_source_dimensions"
+                .to_owned(),
+            artifact_contract: "hsk.atelier.facial_ingest_analysis@1.summary.native_feature_outputs"
+                .to_owned(),
+            status: "native_quality_metadata_only_v1".to_owned(),
+            native_route: "atelier.facial.quality.ofiq_metadata_only_setup_v1".to_owned(),
+            provenance_note:
+                "Handshake advertises the deterministic metadata-only dimension schema used by scalar/vector quality; source-app pixel dimensions remain listed as missing."
                     .to_owned(),
             required_config_keys: vec![],
             unavailable_reason: None,
@@ -20,40 +38,76 @@ pub fn facial_feature_registry() -> Vec<FacialNativeFeature> {
             feature_id: "python-ofiq:scalar_quality".to_owned(),
             capability: "quality".to_owned(),
             source_family: "python-ofiq".to_owned(),
-            native_field: "quality_score, quality_source".to_owned(),
-            artifact_contract: "hsk.atelier.facial_ingest_analysis@1.summary.quality_source"
+            native_field: "ofiq_scalar_quality, ofiq_dimensions".to_owned(),
+            artifact_contract: "hsk.atelier.facial_ingest_analysis@1.rows[].ofiq_quality"
                 .to_owned(),
-            status: "deferred_model_backed".to_owned(),
-            native_route: "atelier.facial.quality.ofiq_unavailable".to_owned(),
+            status: "native_quality_metadata_only_v1".to_owned(),
+            native_route: "atelier.facial.quality.ofiq_metadata_only_scalar_v1".to_owned(),
             provenance_note:
-                "OFIQ scalar/vector quality is not claimed until a native model path exists."
+                "Handshake emits deterministic python-ofiq-compatible metadata-only scalar fields; no Python runtime or OFIQ model is used."
                     .to_owned(),
-            required_config_keys: vec!["HANDSHAKE_FACIAL_OFIQ_MODEL".to_owned()],
-            unavailable_reason: Some("ofiq_model_not_configured".to_owned()),
+            required_config_keys: vec![],
+            unavailable_reason: None,
         },
         FacialNativeFeature {
-            feature_id: "ediffiqa:quality_score".to_owned(),
+            feature_id: "python-ofiq:vector_quality".to_owned(),
+            capability: "quality".to_owned(),
+            source_family: "python-ofiq".to_owned(),
+            native_field:
+                "ofiq_dimensions, quality_gap_vs_dimension_mean, missing_source_dimensions"
+                    .to_owned(),
+            artifact_contract: "hsk.atelier.facial_ingest_analysis@1.rows[].ofiq_quality"
+                .to_owned(),
+            status: "native_quality_metadata_only_v1".to_owned(),
+            native_route: "atelier.facial.quality.ofiq_metadata_only_vector_v1".to_owned(),
+            provenance_note:
+                "Handshake emits deterministic python-ofiq-compatible metadata-only vector fields; model-backed OFIQ is not claimed."
+                    .to_owned(),
+            required_config_keys: vec![],
+            unavailable_reason: None,
+        },
+        FacialNativeFeature {
+            feature_id: "ediffiqa:batch_inference".to_owned(),
             capability: "quality".to_owned(),
             source_family: "ediffiqa".to_owned(),
-            native_field: "quality_score, quality_band".to_owned(),
-            artifact_contract: "hsk.atelier.facial_ingest_analysis@1.rows[]".to_owned(),
+            native_field: "model_t, model_m, model_s, model_l unavailable records".to_owned(),
+            artifact_contract: "hsk.atelier.facial_ingest_analysis@1.summary.native_feature_outputs"
+                .to_owned(),
             status: "deferred_model_backed".to_owned(),
             native_route: "atelier.facial.quality.ediffiqa_unavailable".to_owned(),
             provenance_note:
-                "eDifFIQA quality is mapped for future model-backed implementation.".to_owned(),
-            required_config_keys: vec!["HANDSHAKE_FACIAL_EDIFFIQA_MODEL".to_owned()],
+                "eDifFIQA model variants are recorded as unavailable until native model assets are configured."
+                    .to_owned(),
+            required_config_keys: vec!["HANDSHAKE_FACIAL_EDIFFIQA_BATCH_MODELS".to_owned()],
             unavailable_reason: Some("ediffiqa_model_not_configured".to_owned()),
         },
         FacialNativeFeature {
             feature_id: "imagededup:hash_duplicates".to_owned(),
             capability: "dedupe".to_owned(),
             source_family: "imagededup".to_owned(),
-            native_field: "duplicate_group_id, duplicate_group_size, duplicate_role".to_owned(),
-            artifact_contract: "hsk.atelier.facial_ingest_analysis@1.rows[]".to_owned(),
+            native_field: "duplicate_group_id, duplicate_group_size, duplicate_role, dedupe_record"
+                .to_owned(),
+            artifact_contract: "hsk.atelier.facial_ingest_analysis@1.rows[].dedupe_record"
+                .to_owned(),
             status: "native_content_hash_exact".to_owned(),
             native_route: "atelier.facial.dedupe.content_hash_exact_v1".to_owned(),
             provenance_note:
                 "Handshake groups exact content_hash duplicates and leaves missing hashes as singletons."
+                    .to_owned(),
+            required_config_keys: vec![],
+            unavailable_reason: None,
+        },
+        FacialNativeFeature {
+            feature_id: "imagededup:remove_candidates".to_owned(),
+            capability: "dedupe".to_owned(),
+            source_family: "imagededup".to_owned(),
+            native_field: "remove_list review recommendations, keeper rationale".to_owned(),
+            artifact_contract: "hsk.atelier.facial_ingest_analysis@1.summary.native_feature_outputs"
+                .to_owned(),
+            status: "native_review_recommendation_v1".to_owned(),
+            native_route: "atelier.facial.dedupe.remove_candidates_v1".to_owned(),
+            provenance_note:
+                "Handshake emits non-destructive remove-candidate review recommendations for exact content-hash duplicate groups."
                     .to_owned(),
             required_config_keys: vec![],
             unavailable_reason: None,
@@ -182,9 +236,11 @@ mod tests {
         for feature_id in [
             "facet:quality_pass",
             "python-ofiq:scalar_quality",
+            "python-ofiq:vector_quality",
             "deepface:detect",
             "imagededup:hash_duplicates",
-            "ediffiqa:quality_score",
+            "imagededup:remove_candidates",
+            "ediffiqa:batch_inference",
             "identity_gate:yunet_detection",
             "identity_gate:arcface_embedding",
             "identity_gate:pipnet_landmarks",

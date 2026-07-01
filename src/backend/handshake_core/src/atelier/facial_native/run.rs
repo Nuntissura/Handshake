@@ -184,6 +184,15 @@ mod tests {
             .contains(&"facet:quality_pass".to_owned()));
         assert!(report
             .selected_feature_ids
+            .contains(&"python-ofiq:setup_data".to_owned()));
+        assert!(report
+            .selected_feature_ids
+            .contains(&"python-ofiq:scalar_quality".to_owned()));
+        assert!(report
+            .selected_feature_ids
+            .contains(&"python-ofiq:vector_quality".to_owned()));
+        assert!(report
+            .selected_feature_ids
             .contains(&"identity_gate:arcface_embedding".to_owned()));
         assert_eq!(report.run_status, "native_partial_degraded");
         assert!(
@@ -194,8 +203,11 @@ mod tests {
                     == "identity_gate:arcface_embedding:arcface_model_not_configured")
         );
         assert_eq!(
-            report.status_counts.get("native_proxy_v1").copied(),
-            Some(1)
+            report
+                .status_counts
+                .get("native_quality_metadata_only_v1")
+                .copied(),
+            Some(4)
         );
     }
 
