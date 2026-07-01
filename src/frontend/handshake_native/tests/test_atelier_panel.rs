@@ -2,9 +2,12 @@
 
 use std::{
     io::{Read, Write},
-    net::TcpListener,
+    net::{SocketAddr, TcpListener},
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
 };
 
 use egui::accesskit;
@@ -619,6 +622,7 @@ fn facial_backend_analysis_response() -> serde_json::Value {
     })
 }
 
+#[derive(Debug, Clone)]
 struct CapturedHttpRequest {
     request_line: String,
     headers: std::collections::HashMap<String, String>,
@@ -720,6 +724,613 @@ fn read_http_request(stream: &mut std::net::TcpStream) -> CapturedHttpRequest {
         headers,
         body,
     }
+}
+
+const CKC_ROUNDTRIP_CHARACTER_ID: &str = "018f7848-1111-7000-9000-00000000c039";
+const CKC_ROUNDTRIP_SHEET_ID: &str = "018f7848-1111-7000-9000-000000005039";
+const CKC_ROUNDTRIP_ALBUM_ID: &str = "018f7848-1111-7000-9000-00000000a039";
+const CKC_ROUNDTRIP_ASSET_ID: &str = "018f7848-1111-7000-9000-00000000b039";
+const CKC_ROUNDTRIP_FOLDER_REF: &str = "atelier://folder/backend-proof-set";
+const CKC_ROUNDTRIP_SOURCE_URL_REF: &str = "https://example.invalid/reference/backend-proof-set";
+
+#[derive(Debug, Clone)]
+struct CkcRoundtripMemberState {
+    asset_id: String,
+    source_path_ref: Option<String>,
+    source_url_ref: Option<String>,
+    notes: Option<String>,
+    tags: Vec<String>,
+    review_status: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct CkcRoundtripAlbumState {
+    name: String,
+    notes: Option<String>,
+    tags: Vec<String>,
+    member: Option<CkcRoundtripMemberState>,
+}
+
+#[derive(Debug, Default)]
+struct CkcRoundtripMockState {
+    album: Option<CkcRoundtripAlbumState>,
+}
+
+struct CkcRoundtripServer {
+    base_url: String,
+    addr: SocketAddr,
+    stop: Arc<AtomicBool>,
+    captured: Arc<Mutex<Vec<CapturedHttpRequest>>>,
+    handle: Option<std::thread::JoinHandle<()>>,
+}
+
+impl CkcRoundtripServer {
+    fn captured_requests(&self) -> Vec<CapturedHttpRequest> {
+        self.captured
+            .lock()
+            .expect("CKC roundtrip captured request lock")
+            .clone()
+    }
+
+    fn captured_request_lines(&self) -> Vec<String> {
+        self.captured_requests()
+            .iter()
+            .map(|request| request.request_line.clone())
+            .collect()
+    }
+
+    fn shutdown(&mut self) -> std::thread::Result<()> {
+        self.stop.store(true, Ordering::SeqCst);
+        let _ = std::net::TcpStream::connect(self.addr);
+        if let Some(handle) = self.handle.take() {
+            handle.join()?;
+        }
+        Ok(())
+    }
+
+    fn stop(mut self) -> Vec<CapturedHttpRequest> {
+        self.shutdown()
+            .expect("CKC roundtrip mock server joins during explicit stop");
+        self.captured_requests()
+    }
+}
+
+impl Drop for CkcRoundtripServer {
+    fn drop(&mut self) {
+        let _ = self.shutdown();
+    }
+}
+
+fn spawn_ckc_roundtrip_server() -> CkcRoundtripServer {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind CKC roundtrip mock server");
+    let addr = listener.local_addr().expect("CKC mock local addr");
+    let base_url = format!("http://{addr}");
+    let stop = Arc::new(AtomicBool::new(false));
+    let captured = Arc::new(Mutex::new(Vec::new()));
+    let state = Arc::new(Mutex::new(CkcRoundtripMockState::default()));
+    let thread_stop = stop.clone();
+    let thread_captured = captured.clone();
+    let thread_state = state.clone();
+    let handle = std::thread::spawn(move || {
+        listener
+            .set_nonblocking(true)
+            .expect("set CKC mock server nonblocking");
+        while !thread_stop.load(Ordering::SeqCst) {
+            let Ok((mut stream, _)) = listener.accept() else {
+                std::thread::sleep(std::time::Duration::from_millis(10));
+                continue;
+            };
+            stream
+                .set_nonblocking(false)
+                .expect("set CKC mock accepted stream blocking");
+            stream
+                .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+                .expect("set CKC mock read timeout");
+            let captured_request = read_http_request(&mut stream);
+            if captured_request.request_line.trim().is_empty() {
+                continue;
+            }
+            let (status, body) = handle_ckc_roundtrip_request(&captured_request, &thread_state);
+            thread_captured
+                .lock()
+                .expect("CKC roundtrip captured request lock")
+                .push(captured_request);
+            write_json_response(&mut stream, status, body);
+        }
+    });
+    CkcRoundtripServer {
+        base_url,
+        addr,
+        stop,
+        captured,
+        handle: Some(handle),
+    }
+}
+
+fn write_json_response(stream: &mut std::net::TcpStream, status: u16, body: serde_json::Value) {
+    let reason = match status {
+        200 => "OK",
+        201 => "Created",
+        _ => "Not Found",
+    };
+    let body = body.to_string();
+    let response = format!(
+        "HTTP/1.1 {status} {reason}\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",
+        body.len()
+    );
+    stream
+        .write_all(response.as_bytes())
+        .expect("write CKC roundtrip response");
+    stream.flush().expect("flush CKC roundtrip response");
+}
+
+fn handle_ckc_roundtrip_request(
+    request: &CapturedHttpRequest,
+    state: &Arc<Mutex<CkcRoundtripMockState>>,
+) -> (u16, serde_json::Value) {
+    let mut parts = request.request_line.split_whitespace();
+    let method = parts.next().unwrap_or_default();
+    let target = parts.next().unwrap_or_default();
+    let path = target.split('?').next().unwrap_or(target);
+
+    match (method, path) {
+        ("GET", "/atelier/characters") => {
+            (200, serde_json::json!([ckc_roundtrip_character_json()]))
+        }
+        ("GET", path)
+            if path
+                == format!("/atelier/characters/{CKC_ROUNDTRIP_CHARACTER_ID}/sheet-versions") =>
+        {
+            (200, serde_json::json!([ckc_roundtrip_sheet_json()]))
+        }
+        ("GET", path)
+            if path
+                == format!("/atelier/sheet-versions/{CKC_ROUNDTRIP_SHEET_ID}/artifact-links") =>
+        {
+            (200, serde_json::json!([]))
+        }
+        ("GET", path)
+            if path == format!("/atelier/characters/{CKC_ROUNDTRIP_CHARACTER_ID}/media-albums") =>
+        {
+            let albums = state
+                .lock()
+                .expect("CKC mock state lock")
+                .album
+                .as_ref()
+                .map(|album| vec![ckc_roundtrip_album_json(album)])
+                .unwrap_or_default();
+            (200, serde_json::Value::Array(albums))
+        }
+        ("GET", path)
+            if path == format!("/atelier/characters/{CKC_ROUNDTRIP_CHARACTER_ID}/documents") =>
+        {
+            (200, serde_json::json!([]))
+        }
+        ("POST", path)
+            if path == format!("/atelier/characters/{CKC_ROUNDTRIP_CHARACTER_ID}/media-albums") =>
+        {
+            let body: serde_json::Value =
+                serde_json::from_str(&request.body).expect("CKC album create JSON body");
+            let tags = body
+                .get("tags")
+                .and_then(|value| value.as_array())
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(|item| item.as_str().map(ToOwned::to_owned))
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            let album = CkcRoundtripAlbumState {
+                name: body
+                    .get("name")
+                    .and_then(|value| value.as_str())
+                    .unwrap_or("Backend proof album")
+                    .to_owned(),
+                notes: body
+                    .get("notes")
+                    .and_then(|value| value.as_str())
+                    .map(ToOwned::to_owned),
+                tags,
+                member: None,
+            };
+            *state.lock().expect("CKC mock state lock") = CkcRoundtripMockState {
+                album: Some(album.clone()),
+            };
+            (201, ckc_roundtrip_album_json(&album))
+        }
+        ("POST", path)
+            if path == format!("/atelier/media-albums/{CKC_ROUNDTRIP_ALBUM_ID}/items") =>
+        {
+            let body: serde_json::Value =
+                serde_json::from_str(&request.body).expect("CKC album link JSON body");
+            let asset_id = body
+                .get("asset_ids")
+                .and_then(|value| value.as_array())
+                .and_then(|items| items.first())
+                .and_then(|value| value.as_str())
+                .unwrap_or(CKC_ROUNDTRIP_ASSET_ID)
+                .trim_start_matches("atelier://media/")
+                .to_owned();
+            let member = CkcRoundtripMemberState {
+                asset_id,
+                source_path_ref: body
+                    .get("source_path_ref")
+                    .and_then(|value| value.as_str())
+                    .map(ToOwned::to_owned),
+                source_url_ref: body
+                    .get("source_url_ref")
+                    .and_then(|value| value.as_str())
+                    .map(ToOwned::to_owned),
+                notes: Some("backend linked before save".to_owned()),
+                tags: vec!["linked".to_owned()],
+                review_status: Some("queued".to_owned()),
+            };
+            let mut state = state.lock().expect("CKC mock state lock");
+            let album = state
+                .album
+                .as_mut()
+                .expect("CKC mock album exists before link");
+            album.member = Some(member.clone());
+            (200, ckc_roundtrip_items_json(album, 1, 1))
+        }
+        ("POST", path)
+            if path == format!("/atelier/media-assets/{CKC_ROUNDTRIP_ASSET_ID}/notes-tags") =>
+        {
+            let body: serde_json::Value =
+                serde_json::from_str(&request.body).expect("CKC notes/tags JSON body");
+            let mut state = state.lock().expect("CKC mock state lock");
+            let album = state
+                .album
+                .as_mut()
+                .expect("CKC mock album exists before notes save");
+            let member = album
+                .member
+                .as_mut()
+                .expect("CKC mock member exists before notes save");
+            member.notes = body
+                .get("notes")
+                .and_then(|value| value.as_str())
+                .map(ToOwned::to_owned);
+            member.tags = body
+                .get("tags")
+                .and_then(|value| value.as_array())
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(|item| item.as_str().map(ToOwned::to_owned))
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            member.review_status = Some("approved".to_owned());
+            (200, ckc_roundtrip_member_notes_json(member))
+        }
+        _ => (
+            404,
+            serde_json::json!({
+                "error": "unexpected CKC roundtrip mock route",
+                "request_line": request.request_line,
+            }),
+        ),
+    }
+}
+
+fn ckc_roundtrip_character_json() -> serde_json::Value {
+    serde_json::json!({
+        "internal_id": CKC_ROUNDTRIP_CHARACTER_ID,
+        "public_id": "backend-proof-character",
+        "display_name": "Backend Proof Character",
+        "character_ref": format!("atelier://character/{CKC_ROUNDTRIP_CHARACTER_ID}"),
+    })
+}
+
+fn ckc_roundtrip_sheet_json() -> serde_json::Value {
+    serde_json::json!({
+        "version_id": CKC_ROUNDTRIP_SHEET_ID,
+        "character_internal_id": CKC_ROUNDTRIP_CHARACTER_ID,
+        "parent_version_id": null,
+        "seq": 1,
+        "raw_text": "CHAR-ID-002 - Name: Backend Proof Character\nnotes: backend persistence proof",
+        "author": "backend-agent-039",
+        "tool": "mt-039-mock",
+        "character_ref": format!("atelier://character/{CKC_ROUNDTRIP_CHARACTER_ID}"),
+        "sheet_version_ref": format!("atelier://sheet-version/{CKC_ROUNDTRIP_SHEET_ID}"),
+    })
+}
+
+fn ckc_roundtrip_album_json(album: &CkcRoundtripAlbumState) -> serde_json::Value {
+    let members = album
+        .member
+        .as_ref()
+        .map(|member| vec![ckc_roundtrip_member_json(member)])
+        .unwrap_or_default();
+    serde_json::json!({
+        "collection_id": CKC_ROUNDTRIP_ALBUM_ID,
+        "collection_ref": format!("atelier://collection/{CKC_ROUNDTRIP_ALBUM_ID}"),
+        "name": album.name,
+        "notes": album.notes,
+        "character_internal_id": CKC_ROUNDTRIP_CHARACTER_ID,
+        "character_ref": format!("atelier://character/{CKC_ROUNDTRIP_CHARACTER_ID}"),
+        "sheet_version_id": CKC_ROUNDTRIP_SHEET_ID,
+        "sheet_version_ref": format!("atelier://sheet-version/{CKC_ROUNDTRIP_SHEET_ID}"),
+        "tags": album.tags,
+        "member_count": members.len(),
+        "members_next_offset": null,
+        "created_at_utc": "2026-07-01T13:59:07Z",
+        "updated_at_utc": "2026-07-01T13:59:07Z",
+        "members": members,
+    })
+}
+
+fn ckc_roundtrip_items_json(
+    album: &CkcRoundtripAlbumState,
+    requested: usize,
+    inserted: usize,
+) -> serde_json::Value {
+    let members = album
+        .member
+        .as_ref()
+        .map(|member| vec![ckc_roundtrip_member_json(member)])
+        .unwrap_or_default();
+    serde_json::json!({
+        "collection_id": CKC_ROUNDTRIP_ALBUM_ID,
+        "collection_ref": format!("atelier://collection/{CKC_ROUNDTRIP_ALBUM_ID}"),
+        "requested": requested,
+        "inserted": inserted,
+        "member_count": members.len(),
+        "members_next_offset": null,
+        "updated_at_utc": "2026-07-01T13:59:08Z",
+        "members": members,
+    })
+}
+
+fn ckc_roundtrip_member_json(member: &CkcRoundtripMemberState) -> serde_json::Value {
+    serde_json::json!({
+        "asset_id": member.asset_id,
+        "media_ref": format!("atelier://media/{}", member.asset_id),
+        "file_name": "backend-proof-linked.png",
+        "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "content_type": "image/png",
+        "source_path": null,
+        "source_url": null,
+        "source_path_ref": member.source_path_ref,
+        "source_url_ref": member.source_url_ref,
+        "notes": member.notes,
+        "review_status": member.review_status,
+        "tags": member.tags,
+        "sort_order": 0,
+        "added_at_utc": "2026-07-01T13:59:08Z",
+    })
+}
+
+fn ckc_roundtrip_member_notes_json(member: &CkcRoundtripMemberState) -> serde_json::Value {
+    serde_json::json!({
+        "asset_id": member.asset_id,
+        "media_ref": format!("atelier://media/{}", member.asset_id),
+        "notes": member.notes,
+        "review_status": member.review_status,
+        "tags": member.tags,
+        "source_path_ref": member.source_path_ref,
+        "source_url_ref": member.source_url_ref,
+    })
+}
+
+fn wait_for_atelier_snapshot_with_requests<F, R>(
+    harness: &mut Harness<'_, AtelierPanel>,
+    label: &str,
+    mut predicate: F,
+    request_lines: R,
+) -> UiTreeSnapshot
+where
+    F: FnMut(&UiTreeSnapshot) -> bool,
+    R: Fn() -> Vec<String>,
+{
+    let mut last_snapshot = None;
+    for _ in 0..200 {
+        harness.run();
+        let snapshot = snapshot_harness(harness);
+        if predicate(&snapshot) {
+            return snapshot;
+        }
+        last_snapshot = Some(snapshot);
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    let detail = last_snapshot
+        .as_ref()
+        .map(|snapshot| {
+            format!(
+                "widgets={} backend_mode={} status={} selected_media={} selected_status={} requests={:?}",
+                snapshot.widget_count,
+                snapshot_value(snapshot, ATELIER_CKC_MEDIA_BACKEND_MODE_AUTHOR_ID),
+                snapshot_label(snapshot, ATELIER_CKC_ALBUM_STATUS_AUTHOR_ID),
+                snapshot_value(snapshot, ATELIER_CKC_SELECTED_MEDIA_REF_AUTHOR_ID),
+                snapshot_value(snapshot, ATELIER_CKC_SELECTED_MEDIA_STATUS_AUTHOR_ID),
+                request_lines(),
+            )
+        })
+        .unwrap_or_else(|| format!("no snapshot captured; requests={:?}", request_lines()));
+    panic!("timed out waiting for {label}; last {detail}");
+}
+
+fn snapshot_value(snapshot: &UiTreeSnapshot, author_id: &str) -> String {
+    snapshot
+        .find_by_author_id(author_id)
+        .and_then(|node| node.value.clone())
+        .unwrap_or_default()
+}
+
+fn snapshot_label(snapshot: &UiTreeSnapshot, author_id: &str) -> String {
+    snapshot
+        .find_by_author_id(author_id)
+        .and_then(|node| node.label.clone())
+        .unwrap_or_default()
+}
+
+fn assert_single_request<'a>(
+    captured: &'a [CapturedHttpRequest],
+    request_line: &str,
+) -> &'a CapturedHttpRequest {
+    let matches = captured
+        .iter()
+        .filter(|request| request.request_line == request_line)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        matches.len(),
+        1,
+        "expected exactly one {request_line}; all requests: {:?}",
+        captured
+            .iter()
+            .map(|request| request.request_line.as_str())
+            .collect::<Vec<_>>()
+    );
+    matches[0]
+}
+
+fn request_index(captured: &[CapturedHttpRequest], request_line: &str) -> usize {
+    captured
+        .iter()
+        .position(|request| request.request_line == request_line)
+        .unwrap_or_else(|| panic!("missing request {request_line}"))
+}
+
+fn ckc_roundtrip_route_kind(request_line: &str) -> Option<&'static str> {
+    let mut parts = request_line.split_whitespace();
+    let method = parts.next().unwrap_or_default();
+    let target = parts.next().unwrap_or_default();
+    let path = target.split('?').next().unwrap_or(target);
+    match (method, path) {
+        ("GET", "/atelier/characters") => Some("characters"),
+        ("GET", path)
+            if path
+                == format!("/atelier/characters/{CKC_ROUNDTRIP_CHARACTER_ID}/sheet-versions") =>
+        {
+            Some("sheet_versions")
+        }
+        ("GET", path)
+            if path
+                == format!("/atelier/sheet-versions/{CKC_ROUNDTRIP_SHEET_ID}/artifact-links") =>
+        {
+            Some("artifact_links")
+        }
+        ("GET", path)
+            if path == format!("/atelier/characters/{CKC_ROUNDTRIP_CHARACTER_ID}/media-albums") =>
+        {
+            Some("media_albums")
+        }
+        ("GET", path)
+            if path == format!("/atelier/characters/{CKC_ROUNDTRIP_CHARACTER_ID}/documents") =>
+        {
+            Some("documents")
+        }
+        ("POST", path)
+            if path == format!("/atelier/characters/{CKC_ROUNDTRIP_CHARACTER_ID}/media-albums") =>
+        {
+            Some("create_album")
+        }
+        ("POST", path)
+            if path == format!("/atelier/media-albums/{CKC_ROUNDTRIP_ALBUM_ID}/items") =>
+        {
+            Some("link_album_items")
+        }
+        ("POST", path)
+            if path == format!("/atelier/media-assets/{CKC_ROUNDTRIP_ASSET_ID}/notes-tags") =>
+        {
+            Some("save_notes_tags")
+        }
+        _ => None,
+    }
+}
+
+fn assert_only_ckc_roundtrip_routes(captured: &[CapturedHttpRequest]) {
+    let unexpected = captured
+        .iter()
+        .filter(|request| ckc_roundtrip_route_kind(&request.request_line).is_none())
+        .map(|request| request.request_line.as_str())
+        .collect::<Vec<_>>();
+    assert!(
+        unexpected.is_empty(),
+        "unexpected CKC roundtrip mock routes: {unexpected:?}; all requests: {:?}",
+        captured
+            .iter()
+            .map(|request| request.request_line.as_str())
+            .collect::<Vec<_>>()
+    );
+
+    let count_kind = |kind: &str| {
+        captured
+            .iter()
+            .filter(|request| ckc_roundtrip_route_kind(&request.request_line) == Some(kind))
+            .count()
+    };
+    for kind in [
+        "characters",
+        "sheet_versions",
+        "artifact_links",
+        "media_albums",
+        "documents",
+    ] {
+        assert!(
+            count_kind(kind) >= 2,
+            "expected at least two {kind} GETs for initial load and fresh reload; requests: {:?}",
+            captured
+                .iter()
+                .map(|request| request.request_line.as_str())
+                .collect::<Vec<_>>()
+        );
+    }
+    for kind in ["create_album", "link_album_items", "save_notes_tags"] {
+        assert_eq!(
+            count_kind(kind),
+            1,
+            "expected exactly one {kind} POST; requests: {:?}",
+            captured
+                .iter()
+                .map(|request| request.request_line.as_str())
+                .collect::<Vec<_>>()
+        );
+    }
+}
+
+fn argus_set_value_on_harness(
+    harness: &mut Harness<'_, AtelierPanel>,
+    channel: &mut ActionChannel,
+    target: &str,
+    value: &str,
+) {
+    let response = dispatch_request(
+        &argus_req(
+            "argus.set_value",
+            serde_json::json!({ "target": target, "value": value }),
+        ),
+        &argus_token(),
+        &snapshot_harness(harness),
+        channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(response.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
+}
+
+fn argus_click_on_harness(
+    harness: &mut Harness<'_, AtelierPanel>,
+    channel: &mut ActionChannel,
+    target: &str,
+) {
+    let response = dispatch_request(
+        &argus_req("argus.click", serde_json::json!({ "target": target })),
+        &argus_token(),
+        &snapshot_harness(harness),
+        channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(response.to_json()["result"]["queued"], true);
+    for event in channel.drain_into_events() {
+        harness.event(event);
+    }
+    harness.run();
 }
 
 fn decode_base64(s: &str) -> Result<Vec<u8>, String> {
@@ -2843,6 +3454,329 @@ fn ckc_media_backend_requests_are_actor_attributed_and_persistence_routes() {
     );
     assert_eq!(save_body["tags"][0], "proof");
     assert_eq!(save_body["review_status"], "approved");
+}
+
+#[test]
+fn ckc_linked_media_backend_roundtrip_reaches_argus() {
+    let server = spawn_ckc_roundtrip_server();
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("CKC linked-media backend roundtrip runtime");
+    let client = AtelierClient::new_with_actor_id(
+        server.base_url.clone(),
+        runtime.handle().clone(),
+        "media-agent-039",
+    );
+    let mut harness = build_panel_harness_with_client(egui::vec2(1280.0, 760.0), client);
+    let mut channel = ActionChannel::new();
+    argus_click_on_harness(&mut harness, &mut channel, ATELIER_TAB_CKC_AUTHOR_ID);
+
+    let loaded = wait_for_atelier_snapshot_with_requests(
+        &mut harness,
+        "client-backed CKC linked media",
+        |snap| {
+            snapshot_value(snap, ATELIER_CKC_MEDIA_BACKEND_MODE_AUTHOR_ID) == "backend:persistent"
+                && snap
+                    .find_by_author_id(ATELIER_CKC_ALBUM_CREATE_AUTHOR_ID)
+                    .is_some()
+        },
+        || server.captured_request_lines(),
+    );
+    assert_eq!(
+        snapshot_value(&loaded, ATELIER_CKC_MEDIA_BACKEND_MODE_AUTHOR_ID),
+        "backend:persistent"
+    );
+    assert_eq!(
+        snapshot_value(&loaded, ATELIER_CKC_MEDIA_ACTOR_AUTHOR_ID),
+        "media-agent-039"
+    );
+    assert!(
+        snapshot_value(&loaded, ATELIER_CKC_ALBUM_LINK_TARGET_AUTHOR_ID).contains("none selected"),
+        "backend proof must start with no implicit album link fallback"
+    );
+
+    argus_set_value_on_harness(
+        &mut harness,
+        &mut channel,
+        ATELIER_CKC_ALBUM_CREATE_NAME_AUTHOR_ID,
+        "Backend proof album",
+    );
+    argus_set_value_on_harness(
+        &mut harness,
+        &mut channel,
+        ATELIER_CKC_ALBUM_CREATE_TAGS_AUTHOR_ID,
+        "backend, roundtrip",
+    );
+    argus_set_value_on_harness(
+        &mut harness,
+        &mut channel,
+        ATELIER_CKC_ALBUM_CREATE_NOTES_AUTHOR_ID,
+        "created through MT-039 mock backend",
+    );
+    argus_click_on_harness(
+        &mut harness,
+        &mut channel,
+        ATELIER_CKC_ALBUM_CREATE_AUTHOR_ID,
+    );
+    let after_create = wait_for_atelier_snapshot_with_requests(
+        &mut harness,
+        "backend CKC album create",
+        |snap| {
+            snapshot_label(snap, ATELIER_CKC_ALBUM_STATUS_AUTHOR_ID)
+                .contains(CKC_ROUNDTRIP_ALBUM_ID)
+                && snapshot_value(snap, ATELIER_CKC_ALBUM_LINK_TARGET_AUTHOR_ID)
+                    .contains("Backend proof album")
+        },
+        || server.captured_request_lines(),
+    );
+    assert!(
+        after_create
+            .find_by_author_id(&ckc_media_album_row_author_id(CKC_ROUNDTRIP_ALBUM_ID))
+            .is_some(),
+        "created backend album row must be Argus-visible"
+    );
+
+    argus_set_value_on_harness(
+        &mut harness,
+        &mut channel,
+        ATELIER_CKC_ALBUM_LINK_ASSET_IDS_AUTHOR_ID,
+        &format!("atelier://media/{CKC_ROUNDTRIP_ASSET_ID}"),
+    );
+    argus_set_value_on_harness(
+        &mut harness,
+        &mut channel,
+        ATELIER_CKC_ALBUM_LINK_SOURCE_PATH_AUTHOR_ID,
+        CKC_ROUNDTRIP_FOLDER_REF,
+    );
+    argus_set_value_on_harness(
+        &mut harness,
+        &mut channel,
+        ATELIER_CKC_ALBUM_LINK_SOURCE_URL_AUTHOR_ID,
+        CKC_ROUNDTRIP_SOURCE_URL_REF,
+    );
+    argus_click_on_harness(&mut harness, &mut channel, ATELIER_CKC_ALBUM_LINK_AUTHOR_ID);
+    let linked_row_author_id =
+        ckc_media_row_author_id(CKC_ROUNDTRIP_ALBUM_ID, CKC_ROUNDTRIP_ASSET_ID);
+    let after_link = wait_for_atelier_snapshot_with_requests(
+        &mut harness,
+        "backend CKC media link",
+        |snap| {
+            snapshot_label(snap, ATELIER_CKC_ALBUM_STATUS_AUTHOR_ID)
+                .contains("Linked 1 of 1 requested")
+                && snap.find_by_author_id(&linked_row_author_id).is_some()
+        },
+        || server.captured_request_lines(),
+    );
+    assert!(
+        after_link
+            .find_by_author_id(&ckc_folder_row_author_id(
+                CKC_ROUNDTRIP_ALBUM_ID,
+                CKC_ROUNDTRIP_ASSET_ID,
+                CKC_ROUNDTRIP_FOLDER_REF,
+            ))
+            .is_some(),
+        "backend linked folder ref must be Argus-visible"
+    );
+    assert!(
+        after_link
+            .find_by_author_id(&ckc_source_url_row_author_id(
+                CKC_ROUNDTRIP_ALBUM_ID,
+                CKC_ROUNDTRIP_ASSET_ID,
+                CKC_ROUNDTRIP_SOURCE_URL_REF,
+            ))
+            .is_some(),
+        "backend linked source URL ref must be Argus-visible"
+    );
+
+    argus_click_on_harness(&mut harness, &mut channel, &linked_row_author_id);
+    let selected = wait_for_atelier_snapshot_with_requests(
+        &mut harness,
+        "backend CKC media selection",
+        |snap| {
+            snapshot_value(snap, ATELIER_CKC_SELECTED_MEDIA_REF_AUTHOR_ID)
+                == format!("atelier://media/{CKC_ROUNDTRIP_ASSET_ID}")
+        },
+        || server.captured_request_lines(),
+    );
+    assert_eq!(
+        snapshot_value(&selected, ATELIER_CKC_SELECTED_FOLDER_REF_AUTHOR_ID),
+        CKC_ROUNDTRIP_FOLDER_REF
+    );
+    assert_eq!(
+        snapshot_value(&selected, ATELIER_CKC_SELECTED_SOURCE_URL_REF_AUTHOR_ID),
+        CKC_ROUNDTRIP_SOURCE_URL_REF
+    );
+
+    argus_set_value_on_harness(
+        &mut harness,
+        &mut channel,
+        ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID,
+        "backend roundtrip image note",
+    );
+    argus_set_value_on_harness(
+        &mut harness,
+        &mut channel,
+        ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID,
+        "proof, persisted",
+    );
+    argus_click_on_harness(&mut harness, &mut channel, ATELIER_CKC_MEDIA_SAVE_AUTHOR_ID);
+    let saved = wait_for_atelier_snapshot_with_requests(
+        &mut harness,
+        "backend CKC media notes save",
+        |snap| {
+            snapshot_label(snap, ATELIER_CKC_ALBUM_STATUS_AUTHOR_ID)
+                .contains("Saved CKC media notes/tags")
+                && snapshot_value(snap, ATELIER_CKC_SELECTED_MEDIA_STATUS_AUTHOR_ID) == "approved"
+        },
+        || server.captured_request_lines(),
+    );
+    assert_eq!(
+        snapshot_value(&saved, ATELIER_CKC_SELECTED_MEDIA_REF_AUTHOR_ID),
+        format!("atelier://media/{CKC_ROUNDTRIP_ASSET_ID}")
+    );
+
+    let reloaded_client = AtelierClient::new_with_actor_id(
+        server.base_url.clone(),
+        runtime.handle().clone(),
+        "media-agent-039",
+    );
+    let mut reloaded = build_panel_harness_with_client(egui::vec2(1280.0, 760.0), reloaded_client);
+    let mut reload_channel = ActionChannel::new();
+    argus_click_on_harness(
+        &mut reloaded,
+        &mut reload_channel,
+        ATELIER_TAB_CKC_AUTHOR_ID,
+    );
+    let reloaded_snapshot = wait_for_atelier_snapshot_with_requests(
+        &mut reloaded,
+        "backend CKC reload reconstruction",
+        |snap| {
+            snapshot_value(snap, ATELIER_CKC_MEDIA_BACKEND_MODE_AUTHOR_ID) == "backend:persistent"
+                && snap.find_by_author_id(&linked_row_author_id).is_some()
+                && snapshot_value(snap, ATELIER_CKC_SELECTED_MEDIA_STATUS_AUTHOR_ID) == "approved"
+        },
+        || server.captured_request_lines(),
+    );
+    assert!(
+        reloaded_snapshot
+            .find_by_author_id(&ckc_media_album_row_author_id(CKC_ROUNDTRIP_ALBUM_ID))
+            .is_some(),
+        "reloaded client-backed panel must reconstruct album row from backend GET state"
+    );
+    assert_eq!(
+        snapshot_value(
+            &reloaded_snapshot,
+            ATELIER_CKC_SELECTED_FOLDER_REF_AUTHOR_ID
+        ),
+        CKC_ROUNDTRIP_FOLDER_REF
+    );
+    assert_eq!(
+        snapshot_value(
+            &reloaded_snapshot,
+            ATELIER_CKC_SELECTED_SOURCE_URL_REF_AUTHOR_ID
+        ),
+        CKC_ROUNDTRIP_SOURCE_URL_REF
+    );
+    assert!(
+        snapshot_value(&reloaded_snapshot, ATELIER_CKC_MEDIA_NOTES_EDITOR_AUTHOR_ID)
+            .contains("backend roundtrip image note"),
+        "reloaded media notes editor must come from backend state"
+    );
+    assert!(
+        snapshot_value(&reloaded_snapshot, ATELIER_CKC_MEDIA_TAGS_EDITOR_AUTHOR_ID)
+            .contains("persisted"),
+        "reloaded media tags editor must come from backend state"
+    );
+
+    let captured = server.stop();
+    let create_line =
+        format!("POST /atelier/characters/{CKC_ROUNDTRIP_CHARACTER_ID}/media-albums HTTP/1.1");
+    let link_line = format!("POST /atelier/media-albums/{CKC_ROUNDTRIP_ALBUM_ID}/items HTTP/1.1");
+    let save_line =
+        format!("POST /atelier/media-assets/{CKC_ROUNDTRIP_ASSET_ID}/notes-tags HTTP/1.1");
+    let album_get_line =
+        format!("GET /atelier/characters/{CKC_ROUNDTRIP_CHARACTER_ID}/media-albums HTTP/1.1");
+
+    assert_only_ckc_roundtrip_routes(&captured);
+
+    let create_request = assert_single_request(&captured, &create_line);
+    assert_eq!(
+        create_request
+            .headers
+            .get("x-hsk-actor-id")
+            .map(String::as_str),
+        Some("media-agent-039")
+    );
+    let create_body: serde_json::Value =
+        serde_json::from_str(&create_request.body).expect("album create body JSON");
+    assert_eq!(create_body["name"], "Backend proof album");
+    assert_eq!(create_body["notes"], "created through MT-039 mock backend");
+    assert_eq!(create_body["sheet_version_id"], CKC_ROUNDTRIP_SHEET_ID);
+    assert_eq!(create_body["tags"][0], "backend");
+    assert_eq!(create_body["tags"][1], "roundtrip");
+
+    let link_request = assert_single_request(&captured, &link_line);
+    assert_eq!(
+        link_request
+            .headers
+            .get("x-hsk-actor-id")
+            .map(String::as_str),
+        Some("media-agent-039")
+    );
+    let link_body: serde_json::Value =
+        serde_json::from_str(&link_request.body).expect("album link body JSON");
+    assert_eq!(link_body["asset_ids"][0], CKC_ROUNDTRIP_ASSET_ID);
+    assert_eq!(link_body["source_path_ref"], CKC_ROUNDTRIP_FOLDER_REF);
+    assert_eq!(link_body["source_url_ref"], CKC_ROUNDTRIP_SOURCE_URL_REF);
+
+    let save_request = assert_single_request(&captured, &save_line);
+    assert_eq!(
+        save_request
+            .headers
+            .get("x-hsk-actor-id")
+            .map(String::as_str),
+        Some("media-agent-039")
+    );
+    let save_body: serde_json::Value =
+        serde_json::from_str(&save_request.body).expect("media notes/tags body JSON");
+    assert_eq!(save_body["notes"], "backend roundtrip image note");
+    assert_eq!(save_body["review_status"], "queued");
+    assert_eq!(save_body["tags"][0], "proof");
+    assert_eq!(save_body["tags"][1], "persisted");
+
+    let album_get_count = captured
+        .iter()
+        .filter(|request| request.request_line == album_get_line)
+        .count();
+    assert!(
+        album_get_count >= 2,
+        "proof must include initial backend load and reload/new-panel reconstruction; got {album_get_count}"
+    );
+    let create_index = request_index(&captured, &create_line);
+    let link_index = request_index(&captured, &link_line);
+    let save_index = request_index(&captured, &save_line);
+    let last_album_get_index = captured
+        .iter()
+        .rposition(|request| request.request_line == album_get_line)
+        .expect("album GET present");
+    assert!(
+        create_index < link_index && link_index < save_index,
+        "write order must be create < link < save; requests: {:?}",
+        captured
+            .iter()
+            .map(|request| request.request_line.as_str())
+            .collect::<Vec<_>>()
+    );
+    assert!(
+        last_album_get_index > save_index,
+        "fresh panel reload must GET albums after notes/tags POST; requests: {:?}",
+        captured
+            .iter()
+            .map(|request| request.request_line.as_str())
+            .collect::<Vec<_>>()
+    );
 }
 
 #[test]
