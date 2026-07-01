@@ -160,9 +160,9 @@
       "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
       "source_line_start": 20011,
       "source_line_end": 22292,
-      "line_count": 2610,
-      "byte_count": 147146,
-      "sha256": "d2c9a99f49180f7703bdc89a8c8d67168b889fac29cd8084fabcd720e5bd8c1c",
+      "line_count": 2622,
+      "byte_count": 150853,
+      "sha256": "56981f9f8794e3c2a677e15528cb224533c12e1c353c34540a77dab846ed3e6f",
       "heading_count": 187,
       "heading_level_counts": {
         "h1": 15,
@@ -522,7 +522,7 @@
       "spec-modules/12-end-of-file-appendices.md",
       "spec-modules/13-tailor-cloth-garment-engine.md"
     ],
-    "reconstructed_sha256": "776732cfb69a50d27706b3206955371e5e4dd97af656eb5f27144d808a915077",
+    "reconstructed_sha256": "d822a5d387512b841c0f46f136bfe7c13936c81c378dc2c27efbc2b4ce5db066",
     "matches_source_sha256": false,
     "byte_exact_match": false,
     "coverage": {
@@ -532,7 +532,7 @@
       "no_gaps_or_overlaps": true
     },
     "module_count": 15,
-    "reconstructed_sha1": "1903a041f42d5fbe866bf7198823d5a6b4d094eb"
+    "reconstructed_sha1": "f68d4b3ca4e7e66d941be103a2129ef89945a17a"
   },
   "module_resolver": ".GOV/spec/master-spec-v02.197/INDEX.json",
   "spec_version": "v02.197",

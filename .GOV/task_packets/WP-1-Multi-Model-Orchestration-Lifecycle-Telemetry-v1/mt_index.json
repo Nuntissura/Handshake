@@ -1,9 +1,9 @@
 {
   "schema": "hsk.microtask_index@1",
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
-  "generated_at_utc": "2026-06-29T21:26:03.058Z",
-  "total": 11,
-  "range": "MT-001..MT-011",
+  "generated_at_utc": "2026-07-01T19:02:22Z",
+  "total": 12,
+  "range": "MT-001..MT-012",
   "note": "Research-backed Activation Manager MT set. Operator may add, remove, split, or reorder MTs ad hoc; packet.json microtasks.declared_ids must be kept in sync when the MT set changes.",
   "microtasks": [
     {
@@ -52,19 +52,19 @@
     },
     {
       "mt_id": "MT-003",
-      "status": "READY_FOR_VALIDATION",
+      "status": "PENDING",
       "depends_on": [
         "MT-002"
       ],
-      "summary": "Normalize launch adapters for local, cloud, CLI, human, subagent, and validator lanes.",
+      "summary": "Normalize launch adapters for local, cloud, CLI, human, subagent, and validator lanes; REOPENED 2026-07-01 to make the default LlmClient resolve through the embedded ModelRuntime and remove the Ollama daemon adapter default (CPU-baseline engine features; non-authoritative ExternalEngineImport compat lane retained).",
       "unlocks": "Unlocks normalized launch/reclaim paths for local, cloud, CLI, human, subagent, and validator lanes.",
       "blocks": [
         "MT-006",
         "MT-007",
         "MT-009"
       ],
-      "proof_status": "PASS_MT003_8_LAUNCH_4_SCHEMA_2_USERMANUAL_RUST_AUTHORITY_PROOFS_PUBLIC_CONSTRUCTOR_BYPASS_CLOSED_PLUS_APP_REQUEST_SOURCE_GUARD_EVIDENCE_SPEC_MANIFEST_EXTERNAL_DRIFT",
-      "hbr_status": "PASS_HBR_MATRIX_CHECK",
+      "proof_status": "REOPENED_2026-07-01_SCOPE_EXPANDED_OLLAMA_DAEMON_KILL_AND_EMBEDDED_MODELRUNTIME_DEFAULT_PRIOR_READY_EVIDENCE_PRESERVED",
+      "hbr_status": "PENDING_REOPENED",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-29",
       "adversarial_findings_status": "POST_REVIEW_BLOCKERS_ADDRESSED_IN_PRODUCT_CODE_TESTS_AND_MT_STATUS; MISSING_DEXTERITY_CONTRACT_BYPASS_CLOSED; LIVE_TAURI_IPC_AND_SCHEDULE_REQUEST_SOURCE_BYPASS_CLOSED; PUBLIC_COORDINATOR_AND_SCHEDULER_CONSTRUCTOR_BYPASS_CLOSED_AFTER_ADVERSARIAL_FAIL_REVIEW_RETRY_PASS; APP_REQUEST_SOURCE_EVIDENCE_RECLASSIFIED_NON_AUTHORITY; EXTERNAL_SPEC_MANIFEST_DRIFT_RECORDED"
@@ -223,6 +223,23 @@
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "NOT_RUN",
       "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
+    },
+    {
+      "mt_id": "MT-012",
+      "status": "PENDING",
+      "depends_on": [
+        "MT-003",
+        "MT-008",
+        "MT-010"
+      ],
+      "summary": "Operator work-surface: interactive native chat/launch pane to pick local/cloud model + folder/worktree, launch via Dexterity SwarmCoordinator, and capture CLI conversation/thought/tool-calls as ModelLaneMessage wired to Flight Recorder. OPERATOR_REQUESTED_ADDITION 2026-07-01, pending scope confirmation.",
+      "unlocks": "Unlocks operator-driven local/cloud model sessions inside Handshake with typed CLI-wrapper capture.",
+      "blocks": [],
+      "proof_status": "NOT_RUN",
+      "hbr_status": "PENDING",
+      "pre_implementation_adversarial_review_status": "NOT_RUN",
+      "post_implementation_adversarial_review_status": "NOT_RUN",
+      "adversarial_findings_status": "NOT_RUN"
     }
   ]
 }

@@ -1,0 +1,153 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "mt_id": "MT-012",
+  "created_at_utc": "2026-07-01T19:02:22Z",
+  "updated_at_utc": "2026-07-01T19:02:22Z",
+  "scope_status": "OPERATOR_REQUESTED_ADDITION_2026-07-01_PENDING_SCOPE_CONFIRMATION",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-012.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "",
+    "status": "SKIPPED_MINIMAL_GOVERNANCE"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-003",
+      "MT-008",
+      "MT-010"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING",
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
+    "completed_by": null,
+    "blocker": null,
+    "missing_resource": null,
+    "proof_status": "NOT_RUN",
+    "hbr_status": "PENDING",
+    "pre_implementation_adversarial_review_status": "NOT_RUN",
+    "post_implementation_adversarial_review_status": "NOT_RUN",
+    "adversarial_findings_status": "NOT_RUN"
+  },
+  "scope": {
+    "summary": "Operator work-surface: an interactive native chat/launch pane where the operator selects a local or cloud model lane and a folder/worktree, launches a session through the Dexterity SwarmCoordinator contract, and sees the CLI-wrapper conversation, model-exposed reasoning/thought, and tool calls captured as typed ModelLaneMessage records wired to Flight Recorder.",
+    "origin": "Operator request 2026-07-01: a chatbox/window to choose models (local+cloud) and a folder/repo/worktree to launch in, as a CLI wrapper that mechanically records the conversation, CLI-exposed thought, and tool calls, wired to Flight Recorder. Verified absent from WP-1 MT-001..MT-011 and from the native frontend. The CLI-capture engine (AgentActivity / cli_bridge_runtime / events_agent_activity FR-EVT-AGENT-*) already exists but was built by WP-KERNEL-004/MT-127, lives in the legacy app/src-tauri transcript seam, and is not wired to WP-1 ModelLane authority.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/",
+      "src/frontend/handshake_native/src/pane_registry.rs",
+      "src/frontend/handshake_native/src/mcp/tools.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/",
+      "src/backend/handshake_core/src/model_runtime/cloud/",
+      "src/backend/handshake_core/src/flight_recorder/",
+      "src/backend/handshake_core/src/api/",
+      "src/backend/handshake_core/src/user_manual/",
+      "src/backend/handshake_core/tests/",
+      "src/backend/handshake_core/migrations/"
+    ],
+    "forbidden_paths": [
+      "app/src-tauri launch or transcript authority for this WP",
+      "new TypeScript/React/app/src implementation",
+      "direct model endpoint calls outside LlmClient/ModelRuntime/CloudLane",
+      "peer-to-peer hidden model channels",
+      "SQLite runtime/test/fixture additions"
+    ],
+    "acceptance_criteria": [
+      "A native egui operator pane (registered PaneType in pane_registry.rs, reachable from the RUN menu and/or module switcher) presents an interactive chat/session surface: prompt input, streamed response, and per-turn model-exposed reasoning/thought and tool-call rows.",
+      "The pane lets the operator select a model lane kind and concrete model for LOCAL and CLOUD via the spec model-selection mechanism / Work Profiles (spec 4.3.9.4.4; the operator-visible selection UI is built here), and select a folder/worktree/project as the session working location by reusing existing workspace surfaces (project_tree/project_tabs), not a bespoke picker.",
+      "Launch resolves through the backend SwarmCoordinator::spawn_session Dexterity launch contract (never a frontend, app/src, direct-endpoint, or terminal launch authority) and produces ModelLaneRun/ModelLane records; missing ModelLaneStore/PostgreSQL authority fails closed.",
+      "The CLI-wrapper capture (conversation text, model-exposed reasoning/thought, tool calls) is recorded as typed ModelLaneMessage records under the launched ModelLaneRun, re-homing the WP-KERNEL-004 AgentActivity capture onto the native path (not the legacy app/src-tauri transcript seam), with payload_ref/payload_sha256 to ArtifactStore for non-status bytes.",
+      "Every captured conversation/thought/tool-call and launch/status transition emits Flight Recorder/EventLedger evidence and records the HBR-INT-009 three-tier posture (Flight Recorder WIRED where the behavior is a business event; internal_diagnostics and Palmistry DEFERRED-with-reason until WP-KERNEL-012/016 ship).",
+      "Argus proof drives the pane headlessly (stable author_id targets for the chat input, model picker, worktree picker, launch control, and transcript rows) and inspects rendered state; negative proof fails on unseen controls or a launch-authority bypass.",
+      "Same-change in-product UserManual coverage for the operator chat/launch surface (purpose, model+worktree selection, launch, capture, recovery, Flight Recorder linkage).",
+      "Pre- and post-implementation adversarial review through multiple lenses before READY_FOR_VALIDATION; implementer does not self-certify COMPLETED."
+    ],
+    "proof_targets": [
+      "TO_BE_FINALIZED_AT_ACTIVATION: exact Rust test targets for (a) backend launch-from-operator-surface through SwarmCoordinator Dexterity contract, (b) CLI-capture persisted as ModelLaneMessage with Flight Recorder evidence, in src/backend/handshake_core (--features test-utils where the suite is gated), and (c) Argus native pane drive in src/frontend/handshake_native. Proof commands MUST name exact test targets and fail on zero matching tests."
+    ],
+    "risk_if_missed": "Operator cannot drive local/cloud model sessions from inside Handshake with a folder/worktree choice; the CLI-wrapper conversation, thought, and tool calls stay siloed in the legacy app/src-tauri path and never become typed ModelLane authority. The operator work-surface that the WP's lane telemetry exists to serve is missing.",
+    "reference_only_paths": [
+      "app/src-tauri/",
+      "app/src/",
+      "docs/model-manual/"
+    ]
+  },
+  "implementation_notes": [
+    "DEPENDS on MT-003 (CLI lane normalized into ModelLane records + embedded ModelRuntime default) and MT-008 (native diagnostics pane + pane_registry pattern + TraceProjection); consumes MT-010 backend navigation/lookup routes for run/lane/message/transcript display.",
+    "Model selection is spec-normative (4.3.9.4.4) with UI out-of-scope for module 04; this MT builds the operator-visible selection UI on top of that mechanism and Work Profiles, not a new selection authority.",
+    "Folder/worktree selection reuses existing project_tree.rs / project_tabs.rs workspace surfaces rather than a new bespoke picker.",
+    "Re-home the WP-KERNEL-004 CLI capture (model_runtime/cloud/agent_activity.rs AgentActivity::{ToolCall,Thinking,Text}; cli_bridge_runtime.rs; flight_recorder/events_agent_activity.rs FR-EVT-AGENT-*) onto the native path and bind it to ModelLaneMessage; do not make the app/src-tauri transcript the authority.",
+    "Rust-only: Rust backend plus native egui/Argus. No new TypeScript/React/app-src.",
+    "Captured per operator anti-forget directive 2026-07-01. Confirm/adjust boundaries before activation (especially how much Work-Profile model-selection UI and worktree-launch orchestration belongs here vs a sibling WP). Keep additive to the existing RUN menu item and Settings Swarm section."
+  ],
+  "required_build_rules": [
+    "HBR-VIS-001",
+    "HBR-VIS-004",
+    "HBR-INT-002",
+    "HBR-INT-005",
+    "HBR-QUIET-003",
+    "HBR-MAN-004",
+    "HBR-INT-009",
+    "HBR-SWARM-004"
+  ],
+  "hbr_obligations": [
+    "VIS",
+    "INT",
+    "SWARM",
+    "QUIET",
+    "MAN"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "post_implementation_adversarial_review_required": true,
+    "post_implementation_review_lenses": [
+      "runtime_launch_and_model_lane_authority",
+      "cli_capture_to_model_lane_message_and_flight_recorder",
+      "rust_native_argus_operator_surface_and_usermanual",
+      "spec_realism_negative_guards_and_mt_status_signaling"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Operator chat surface could bypass the Dexterity launch authority and call a provider/endpoint directly.",
+      "CLI capture could remain in the legacy app/src-tauri transcript seam instead of ModelLaneMessage authority.",
+      "Model/worktree selection could reimplement rather than reuse Work Profiles / project_tree workspace surfaces."
+    ],
+    "minimum_controls": [
+      "Launch only via SwarmCoordinator::spawn_session Dexterity contract; negative test proves bypass fails closed.",
+      "Capture persists as typed ModelLaneMessage under a ModelLaneRun with Flight Recorder/EventLedger evidence.",
+      "Reuse existing selection and workspace surfaces."
+    ]
+  },
+  "research_basis": {
+    "authority_posture": "Master spec / SPEC_CURRENT / product code are authority; reset brief 6.6 is operator vision only.",
+    "local_authority_checked": [
+      ".GOV/spec/master-spec-v02.197/spec-modules/04-llm-infrastructure.md (4.3.9.2.5 ModelLane launch, 4.3.9.4.4 model selector UI out-of-scope)",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+    ],
+    "product_code_evidence": [
+      "src/backend/handshake_core/src/model_runtime/cloud/agent_activity.rs (WP-KERNEL-004 MT-127 CLI capture: AgentActivity ToolCall/Thinking/Text)",
+      "src/backend/handshake_core/src/model_runtime/cloud/cli_bridge_runtime.rs (CLI bridge streaming capture)",
+      "src/frontend/handshake_native/src/pane_registry.rs (PaneType/PaneFactory registration pattern)",
+      "src/frontend/handshake_native/src/top_menu_bar.rs (RUN menu, swarm-lane-diagnostics leaf)"
+    ]
+  },
+  "handshake_compatibility": {
+    "native_rust_backend_first": true,
+    "rust_only_implementation": "Rust backend plus native egui/Argus only. TypeScript/React/app-src/app-src-tauri/npm are not implementation or proof authority for this WP.",
+    "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch real resources; COMPLETED is validator-only."
+  }
+}

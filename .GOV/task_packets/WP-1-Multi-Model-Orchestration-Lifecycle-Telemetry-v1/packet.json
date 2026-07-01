@@ -20,14 +20,15 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "base_wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-06-28T23:46:43.220Z",
+  "updated_at_utc": "2026-07-01T19:02:22Z",
   "source_control": {
     "merge_base_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
     "canonical_branch": "main",
     "work_branch": "feat/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
     "worktree_dir": "../wtc-multi-model-orchestration-v1",
     "worktree_creation_status": "CREATED_WITH_ARTIFACT_HYGIENE_BLOCKER",
-    "worktree_head_sha": "6519f4e2827840642a6c0401ac31055469f09d3b",
+    "worktree_head_sha": "0adac5d832e34ea4da69974231ae03e7572990f8",
+    "worktree_head_note": "0adac5d8 (2026-07-01) = WIP state-recovery checkpoint on KERNEL_BUILDER takeover; preserves 140-entry uncommitted WP-1 product implementation (Dexterity model_lane, state_recovery, promotion/context-bundle/cloud/nav/coverage, native diagnostics pane, migrations 0337-0342, *_pg_tests). Unproven WIP, not validation-ready. Prior head/merge-base was 6519f4e2.",
     "worktree_created_at_utc": "2026-06-28T17:36:39.897Z",
     "worktree_preflight_blockers": [
       "ckc-overhaul-launch: unknown noncanonical artifact directory under ../Handshake_Artifacts",
@@ -114,7 +115,10 @@
       "src/backend/handshake_core/src/api/kernel.rs",
       "src/backend/handshake_core/src/flight_recorder/event_ledger.rs",
       "src/frontend/handshake_native/src/mcp/tools.rs",
-      "src/frontend/handshake_native/src/mcp/screenshot.rs"
+      "src/frontend/handshake_native/src/mcp/screenshot.rs",
+      "src/backend/handshake_core/src/main.rs",
+      "src/backend/handshake_core/src/llm/",
+      "src/backend/handshake_core/Cargo.toml"
     ],
     "forbidden_paths": [
       "unrelated repo-governance refactors",
@@ -156,7 +160,11 @@
       "Proof commands for implementation MTs must use exact Rust test targets or exact test names and must fail on zero matching tests. Provider calls may use deterministic fakes; durable authority must touch PostgreSQL/EventLedger/ArtifactStore/CRDT/UserManual/Argus Rust resources.",
       "Dexterity is the internal model switching and launch kernel name for this WP. It is a kernel/manual/display name only; stable schema IDs remain ModelLaneRun, ModelLane, ModelLaneMessage, and hsk.model_lane_*@1.",
       "The provisional Rust-native diagnostics/navigation contract id is native_swarm_lane_diagnostics until the separate naming worktree supplies an approved alias.",
-      "Each MT receives post-implementation adversarial review through runtime launch, PostgreSQL/EventLedger/CRDT recovery, Rust native Argus/UserManual, and Spec-Realism/status-signaling lenses before READY_FOR_VALIDATION."
+      "Each MT receives post-implementation adversarial review through runtime launch, PostgreSQL/EventLedger/CRDT recovery, Rust native Argus/UserManual, and Spec-Realism/status-signaling lenses before READY_FOR_VALIDATION.",
+      "The default LlmClient resolves local inference through the embedded Rust ModelRuntime (LlamaCppRuntime default; CandleRuntime for hook/non-transformer lanes). The auto-detecting OllamaAdapter default and src/backend/handshake_core/src/llm/ollama.rs are removed, and no third-party model-server daemon is an authoritative runtime (master-spec-v02.197 3.6.1).",
+      "A missing or unconfigured local model fails closed to DisabledLlmClient; there is no daemon fallback. A negative test proves the default runtime path never selects a third-party daemon adapter as authority.",
+      "Embedded engine cargo features default to a CPU-only baseline in the default handshake_core build; GPU backends are opt-in features; engine enablement is decoupled from the legacy app/src-tauri build.",
+      "The generic ExternalEngineImport OpenAI-compatible endpoint remains available only as a non-authoritative compat lane (provider=external_compat, not Handshake-owned in ProcessOwnershipLedger); removing Ollama does not remove this generic compat lane."
     ]
   },
   "architecture_directives": {
@@ -174,7 +182,11 @@
     "model_exchange_pillar_translation": "Dexterity launches and switches model lanes; models propose/critique/plan through typed ModelLaneMessage/ContextBundle/artifact refs; Handshake validates/promotes deterministically; PostgreSQL/EventLedger holds authority; Flight Recorder/internal_diagnostics/Palmistry record observability posture; Loom/Locus/FEMS/UserManual make the work navigable and recoverable.",
     "rust_only_hard_gate": "No new TypeScript, React, app/src, app/src-tauri, Tauri/WebView, JavaScript, npm, or docs/model-manual proof may satisfy this WP. Those surfaces are reference-only unless future authority explicitly reactivates them outside this WP.",
     "status_recovery_contract": "MT status signaling must be restartable and validator-honest: implementers may set CLAIMED/READY_FOR_VALIDATION plus proof/blocker fields; completed_by remains validator-only.",
-    "post_implementation_review_contract": "Every MT gets pre-implementation contract review and post-implementation adversarial review against the actual diff before READY_FOR_VALIDATION. Review findings must be addressed in product code/contracts or represented as explicit MT lifecycle blocker/missing_resource/proof_status state. Implementers do not mark COMPLETED."
+    "post_implementation_review_contract": "Every MT gets pre-implementation contract review and post-implementation adversarial review against the actual diff before READY_FOR_VALIDATION. Review findings must be addressed in product code/contracts or represented as explicit MT lifecycle blocker/missing_resource/proof_status state. Implementers do not mark COMPLETED.",
+    "local_model_default_runtime": "Local model default runtime is the embedded Rust ModelRuntime: LlamaCppRuntime (llama-cpp-2 crate wrapping llama.cpp) is the default engine; CandleRuntime (pure-Rust candle-core/candle-transformers) is the required path for steering-hook techniques and non-transformer architectures (Mamba2/RWKV). Per master-spec-v02.197 03-local-first-infrastructure.md 3.6.1 and 04-llm-infrastructure.md 4.6, no third-party model-server daemon (Ollama, LM Studio, llama-server) is an authoritative ModelRuntime instance.",
+    "ollama_daemon_adapter_removal": "Operator decision 2026-07-01: the auto-detecting OllamaAdapter default LLM-client wiring is REMOVED. The startup Ollama /api/tags probe in src/backend/handshake_core/src/main.rs and the OllamaAdapter in src/backend/handshake_core/src/llm/ollama.rs must no longer be the default local path; the default LlmClient resolves through the embedded ModelRuntime, and a missing/unconfigured local model fails closed (DisabledLlmClient) rather than falling back to a daemon.",
+    "cpu_baseline_engine_features": "Embedded engine cargo features default to a CPU-only baseline in the default src/backend/handshake_core build; GPU backends (CUDA/Metal/etc.) are opt-in features. Engine enablement (llama-cpp-runtime-engine, candle-runtime-engine) MUST be part of the default build and MUST NOT be coupled to the legacy app/src-tauri app-runtime build.",
+    "external_engine_import_compat_lane": "The generic ExternalEngineImport lane (operator-pointed OpenAI-compatible endpoint per master-spec-v02.197 3.6.4) is RETAINED as non-authoritative compatibility only: provider=external_compat, never written to ProcessOwnershipLedger as Handshake-owned, never a default, never authoritative. Removing Ollama removes only the bespoke Ollama-specific adapter and auto-wiring, not this generic compat lane."
   },
   "bundled_stub_summary": {
     "folded_complete": [
@@ -306,7 +318,7 @@
   },
   "microtasks": {
     "contract_glob": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-*.json",
-    "count": 11,
+    "count": 12,
     "declared_ids": [
       "MT-001",
       "MT-002",
@@ -318,7 +330,8 @@
       "MT-008",
       "MT-009",
       "MT-010",
-      "MT-011"
+      "MT-011",
+      "MT-012"
     ],
     "active_id": "MT-003",
     "next_id": "MT-003"

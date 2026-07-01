@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-003",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-06-29T09:04:44.776Z",
+  "updated_at_utc": "2026-07-01T19:02:22Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-003.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PENDING",
     "depends_on": [
       "MT-002"
     ],
@@ -26,15 +26,15 @@
     ],
     "active": true,
     "validator_verdict": "PENDING",
-    "claimed_by": "KERNEL_BUILDER-20260629-MT003",
-    "claimed_at_utc": "2026-06-29T03:20:06.191Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260629-MT003",
-    "ready_for_validation_at_utc": "2026-06-29T03:20:06.191Z",
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "PASS_MT003_8_LAUNCH_4_SCHEMA_2_USERMANUAL_RUST_AUTHORITY_PROOFS_PUBLIC_CONSTRUCTOR_BYPASS_CLOSED_PLUS_APP_REQUEST_SOURCE_GUARD_EVIDENCE_SPEC_MANIFEST_EXTERNAL_DRIFT",
-    "hbr_status": "PASS_HBR_MATRIX_CHECK",
+    "proof_status": "REOPENED_2026-07-01_SCOPE_EXPANDED_OLLAMA_DAEMON_KILL_AND_EMBEDDED_MODELRUNTIME_DEFAULT. Prior READY_FOR_VALIDATION evidence (8 launch + 4 schema + 2 UserManual Rust authority proofs; Dexterity/public-constructor/Tauri-request-source bypass closures; external spec-manifest drift on 04-llm-infrastructure.md) is preserved as prior-scope evidence but is NOT sufficient: MT-003 acceptance 'Local lanes launch through LlmClient -> ModelRuntime' and 'no direct endpoint may become launch authority' are contradicted while the default LlmClient (main.rs) selects the OllamaAdapter daemon client. NEEDS: remove OllamaAdapter default + auto-detect, resolve default LlmClient through embedded ModelRuntime, CPU-baseline engine features decoupled from Tauri, retain non-authoritative ExternalEngineImport compat lane.",
+    "hbr_status": "PENDING_REOPENED_SCOPE_ADDS_INT002_INT005_QUIET003_OBLIGATIONS",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
     "last_recovery_event_ref": null,
@@ -53,7 +53,10 @@
       "src/backend/handshake_core/src/model_runtime/registry.rs",
       "src/backend/handshake_core/src/model_runtime/cloud/",
       "src/backend/handshake_core/src/process_ledger/",
-      "src/backend/handshake_core/src/flight_recorder/event_ledger.rs"
+      "src/backend/handshake_core/src/flight_recorder/event_ledger.rs",
+      "src/backend/handshake_core/src/main.rs",
+      "src/backend/handshake_core/src/llm/",
+      "src/backend/handshake_core/Cargo.toml"
     ],
     "forbidden_paths": [
       "direct model endpoint calls outside LlmClient",
@@ -74,7 +77,11 @@
       "Tool-capable lanes route tool calls through capability check, consent/projection where needed, Flight Recorder/EventLedger logging, execution, result capture, and ModelLaneMessage result refs.",
       "Every lane kind (local, BYOK cloud, official CLI, CLI bridge, human/operator, subagent, validator) MUST declare cancellation_token_ref, reclaim_policy, owner_session, terminal status mapping, and EventLedger START/STOP or explicit no-OS-process equivalent at launch time.",
       "Source/negative proof MUST fail closed for direct endpoint launch, app/src/app-src-tauri launch authority, terminal-only launch state, and unsupported tool capability.",
-      "After implementation and before READY_FOR_VALIDATION, this MT MUST receive post-implementation adversarial review against the actual diff. Findings must be fixed or converted into explicit lifecycle blocker/missing_resource/proof_status state; the implementer may not self-certify COMPLETED."
+      "After implementation and before READY_FOR_VALIDATION, this MT MUST receive post-implementation adversarial review against the actual diff. Findings must be fixed or converted into explicit lifecycle blocker/missing_resource/proof_status state; the implementer may not self-certify COMPLETED.",
+      "REOPENED SCOPE (operator decision 2026-07-01): The default LlmClient boot path (src/backend/handshake_core/src/main.rs) MUST resolve local inference through the embedded ModelRuntime (LlamaCppRuntime default, CandleRuntime for hook/non-transformer lanes), NOT the auto-detected Ollama daemon. src/backend/handshake_core/src/llm/ollama.rs OllamaAdapter and its /api/tags auto-detect default are removed.",
+      "REOPENED SCOPE: A missing or unconfigured local model fails closed to DisabledLlmClient with no daemon fallback; a negative test proves the default runtime path never selects a third-party daemon adapter as authority (master-spec-v02.197 3.6.1).",
+      "REOPENED SCOPE: Embedded engine cargo features (llama-cpp-runtime-engine, candle-runtime-engine) default to a CPU-only baseline in the default handshake_core build; GPU backends are opt-in features; engine enablement is decoupled from the legacy app/src-tauri build.",
+      "REOPENED SCOPE: The generic ExternalEngineImport OpenAI-compatible endpoint is retained as a non-authoritative compat lane only (provider=external_compat, not Handshake-owned in ProcessOwnershipLedger); no bespoke Ollama adapter or auto-wiring survives."
     ],
     "proof_targets": [
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_all_lane_kinds_through_rust_registry -- --exact",
@@ -117,7 +124,8 @@
     "Proof commands must name exact Rust test targets or exact test names. Zero matching tests is a hard failure. Deterministic provider fakes are allowed for cloud/local model calls, but PostgreSQL/EventLedger/ArtifactStore/CRDT/UserManual/Argus authority must touch real Handshake-owned Rust resources or an explicit real PostgreSQL URL.",
     "Each behavior-changing MT must include same-change UserManual coverage for the changed behavior; MT-011 audits coverage and cannot substitute for same-change HBR-MAN-004 proof.",
     "This pre-implementation contract review does not replace post-implementation review. After coding, run adversarial review against the actual diff through the listed lenses and update MT status signaling before handoff.",
-    "The live Rust Tauri backend request-source path was patched only to close a Dexterity launch-authority bypass: app/src-tauri IPC and scheduled spin-up now attach core Dexterity launch contracts before SwarmCoordinator dispatch and fail closed when PostgreSQL ModelLaneStore is unavailable. This does not make Tauri/app IPC launch authority for this WP."
+    "The live Rust Tauri backend request-source path was patched only to close a Dexterity launch-authority bypass: app/src-tauri IPC and scheduled spin-up now attach core Dexterity launch contracts before SwarmCoordinator dispatch and fail closed when PostgreSQL ModelLaneStore is unavailable. This does not make Tauri/app IPC launch authority for this WP.",
+    "REOPENED 2026-07-01: MT-003 was returned from READY_FOR_VALIDATION to PENDING because the default LlmClient boot wiring (main.rs) still selects the OllamaAdapter daemon client, which bypasses ModelRuntime and contradicts this MT's own acceptance. The prior swarm-lane launch hardening (Dexterity bypass closures) remains valid prior-scope evidence; the reopened scope adds default-LlmClient embedded-ModelRuntime resolution, OllamaAdapter removal, CPU-baseline engine features, and retention of the non-authoritative ExternalEngineImport compat lane. The pre-existing external spec-manifest drift on 04-llm-infrastructure.md must also be resolved."
   ],
   "required_build_rules": [
     "HBR-INT-002",
