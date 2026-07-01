@@ -140,6 +140,14 @@ pub struct ModuleDefinition {
     pub tabs: &'static [PaneType],
     /// The tab activated when this module is selected (always the first effective tab after dedup).
     pub default_tab: PaneType,
+    /// WP-CKC MT-006: this module is a FULL-WINDOW module — when its `PaneType::AtelierEditor`
+    /// surface is the active tab on the target pane, the shell suppresses the pane header + tab-strip
+    /// chrome so the Atelier panel (whose own `[Castkit Codex | Posekit | Ingest]` strip is the only
+    /// visible tab bar) fills the whole work area. `false` for the classic docked modules (Main, Stage,
+    /// Lab, Studio) whose panes always keep their header + tab-strip chrome. This is a chrome-rendering
+    /// hint only; it is NOT part of the React MODULE_DEFINITIONS wire contract, so the drift-gate
+    /// `definitions_match_native_contract` does not serialize it.
+    pub full_window: bool,
 }
 
 /// Every work-surface module, in header display order. A const array (NOT config-loaded) so the
@@ -162,6 +170,7 @@ pub const MODULE_DEFINITIONS: [ModuleDefinition; 6] = [
             PaneType::Timeline,
         ],
         default_tab: PaneType::Workspace,
+        full_window: false,
     },
     ModuleDefinition {
         id: ModuleId::Ckc,
@@ -181,6 +190,7 @@ pub const MODULE_DEFINITIONS: [ModuleDefinition; 6] = [
             PaneType::Timeline,
         ],
         default_tab: PaneType::AtelierEditor,
+        full_window: true,
     },
     ModuleDefinition {
         id: ModuleId::Ingest,
@@ -193,6 +203,7 @@ pub const MODULE_DEFINITIONS: [ModuleDefinition; 6] = [
             PaneType::Jobs,
         ],
         default_tab: PaneType::AtelierEditor,
+        full_window: true,
     },
     ModuleDefinition {
         id: ModuleId::Stage,
@@ -206,6 +217,7 @@ pub const MODULE_DEFINITIONS: [ModuleDefinition; 6] = [
             PaneType::Problems,
         ],
         default_tab: PaneType::FontManager,
+        full_window: false,
     },
     ModuleDefinition {
         id: ModuleId::Lab,
@@ -220,6 +232,7 @@ pub const MODULE_DEFINITIONS: [ModuleDefinition; 6] = [
             PaneType::UserManual,
         ],
         default_tab: PaneType::InferenceLab,
+        full_window: false,
     },
     ModuleDefinition {
         id: ModuleId::Studio,
@@ -234,6 +247,7 @@ pub const MODULE_DEFINITIONS: [ModuleDefinition; 6] = [
             PaneType::UserManual,
         ],
         default_tab: PaneType::ModelRuntime,
+        full_window: false,
     },
 ];
 

@@ -272,6 +272,11 @@ Argus inspect/steer/screenshot loop."
 fn atelier_tools_body() -> String {
     "Atelier is the main filling panel for the CKC/Posekit/Ingest tool family. The visible top-level \
 module button is module-ckc and displays Atelier. It opens atelier-main-panel, not a four-window grid. \
+Atelier is a FULL-WINDOW module: while its AtelierEditor surface is the active tab it fills the whole \
+work area with NO pane header and NO pane tab-strip chrome (no pane-a-header, no tabbar-pane-a), so CKC, \
+Posekit, and Ingest are the internal full-size sub-module tabs and the panel's own atelier-tab-list is \
+the only visible tab bar. module-ckc lands on the Castkit Codex internal tab and module-ingest lands on \
+the Ingest internal tab. \
 Inside that panel, Castkit Codex is atelier-tab-ckc, Posekit is atelier-tab-posekit, and Ingest is \
 atelier-tab-ingest. Use Argus to inspect the panel, click a tab, then re-inspect the active content \
 region before claiming the workflow works.\n\
@@ -494,8 +499,12 @@ atelier-ingest-item-{stable_item_id}-unsure so parallel agents can inspect and s
 relying on the visible row order.\n\
 \n\
 For models, the expected navigation path is module-ckc -> atelier-main-panel -> one of \
-atelier-tab-ckc / atelier-tab-posekit / atelier-tab-ingest -> the active content region. module-ingest \
-is a compatibility shortcut that also opens the Atelier panel; still verify the internal \
+atelier-tab-ckc / atelier-tab-posekit / atelier-tab-ingest -> the active content region. Because Atelier \
+is full-window, the pane header and pane tab bar are suppressed while the AtelierEditor surface is \
+active; the CKC module's NON-Atelier tabs (kernel-dcc, code-symbol, source-control) are reached through \
+the module switcher and the CKC module tab list, NOT through the now-suppressed pane tab bar, and that \
+pane chrome reappears only when a non-Atelier tab is the active surface on the pane. module-ingest \
+lands on the Ingest internal tab (not the CKC surface); still verify the internal \
 atelier-tab-ingest tab is selected before staging Ingest work. If a control needed for CKC, Posekit, or \
 Ingest cannot be found by stable author_id through Argus, treat that as a product gap to remediate \
 before claiming visual or behavioral completion."

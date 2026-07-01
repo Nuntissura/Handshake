@@ -10497,7 +10497,7 @@ impl AtelierPanel {
 }
 
 pub struct AtelierPanelPaneMount {
-    panel: AtelierPanel,
+    panel: Arc<AtelierPanel>,
     palette: SharedPalette,
 }
 
@@ -10535,9 +10535,23 @@ impl AtelierPanelPaneMount {
         ckc_client: Option<AtelierClient>,
     ) -> Self {
         Self {
-            panel: AtelierPanel::with_client(side_panel, canvas_board, canvas_events, ckc_client),
+            panel: Arc::new(AtelierPanel::with_client(
+                side_panel,
+                canvas_board,
+                canvas_events,
+                ckc_client,
+            )),
             palette,
         }
+    }
+
+    /// WP-CKC MT-006: a shared handle to the singleton [`AtelierPanel`] this mount renders. The shell
+    /// keeps a clone so `set_module` can drive the panel's internal `[Castkit Codex | Posekit | Ingest]`
+    /// tab (module-ckc -> Castkit Codex, module-ingest -> Ingest) directly through `set_active_tab`,
+    /// which mutates the panel's interior tab state. Both the mount and the shell address the SAME
+    /// `AtelierPanel`, so the module-entry tab selection and the rendered panel never diverge.
+    pub fn panel_handle(&self) -> Arc<AtelierPanel> {
+        Arc::clone(&self.panel)
     }
 }
 

@@ -812,6 +812,11 @@ struct SecondaryMountHandles {
     /// True once the relevant-memory pane has requested its first FEMS fetch (so the EndpointMissing
     /// blocker is surfaced exactly once — the route is verified ABSENT in this build).
     relevant_memory_fetched: std::sync::atomic::AtomicBool,
+    /// WP-CKC MT-006: the SAME singleton [`AtelierPanel`](crate::atelier_panel::AtelierPanel) the
+    /// registered `AtelierEditor` mount renders. The shell keeps this handle so `set_module` can select
+    /// the panel's internal full-window sub-module tab on module entry (module-ckc -> Castkit Codex,
+    /// module-ingest -> Ingest) via `set_active_tab`, without re-reaching into the boxed factory.
+    atelier_panel: Arc<crate::atelier_panel::AtelierPanel>,
 }
 
 /// Build the pane factory map AND install the CONCRETE [`LoomSearchV2PaneFactory`] over its placeholder
@@ -842,7 +847,7 @@ fn build_factories_with_loom_search_v2(
         crate::find_in_files::FindInFilesPaneShared::new(palette),
     ));
     let search_client = crate::backend_client::WorkspaceSearchClient::production(runtime.clone());
-    let doc_client = crate::backend_client::RichDocClient::production(runtime);
+    let doc_client = crate::backend_client::RichDocClient::production(runtime.clone());
     let fif_factory = crate::find_in_files::FindInFilesPaneFactory::new(
         search_client,
         doc_client,
@@ -856,7 +861,7 @@ fn build_factories_with_loom_search_v2(
     // surfaces the WP-011 shell already routes those panes to — no new PaneType variant is forked). The
     // session-threaded MOUNT wrappers thread runtime/workspace/embed/wikilink context on mount through
     // the SAME shared-cell pattern (the `session` cell the shell overwrites each frame).
-    let editor_mounts = install_editor_mounts(&mut map, atelier_side_panel);
+    let editor_mounts = install_editor_mounts(&mut map, atelier_side_panel, runtime);
 
     (map, shared, fif_shared, editor_mounts)
 }
@@ -869,6 +874,7 @@ fn build_factories_with_loom_search_v2(
 fn install_editor_mounts(
     map: &mut HashMap<PaneType, Box<dyn PaneFactory>>,
     atelier_side_panel: Arc<Mutex<AtelierSidePanel>>,
+    runtime: tokio::runtime::Handle,
 ) -> EditorMountHandles {
     // The session-context cell every mount reads; starts UNbound (empty workspace, no runtime). The shell
     // overwrites it with the active workspace + runtime each frame (sync_editor_session), at which point
@@ -900,7 +906,7 @@ fn install_editor_mounts(
 
     // WP-KERNEL-012 MT-080 (E11 host-mount, part 2): install the SECONDARY pane factories over their
     // placeholders so the canvas / graph / side panes render LIVE too.
-    let secondary = install_secondary_mounts(map, atelier_side_panel);
+    let secondary = install_secondary_mounts(map, atelier_side_panel, runtime);
 
     EditorMountHandles {
         session,
@@ -922,6 +928,7 @@ fn install_editor_mounts(
 fn install_secondary_mounts(
     map: &mut HashMap<PaneType, Box<dyn PaneFactory>>,
     atelier_side_panel: Arc<Mutex<AtelierSidePanel>>,
+    runtime: tokio::runtime::Handle,
 ) -> SecondaryMountHandles {
     use crate::editor_pane_factories::{
         DailyJournalPaneMount, GraphViewPaneMount, ManualPaneMount, OutgoingLinksPaneMount,
@@ -941,15 +948,19 @@ fn install_secondary_mounts(
         ),
     ));
     let canvas_events = Arc::new(Mutex::new(Vec::new()));
-    map.insert(
-        PaneType::AtelierEditor,
-        Box::new(crate::atelier_panel::AtelierPanelPaneMount::new(
-            Arc::clone(&atelier_side_panel),
-            Arc::clone(&canvas_board),
-            Arc::clone(&palette),
-            Arc::clone(&canvas_events),
-        )),
+    // WP-CKC MT-006: build the Atelier mount, then capture the shared handle to its singleton
+    // `AtelierPanel` BEFORE boxing it into the factory map, so the shell can drive the panel's internal
+    // full-window sub-module tab (module-ckc -> Castkit Codex, module-ingest -> Ingest) via
+    // `set_active_tab` on module entry. Both the boxed mount and the shell handle wrap the SAME panel.
+    let atelier_mount = crate::atelier_panel::AtelierPanelPaneMount::with_client(
+        Arc::clone(&atelier_side_panel),
+        Arc::clone(&canvas_board),
+        Arc::clone(&palette),
+        Arc::clone(&canvas_events),
+        crate::backend_client::AtelierClient::production(runtime.clone()),
     );
+    let atelier_panel = atelier_mount.panel_handle();
+    map.insert(PaneType::AtelierEditor, Box::new(atelier_mount));
 
     // ── Graph view (PaneType::KernelDcc) ─────────────────────────────────────────────────────────────
     let mut gv = crate::graph::graph_view::LoomGraphView::default();
@@ -1051,6 +1062,7 @@ fn install_secondary_mounts(
         daily_journal_events,
         manual_state,
         relevant_memory_fetched: std::sync::atomic::AtomicBool::new(false),
+        atelier_panel,
     }
 }
 
@@ -1771,6 +1783,12 @@ impl HandshakeApp {
             gpu_info: self.gpu_info.clone(),
             dropped_count: crate::diagnostics::dropped_count(),
             ring_writer_installed: crate::diagnostics::has_ring_writer(),
+            // WP-KERNEL-012 MT-093 (§6.13.7 / §10.12.5 Tier-3, AC-013-6): read the freeze/crash survivor
+            // records the external Palmistry watcher persisted to its durable per-user store so the panel's
+            // Tier-3 section is POPULATED post-recovery (the honest empty-state until a freeze/crash). A
+            // pure file read of the typed-allowlist records — no project content. Empty when the store is
+            // absent/empty (the honest empty-state MT-087 renders).
+            palmistry_records: crate::diagnostics::read_default_survivor_records(),
         }
     }
 
@@ -4587,6 +4605,23 @@ impl HandshakeApp {
             rebuilt.activate(default_index);
             *bar = rebuilt;
         }
+        // WP-CKC MT-006: the two full-window Atelier modules land on their matching INTERNAL Atelier
+        // sub-module tab, not just the shared AtelierEditor pane tab. module-ckc opens Castkit Codex;
+        // module-ingest opens Ingest (fixes module-ingest landing on the CKC surface). The panel is the
+        // SAME singleton the AtelierEditor mount renders, so this select is reflected on the next frame.
+        match module_id {
+            ModuleId::Ckc => self
+                .editor_mounts
+                .secondary
+                .atelier_panel
+                .set_active_tab(crate::atelier_panel::AtelierPanelTab::CastkitCodex),
+            ModuleId::Ingest => self
+                .editor_mounts
+                .secondary
+                .atelier_panel
+                .set_active_tab(crate::atelier_panel::AtelierPanelTab::Ingest),
+            _ => {}
+        }
         sync_registry_record_to_active_tab(&self.pane_registry, &self.tab_bar_states, &target);
         true
     }
@@ -7372,11 +7407,26 @@ impl HandshakeApp {
             if full.width() <= 1.0 || full.height() <= 1.0 {
                 return;
             }
-            let header_h = PANE_HEADER_HEIGHT.min(full.height());
+            // WP-CKC MT-006: a full-window module's Atelier surface fills the whole pane rect with NO
+            // pane header + NO pane tab-strip chrome — the Atelier panel's own internal tab strip is the
+            // only visible tab bar. Gate on BOTH the active module (Ckc/Ingest are full_window) AND the
+            // pane's active surface being the AtelierEditor, so the chrome RE-SHOWS the moment a
+            // non-Atelier tab (kernel-dcc / code-symbol / source-control) becomes active on this pane.
+            let full_window_module =
+                active_module.definition().full_window && record.pane_type == PaneType::AtelierEditor;
+            let header_h = if full_window_module {
+                0.0
+            } else {
+                PANE_HEADER_HEIGHT.min(full.height())
+            };
             let header_rect =
                 egui::Rect::from_min_max(full.min, egui::pos2(full.right(), full.top() + header_h));
             let after_header_top = full.top() + header_h;
-            let tab_h = TAB_BAR_HEIGHT.min((full.bottom() - after_header_top).max(0.0));
+            let tab_h = if full_window_module {
+                0.0
+            } else {
+                TAB_BAR_HEIGHT.min((full.bottom() - after_header_top).max(0.0))
+            };
             let tab_rect = egui::Rect::from_min_max(
                 egui::pos2(full.left(), after_header_top),
                 egui::pos2(full.right(), after_header_top + tab_h),
@@ -7390,41 +7440,45 @@ impl HandshakeApp {
                 .get(&pane_id)
                 .and_then(|bar| bar.active().map(|t| t.label()))
                 .unwrap_or_else(|| label.to_owned());
-            let mut header_ui = ui.new_child(
-                egui::UiBuilder::new()
-                    .id_salt(("single-pane-header", node_id.unwrap_or(0)))
-                    .max_rect(header_rect)
-                    .layout(egui::Layout::left_to_right(egui::Align::Center)),
-            );
-            header_ui.set_clip_rect(header_rect);
-            let header_resp = PaneHeader::show(
-                &mut header_ui,
-                pane_id.as_ref(),
-                &active_tab_label,
-                record.lock_state == LockState::Locked,
-                true,
-                header_colors,
-            );
-            if header_resp.lock_toggled {
-                lock_requests.push(pane_id.clone());
-            }
-            if header_resp.pop_out_requested {
-                pop_out_requests.push(pane_id.clone());
-            }
-            if header_resp.focus_requested {
-                *active_pane = Some(pane_id.clone());
-            }
-
-            if let Some(tab_state) = tab_bar_states.get(&pane_id) {
-                let mut tab_ui = ui.new_child(
+            if !full_window_module {
+                let mut header_ui = ui.new_child(
                     egui::UiBuilder::new()
-                        .id_salt(("single-tab-bar", node_id.unwrap_or(0)))
-                        .max_rect(tab_rect)
+                        .id_salt(("single-pane-header", node_id.unwrap_or(0)))
+                        .max_rect(header_rect)
                         .layout(egui::Layout::left_to_right(egui::Align::Center)),
                 );
-                tab_ui.set_clip_rect(tab_rect);
-                let resp = TabBar::show(&mut tab_ui, tab_state, tab_colors, active_module);
-                single_tab_response = Some((pane_id.clone(), resp));
+                header_ui.set_clip_rect(header_rect);
+                let header_resp = PaneHeader::show(
+                    &mut header_ui,
+                    pane_id.as_ref(),
+                    &active_tab_label,
+                    record.lock_state == LockState::Locked,
+                    true,
+                    header_colors,
+                );
+                if header_resp.lock_toggled {
+                    lock_requests.push(pane_id.clone());
+                }
+                if header_resp.pop_out_requested {
+                    pop_out_requests.push(pane_id.clone());
+                }
+                if header_resp.focus_requested {
+                    *active_pane = Some(pane_id.clone());
+                }
+            }
+
+            if !full_window_module {
+                if let Some(tab_state) = tab_bar_states.get(&pane_id) {
+                    let mut tab_ui = ui.new_child(
+                        egui::UiBuilder::new()
+                            .id_salt(("single-tab-bar", node_id.unwrap_or(0)))
+                            .max_rect(tab_rect)
+                            .layout(egui::Layout::left_to_right(egui::Align::Center)),
+                    );
+                    tab_ui.set_clip_rect(tab_rect);
+                    let resp = TabBar::show(&mut tab_ui, tab_state, tab_colors, active_module);
+                    single_tab_response = Some((pane_id.clone(), resp));
+                }
             }
 
             let render_ctx = PaneRenderContext {
@@ -7708,11 +7762,24 @@ impl HandshakeApp {
             // Carve, from the TOP: MT-013 header strip, then MT-007 tab strip, then the body — the SAME
             // stack the docked pane uses, so a popped-out pane keeps its header binding + tab badges.
             let full = ui.available_rect_before_wrap();
-            let header_h = PANE_HEADER_HEIGHT.min(full.height());
+            // WP-CKC MT-006: the IDENTICAL full-window suppression the docked render applies — a popped-out
+            // full-window Atelier surface also drops its pane header + tab-strip chrome so the panel's own
+            // internal tab strip is the only tab bar. Same predicate, same two render-site behavior.
+            let full_window_module =
+                active_module.definition().full_window && record.pane_type == PaneType::AtelierEditor;
+            let header_h = if full_window_module {
+                0.0
+            } else {
+                PANE_HEADER_HEIGHT.min(full.height())
+            };
             let header_rect =
                 egui::Rect::from_min_max(full.min, egui::pos2(full.right(), full.top() + header_h));
             let after_header_top = full.top() + header_h;
-            let tab_h = TAB_BAR_HEIGHT.min((full.bottom() - after_header_top).max(0.0));
+            let tab_h = if full_window_module {
+                0.0
+            } else {
+                TAB_BAR_HEIGHT.min((full.bottom() - after_header_top).max(0.0))
+            };
             let tab_rect = egui::Rect::from_min_max(
                 egui::pos2(full.left(), after_header_top),
                 egui::pos2(full.right(), after_header_top + tab_h),
@@ -7725,7 +7792,8 @@ impl HandshakeApp {
             // MT-013 header: active-tab title binding + lock control (parity with the docked pane). The
             // lock click inside a pop-out is reconciled by a later cross-window mutation MT (same as the
             // tab interactions below); here the header is rendered for binding + accessibility parity.
-            {
+            // WP-CKC MT-006: suppressed entirely when this pop-out is a full-window Atelier surface.
+            if !full_window_module {
                 let active_tab_label: String = tab_bar_states
                     .get(pane_id)
                     .and_then(|bar| bar.active().map(|t| t.label()))
@@ -7751,18 +7819,20 @@ impl HandshakeApp {
                 );
             }
 
-            if let Some(tab_state) = tab_bar_states.get(pane_id) {
-                let mut tab_ui = ui.new_child(
-                    egui::UiBuilder::new()
-                        .id_salt(("popout-tab-bar", node_id))
-                        .max_rect(tab_rect)
-                        .layout(egui::Layout::left_to_right(egui::Align::Center)),
-                );
-                tab_ui.set_clip_rect(tab_rect);
-                // Render the tab bar; tab interactions inside a pop-out are reconciled by a later MT
-                // (the detached-window tab mutation path). Here the bar is rendered for parity +
-                // accessibility; its interactions are intentionally not yet reconciled cross-window.
-                let _resp = TabBar::show(&mut tab_ui, tab_state, tab_colors, active_module);
+            if !full_window_module {
+                if let Some(tab_state) = tab_bar_states.get(pane_id) {
+                    let mut tab_ui = ui.new_child(
+                        egui::UiBuilder::new()
+                            .id_salt(("popout-tab-bar", node_id))
+                            .max_rect(tab_rect)
+                            .layout(egui::Layout::left_to_right(egui::Align::Center)),
+                    );
+                    tab_ui.set_clip_rect(tab_rect);
+                    // Render the tab bar; tab interactions inside a pop-out are reconciled by a later MT
+                    // (the detached-window tab mutation path). Here the bar is rendered for parity +
+                    // accessibility; its interactions are intentionally not yet reconciled cross-window.
+                    let _resp = TabBar::show(&mut tab_ui, tab_state, tab_colors, active_module);
+                }
             }
 
             let render_ctx = PaneRenderContext {

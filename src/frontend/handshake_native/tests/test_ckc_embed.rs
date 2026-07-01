@@ -48,9 +48,11 @@ use handshake_native::mcp::{
     dispatch_request, ActionChannel, McpRequest, ScreenshotError, SessionToken,
 };
 use handshake_native::module_switcher::ModuleId;
+use handshake_native::pane_registry::{PaneId, PaneType};
 use handshake_native::rich_editor::renderer::rich_editor_widget::{
     RichEditorState, RichEditorWidget,
 };
+use handshake_native::tab_bar::{TabBarState, TabState};
 use handshake_native::stage_pane::{StageContent, StagePane, STAGE_PANE_AUTHOR_ID};
 use handshake_native::theme::HsTheme;
 
@@ -705,6 +707,23 @@ fn ac6_atelier_side_panel_mounted_in_live_shell() {
             "AC-6 live: Atelier is a full central panel, not the old 2x2 split; unexpected {retired_split_pane} in {ids:?}"
         );
     }
+    // WP-CKC MT-006: the live shell entered via module-ckc (a full_window module) shows the AtelierEditor
+    // surface on the seed pane (pane-a), so the pane's SHELL chrome — header title/lock and the pane
+    // tab-strip — is suppressed. Only the Atelier panel's own internal tab strip is visible. Assert the
+    // pane-chrome author_ids are ABSENT so a regression that re-adds the pane header/tab bar over the
+    // full-window Atelier surface fails loudly.
+    for suppressed_chrome in [
+        "pane-pane-a-header",
+        "pane-pane-a-title",
+        "pane-pane-a-lock",
+        "tabbar-pane-a",
+        "tab-pane-a-0",
+    ] {
+        assert!(
+            !ids.contains(suppressed_chrome),
+            "AC-6 live: full-window Atelier suppresses pane shell chrome; unexpected {suppressed_chrome} in {ids:?}"
+        );
+    }
     println!(
         "AC-6 live: the central Atelier pane exposes CKC intake rows in the real HandshakeApp shell"
     );
@@ -730,6 +749,135 @@ fn ac6_posekit_and_ingest_tabs_switch_in_live_shell() {
     assert!(
         ids.contains(ATELIER_CONTENT_INGEST_AUTHOR_ID),
         "AC-6 live: Ingest content appears after clicking the live-shell Ingest tab ({ids:?})"
+    );
+}
+
+/// WP-CKC MT-006 (P3): entering an Atelier module selects the matching INTERNAL Atelier sub-module tab,
+/// not just the shared AtelierEditor pane tab. module-ckc lands on Castkit Codex; module-ingest lands on
+/// Ingest — the fix for the "module-ingest shows CKC" regression. Because Atelier is full-window (no pane
+/// tab bar), the active internal content region is the module-entry proof.
+#[test]
+fn module_entry_selects_matching_internal_atelier_tab_in_live_shell() {
+    // live_shell() enters via module-ckc -> the CKC (Castkit Codex) internal tab is the active content.
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), live_shell());
+    harness.run();
+    harness.run();
+
+    let ids = author_ids(&harness);
+    assert!(
+        ids.contains(ATELIER_CONTENT_CKC_AUTHOR_ID),
+        "P3: module-ckc lands on the Castkit Codex internal tab ({ids:?})"
+    );
+    assert!(
+        !ids.contains(ATELIER_CONTENT_INGEST_AUTHOR_ID),
+        "P3: module-ckc does not open the Ingest internal tab ({ids:?})"
+    );
+
+    // Switch to the Ingest module: it MUST land on the Ingest internal tab (fixes module-ingest-shows-CKC).
+    assert!(
+        harness.state_mut().set_module(ModuleId::Ingest),
+        "P3: switching to the Ingest module changes shell state"
+    );
+    harness.run();
+    harness.run();
+
+    let ids = author_ids(&harness);
+    assert!(
+        ids.contains(ATELIER_CONTENT_INGEST_AUTHOR_ID),
+        "P3: module-ingest lands on the Ingest internal tab ({ids:?})"
+    );
+    assert!(
+        !ids.contains(ATELIER_CONTENT_CKC_AUTHOR_ID),
+        "P3: module-ingest does NOT show the CKC surface (module-ingest-shows-CKC regression) ({ids:?})"
+    );
+}
+
+/// WP-CKC MT-006 (R1 regression): while in the full-window Atelier module, activating a NON-Atelier tab
+/// on the same pane (e.g. kernel-dcc) makes the pane's shell chrome REAPPEAR — the suppression is gated on
+/// the active surface being the AtelierEditor, not merely on the module being full_window.
+#[test]
+fn non_atelier_tab_in_full_window_module_restores_pane_chrome() {
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), live_shell());
+    harness.run();
+    harness.run();
+
+    // Full-window Atelier: no pane tab bar while AtelierEditor is the active surface.
+    assert!(
+        !author_ids(&harness).contains("tabbar-pane-a"),
+        "R1 precondition: full-window Atelier suppresses the pane tab bar"
+    );
+
+    // Activate the CKC module's kernel-dcc tab on the target pane (pane-a). The CKC tab list opens
+    // [atelier, kernel-dcc, code-symbol, source-control, ...], so a non-Atelier surface exists to switch to.
+    let pane = PaneId::from("pane-a");
+    {
+        let bar = harness
+            .state_mut()
+            .tab_bar_states_mut()
+            .get_mut(&pane)
+            .expect("pane-a has a tab bar in the CKC live shell");
+        let idx = bar
+            .tabs
+            .iter()
+            .position(|t| t.pane_type == PaneType::KernelDcc)
+            .expect("CKC module opens a kernel-dcc tab on the pane");
+        bar.activate(idx);
+    }
+    harness.run();
+    harness.run();
+
+    let ids = author_ids(&harness);
+    assert!(
+        ids.contains("tabbar-pane-a"),
+        "R1: pane tab-bar chrome REAPPEARS once a non-Atelier tab is active on the pane ({ids:?})"
+    );
+    assert!(
+        ids.contains("pane-pane-a-header"),
+        "R1: pane header chrome REAPPEARS for a non-Atelier active tab ({ids:?})"
+    );
+}
+
+/// WP-CKC MT-006 (R2 regression): the suppression is ALSO gated on the module being full_window. Opening a
+/// `PaneType::AtelierEditor` tab inside the MAIN module (not full_window) keeps the pane's shell chrome —
+/// so a stray Atelier tab in a classic docked module does NOT lose its header/tab bar.
+#[test]
+fn atelier_tab_in_non_full_window_module_keeps_pane_chrome() {
+    // A fresh shell defaults to the MAIN module (not full_window).
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    assert_eq!(
+        app.active_module(),
+        ModuleId::Main,
+        "a fresh shell starts on the MAIN module"
+    );
+    // Open an AtelierEditor tab on pane-a and make it active, WITHOUT switching module (stay on MAIN).
+    let pane = PaneId::from("pane-a");
+    app.tab_bar_states_mut().insert(
+        pane.clone(),
+        TabBarState::new(pane.clone(), vec![TabState::new(PaneType::AtelierEditor)]),
+    );
+
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run();
+    harness.run();
+
+    let ids = author_ids(&harness);
+    assert!(
+        ids.contains("tabbar-pane-a"),
+        "R2: an AtelierEditor tab in the non-full_window MAIN module KEEPS its pane tab bar ({ids:?})"
+    );
+    assert!(
+        ids.contains("pane-pane-a-header"),
+        "R2: an AtelierEditor tab in the MAIN module keeps its pane header chrome ({ids:?})"
     );
 }
 
