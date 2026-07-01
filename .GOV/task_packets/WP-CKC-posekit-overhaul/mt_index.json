@@ -2,7 +2,7 @@
   "schema_id": "hsk.microtask_index@1",
   "schema_version": "microtask_index_v1",
   "wp_id": "WP-CKC-posekit-overhaul",
-  "updated_at_utc": "2026-07-01T10:46:59.884Z",
+  "updated_at_utc": "2026-07-01T10:51:44.266Z",
   "active_mt_id": "MT-010",
   "next_mt_id": "MT-031",
   "microtask_contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
@@ -257,11 +257,12 @@
     },
     {
       "mt_id": "MT-028",
-      "status": "PENDING",
+      "status": "IN_PROGRESS",
       "title": "Add Facial review queue, montage, and export lineage",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-028.json",
       "product_edit_allowed": true,
-      "started_at_utc": null
+      "started_at_utc": "2026-07-01T10:51:44.266Z",
+      "parallel_lane_note": "Backend-first Facial review queue/montage/export lineage lane; active_mt_id intentionally remains MT-010."
     },
     {
       "mt_id": "MT-029",

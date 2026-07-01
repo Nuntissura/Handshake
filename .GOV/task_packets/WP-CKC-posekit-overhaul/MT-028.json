@@ -5,9 +5,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-028",
   "title": "Add Facial review queue, montage, and export lineage",
-  "status": "PENDING",
+  "status": "IN_PROGRESS",
   "created_at_utc": "2026-06-30T23:20:00.000Z",
-  "updated_at_utc": "2026-06-30T23:20:00.000Z",
+  "updated_at_utc": "2026-07-01T10:51:44.266Z",
   "product_edit_allowed": true,
   "operator_request": "The Facial app is used to sort mined images for LoRA training. Handshake needs review queues, montage/contact-sheet style inspection, and non-destructive export lineage connected to Ingest/CKC.",
   "authority_files": {
@@ -21,13 +21,14 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-028.json"
   },
   "lifecycle": {
-    "status": "PENDING",
-    "active": false,
+    "status": "IN_PROGRESS",
+    "active": true,
     "depends_on": [
       "MT-026",
       "MT-027"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PENDING",
+    "started_at_utc": "2026-07-01T10:51:44.266Z"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -58,13 +59,13 @@
       "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/backend_client.rs"
     ],
     "allowed_paths": [
-      "src/backend/handshake_core/src/atelier/intake.rs",
       "src/backend/handshake_core/src/atelier/facial.rs",
       "src/backend/handshake_core/src/atelier/facial_native/review.rs",
-      "src/backend/handshake_core/src/api/atelier.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/mod.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/registry.rs",
       "src/backend/handshake_core/tests/atelier_facial_review_tests.rs",
-      "src/frontend/handshake_native/src/atelier_panel.rs",
-      "src/frontend/handshake_native/src/backend_client.rs"
+      "src/backend/handshake_core/src/user_manual/seed.rs",
+      "src/backend/handshake_core/tests/user_manual_content_tests.rs"
     ],
     "acceptance_criteria": [
       "Review sessions use stable content-hash/source-ref image IDs.",
@@ -101,6 +102,8 @@
   },
   "manual_requirement": "Required if this MT exposes or changes operator/model-visible Facial behavior.",
   "handoff": {
-    "status": "PENDING"
+    "status": "IN_PROGRESS",
+    "started_at_utc": "2026-07-01T10:51:44.266Z",
+    "note": "Backend-first implementation started. active_mt_id remains MT-010 because that is the separate active media/linking lane; MT-028 is tracked directly in this contract and mt_index row."
   }
 }
