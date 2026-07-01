@@ -5,6 +5,7 @@
 //! fallback in this proof path.
 
 mod knowledge_pg_support;
+mod model_lane_cloud_support;
 
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
@@ -59,6 +60,17 @@ async fn model_lane_schema_persists_and_replays_eventledger_rows() {
         "run must carry EventLedger evidence"
     );
     assert!(stored_run.event_ledger_seq > 0);
+
+    // Cloud lanes fail closed unless durable ProjectionPlan/ConsentReceipt
+    // authority already exists (spec 4.3.9.2.5). Seed the cloud lane's authority
+    // before recording it, matching the identity `sample_lane` stamps.
+    seed_cloud_lane_authority_for(
+        &store,
+        "run-mixed-001",
+        "lane-cloud",
+        "mlane-stream-run-mixed-001",
+    )
+    .await;
 
     for lane in [
         sample_lane(
@@ -516,6 +528,13 @@ async fn model_lane_schema_serializes_competing_terminal_updates() {
     failed_lane.task_board_id = failed_run.task_board_id.clone();
     failed_lane.owner_session = failed_run.owner_session.clone();
 
+    seed_cloud_lane_authority_for(
+        &store,
+        "run-terminal-failed",
+        "lane-terminal-failed",
+        "mlane-stream-terminal-failed",
+    )
+    .await;
     store
         .record_prepared_launch((failed_run, failed_lane))
         .await
@@ -627,6 +646,13 @@ async fn model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflic
         ))
         .await
         .expect("record local lane");
+    seed_cloud_lane_authority_for(
+        &store,
+        "run-mixed-001",
+        "lane-cloud",
+        "mlane-stream-run-mixed-001",
+    )
+    .await;
     store
         .record_lane(sample_lane(
             "lane-cloud",
@@ -993,6 +1019,37 @@ fn sample_locus_for(session_id: &str, model_session_id: &str) -> ModelLaneLocusB
         owner_session: "KERNEL_BUILDER-20260628-220906".into(),
         locus_binding_ref: "locus://wp1/mt002/coordinator-session-mt002".into(),
     }
+}
+
+/// Persist the durable cloud ProjectionPlan/ConsentReceipt authority a cloud
+/// lane built by `sample_lane(.., RuntimeBinding::Cloud, ..)` needs before it
+/// can be recorded. Mirrors the identity fields that `sample_lane` stamps onto
+/// a cloud lane so the fail-closed durability gate (spec 4.3.9.2.5) accepts the
+/// lane without weakening the gate.
+async fn seed_cloud_lane_authority_for(
+    store: &ModelLaneStore,
+    run_id: &str,
+    lane_id: &str,
+    event_ledger_stream_id: &str,
+) {
+    model_lane_cloud_support::seed_cloud_lane_authority(
+        store,
+        model_lane_cloud_support::CloudLaneAuthoritySpec {
+            run_id,
+            lane_id,
+            model_session_id: &format!("model-session-{lane_id}"),
+            provider_kind: provider_kind_for(&RuntimeBinding::Cloud).as_str(),
+            requested_model_id: "model://mt002/deterministic-fake",
+            projection_plan_id: "projection-plan://cloud/redacted-workspace",
+            consent_receipt_id: "consent://operator/byok-cloud-001",
+            event_ledger_stream_id,
+            work_packet_id: "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+            micro_task_id: "MT-002",
+            task_board_id: "task-board://wp-1",
+            owner_session: "KERNEL_BUILDER-20260628-220906",
+        },
+    )
+    .await;
 }
 
 fn provider_kind_for(runtime_binding: &RuntimeBinding) -> ModelLaneProviderKind {

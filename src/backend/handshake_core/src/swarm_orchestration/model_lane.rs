@@ -128,11 +128,22 @@ impl ModelLaneStore {
             message_by_idempotency_key_tx(&mut tx, &input.idempotency_key).await?
         {
             if existing.payload_sha256 == input.payload_sha256 {
+                // Spec 4.3.9.2.5: "Duplicate retries with the same
+                // idempotency_key and payload hash MUST be idempotent." The
+                // idempotency_key is the caller's dedup token; message_id and
+                // message_span_id identify a single delivery attempt (the
+                // coordinator may assign a fresh id/span per retry), so they must
+                // not defeat idempotent replay. All payload-authority and routing
+                // fields (to_lane, authority, locus, crdt, payload_ref, ...) are
+                // still compared and MUST match or the retry fails closed.
+                let mut retry_identity = input.clone();
+                retry_identity.message_id = existing.message_id.clone();
+                retry_identity.message_span_id = existing.message_span_id.clone();
                 ensure_idempotent_input_matches(
                     "model_lane_message",
                     &input.idempotency_key,
                     &existing.inner,
-                    &input,
+                    &retry_identity,
                 )?;
                 tx.commit().await?;
                 return Ok(existing);
@@ -851,6 +862,32 @@ impl ModelLaneStore {
                 event_ledger_seq: stored_terminal_event.event_sequence,
                 inner: lane,
             };
+            // Same EventLedger-authority invariant as record_lane_terminal_status:
+            // the row is repointed to this terminal event, so its payload must
+            // carry the full updated lane `record` for replay/diagnostics
+            // authority validation.
+            stamp_kernel_event_payload_tx(
+                &mut tx,
+                &record.event_ledger_event_id,
+                json!({
+                    "schema_id": "hsk.model_lane_terminal@1",
+                    "dexterity_kernel": "Dexterity",
+                    "lane_id": &record.lane_id,
+                    "run_id": &record.run_id,
+                    "status": "cancelled",
+                    "reason": reason,
+                    "reason_code": "CX-MM-007",
+                    "consent_status": "CX-MM-007",
+                    "consent_receipt_id": consent_receipt_id,
+                    "projection_plan_id": &revoked_receipt.projection_plan_id,
+                    "provider_call_cancelled": true,
+                    "flight_recorder": "EventLedger",
+                    "previous_event_ledger_event_id": &existing_lane.event_ledger_event_id,
+                    "previous_event_ledger_seq": existing_lane.event_ledger_seq,
+                    "record": serde_json::to_value(&record.inner)?,
+                }),
+            )
+            .await?;
             sqlx::query(
                 r#"
                 UPDATE model_lanes
@@ -1517,6 +1554,30 @@ impl ModelLaneStore {
             event_ledger_seq: stored_event.event_sequence,
             inner: lane,
         };
+
+        // The mutable `model_lanes` row is repointed below to this terminal
+        // event. `validate_diagnostics_row_eventledger_authority` (invoked by
+        // replay_run/diagnostics_projection) requires the row's
+        // event_ledger_event_id to resolve to an EventLedger payload whose
+        // `record` matches the row. Re-stamp the terminal event payload with the
+        // full updated lane record so that invariant holds instead of failing
+        // with "model_lane EventLedger payload missing record".
+        stamp_kernel_event_payload_tx(
+            &mut tx,
+            &record.event_ledger_event_id,
+            json!({
+                "schema_id": "hsk.model_lane_terminal@1",
+                "dexterity_kernel": "Dexterity",
+                "lane_id": &record.lane_id,
+                "run_id": &record.run_id,
+                "status": status.as_str(),
+                "reason": reason,
+                "previous_event_ledger_event_id": &existing.event_ledger_event_id,
+                "previous_event_ledger_seq": existing.event_ledger_seq,
+                "record": serde_json::to_value(&record.inner)?,
+            }),
+        )
+        .await?;
 
         let row = sqlx::query(
             r#"
