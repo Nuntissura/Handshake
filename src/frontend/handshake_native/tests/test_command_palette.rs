@@ -70,6 +70,14 @@ fn any_pane_has_usermanual_tab(app: &HandshakeApp) -> bool {
         .any(|bar| bar.tabs.iter().any(|t| t.pane_type == PaneType::UserManual))
 }
 
+fn any_pane_has_swarm_lane_diagnostics_tab(app: &HandshakeApp) -> bool {
+    app.tab_bar_states().values().any(|bar| {
+        bar.tabs
+            .iter()
+            .any(|t| t.pane_type == PaneType::SwarmLaneDiagnostics)
+    })
+}
+
 // ── AC1 / AC10 / AC11: opening via the flag renders the Dialog/SearchBox/ListBox in the live tree ─────
 
 #[test]
@@ -111,9 +119,10 @@ fn opening_palette_renders_dialog_searchbox_listbox() {
     // The full app command set renders as ListBoxOption rows (AC: list real commands). UserManual: Open
     // is present and addressable.
     assert!(
-        nodes
-            .iter()
-            .any(|(a, r, _)| a == "command-palette.option.hs-usermanual-palette-open" && r == "ListBoxOption"),
+        nodes.iter().any(
+            |(a, r, _)| a == "command-palette.option.hs-usermanual-palette-open"
+                && r == "ListBoxOption"
+        ),
         "UserManual: Open row present as ListBoxOption: {nodes:?}"
     );
 }
@@ -130,7 +139,10 @@ fn search_input_is_focused_on_open() {
 
     let search = palette_search(&harness);
     // The palette's search box is the only TextInput on screen and it requested focus on open.
-    assert!(search.is_focused(), "the search input has keyboard focus on open");
+    assert!(
+        search.is_focused(),
+        "the search input has keyboard focus on open"
+    );
 }
 
 // ── AC3: typing "manual" filters the list to the UserManual commands ─────────────────────────────────
@@ -155,12 +167,55 @@ fn typing_manual_filters_to_usermanual_rows() {
         .map(|(_, _, label)| label.as_deref().unwrap_or(""))
         .collect();
 
-    assert!(rows.contains(&"UserManual: Open"), "UserManual: Open shown for 'manual': {rows:?}");
-    assert!(rows.contains(&"UserManual: Search"), "UserManual: Search shown for 'manual': {rows:?}");
+    assert!(
+        rows.contains(&"UserManual: Open"),
+        "UserManual: Open shown for 'manual': {rows:?}"
+    );
+    assert!(
+        rows.contains(&"UserManual: Search"),
+        "UserManual: Search shown for 'manual': {rows:?}"
+    );
     // A non-matching command is filtered out.
     assert!(
         !rows.contains(&"View: Toggle Theme"),
         "View: Toggle Theme filtered out for 'manual': {rows:?}"
+    );
+}
+
+#[test]
+fn typing_diagnostics_filters_to_swarm_lane_diagnostics_and_runs() {
+    let mut harness = shell_harness();
+    harness.run();
+    assert!(
+        !any_pane_has_swarm_lane_diagnostics_tab(harness.state()),
+        "no diagnostics tab before"
+    );
+
+    harness.state_mut().open_command_palette();
+    harness.run();
+    harness.run();
+
+    palette_search(&harness).type_text("lane diagnostics");
+    harness.run();
+    harness.run();
+
+    let nodes = live_author_nodes(&harness);
+    let rows: Vec<&str> = nodes
+        .iter()
+        .filter(|(a, _, _)| a.starts_with("command-palette.option."))
+        .map(|(_, _, label)| label.as_deref().unwrap_or(""))
+        .collect();
+    assert!(
+        rows.contains(&"Swarm: Open Lane Diagnostics"),
+        "Swarm diagnostics command shown for diagnostics query: {rows:?}"
+    );
+
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+    harness.run();
+    assert!(
+        any_pane_has_swarm_lane_diagnostics_tab(harness.state()),
+        "Enter ran swarmdiagnostics.open -> diagnostics tab is open"
     );
 }
 
@@ -170,7 +225,10 @@ fn typing_manual_filters_to_usermanual_rows() {
 fn enter_runs_selected_command_and_closes() {
     let mut harness = shell_harness();
     harness.run();
-    assert!(!any_pane_has_usermanual_tab(harness.state()), "no UserManual tab before");
+    assert!(
+        !any_pane_has_usermanual_tab(harness.state()),
+        "no UserManual tab before"
+    );
 
     harness.state_mut().open_command_palette();
     harness.run();
@@ -206,13 +264,19 @@ fn escape_closes_without_running() {
     harness.state_mut().open_command_palette();
     harness.run();
     harness.run();
-    assert!(harness.state().command_palette_open(), "palette open before Escape");
+    assert!(
+        harness.state().command_palette_open(),
+        "palette open before Escape"
+    );
 
     harness.key_press(egui::Key::Escape);
     harness.run();
     harness.run();
 
-    assert!(!harness.state().command_palette_open(), "Escape closed the palette");
+    assert!(
+        !harness.state().command_palette_open(),
+        "Escape closed the palette"
+    );
     // Nothing ran: no UserManual tab was opened.
     assert!(
         !any_pane_has_usermanual_tab(harness.state()),
@@ -240,7 +304,10 @@ fn close_button_closes_palette() {
     harness.run();
     harness.run();
 
-    assert!(!harness.state().command_palette_open(), "Close button closed the palette");
+    assert!(
+        !harness.state().command_palette_open(),
+        "Close button closed the palette"
+    );
 }
 
 // ── Re-open resets the query (red-team R1/MC1) ───────────────────────────────────────────────────────
@@ -300,7 +367,10 @@ fn disabled_editor_row_cannot_run() {
 
     // The Bold row is present and marked disabled.
     let bold = harness.get_by_label("Bold");
-    assert!(bold.accesskit_node().is_disabled(), "editor Bold row is disabled");
+    assert!(
+        bold.accesskit_node().is_disabled(),
+        "editor Bold row is disabled"
+    );
 
     // Pressing Enter on the disabled selection does NOT run it: the palette stays open (no Run outcome).
     harness.key_press(egui::Key::Enter);

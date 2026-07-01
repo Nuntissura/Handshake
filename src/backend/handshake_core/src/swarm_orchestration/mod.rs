@@ -48,6 +48,7 @@ pub mod error;
 pub mod events;
 pub mod factory;
 pub mod ids;
+pub mod model_lane;
 pub mod production_factory;
 pub mod routing;
 pub mod schedule;
@@ -62,7 +63,8 @@ pub use breaker::{
     AdmitDecision, BreakerConfig, BreakerState, FailureFingerprint, FailureFingerprintBreaker,
 };
 pub use coordinator::{
-    ClaimLease, SessionHandle, SwarmConfig, SwarmCoordinator, DEFAULT_MAX_RESPAWNS_PER_INSTANCE,
+    ClaimLease, DexterityNoOsLaunchCaller, SessionHandle, SwarmConfig, SwarmCoordinator,
+    DEFAULT_MAX_RESPAWNS_PER_INSTANCE,
 };
 pub use error::{SwarmError, SwarmErrorClass, SwarmResult};
 pub use events::{

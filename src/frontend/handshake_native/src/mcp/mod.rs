@@ -59,15 +59,21 @@ pub use action::{
     build_action_request, resolve_target, ActionChannel, ActionError, ActionOutcome, UiAction,
     DEFAULT_ACTION_CAPACITY, MAX_ACTIONS_PER_BURST,
 };
-pub use attribution::{agent_id_for_token, ActionLog, AttributedAction, ACTION_LOG_CAPACITY, AGENT_ID_HEX_LEN};
-pub use binding::{binding_path, remove_binding, write_binding, BindingError, McpBinding, BINDING_FILE_NAME};
+pub use attribution::{
+    agent_id_for_token, ActionLog, AttributedAction, ACTION_LOG_CAPACITY, AGENT_ID_HEX_LEN,
+};
+pub use binding::{
+    binding_path, remove_binding, write_binding, BindingError, McpBinding, BINDING_FILE_NAME,
+};
 pub use layout_guard::LayoutGuard;
 pub use leases::{LeaseError, LeaseGuard, LeaseKind, LeaseRegistry, DEFAULT_LEASE_TIMEOUT};
-pub use screenshot::{capture_handshake_window, ScreenshotError, ScreenshotResult, HANDSHAKE_WINDOW_TITLE};
+pub use screenshot::{
+    capture_handshake_window, ScreenshotError, ScreenshotResult, HANDSHAKE_WINDOW_TITLE,
+};
 pub use server::{SwarmMcpServer, MAX_LINE_BYTES, MAX_REQUESTS_PER_SEC};
 pub use session::{McpSession, SwarmSafetyState, SNAPSHOT_RESOURCE};
 pub use tools::{
-    dispatch_request, McpError, McpRequest, McpResponse, McpToolError, SessionToken, ERR_ACTION_QUEUE_FULL,
-    ERR_INVALID_PARAMS, ERR_LEASE_TIMEOUT, ERR_METHOD_NOT_FOUND, ERR_RATE_LIMITED, ERR_TOOL_FAILED,
-    ERR_UNAUTHORIZED,
+    dispatch_request, McpError, McpRequest, McpResponse, McpToolError, SessionToken,
+    ERR_ACTION_QUEUE_FULL, ERR_INVALID_PARAMS, ERR_LEASE_TIMEOUT, ERR_METHOD_NOT_FOUND,
+    ERR_RATE_LIMITED, ERR_TOOL_FAILED, ERR_UNAUTHORIZED,
 };

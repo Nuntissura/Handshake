@@ -1099,6 +1099,18 @@ pub fn run() {
             let control_plane_storage_result = tauri::async_runtime::block_on(async {
                 handshake_core::storage::init_control_plane_storage().await
             });
+            let dexterity_model_lane_store = match &control_plane_storage_result {
+                Ok(control_plane) => {
+                    handshake_core::swarm_orchestration::model_lane::ModelLaneStore::new(
+                        control_plane.postgres_pool.clone(),
+                    )
+                }
+                Err(error) => {
+                    return Err(Box::new(std::io::Error::other(format!(
+                        "Dexterity ModelLaneStore unavailable; refusing to start model launch runtime without ModelLane/EventLedger persistence: {error}"
+                    ))));
+                }
+            };
             let terminal_event_ledger_database = match &control_plane_storage_result {
                 Ok(control_plane) => Some(control_plane.database.clone()),
                 Err(error) => {
@@ -1163,34 +1175,32 @@ pub fn run() {
             let sandbox_registry_for_swarm: Arc<handshake_core::sandbox::SandboxAdapterRegistry> =
                 (*app.state::<Arc<handshake_core::sandbox::SandboxAdapterRegistry>>()).clone();
             let terminal_capture_runtime = terminal_runtime.clone();
+            let control_plane_storage_for_cloud = control_plane_storage_result
+                .as_ref()
+                .expect("Dexterity ModelLaneStore guard already returned on control-plane failure")
+                .clone();
             let (swarm_state, board_events, scheduler_state) =
                 tauri::async_runtime::block_on(async move {
-                    let cloud_assistance_recorder = match control_plane_storage_result {
-                        Ok(control_plane) => Some(Arc::new(
-                            commands::swarm_runtime::PostgresCloudAssistanceReceiptRecorder::from_control_plane(
-                                control_plane,
-                            ),
-                        )
-                            as Arc<dyn commands::swarm_runtime::CloudAssistanceReceiptRecorder>),
-                        Err(error) => {
-                            eprintln!(
-                                "MT-221 cloud assistance receipt recorder unavailable: {error}; cloud escalation output will fail closed"
-                            );
-                            None
-                        }
-                    };
+                    let cloud_assistance_recorder = Some(Arc::new(
+                        commands::swarm_runtime::PostgresCloudAssistanceReceiptRecorder::from_control_plane(
+                            control_plane_storage_for_cloud,
+                        ),
+                    )
+                        as Arc<dyn commands::swarm_runtime::CloudAssistanceReceiptRecorder>);
                     let mut swarm_state = match swarm_recorder {
                         Some(recorder) => {
-                            commands::swarm_runtime::SwarmRuntimeState::production_with_fr_recorder(
+                            commands::swarm_runtime::SwarmRuntimeState::production_with_fr_recorder_and_model_lane_store(
                                 recorder,
                                 &schedule_store_root,
                                 Some(sandbox_registry_for_swarm),
+                                dexterity_model_lane_store.clone(),
                             )
                         }
                         None => {
-                            commands::swarm_runtime::SwarmRuntimeState::production_with_registry(
+                            commands::swarm_runtime::SwarmRuntimeState::production_with_registry_and_model_lane_store(
                                 &schedule_store_root,
                                 Some(sandbox_registry_for_swarm),
+                                dexterity_model_lane_store.clone(),
                             )
                         }
                     };
@@ -1215,11 +1225,13 @@ pub fn run() {
                     // it must run inside the Tauri async runtime; `block_on` provides that
                     // context (and re-arming a tiny operator-authored schedule set is fast).
                     let scheduler_coordinator = swarm_state.coordinator();
+                    let dexterity_launch_required = swarm_state.dexterity_launch_required();
                     let scheduler_state =
                         commands::swarm_schedule::SwarmSchedulerState::production_bootstrap(
                             scheduler_coordinator,
                             &schedule_store_root,
                             schedule_recorder,
+                            dexterity_launch_required,
                         )
                         .await
                         .map_err(|error| {

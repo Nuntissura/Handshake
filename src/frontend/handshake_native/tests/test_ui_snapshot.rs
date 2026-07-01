@@ -79,7 +79,10 @@ fn test_ui_snapshot_structure() {
     let text_inputs: Vec<&&UiTreeNode> = all.iter().filter(|n| n.role == "TextInput").collect();
     let tabs: Vec<&&UiTreeNode> = all.iter().filter(|n| n.role == "Tab").collect();
     assert!(!buttons.is_empty(), "expected at least one Button node");
-    assert!(!text_inputs.is_empty(), "expected at least one TextInput node");
+    assert!(
+        !text_inputs.is_empty(),
+        "expected at least one TextInput node"
+    );
     assert!(!tabs.is_empty(), "expected at least one Tab node");
 
     // Every node has a non-empty id (author_id when present, else `node:<u64>` fallback — never empty,
@@ -136,7 +139,8 @@ fn test_ui_snapshot_structure() {
     }
 
     let tab_path = path_to(&snapshot.root, "tab-pane-a-0").expect("tab-pane-a-0 in snapshot tree");
-    let tabbar_path = path_to(&snapshot.root, "tabbar-pane-a").expect("tabbar-pane-a in snapshot tree");
+    let tabbar_path =
+        path_to(&snapshot.root, "tabbar-pane-a").expect("tabbar-pane-a in snapshot tree");
     // (a) Real nesting depth: the Tab is several containers below the Window root, not a root child.
     assert!(
         tab_path.len() >= 4,
@@ -174,7 +178,10 @@ fn test_ui_snapshot_structure() {
         let node = snapshot
             .find_by_author_id(id)
             .unwrap_or_else(|| panic!("declared widget '{id}' missing from UI snapshot"));
-        assert_eq!(node.id, id, "declared widget '{id}' must keep its stable id");
+        assert_eq!(
+            node.id, id,
+            "declared widget '{id}' must keep its stable id"
+        );
     }
 
     println!(
@@ -201,8 +208,14 @@ fn test_ui_snapshot_json_roundtrip() {
     let parsed: serde_json::Value =
         serde_json::from_str(&json).expect("snapshot JSON must be valid serde_json");
     assert!(parsed.get("root").is_some(), "JSON has a top-level root");
-    assert!(parsed.get("captured_at_utc").is_some(), "JSON has captured_at_utc");
-    assert!(parsed.get("widget_count").is_some(), "JSON has widget_count");
+    assert!(
+        parsed.get("captured_at_utc").is_some(),
+        "JSON has captured_at_utc"
+    );
+    assert!(
+        parsed.get("widget_count").is_some(),
+        "JSON has widget_count"
+    );
     let root = parsed.get("root").unwrap();
     for field in ["id", "role", "actions", "children"] {
         assert!(root.get(field).is_some(), "root node JSON has '{field}'");
@@ -256,7 +269,9 @@ fn test_ui_snapshot_runs_through_kittest_harness() {
         "snapshot over the live shell tree has the expected widgets"
     );
     assert!(
-        snapshot.find_by_author_id("shell.chrome.title-bar").is_some(),
+        snapshot
+            .find_by_author_id("shell.chrome.title-bar")
+            .is_some(),
         "chrome title bar present in the snapshot"
     );
     println!(

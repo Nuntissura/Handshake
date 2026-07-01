@@ -71,7 +71,9 @@ pub struct SessionToken {
 // Custom Debug so the secret never leaks into logs/panics (red-team: token exfiltration via Debug).
 impl std::fmt::Debug for SessionToken {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SessionToken").field("hex", &"<redacted>").finish()
+        f.debug_struct("SessionToken")
+            .field("hex", &"<redacted>")
+            .finish()
     }
 }
 
@@ -130,7 +132,8 @@ impl SessionToken {
         let expected_tag = expected.finalize().into_bytes();
 
         // Tag of the presented token under the same key.
-        let mut presented_mac = HmacSha256::new_from_slice(&self.key).expect("hmac accepts 32-byte key");
+        let mut presented_mac =
+            HmacSha256::new_from_slice(&self.key).expect("hmac accepts 32-byte key");
         presented_mac.update(presented.as_bytes());
         // `verify_slice` is the constant-time compare; it consumes the computed tag and checks it against
         // the expected tag bytes without early-out on the first differing byte.
@@ -175,11 +178,14 @@ impl McpRequest {
     /// fields. Returns an [`McpToolError`] (mapped to `-32600`/`-32602`) on a malformed envelope so a
     /// transport can reply with a well-formed error rather than dropping the connection.
     pub fn from_json(value: &serde_json::Value) -> Result<Self, McpToolError> {
-        let obj = value
-            .as_object()
-            .ok_or_else(|| McpToolError::new(ERR_INVALID_PARAMS, "request must be a JSON object"))?;
+        let obj = value.as_object().ok_or_else(|| {
+            McpToolError::new(ERR_INVALID_PARAMS, "request must be a JSON object")
+        })?;
         if obj.get("jsonrpc").and_then(|v| v.as_str()) != Some("2.0") {
-            return Err(McpToolError::new(ERR_INVALID_PARAMS, "jsonrpc must be \"2.0\""));
+            return Err(McpToolError::new(
+                ERR_INVALID_PARAMS,
+                "jsonrpc must be \"2.0\"",
+            ));
         }
         let method = obj
             .get("method")
@@ -193,7 +199,12 @@ impl McpRequest {
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_owned();
-        Ok(Self { id, method, params, session_token })
+        Ok(Self {
+            id,
+            method,
+            params,
+            session_token,
+        })
     }
 }
 
@@ -206,25 +217,37 @@ pub struct McpResponse {
 
 impl McpResponse {
     fn ok(id: serde_json::Value, result: serde_json::Value) -> Self {
-        Self { id, payload: Ok(result) }
+        Self {
+            id,
+            payload: Ok(result),
+        }
     }
 
     fn err(id: serde_json::Value, error: McpError) -> Self {
-        Self { id, payload: Err(error) }
+        Self {
+            id,
+            payload: Err(error),
+        }
     }
 
     /// Public constructor for an error response (MT-028): the [`crate::mcp::session::McpSession`] wrapper
     /// builds a lease-timeout response without going through [`dispatch_request`]. Same shape as the
     /// internal [`Self::err`].
     pub fn error(id: serde_json::Value, error: McpError) -> Self {
-        Self { id, payload: Err(error) }
+        Self {
+            id,
+            payload: Err(error),
+        }
     }
 
     /// Public constructor for a success response (MT-028): the [`crate::mcp::session::McpSession`] wrapper
     /// rebuilds a mutating result Value to add the acting `agent_id` (AC#2) after a successful enqueue.
     /// Same shape as the internal [`Self::ok`].
     pub fn ok_value(id: serde_json::Value, result: serde_json::Value) -> Self {
-        Self { id, payload: Ok(result) }
+        Self {
+            id,
+            payload: Ok(result),
+        }
     }
 
     /// Borrow the success `result` value, or the error (MT-028): the session wrapper inspects a
@@ -272,7 +295,10 @@ pub struct McpToolError {
 
 impl McpToolError {
     fn new(code: i64, message: impl Into<String>) -> Self {
-        Self { code, message: message.into() }
+        Self {
+            code,
+            message: message.into(),
+        }
     }
 }
 
@@ -282,13 +308,19 @@ impl From<ActionError> for McpError {
             ActionError::QueueFull => ERR_ACTION_QUEUE_FULL,
             _ => ERR_TOOL_FAILED,
         };
-        McpError { code, message: e.to_string() }
+        McpError {
+            code,
+            message: e.to_string(),
+        }
     }
 }
 
 impl From<ScreenshotError> for McpError {
     fn from(e: ScreenshotError) -> Self {
-        McpError { code: ERR_TOOL_FAILED, message: e.to_string() }
+        McpError {
+            code: ERR_TOOL_FAILED,
+            message: e.to_string(),
+        }
     }
 }
 
@@ -314,7 +346,10 @@ pub fn dispatch_request(
     if !token.matches(&request.session_token) {
         return McpResponse::err(
             request.id.clone(),
-            McpError { code: ERR_UNAUTHORIZED, message: "Unauthorized".to_owned() },
+            McpError {
+                code: ERR_UNAUTHORIZED,
+                message: "Unauthorized".to_owned(),
+            },
         );
     }
 
@@ -327,13 +362,29 @@ pub fn dispatch_request(
         }
         "click_widget" => match parse_target(&request.params) {
             Ok(target) => enqueue_response(request, snapshot, channel, &target, UiAction::Click),
-            Err(e) => McpResponse::err(request.id.clone(), McpError { code: e.code, message: e.message }),
+            Err(e) => McpResponse::err(
+                request.id.clone(),
+                McpError {
+                    code: e.code,
+                    message: e.message,
+                },
+            ),
         },
         "set_value" => match parse_target_and_value(&request.params) {
-            Ok((target, value)) => {
-                enqueue_response(request, snapshot, channel, &target, UiAction::SetValue { text: value })
-            }
-            Err(e) => McpResponse::err(request.id.clone(), McpError { code: e.code, message: e.message }),
+            Ok((target, value)) => enqueue_response(
+                request,
+                snapshot,
+                channel,
+                &target,
+                UiAction::SetValue { text: value },
+            ),
+            Err(e) => McpResponse::err(
+                request.id.clone(),
+                McpError {
+                    code: e.code,
+                    message: e.message,
+                },
+            ),
         },
         "screenshot" => match capture() {
             Ok(shot) => McpResponse::ok(request.id.clone(), shot.to_json()),
@@ -384,7 +435,12 @@ fn parse_target(params: &serde_json::Value) -> Result<String, McpToolError> {
         .and_then(|v| v.as_str())
         .filter(|s| !s.is_empty())
         .map(|s| s.to_owned())
-        .ok_or_else(|| McpToolError::new(ERR_INVALID_PARAMS, "params.target (author_id string) required"))
+        .ok_or_else(|| {
+            McpToolError::new(
+                ERR_INVALID_PARAMS,
+                "params.target (author_id string) required",
+            )
+        })
 }
 
 /// Parse `target` + `value` for `set_value`.
@@ -429,7 +485,11 @@ mod tests {
             bounds: None,
             children: vec![button],
         };
-        UiTreeSnapshot { root, captured_at_utc: "0Z".to_owned(), widget_count: 2 }
+        UiTreeSnapshot {
+            root,
+            captured_at_utc: "0Z".to_owned(),
+            widget_count: 2,
+        }
     }
 
     fn req(method: &str, params: serde_json::Value, token: &str) -> McpRequest {
@@ -467,7 +527,13 @@ mod tests {
     fn unauthorized_request_is_rejected_with_minus_32001() {
         let token = SessionToken::from_hex("secret");
         let mut chan = ActionChannel::new();
-        let r = dispatch_request(&req("list_widgets", serde_json::json!({}), "wrong"), &token, &snap(), &mut chan, ok_capture);
+        let r = dispatch_request(
+            &req("list_widgets", serde_json::json!({}), "wrong"),
+            &token,
+            &snap(),
+            &mut chan,
+            ok_capture,
+        );
         assert!(r.is_error_code(ERR_UNAUTHORIZED));
         let v = r.to_json();
         assert_eq!(v["error"]["code"], -32001);
@@ -478,7 +544,13 @@ mod tests {
     fn list_widgets_returns_snapshot_json() {
         let token = SessionToken::from_hex("secret");
         let mut chan = ActionChannel::new();
-        let r = dispatch_request(&req("list_widgets", serde_json::json!({}), "secret"), &token, &snap(), &mut chan, ok_capture);
+        let r = dispatch_request(
+            &req("list_widgets", serde_json::json!({}), "secret"),
+            &token,
+            &snap(),
+            &mut chan,
+            ok_capture,
+        );
         let v = r.to_json();
         assert_eq!(v["result"]["widget_count"], 2);
         assert_eq!(v["result"]["root"]["role"], "Window");
@@ -489,8 +561,15 @@ mod tests {
         let token = SessionToken::from_hex("secret");
         let mut chan = ActionChannel::new();
         let r = dispatch_request(
-            &req("click_widget", serde_json::json!({"target": "btn"}), "secret"),
-            &token, &snap(), &mut chan, ok_capture,
+            &req(
+                "click_widget",
+                serde_json::json!({"target": "btn"}),
+                "secret",
+            ),
+            &token,
+            &snap(),
+            &mut chan,
+            ok_capture,
         );
         let v = r.to_json();
         assert_eq!(v["result"]["queued"], true);
@@ -504,8 +583,15 @@ mod tests {
         let token = SessionToken::from_hex("secret");
         let mut chan = ActionChannel::new();
         let r = dispatch_request(
-            &req("click_widget", serde_json::json!({"target": "ghost"}), "secret"),
-            &token, &snap(), &mut chan, ok_capture,
+            &req(
+                "click_widget",
+                serde_json::json!({"target": "ghost"}),
+                "secret",
+            ),
+            &token,
+            &snap(),
+            &mut chan,
+            ok_capture,
         );
         assert!(r.is_error_code(ERR_TOOL_FAILED));
     }
@@ -516,7 +602,10 @@ mod tests {
         let mut chan = ActionChannel::new();
         let r = dispatch_request(
             &req("set_value", serde_json::json!({"target": "btn"}), "secret"),
-            &token, &snap(), &mut chan, ok_capture,
+            &token,
+            &snap(),
+            &mut chan,
+            ok_capture,
         );
         assert!(r.is_error_code(ERR_INVALID_PARAMS));
     }
@@ -525,7 +614,13 @@ mod tests {
     fn screenshot_returns_visual_capture_shape() {
         let token = SessionToken::from_hex("secret");
         let mut chan = ActionChannel::new();
-        let r = dispatch_request(&req("screenshot", serde_json::json!({}), "secret"), &token, &snap(), &mut chan, ok_capture);
+        let r = dispatch_request(
+            &req("screenshot", serde_json::json!({}), "secret"),
+            &token,
+            &snap(),
+            &mut chan,
+            ok_capture,
+        );
         let v = r.to_json();
         assert_eq!(v["result"]["png_base64"], "Zm9vYmFy");
         assert_eq!(v["result"]["width"], 4);
@@ -536,7 +631,13 @@ mod tests {
     fn unknown_method_is_minus_32601() {
         let token = SessionToken::from_hex("secret");
         let mut chan = ActionChannel::new();
-        let r = dispatch_request(&req("nope", serde_json::json!({}), "secret"), &token, &snap(), &mut chan, ok_capture);
+        let r = dispatch_request(
+            &req("nope", serde_json::json!({}), "secret"),
+            &token,
+            &snap(),
+            &mut chan,
+            ok_capture,
+        );
         assert!(r.is_error_code(ERR_METHOD_NOT_FOUND));
     }
 

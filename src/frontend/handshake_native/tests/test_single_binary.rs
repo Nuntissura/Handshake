@@ -87,8 +87,7 @@ fn ofl_license_present_and_is_sil_ofl() {
 fn fonts_present_sized_and_provenance_matches() {
     // Expected SHA-256 of the canonical Inter 3.19 Desktop faces (documented in
     // installer/windows/BUNDLED_DEPS_POLICY.md "Font provenance").
-    const EXPECT_REGULAR: &str =
-        "529be850e06f62f8904f22bda77e45bde4834498fdbec4ff4201fa3177447a3a";
+    const EXPECT_REGULAR: &str = "529be850e06f62f8904f22bda77e45bde4834498fdbec4ff4201fa3177447a3a";
     const EXPECT_BOLD: &str = "e6c172fd8a2f957414a7a63ec8deb7f2aa239182394cfa5ee2ea6927c6194389";
 
     for (file, expect) in [
@@ -134,10 +133,12 @@ fn bundled_inter_font_is_registered_in_context() {
          families present: {families:?}",
     );
     // The Proportional family must be able to render basic Latin text via the embedded Inter face.
-    let has_glyphs = ctx.fonts_mut(|f| {
-        f.has_glyphs(&egui::FontId::proportional(14.0), "Handshake")
-    });
-    assert!(has_glyphs, "proportional font cannot render 'Handshake' after Inter install");
+    let has_glyphs =
+        ctx.fonts_mut(|f| f.has_glyphs(&egui::FontId::proportional(14.0), "Handshake"));
+    assert!(
+        has_glyphs,
+        "proportional font cannot render 'Handshake' after Inter install"
+    );
     println!("PASS: bundled Inter font registered (Proportional + Inter-Bold named family)");
 }
 
@@ -145,7 +146,9 @@ fn bundled_inter_font_is_registered_in_context() {
 /// so `cargo test` is green on a fresh checkout; the installer/CI pipeline builds it first.
 #[test]
 fn release_native_binary_has_no_non_system_dlls() {
-    let exe = target_dir().join("release-native").join("handshake-native.exe");
+    let exe = target_dir()
+        .join("release-native")
+        .join("handshake-native.exe");
     if !exe.exists() {
         eprintln!(
             "SKIP: release-native binary not found at {}; run \
@@ -190,9 +193,9 @@ fn release_native_binary_has_no_non_system_dlls() {
 
     // CONTROL-1 / RISK-1: VCRUNTIME140.dll present => CRT is dynamic => crt-static flag did not
     // apply. This is the canonical signal that the crate-local .cargo/config.toml took effect.
-    let dynamic_crt = dlls
-        .iter()
-        .any(|d| d.eq_ignore_ascii_case("VCRUNTIME140.dll") || d.eq_ignore_ascii_case("MSVCP140.dll"));
+    let dynamic_crt = dlls.iter().any(|d| {
+        d.eq_ignore_ascii_case("VCRUNTIME140.dll") || d.eq_ignore_ascii_case("MSVCP140.dll")
+    });
     assert!(
         !dynamic_crt,
         "CRT is dynamic (VCRUNTIME140.dll/MSVCP140.dll imported) — crt-static flag not applied. \

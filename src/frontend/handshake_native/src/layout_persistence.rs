@@ -300,12 +300,21 @@ impl std::fmt::Display for LayoutError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LayoutError::SchemaMismatch { found, expected } => {
-                write!(f, "layout schema mismatch: found {found:?}, expected {expected:?}")
+                write!(
+                    f,
+                    "layout schema mismatch: found {found:?}, expected {expected:?}"
+                )
             }
             LayoutError::VersionMismatch { found, expected } => {
-                write!(f, "layout version mismatch: found {found}, expected {expected}")
+                write!(
+                    f,
+                    "layout version mismatch: found {found}, expected {expected}"
+                )
             }
-            LayoutError::ProjectMismatch { requested, snapshot } => write!(
+            LayoutError::ProjectMismatch {
+                requested,
+                snapshot,
+            } => write!(
                 f,
                 "layout project mismatch: requested {requested:?}, blob holds {snapshot:?}"
             ),
@@ -458,7 +467,10 @@ impl LayoutPersistenceManager {
         let layout_state = snapshot.to_layout_state();
         let mut attempt = 0u32;
         loop {
-            match self.transport.save(&snapshot.project_id, layout_state.clone()) {
+            match self
+                .transport
+                .save(&snapshot.project_id, layout_state.clone())
+            {
                 Ok(()) => {
                     self.dirty_since = None;
                     self.last_known_good = Some(snapshot.clone());
@@ -568,9 +580,18 @@ mod tests {
         // gate in `validate`. pane-a..pane-d mirror the app's `default_panes` seed types.
         let mut panes = BTreeMap::new();
         panes.insert(pid("pane-a"), sample_record("pane-a", PaneType::Workspace));
-        panes.insert(pid("pane-b"), sample_record("pane-b", PaneType::InferenceLab));
-        panes.insert(pid("pane-c"), sample_record("pane-c", PaneType::MediaDownloader));
-        panes.insert(pid("pane-d"), sample_record("pane-d", PaneType::FontManager));
+        panes.insert(
+            pid("pane-b"),
+            sample_record("pane-b", PaneType::InferenceLab),
+        );
+        panes.insert(
+            pid("pane-c"),
+            sample_record("pane-c", PaneType::MediaDownloader),
+        );
+        panes.insert(
+            pid("pane-d"),
+            sample_record("pane-d", PaneType::FontManager),
+        );
 
         let mut tab_bars = BTreeMap::new();
         let mut bar_a = TabBarState::new(
@@ -590,7 +611,10 @@ mod tests {
         );
         tab_bars.insert(
             pid("pane-c"),
-            TabBarState::new(pid("pane-c"), vec![TabState::new(PaneType::MediaDownloader)]),
+            TabBarState::new(
+                pid("pane-c"),
+                vec![TabState::new(PaneType::MediaDownloader)],
+            ),
         );
         tab_bars.insert(
             pid("pane-d"),
@@ -632,7 +656,9 @@ mod tests {
         let mut snap = sample_snapshot();
         snap.schema_id = "hsk.workbench_layout_state@1".to_owned(); // the React schema, not ours
         match snap.validate() {
-            Err(LayoutError::SchemaMismatch { expected, .. }) => assert_eq!(expected, LAYOUT_SCHEMA_ID),
+            Err(LayoutError::SchemaMismatch { expected, .. }) => {
+                assert_eq!(expected, LAYOUT_SCHEMA_ID)
+            }
             other => panic!("expected SchemaMismatch, got {other:?}"),
         }
     }
@@ -641,7 +667,10 @@ mod tests {
     fn snapshot_rejects_wrong_version() {
         let mut snap = sample_snapshot();
         snap.version = LAYOUT_SNAPSHOT_VERSION + 1;
-        assert!(matches!(snap.validate(), Err(LayoutError::VersionMismatch { .. })));
+        assert!(matches!(
+            snap.validate(),
+            Err(LayoutError::VersionMismatch { .. })
+        ));
     }
 
     #[test]
@@ -656,7 +685,10 @@ mod tests {
             other => panic!("expected MissingPane {{ id: \"pane-c\" }}, got {other:?}"),
         }
         // And it is a permanent (non-transient) error, so the manager triggers fallback, not retry.
-        assert!(!LayoutError::MissingPane { id: "pane-c".into() }.is_transient());
+        assert!(!LayoutError::MissingPane {
+            id: "pane-c".into()
+        }
+        .is_transient());
     }
 
     #[test]
@@ -669,7 +701,10 @@ mod tests {
             Err(LayoutError::UnknownActivePane { id }) => assert_eq!(id, "pane-z"),
             other => panic!("expected UnknownActivePane, got {other:?}"),
         }
-        assert!(!LayoutError::UnknownActivePane { id: "pane-z".into() }.is_transient());
+        assert!(!LayoutError::UnknownActivePane {
+            id: "pane-z".into()
+        }
+        .is_transient());
     }
 
     #[test]
@@ -720,7 +755,8 @@ mod tests {
     #[test]
     fn restore_clamps_only_off_monitor_pop_outs() {
         let mut snap = sample_snapshot();
-        let full_desktop = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(3840.0, 1080.0));
+        let full_desktop =
+            egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(3840.0, 1080.0));
         snap.pop_outs.insert(
             pid("pane-b"),
             PopOutSnapshot {
@@ -840,7 +876,11 @@ mod tests {
         mgr.mark_dirty(t0 + Duration::from_millis(50));
         assert!(!mgr.flush_if_due(t0 + Duration::from_millis(120), &sample_snapshot()));
         mgr.mark_dirty(t0 + Duration::from_millis(120));
-        assert_eq!(stub.save_calls(), 0, "no save while changes keep coalescing");
+        assert_eq!(
+            stub.save_calls(),
+            0,
+            "no save while changes keep coalescing"
+        );
 
         // Quiet period elapses after the LAST change -> exactly one flush.
         assert!(mgr.flush_if_due(t0 + Duration::from_millis(400), &sample_snapshot()));
@@ -894,9 +934,16 @@ mod tests {
         stub.push_save(Ok(()));
         let mut mgr = manager_with(stub.clone(), Duration::ZERO);
         mgr.save_now(&sample_snapshot());
-        assert_eq!(stub.save_calls(), 3, "two transient failures retried, third succeeds");
+        assert_eq!(
+            stub.save_calls(),
+            3,
+            "two transient failures retried, third succeeds"
+        );
         assert_eq!(mgr.status(), &LayoutPersistenceStatus::Saved);
-        assert!(mgr.last_known_good().is_some(), "LKG populated after successful save");
+        assert!(
+            mgr.last_known_good().is_some(),
+            "LKG populated after successful save"
+        );
         assert!(!mgr.is_dirty());
     }
 
@@ -914,8 +961,14 @@ mod tests {
             SAVE_MAX_RETRIES + 1,
             "initial attempt + SAVE_MAX_RETRIES retries"
         );
-        assert!(matches!(mgr.status(), LayoutPersistenceStatus::Error { .. }));
-        assert!(mgr.is_dirty(), "dirty kept so a later flush retries (no data loss)");
+        assert!(matches!(
+            mgr.status(),
+            LayoutPersistenceStatus::Error { .. }
+        ));
+        assert!(
+            mgr.is_dirty(),
+            "dirty kept so a later flush retries (no data loss)"
+        );
     }
 
     #[test]
@@ -926,7 +979,10 @@ mod tests {
         let mut mgr = manager_with(stub.clone(), Duration::ZERO);
         mgr.save_now(&sample_snapshot());
         assert_eq!(stub.save_calls(), 1, "permanent error tried exactly once");
-        assert!(matches!(mgr.status(), LayoutPersistenceStatus::Error { .. }));
+        assert!(matches!(
+            mgr.status(),
+            LayoutPersistenceStatus::Error { .. }
+        ));
     }
 
     // ── Load fallback chain ─────────────────────────────────────────────────────────────────────
@@ -936,8 +992,14 @@ mod tests {
         let stub = StubTransport::new();
         stub.push_load(Ok(Some(sample_snapshot().to_layout_state())));
         let mut mgr = manager_with(stub.clone(), Duration::ZERO);
-        let loaded = mgr.load("proj-1").expect("load ok").expect("snapshot present");
-        assert_eq!(loaded.to_layout_state(), sample_snapshot().to_layout_state());
+        let loaded = mgr
+            .load("proj-1")
+            .expect("load ok")
+            .expect("snapshot present");
+        assert_eq!(
+            loaded.to_layout_state(),
+            sample_snapshot().to_layout_state()
+        );
         assert_eq!(stub.load_calls(), 1);
         assert_eq!(mgr.status(), &LayoutPersistenceStatus::Loaded);
         assert!(mgr.last_known_good().is_some(), "valid load records LKG");
@@ -960,13 +1022,18 @@ mod tests {
         stub.push_load(Err(LayoutError::Transport("down".into())));
         let mut mgr = manager_with(stub.clone(), Duration::ZERO);
         let _ = mgr.load("proj-1").expect("first load");
-        let fallback = mgr.load("proj-1").expect("second load returns Ok with fallback");
+        let fallback = mgr
+            .load("proj-1")
+            .expect("second load returns Ok with fallback");
         assert!(fallback.is_some(), "transport failure falls back to LKG");
         assert_eq!(
             fallback.unwrap().to_layout_state(),
             sample_snapshot().to_layout_state()
         );
-        assert!(matches!(mgr.status(), LayoutPersistenceStatus::Error { .. }));
+        assert!(matches!(
+            mgr.status(),
+            LayoutPersistenceStatus::Error { .. }
+        ));
     }
 
     #[test]
@@ -980,7 +1047,10 @@ mod tests {
         let mut mgr = manager_with(stub.clone(), Duration::ZERO);
         let result = mgr.load("proj-1").expect("load ok");
         assert!(result.is_none(), "corrupt blob with no LKG -> default");
-        assert!(matches!(mgr.status(), LayoutPersistenceStatus::Error { .. }));
+        assert!(matches!(
+            mgr.status(),
+            LayoutPersistenceStatus::Error { .. }
+        ));
     }
 
     #[test]
@@ -990,14 +1060,24 @@ mod tests {
         stub.push_load(Ok(Some(sample_snapshot().to_layout_state()))); // project_id = "proj-1"
         let mut mgr = manager_with(stub.clone(), Duration::ZERO);
         let result = mgr.load("proj-2").expect("load ok"); // request a different workspace
-        assert!(result.is_none(), "wrong-project blob with no LKG -> default");
-        assert!(matches!(mgr.status(), LayoutPersistenceStatus::Error { .. }));
+        assert!(
+            result.is_none(),
+            "wrong-project blob with no LKG -> default"
+        );
+        assert!(matches!(
+            mgr.status(),
+            LayoutPersistenceStatus::Error { .. }
+        ));
     }
 
     #[test]
     fn is_transient_classifies_errors() {
         assert!(LayoutError::Transport("x".into()).is_transient());
         assert!(!LayoutError::Serde("x".into()).is_transient());
-        assert!(!LayoutError::VersionMismatch { found: 2, expected: 1 }.is_transient());
+        assert!(!LayoutError::VersionMismatch {
+            found: 2,
+            expected: 1
+        }
+        .is_transient());
     }
 }

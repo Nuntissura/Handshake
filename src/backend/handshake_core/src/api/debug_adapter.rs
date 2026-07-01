@@ -44,7 +44,7 @@ use crate::debug_adapter::{
     launch, AdapterKind, DebugAdapter, DebugAdapterError, DebugEvent, LaunchRequest,
     SourceBreakpoint, StepKind,
 };
-use crate::storage::{DebugBreakpointInput, Database, StorageError};
+use crate::storage::{Database, DebugBreakpointInput, StorageError};
 use crate::AppState;
 
 type ApiError = (StatusCode, Json<Value>);
@@ -77,7 +77,10 @@ pub fn routes(state: AppState) -> Router {
             get(get_breakpoints).put(put_breakpoints),
         )
         .route("/debug/sessions", post(launch_session))
-        .route("/debug/sessions/:id", axum::routing::delete(terminate_session))
+        .route(
+            "/debug/sessions/:id",
+            axum::routing::delete(terminate_session),
+        )
         .route(
             "/debug/sessions/:id/breakpoints",
             post(session_set_breakpoints),
@@ -246,7 +249,11 @@ struct LaunchSessionBody {
 async fn launch_session(Json(body): Json<LaunchSessionBody>) -> Result<Json<Value>, ApiError> {
     let adapter = match body.adapter.as_str() {
         "node" => AdapterKind::Node,
-        other => return Err(bad_request(format!("unknown or non-runnable adapter '{other}'"))),
+        other => {
+            return Err(bad_request(format!(
+                "unknown or non-runnable adapter '{other}'"
+            )))
+        }
     };
     let mut req = match adapter {
         AdapterKind::Node => LaunchRequest::node(body.program.clone()),
@@ -326,9 +333,15 @@ async fn session_stack(Path(id): Path<String>) -> Result<Json<Value>, ApiError> 
 }
 
 /// `GET /debug/sessions/:id/frames/:frame_id/scopes` — a paused frame's scopes.
-async fn session_scopes(Path((id, frame_id)): Path<(String, String)>) -> Result<Json<Value>, ApiError> {
+async fn session_scopes(
+    Path((id, frame_id)): Path<(String, String)>,
+) -> Result<Json<Value>, ApiError> {
     let live = lookup_session(&id).await?;
-    let scopes = live.session.scopes(&frame_id).await.map_err(adapter_error)?;
+    let scopes = live
+        .session
+        .scopes(&frame_id)
+        .await
+        .map_err(adapter_error)?;
     Ok(Json(json!({ "scopes": scopes })))
 }
 

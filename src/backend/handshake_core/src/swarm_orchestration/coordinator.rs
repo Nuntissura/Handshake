@@ -28,7 +28,14 @@ use super::error::{SwarmError, SwarmResult};
 use super::events::{SwarmEvent, SwarmEventSink};
 use super::factory::{LiveSession, ModelSessionFactory, SessionTeardown};
 use super::ids::{BudgetRemaining, ModelInstanceId, RunBudget, SpawnRequest};
+use super::model_lane::{
+    build_failed_launch_records, build_successful_launch_records, DexterityLaunchAdapterKind,
+    DexterityLaunchAdapterRegistry, DexterityLaunchAdapterRequest,
+    ModelLaneDownstreamContextBundle, ModelLaneRecord, ModelLaneRunRecord, ModelLaneStatus,
+    ModelLaneStore, RuntimeBinding as ModelLaneRuntimeBinding,
+};
 use super::state::ModelSessionState;
+use crate::kernel::{KernelActor, ModelAdapter, ModelAdapterOutput, ModelAdapterRequest};
 use crate::model_runtime::ModelId;
 
 /// Max number of times a single instance may be respawned by the reaper before
@@ -110,6 +117,7 @@ pub struct SessionHandle {
     pub model_id: ModelId,
     pub process_record_id: ProcessOwnershipRecordId,
     pub os_pid: u32,
+    pub process_engine_kind: ProcessEngineKind,
     pub parent_session_id: String,
     pub runtime: Arc<dyn crate::model_runtime::ModelRuntime>,
     /// Single-shot async teardown that frees the engine resource. Taken
@@ -129,6 +137,10 @@ pub struct SessionHandle {
     /// only after terminal teardown, so new sessions are not admitted while a
     /// cancelling VM/model still owns memory.
     committed_memory_bytes: u64,
+    /// Dexterity sessions may become Ready only after ModelLane + EventLedger
+    /// persistence commits. Non-Dexterity sessions do not use this gate.
+    dexterity_model_lane_persisted: bool,
+    dexterity_lane_id: Option<String>,
 }
 
 impl SessionHandle {
@@ -166,6 +178,8 @@ struct Inner {
     factory: Arc<dyn ModelSessionFactory>,
     sink: Arc<dyn SwarmEventSink>,
     ledger: LedgerBatcher,
+    model_lane_store: Option<ModelLaneStore>,
+    dexterity_launch_required: bool,
 }
 
 #[derive(Default)]
@@ -254,20 +268,70 @@ pub struct SwarmCoordinator {
     reaper: Mutex<Option<JoinHandle<()>>>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DexterityNoOsLaunchCaller {
+    caller_session: String,
+    adapter_kind: DexterityLaunchAdapterKind,
+    run_id: String,
+    lane_id: String,
+    authority_instance_id: ModelInstanceId,
+    capability_receipt_ref: String,
+}
+
 fn reserves_host_committed_memory(request: &SpawnRequest) -> bool {
     matches!(request.provider, None | Some(ProviderKind::Local))
 }
 
 impl SwarmCoordinator {
-    /// Build a coordinator. `factory`, `sink`, and `ledger` are injected so the
-    /// same coordinator code runs in production (real runtime + flight recorder
-    /// + postgres-backed ledger) and in tests (controllable adapter + recording
-    /// sink + in-memory ledger).
+    /// Build a fail-closed coordinator. `factory`, `sink`, and `ledger` are
+    /// injected so the same coordinator code runs in production and tests, but
+    /// runtime creation still requires a Dexterity launch contract. With no
+    /// ModelLaneStore wired, any Dexterity launch also fails before factory
+    /// creation; callers that need runnable model launches should use
+    /// [`Self::new_with_model_lane_store`].
     pub fn new(
         config: SwarmConfig,
         factory: Arc<dyn ModelSessionFactory>,
         sink: Arc<dyn SwarmEventSink>,
         ledger: LedgerBatcher,
+    ) -> Self {
+        Self::new_with_dexterity_launch_requirement(config, factory, sink, ledger, None, true)
+    }
+
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn new_legacy_without_dexterity_for_tests(
+        config: SwarmConfig,
+        factory: Arc<dyn ModelSessionFactory>,
+        sink: Arc<dyn SwarmEventSink>,
+        ledger: LedgerBatcher,
+    ) -> Self {
+        Self::new_with_dexterity_launch_requirement(config, factory, sink, ledger, None, false)
+    }
+
+    pub fn new_with_model_lane_store(
+        config: SwarmConfig,
+        factory: Arc<dyn ModelSessionFactory>,
+        sink: Arc<dyn SwarmEventSink>,
+        ledger: LedgerBatcher,
+        model_lane_store: ModelLaneStore,
+    ) -> Self {
+        Self::new_with_dexterity_launch_requirement(
+            config,
+            factory,
+            sink,
+            ledger,
+            Some(model_lane_store),
+            true,
+        )
+    }
+
+    fn new_with_dexterity_launch_requirement(
+        config: SwarmConfig,
+        factory: Arc<dyn ModelSessionFactory>,
+        sink: Arc<dyn SwarmEventSink>,
+        ledger: LedgerBatcher,
+        model_lane_store: Option<ModelLaneStore>,
+        dexterity_launch_required: bool,
     ) -> Self {
         let semaphore = Arc::new(Semaphore::new(config.budget.max_concurrent.max(1)));
         let cold_start_semaphore = Arc::new(Semaphore::new(
@@ -285,6 +349,8 @@ impl SwarmCoordinator {
             factory,
             sink,
             ledger,
+            model_lane_store,
+            dexterity_launch_required,
         });
         Self {
             inner,
@@ -430,6 +496,53 @@ impl SwarmCoordinator {
         // factory failure stops its own START before returning, leaving no
         // orphan. The coordinator owns the STOP symmetrically on every terminal
         // path. (See `terminate` / `reap_expired`.)
+        match (
+            inner.dexterity_launch_required,
+            inner.model_lane_store.is_some(),
+            request.dexterity_launch.is_some(),
+        ) {
+            (true, _, false) => {
+                drop(permit);
+                return Err(SwarmError::LedgerFailed(
+                    "ModelLaneStore-backed coordinators require \
+                     SpawnRequest::with_dexterity_launch before runtime creation"
+                        .into(),
+                ));
+            }
+            (_, false, true) => {
+                drop(permit);
+                return Err(SwarmError::LedgerFailed(
+                    "Dexterity launch contract requires ModelLaneStore before runtime creation"
+                        .into(),
+                ));
+            }
+            _ => {}
+        }
+
+        if request.dexterity_launch.is_some() {
+            if request.provider == Some(crate::model_runtime::ProviderKind::ByokCloud) {
+                let Some(store) = inner.model_lane_store.as_ref() else {
+                    drop(permit);
+                    return Err(SwarmError::LedgerFailed(
+                        "Dexterity cloud launch consent preflight requires ModelLaneStore".into(),
+                    ));
+                };
+                if let Err(err) = store.preflight_cloud_spawn_request(&request).await {
+                    drop(permit);
+                    return Err(SwarmError::LedgerFailed(format!(
+                        "Dexterity cloud consent preflight failed: {err}"
+                    )));
+                }
+            }
+            if let Err(err) =
+                DexterityLaunchAdapterRegistry::standard().preflight_spawn_request(&request)
+            {
+                drop(permit);
+                return Err(SwarmError::LedgerFailed(format!(
+                    "Dexterity launch preflight failed: {err}"
+                )));
+            }
+        }
         let create_result = {
             let _boot_permit = inner
                 .cold_start_semaphore
@@ -441,6 +554,20 @@ impl SwarmCoordinator {
         };
         match create_result {
             Ok(live) => {
+                let dexterity_launch_records = if request.dexterity_launch.is_some() {
+                    match build_successful_launch_records(&request, &live) {
+                        Ok(records) => Some(records),
+                        Err(err) => {
+                            drop(permit);
+                            self.teardown_orphan(&request, live).await;
+                            return Err(SwarmError::LedgerFailed(format!(
+                                "Dexterity launch record preparation failed: {err}"
+                            )));
+                        }
+                    }
+                } else {
+                    None
+                };
                 // (4a) ATOMIC dedup + insert (D2). Hold the registry lock across
                 // BOTH the duplicate check and the insert so two concurrent
                 // spawns of the same instance_id cannot both record a START and
@@ -449,9 +576,60 @@ impl SwarmCoordinator {
                 // AND fully tear down the just-created session (cancel +
                 // teardown + ledger STOP) so the loser leaves no orphan START.
                 let inserted =
-                    self.try_insert_ready(&request, live, permit, committed_memory_bytes);
+                    self.try_insert_loading(&request, live, permit, committed_memory_bytes);
                 match inserted {
                     Ok(()) => {
+                        if let Some(records) = dexterity_launch_records {
+                            let Some(store) = inner.model_lane_store.as_ref() else {
+                                let _ = self
+                                    .terminate(
+                                        instance_id,
+                                        ModelSessionState::Cancelled,
+                                        "dexterity_model_lane_store_missing",
+                                        -1,
+                                    )
+                                    .await;
+                                return Err(SwarmError::LedgerFailed(
+                                    "Dexterity launch contract requires ModelLaneStore".into(),
+                                ));
+                            };
+                            if let Err(err) = store.record_prepared_launch(records).await {
+                                let _ = self
+                                    .terminate(
+                                        instance_id,
+                                        ModelSessionState::Cancelled,
+                                        "dexterity_model_lane_record_failed",
+                                        -1,
+                                    )
+                                    .await;
+                                return Err(SwarmError::LedgerFailed(format!(
+                                    "Dexterity launch record failed: {err}"
+                                )));
+                            }
+                            if let Err(err) = self.mark_dexterity_model_lane_persisted(instance_id)
+                            {
+                                let _ = self
+                                    .terminate(
+                                        instance_id,
+                                        ModelSessionState::Cancelled,
+                                        "dexterity_model_lane_persist_marker_failed",
+                                        -1,
+                                    )
+                                    .await;
+                                return Err(err);
+                            }
+                        }
+                        if let Err(err) = self.transition(instance_id, ModelSessionState::Ready) {
+                            let _ = self
+                                .terminate(
+                                    instance_id,
+                                    ModelSessionState::Cancelled,
+                                    "dexterity_ready_transition_failed",
+                                    -1,
+                                )
+                                .await;
+                            return Err(err);
+                        }
                         lifetime_reservation.disarm();
                         committed_memory_reservation.disarm();
                         // Heal the breaker for this instance's tracked signature
@@ -472,7 +650,7 @@ impl SwarmCoordinator {
                         // Lost the race: an instance is already live. Release
                         // permit + lifetime reservation and tear down the loser.
                         drop(permit);
-                        self.teardown_orphan(instance_id, live).await;
+                        self.teardown_orphan(&request, live).await;
                         Err(SwarmError::DuplicateInstance(instance_id))
                     }
                 }
@@ -483,6 +661,23 @@ impl SwarmCoordinator {
                 // (C7) to have stopped any START it recorded before failing, so
                 // there is no orphan START to clean up here.
                 drop(permit);
+
+                if request.dexterity_launch.is_some() {
+                    if let Some(store) = inner.model_lane_store.as_ref() {
+                        let records = build_failed_launch_records(&request, &err).map_err(
+                            |record_err| {
+                                SwarmError::LedgerFailed(format!(
+                                    "Dexterity failed launch record preparation failed after {err}: {record_err}"
+                                ))
+                            },
+                        )?;
+                        if let Err(record_err) = store.record_prepared_launch(records).await {
+                            return Err(SwarmError::LedgerFailed(format!(
+                                "Dexterity failed launch record failed after {err}: {record_err}"
+                            )));
+                        }
+                    }
+                }
 
                 // Feed the failure-fingerprint breaker. Only genuine failures
                 // (not capacity refusals) accrue. Track the signature per
@@ -529,6 +724,153 @@ impl SwarmCoordinator {
         }
     }
 
+    /// Launch a Dexterity lane that is runtime-owned by a Handshake manager but
+    /// has no OS process to spawn: human/operator, subagent, or validator. The
+    /// Rust coordinator still owns the launch path by normalizing through the
+    /// Dexterity registry and committing ModelLane + EventLedger rows in the
+    /// same PostgreSQL authority path as process-backed launches.
+    pub async fn launch_no_os_model_lane(
+        &self,
+        request: DexterityLaunchAdapterRequest,
+        caller: DexterityNoOsLaunchCaller,
+    ) -> SwarmResult<(ModelLaneRunRecord, ModelLaneRecord)> {
+        if !matches!(
+            request.adapter_kind,
+            DexterityLaunchAdapterKind::HumanOperator
+                | DexterityLaunchAdapterKind::Subagent
+                | DexterityLaunchAdapterKind::Validator
+        ) {
+            return Err(SwarmError::LedgerFailed(format!(
+                "Dexterity no-OS launch requires human/operator, subagent, or validator adapter; got {}",
+                request.adapter_kind.as_str()
+            )));
+        }
+        validate_no_os_launch_caller(&request, &caller)?;
+        self.validate_no_os_authority_session(&caller)?;
+        let registry = DexterityLaunchAdapterRegistry::standard();
+        let descriptor = registry
+            .descriptor(&request.adapter_kind)
+            .map_err(|err| {
+                SwarmError::LedgerFailed(format!("Dexterity no-OS descriptor failed: {err}"))
+            })?
+            .clone();
+        let launch = registry.normalize(request).map_err(|err| {
+            SwarmError::LedgerFailed(format!("Dexterity no-OS preflight failed: {err}"))
+        })?;
+        if !matches!(
+            &descriptor.runtime_binding,
+            ModelLaneRuntimeBinding::Human
+                | ModelLaneRuntimeBinding::Subagent
+                | ModelLaneRuntimeBinding::Validator
+        ) || launch.process_ownership_ref.is_some()
+            || launch.no_os_process_reason_ref.is_none()
+        {
+            return Err(SwarmError::LedgerFailed(
+                "Dexterity no-OS launch normalized to an invalid runtime ownership contract".into(),
+            ));
+        }
+        let Some(store) = self.inner.model_lane_store.as_ref() else {
+            return Err(SwarmError::LedgerFailed(
+                "Dexterity no-OS launch requires ModelLaneStore".into(),
+            ));
+        };
+        let records = launch.to_records().map_err(|err| {
+            SwarmError::LedgerFailed(format!("Dexterity no-OS record preparation failed: {err}"))
+        })?;
+        store.record_prepared_launch(records).await.map_err(|err| {
+            SwarmError::LedgerFailed(format!("Dexterity no-OS launch record failed: {err}"))
+        })
+    }
+
+    pub fn authorize_no_os_model_lane(
+        &self,
+        request: &DexterityLaunchAdapterRequest,
+        authority_instance_id: ModelInstanceId,
+    ) -> SwarmResult<DexterityNoOsLaunchCaller> {
+        if !matches!(
+            request.adapter_kind,
+            DexterityLaunchAdapterKind::HumanOperator
+                | DexterityLaunchAdapterKind::Subagent
+                | DexterityLaunchAdapterKind::Validator
+        ) {
+            return Err(SwarmError::LedgerFailed(format!(
+                "Dexterity no-OS authority can only authorize human/operator, subagent, or validator lanes; got {}",
+                request.adapter_kind.as_str()
+            )));
+        }
+        let registry = self.inner.registry.lock().expect("registry poisoned");
+        let handle = registry
+            .get(&authority_instance_id)
+            .ok_or(SwarmError::UnknownInstance(authority_instance_id))?;
+        if !matches!(
+            handle.state,
+            ModelSessionState::Ready | ModelSessionState::Generating
+        ) {
+            return Err(SwarmError::LedgerFailed(format!(
+                "Dexterity no-OS authority session {authority_instance_id} must be Ready or Generating; got {:?}",
+                handle.state
+            )));
+        }
+        if handle.lease.is_expired(Utc::now()) {
+            return Err(SwarmError::LedgerFailed(format!(
+                "Dexterity no-OS authority session {authority_instance_id} lease is expired"
+            )));
+        }
+        if handle.lease.owner != request.owner_session {
+            return Err(SwarmError::LedgerFailed(format!(
+                "Dexterity no-OS authority owner {} does not match lane owner {}",
+                handle.lease.owner, request.owner_session
+            )));
+        }
+        let capability_receipt_ref = expected_no_os_capability_receipt_ref(
+            authority_instance_id,
+            &request.owner_session,
+            &request.adapter_kind,
+            &request.run_id,
+            &request.lane_id,
+        );
+        Ok(DexterityNoOsLaunchCaller {
+            caller_session: request.owner_session.clone(),
+            adapter_kind: request.adapter_kind.clone(),
+            run_id: request.run_id.clone(),
+            lane_id: request.lane_id.clone(),
+            authority_instance_id,
+            capability_receipt_ref,
+        })
+    }
+
+    fn validate_no_os_authority_session(
+        &self,
+        caller: &DexterityNoOsLaunchCaller,
+    ) -> SwarmResult<()> {
+        let registry = self.inner.registry.lock().expect("registry poisoned");
+        let handle = registry
+            .get(&caller.authority_instance_id)
+            .ok_or(SwarmError::UnknownInstance(caller.authority_instance_id))?;
+        if !matches!(
+            handle.state,
+            ModelSessionState::Ready | ModelSessionState::Generating
+        ) {
+            return Err(SwarmError::LedgerFailed(format!(
+                "Dexterity no-OS authority session {} must still be Ready or Generating; got {:?}",
+                caller.authority_instance_id, handle.state
+            )));
+        }
+        if handle.lease.is_expired(Utc::now()) {
+            return Err(SwarmError::LedgerFailed(format!(
+                "Dexterity no-OS authority session {} lease is expired",
+                caller.authority_instance_id
+            )));
+        }
+        if handle.lease.owner != caller.caller_session {
+            return Err(SwarmError::LedgerFailed(format!(
+                "Dexterity no-OS authority owner {} no longer matches caller_session {}",
+                handle.lease.owner, caller.caller_session
+            )));
+        }
+        Ok(())
+    }
+
     /// Ask the breaker whether a spawn carrying `signature` would be admitted
     /// right now. Lets a caller pre-empt a doomed retry without paying the
     /// factory cost. `signature` is computed from a prior error via
@@ -555,6 +897,15 @@ impl SwarmCoordinator {
             let from = handle.state;
             if !from.can_transition(to) {
                 return Err(SwarmError::InvalidStateTransition { from, to });
+            }
+            if from == ModelSessionState::Loading
+                && to == ModelSessionState::Ready
+                && !handle.dexterity_model_lane_persisted
+            {
+                return Err(SwarmError::LedgerFailed(
+                    "Dexterity session cannot become Ready before ModelLane persistence commits"
+                        .into(),
+                ));
             }
             handle.state = to;
             from
@@ -688,6 +1039,12 @@ impl SwarmCoordinator {
             .lock()
             .expect("registry poisoned")
             .get(&instance_id)
+            .filter(|h| {
+                matches!(
+                    h.state,
+                    ModelSessionState::Ready | ModelSessionState::Generating
+                )
+            })
             .map(|h| h.runtime.clone())
     }
 
@@ -701,7 +1058,67 @@ impl SwarmCoordinator {
             .lock()
             .expect("registry poisoned")
             .get(&instance_id)
+            .filter(|h| {
+                matches!(
+                    h.state,
+                    ModelSessionState::Ready | ModelSessionState::Generating
+                )
+            })
             .map(|h| h.model_id)
+    }
+
+    /// Materialize a Dexterity ContextBundle for the named downstream lane from
+    /// PostgreSQL/EventLedger authority. Callers pass the returned
+    /// `ModelLaneDownstreamContextBundle::to_kernel_context_bundle()` into the
+    /// model adapter instead of rebuilding context from prompt memory.
+    pub async fn context_bundle_for_downstream_lane(
+        &self,
+        run_id: &str,
+        context_bundle_id: &str,
+        downstream_lane_id: &str,
+    ) -> SwarmResult<ModelLaneDownstreamContextBundle> {
+        let Some(store) = self.inner.model_lane_store.as_ref() else {
+            return Err(SwarmError::LedgerFailed(
+                "Dexterity ContextBundle consumption requires ModelLaneStore".into(),
+            ));
+        };
+        store
+            .consume_context_bundle_for_downstream(run_id, context_bundle_id, downstream_lane_id)
+            .await
+            .map_err(|err| {
+                SwarmError::LedgerFailed(format!(
+                    "Dexterity ContextBundle downstream consumption failed: {err}"
+                ))
+            })
+    }
+
+    /// Invoke a model adapter with the downstream lane's replayed Dexterity
+    /// ContextBundle. This is the runtime boundary that prevents downstream
+    /// models from reconstructing context out of prompt text or provider memory.
+    pub async fn invoke_downstream_context_bundle(
+        &self,
+        run_id: &str,
+        context_bundle_id: &str,
+        downstream_lane_id: &str,
+        adapter: &(dyn ModelAdapter + Send + Sync),
+        actor: KernelActor,
+    ) -> SwarmResult<ModelAdapterOutput> {
+        let downstream = self
+            .context_bundle_for_downstream_lane(run_id, context_bundle_id, downstream_lane_id)
+            .await?;
+        let context_bundle = downstream.to_kernel_context_bundle().map_err(|err| {
+            SwarmError::LedgerFailed(format!(
+                "Dexterity downstream ContextBundle kernel conversion failed: {err}"
+            ))
+        })?;
+        adapter
+            .invoke(ModelAdapterRequest::new(context_bundle, actor))
+            .await
+            .map_err(|err| {
+                SwarmError::LedgerFailed(format!(
+                    "Dexterity downstream ContextBundle adapter invocation failed: {err}"
+                ))
+            })
     }
 
     /// Board/lineage grouping for a live session: `(swarm_id, worktree_id)` as
@@ -849,15 +1266,17 @@ impl SwarmCoordinator {
 
     /// Atomic check-and-insert (D2). Holds the registry lock across the
     /// duplicate check AND the insert so two concurrent same-instance spawns
-    /// cannot both insert. On success the handle is registered and the spawned/
-    /// ready events are emitted. On a duplicate (a live instance already
-    /// present) the `live` session and `permit` are returned to the caller
-    /// UNCONSUMED so the caller can roll them back without an orphan START.
+    /// cannot both insert. On success the handle is registered as Loading and
+    /// only the spawned event is emitted; the caller commits Dexterity records
+    /// first and then transitions to Ready. On a duplicate (a live instance
+    /// already present) the `live` session and `permit` are returned to the
+    /// caller UNCONSUMED so the caller can roll them back without an orphan
+    /// START.
     ///
     /// No `.await` is taken while the registry lock is held, preserving the
     /// no-lock-across-await property.
     #[allow(clippy::result_large_err)]
-    fn try_insert_ready(
+    fn try_insert_loading(
         &self,
         request: &SpawnRequest,
         live: LiveSession,
@@ -874,6 +1293,7 @@ impl SwarmCoordinator {
                 .unwrap_or_else(|_| chrono::Duration::seconds(300));
         let instance_id = request.instance_id;
         let process_uuid = live.process_record_id.as_uuid();
+        let process_engine_kind = process_engine_kind_for_request(request);
 
         {
             let mut registry = self.inner.registry.lock().expect("registry poisoned");
@@ -885,7 +1305,7 @@ impl SwarmCoordinator {
             }
             let handle = SessionHandle {
                 instance_id,
-                state: ModelSessionState::Ready,
+                state: ModelSessionState::Loading,
                 lease: ClaimLease {
                     instance_id,
                     owner: request.owner_role.clone(),
@@ -895,6 +1315,7 @@ impl SwarmCoordinator {
                 model_id: live.model_id,
                 process_record_id: live.process_record_id,
                 os_pid: live.os_pid,
+                process_engine_kind,
                 parent_session_id: request.parent_session_id.clone(),
                 runtime: live.runtime,
                 teardown: Some(live.teardown),
@@ -903,6 +1324,11 @@ impl SwarmCoordinator {
                 swarm_id: request.swarm_id.clone(),
                 worktree_id: request.worktree_id.clone(),
                 committed_memory_bytes,
+                dexterity_model_lane_persisted: request.dexterity_launch.is_none(),
+                dexterity_lane_id: request
+                    .dexterity_launch
+                    .as_ref()
+                    .map(|launch| launch.lane_id.clone()),
             };
             registry.insert(instance_id, handle);
         }
@@ -914,9 +1340,15 @@ impl SwarmCoordinator {
             swarm_id: request.swarm_id.clone(),
             worktree_id: request.worktree_id.clone(),
         });
-        self.inner
-            .sink
-            .emit(SwarmEvent::SessionReady { instance_id });
+        Ok(())
+    }
+
+    fn mark_dexterity_model_lane_persisted(&self, instance_id: ModelInstanceId) -> SwarmResult<()> {
+        let mut registry = self.inner.registry.lock().expect("registry poisoned");
+        let handle = registry
+            .get_mut(&instance_id)
+            .ok_or(SwarmError::UnknownInstance(instance_id))?;
+        handle.dexterity_model_lane_persisted = true;
         Ok(())
     }
 
@@ -924,7 +1356,8 @@ impl SwarmCoordinator {
     /// loser). Cancels the token, runs the engine teardown so the loaded model
     /// is freed, and writes the matching ledger STOP so the START the factory
     /// recorded for this losing session has no orphan.
-    async fn teardown_orphan(&self, instance_id: ModelInstanceId, live: LiveSession) {
+    async fn teardown_orphan(&self, request: &SpawnRequest, live: LiveSession) {
+        let instance_id = request.instance_id;
         live.cancel.cancel();
         live.runtime.cancel(live.cancel.clone());
         // Free the engine resource (D1 contract).
@@ -933,6 +1366,7 @@ impl SwarmCoordinator {
         let stop = self.build_stop(
             live.process_record_id,
             live.os_pid,
+            process_engine_kind_for_request(request),
             None,
             Utc::now(),
             ModelSessionState::Cancelled,
@@ -961,6 +1395,34 @@ impl SwarmCoordinator {
         reason: &str,
         exit_code: i32,
     ) -> SwarmResult<()> {
+        if let Some(status) = model_lane_terminal_status(terminal) {
+            let terminal_record = {
+                let registry = self.inner.registry.lock().expect("registry poisoned");
+                let handle = registry
+                    .get(&instance_id)
+                    .ok_or(SwarmError::UnknownInstance(instance_id))?;
+                if handle.dexterity_model_lane_persisted {
+                    self.inner
+                        .model_lane_store
+                        .as_ref()
+                        .cloned()
+                        .zip(handle.dexterity_lane_id.clone())
+                } else {
+                    None
+                }
+            };
+            if let Some((store, lane_id)) = terminal_record {
+                store
+                    .record_lane_terminal_status(&lane_id, status, reason)
+                    .await
+                    .map_err(|err| {
+                        SwarmError::LedgerFailed(format!(
+                            "Dexterity terminal lane state record failed: {err}"
+                        ))
+                    })?;
+            }
+        }
+
         // Remove the handle from the registry (releases the permit via Drop).
         let mut handle = {
             let mut registry = self.inner.registry.lock().expect("registry poisoned");
@@ -990,6 +1452,7 @@ impl SwarmCoordinator {
         let stop = self.build_stop(
             handle.process_record_id,
             handle.os_pid,
+            handle.process_engine_kind,
             Some(handle.parent_session_id.clone()),
             handle.started_at,
             terminal,
@@ -1042,6 +1505,7 @@ impl SwarmCoordinator {
         &self,
         process_record_id: ProcessOwnershipRecordId,
         os_pid: u32,
+        engine_kind: ProcessEngineKind,
         parent_session_id: Option<String>,
         started_at: DateTime<Utc>,
         terminal: ModelSessionState,
@@ -1056,7 +1520,7 @@ impl SwarmCoordinator {
             parent_process_id: None,
             sandbox_adapter_id: None,
             sandbox_internal_id: None,
-            engine_kind: ProcessEngineKind::LlamaCpp,
+            engine_kind,
             started_at,
             stopped_at: Utc::now(),
             exit_code: Some(exit_code),
@@ -1094,6 +1558,87 @@ impl Drop for SwarmCoordinator {
             handle.abort();
         }
     }
+}
+
+fn process_engine_kind_for_request(request: &SpawnRequest) -> ProcessEngineKind {
+    match request.provider {
+        Some(ProviderKind::OfficialCli) => ProcessEngineKind::OfficialCliBridge,
+        Some(ProviderKind::ByokCloud) => ProcessEngineKind::HelperSubprocess,
+        Some(ProviderKind::ExternalCompat) => ProcessEngineKind::ExternalCompat,
+        Some(ProviderKind::Local) | None => match request.runtime_binding.adapter_id() {
+            "candle" => ProcessEngineKind::Candle,
+            _ => ProcessEngineKind::LlamaCpp,
+        },
+    }
+}
+
+fn model_lane_terminal_status(terminal: ModelSessionState) -> Option<ModelLaneStatus> {
+    match terminal {
+        ModelSessionState::Completed => Some(ModelLaneStatus::Completed),
+        ModelSessionState::Failed => Some(ModelLaneStatus::Failed),
+        ModelSessionState::Cancelled => Some(ModelLaneStatus::Cancelled),
+        _ => None,
+    }
+}
+
+fn expected_no_os_capability_receipt_ref(
+    authority_instance_id: ModelInstanceId,
+    caller_session: &str,
+    adapter_kind: &DexterityLaunchAdapterKind,
+    run_id: &str,
+    lane_id: &str,
+) -> String {
+    format!(
+        "dexterity-no-os-launch://{}/{}/{}/{}/{}",
+        authority_instance_id,
+        caller_session,
+        adapter_kind.as_str(),
+        run_id,
+        lane_id
+    )
+}
+
+fn validate_no_os_launch_caller(
+    request: &DexterityLaunchAdapterRequest,
+    caller: &DexterityNoOsLaunchCaller,
+) -> SwarmResult<()> {
+    if caller.caller_session.trim().is_empty() {
+        return Err(SwarmError::LedgerFailed(
+            "Dexterity no-OS launch requires caller_session".into(),
+        ));
+    }
+    if caller.caller_session != request.owner_session {
+        return Err(SwarmError::LedgerFailed(format!(
+            "Dexterity no-OS caller_session {} does not match owner_session {}",
+            caller.caller_session, request.owner_session
+        )));
+    }
+    if caller.adapter_kind != request.adapter_kind {
+        return Err(SwarmError::LedgerFailed(format!(
+            "Dexterity no-OS caller adapter {} does not match request adapter {}",
+            caller.adapter_kind.as_str(),
+            request.adapter_kind.as_str()
+        )));
+    }
+    if caller.run_id != request.run_id || caller.lane_id != request.lane_id {
+        return Err(SwarmError::LedgerFailed(format!(
+            "Dexterity no-OS caller receipt is bound to run_id {} lane_id {}, not run_id {} lane_id {}",
+            caller.run_id, caller.lane_id, request.run_id, request.lane_id
+        )));
+    }
+    let expected = expected_no_os_capability_receipt_ref(
+        caller.authority_instance_id,
+        &caller.caller_session,
+        &caller.adapter_kind,
+        &caller.run_id,
+        &caller.lane_id,
+    );
+    if caller.capability_receipt_ref != expected {
+        return Err(SwarmError::LedgerFailed(format!(
+            "Dexterity no-OS launch requires capability receipt {expected}"
+        )));
+    }
+    Ok(())
 }
 
 impl Inner {
@@ -1202,17 +1747,52 @@ async fn reap_expired(inner: &Arc<Inner>) {
     };
 
     for (instance_id, owner) in expired {
-        // Anti-storm: bump and check the respawn counter before reclaiming.
+        inner
+            .sink
+            .emit(SwarmEvent::LeaseExpired { instance_id, owner });
+
+        let terminal_record = {
+            let registry = inner.registry.lock().expect("registry poisoned");
+            registry.get(&instance_id).and_then(|handle| {
+                if handle.dexterity_model_lane_persisted {
+                    inner
+                        .model_lane_store
+                        .as_ref()
+                        .cloned()
+                        .zip(handle.dexterity_lane_id.clone())
+                } else {
+                    None
+                }
+            })
+        };
+        if let Some((store, lane_id)) = terminal_record {
+            if let Err(err) = store
+                .record_lane_terminal_status(
+                    &lane_id,
+                    ModelLaneStatus::Cancelled,
+                    "lease_expired_reclaim",
+                )
+                .await
+            {
+                inner.sink.emit(SwarmEvent::SessionFailed {
+                    instance_id,
+                    error: format!(
+                        "Dexterity terminal lane state record failed before lease reaper teardown: {err}"
+                    ),
+                });
+                continue;
+            }
+        }
+
+        // Anti-storm: bump and check the respawn counter after terminal
+        // persistence succeeds. If terminal persistence fails, the live handle
+        // stays in the registry and the next reaper pass can retry.
         let over_storm_cap = {
             let mut acc = inner.accounting.lock().expect("accounting poisoned");
             let count = acc.respawns.entry(instance_id).or_insert(0);
             *count = count.saturating_add(1);
             *count > inner.config.max_respawns_per_instance
         };
-
-        inner
-            .sink
-            .emit(SwarmEvent::LeaseExpired { instance_id, owner });
 
         // Reclaim: remove from registry, cancel, tear down (free model),
         // ledger-stop.
@@ -1242,7 +1822,7 @@ async fn reap_expired(inner: &Arc<Inner>) {
             parent_process_id: None,
             sandbox_adapter_id: None,
             sandbox_internal_id: None,
-            engine_kind: ProcessEngineKind::LlamaCpp,
+            engine_kind: handle.process_engine_kind,
             started_at: handle.started_at,
             stopped_at: Utc::now(),
             exit_code: Some(-1),

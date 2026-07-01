@@ -120,9 +120,7 @@ pub fn routes(state: AppState) -> Router {
 /// Exposed so real-PG tests can drive write ops through the SAME recorder the
 /// product uses (instead of a recording test double) and then read the appended
 /// kernel event back from the EventLedger.
-pub fn kernel_event_recorder(
-    storage: Arc<dyn Database>,
-) -> Arc<dyn SourceControlEventRecorder> {
+pub fn kernel_event_recorder(storage: Arc<dyn Database>) -> Arc<dyn SourceControlEventRecorder> {
     Arc::new(KernelSourceControlEventRecorder { storage })
 }
 

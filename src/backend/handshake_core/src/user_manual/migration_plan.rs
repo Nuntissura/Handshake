@@ -440,7 +440,11 @@ mod tests {
         let mut names = BTreeSet::new();
         for alias in plan.aliases {
             assert!(names.insert(alias.alias), "duplicate alias {}", alias.alias);
-            assert!(alias.deprecation_note.contains("Deprecated since UserManual"));
+            assert!(
+                alias
+                    .deprecation_note
+                    .contains("Deprecated since UserManual")
+            );
             assert!(matches!(alias.canonical_kind, "page" | "tool" | "route"));
             assert!(!alias.canonical_ref.trim().is_empty());
         }

@@ -22,9 +22,7 @@ use egui_kittest::kittest::Queryable;
 use egui_kittest::Harness;
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
-use handshake_native::stash_shelf::{
-    DrawerActionTarget, DrawerCardAction, DrawerCardKind,
-};
+use handshake_native::stash_shelf::{DrawerActionTarget, DrawerCardAction, DrawerCardKind};
 
 fn ok_app() -> HandshakeApp {
     HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
@@ -146,7 +144,9 @@ fn right_click_card_also_opens_the_action_menu() {
 
     let nodes = author_nodes(&harness);
     assert!(
-        nodes.iter().any(|(a, _)| a == "ctx-menu.drawer.action.stow"),
+        nodes
+            .iter()
+            .any(|(a, _)| a == "ctx-menu.drawer.action.stow"),
         "right-click opened the action menu: {nodes:?}"
     );
 }
@@ -185,7 +185,10 @@ fn promote_writes_a_concurrency_safe_intent() {
     // AC-024-6 + HBR-SWARM: Promote makes NO backend call and writes a swarm-readable PromoteIntent.
     let mut harness = open_app_with_notes_target();
 
-    assert!(harness.state().drawer_intents().promote_block_id.is_none(), "no intent before");
+    assert!(
+        harness.state().drawer_intents().promote_block_id.is_none(),
+        "no intent before"
+    );
 
     harness.get_by_label("Notes actions").click();
     harness.run();
@@ -262,7 +265,11 @@ fn choosing_discard_arms_confirm_window_and_makes_no_call() {
 
     // The confirm Window + its OK/Cancel nodes are LIVE in the tree (HBR-QUIET in-app modal).
     let nodes = author_nodes(&harness);
-    for aid in ["hsk.drawer.confirm.window", "hsk.drawer.confirm.ok", "hsk.drawer.confirm.cancel"] {
+    for aid in [
+        "hsk.drawer.confirm.window",
+        "hsk.drawer.confirm.ok",
+        "hsk.drawer.confirm.cancel",
+    ] {
         assert!(
             nodes.iter().any(|(a, _)| a == aid),
             "confirm node {aid} missing from LIVE tree: {nodes:?}"
@@ -280,7 +287,10 @@ fn choosing_discard_arms_confirm_window_and_makes_no_call() {
 fn cancel_clears_the_arm_with_no_call() {
     // PROOF-024-2(d): Cancel clears the arm and makes NO backend call.
     let mut harness = arm_discard_on_notes();
-    assert!(harness.state().confirm_discard_block_id().is_some(), "armed before Cancel");
+    assert!(
+        harness.state().confirm_discard_block_id().is_some(),
+        "armed before Cancel"
+    );
 
     harness.get_by_label("Cancel").click();
     harness.run();
@@ -330,7 +340,8 @@ fn capture_one(listener: std::net::TcpListener) -> CapturedReq {
                 .lines()
                 .find_map(|l| {
                     let l = l.to_ascii_lowercase();
-                    l.strip_prefix("content-length:").map(|v| v.trim().parse::<usize>().ok())
+                    l.strip_prefix("content-length:")
+                        .map(|v| v.trim().parse::<usize>().ok())
                 })
                 .flatten()
                 .unwrap_or(0);
@@ -368,8 +379,8 @@ fn confirm_ok_fires_the_real_delete_on_the_wire() {
     let rt = test_runtime();
     let (listener, base) = capture_server();
 
-    let mut harness =
-        egui_kittest::Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
+    let mut harness = egui_kittest::Harness::builder()
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
     harness.run();
     {
         let app = harness.state_mut();
@@ -437,8 +448,8 @@ fn successful_action_clears_error_and_shows_success_state() {
     let rt = test_runtime();
     let (listener, base) = capture_server();
 
-    let mut harness =
-        egui_kittest::Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
+    let mut harness = egui_kittest::Harness::builder()
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
     harness.run();
     {
         let app = harness.state_mut();
@@ -507,5 +518,8 @@ fn type_cards_disable_block_requiring_actions() {
         .iter()
         .filter(|(a, _)| a.starts_with("ctx-menu.drawer.action."))
         .count();
-    assert_eq!(action_items, 8, "all eight items render even when some are disabled: {nodes:?}");
+    assert_eq!(
+        action_items, 8,
+        "all eight items render even when some are disabled: {nodes:?}"
+    );
 }

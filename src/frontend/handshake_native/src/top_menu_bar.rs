@@ -214,10 +214,10 @@ pub const MENU_DEFINITIONS: [MenuId; 6] = [
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MenuBarAction {
     // FILE
-    NewDocument,        // disabled in MT-015 (needs document model)
+    NewDocument,         // disabled in MT-015 (needs document model)
     OpenWorkspacePicker, // disabled in MT-015 (needs workspace picker)
-    SaveActiveDocument, // disabled in MT-015 (needs document model)
-    SaveAllDocuments,   // disabled in MT-015 (needs document model)
+    SaveActiveDocument,  // disabled in MT-015 (needs document model)
+    SaveAllDocuments,    // disabled in MT-015 (needs document model)
     CloseActiveTab,
     QuitApp,
     // EDIT (all disabled in MT-015 — needs the editor surface)
@@ -258,6 +258,7 @@ pub const SWARM_ACCESSIBLE_ACTIONS: &[&str] = &[
     "menu.go.command-palette",
     "menu.go.quick-switcher",
     "menu.run.swarm-board",
+    "menu.run.swarm-lane-diagnostics",
     "menu.run.inference-lab",
     "menu.run.flight-recorder",
     "menu.help.user-manual",
@@ -336,7 +337,8 @@ impl MenuBar {
         let response = ui.interact(rect, button_id, egui::Sense::click());
 
         // The button is "open" when its popup is currently showing, so we can paint the open highlight.
-        let popup_open = egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&response));
+        let popup_open =
+            egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&response));
         if ui.is_rect_visible(rect) {
             let visuals = ui.style().interact(&response);
             let bg = if popup_open {
@@ -376,83 +378,308 @@ impl MenuBar {
     fn menu_items(&self, ui: &mut egui::Ui, menu: MenuId, action: &mut Option<MenuBarAction>) {
         match menu {
             MenuId::File => {
-                self.disabled_item(ui, "menu.file.new-document", "New Document", None, "Needs the document model (future MT)");
-                self.disabled_item(ui, "menu.file.open-workspace", "Open Workspace…", None, "Needs the workspace picker (future MT)");
+                self.disabled_item(
+                    ui,
+                    "menu.file.new-document",
+                    "New Document",
+                    None,
+                    "Needs the document model (future MT)",
+                );
+                self.disabled_item(
+                    ui,
+                    "menu.file.open-workspace",
+                    "Open Workspace…",
+                    None,
+                    "Needs the workspace picker (future MT)",
+                );
                 ui.separator();
-                self.disabled_item(ui, "menu.file.save", "Save", Some("Ctrl+S"), "Needs the document model (future MT)");
-                self.disabled_item(ui, "menu.file.save-all", "Save All", None, "Needs the document model (future MT)");
+                self.disabled_item(
+                    ui,
+                    "menu.file.save",
+                    "Save",
+                    Some("Ctrl+S"),
+                    "Needs the document model (future MT)",
+                );
+                self.disabled_item(
+                    ui,
+                    "menu.file.save-all",
+                    "Save All",
+                    None,
+                    "Needs the document model (future MT)",
+                );
                 ui.separator();
-                self.item(ui, "menu.file.close-tab", "Close Tab", None, self.state.has_active_tab, MenuBarAction::CloseActiveTab, action);
-                self.item(ui, "menu.file.quit", "Quit", None, true, MenuBarAction::QuitApp, action);
+                self.item(
+                    ui,
+                    "menu.file.close-tab",
+                    "Close Tab",
+                    None,
+                    self.state.has_active_tab,
+                    MenuBarAction::CloseActiveTab,
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.file.quit",
+                    "Quit",
+                    None,
+                    true,
+                    MenuBarAction::QuitApp,
+                    action,
+                );
             }
             MenuId::Edit => {
                 // The editor surface is a future MT; every EDIT leaf is disabled + disclosed.
-                self.disabled_item(ui, "menu.edit.undo", "Undo", Some("Ctrl+Z"), "Needs the editor surface (future MT)");
-                self.disabled_item(ui, "menu.edit.redo", "Redo", Some("Ctrl+Shift+Z"), "Needs the editor surface (future MT)");
+                self.disabled_item(
+                    ui,
+                    "menu.edit.undo",
+                    "Undo",
+                    Some("Ctrl+Z"),
+                    "Needs the editor surface (future MT)",
+                );
+                self.disabled_item(
+                    ui,
+                    "menu.edit.redo",
+                    "Redo",
+                    Some("Ctrl+Shift+Z"),
+                    "Needs the editor surface (future MT)",
+                );
                 ui.separator();
-                self.disabled_item(ui, "menu.edit.cut", "Cut", Some("Ctrl+X"), "Needs the editor surface (future MT)");
-                self.disabled_item(ui, "menu.edit.copy", "Copy", Some("Ctrl+C"), "Needs the editor surface (future MT)");
-                self.disabled_item(ui, "menu.edit.paste", "Paste", Some("Ctrl+V"), "Needs the editor surface (future MT)");
+                self.disabled_item(
+                    ui,
+                    "menu.edit.cut",
+                    "Cut",
+                    Some("Ctrl+X"),
+                    "Needs the editor surface (future MT)",
+                );
+                self.disabled_item(
+                    ui,
+                    "menu.edit.copy",
+                    "Copy",
+                    Some("Ctrl+C"),
+                    "Needs the editor surface (future MT)",
+                );
+                self.disabled_item(
+                    ui,
+                    "menu.edit.paste",
+                    "Paste",
+                    Some("Ctrl+V"),
+                    "Needs the editor surface (future MT)",
+                );
                 ui.separator();
-                self.disabled_item(ui, "menu.edit.find-replace", "Find / Replace", Some("Ctrl+F"), "Needs the editor surface (future MT)");
-                self.disabled_item(ui, "menu.edit.find-all", "Find in All Documents", Some("Ctrl+Shift+F"), "Needs workspace search (future MT)");
+                self.disabled_item(
+                    ui,
+                    "menu.edit.find-replace",
+                    "Find / Replace",
+                    Some("Ctrl+F"),
+                    "Needs the editor surface (future MT)",
+                );
+                self.disabled_item(
+                    ui,
+                    "menu.edit.find-all",
+                    "Find in All Documents",
+                    Some("Ctrl+Shift+F"),
+                    "Needs workspace search (future MT)",
+                );
             }
             MenuId::View => {
                 // Theme: two FLAT checkmark items (a check on the currently active theme; selectable_label
                 // draws the native check), matching AC5's "VIEW > Theme: Dark / Theme: Light". Clicking
                 // the NON-active option toggles; clicking the already-active one is a no-op (no action
                 // emitted) so the theme never flickers (R4 handled by the same-frame apply on dispatch).
-                if self.check_item(ui, "menu.view.theme-dark", "Theme: Dark", self.state.theme_is_dark) && !self.state.theme_is_dark {
+                if self.check_item(
+                    ui,
+                    "menu.view.theme-dark",
+                    "Theme: Dark",
+                    self.state.theme_is_dark,
+                ) && !self.state.theme_is_dark
+                {
                     *action = Some(MenuBarAction::ToggleTheme);
                     ui.close();
                 }
-                if self.check_item(ui, "menu.view.theme-light", "Theme: Light", !self.state.theme_is_dark) && self.state.theme_is_dark {
+                if self.check_item(
+                    ui,
+                    "menu.view.theme-light",
+                    "Theme: Light",
+                    !self.state.theme_is_dark,
+                ) && self.state.theme_is_dark
+                {
                     *action = Some(MenuBarAction::ToggleTheme);
                     ui.close();
                 }
                 ui.separator();
                 // View Mode: two FLAT checkmark items (a check on the active mode), matching AC's
                 // "VIEW > View Mode: NSFW / SFW".
-                if self.check_item(ui, "menu.view.mode-nsfw", "View Mode: NSFW", self.state.view_mode_is_nsfw) && !self.state.view_mode_is_nsfw {
+                if self.check_item(
+                    ui,
+                    "menu.view.mode-nsfw",
+                    "View Mode: NSFW",
+                    self.state.view_mode_is_nsfw,
+                ) && !self.state.view_mode_is_nsfw
+                {
                     *action = Some(MenuBarAction::ToggleViewMode);
                     ui.close();
                 }
-                if self.check_item(ui, "menu.view.mode-sfw", "View Mode: SFW", !self.state.view_mode_is_nsfw) && self.state.view_mode_is_nsfw {
+                if self.check_item(
+                    ui,
+                    "menu.view.mode-sfw",
+                    "View Mode: SFW",
+                    !self.state.view_mode_is_nsfw,
+                ) && self.state.view_mode_is_nsfw
+                {
                     *action = Some(MenuBarAction::ToggleViewMode);
                     ui.close();
                 }
                 ui.separator();
                 // Drawer toggles show a checkmark for the current open/closed state (a check = open).
-                if self.check_item(ui, "menu.view.toggle-project-drawer", "Toggle Project Drawer", self.state.project_drawer_open) {
+                if self.check_item(
+                    ui,
+                    "menu.view.toggle-project-drawer",
+                    "Toggle Project Drawer",
+                    self.state.project_drawer_open,
+                ) {
                     *action = Some(MenuBarAction::ToggleProjectDrawer);
                     ui.close();
                 }
-                self.disabled_item(ui, "menu.view.toggle-file-drawer", "Toggle File Drawer", None, "No native file drawer yet (future MT)");
-                if self.check_item(ui, "menu.view.toggle-bottom-panel", "Toggle Bottom Panel", self.state.bottom_drawer_open) {
+                self.disabled_item(
+                    ui,
+                    "menu.view.toggle-file-drawer",
+                    "Toggle File Drawer",
+                    None,
+                    "No native file drawer yet (future MT)",
+                );
+                if self.check_item(
+                    ui,
+                    "menu.view.toggle-bottom-panel",
+                    "Toggle Bottom Panel",
+                    self.state.bottom_drawer_open,
+                ) {
                     *action = Some(MenuBarAction::ToggleBottomPanel);
                     ui.close();
                 }
                 ui.separator();
-                self.item(ui, "menu.view.reset-layout", "Reset Layout…", None, true, MenuBarAction::ResetLayout, action);
+                self.item(
+                    ui,
+                    "menu.view.reset-layout",
+                    "Reset Layout…",
+                    None,
+                    true,
+                    MenuBarAction::ResetLayout,
+                    action,
+                );
             }
             MenuId::Go => {
-                self.item(ui, "menu.go.quick-switcher", "Quick Switcher", Some("Ctrl+P"), true, MenuBarAction::OpenQuickSwitcher, action);
-                self.item(ui, "menu.go.command-palette", "Command Palette", Some("Ctrl+Shift+P"), true, MenuBarAction::OpenCommandPalette, action);
+                self.item(
+                    ui,
+                    "menu.go.quick-switcher",
+                    "Quick Switcher",
+                    Some("Ctrl+P"),
+                    true,
+                    MenuBarAction::OpenQuickSwitcher,
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.go.command-palette",
+                    "Command Palette",
+                    Some("Ctrl+Shift+P"),
+                    true,
+                    MenuBarAction::OpenCommandPalette,
+                    action,
+                );
                 ui.separator();
-                self.item(ui, "menu.go.next-pane", "Go to Next Pane", None, true, MenuBarAction::FocusNextPane, action);
-                self.item(ui, "menu.go.prev-pane", "Go to Previous Pane", None, true, MenuBarAction::FocusPrevPane, action);
+                self.item(
+                    ui,
+                    "menu.go.next-pane",
+                    "Go to Next Pane",
+                    None,
+                    true,
+                    MenuBarAction::FocusNextPane,
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.go.prev-pane",
+                    "Go to Previous Pane",
+                    None,
+                    true,
+                    MenuBarAction::FocusPrevPane,
+                    action,
+                );
             }
             MenuId::Run => {
-                self.item(ui, "menu.run.swarm-board", "Open Swarm Board", None, true, MenuBarAction::OpenSwarmBoard, action);
-                self.item(ui, "menu.run.inference-lab", "Open Inference Lab", None, true, MenuBarAction::NavigateToTab("inference-lab".to_owned()), action);
-                self.item(ui, "menu.run.flight-recorder", "Open Flight Recorder", None, true, MenuBarAction::NavigateToTab("flight-recorder".to_owned()), action);
-                self.disabled_item(ui, "menu.run.terminal", "Open Terminal", None, "No native terminal panel yet (future MT)");
+                self.item(
+                    ui,
+                    "menu.run.swarm-board",
+                    "Open Swarm Board",
+                    None,
+                    true,
+                    MenuBarAction::OpenSwarmBoard,
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.run.swarm-lane-diagnostics",
+                    "Open Lane Diagnostics",
+                    None,
+                    true,
+                    MenuBarAction::NavigateToTab("swarm-lane-diagnostics".to_owned()),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.run.inference-lab",
+                    "Open Inference Lab",
+                    None,
+                    true,
+                    MenuBarAction::NavigateToTab("inference-lab".to_owned()),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.run.flight-recorder",
+                    "Open Flight Recorder",
+                    None,
+                    true,
+                    MenuBarAction::NavigateToTab("flight-recorder".to_owned()),
+                    action,
+                );
+                self.disabled_item(
+                    ui,
+                    "menu.run.terminal",
+                    "Open Terminal",
+                    None,
+                    "No native terminal panel yet (future MT)",
+                );
             }
             MenuId::Help => {
-                self.item(ui, "menu.help.user-manual", "Open User Manual", None, true, MenuBarAction::NavigateToTab("user-manual".to_owned()), action);
-                self.item(ui, "menu.help.settings", "Open Settings…", None, true, MenuBarAction::OpenSettings, action);
+                self.item(
+                    ui,
+                    "menu.help.user-manual",
+                    "Open User Manual",
+                    None,
+                    true,
+                    MenuBarAction::NavigateToTab("user-manual".to_owned()),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.help.settings",
+                    "Open Settings…",
+                    None,
+                    true,
+                    MenuBarAction::OpenSettings,
+                    action,
+                );
                 ui.separator();
-                self.item(ui, "menu.help.about", "About Handshake", None, true, MenuBarAction::ShowAbout, action);
+                self.item(
+                    ui,
+                    "menu.help.about",
+                    "About Handshake",
+                    None,
+                    true,
+                    MenuBarAction::ShowAbout,
+                    action,
+                );
             }
         }
     }
@@ -476,7 +703,13 @@ impl MenuBar {
         if !enabled {
             // An enabled-call with a runtime-false condition (e.g. Close Tab with no tab) still renders
             // the leaf greyed so its presence is stable (AC2) and its reason readable.
-            self.disabled_item(ui, author_id, label, shortcut, "Unavailable in the current state");
+            self.disabled_item(
+                ui,
+                author_id,
+                label,
+                shortcut,
+                "Unavailable in the current state",
+            );
             return;
         }
         let mut button = egui::Button::new(label);
@@ -507,7 +740,10 @@ impl MenuBar {
             button = button.shortcut_text(s);
         }
         let response = ui
-            .add_enabled(false, button.min_size(egui::vec2(ui.available_width(), 0.0)))
+            .add_enabled(
+                false,
+                button.min_size(egui::vec2(ui.available_width(), 0.0)),
+            )
             .on_disabled_hover_text(reason);
         Self::name_node(ui, response.id, author_id, label);
     }
@@ -528,11 +764,12 @@ impl MenuBar {
     fn name_node(ui: &mut egui::Ui, widget_node_id: egui::Id, author_id: &str, label: &str) {
         let author_id = author_id.to_owned();
         let label = label.to_owned();
-        ui.ctx().accesskit_node_builder(widget_node_id, move |node| {
-            node.set_role(accesskit::Role::MenuItem);
-            node.set_author_id(author_id);
-            node.set_label(label);
-        });
+        ui.ctx()
+            .accesskit_node_builder(widget_node_id, move |node| {
+                node.set_role(accesskit::Role::MenuItem);
+                node.set_author_id(author_id);
+                node.set_label(label);
+            });
     }
 }
 
@@ -593,7 +830,10 @@ mod tests {
             dispatch(&MenuBarAction::NavigateToTab("inference-lab".to_owned())),
             "navigate"
         );
-        assert_eq!(dispatch(&MenuBarAction::OpenCommandPalette), "command-palette");
+        assert_eq!(
+            dispatch(&MenuBarAction::OpenCommandPalette),
+            "command-palette"
+        );
     }
 
     /// The six fixed menu ids sit in the 92..=97 band, are sequential, and stay strictly below the pane
@@ -618,7 +858,14 @@ mod tests {
         let ids: Vec<&str> = MENU_DEFINITIONS.iter().map(|m| m.author_id()).collect();
         assert_eq!(
             ids,
-            vec!["menu-file", "menu-edit", "menu-view", "menu-go", "menu-run", "menu-help"]
+            vec![
+                "menu-file",
+                "menu-edit",
+                "menu-view",
+                "menu-go",
+                "menu-run",
+                "menu-help"
+            ]
         );
         // No duplicates.
         let mut sorted = ids.clone();
@@ -658,7 +905,11 @@ mod tests {
         for index in 0..MENU_DEFINITIONS.len() {
             let button = menu_button_id(index);
             let popup = menu_popup_id(index);
-            assert_eq!(popup, button.with("popup"), "popup id derives from the menu button id");
+            assert_eq!(
+                popup,
+                button.with("popup"),
+                "popup id derives from the menu button id"
+            );
         }
     }
 
@@ -667,7 +918,11 @@ mod tests {
     fn swarm_accessible_actions_listed() {
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.go.command-palette"));
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.run.swarm-board"));
-        assert_eq!(SWARM_ACCESSIBLE_ACTIONS.len(), 7, "all overlay/navigation actions listed");
+        assert_eq!(
+            SWARM_ACCESSIBLE_ACTIONS.len(),
+            7,
+            "all overlay/navigation actions listed"
+        );
         // Destructive/document actions are NOT swarm-exposed.
         assert!(!SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.file.quit"));
         assert!(!SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.view.reset-layout"));

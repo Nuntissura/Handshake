@@ -39,7 +39,10 @@ fn main() {
     // to exist. Emit a clear build error here (before the opaque include_bytes! error) so a missing
     // asset is diagnosable by a no-context model (RISK-6 / CONTROL-6).
     if std::env::var("CARGO_FEATURE_BUNDLED_FONTS").is_ok() {
-        for face in ["assets/fonts/Inter-Regular.ttf", "assets/fonts/Inter-Bold.ttf"] {
+        for face in [
+            "assets/fonts/Inter-Regular.ttf",
+            "assets/fonts/Inter-Bold.ttf",
+        ] {
             if !Path::new(face).exists() {
                 panic!(
                     "bundled-fonts feature is enabled but {face} is missing. Run the MT-004 font \

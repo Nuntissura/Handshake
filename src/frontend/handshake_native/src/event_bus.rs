@@ -92,14 +92,22 @@ mod tests {
     #[test]
     fn drain_returns_published_events_in_order() {
         let (tx, rx) = new_shell_event_bus();
-        assert!(tx.send(ShellEvent::DocumentDeleted { document_id: "d1".into() }));
-        assert!(tx.send(ShellEvent::CanvasDeleted { canvas_id: "c1".into() }));
+        assert!(tx.send(ShellEvent::DocumentDeleted {
+            document_id: "d1".into()
+        }));
+        assert!(tx.send(ShellEvent::CanvasDeleted {
+            canvas_id: "c1".into()
+        }));
         let drained = rx.drain();
         assert_eq!(
             drained,
             vec![
-                ShellEvent::DocumentDeleted { document_id: "d1".into() },
-                ShellEvent::CanvasDeleted { canvas_id: "c1".into() },
+                ShellEvent::DocumentDeleted {
+                    document_id: "d1".into()
+                },
+                ShellEvent::CanvasDeleted {
+                    canvas_id: "c1".into()
+                },
             ],
         );
         // A second drain with nothing queued is empty (the channel was emptied).
@@ -110,15 +118,21 @@ mod tests {
     fn send_after_receiver_dropped_is_benign() {
         let (tx, rx) = new_shell_event_bus();
         drop(rx);
-        assert!(!tx.send(ShellEvent::BookmarkRemoved { block_id: "b1".into() }));
+        assert!(!tx.send(ShellEvent::BookmarkRemoved {
+            block_id: "b1".into()
+        }));
     }
 
     #[test]
     fn sender_is_clonable_for_multiple_producers() {
         let (tx, rx) = new_shell_event_bus();
         let tx2 = tx.clone();
-        tx.send(ShellEvent::DocumentDeleted { document_id: "a".into() });
-        tx2.send(ShellEvent::DocumentDeleted { document_id: "b".into() });
+        tx.send(ShellEvent::DocumentDeleted {
+            document_id: "a".into(),
+        });
+        tx2.send(ShellEvent::DocumentDeleted {
+            document_id: "b".into(),
+        });
         assert_eq!(rx.drain().len(), 2, "events from two producers both arrive");
     }
 }

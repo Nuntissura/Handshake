@@ -46,9 +46,7 @@ impl AccessTreeSnapshot {
 
     /// True when every supplied `author_id` is present in the live tree.
     pub fn contains_all(&self, author_ids: &[&str]) -> bool {
-        author_ids
-            .iter()
-            .all(|id| self.by_author_id(id).is_some())
+        author_ids.iter().all(|id| self.by_author_id(id).is_some())
     }
 
     /// All `author_id`s present, in snapshot (sorted) order.
@@ -575,8 +573,9 @@ mod ui_tree_tests {
         };
         let total_children = MAX_SNAPSHOT_NODES + 50;
         let mut root = node(accesskit::Role::Window);
-        let child_ids: Vec<accesskit::NodeId> =
-            (2..(2 + total_children as u64)).map(accesskit::NodeId).collect();
+        let child_ids: Vec<accesskit::NodeId> = (2..(2 + total_children as u64))
+            .map(accesskit::NodeId)
+            .collect();
         root.set_children(child_ids.clone());
         update.nodes.push((accesskit::NodeId(1), root));
         for id in &child_ids {

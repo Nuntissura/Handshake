@@ -37,6 +37,7 @@
 //! EventLedger (`KNOWLEDGE_USER_MANUAL_ENTRY_RECORDED` receipts). Rendered
 //! markdown/HTML are projections only.
 
+pub mod behavior_coverage;
 pub mod bundle_bridge;
 pub mod fixtures;
 pub mod freshness;
@@ -47,9 +48,13 @@ pub mod seed;
 pub mod spec_seed;
 pub mod store;
 
+pub use behavior_coverage::{
+    BehaviorCoverageError, BehaviorCoverageRow, DiagnosticTierPosture,
+    model_lane_behavior_coverage_matrix, verify_model_lane_behavior_coverage,
+};
 pub use migration_plan::{
-    naming_migration_plan, LegacyAlias, LegacyKind, MigrationPhase, NamingMigrationPlan, PlanRow,
-    ShimState,
+    LegacyAlias, LegacyKind, MigrationPhase, NamingMigrationPlan, PlanRow, ShimState,
+    naming_migration_plan,
 };
 pub use store::{
     ManualSearchHit, NewUserManualPage, UserManualAnchor, UserManualFeatureEntry, UserManualPage,
@@ -62,7 +67,7 @@ pub use store::{
 /// content change — the freshness check (MT-204) compares stored
 /// `content_hash` per page, and `user_manual_versions` records each seeded
 /// version.
-pub const USER_MANUAL_VERSION: &str = "2.0.2";
+pub const USER_MANUAL_VERSION: &str = "2.0.5";
 
 /// The canonical stuck-together product term (operator decision; constraint in
 /// every MT-193..MT-208 contract). Route namespace, slugs, and citations all

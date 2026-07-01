@@ -342,7 +342,10 @@ mod tests {
             .unwrap_err();
         assert_eq!(
             err,
-            LeaseError::Timeout { resource: "w".to_owned(), kind: LeaseKind::Exclusive }
+            LeaseError::Timeout {
+                resource: "w".to_owned(),
+                kind: LeaseKind::Exclusive
+            }
         );
         drop(g1);
         // After release the key is reclaimed and a new exclusive succeeds.
@@ -389,7 +392,11 @@ mod tests {
                 .expect("granted");
             assert_eq!(reg.active_resource_count(), 1);
         }
-        assert_eq!(reg.active_resource_count(), 0, "idle entry reclaimed on drop");
+        assert_eq!(
+            reg.active_resource_count(),
+            0,
+            "idle entry reclaimed on drop"
+        );
     }
 
     #[test]

@@ -133,15 +133,24 @@ impl ActiveWindowQuickLinks {
             }
             // Disclosure toggle: ▸ collapsed (show active only) / ▾ expanded (show all).
             let toggle_id = egui::Id::new(QUICK_LINKS_DISCLOSURE_AUTHOR_ID);
-            let glyph = if self.expanded { "\u{25BE}" } else { "\u{25B8}" }; // ▾ / ▸
-            let tg = ui
-                .painter()
-                .layout_no_wrap(glyph.to_owned(), egui::FontId::proportional(13.0), colors.header_text);
+            let glyph = if self.expanded {
+                "\u{25BE}"
+            } else {
+                "\u{25B8}"
+            }; // ▾ / ▸
+            let tg = ui.painter().layout_no_wrap(
+                glyph.to_owned(),
+                egui::FontId::proportional(13.0),
+                colors.header_text,
+            );
             let (trect, _) = ui.allocate_exact_size(egui::vec2(18.0, 18.0), egui::Sense::hover());
             let tresp = ui.interact(trect, toggle_id, egui::Sense::click());
             if ui.is_rect_visible(trect) {
                 ui.painter().galley(
-                    egui::pos2(trect.center().x - tg.size().x * 0.5, trect.center().y - tg.size().y * 0.5),
+                    egui::pos2(
+                        trect.center().x - tg.size().x * 0.5,
+                        trect.center().y - tg.size().y * 0.5,
+                    ),
                     tg,
                     colors.header_text,
                 );
@@ -150,7 +159,11 @@ impl ActiveWindowQuickLinks {
                 egui::WidgetInfo::labeled(
                     egui::WidgetType::Button,
                     ui.is_enabled(),
-                    if self.expanded { "Collapse windows" } else { "Expand windows" },
+                    if self.expanded {
+                        "Collapse windows"
+                    } else {
+                        "Expand windows"
+                    },
                 )
             });
             ui.ctx().accesskit_node_builder(toggle_id, |node| {
@@ -182,11 +195,18 @@ impl ActiveWindowQuickLinks {
             }
         }
         if total > shown {
-            ui.colored_label(colors.muted_text, format!("+{} more\u{2026}", total - shown));
+            ui.colored_label(
+                colors.muted_text,
+                format!("+{} more\u{2026}", total - shown),
+            );
         }
 
         // Enrich the container node last so its rect spans the rendered list.
-        ui.interact(container_rect, container_id, egui::Sense::focusable_noninteractive());
+        ui.interact(
+            container_rect,
+            container_id,
+            egui::Sense::focusable_noninteractive(),
+        );
         ui.ctx().accesskit_node_builder(container_id, |node| {
             node.set_role(accesskit::Role::List);
             node.set_author_id(QUICK_LINKS_AUTHOR_ID.to_owned());
@@ -254,7 +274,10 @@ fn quick_link_row(ui: &mut egui::Ui, entry: &QuickLinkEntry, colors: QuickLinkCo
         node.set_role(accesskit::Role::Link);
         node.set_author_id(author_id.clone());
         node.set_label(entry.tab_label.clone());
-        node.set_description(format!("project: {}; pane: {}", entry.project_name, entry.pane_id));
+        node.set_description(format!(
+            "project: {}; pane: {}",
+            entry.project_name, entry.pane_id
+        ));
     });
 
     resp.clicked()
@@ -298,7 +321,10 @@ mod tests {
 
     #[test]
     fn author_id_format_matches_contract() {
-        assert_eq!(entry("pane-b", 1, "P", "Inference Lab", true).author_id(), "quick-links.pane-b.1");
+        assert_eq!(
+            entry("pane-b", 1, "P", "Inference Lab", true).author_id(),
+            "quick-links.pane-b.1"
+        );
     }
 
     #[test]

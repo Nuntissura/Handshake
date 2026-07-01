@@ -19,15 +19,12 @@
 use sqlx::Row;
 
 use super::store::sha256_hex;
-use crate::storage::postgres::PostgresDatabase;
 use crate::storage::StorageResult;
+use crate::storage::postgres::PostgresDatabase;
 
 /// Tamper a stored page's content hash (simulates seed/code drift or row
 /// tampering). Returns the previous hash so the test can restore it.
-pub async fn tamper_page_content_hash(
-    db: &PostgresDatabase,
-    slug: &str,
-) -> StorageResult<String> {
+pub async fn tamper_page_content_hash(db: &PostgresDatabase, slug: &str) -> StorageResult<String> {
     let row = sqlx::query("SELECT content_hash FROM user_manual_pages WHERE slug = $1")
         .bind(slug)
         .fetch_one(db.pool())

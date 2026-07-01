@@ -67,7 +67,9 @@ impl UiAction {
     pub fn accesskit_action(&self) -> accesskit::Action {
         match self {
             UiAction::Click => accesskit::Action::Click,
-            UiAction::Focus | UiAction::SetValue { .. } | UiAction::Select => accesskit::Action::Focus,
+            UiAction::Focus | UiAction::SetValue { .. } | UiAction::Select => {
+                accesskit::Action::Focus
+            }
             UiAction::Scroll => accesskit::Action::ScrollIntoView,
         }
     }
@@ -93,10 +95,7 @@ pub enum ActionError {
     /// drive a control the model must not touch).
     DisabledTarget { author_id: String },
     /// The target exists but does not support the requested action (e.g. `Click` on a static label).
-    UnsupportedAction {
-        author_id: String,
-        action: String,
-    },
+    UnsupportedAction { author_id: String, action: String },
     /// The bounded queue is full; the caller should retry after the frame loop drains it (back-pressure).
     QueueFull,
 }
@@ -277,7 +276,12 @@ mod tests {
             value: None,
             disabled: false,
             actions: vec!["Click".to_owned(), "Focus".to_owned()],
-            bounds: Some(UiNodeBounds { x: 0.0, y: 0.0, w: 10.0, h: 10.0 }),
+            bounds: Some(UiNodeBounds {
+                x: 0.0,
+                y: 0.0,
+                w: 10.0,
+                h: 10.0,
+            }),
             children: Vec::new(),
         };
         let input = UiTreeNode {
@@ -334,14 +338,24 @@ mod tests {
     fn unknown_target_is_rejected() {
         let snap = fixture_snapshot();
         let err = resolve_target(&snap, "nope", &UiAction::Click).unwrap_err();
-        assert_eq!(err, ActionError::UnknownTarget { author_id: "nope".to_owned() });
+        assert_eq!(
+            err,
+            ActionError::UnknownTarget {
+                author_id: "nope".to_owned()
+            }
+        );
     }
 
     #[test]
     fn disabled_target_is_rejected() {
         let snap = fixture_snapshot();
         let err = resolve_target(&snap, "off", &UiAction::Click).unwrap_err();
-        assert_eq!(err, ActionError::DisabledTarget { author_id: "off".to_owned() });
+        assert_eq!(
+            err,
+            ActionError::DisabledTarget {
+                author_id: "off".to_owned()
+            }
+        );
     }
 
     #[test]
@@ -357,14 +371,19 @@ mod tests {
         let err = resolve_target(&snap, "field", &UiAction::Click).unwrap_err();
         assert_eq!(
             err,
-            ActionError::UnsupportedAction { author_id: "field".to_owned(), action: "Click".to_owned() }
+            ActionError::UnsupportedAction {
+                author_id: "field".to_owned(),
+                action: "Click".to_owned()
+            }
         );
     }
 
     #[test]
     fn set_value_resolves_to_focus_and_carries_text() {
         let snap = fixture_snapshot();
-        let action = UiAction::SetValue { text: "hello swarm".to_owned() };
+        let action = UiAction::SetValue {
+            text: "hello swarm".to_owned(),
+        };
         // The input supports Focus, so SetValue (which dispatches Focus) resolves.
         let id = resolve_target(&snap, "field", &action).expect("field resolves via Focus");
         assert_eq!(id, accesskit::NodeId(11));
@@ -389,8 +408,14 @@ mod tests {
     fn drain_emits_request_then_text_and_respects_burst_cap() {
         let snap = fixture_snapshot();
         let mut chan = ActionChannel::new();
-        chan.enqueue(&snap, "field", UiAction::SetValue { text: "abc".to_owned() })
-            .expect("enqueue set_value");
+        chan.enqueue(
+            &snap,
+            "field",
+            UiAction::SetValue {
+                text: "abc".to_owned(),
+            },
+        )
+        .expect("enqueue set_value");
         let events = chan.drain_into_events();
         // One AccessKitActionRequest (Focus) followed by one Text event.
         assert_eq!(events.len(), 2);
@@ -401,10 +426,19 @@ mod tests {
         // Burst cap: enqueue more than MAX_ACTIONS_PER_BURST clicks; one drain takes at most the cap.
         let mut chan = ActionChannel::new();
         for _ in 0..(MAX_ACTIONS_PER_BURST + 5) {
-            chan.enqueue(&snap, "btn", UiAction::Click).expect("enqueue click");
+            chan.enqueue(&snap, "btn", UiAction::Click)
+                .expect("enqueue click");
         }
         let drained = chan.drain_into_events();
-        assert_eq!(drained.len(), MAX_ACTIONS_PER_BURST, "one drain bounded by burst cap");
-        assert_eq!(chan.pending(), 5, "remainder stays queued for the next frame");
+        assert_eq!(
+            drained.len(),
+            MAX_ACTIONS_PER_BURST,
+            "one drain bounded by burst cap"
+        );
+        assert_eq!(
+            chan.pending(),
+            5,
+            "remainder stays queued for the next frame"
+        );
     }
 }

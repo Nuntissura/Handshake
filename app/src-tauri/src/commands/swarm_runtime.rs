@@ -83,6 +83,7 @@ use handshake_core::process_ledger::{
 use handshake_core::sandbox::SandboxAdapterRegistry;
 use handshake_core::storage::ControlPlaneStorage;
 use handshake_core::swarm_orchestration::ids::LocalExecutionMode;
+use handshake_core::swarm_orchestration::model_lane::{DexterityLaunchContract, ModelLaneStore};
 use handshake_core::swarm_orchestration::state_recovery::{
     AgentLaneIdentity, AgentLaneKind, AttributionMode, CloudAssistanceOutputKind,
     CloudAssistanceRequest, CloudFallbackBasisRequest, CloudFallbackReason, LocalCloudAttribution,
@@ -108,6 +109,9 @@ use super::spawn_template_store::{
 /// FR-EVT tag stamped on swarm lifecycle events forwarded to structured stderr
 /// until the durable flight-recorder DB sink is wired by a swarm command (MT-205).
 pub const FR_EVT_SWARM_LIFECYCLE: &str = "FR-EVT-SWARM-LIFECYCLE";
+pub(crate) const DEXTERITY_APP_WP_ID: &str =
+    "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1";
+pub(crate) const DEXTERITY_APP_MT_ID: &str = "MT-003";
 
 pub const KERNEL_SWARM_SPAWN_SESSION_IPC_CHANNEL: &str = "kernel_swarm_spawn_session";
 pub const KERNEL_SWARM_SPAWN_LOCAL_CLOUD_PAIR_IPC_CHANNEL: &str =
@@ -309,6 +313,9 @@ pub struct SwarmRuntimeState {
     /// coordinator. `None` preserves legacy callers; `Some` makes every spawn
     /// fail closed unless it carries a committed-memory estimate.
     committed_memory_ceiling_bytes: Option<u64>,
+    /// Product runtime guard: when true, every manual IPC spawn is converted to
+    /// a Dexterity launch contract before it reaches the coordinator.
+    dexterity_launch_required: bool,
     /// MT-221: successful cloud fallback output must be receipt-recorded before
     /// it is returned to a caller. `None` means the receipt path is not wired, so
     /// cloud escalation fails closed rather than returning unreviewed output.
@@ -321,6 +328,7 @@ impl std::fmt::Debug for SwarmRuntimeState {
             .field("coordinator", &"<SwarmCoordinator>")
             .field("ledger_store", &"<InProcessLedgerStore>")
             .field("sessions", &"<SessionTable>")
+            .field("dexterity_launch_required", &self.dexterity_launch_required)
             .finish()
     }
 }
@@ -413,6 +421,26 @@ impl SwarmRuntimeState {
         app_data_root: &Path,
         sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
     ) -> Self {
+        Self::production_with_registry_internal(app_data_root, sandbox_registry, None)
+    }
+
+    pub fn production_with_registry_and_model_lane_store(
+        app_data_root: &Path,
+        sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
+        model_lane_store: ModelLaneStore,
+    ) -> Self {
+        Self::production_with_registry_internal(
+            app_data_root,
+            sandbox_registry,
+            Some(model_lane_store),
+        )
+    }
+
+    fn production_with_registry_internal(
+        app_data_root: &Path,
+        sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
+        model_lane_store: Option<ModelLaneStore>,
+    ) -> Self {
         let vault: Arc<dyn SecretsVault> = Arc::new(
             handshake_core::model_runtime::cloud::secrets_vault::OsKeychainSecretsVault::new(
                 handshake_core::model_runtime::cloud::secrets_vault::HANDSHAKE_KEYCHAIN_SERVICE,
@@ -428,7 +456,14 @@ impl SwarmRuntimeState {
             .unwrap_or_else(|| "openai".to_string());
         let cloud =
             CloudLaneFactoryConfig::from_vault(vault, Some(anthropic_lane), Some(openai_lane));
-        Self::production_with_cloud_and_recorder(cloud, None, app_data_root, sandbox_registry)
+        Self::production_with_cloud_and_recorder_with_model_lane_store(
+            cloud,
+            None,
+            app_data_root,
+            sandbox_registry,
+            model_lane_store,
+            true,
+        )
     }
 
     /// Build the production swarm runtime with an explicit cloud-lane config
@@ -466,6 +501,29 @@ impl SwarmRuntimeState {
         app_data_root: &Path,
         sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
     ) -> Self {
+        Self::production_with_fr_recorder_internal(recorder, app_data_root, sandbox_registry, None)
+    }
+
+    pub fn production_with_fr_recorder_and_model_lane_store(
+        recorder: Arc<dyn FlightRecorder>,
+        app_data_root: &Path,
+        sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
+        model_lane_store: ModelLaneStore,
+    ) -> Self {
+        Self::production_with_fr_recorder_internal(
+            recorder,
+            app_data_root,
+            sandbox_registry,
+            Some(model_lane_store),
+        )
+    }
+
+    fn production_with_fr_recorder_internal(
+        recorder: Arc<dyn FlightRecorder>,
+        app_data_root: &Path,
+        sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
+        model_lane_store: Option<ModelLaneStore>,
+    ) -> Self {
         let vault: Arc<dyn SecretsVault> = Arc::new(
             handshake_core::model_runtime::cloud::secrets_vault::OsKeychainSecretsVault::new(
                 handshake_core::model_runtime::cloud::secrets_vault::HANDSHAKE_KEYCHAIN_SERVICE,
@@ -481,11 +539,13 @@ impl SwarmRuntimeState {
             .unwrap_or_else(|| "openai".to_string());
         let cloud =
             CloudLaneFactoryConfig::from_vault(vault, Some(anthropic_lane), Some(openai_lane));
-        Self::production_with_cloud_and_recorder(
+        Self::production_with_cloud_and_recorder_with_model_lane_store(
             cloud,
             Some(recorder),
             app_data_root,
             sandbox_registry,
+            model_lane_store,
+            true,
         )
     }
 
@@ -495,13 +555,33 @@ impl SwarmRuntimeState {
         app_data_root: &Path,
         sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
     ) -> Self {
+        Self::production_with_cloud_and_recorder_with_model_lane_store(
+            cloud,
+            recorder,
+            app_data_root,
+            sandbox_registry,
+            None,
+            true,
+        )
+    }
+
+    fn production_with_cloud_and_recorder_with_model_lane_store(
+        cloud: CloudLaneFactoryConfig,
+        recorder: Option<Arc<dyn FlightRecorder>>,
+        app_data_root: &Path,
+        sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
+        model_lane_store: Option<ModelLaneStore>,
+        dexterity_launch_required: bool,
+    ) -> Self {
         let committed_memory_ceiling_bytes = committed_memory_ceiling_from_env();
-        Self::production_with_cloud_and_recorder_and_committed_memory_ceiling(
+        Self::production_with_cloud_and_recorder_and_committed_memory_ceiling_with_model_lane_store(
             cloud,
             recorder,
             app_data_root,
             sandbox_registry,
             committed_memory_ceiling_bytes,
+            model_lane_store,
+            dexterity_launch_required,
         )
     }
 
@@ -511,6 +591,60 @@ impl SwarmRuntimeState {
         app_data_root: &Path,
         sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
         committed_memory_ceiling_bytes: Option<u64>,
+    ) -> Self {
+        Self::production_with_cloud_and_recorder_and_committed_memory_ceiling_with_model_lane_store(
+            cloud,
+            recorder,
+            app_data_root,
+            sandbox_registry,
+            committed_memory_ceiling_bytes,
+            None,
+            true,
+        )
+    }
+
+    #[cfg(test)]
+    fn production_with_cloud_legacy_without_dexterity_for_tests(
+        cloud: CloudLaneFactoryConfig,
+    ) -> Self {
+        Self::production_with_cloud_and_recorder_and_committed_memory_ceiling_with_model_lane_store(
+            cloud,
+            None,
+            Path::new(""),
+            None,
+            None,
+            None,
+            false,
+        )
+    }
+
+    #[cfg(test)]
+    fn production_with_cloud_and_recorder_and_committed_memory_ceiling_legacy_without_dexterity_for_tests(
+        cloud: CloudLaneFactoryConfig,
+        recorder: Option<Arc<dyn FlightRecorder>>,
+        app_data_root: &Path,
+        sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
+        committed_memory_ceiling_bytes: Option<u64>,
+    ) -> Self {
+        Self::production_with_cloud_and_recorder_and_committed_memory_ceiling_with_model_lane_store(
+            cloud,
+            recorder,
+            app_data_root,
+            sandbox_registry,
+            committed_memory_ceiling_bytes,
+            None,
+            false,
+        )
+    }
+
+    fn production_with_cloud_and_recorder_and_committed_memory_ceiling_with_model_lane_store(
+        cloud: CloudLaneFactoryConfig,
+        recorder: Option<Arc<dyn FlightRecorder>>,
+        app_data_root: &Path,
+        sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
+        committed_memory_ceiling_bytes: Option<u64>,
+        model_lane_store: Option<ModelLaneStore>,
+        dexterity_launch_required: bool,
     ) -> Self {
         let store = InProcessLedgerStore::default();
         let overflow = Arc::new(CountingOverflowSink::default());
@@ -609,7 +743,31 @@ impl SwarmRuntimeState {
             board_events.clone() as Arc<dyn SwarmEventSink>,
         ]));
 
-        let coordinator = SwarmCoordinator::new(config, factory, sink, ledger);
+        let coordinator = match (model_lane_store, dexterity_launch_required) {
+            (Some(model_lane_store), true) => SwarmCoordinator::new_with_model_lane_store(
+                config,
+                factory,
+                sink,
+                ledger,
+                model_lane_store,
+            ),
+            (None, true) => SwarmCoordinator::new(config, factory, sink, ledger),
+            (None, false) => {
+                #[cfg(test)]
+                {
+                    SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+                        config, factory, sink, ledger,
+                    )
+                }
+                #[cfg(not(test))]
+                {
+                    panic!("production swarm runtime cannot disable Dexterity launch")
+                }
+            }
+            (Some(_), false) => {
+                panic!("ModelLaneStore-backed swarm runtime cannot disable Dexterity launch")
+            }
+        };
         coordinator.start_reaper();
 
         // ROI#3: the resume-template store is rooted at the SAME `app_data_root`
@@ -630,6 +788,7 @@ impl SwarmRuntimeState {
             capture_sinks: Arc::new(Mutex::new(HashMap::new())),
             spawn_template_store,
             committed_memory_ceiling_bytes,
+            dexterity_launch_required,
             cloud_assistance_recorder: None,
         }
     }
@@ -737,6 +896,10 @@ impl SwarmRuntimeState {
     /// `cancel_session` / `session_state` / `remaining` on this.
     pub fn coordinator(&self) -> Arc<SwarmCoordinator> {
         self.coordinator.clone()
+    }
+
+    pub fn dexterity_launch_required(&self) -> bool {
+        self.dexterity_launch_required
     }
 
     /// The per-session resume-template store (ROI#3). Exposed so a caller can
@@ -1828,7 +1991,10 @@ async fn spawn_session_once(
     auto_attached_warm_restore: bool,
 ) -> Result<SwarmInstanceIdIpc, SpawnCommandError> {
     let coordinator = state.coordinator();
-    let spawn = build_spawn_request(&request).map_err(SpawnCommandError::Validation)?;
+    let mut spawn = build_spawn_request(&request).map_err(SpawnCommandError::Validation)?;
+    if state.dexterity_launch_required() {
+        spawn = attach_dexterity_launch_contract(spawn).map_err(SpawnCommandError::Validation)?;
+    }
     let instance_id = spawn.instance_id;
     match coordinator.spawn_session(spawn).await {
         Ok(iid) => {
@@ -3377,6 +3543,15 @@ fn build_spawn_request(request: &SwarmSpawnRequestIpc) -> Result<SpawnRequest, S
     Ok(apply_recorded_assignment(spawn, request))
 }
 
+fn attach_dexterity_launch_contract(spawn: SpawnRequest) -> Result<SpawnRequest, String> {
+    DexterityLaunchContract::attach_to_spawn_request(
+        spawn,
+        DEXTERITY_APP_WP_ID,
+        DEXTERITY_APP_MT_ID,
+    )
+    .map_err(|error| error.to_string())
+}
+
 fn validate_warm_vm_request(
     request: &SwarmSpawnRequestIpc,
     binding: RuntimeBinding,
@@ -3755,6 +3930,92 @@ mod tests {
         let spawn = build_spawn_request(&req).expect("valid cloud request");
         assert_eq!(spawn.provider, Some(ProviderKind::ByokCloud));
         assert_eq!(spawn.cloud_model_name.as_deref(), Some("gpt-4o"));
+    }
+
+    #[test]
+    fn build_spawn_request_attaches_dexterity_contract_for_local_runtime() {
+        let spawn = build_spawn_request(&local_request("some/model.safetensors"))
+            .expect("valid local request");
+        let spawn =
+            attach_dexterity_launch_contract(spawn).expect("local Dexterity contract attaches");
+
+        assert_eq!(spawn.wp_id.as_deref(), Some(DEXTERITY_APP_WP_ID));
+        assert_eq!(spawn.mt_id.as_deref(), Some(DEXTERITY_APP_MT_ID));
+        let contract = spawn
+            .dexterity_launch
+            .as_ref()
+            .expect("Dexterity launch contract is present");
+        assert_eq!(contract.backend, "model_runtime");
+        assert_eq!(contract.adapter_id, "model_runtime");
+        assert!(contract
+            .capability_token_ids
+            .iter()
+            .any(|token| token == "capability://dexterity/local-generate"));
+    }
+
+    #[test]
+    fn build_spawn_request_attaches_dexterity_contract_for_byok_cloud_runtime() {
+        let mut req = cloud_request("gpt-4o");
+        req.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+        let spawn = build_spawn_request(&req).expect("valid cloud request");
+        let spawn =
+            attach_dexterity_launch_contract(spawn).expect("cloud Dexterity contract attaches");
+
+        assert_eq!(spawn.wp_id.as_deref(), Some(DEXTERITY_APP_WP_ID));
+        assert_eq!(spawn.mt_id.as_deref(), Some(DEXTERITY_APP_MT_ID));
+        let contract = spawn
+            .dexterity_launch
+            .as_ref()
+            .expect("Dexterity launch contract is present");
+        assert_eq!(contract.backend, "cloud_lane_openai");
+        assert_eq!(contract.adapter_id, "openai_byok");
+        assert!(contract.projection_plan_ref.is_some());
+        assert!(contract.consent_receipt_ref.is_some());
+    }
+
+    #[test]
+    fn build_spawn_request_rejects_dexterity_contract_without_byok_provider() {
+        let spawn = build_spawn_request(&cloud_request("gpt-4o")).expect("valid cloud request");
+        let error = attach_dexterity_launch_contract(spawn).expect_err("BYOK provider is required");
+        assert!(error.contains("byok_cloud_provider"), "{error}");
+    }
+
+    #[tokio::test]
+    async fn production_runtime_without_model_lane_store_fails_closed_for_dexterity_command_spawn()
+    {
+        let state =
+            SwarmRuntimeState::production_with_cloud(CloudLaneFactoryConfig::unconfigured());
+        assert!(
+            state.dexterity_launch_required(),
+            "production no-store constructor must still require Dexterity"
+        );
+
+        let direct_spawn = build_spawn_request(&local_request(
+            "D:/__handshake_no_such_direct_dexterity_model__/model.safetensors",
+        ))
+        .expect("valid direct local request");
+        let direct_error = state
+            .coordinator()
+            .spawn_session(direct_spawn)
+            .await
+            .expect_err("direct coordinator access must reject missing Dexterity contract");
+        assert!(
+            direct_error.to_string().contains("with_dexterity_launch"),
+            "direct coordinator error should require Dexterity contract, got {direct_error}"
+        );
+
+        let command_error = spawn_session_inner(
+            local_request("D:/__handshake_no_such_command_dexterity_model__/model.safetensors"),
+            &state,
+        )
+        .await
+        .expect_err("command spawn must fail closed without ModelLaneStore");
+        assert!(
+            command_error.to_string().contains("ModelLaneStore"),
+            "command spawn should attach Dexterity then require ModelLaneStore, got {command_error}"
+        );
+        assert_eq!(state.coordinator().live_session_count(), 0);
+        assert!(state.live_tracked_sessions().is_empty());
     }
 
     #[test]
@@ -4267,11 +4528,13 @@ mod tests {
         app_data_root: &std::path::Path,
     ) -> (SwarmRuntimeState, Arc<RecordingCloudAssistanceRecorder>) {
         let recorder = Arc::new(RecordingCloudAssistanceRecorder::default());
-        let state = SwarmRuntimeState::production_with_cloud(CloudLaneFactoryConfig {
-            anthropic: None,
-            openai: Some(builder),
-            official_cli: None,
-        })
+        let state = SwarmRuntimeState::production_with_cloud_legacy_without_dexterity_for_tests(
+            CloudLaneFactoryConfig {
+                anthropic: None,
+                openai: Some(builder),
+                official_cli: None,
+            },
+        )
         .with_spawn_template_store(SpawnTemplateStore::new(app_data_root))
         .with_cloud_assistance_recorder(recorder.clone());
         (state, recorder)
@@ -4281,11 +4544,13 @@ mod tests {
         builder: Arc<StaticCloudBuilder>,
         app_data_root: &std::path::Path,
     ) -> SwarmRuntimeState {
-        SwarmRuntimeState::production_with_cloud(CloudLaneFactoryConfig {
-            anthropic: None,
-            openai: Some(builder),
-            official_cli: None,
-        })
+        SwarmRuntimeState::production_with_cloud_legacy_without_dexterity_for_tests(
+            CloudLaneFactoryConfig {
+                anthropic: None,
+                openai: Some(builder),
+                official_cli: None,
+            },
+        )
         .with_spawn_template_store(SpawnTemplateStore::new(app_data_root))
     }
 
@@ -4465,8 +4730,7 @@ mod tests {
     async fn cloud_spawn_ignores_committed_memory_estimate_under_host_memory_ceiling() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let builder = Arc::new(StaticCloudBuilder::openai("cloud-ok"));
-        let state =
-            SwarmRuntimeState::production_with_cloud_and_recorder_and_committed_memory_ceiling(
+        let state = SwarmRuntimeState::production_with_cloud_and_recorder_and_committed_memory_ceiling_legacy_without_dexterity_for_tests(
                 CloudLaneFactoryConfig {
                     anthropic: None,
                     openai: Some(builder.clone()),

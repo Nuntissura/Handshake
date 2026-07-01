@@ -115,14 +115,19 @@ impl DrawerSurface {
                 );
                 let resp = ui.interact(rect, id, egui::Sense::click());
                 if ui.is_rect_visible(rect) {
-                    let bg = if resp.hovered() { colors.card_hover_bg } else { colors.card_bg };
+                    let bg = if resp.hovered() {
+                        colors.card_hover_bg
+                    } else {
+                        colors.card_bg
+                    };
                     ui.painter().rect_filled(rect, 4.0, bg);
                     let galley = ui.painter().layout_no_wrap(
                         label.clone(),
                         egui::FontId::proportional(13.0),
                         colors.card_text,
                     );
-                    let pos = egui::pos2(rect.left() + 8.0, rect.center().y - galley.size().y * 0.5);
+                    let pos =
+                        egui::pos2(rect.left() + 8.0, rect.center().y - galley.size().y * 0.5);
                     ui.painter().galley(pos, galley, colors.card_text);
                 }
                 resp.widget_info(|| {
@@ -155,7 +160,9 @@ impl DrawerSurface {
         let item_id = card.state.item_id.clone();
         match action {
             DrawerItemMenuAction::Stow => DrawerEvent::Stow { item_id },
-            DrawerItemMenuAction::TogglePin { target } => DrawerEvent::SetPinned { item_id, target },
+            DrawerItemMenuAction::TogglePin { target } => {
+                DrawerEvent::SetPinned { item_id, target }
+            }
             DrawerItemMenuAction::Promote => DrawerEvent::Promote { item_id },
             DrawerItemMenuAction::SendToPane { pane_id } => {
                 // Red-team send_to_pane control: only target a pane that STILL exists at confirm time;
@@ -207,8 +214,14 @@ mod tests {
     fn pin_event_flips_target() {
         let s = surface();
         assert_eq!(
-            s.event_for(DrawerItemMenuAction::TogglePin { target: true }, &s.cards[0]),
-            DrawerEvent::SetPinned { item_id: "card-1".to_owned(), target: true },
+            s.event_for(
+                DrawerItemMenuAction::TogglePin { target: true },
+                &s.cards[0]
+            ),
+            DrawerEvent::SetPinned {
+                item_id: "card-1".to_owned(),
+                target: true
+            },
         );
     }
 
@@ -217,7 +230,9 @@ mod tests {
         let s = surface();
         assert_eq!(
             s.event_for(
-                DrawerItemMenuAction::SendToPane { pane_id: "pane-a".to_owned() },
+                DrawerItemMenuAction::SendToPane {
+                    pane_id: "pane-a".to_owned()
+                },
                 &s.cards[0],
             ),
             DrawerEvent::SendToPane {
@@ -233,10 +248,14 @@ mod tests {
         // pane-z is not in open_panes → the red-team fallback fires (no event to a dead pane).
         assert_eq!(
             s.event_for(
-                DrawerItemMenuAction::SendToPane { pane_id: "pane-z".to_owned() },
+                DrawerItemMenuAction::SendToPane {
+                    pane_id: "pane-z".to_owned()
+                },
                 &s.cards[0],
             ),
-            DrawerEvent::Promote { item_id: "card-1".to_owned() },
+            DrawerEvent::Promote {
+                item_id: "card-1".to_owned()
+            },
         );
     }
 

@@ -79,8 +79,8 @@ fn notes_card_badge_count_is_at_least_one_from_real_pg() {
 #[test]
 #[ignore = "needs a live handshake_core + PostgreSQL on 127.0.0.1:37501, HSK_TEST_WORKSPACE_ID + HSK_TEST_BLOCK_ID"]
 fn stow_dispatch_tags_block_into_stash_hub_on_real_pg() {
-    let workspace_id = std::env::var("HSK_TEST_WORKSPACE_ID")
-        .expect("set HSK_TEST_WORKSPACE_ID to a workspace");
+    let workspace_id =
+        std::env::var("HSK_TEST_WORKSPACE_ID").expect("set HSK_TEST_WORKSPACE_ID to a workspace");
     let block_id =
         std::env::var("HSK_TEST_BLOCK_ID").expect("set HSK_TEST_BLOCK_ID to a block to stow");
 
@@ -108,5 +108,7 @@ fn stow_dispatch_tags_block_into_stash_hub_on_real_pg() {
     };
 
     delivered.expect("Stow tag-edge POST succeeded against the real backend (2xx)");
-    println!("PASS: Stow tagged block {block_id} into the stash hub via real PG-backed POST /loom/edges");
+    println!(
+        "PASS: Stow tagged block {block_id} into the stash hub via real PG-backed POST /loom/edges"
+    );
 }

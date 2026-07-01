@@ -325,8 +325,15 @@ async fn bundle_staleness(
     for item in &items {
         let (status, reason): (&str, Option<String>) = match item.ref_kind {
             KnowledgeBundleItemRefKind::Span => {
-                match db.get_knowledge_span(&item.ref_id).await.map_err(storage_error)? {
-                    None => ("missing_evidence", Some("cited span no longer exists".into())),
+                match db
+                    .get_knowledge_span(&item.ref_id)
+                    .await
+                    .map_err(storage_error)?
+                {
+                    None => (
+                        "missing_evidence",
+                        Some("cited span no longer exists".into()),
+                    ),
                     Some(span) => {
                         match db
                             .get_knowledge_source(&span.source_id)
@@ -355,7 +362,10 @@ async fn bundle_staleness(
                     .await
                     .map_err(storage_error)?
                 {
-                    None => ("missing_evidence", Some("cited passage no longer exists".into())),
+                    None => (
+                        "missing_evidence",
+                        Some("cited passage no longer exists".into()),
+                    ),
                     Some(_) => ("ok", None),
                 }
             }
@@ -365,7 +375,10 @@ async fn bundle_staleness(
                     .await
                     .map_err(storage_error)?
                 {
-                    None => ("missing_evidence", Some("cited source no longer exists".into())),
+                    None => (
+                        "missing_evidence",
+                        Some("cited source no longer exists".into()),
+                    ),
                     Some(source) if source.stale => (
                         "source_stale",
                         Some("source changed since indexing (stale)".into()),
@@ -385,7 +398,10 @@ async fn bundle_staleness(
                     .await
                     .map_err(storage_error)?
                 {
-                    None => ("missing_evidence", Some("cited claim no longer exists".into())),
+                    None => (
+                        "missing_evidence",
+                        Some("cited claim no longer exists".into()),
+                    ),
                     Some(_) => ("ok", None),
                 }
             }

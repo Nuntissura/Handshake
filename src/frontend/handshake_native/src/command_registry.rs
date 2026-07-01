@@ -93,7 +93,13 @@ const APP_COMMANDS: &[AppCommand] = &[
         kind: CommandKind::App,
         label: "UserManual: Open",
         description: "Open the in-app UserManual diagnostics tab.",
-        keywords: &["manual", "usermanual", "help", "diagnostics", "usermanual.open"],
+        keywords: &[
+            "manual",
+            "usermanual",
+            "help",
+            "diagnostics",
+            "usermanual.open",
+        ],
         stable_id: "hs-usermanual-palette-open",
         disabled: false,
     },
@@ -102,7 +108,13 @@ const APP_COMMANDS: &[AppCommand] = &[
         kind: CommandKind::App,
         label: "UserManual: Search",
         description: "Open UserManual search.",
-        keywords: &["manual", "usermanual", "search", "help", "usermanual.search"],
+        keywords: &[
+            "manual",
+            "usermanual",
+            "search",
+            "help",
+            "usermanual.search",
+        ],
         stable_id: "hs-usermanual-palette-search",
         disabled: false,
     },
@@ -149,6 +161,15 @@ const APP_COMMANDS: &[AppCommand] = &[
         description: "Open the Swarm board on the active pane.",
         keywords: &["swarm", "board", "agents", "run"],
         stable_id: "hs-swarm-palette-open-board",
+        disabled: false,
+    },
+    AppCommand {
+        id: "swarmdiagnostics.open",
+        kind: CommandKind::App,
+        label: "Swarm: Open Lane Diagnostics",
+        description: "Open Dexterity lane and message diagnostics on the active pane.",
+        keywords: &["swarm", "lane", "diagnostics", "dexterity", "model", "run"],
+        stable_id: "hs-swarm-palette-open-lane-diagnostics",
         disabled: false,
     },
     AppCommand {
@@ -213,19 +234,84 @@ const APP_COMMANDS: &[AppCommand] = &[
 /// React registry sets `disabled: !editorCommandsEnabled` the same way). A follow-up MT can extend this
 /// to the full catalog and flip `disabled` when the editor pane is active.
 const EDITOR_COMMANDS: &[AppCommand] = &[
-    editor_cmd("editor.format.bold", "Bold", &["bold", "strong", "format"], "hs-editor-command-format-bold"),
-    editor_cmd("editor.format.italic", "Italic", &["italic", "emphasis", "format"], "hs-editor-command-format-italic"),
-    editor_cmd("editor.format.code", "Inline code", &["code", "monospace", "inline", "format"], "hs-editor-command-format-code"),
-    editor_cmd("editor.block.h1", "Heading 1", &["heading", "h1", "title", "block"], "hs-editor-command-block-h1"),
-    editor_cmd("editor.block.h2", "Heading 2", &["heading", "h2", "block"], "hs-editor-command-block-h2"),
-    editor_cmd("editor.block.h3", "Heading 3", &["heading", "h3", "block"], "hs-editor-command-block-h3"),
-    editor_cmd("editor.block.quote", "Block quote", &["quote", "blockquote", "callout", "block"], "hs-editor-command-block-quote"),
-    editor_cmd("editor.list.bullet", "Bullet list", &["bullet", "unordered", "list"], "hs-editor-command-list-bullet"),
-    editor_cmd("editor.list.ordered", "Numbered list", &["numbered", "ordered", "list"], "hs-editor-command-list-ordered"),
-    editor_cmd("editor.list.task", "Task list", &["task", "todo", "checkbox", "checklist", "list"], "hs-editor-command-list-task"),
-    editor_cmd("editor.code.insert", "Insert code block", &["code", "monaco", "snippet", "fence", "block"], "hs-editor-command-code-insert"),
-    editor_cmd("editor.table.insert", "Insert table", &["table", "grid"], "hs-editor-command-table-insert"),
-    editor_cmd("editor.link.wikilink", "Insert link", &["link", "wikilink", "note", "reference"], "hs-editor-command-link-wikilink"),
+    editor_cmd(
+        "editor.format.bold",
+        "Bold",
+        &["bold", "strong", "format"],
+        "hs-editor-command-format-bold",
+    ),
+    editor_cmd(
+        "editor.format.italic",
+        "Italic",
+        &["italic", "emphasis", "format"],
+        "hs-editor-command-format-italic",
+    ),
+    editor_cmd(
+        "editor.format.code",
+        "Inline code",
+        &["code", "monospace", "inline", "format"],
+        "hs-editor-command-format-code",
+    ),
+    editor_cmd(
+        "editor.block.h1",
+        "Heading 1",
+        &["heading", "h1", "title", "block"],
+        "hs-editor-command-block-h1",
+    ),
+    editor_cmd(
+        "editor.block.h2",
+        "Heading 2",
+        &["heading", "h2", "block"],
+        "hs-editor-command-block-h2",
+    ),
+    editor_cmd(
+        "editor.block.h3",
+        "Heading 3",
+        &["heading", "h3", "block"],
+        "hs-editor-command-block-h3",
+    ),
+    editor_cmd(
+        "editor.block.quote",
+        "Block quote",
+        &["quote", "blockquote", "callout", "block"],
+        "hs-editor-command-block-quote",
+    ),
+    editor_cmd(
+        "editor.list.bullet",
+        "Bullet list",
+        &["bullet", "unordered", "list"],
+        "hs-editor-command-list-bullet",
+    ),
+    editor_cmd(
+        "editor.list.ordered",
+        "Numbered list",
+        &["numbered", "ordered", "list"],
+        "hs-editor-command-list-ordered",
+    ),
+    editor_cmd(
+        "editor.list.task",
+        "Task list",
+        &["task", "todo", "checkbox", "checklist", "list"],
+        "hs-editor-command-list-task",
+    ),
+    editor_cmd(
+        "editor.code.insert",
+        "Insert code block",
+        &["code", "monaco", "snippet", "fence", "block"],
+        "hs-editor-command-code-insert",
+    ),
+    editor_cmd(
+        "editor.table.insert",
+        "Insert table",
+        &["table", "grid"],
+        "hs-editor-command-table-insert",
+    ),
+    editor_cmd(
+        "editor.link.wikilink",
+        "Insert link",
+        &["link", "wikilink", "note", "reference"],
+        "hs-editor-command-link-wikilink",
+    ),
 ];
 
 /// Const helper building one disabled `CommandKind::Editor` entry with the React-aligned description
@@ -270,7 +356,10 @@ pub fn matches_query(cmd: &AppCommand, query: &str) -> bool {
 /// Allocates a fresh `Vec<&AppCommand>` per call; the palette calls it once per frame against the
 /// small static catalog (well under the red-team MC2 frame-time budget).
 pub fn filtered_commands(query: &str) -> Vec<&'static AppCommand> {
-    all_commands().iter().filter(|c| matches_query(c, query)).collect()
+    all_commands()
+        .iter()
+        .filter(|c| matches_query(c, query))
+        .collect()
 }
 
 #[cfg(test)]
@@ -333,10 +422,19 @@ mod tests {
     fn filtering_manual_returns_usermanual_commands() {
         let results = filtered_commands("manual");
         let ids: Vec<&str> = results.iter().map(|c| c.id).collect();
-        assert!(ids.contains(&"usermanual.open"), "usermanual.open in 'manual' results: {ids:?}");
-        assert!(ids.contains(&"usermanual.search"), "usermanual.search in 'manual' results: {ids:?}");
+        assert!(
+            ids.contains(&"usermanual.open"),
+            "usermanual.open in 'manual' results: {ids:?}"
+        );
+        assert!(
+            ids.contains(&"usermanual.search"),
+            "usermanual.search in 'manual' results: {ids:?}"
+        );
         // A command with no 'manual' token is excluded.
-        assert!(!ids.contains(&"theme.toggle"), "theme.toggle excluded from 'manual' results: {ids:?}");
+        assert!(
+            !ids.contains(&"theme.toggle"),
+            "theme.toggle excluded from 'manual' results: {ids:?}"
+        );
     }
 
     /// App commands are runnable; editor commands are disabled until the editor pane lands (no fake-enable).
@@ -346,8 +444,16 @@ mod tests {
             match cmd.kind {
                 CommandKind::App => assert!(!cmd.disabled, "App command '{}' is enabled", cmd.id),
                 CommandKind::Editor => {
-                    assert!(cmd.disabled, "Editor command '{}' is disabled (no editor yet)", cmd.id);
-                    assert!(cmd.id.starts_with("editor."), "editor id prefix on '{}'", cmd.id);
+                    assert!(
+                        cmd.disabled,
+                        "Editor command '{}' is disabled (no editor yet)",
+                        cmd.id
+                    );
+                    assert!(
+                        cmd.id.starts_with("editor."),
+                        "editor id prefix on '{}'",
+                        cmd.id
+                    );
                 }
             }
         }

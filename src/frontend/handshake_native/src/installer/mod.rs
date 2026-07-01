@@ -115,7 +115,10 @@ pub enum AssetKind {
 /// bundle contract: `build_installer.ps1` stages exactly these, `bundled_deps_audit` asserts them in
 /// the staging tree, and [`check_bundle_integrity`] verifies them at runtime relative to the exe.
 pub const REQUIRED_ASSETS: &[RequiredAsset] = &[
-    RequiredAsset { rel_path: NATIVE_BINARY_NAME, kind: AssetKind::File },
+    RequiredAsset {
+        rel_path: NATIVE_BINARY_NAME,
+        kind: AssetKind::File,
+    },
     RequiredAsset {
         // Label only; the verified path is computed cross-platform by `bundled_pg_ctl_rel_path()`.
         rel_path: BUNDLED_POSTGRES_SUBDIR,
@@ -125,7 +128,10 @@ pub const REQUIRED_ASSETS: &[RequiredAsset] = &[
         rel_path: BUNDLED_FONTS_SUBDIR,
         kind: AssetKind::DirWithExt(&["ttf", "otf"]),
     },
-    RequiredAsset { rel_path: BUNDLED_GRAMMARS_SUBDIR, kind: AssetKind::Dir },
+    RequiredAsset {
+        rel_path: BUNDLED_GRAMMARS_SUBDIR,
+        kind: AssetKind::Dir,
+    },
 ];
 
 /// Why a bundle integrity check failed. Each variant names the exact missing/invalid asset so a
@@ -165,8 +171,9 @@ impl std::error::Error for BundleIntegrityError {}
 /// Returns the first failure (fail-fast: HBR-STOP wants a clear "this asset is missing" rather than a
 /// list the operator must wade through). On success returns `Ok(())`.
 pub fn check_bundle_integrity() -> Result<(), BundleIntegrityError> {
-    let exe = std::env::current_exe()
-        .map_err(|e| BundleIntegrityError::ExeDirUnresolvable { reason: e.to_string() })?;
+    let exe = std::env::current_exe().map_err(|e| BundleIntegrityError::ExeDirUnresolvable {
+        reason: e.to_string(),
+    })?;
     let exe_dir = exe
         .parent()
         .ok_or_else(|| BundleIntegrityError::ExeDirUnresolvable {
@@ -269,7 +276,10 @@ pub fn self_check_json(result: &Result<(), BundleIntegrityError>) -> String {
             format!("{{\"status\":\"ok\",\"checked_paths\":[{joined}]}}")
         }
         Err(BundleIntegrityError::MissingAsset { path }) => {
-            format!("{{\"status\":\"missing_asset\",\"path\":\"{}\"}}", json_escape(path))
+            format!(
+                "{{\"status\":\"missing_asset\",\"path\":\"{}\"}}",
+                json_escape(path)
+            )
         }
         Err(BundleIntegrityError::EmptyAssetDir { path, expected_ext }) => format!(
             "{{\"status\":\"empty_asset_dir\",\"path\":\"{}\",\"expected_ext\":\"{}\"}}",
@@ -376,7 +386,14 @@ mod tests {
     fn check_bundle_integrity_fails_on_missing_postgres() {
         let staging = TempStaging::new("nopg");
         staging.write_valid_bundle();
-        fs::remove_file(staging.dir.join("bundled").join("postgres").join(PG_CTL_BINARY_NAME)).unwrap();
+        fs::remove_file(
+            staging
+                .dir
+                .join("bundled")
+                .join("postgres")
+                .join(PG_CTL_BINARY_NAME),
+        )
+        .unwrap();
         let result = check_bundle_integrity_at(&staging.dir);
         assert_eq!(
             result,
@@ -392,7 +409,13 @@ mod tests {
     fn check_bundle_integrity_fails_on_empty_fonts_dir() {
         let staging = TempStaging::new("nofont");
         staging.write_valid_bundle();
-        fs::remove_file(staging.dir.join(BUNDLED_FONTS_SUBDIR).join("Inter-Regular.ttf")).unwrap();
+        fs::remove_file(
+            staging
+                .dir
+                .join(BUNDLED_FONTS_SUBDIR)
+                .join("Inter-Regular.ttf"),
+        )
+        .unwrap();
         let result = check_bundle_integrity_at(&staging.dir);
         assert!(
             matches!(result, Err(BundleIntegrityError::EmptyAssetDir { ref path, .. }) if path == BUNDLED_FONTS_SUBDIR),
@@ -454,13 +477,21 @@ mod tests {
         assert_eq!(ok_parsed["status"], "ok");
 
         // Break the bundle (remove the postgres anchor) -> Err -> exit 1 -> status "missing_asset".
-        fs::remove_file(staging.dir.join("bundled").join("postgres").join(PG_CTL_BINARY_NAME)).unwrap();
+        fs::remove_file(
+            staging
+                .dir
+                .join("bundled")
+                .join("postgres")
+                .join(PG_CTL_BINARY_NAME),
+        )
+        .unwrap();
         let bad_result = check_bundle_integrity_at(&staging.dir);
         assert!(bad_result.is_err(), "broken bundle should fail");
         let bad_code = if bad_result.is_ok() { 0 } else { 1 };
         assert_eq!(bad_code, 1, "a failing integrity check must map to exit 1");
         let bad_json = self_check_json(&bad_result);
-        let bad_parsed: serde_json::Value = serde_json::from_str(&bad_json).expect("bad json parses");
+        let bad_parsed: serde_json::Value =
+            serde_json::from_str(&bad_json).expect("bad json parses");
         assert_eq!(bad_parsed["status"], "missing_asset");
         assert_eq!(bad_parsed["path"], bundled_pg_ctl_rel_path());
     }

@@ -29,12 +29,12 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Serialize;
 
+use super::USER_MANUAL_VERSION;
 use super::registry::wp009_surface_registry;
 use super::seed::{corpus_hash, seed_corpus};
-use super::store::{UserManualStore, LIST_CAP};
-use super::USER_MANUAL_VERSION;
-use crate::storage::postgres::PostgresDatabase;
+use super::store::{LIST_CAP, UserManualStore};
 use crate::storage::StorageResult;
+use crate::storage::postgres::PostgresDatabase;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]

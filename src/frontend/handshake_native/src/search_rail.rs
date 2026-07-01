@@ -243,13 +243,7 @@ pub type RailQuerySlot = Arc<Mutex<Option<RailQuery>>>;
 pub fn is_known_content_type(value: &str) -> bool {
     matches!(
         value,
-        "note"
-            | "file"
-            | "annotated_file"
-            | "tag_hub"
-            | "journal"
-            | "canvas"
-            | "view_def"
+        "note" | "file" | "annotated_file" | "tag_hub" | "journal" | "canvas" | "view_def"
     )
 }
 
@@ -584,7 +578,9 @@ fn scope_pill(
     } else {
         colors.inactive_pill_bg
     };
-    let label = egui::RichText::new(scope.to_string()).color(colors.text).small();
+    let label = egui::RichText::new(scope.to_string())
+        .color(colors.text)
+        .small();
     let resp = ui.add(
         egui::Button::new(label)
             .fill(fill)
@@ -619,25 +615,40 @@ fn fixed_id_button(
     text_color: egui::Color32,
     bg: egui::Color32,
 ) -> bool {
-    let g = ui
-        .painter()
-        .layout_no_wrap(glyph.to_owned(), egui::FontId::proportional(13.0), text_color);
+    let g = ui.painter().layout_no_wrap(
+        glyph.to_owned(),
+        egui::FontId::proportional(13.0),
+        text_color,
+    );
     let size = egui::vec2(g.size().x + 12.0, (RAIL_HEIGHT - 8.0).max(16.0));
     let (rect, _) = ui.allocate_exact_size(size, egui::Sense::hover());
-    let resp = ui.interact(rect, id, egui::Sense::click()).on_hover_text(tooltip);
+    let resp = ui
+        .interact(rect, id, egui::Sense::click())
+        .on_hover_text(tooltip);
     if ui.is_rect_visible(rect) {
-        let fill = if resp.hovered() { bg } else { egui::Color32::TRANSPARENT };
+        let fill = if resp.hovered() {
+            bg
+        } else {
+            egui::Color32::TRANSPARENT
+        };
         ui.painter().rect_filled(rect, 3.0, fill);
-        let g2 = ui
-            .painter()
-            .layout_no_wrap(glyph.to_owned(), egui::FontId::proportional(13.0), text_color);
+        let g2 = ui.painter().layout_no_wrap(
+            glyph.to_owned(),
+            egui::FontId::proportional(13.0),
+            text_color,
+        );
         ui.painter().galley(
-            egui::pos2(rect.center().x - g2.size().x * 0.5, rect.center().y - g2.size().y * 0.5),
+            egui::pos2(
+                rect.center().x - g2.size().x * 0.5,
+                rect.center().y - g2.size().y * 0.5,
+            ),
             g2,
             text_color,
         );
     }
-    resp.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), tooltip));
+    resp.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), tooltip)
+    });
     let author_id = author_id.to_owned();
     let label = tooltip.to_owned();
     ui.ctx().accesskit_node_builder(id, move |node| {
@@ -657,7 +668,10 @@ mod tests {
     #[test]
     fn rail_control_ids_in_disjoint_fresh_band() {
         for id in [RAIL_INPUT_NODE_ID, RAIL_CLEAR_NODE_ID, RAIL_LOOM_NODE_ID] {
-            assert!((22..=24).contains(&id), "rail control id {id} in band 22..=24");
+            assert!(
+                (22..=24).contains(&id),
+                "rail control id {id} in band 22..=24"
+            );
             assert!(
                 id < crate::accessibility::PANE_NODE_ID_BASE,
                 "rail control id {id} below the pane id base"
@@ -702,7 +716,11 @@ mod tests {
         // (a) plain free-text, no operators.
         let q = parse_rail_query("hello world", SearchScope::File);
         assert_eq!(q.free_text, "hello world");
-        assert_eq!(q.scope, SearchScope::File, "pill scope retained when no prefix typed");
+        assert_eq!(
+            q.scope,
+            SearchScope::File,
+            "pill scope retained when no prefix typed"
+        );
         assert!(q.tag_ids.is_empty());
         assert!(q.path.is_none());
         assert!(q.kind_filters.is_empty());
@@ -712,9 +730,19 @@ mod tests {
     #[test]
     fn parse_tag_mention_path_kind_combined() {
         // (b) tag + mention + path + kind operators combined.
-        let q = parse_rail_query("foo tag:t1,t2 mention:m1 path:src/lib kind:note bar", SearchScope::Project);
-        assert_eq!(q.free_text, "foo bar", "operators stripped, free-text preserved in order");
-        assert_eq!(q.tag_ids, vec!["t1", "t2", "m1"], "tag + mention values collected");
+        let q = parse_rail_query(
+            "foo tag:t1,t2 mention:m1 path:src/lib kind:note bar",
+            SearchScope::Project,
+        );
+        assert_eq!(
+            q.free_text, "foo bar",
+            "operators stripped, free-text preserved in order"
+        );
+        assert_eq!(
+            q.tag_ids,
+            vec!["t1", "t2", "m1"],
+            "tag + mention values collected"
+        );
         assert_eq!(q.path.as_deref(), Some("src/lib"));
         assert_eq!(q.kind_filters, vec!["note"]);
         assert!(q.kind_errors.is_empty(), "note is a valid content_type");
@@ -726,8 +754,15 @@ mod tests {
     fn parse_scope_prefix_override_with_residual_free_text() {
         // (c) typed scope-prefix overrides the pill scope; residual free-text kept (AC-022-4).
         let q = parse_rail_query("project:hello world", SearchScope::File);
-        assert_eq!(q.scope, SearchScope::Project, "typed project: overrides the File pill");
-        assert_eq!(q.free_text, "hello world", "the prefix is stripped from the free-text");
+        assert_eq!(
+            q.scope,
+            SearchScope::Project,
+            "typed project: overrides the File pill"
+        );
+        assert_eq!(
+            q.free_text, "hello world",
+            "the prefix is stripped from the free-text"
+        );
     }
 
     #[test]
@@ -742,8 +777,15 @@ mod tests {
     fn parse_quoted_token_with_spaces() {
         // (d) a double-quoted run is one token (spaces preserved); a quoted path keeps its spaces.
         let q = parse_rail_query("\"hello world\" path:\"my folder\"", SearchScope::Project);
-        assert_eq!(q.free_text, "hello world", "the quoted free-text run is one token");
-        assert_eq!(q.path.as_deref(), Some("my folder"), "the quoted path keeps its space");
+        assert_eq!(
+            q.free_text, "hello world",
+            "the quoted free-text run is one token"
+        );
+        assert_eq!(
+            q.path.as_deref(),
+            Some("my folder"),
+            "the quoted path keeps its space"
+        );
     }
 
     #[test]
@@ -751,7 +793,11 @@ mod tests {
         // (e) an invalid kind: value is captured in kind_errors without panicking.
         let q = parse_rail_query("kind:bogus thing", SearchScope::Project);
         assert_eq!(q.kind_filters, vec!["bogus"]);
-        assert_eq!(q.kind_errors, vec!["bogus"], "unknown kind captured as a soft error");
+        assert_eq!(
+            q.kind_errors,
+            vec!["bogus"],
+            "unknown kind captured as a soft error"
+        );
         assert_eq!(q.free_text, "thing");
         // No valid kind + Project scope -> no content_type filter.
         assert_eq!(q.resolved_content_type(), None);
@@ -806,14 +852,25 @@ mod tests {
         slot.lock().unwrap().replace(emitted.clone());
 
         // READ (a downstream consumer / concurrent swarm reader): clone the intent off the lock.
-        let read_back = slot.lock().unwrap().clone().expect("intent present after a fire");
+        let read_back = slot
+            .lock()
+            .unwrap()
+            .clone()
+            .expect("intent present after a fire");
         assert_eq!(read_back, emitted);
-        assert_eq!(read_back.scope, SearchScope::Project, "typed prefix won in the emitted intent");
+        assert_eq!(
+            read_back.scope,
+            SearchScope::Project,
+            "typed prefix won in the emitted intent"
+        );
         assert_eq!(read_back.free_text, "hello world");
 
         // CLEAR (the x button): the fire path writes None back, the reader sees an empty slot again.
         *slot.lock().unwrap() = None;
-        assert!(slot.lock().unwrap().is_none(), "slot reset to None by clear");
+        assert!(
+            slot.lock().unwrap().is_none(),
+            "slot reset to None by clear"
+        );
     }
 
     #[test]
@@ -825,7 +882,11 @@ mod tests {
         let emitted = parse_rail_query("tag:t1 docs", SearchScope::Project);
         writer.lock().unwrap().replace(emitted.clone());
         assert_eq!(
-            reader.lock().unwrap().clone().expect("reader sees the write"),
+            reader
+                .lock()
+                .unwrap()
+                .clone()
+                .expect("reader sees the write"),
             emitted
         );
     }

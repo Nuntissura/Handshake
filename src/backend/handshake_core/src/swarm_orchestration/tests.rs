@@ -342,8 +342,12 @@ async fn rank2_spawned_session_carries_swarm_and_worktree_grouping() {
     let budget = RunBudget::defaulted(8)
         .with_concurrency(8)
         .with_lifetime_spawns(8);
-    let coordinator =
-        SwarmCoordinator::new(SwarmConfig::new(budget), factory, sink.clone(), ledger);
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        SwarmConfig::new(budget),
+        factory,
+        sink.clone(),
+        ledger,
+    );
 
     // A grouped spawn: the swarm + worktree grouping copied from the SpawnRequest
     // is readable per session (board swimlane / Flight-Recorder drill-down join).
@@ -400,7 +404,12 @@ async fn live_instances_in_swarm_enumerates_all_live_and_excludes_terminal_and_o
     let budget = RunBudget::defaulted(16)
         .with_concurrency(16)
         .with_lifetime_spawns(16);
-    let coordinator = SwarmCoordinator::new(SwarmConfig::new(budget), factory, sink, ledger);
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        SwarmConfig::new(budget),
+        factory,
+        sink,
+        ledger,
+    );
 
     // Three sessions in alpha, one in beta, one ungrouped.
     let a1 = instance(1);
@@ -478,7 +487,7 @@ async fn rank6_committed_memory_budget_rejects_no_overcommit_before_factory_crea
     let budget = RunBudget::defaulted(4)
         .with_concurrency(4)
         .with_committed_memory_ceiling(1024);
-    let coordinator = SwarmCoordinator::new(
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
         SwarmConfig::new(budget),
         factory.clone(),
         sink.clone(),
@@ -526,7 +535,12 @@ async fn rank6_committed_memory_reservation_releases_on_terminal_teardown() {
     let budget = RunBudget::defaulted(2)
         .with_concurrency(2)
         .with_committed_memory_ceiling(1024);
-    let coordinator = SwarmCoordinator::new(SwarmConfig::new(budget), factory, sink, ledger);
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        SwarmConfig::new(budget),
+        factory,
+        sink,
+        ledger,
+    );
 
     let first = instance(10);
     coordinator
@@ -588,7 +602,7 @@ async fn rank6_committed_memory_ceiling_rejects_unestimated_spawn_before_factory
     let budget = RunBudget::defaulted(1)
         .with_concurrency(1)
         .with_committed_memory_ceiling(1024);
-    let coordinator = SwarmCoordinator::new(
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
         SwarmConfig::new(budget),
         factory.clone(),
         Arc::new(RecordingSwarmSink::new()),
@@ -623,7 +637,7 @@ async fn rank6_committed_memory_ceiling_allows_cloud_without_host_estimate() {
     let budget = RunBudget::defaulted(1)
         .with_concurrency(1)
         .with_committed_memory_ceiling(1);
-    let coordinator = SwarmCoordinator::new(
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
         SwarmConfig::new(budget),
         factory.clone(),
         Arc::new(RecordingSwarmSink::new()),
@@ -660,7 +674,7 @@ async fn rank6_committed_memory_saturated_local_budget_still_allows_cloud() {
     let budget = RunBudget::defaulted(2)
         .with_concurrency(2)
         .with_committed_memory_ceiling(1024);
-    let coordinator = SwarmCoordinator::new(
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
         SwarmConfig::new(budget),
         factory.clone(),
         Arc::new(RecordingSwarmSink::new()),
@@ -707,7 +721,7 @@ async fn rank6_committed_memory_provider_split_still_honors_global_token_budget_
         .with_concurrency(1)
         .with_token_ceiling(1)
         .with_committed_memory_ceiling(1024);
-    let coordinator = SwarmCoordinator::new(
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
         SwarmConfig::new(budget),
         factory.clone(),
         Arc::new(RecordingSwarmSink::new()),
@@ -744,7 +758,7 @@ async fn rank6_committed_memory_reservation_releases_on_factory_failure() {
     let budget = RunBudget::defaulted(1)
         .with_concurrency(1)
         .with_committed_memory_ceiling(1024);
-    let coordinator = SwarmCoordinator::new(
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
         SwarmConfig::new(budget),
         factory,
         Arc::new(RecordingSwarmSink::new()),
@@ -775,7 +789,7 @@ async fn rank6_committed_memory_and_lifetime_release_when_spawn_future_is_aborte
         .with_concurrency(4)
         .with_lifetime_spawns(4)
         .with_committed_memory_ceiling(1024);
-    let coordinator = Arc::new(SwarmCoordinator::new(
+    let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
         SwarmConfig::new(budget),
         factory.clone(),
         Arc::new(RecordingSwarmSink::new()),
@@ -838,7 +852,7 @@ async fn rank6_committed_memory_reservation_rolls_back_on_lifetime_and_concurren
         .with_concurrency(1)
         .with_lifetime_spawns(0)
         .with_committed_memory_ceiling(1024);
-    let lifetime_coordinator = SwarmCoordinator::new(
+    let lifetime_coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
         SwarmConfig::new(lifetime_budget),
         factory_a.clone(),
         Arc::new(RecordingSwarmSink::new()),
@@ -869,7 +883,7 @@ async fn rank6_committed_memory_reservation_rolls_back_on_lifetime_and_concurren
     let concurrency_budget = RunBudget::defaulted(2)
         .with_concurrency(1)
         .with_committed_memory_ceiling(1024);
-    let concurrency_coordinator = SwarmCoordinator::new(
+    let concurrency_coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
         SwarmConfig::new(concurrency_budget),
         factory_b.clone(),
         Arc::new(RecordingSwarmSink::new()),
@@ -909,7 +923,7 @@ async fn rank6_committed_memory_duplicate_loser_releases_reservation() {
     let budget = RunBudget::defaulted(2)
         .with_concurrency(2)
         .with_committed_memory_ceiling(1024);
-    let coordinator = Arc::new(SwarmCoordinator::new(
+    let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
         SwarmConfig::new(budget),
         factory,
         Arc::new(RecordingSwarmSink::new()),
@@ -963,8 +977,12 @@ async fn rank6_committed_memory_reaper_releases_reservation() {
     let config = SwarmConfig::new(budget)
         .with_lease_ttl(Duration::from_millis(40))
         .with_reaper_scan_interval(Duration::from_millis(20));
-    let coordinator =
-        SwarmCoordinator::new(config, factory, Arc::new(RecordingSwarmSink::new()), ledger);
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        config,
+        factory,
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+    );
     coordinator.start_reaper();
     coordinator
         .spawn_session(spawn_req(instance(26)).with_committed_memory_bytes(1024))
@@ -997,7 +1015,7 @@ async fn rank6_committed_memory_concurrent_reservations_never_overcommit() {
     let budget = RunBudget::defaulted(16)
         .with_concurrency(16)
         .with_committed_memory_ceiling(1024);
-    let coordinator = Arc::new(SwarmCoordinator::new(
+    let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
         SwarmConfig::new(budget),
         factory,
         Arc::new(RecordingSwarmSink::new()),
@@ -1059,7 +1077,7 @@ async fn rank6_cold_start_bound_throttles_concurrent_boots_below_run_concurrency
         .with_concurrency(16)
         .with_lifetime_spawns(64)
         .with_cold_start_concurrency(2);
-    let coordinator = Arc::new(SwarmCoordinator::new(
+    let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
         SwarmConfig::new(budget),
         factory.clone(),
         sink.clone(),
@@ -1112,7 +1130,7 @@ async fn proof_1_concurrency_cap_holds_under_parallel_spawns() {
 
     let cap = 3usize;
     let budget = RunBudget::defaulted(16).with_concurrency(cap);
-    let coordinator = Arc::new(SwarmCoordinator::new(
+    let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
         SwarmConfig::new(budget),
         factory.clone(),
         sink.clone(),
@@ -1181,7 +1199,12 @@ async fn proof_2_lifetime_spawn_ceiling_rejects_with_typed_error() {
     let budget = RunBudget::defaulted(8)
         .with_concurrency(8)
         .with_lifetime_spawns(4);
-    let coordinator = SwarmCoordinator::new(SwarmConfig::new(budget), factory, sink, ledger);
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        SwarmConfig::new(budget),
+        factory,
+        sink,
+        ledger,
+    );
 
     // Spawn + immediately complete so a slot is always free; the lifetime
     // counter is monotonic and never replenished.
@@ -1224,7 +1247,12 @@ async fn proof_3_lease_expiry_reaper_reclaims_cancels_records() {
     let config = SwarmConfig::new(budget)
         .with_lease_ttl(Duration::from_millis(50))
         .with_reaper_scan_interval(Duration::from_millis(20));
-    let coordinator = SwarmCoordinator::new(config, factory, sink.clone(), ledger);
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        config,
+        factory,
+        sink.clone(),
+        ledger,
+    );
     coordinator.start_reaper();
 
     let iid = instance(0);
@@ -1271,7 +1299,12 @@ async fn rank7_time_boxed_session_is_reaped_at_its_box_while_untimed_survives() 
     let config = SwarmConfig::new(budget)
         .with_lease_ttl(Duration::from_secs(60))
         .with_reaper_scan_interval(Duration::from_millis(20));
-    let coordinator = SwarmCoordinator::new(config, factory, sink.clone(), ledger);
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        config,
+        factory,
+        sink.clone(),
+        ledger,
+    );
     coordinator.start_reaper();
 
     // A is time-boxed to 30ms; B uses the 60s default (no time_box).
@@ -1322,7 +1355,12 @@ async fn proof_4_failure_fingerprint_breaker_trips_and_suppresses() {
         failure_threshold: 3,
         cooldown: Duration::from_secs(60),
     });
-    let coordinator = SwarmCoordinator::new(config, factory, sink.clone(), ledger);
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        config,
+        factory,
+        sink.clone(),
+        ledger,
+    );
 
     // Each spawn fails with the SAME fingerprint (same class + message).
     // First `threshold` calls return FactoryFailed; once tripped, the breaker
@@ -1373,7 +1411,12 @@ async fn proof_5_budget_exhaustion_stops_spawning() {
     let budget = RunBudget::defaulted(8)
         .with_concurrency(8)
         .with_token_ceiling(100);
-    let coordinator = SwarmCoordinator::new(SwarmConfig::new(budget), factory, sink, ledger);
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        SwarmConfig::new(budget),
+        factory,
+        sink,
+        ledger,
+    );
 
     // First spawn ok.
     let iid = instance(0);
@@ -1410,8 +1453,12 @@ async fn proof_6_cancel_session_cancels_unloads_evicts_emits() {
     let sink = Arc::new(RecordingSwarmSink::new());
 
     let budget = RunBudget::defaulted(4).with_concurrency(4);
-    let coordinator =
-        SwarmCoordinator::new(SwarmConfig::new(budget), factory, sink.clone(), ledger);
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        SwarmConfig::new(budget),
+        factory,
+        sink.clone(),
+        ledger,
+    );
 
     let iid = instance(0);
     coordinator.spawn_session(spawn_req(iid)).await.unwrap();
@@ -1460,7 +1507,7 @@ async fn proof_7_no_orphan_after_run() {
     let budget = RunBudget::defaulted(4)
         .with_concurrency(4)
         .with_lifetime_spawns(1000);
-    let coordinator = Arc::new(SwarmCoordinator::new(
+    let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
         SwarmConfig::new(budget),
         factory.clone(),
         sink,
@@ -1538,7 +1585,8 @@ async fn proof_d1_teardown_frees_model_on_terminate_and_lease_expiry() {
     let config = SwarmConfig::new(budget)
         .with_lease_ttl(Duration::from_millis(40))
         .with_reaper_scan_interval(Duration::from_millis(15));
-    let coordinator = SwarmCoordinator::new(config, factory, sink, ledger);
+    let coordinator =
+        SwarmCoordinator::new_legacy_without_dexterity_for_tests(config, factory, sink, ledger);
 
     // (a) Explicit cancel path invokes teardown -> unload exactly once.
     let iid0 = instance(0);
@@ -1603,7 +1651,7 @@ async fn proof_d2_concurrent_same_instance_no_orphan_start() {
     let budget = RunBudget::defaulted(8)
         .with_concurrency(8)
         .with_lifetime_spawns(1000);
-    let coordinator = Arc::new(SwarmCoordinator::new(
+    let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
         SwarmConfig::new(budget),
         factory,
         sink,
@@ -1680,7 +1728,12 @@ async fn proof_d3_open_breaker_gates_factory_admission() {
         failure_threshold: 3,
         cooldown: Duration::from_secs(60),
     });
-    let coordinator = SwarmCoordinator::new(config, factory.clone(), sink, ledger);
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        config,
+        factory.clone(),
+        sink,
+        ledger,
+    );
 
     // Trip the breaker on a SINGLE instance with the same fingerprint. The
     // admission gate keys on the instance's last-seen signature, so we drive
@@ -1747,7 +1800,12 @@ async fn proof_c4_breaker_heals_via_real_success() {
         failure_threshold: 2,
         cooldown: Duration::from_millis(60),
     });
-    let coordinator = SwarmCoordinator::new(config, factory.clone(), sink.clone(), ledger);
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        config,
+        factory.clone(),
+        sink.clone(),
+        ledger,
+    );
 
     let fp = FailureFingerprint::compute(SwarmErrorClass::FactoryFailed, &factory.fail_message);
 
@@ -1815,7 +1873,12 @@ async fn proof_c6_no_spurious_cancel_event_for_reaped_instance() {
     let config = SwarmConfig::new(budget)
         .with_lease_ttl(Duration::from_millis(30))
         .with_reaper_scan_interval(Duration::from_millis(12));
-    let coordinator = SwarmCoordinator::new(config, factory, sink.clone(), ledger);
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        config,
+        factory,
+        sink.clone(),
+        ledger,
+    );
     coordinator.start_reaper();
 
     let iid = instance(0);
@@ -1867,7 +1930,12 @@ async fn proof_c5_maps_do_not_grow_unbounded_after_many_terminals() {
         failure_threshold: 1000,
         cooldown: Duration::from_secs(1),
     });
-    let coordinator = SwarmCoordinator::new(config, factory.clone(), sink, ledger);
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        config,
+        factory.clone(),
+        sink,
+        ledger,
+    );
 
     let n = 200u32;
     let mut peak_signatures = 0usize;
@@ -1955,7 +2023,12 @@ async fn fail_scenario_failure_fingerprint_storm_trips_one_breaker_for_the_class
         failure_threshold: 5,
         cooldown: Duration::from_secs(60),
     });
-    let coordinator = Arc::new(SwarmCoordinator::new(config, factory, sink.clone(), ledger));
+    let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        config,
+        factory,
+        sink.clone(),
+        ledger,
+    ));
 
     // Storm: 40 DISTINCT instances all fail with the same signature, concurrently.
     let storm = 40u32;
@@ -2024,7 +2097,12 @@ async fn fail_scenario_lease_reaper_mass_reclaim_start_count_equals_stop_count()
     let config = SwarmConfig::new(budget)
         .with_lease_ttl(Duration::from_secs(60))
         .with_reaper_scan_interval(Duration::from_millis(20));
-    let coordinator = SwarmCoordinator::new(config, factory, sink.clone(), ledger);
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        config,
+        factory,
+        sink.clone(),
+        ledger,
+    );
 
     // Spawn ALL N time-boxed sessions FIRST (reaper not yet running) so every
     // session is genuinely live and has recorded its START before any reclaim —

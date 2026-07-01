@@ -16,12 +16,12 @@ use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
 use handshake_native::event_bus::ShellEvent;
 use handshake_native::left_rail::{LeftRail, LeftRailColors, LeftRailEvent, LeftRailState};
+use handshake_native::pane_registry::PaneType;
 use handshake_native::project_tree::{
     BookmarkSummary, CanvasSummary, DocumentSummary, ProjectTree, ProjectTreeColors,
     ProjectTreeEvent,
 };
 use handshake_native::quick_links::{ActiveWindowQuickLinks, QuickLinkColors, QuickLinkEntry};
-use handshake_native::pane_registry::PaneType;
 use std::sync::{Arc, Mutex};
 
 fn ok_app() -> HandshakeApp {
@@ -78,7 +78,10 @@ fn rail_colors() -> LeftRailColors {
 fn project_tree_click_foo_returns_open_document_d1() {
     let mut tree = ProjectTree::new();
     tree.set_content(
-        vec![DocumentSummary::new("d1", "Foo"), DocumentSummary::new("d2", "Bar")],
+        vec![
+            DocumentSummary::new("d1", "Foo"),
+            DocumentSummary::new("d2", "Bar"),
+        ],
         vec![],
     );
     let result: Arc<Mutex<Option<ProjectTreeEvent>>> = Arc::new(Mutex::new(None));
@@ -201,12 +204,16 @@ fn left_rail_open_state_round_trips_through_drawers_project() {
 /// by a real kittest click on the rail's collapse-toggle node, then asserting `left_rail_open()`.
 #[test]
 fn clicking_collapse_toggle_flips_rail_open() {
-    let mut harness = Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), ok_app());
+    let mut harness =
+        Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), ok_app());
     harness.run();
     assert!(harness.state().left_rail_open(), "rail open at start");
     harness.get_by_label("Collapse rail").click();
     harness.run();
-    assert!(!harness.state().left_rail_open(), "collapse toggle closed the rail");
+    assert!(
+        !harness.state().left_rail_open(),
+        "collapse toggle closed the rail"
+    );
 }
 
 // ── proof_target #4: egui_kittest visual harness — row counts + activity icons ──────────────────────
@@ -224,7 +231,10 @@ fn rail_renders_tree_quick_links_and_activity_icons() {
             DocumentSummary::new("d2", "Beta Doc"),
             DocumentSummary::new("d3", "Gamma Doc"),
         ],
-        vec![CanvasSummary::new("c1", "Sketch One"), CanvasSummary::new("c2", "Sketch Two")],
+        vec![
+            CanvasSummary::new("c1", "Sketch One"),
+            CanvasSummary::new("c2", "Sketch Two"),
+        ],
     );
     let mut harness = Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), app);
     harness.run();
@@ -243,8 +253,14 @@ fn rail_renders_tree_quick_links_and_activity_icons() {
 
     // Quick-links: one active-tab row per pane (the four seeded panes), confirmed via the live tree.
     let ids = live_author_ids(&harness);
-    let quick_rows = ids.iter().filter(|a| a.starts_with("quick-links.pane-")).count();
-    assert_eq!(quick_rows, 4, "one active quick-link row per seeded pane; got {ids:?}");
+    let quick_rows = ids
+        .iter()
+        .filter(|a| a.starts_with("quick-links.pane-"))
+        .count();
+    assert_eq!(
+        quick_rows, 4,
+        "one active quick-link row per seeded pane; got {ids:?}"
+    );
     // Three document tree rows + two canvas rows are in the live tree by stable author_id.
     for doc_slug in ["d1", "d2", "d3"] {
         let aid = format!("project-tree.doc.{doc_slug}");
@@ -263,7 +279,8 @@ fn rail_renders_tree_quick_links_and_activity_icons() {
 /// agenda/mail/notes bottom affordances. This is the out-of-process steering contract.
 #[test]
 fn contract_author_ids_present_with_button_role() {
-    let mut harness = Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), ok_app());
+    let mut harness =
+        Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), ok_app());
     harness.run();
 
     let nodes = live_author_nodes(&harness);
@@ -285,9 +302,15 @@ fn contract_author_ids_present_with_button_role() {
         assert_eq!(node.1, "Button", "{id} must be Role::Button");
     }
     // The project-tree container is a Tree and the quick-links container is a List.
-    let tree = nodes.iter().find(|(a, _, _)| a == "project-tree").expect("project-tree node");
+    let tree = nodes
+        .iter()
+        .find(|(a, _, _)| a == "project-tree")
+        .expect("project-tree node");
     assert_eq!(tree.1, "Tree", "project-tree container is Role::Tree");
-    let list = nodes.iter().find(|(a, _, _)| a == "quick-links").expect("quick-links node");
+    let list = nodes
+        .iter()
+        .find(|(a, _, _)| a == "quick-links")
+        .expect("quick-links node");
     assert_eq!(list.1, "List", "quick-links container is Role::List");
 }
 
@@ -310,10 +333,13 @@ fn project_tree_error_shows_clickable_retry_button() {
         }
     });
     harness.run(); // renders the inline error + Retry button without crashing
-    // The Retry button is a live Role::Button addressable by label; clicking it sets the retry request.
+                   // The Retry button is a live Role::Button addressable by label; clicking it sets the retry request.
     harness.get_by_label("Retry").click();
     harness.run();
-    assert!(*retried.lock().unwrap(), "clicking Retry records a retry request");
+    assert!(
+        *retried.lock().unwrap(),
+        "clicking Retry records a retry request"
+    );
 }
 
 // ── FIX-A: Bookmarks/pins group (the silently-omitted contract sub-section) ──────────────────────────
@@ -391,7 +417,10 @@ fn bookmarks_group_present_in_live_tree_with_rows() {
 fn document_deleted_event_removes_row_from_live_tree() {
     let mut app = ok_app();
     app.left_rail_mut().project_tree.set_content(
-        vec![DocumentSummary::new("d1", "Keep Me"), DocumentSummary::new("d2", "Delete Me")],
+        vec![
+            DocumentSummary::new("d1", "Keep Me"),
+            DocumentSummary::new("d2", "Delete Me"),
+        ],
         vec![],
     );
     // A producer (the future delete-performing surface) publishes onto the bus.
@@ -401,11 +430,19 @@ fn document_deleted_event_removes_row_from_live_tree() {
     harness.run();
     // Both rows present before the delete.
     let before = live_author_ids(&harness);
-    assert!(before.contains(&"project-tree.doc.d1".to_string()), "d1 present before: {before:?}");
-    assert!(before.contains(&"project-tree.doc.d2".to_string()), "d2 present before: {before:?}");
+    assert!(
+        before.contains(&"project-tree.doc.d1".to_string()),
+        "d1 present before: {before:?}"
+    );
+    assert!(
+        before.contains(&"project-tree.doc.d2".to_string()),
+        "d2 present before: {before:?}"
+    );
 
     // Publish the delete and run a frame; the bus drain at the top of ui() removes the row.
-    assert!(sender.send(ShellEvent::DocumentDeleted { document_id: "d2".to_string() }));
+    assert!(sender.send(ShellEvent::DocumentDeleted {
+        document_id: "d2".to_string()
+    }));
     harness.run();
 
     let after = live_author_ids(&harness);
@@ -418,8 +455,14 @@ fn document_deleted_event_removes_row_from_live_tree() {
         "the surviving document row must remain: {after:?}"
     );
     // The backing model agrees: exactly one document remains.
-    assert_eq!(harness.state().left_rail().project_tree.documents().len(), 1);
-    assert_eq!(harness.state().left_rail().project_tree.documents()[0].id, "d1");
+    assert_eq!(
+        harness.state().left_rail().project_tree.documents().len(),
+        1
+    );
+    assert_eq!(
+        harness.state().left_rail().project_tree.documents()[0].id,
+        "d1"
+    );
 }
 
 /// Canvas + bookmark deletes route through the same bus (drain returns the removal count).
@@ -432,8 +475,12 @@ fn canvas_and_bookmark_deleted_events_remove_rows() {
         vec![BookmarkSummary::new("b1", "A Pin", "block", None)],
     );
     let sender = app.event_bus_sender();
-    sender.send(ShellEvent::CanvasDeleted { canvas_id: "c1".to_string() });
-    sender.send(ShellEvent::BookmarkRemoved { block_id: "b1".to_string() });
+    sender.send(ShellEvent::CanvasDeleted {
+        canvas_id: "c1".to_string(),
+    });
+    sender.send(ShellEvent::BookmarkRemoved {
+        block_id: "b1".to_string(),
+    });
     let removed = app.drain_shell_events();
     assert_eq!(removed, 2, "both the canvas and the bookmark were removed");
     assert!(app.left_rail().project_tree.canvases().is_empty());
@@ -523,7 +570,10 @@ fn live_author_nodes(harness: &Harness<'_, HandshakeApp>) -> Vec<(String, String
 }
 
 fn live_author_ids(harness: &Harness<'_, HandshakeApp>) -> Vec<String> {
-    live_author_nodes(harness).into_iter().map(|(a, _, _)| a).collect()
+    live_author_nodes(harness)
+        .into_iter()
+        .map(|(a, _, _)| a)
+        .collect()
 }
 
 // ── widget-level unit tests for the LeftRail orchestration (no shell) ───────────────────────────────

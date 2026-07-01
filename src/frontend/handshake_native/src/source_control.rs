@@ -138,10 +138,8 @@ impl SourceControlPanel {
                 .max_height(200.0)
                 .show(ui, |ui| {
                     ui.add(
-                        egui::Label::new(
-                            egui::RichText::new(&self.display_text).monospace(),
-                        )
-                        .wrap(),
+                        egui::Label::new(egui::RichText::new(&self.display_text).monospace())
+                            .wrap(),
                     );
                 });
         }
@@ -169,14 +167,19 @@ impl SourceControlPanel {
                 );
                 let resp = ui.interact(rect, id, egui::Sense::click());
                 if ui.is_rect_visible(rect) {
-                    let bg = if resp.hovered() { colors.row_hover_bg } else { colors.row_bg };
+                    let bg = if resp.hovered() {
+                        colors.row_hover_bg
+                    } else {
+                        colors.row_bg
+                    };
                     ui.painter().rect_filled(rect, 3.0, bg);
                     let galley = ui.painter().layout_no_wrap(
                         label.clone(),
                         egui::FontId::monospace(12.0),
                         colors.row_text,
                     );
-                    let pos = egui::pos2(rect.left() + 6.0, rect.center().y - galley.size().y * 0.5);
+                    let pos =
+                        egui::pos2(rect.left() + 6.0, rect.center().y - galley.size().y * 0.5);
                     ui.painter().galley(pos, galley, colors.row_text);
                 }
                 resp.widget_info(|| {
@@ -209,8 +212,12 @@ impl SourceControlPanel {
     /// Map a typed menu action to the surface event the host applies.
     fn event_for(&self, action: ScmRowMenuAction, row: &ChangeRow) -> SourceControlEvent {
         match action {
-            ScmRowMenuAction::Stage => SourceControlEvent::Stage { path: row.path.clone() },
-            ScmRowMenuAction::Unstage => SourceControlEvent::Unstage { path: row.path.clone() },
+            ScmRowMenuAction::Stage => SourceControlEvent::Stage {
+                path: row.path.clone(),
+            },
+            ScmRowMenuAction::Unstage => SourceControlEvent::Unstage {
+                path: row.path.clone(),
+            },
             ScmRowMenuAction::DiffWorktree => SourceControlEvent::Diff {
                 path: row.path.clone(),
                 scope: ScmDiffScope::Worktree,
@@ -219,8 +226,12 @@ impl SourceControlPanel {
                 path: row.path.clone(),
                 scope: ScmDiffScope::Staged,
             },
-            ScmRowMenuAction::Blame => SourceControlEvent::Blame { path: row.path.clone() },
-            ScmRowMenuAction::CopyPath => SourceControlEvent::CopyPath { path: row.path.clone() },
+            ScmRowMenuAction::Blame => SourceControlEvent::Blame {
+                path: row.path.clone(),
+            },
+            ScmRowMenuAction::CopyPath => SourceControlEvent::CopyPath {
+                path: row.path.clone(),
+            },
         }
     }
 }
@@ -247,7 +258,9 @@ mod tests {
     fn author_id_is_slug_safe() {
         let id = scm_row_author_id("src/sub dir/x.rs");
         assert!(id.starts_with("scm_row_"));
-        assert!(id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-'));
+        assert!(id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-'));
     }
 
     #[test]
@@ -256,11 +269,16 @@ mod tests {
         let row = &panel.rows[0];
         assert_eq!(
             panel.event_for(ScmRowMenuAction::Stage, row),
-            SourceControlEvent::Stage { path: "x.rs".to_owned() },
+            SourceControlEvent::Stage {
+                path: "x.rs".to_owned()
+            },
         );
         assert_eq!(
             panel.event_for(ScmRowMenuAction::DiffWorktree, row),
-            SourceControlEvent::Diff { path: "x.rs".to_owned(), scope: ScmDiffScope::Worktree },
+            SourceControlEvent::Diff {
+                path: "x.rs".to_owned(),
+                scope: ScmDiffScope::Worktree
+            },
         );
     }
 }

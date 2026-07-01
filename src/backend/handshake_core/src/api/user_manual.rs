@@ -21,27 +21,27 @@
 //! manual text cannot be injected at runtime through this surface.
 
 use axum::{
-    Json, Router,
     extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},
     routing::{get, post},
+    Json, Router,
 };
 use serde::Deserialize;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use uuid::Uuid;
 
-use crate::AppState;
 use crate::knowledge_document::permission::DocumentActorKind;
-use crate::storage::StorageError;
 use crate::storage::postgres::PostgresDatabase;
+use crate::storage::StorageError;
 use crate::user_manual::freshness::check_freshness;
 use crate::user_manual::migration_plan::naming_migration_plan;
 use crate::user_manual::projection::{render_page_html, render_page_markdown};
 use crate::user_manual::registry::{user_manual_access_points, wp009_surface_registry};
-use crate::user_manual::seed::{QUICKSTART_AREAS, ensure_seeded};
+use crate::user_manual::seed::{ensure_seeded, QUICKSTART_AREAS};
 use crate::user_manual::spec_seed::spec_enrichment_seed;
-use crate::user_manual::store::{LIST_CAP, UserManualStore};
+use crate::user_manual::store::{UserManualStore, LIST_CAP};
 use crate::user_manual::{ROUTE_NAMESPACE, USER_MANUAL_VERSION};
+use crate::AppState;
 
 const HSK_HEADER_ACTOR_KIND: &str = "x-hsk-actor-kind";
 const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
@@ -543,7 +543,12 @@ async fn legacy_model_manual(
         "canonical": {
             "route_namespace": ROUTE_NAMESPACE,
             "manual_version": USER_MANUAL_VERSION,
-            "pages": pages.iter().map(|p| json!({"slug": p.slug, "title": p.title})).collect::<Vec<_>>(),
+            "pages": pages.iter().map(|p| json!({
+                "slug": p.slug,
+                "title": p.title,
+                "manual_version": p.manual_version,
+                "content_hash": p.content_hash,
+            })).collect::<Vec<_>>(),
         },
         "aliases": aliases,
         "compatibility_receipt_event_id": receipt,

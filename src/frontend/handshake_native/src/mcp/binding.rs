@@ -96,7 +96,9 @@ fn local_app_data_dir() -> PathBuf {
 
 /// The full path the binding file is written to: `{local_app_data}/handshake/swarm_mcp_binding.json`.
 pub fn binding_path() -> PathBuf {
-    local_app_data_dir().join("handshake").join(BINDING_FILE_NAME)
+    local_app_data_dir()
+        .join("handshake")
+        .join(BINDING_FILE_NAME)
 }
 
 /// Write the binding to its canonical path, creating the `handshake/` subdirectory if absent, and
@@ -111,7 +113,8 @@ pub fn write_binding(binding: &McpBinding) -> Result<PathBuf, BindingError> {
             .map_err(|e| BindingError(format!("create {}: {e}", parent.display())))?;
     }
     let json = binding.to_json_string()?;
-    std::fs::write(&path, json).map_err(|e| BindingError(format!("write {}: {e}", path.display())))?;
+    std::fs::write(&path, json)
+        .map_err(|e| BindingError(format!("write {}: {e}", path.display())))?;
     restrict_to_owner(&path);
     Ok(path)
 }
@@ -210,14 +213,20 @@ mod tests {
             pid: 1,
         };
         let json = b.to_json_string().expect("serialize");
-        assert!(!json.contains("pipe_name"), "None pipe_name is skipped: {json}");
+        assert!(
+            !json.contains("pipe_name"),
+            "None pipe_name is skipped: {json}"
+        );
     }
 
     #[test]
     fn binding_path_ends_with_expected_components() {
         let p = binding_path();
         let s = p.to_string_lossy().replace('\\', "/");
-        assert!(s.ends_with(&format!("handshake/{BINDING_FILE_NAME}")), "path was {s}");
+        assert!(
+            s.ends_with(&format!("handshake/{BINDING_FILE_NAME}")),
+            "path was {s}"
+        );
     }
 
     #[test]

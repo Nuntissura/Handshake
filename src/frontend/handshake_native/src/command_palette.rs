@@ -130,9 +130,7 @@ pub fn show(ctx: &egui::Context, open_count: u64) -> PaletteOutcome {
     ctx.input(|i| {
         for event in &i.events {
             if let egui::Event::Key {
-                key,
-                pressed: true,
-                ..
+                key, pressed: true, ..
             } = event
             {
                 match key {
@@ -184,13 +182,9 @@ pub fn show(ctx: &egui::Context, open_count: u64) -> PaletteOutcome {
         .fixed_pos(screen.min)
         .interactable(true)
         .show(ctx, |ui| {
-            let (rect, response) =
-                ui.allocate_exact_size(screen.size(), egui::Sense::click());
-            ui.painter().rect_filled(
-                rect,
-                0.0,
-                egui::Color32::from_black_alpha(96),
-            );
+            let (rect, response) = ui.allocate_exact_size(screen.size(), egui::Sense::click());
+            ui.painter()
+                .rect_filled(rect, 0.0, egui::Color32::from_black_alpha(96));
             response
         });
     if backdrop.inner.clicked() {

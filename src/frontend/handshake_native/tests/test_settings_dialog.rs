@@ -10,10 +10,11 @@
 
 use std::sync::{Arc, Mutex};
 
-use egui_kittest::kittest::Queryable;
+use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 use handshake_native::app::{HandshakeApp, HealthDisplayState, ViewMode};
 use handshake_native::backend_client::HealthInfo;
+use handshake_native::pane_registry::PaneType;
 use handshake_native::theme::HsTheme;
 use handshake_native::workspace_settings::{
     SettingsTransport, SettingsTransportError, WorkspaceTheme,
@@ -69,7 +70,11 @@ impl SettingsTransport for StubSettingsTransport {
         s.load_calls += 1;
         Ok(s.load_result.clone())
     }
-    fn save(&self, _workspace_id: &str, settings_state: Value) -> Result<(), SettingsTransportError> {
+    fn save(
+        &self,
+        _workspace_id: &str,
+        settings_state: Value,
+    ) -> Result<(), SettingsTransportError> {
         let mut s = self.inner.lock().unwrap();
         s.save_calls += 1;
         s.saved = Some(settings_state);
@@ -119,10 +124,8 @@ fn opening_settings_shows_theme_row_and_changing_theme_applies_to_app() {
     // Start from Light so a change to Dark is observable.
     app.set_workspace_theme_for_test(WorkspaceTheme::Light);
 
-    let mut harness = Harness::builder().build_state(
-        |ctx, app: &mut HandshakeApp| app.ui(ctx),
-        app,
-    );
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     // Open the dialog (HELP > Open Settings… mirror).
     harness.state_mut().open_settings();
     harness.run();
@@ -133,11 +136,9 @@ fn opening_settings_shows_theme_row_and_changing_theme_applies_to_app() {
 
     // Drive the wired change directly through the outcome path (a kittest cannot reliably click into a
     // ComboBox popup item; the dialog's wiring is what AC3 requires — selecting Dark applies + persists).
-    harness
-        .state_mut()
-        .apply_settings_outcome_for_test(handshake_native::settings_dialog::SettingsOutcome::ThemeChanged(
-            WorkspaceTheme::Dark,
-        ));
+    harness.state_mut().apply_settings_outcome_for_test(
+        handshake_native::settings_dialog::SettingsOutcome::ThemeChanged(WorkspaceTheme::Dark),
+    );
     // Next frame applies the pending theme at the top of ui().
     harness.run();
 
@@ -154,7 +155,10 @@ fn opening_settings_shows_theme_row_and_changing_theme_applies_to_app() {
 
     // AC3: the change persists via PUT (debounced). Pump until the stub records the save.
     let saved = run_until(&mut harness, 60, |_| transport.save_calls() >= 1);
-    assert!(saved, "theme change persisted via PUT /workspaces/{{id}}/settings");
+    assert!(
+        saved,
+        "theme change persisted via PUT /workspaces/{{id}}/settings"
+    );
     let blob = transport.saved().expect("a settings_state blob was PUT");
     assert_eq!(
         blob.get("theme").and_then(Value::as_str),
@@ -171,22 +175,28 @@ fn search_filter_narrows_to_keybindings_section() {
     app.set_runtime_handle(handle);
     app.set_settings_transport(StubSettingsTransport::with_loaded(None));
 
-    let mut harness = Harness::builder().build_state(
-        |ctx, app: &mut HandshakeApp| app.ui(ctx),
-        app,
-    );
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.state_mut().open_settings();
     harness.run();
 
     // With no query, the Appearance + Keybindings + About headers are all present.
-    assert!(harness.query_by_label("Appearance").is_some(), "Appearance shown with empty query");
-    assert!(harness.query_by_label("Keybindings").is_some(), "Keybindings shown with empty query");
+    assert!(
+        harness.query_by_label("Appearance").is_some(),
+        "Appearance shown with empty query"
+    );
+    assert!(
+        harness.query_by_label("Keybindings").is_some(),
+        "Keybindings shown with empty query"
+    );
 
     // Type 'keybinding' into the search box.
     let search = harness.get_by_label("Search settings");
     search.focus();
     harness.run();
-    harness.get_by_label("Search settings").type_text("keybinding");
+    harness
+        .get_by_label("Search settings")
+        .type_text("keybinding");
     harness.run();
     harness.run();
 
@@ -217,10 +227,8 @@ fn duplicate_keybinding_chord_shows_conflict_banner_and_is_not_saved() {
     app.set_keybinding_for_test("app.quick_switcher.open", "Mod-Alt-p");
     app.set_keybinding_for_test("app.command_palette.open", "Mod-Alt-p");
 
-    let mut harness = Harness::builder().build_state(
-        |ctx, app: &mut HandshakeApp| app.ui(ctx),
-        app,
-    );
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.state_mut().open_settings();
     harness.run();
     harness.run();
@@ -273,14 +281,15 @@ fn reset_panes_and_drawers_button_arms_layout_reset() {
     app.set_runtime_handle(handle);
     app.set_settings_transport(StubSettingsTransport::with_loaded(None));
 
-    let mut harness = Harness::builder().build_state(
-        |ctx, app: &mut HandshakeApp| app.ui(ctx),
-        app,
-    );
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.state_mut().open_settings();
     harness.run();
 
-    assert!(!harness.state().reset_layout_pending(), "no reset armed initially");
+    assert!(
+        !harness.state().reset_layout_pending(),
+        "no reset armed initially"
+    );
 
     // Click the Reset panes & drawers button (findable by its visible label).
     harness.get_by_label("Reset panes & drawers").click();
@@ -289,6 +298,58 @@ fn reset_panes_and_drawers_button_arms_layout_reset() {
     assert!(
         harness.state().reset_layout_pending(),
         "AC10: Reset panes & drawers arms the layout reset (same as VIEW > Reset Layout)"
+    );
+}
+
+#[test]
+fn swarm_lane_diagnostics_setting_persists() {
+    let transport = StubSettingsTransport::with_loaded(None);
+    let handle = leak_runtime_handle();
+    let mut app = ok_app();
+    app.set_runtime_handle(handle);
+    app.set_settings_transport(transport.clone());
+
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.state_mut().open_settings();
+    harness.run();
+    harness.run();
+
+    let nodes: Vec<String> = harness
+        .root()
+        .children_recursive()
+        .filter_map(|node| node.accesskit_node().author_id().map(str::to_owned))
+        .collect();
+    assert!(
+        nodes
+            .iter()
+            .any(|id| id == "settings.swarm-lane-diagnostics-default-open"),
+        "lane diagnostics checkbox is addressable in the live settings tree: {nodes:?}"
+    );
+
+    harness.state_mut().apply_settings_outcome_for_test(
+        handshake_native::settings_dialog::SettingsOutcome::SwarmLaneDiagnosticsDefaultOpenChanged(
+            true,
+        ),
+    );
+    harness.run();
+    assert!(
+        harness
+            .state()
+            .workspace_settings()
+            .swarm_lane_diagnostics_default_open,
+        "settings state flips the diagnostics default flag"
+    );
+    assert!(
+        run_until(&mut harness, 60, |_| transport.save_calls() >= 1),
+        "diagnostics setting persisted through PUT /workspaces/{{id}}/settings"
+    );
+    let blob = transport.saved().expect("a settings_state blob was PUT");
+    assert_eq!(
+        blob.pointer("/settings/swarm_lane_diagnostics_default_open")
+            .and_then(serde_json::Value::as_bool),
+        Some(true),
+        "persisted blob carries diagnostics default flag"
     );
 }
 
@@ -301,10 +362,8 @@ fn changing_view_mode_updates_app_flag_and_persists() {
     app.set_runtime_handle(handle);
     app.set_settings_transport(transport.clone());
 
-    let mut harness = Harness::builder().build_state(
-        |ctx, app: &mut HandshakeApp| app.ui(ctx),
-        app,
-    );
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.state_mut().open_settings();
     harness.run();
     assert_eq!(harness.state().view_mode(), ViewMode::Nsfw, "default NSFW");
@@ -320,7 +379,10 @@ fn changing_view_mode_updates_app_flag_and_persists() {
         ViewMode::Sfw,
         "AC4: toggling SFW updates app_state.view_mode"
     );
-    assert!(run_until(&mut harness, 60, |_| transport.save_calls() >= 1), "AC4: view mode persisted");
+    assert!(
+        run_until(&mut harness, 60, |_| transport.save_calls() >= 1),
+        "AC4: view mode persisted"
+    );
 }
 
 // ── FIX-A (AC9 + red-team MC5): the NotYetWired disabled rows are PRESENT, show their fixed value, and
@@ -353,10 +415,8 @@ fn not_yet_wired_rows_are_present_show_fixed_value_and_reject_typed_input() {
     app.set_runtime_handle(handle);
     app.set_settings_transport(StubSettingsTransport::with_loaded(None));
 
-    let mut harness = Harness::builder().build_state(
-        |ctx, app: &mut HandshakeApp| app.ui(ctx),
-        app,
-    );
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.state_mut().open_settings();
     harness.run();
     harness.run();
@@ -477,10 +537,8 @@ fn escape_closes_open_combo_popup_first_then_dialog() {
     app.set_runtime_handle(handle);
     app.set_settings_transport(StubSettingsTransport::with_loaded(None));
 
-    let mut harness = Harness::builder().build_state(
-        |ctx, app: &mut HandshakeApp| app.ui(ctx),
-        app,
-    );
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.state_mut().open_settings();
     harness.run();
     assert!(harness.state().settings_open(), "dialog open");
@@ -525,10 +583,8 @@ fn escape_closes_open_combo_popup_first_then_dialog() {
 // ── Escape closes (AC12) + dialog absent by default (MT-025 snapshot stays at its baseline) ─────────
 #[test]
 fn dialog_closed_by_default_and_escape_closes() {
-    let mut harness = Harness::builder().build_state(
-        |ctx, app: &mut HandshakeApp| app.ui(ctx),
-        ok_app(),
-    );
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
     harness.run();
     assert!(!harness.state().settings_open(), "dialog closed by default");
     // No settings nodes in the default tree.
@@ -544,7 +600,10 @@ fn dialog_closed_by_default_and_escape_closes() {
     // Press Escape -> the dialog requests close.
     harness.key_press(egui::Key::Escape);
     harness.run();
-    assert!(!harness.state().settings_open(), "AC12: Escape closes the dialog");
+    assert!(
+        !harness.state().settings_open(),
+        "AC12: Escape closes the dialog"
+    );
 }
 
 // ── Load-on-open restores a persisted theme (PT6 round-trip, stubbed) ───────────────────────────────
@@ -556,7 +615,7 @@ fn opening_settings_loads_persisted_theme_from_backend() {
         "theme": "dark",
         "custom_theme_tokens": {},
         "keybindings": { "app.quick_switcher.open": "Mod-p", "app.command_palette.open": "Mod-Shift-p" },
-        "settings": { "view_mode": "NSFW", "swarm_board_default_open": false }
+        "settings": { "view_mode": "NSFW", "swarm_board_default_open": false, "swarm_lane_diagnostics_default_open": false }
     });
     let transport = StubSettingsTransport::with_loaded(Some(stored));
     let handle = leak_runtime_handle();
@@ -566,18 +625,53 @@ fn opening_settings_loads_persisted_theme_from_backend() {
     // Start Light; the load must flip it to Dark.
     app.set_workspace_theme_for_test(WorkspaceTheme::Light);
 
-    let mut harness = Harness::builder().build_state(
-        |ctx, app: &mut HandshakeApp| app.ui(ctx),
-        app,
-    );
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.state_mut().open_settings();
 
     let loaded = run_until(&mut harness, 60, |app| app.current_theme() == HsTheme::Dark);
-    assert!(loaded, "PT6: opening settings loads the persisted Dark theme from the backend");
+    assert!(
+        loaded,
+        "PT6: opening settings loads the persisted Dark theme from the backend"
+    );
     assert_eq!(
         harness.state().workspace_settings().theme,
         WorkspaceTheme::Dark,
         "loaded settings reflect the stored theme"
+    );
+}
+
+#[test]
+fn persisted_swarm_diagnostics_default_opens_runtime_tabs() {
+    let stored = serde_json::json!({
+        "schema_id": "hsk.workspace_settings_state@1",
+        "theme": "dark",
+        "custom_theme_tokens": {},
+        "keybindings": { "app.quick_switcher.open": "Mod-p", "app.command_palette.open": "Mod-Shift-p" },
+        "settings": { "view_mode": "NSFW", "swarm_board_default_open": true, "swarm_lane_diagnostics_default_open": true }
+    });
+    let transport = StubSettingsTransport::with_loaded(Some(stored));
+    let handle = leak_runtime_handle();
+    let mut app = ok_app();
+    app.set_runtime_handle(handle);
+    app.set_settings_transport(transport);
+
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+
+    let loaded = run_until(&mut harness, 60, |app| {
+        app.tab_bar_states().values().any(|bar| {
+            bar.tabs
+                .iter()
+                .any(|tab| tab.pane_type == PaneType::SwarmLaneDiagnostics)
+        }) && app
+            .tab_bar_states()
+            .values()
+            .any(|bar| bar.tabs.iter().any(|tab| tab.pane_type == PaneType::Swarm))
+    });
+    assert!(
+        loaded,
+        "stored Swarm defaults open both Swarm and Lane Diagnostics runtime tabs"
     );
 }
 

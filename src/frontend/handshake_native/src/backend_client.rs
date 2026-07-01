@@ -5,6 +5,10 @@
 
 use crate::error::AppError;
 use crate::layout_persistence::{LayoutError, LayoutTransport};
+use crate::swarm_lane_diagnostics::{
+    validate_projection_for_native_surface, SwarmLaneDiagnosticsCell,
+    SwarmLaneDiagnosticsProjection, SwarmLaneDiagnosticsTransport,
+};
 use serde_json::Value;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -25,6 +29,83 @@ pub struct HealthInfo {
     pub migration_version: Option<i64>,
 }
 
+#[derive(Clone)]
+pub struct SwarmLaneDiagnosticsClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+}
+
+impl SwarmLaneDiagnosticsClient {
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.into(),
+            runtime,
+        }
+    }
+
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    pub fn latest_request(&self) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/swarm/model-lanes/diagnostics/latest", self.base_url),
+            body: None,
+        }
+    }
+
+    pub fn run_request(&self, run_id: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/swarm/model-lanes/diagnostics/{}", self.base_url, run_id),
+            body: None,
+        }
+    }
+}
+
+impl SwarmLaneDiagnosticsTransport for SwarmLaneDiagnosticsClient {
+    fn fetch_latest(&self, cell: SwarmLaneDiagnosticsCell) {
+        let spec = self.latest_request();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &spec.url, &[])
+                .await
+                .and_then(|v| {
+                    let projection = serde_json::from_value::<SwarmLaneDiagnosticsProjection>(v)
+                        .map_err(|e| AppError::Parse(e.to_string()))?;
+                    validate_projection_for_native_surface(&projection).map_err(AppError::Parse)?;
+                    Ok(projection)
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    fn fetch_run(&self, run_id: &str, cell: SwarmLaneDiagnosticsCell) {
+        let spec = self.run_request(run_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &spec.url, &[])
+                .await
+                .and_then(|v| {
+                    let projection = serde_json::from_value::<SwarmLaneDiagnosticsProjection>(v)
+                        .map_err(|e| AppError::Parse(e.to_string()))?;
+                    validate_projection_for_native_surface(&projection).map_err(AppError::Parse)?;
+                    Ok(projection)
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+}
+
 /// GET /health with a 5s timeout (CONTROL-2). Non-success status or a parse failure is an error,
 /// never a panic.
 pub async fn fetch_health(url: &str) -> Result<HealthInfo, AppError> {
@@ -36,15 +117,26 @@ pub async fn fetch_health(url: &str) -> Result<HealthInfo, AppError> {
         .await
         .map_err(|e| AppError::Http(e.to_string()))?;
     if !resp.status().is_success() {
-        return Err(AppError::Http(format!("non-success status {}", resp.status())));
+        return Err(AppError::Http(format!(
+            "non-success status {}",
+            resp.status()
+        )));
     }
     let v: serde_json::Value = resp
         .json()
         .await
         .map_err(|e| AppError::Parse(e.to_string()))?;
     Ok(HealthInfo {
-        status: v.get("status").and_then(|x| x.as_str()).unwrap_or("unknown").to_string(),
-        db_status: v.get("db_status").and_then(|x| x.as_str()).unwrap_or("unknown").to_string(),
+        status: v
+            .get("status")
+            .and_then(|x| x.as_str())
+            .unwrap_or("unknown")
+            .to_string(),
+        db_status: v
+            .get("db_status")
+            .and_then(|x| x.as_str())
+            .unwrap_or("unknown")
+            .to_string(),
         migration_version: v.get("migration_version").and_then(|x| x.as_i64()),
     })
 }
@@ -90,7 +182,10 @@ impl WorkbenchLayoutClient {
     }
 
     fn layout_url(&self, workspace_id: &str) -> String {
-        format!("{}/workspaces/{}/workbench/layout", self.base_url, workspace_id)
+        format!(
+            "{}/workspaces/{}/workbench/layout",
+            self.base_url, workspace_id
+        )
     }
 }
 
@@ -180,7 +275,10 @@ impl LoomBlockClient {
     }
 
     fn block_url(&self, workspace_id: &str, block_id: &str) -> String {
-        format!("{}/workspaces/{}/loom/blocks/{}", self.base_url, workspace_id, block_id)
+        format!(
+            "{}/workspaces/{}/loom/blocks/{}",
+            self.base_url, workspace_id, block_id
+        )
     }
 
     /// PATCH a single Loom-block FLAG (`pinned` or `favorite`) off the UI thread, delivering the result
@@ -230,7 +328,12 @@ impl LoomBlockClient {
     }
 
     /// Pure request builder for [`rename_block`](Self::rename_block): the `(PATCH, url, body)` it sends.
-    pub fn rename_request(&self, workspace_id: &str, block_id: &str, new_title: &str) -> RequestSpec {
+    pub fn rename_request(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+        new_title: &str,
+    ) -> RequestSpec {
         RequestSpec {
             method: HttpMethod::Patch,
             url: self.block_url(workspace_id, block_id),
@@ -282,7 +385,10 @@ async fn patch_block_title(
         .await
         .map_err(|e| AppError::Http(e.to_string()))?;
     if !resp.status().is_success() {
-        return Err(AppError::Http(format!("PATCH block non-success status {}", resp.status())));
+        return Err(AppError::Http(format!(
+            "PATCH block non-success status {}",
+            resp.status()
+        )));
     }
     let v: serde_json::Value = resp
         .json()
@@ -362,13 +468,7 @@ impl SourceControlClient {
 
     /// `POST /source-control/{stage|unstage}` with `{repo_path, paths:[path]}`, off the UI thread.
     /// `op` is `"stage"` or `"unstage"` — the SAME path segment the verified backend route uses.
-    pub fn stage_paths(
-        &self,
-        op: ScmWriteOp,
-        repo_path: &str,
-        path: &str,
-        cell: ScmReceiptCell,
-    ) {
+    pub fn stage_paths(&self, op: ScmWriteOp, repo_path: &str, path: &str, cell: ScmReceiptCell) {
         let spec = self.stage_request(op, repo_path, path);
         self.spawn_receipt(spec.url, spec.body.unwrap_or_default(), cell);
     }
@@ -652,7 +752,10 @@ async fn post_expect_success(
         .await
         .map_err(|e| AppError::Http(e.to_string()))?;
     if !resp.status().is_success() {
-        return Err(AppError::Http(format!("POST non-success status {}", resp.status())));
+        return Err(AppError::Http(format!(
+            "POST non-success status {}",
+            resp.status()
+        )));
     }
     Ok(())
 }
@@ -671,7 +774,10 @@ async fn patch_expect_success(
         .await
         .map_err(|e| AppError::Http(e.to_string()))?;
     if !resp.status().is_success() {
-        return Err(AppError::Http(format!("PATCH non-success status {}", resp.status())));
+        return Err(AppError::Http(format!(
+            "PATCH non-success status {}",
+            resp.status()
+        )));
     }
     Ok(())
 }
@@ -685,7 +791,10 @@ async fn delete_expect_success(client: &reqwest::Client, url: &str) -> Result<()
         .await
         .map_err(|e| AppError::Http(e.to_string()))?;
     if !resp.status().is_success() {
-        return Err(AppError::Http(format!("DELETE non-success status {}", resp.status())));
+        return Err(AppError::Http(format!(
+            "DELETE non-success status {}",
+            resp.status()
+        )));
     }
     Ok(())
 }
@@ -740,9 +849,14 @@ async fn get_json(
         .await
         .map_err(|e| AppError::Http(e.to_string()))?;
     if !resp.status().is_success() {
-        return Err(AppError::Http(format!("GET non-success status {}", resp.status())));
+        return Err(AppError::Http(format!(
+            "GET non-success status {}",
+            resp.status()
+        )));
     }
-    resp.json().await.map_err(|e| AppError::Parse(e.to_string()))
+    resp.json()
+        .await
+        .map_err(|e| AppError::Parse(e.to_string()))
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -837,7 +951,10 @@ impl DrawerDataClient {
     }
 
     fn views_all_url(&self, workspace_id: &str) -> String {
-        format!("{}/workspaces/{}/loom/views/all", self.base_url, workspace_id)
+        format!(
+            "{}/workspaces/{}/loom/views/all",
+            self.base_url, workspace_id
+        )
     }
 
     fn journal_url(&self, workspace_id: &str, journal_date: &str) -> String {
@@ -890,13 +1007,21 @@ impl DrawerDataClient {
         let client = self.client.clone();
         self.runtime.spawn(async move {
             let result = fetch_daily_journal(&client, &spec.url).await;
-            deliver_drawer(&cell, DrawerDataKind::Agenda, result.map_err(|e| e.to_string()));
+            deliver_drawer(
+                &cell,
+                DrawerDataKind::Agenda,
+                result.map_err(|e| e.to_string()),
+            );
         });
     }
 }
 
 /// Write a drawer fetch result into a [`DrawerDataCell`].
-fn deliver_drawer(cell: &DrawerDataCell, kind: DrawerDataKind, result: Result<DrawerCardData, String>) {
+fn deliver_drawer(
+    cell: &DrawerDataCell,
+    kind: DrawerDataKind,
+    result: Result<DrawerCardData, String>,
+) {
     if let Ok(mut slot) = cell.lock() {
         *slot = Some((kind, result));
     }
@@ -921,14 +1046,20 @@ async fn fetch_view_count(
     } else {
         format!("{count} items")
     };
-    Ok(DrawerCardData { badge_count: count, subtitle })
+    Ok(DrawerCardData {
+        badge_count: count,
+        subtitle,
+    })
 }
 
 /// `PUT {url}` (no body) and read today's daily-journal block (the verified `open_daily_journal`
 /// response is a single `LoomBlock`). Badge = 1 if the block has a non-empty `title`, else 0; subtitle
 /// is the title (or a "No agenda today" fallback). A non-success status or parse failure is an
 /// [`AppError`], never a panic.
-async fn fetch_daily_journal(client: &reqwest::Client, url: &str) -> Result<DrawerCardData, AppError> {
+async fn fetch_daily_journal(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<DrawerCardData, AppError> {
     let resp = client
         .put(url)
         .timeout(Duration::from_secs(5))
@@ -936,7 +1067,10 @@ async fn fetch_daily_journal(client: &reqwest::Client, url: &str) -> Result<Draw
         .await
         .map_err(|e| AppError::Http(e.to_string()))?;
     if !resp.status().is_success() {
-        return Err(AppError::Http(format!("PUT journal non-success status {}", resp.status())));
+        return Err(AppError::Http(format!(
+            "PUT journal non-success status {}",
+            resp.status()
+        )));
     }
     let v: serde_json::Value = resp
         .json()
@@ -947,8 +1081,14 @@ async fn fetch_daily_journal(client: &reqwest::Client, url: &str) -> Result<Draw
         .and_then(|x| x.as_str())
         .filter(|s| !s.trim().is_empty());
     match title {
-        Some(t) => Ok(DrawerCardData { badge_count: 1, subtitle: t.to_owned() }),
-        None => Ok(DrawerCardData { badge_count: 0, subtitle: "No agenda today".to_owned() }),
+        Some(t) => Ok(DrawerCardData {
+            badge_count: 1,
+            subtitle: t.to_owned(),
+        }),
+        None => Ok(DrawerCardData {
+            badge_count: 0,
+            subtitle: "No agenda today".to_owned(),
+        }),
     }
 }
 
@@ -1094,7 +1234,10 @@ impl DrawerActionClient {
     }
 
     fn block_url(&self, workspace_id: &str, block_id: &str) -> String {
-        format!("{}/workspaces/{}/loom/blocks/{}", self.base_url, workspace_id, block_id)
+        format!(
+            "{}/workspaces/{}/loom/blocks/{}",
+            self.base_url, workspace_id, block_id
+        )
     }
 
     fn edges_url(&self, workspace_id: &str) -> String {
@@ -1110,7 +1253,12 @@ impl DrawerActionClient {
     /// Pure request builder for [`pin_to_top`](Self::pin_to_top): `PUT /loom/blocks/:id/pin-order` with
     /// `{ "pin_order": <ordinal> }`. The field is `pin_order` (VERIFIED `SetPinOrderRequest`), NOT the
     /// contract's `ordinal`. Bring-to-top sends ordinal 0.
-    pub fn pin_order_request(&self, workspace_id: &str, block_id: &str, ordinal: i32) -> RequestSpec {
+    pub fn pin_order_request(
+        &self,
+        workspace_id: &str,
+        block_id: &str,
+        ordinal: i32,
+    ) -> RequestSpec {
         RequestSpec {
             method: HttpMethod::Put,
             url: self.pin_order_url(workspace_id, block_id),
@@ -1262,7 +1410,10 @@ async fn put_expect_success(
         .await
         .map_err(|e| AppError::Http(e.to_string()))?;
     if !resp.status().is_success() {
-        return Err(AppError::Http(format!("PUT non-success status {}", resp.status())));
+        return Err(AppError::Http(format!(
+            "PUT non-success status {}",
+            resp.status()
+        )));
     }
     Ok(())
 }
@@ -1373,8 +1524,14 @@ mod tests {
         let c = CanvasClient::new(BASE, rt.handle().clone());
         let spec = c.set_z_index_request("ws1", "p9", 1_000_000);
         assert_eq!(spec.method, HttpMethod::Patch);
-        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/canvas-placements/p9");
-        assert_eq!(spec.body.unwrap(), serde_json::json!({ "z_index": 1_000_000 }));
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws1/loom/canvas-placements/p9"
+        );
+        assert_eq!(
+            spec.body.unwrap(),
+            serde_json::json!({ "z_index": 1_000_000 })
+        );
     }
 
     #[test]
@@ -1383,7 +1540,10 @@ mod tests {
         let c = CanvasClient::new(BASE, rt.handle().clone());
         let spec = c.remove_placement_request("ws1", "p9");
         assert_eq!(spec.method, HttpMethod::Delete);
-        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/canvas-placements/p9");
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws1/loom/canvas-placements/p9"
+        );
         assert!(spec.body.is_none());
     }
 
@@ -1393,7 +1553,10 @@ mod tests {
         let c = CanvasClient::new(BASE, rt.handle().clone());
         let spec = c.remove_visual_edge_request("ws1", "ve7");
         assert_eq!(spec.method, HttpMethod::Delete);
-        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/canvas-visual-edges/ve7");
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws1/loom/canvas-visual-edges/ve7"
+        );
         assert!(spec.body.is_none());
     }
 
@@ -1405,7 +1568,10 @@ mod tests {
         let c = LoomBlockClient::new(BASE, rt.handle().clone());
         let spec = c.set_flag_request("ws1", "b3", LoomBlockFlag::Pinned, true);
         assert_eq!(spec.method, HttpMethod::Patch);
-        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/blocks/b3");
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws1/loom/blocks/b3"
+        );
         let body = spec.body.unwrap();
         // AC#73: the serialized body contains the `pinned` flag, and ONLY that flag (not favorite).
         assert_eq!(body, serde_json::json!({ "pinned": true }));
@@ -1427,8 +1593,14 @@ mod tests {
         let rt = rt();
         let c = LoomBlockClient::new(BASE, rt.handle().clone());
         let spec = c.rename_request("ws1", "b3", "New Title");
-        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/blocks/b3");
-        assert_eq!(spec.body.unwrap(), serde_json::json!({ "title": "New Title" }));
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws1/loom/blocks/b3"
+        );
+        assert_eq!(
+            spec.body.unwrap(),
+            serde_json::json!({ "title": "New Title" })
+        );
     }
 
     // ── MT-023 DrawerDataClient: verified view-count + daily-journal requests ────────────────────────
@@ -1440,9 +1612,15 @@ mod tests {
         let spec = c.count_request("ws1", DrawerDataKind::Notes);
         assert_eq!(spec.method, HttpMethod::Get);
         // VERIFIED endpoint: /loom/views/all (NOT the contract's stale /loom/views/table).
-        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/views/all");
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws1/loom/views/all"
+        );
         // VERIFIED content_type: note (the contract's `list` does not exist as a content_type).
-        assert_eq!(spec.query, vec![("content_type".to_owned(), "note".to_owned())]);
+        assert_eq!(
+            spec.query,
+            vec![("content_type".to_owned(), "note".to_owned())]
+        );
     }
 
     #[test]
@@ -1452,8 +1630,14 @@ mod tests {
         let spec = c.count_request("ws1", DrawerDataKind::Lists);
         // The contract's "Lists" maps to saved block-collection views → content_type=view_def (the
         // real, countable surface; `list` is not a valid LoomBlockContentType — disclosed deviation).
-        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/views/all");
-        assert_eq!(spec.query, vec![("content_type".to_owned(), "view_def".to_owned())]);
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws1/loom/views/all"
+        );
+        assert_eq!(
+            spec.query,
+            vec![("content_type".to_owned(), "view_def".to_owned())]
+        );
     }
 
     #[test]
@@ -1463,7 +1647,10 @@ mod tests {
         let spec = c.journal_request("ws1", "2026-06-20");
         // VERIFIED endpoint: PUT /loom/journals/{date} (open_daily_journal, get-or-create, no body).
         assert_eq!(spec.method, HttpMethod::Put);
-        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/journals/2026-06-20");
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws1/loom/journals/2026-06-20"
+        );
         assert!(spec.body.is_none());
     }
 
@@ -1509,7 +1696,8 @@ mod tests {
                     .lines()
                     .find_map(|l| {
                         let l = l.to_ascii_lowercase();
-                        l.strip_prefix("content-length:").map(|v| v.trim().parse::<usize>().ok())
+                        l.strip_prefix("content-length:")
+                            .map(|v| v.trim().parse::<usize>().ok())
                     })
                     .flatten()
                     .unwrap_or(0);
@@ -1535,8 +1723,7 @@ mod tests {
             .enable_all()
             .build()
             .expect("build multi-thread runtime");
-        let listener =
-            std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
         let port = listener.local_addr().unwrap().port();
         let base = format!("http://127.0.0.1:{port}");
 
@@ -1548,8 +1735,12 @@ mod tests {
         // Capture the request the spawned task sends on the wire.
         let captured = capture_one_request(listener);
         assert_eq!(captured.request_line, "POST /source-control/stage HTTP/1.1");
-        let body: serde_json::Value = serde_json::from_str(captured.body.trim()).expect("json body");
-        assert_eq!(body, serde_json::json!({ "repo_path": "/repo", "paths": ["src/x.rs"] }));
+        let body: serde_json::Value =
+            serde_json::from_str(captured.body.trim()).expect("json body");
+        assert_eq!(
+            body,
+            serde_json::json!({ "repo_path": "/repo", "paths": ["src/x.rs"] })
+        );
 
         // The delivery cell receives Ok(()) after the 200 — proving the full round-trip is consumed.
         rt.block_on(async {
@@ -1586,7 +1777,8 @@ mod tests {
                     .lines()
                     .find_map(|l| {
                         let l = l.to_ascii_lowercase();
-                        l.strip_prefix("content-length:").map(|v| v.trim().parse::<usize>().ok())
+                        l.strip_prefix("content-length:")
+                            .map(|v| v.trim().parse::<usize>().ok())
                     })
                     .flatten()
                     .unwrap_or(0);
@@ -1645,7 +1837,13 @@ mod tests {
         let delivered = cell.lock().unwrap().take().expect("drawer count delivered");
         assert_eq!(
             delivered,
-            (DrawerDataKind::Notes, Ok(DrawerCardData { badge_count: 2, subtitle: "2 items".to_owned() })),
+            (
+                DrawerDataKind::Notes,
+                Ok(DrawerCardData {
+                    badge_count: 2,
+                    subtitle: "2 items".to_owned()
+                })
+            ),
             "blocks.len() parsed as the badge count from the verified response shape"
         );
     }
@@ -1659,7 +1857,10 @@ mod tests {
         let spec = c.pin_order_request("ws1", "b3", 0);
         assert_eq!(spec.method, HttpMethod::Put);
         // VERIFIED endpoint: /pin-order (MT-183 set_loom_block_pin_order).
-        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/blocks/b3/pin-order");
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws1/loom/blocks/b3/pin-order"
+        );
         // VERIFIED body field: pin_order (NOT the contract's `ordinal`).
         assert_eq!(spec.body.unwrap(), serde_json::json!({ "pin_order": 0 }));
     }
@@ -1670,7 +1871,10 @@ mod tests {
         let c = DrawerActionClient::new(BASE, rt.handle().clone());
         let spec = c.discard_request("ws1", "b3");
         assert_eq!(spec.method, HttpMethod::Delete);
-        assert_eq!(spec.url, "http://test.local:1234/workspaces/ws1/loom/blocks/b3");
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws1/loom/blocks/b3"
+        );
         assert!(spec.body.is_none(), "DELETE carries no body");
     }
 
@@ -1709,7 +1913,10 @@ mod tests {
         assert_eq!(body["severity"], serde_json::json!("info"));
         assert_eq!(body["job_id"], serde_json::json!("job-9"));
         // The stashed block id is carried in the VERIFIED evidence_refs.artifact_hashes map.
-        assert_eq!(body["evidence_refs"]["artifact_hashes"]["b3"], serde_json::json!("b3"));
+        assert_eq!(
+            body["evidence_refs"]["artifact_hashes"]["b3"],
+            serde_json::json!("b3")
+        );
     }
 
     #[test]
@@ -1718,7 +1925,10 @@ mod tests {
         let c = DrawerActionClient::new(BASE, rt.handle().clone());
         let spec = c.attach_evidence_request("ws1", "b3", "My Note", None);
         let body = spec.body.unwrap();
-        assert!(body.get("job_id").is_none(), "no job_id key when there is no active job");
+        assert!(
+            body.get("job_id").is_none(),
+            "no job_id key when there is no active job"
+        );
     }
 
     #[test]
@@ -1740,7 +1950,10 @@ mod tests {
         client.discard("ws1", "b3", cell.clone());
 
         let captured = capture_one_request(listener);
-        assert_eq!(captured.request_line, "DELETE /workspaces/ws1/loom/blocks/b3 HTTP/1.1");
+        assert_eq!(
+            captured.request_line,
+            "DELETE /workspaces/ws1/loom/blocks/b3 HTTP/1.1"
+        );
 
         rt.block_on(async {
             for _ in 0..50 {
@@ -1750,7 +1963,11 @@ mod tests {
                 tokio::time::sleep(std::time::Duration::from_millis(10)).await;
             }
         });
-        assert_eq!(cell.lock().unwrap().take(), Some(Ok(())), "discard round-trip delivered Ok(())");
+        assert_eq!(
+            cell.lock().unwrap().take(),
+            Some(Ok(())),
+            "discard round-trip delivered Ok(())"
+        );
     }
 
     #[test]
@@ -1770,11 +1987,18 @@ mod tests {
         client.stow("ws1", "b3", cell.clone());
 
         let captured = capture_one_request(listener);
-        assert_eq!(captured.request_line, "POST /workspaces/ws1/loom/edges HTTP/1.1");
-        let body: serde_json::Value = serde_json::from_str(captured.body.trim()).expect("json body");
+        assert_eq!(
+            captured.request_line,
+            "POST /workspaces/ws1/loom/edges HTTP/1.1"
+        );
+        let body: serde_json::Value =
+            serde_json::from_str(captured.body.trim()).expect("json body");
         assert_eq!(body["source_block_id"], serde_json::json!("b3"));
         assert_eq!(body["edge_type"], serde_json::json!("tag"));
-        assert_eq!(body["target_block_id"], serde_json::json!(STASH_TAG_HUB_BLOCK_ID));
+        assert_eq!(
+            body["target_block_id"],
+            serde_json::json!(STASH_TAG_HUB_BLOCK_ID)
+        );
 
         rt.block_on(async {
             for _ in 0..50 {
@@ -1784,7 +2008,11 @@ mod tests {
                 tokio::time::sleep(std::time::Duration::from_millis(10)).await;
             }
         });
-        assert_eq!(cell.lock().unwrap().take(), Some(Ok(())), "stow round-trip delivered Ok(())");
+        assert_eq!(
+            cell.lock().unwrap().take(),
+            Some(Ok(())),
+            "stow round-trip delivered Ok(())"
+        );
     }
 
     #[test]
@@ -1818,7 +2046,13 @@ mod tests {
         let delivered = cell.lock().unwrap().take().expect("drawer count delivered");
         assert_eq!(
             delivered,
-            (DrawerDataKind::Lists, Ok(DrawerCardData { badge_count: 0, subtitle: "0 items".to_owned() })),
+            (
+                DrawerDataKind::Lists,
+                Ok(DrawerCardData {
+                    badge_count: 0,
+                    subtitle: "0 items".to_owned()
+                })
+            ),
             "missing blocks field defaults to 0 (CONTROL-023-D), never an error"
         );
     }

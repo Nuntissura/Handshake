@@ -50,7 +50,10 @@ fn build_script() -> PathBuf {
 
 /// Where the contract requires the report (crate-internal tests/native_gui/artifacts/).
 fn artifacts_dir() -> PathBuf {
-    crate_root().join("tests").join("native_gui").join("artifacts")
+    crate_root()
+        .join("tests")
+        .join("native_gui")
+        .join("artifacts")
 }
 
 /// The short build target dir the script uses. Mirrors the script's selection so this test can locate
@@ -166,9 +169,7 @@ fn installer_builds_single_artifact_and_self_check_passes() {
     let artifact_size = std::fs::metadata(&artifact_path).unwrap().len();
 
     // staging tree (uncompressed) — the meaningful "is this a real build, not a stub" bound.
-    let staging = short_target_dir()
-        .join("release-native")
-        .join("staging");
+    let staging = short_target_dir().join("release-native").join("staging");
     assert!(
         staging.is_dir(),
         "staging dir not found at {}",
@@ -221,7 +222,9 @@ fn installer_builds_single_artifact_and_self_check_passes() {
         "staged exe --version exited non-zero ({:?})",
         version_out.status.code()
     );
-    let version_str = String::from_utf8_lossy(&version_out.stdout).trim().to_string();
+    let version_str = String::from_utf8_lossy(&version_out.stdout)
+        .trim()
+        .to_string();
     assert!(
         version_str.contains("handshake-native"),
         "--version output unexpected: {version_str:?}"
@@ -235,7 +238,9 @@ fn installer_builds_single_artifact_and_self_check_passes() {
         .output()
         .expect("run staged exe --self-check");
     let self_check_code = self_check.status.code().unwrap_or(-1);
-    let self_check_json = String::from_utf8_lossy(&self_check.stdout).trim().to_string();
+    let self_check_json = String::from_utf8_lossy(&self_check.stdout)
+        .trim()
+        .to_string();
     println!("--self-check exit={self_check_code} json={self_check_json}");
 
     // Parse the self-check JSON to extract missing assets (if any) for the report.
@@ -299,11 +304,8 @@ fn installer_builds_single_artifact_and_self_check_passes() {
     let dir = artifacts_dir();
     std::fs::create_dir_all(&dir).expect("create artifacts dir");
     let report_path = dir.join("installer_smoke_report.json");
-    std::fs::write(
-        &report_path,
-        serde_json::to_string_pretty(&report).unwrap(),
-    )
-    .expect("write installer_smoke_report.json");
+    std::fs::write(&report_path, serde_json::to_string_pretty(&report).unwrap())
+        .expect("write installer_smoke_report.json");
     println!("WROTE {}", report_path.display());
     println!(
         "PASS: single installer artifact {} ({} bytes), staging {} bytes, self-check exit 0, no system WebView2",

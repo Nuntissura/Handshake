@@ -41,7 +41,10 @@ pub enum LoomGraphEvent {
     /// Split right then open the block.
     OpenToSide { block_id: String },
     /// Rename the block via the verified PATCH `{title}`.
-    Rename { block_id: String, current_title: String },
+    Rename {
+        block_id: String,
+        current_title: String,
+    },
     /// PATCH `{pinned: target}` on the block.
     SetPinned { block_id: String, target: bool },
     /// PATCH `{favorite: target}` on the block.
@@ -116,14 +119,19 @@ impl LoomGraphSurface {
                 );
                 let resp = ui.interact(rect, id, egui::Sense::click());
                 if ui.is_rect_visible(rect) {
-                    let bg = if resp.hovered() { colors.node_hover_bg } else { colors.node_bg };
+                    let bg = if resp.hovered() {
+                        colors.node_hover_bg
+                    } else {
+                        colors.node_bg
+                    };
                     ui.painter().rect_filled(rect, 4.0, bg);
                     let galley = ui.painter().layout_no_wrap(
                         label.clone(),
                         egui::FontId::proportional(13.0),
                         colors.node_text,
                     );
-                    let pos = egui::pos2(rect.left() + 8.0, rect.center().y - galley.size().y * 0.5);
+                    let pos =
+                        egui::pos2(rect.left() + 8.0, rect.center().y - galley.size().y * 0.5);
                     ui.painter().galley(pos, galley, colors.node_text);
                 }
                 resp.widget_info(|| {
@@ -197,8 +205,14 @@ mod tests {
     fn pin_event_sends_flipped_target() {
         let surface = LoomGraphSurface::new(vec![node(false)]);
         assert_eq!(
-            surface.event_for(LoomNodeMenuAction::TogglePin { target: true }, &surface.nodes[0]),
-            LoomGraphEvent::SetPinned { block_id: "blk-1".to_owned(), target: true },
+            surface.event_for(
+                LoomNodeMenuAction::TogglePin { target: true },
+                &surface.nodes[0]
+            ),
+            LoomGraphEvent::SetPinned {
+                block_id: "blk-1".to_owned(),
+                target: true
+            },
         );
     }
 
@@ -218,6 +232,8 @@ mod tests {
     fn author_id_slug_safe() {
         let id = loom_node_author_id("blk 1/x");
         assert!(id.starts_with("loom_node_"));
-        assert!(id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-'));
+        assert!(id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-'));
     }
 }

@@ -104,22 +104,22 @@ fn shell_harness_with_stub(stub: StubTransport) -> Harness<'static, HandshakeApp
     ));
     let handle = rt.handle().clone();
     let transport: Arc<dyn LoomGraphSearchTransport> = Arc::new(stub);
-    Harness::builder().build_state(
-        move |ctx, a: &mut HandshakeApp| a.ui(ctx),
-        {
-            let mut app = ok_app();
-            app.set_runtime_handle(handle.clone());
-            app.set_quick_switcher_transport(transport.clone());
-            app
-        },
-    )
+    Harness::builder().build_state(move |ctx, a: &mut HandshakeApp| a.ui(ctx), {
+        let mut app = ok_app();
+        app.set_runtime_handle(handle.clone());
+        app.set_quick_switcher_transport(transport.clone());
+        app
+    })
 }
 
 /// Step single frames in a loop (with short sleeps to cross the 150ms debounce and let spawned tasks
 /// deliver) until `pred` holds or a timeout elapses. Uses `step` (one frame) NOT `run` because the open
 /// switcher requests a continuous repaint while loading/debouncing, which would make `run` (loop-until-
 /// idle) exceed its step cap. Returns whether `pred` held.
-fn step_until(harness: &mut Harness<'_, HandshakeApp>, pred: impl Fn(&HandshakeApp) -> bool) -> bool {
+fn step_until(
+    harness: &mut Harness<'_, HandshakeApp>,
+    pred: impl Fn(&HandshakeApp) -> bool,
+) -> bool {
     let deadline = Instant::now() + Duration::from_secs(3);
     while Instant::now() < deadline {
         harness.step();
@@ -155,7 +155,9 @@ fn opening_switcher_renders_dialog_searchbox_listbox() {
     harness.run();
     let before = live_author_nodes(&harness);
     assert!(
-        !before.iter().any(|(a, _, _)| a == SWITCHER_DIALOG_AUTHOR_ID),
+        !before
+            .iter()
+            .any(|(a, _, _)| a == SWITCHER_DIALOG_AUTHOR_ID),
         "switcher dialog absent while closed: {before:?}"
     );
 
@@ -184,7 +186,9 @@ fn opening_switcher_renders_dialog_searchbox_listbox() {
 
     // Empty query => no result rows.
     assert!(
-        !nodes.iter().any(|(a, _, _)| a.starts_with("quick-switcher.option.")),
+        !nodes
+            .iter()
+            .any(|(a, _, _)| a.starts_with("quick-switcher.option.")),
         "no result rows for an empty query: {nodes:?}"
     );
 }
@@ -203,7 +207,10 @@ fn search_input_is_focused_on_open() {
     harness.run();
 
     let search = switcher_search(&harness);
-    assert!(search.is_focused(), "the search input has keyboard focus on open");
+    assert!(
+        search.is_focused(),
+        "the search input has keyboard focus on open"
+    );
 }
 
 // ── Typing a query fires the graph-search; the returned hits render as ListBoxOption rows ─────────────
@@ -212,8 +219,18 @@ fn search_input_is_focused_on_open() {
 fn typing_fires_graph_search_and_renders_hits() {
     let stub = StubTransport {
         hits: vec![
-            make_hit("document", "KRD-101", "Design Doc", json!({ "rich_document_id": "KRD-101" })),
-            make_hit("work_packet", "WP-9", "Work Packet Nine", json!({ "work_packet_id": "WP-9" })),
+            make_hit(
+                "document",
+                "KRD-101",
+                "Design Doc",
+                json!({ "rich_document_id": "KRD-101" }),
+            ),
+            make_hit(
+                "work_packet",
+                "WP-9",
+                "Work Packet Nine",
+                json!({ "work_packet_id": "WP-9" }),
+            ),
         ],
         recents: vec![],
     };
@@ -227,7 +244,9 @@ fn typing_fires_graph_search_and_renders_hits() {
     switcher_search(&harness).type_text("design");
 
     // Pump single frames + wall-clock past the 150ms debounce until the search delivers and rows render.
-    let rendered = step_until(&mut harness, |app| !app.quick_switcher_search_results().is_empty());
+    let rendered = step_until(&mut harness, |app| {
+        !app.quick_switcher_search_results().is_empty()
+    });
     assert!(rendered, "graph-search delivered hits within the timeout");
     harness.step();
     harness.step();
@@ -240,12 +259,14 @@ fn typing_fires_graph_search_and_renders_hits() {
         .collect();
 
     assert!(
-        rows.iter().any(|(a, label)| *a == "quick-switcher.option.document.krd-101"
-            && *label == Some("Design Doc")),
+        rows.iter()
+            .any(|(a, label)| *a == "quick-switcher.option.document.krd-101"
+                && *label == Some("Design Doc")),
         "Design Doc document row rendered: {rows:?}"
     );
     assert!(
-        rows.iter().any(|(a, _)| *a == "quick-switcher.option.work_packet.wp-9"),
+        rows.iter()
+            .any(|(a, _)| *a == "quick-switcher.option.work_packet.wp-9"),
         "WP-9 work-packet row rendered: {rows:?}"
     );
 }
@@ -265,7 +286,10 @@ fn enter_opens_hit_target_and_closes() {
     };
     let mut harness = shell_harness_with_stub(stub);
     harness.run();
-    assert!(harness.state().active_pane().is_none(), "no active pane before");
+    assert!(
+        harness.state().active_pane().is_none(),
+        "no active pane before"
+    );
 
     harness.state_mut().open_quick_switcher();
     harness.run();
@@ -274,7 +298,9 @@ fn enter_opens_hit_target_and_closes() {
     switcher_search(&harness).type_text("shell");
     // Cross the debounce + let the delivery arrive so the single row is selectable (step, not run,
     // because the open switcher repaints continuously while loading/debouncing).
-    let rendered = step_until(&mut harness, |app| !app.quick_switcher_search_results().is_empty());
+    let rendered = step_until(&mut harness, |app| {
+        !app.quick_switcher_search_results().is_empty()
+    });
     assert!(rendered, "graph-search delivered the work-packet hit");
     harness.step();
     harness.step();
@@ -312,7 +338,11 @@ fn enter_opens_hit_target_and_closes() {
     );
     // The recent was recorded (optimistic local update from record_recent).
     assert_eq!(
-        harness.state().quick_switcher_recents().first().map(|s| s.as_str()),
+        harness
+            .state()
+            .quick_switcher_recents()
+            .first()
+            .map(|s| s.as_str()),
         Some("work_packet:WP-KERNEL-011"),
         "the open recorded the durable recent key"
     );
@@ -330,13 +360,19 @@ fn escape_closes_without_navigating() {
     harness.state_mut().open_quick_switcher();
     harness.run();
     harness.run();
-    assert!(harness.state().quick_switcher_open(), "switcher open before Escape");
+    assert!(
+        harness.state().quick_switcher_open(),
+        "switcher open before Escape"
+    );
 
     harness.key_press(egui::Key::Escape);
     harness.run();
     harness.run();
 
-    assert!(!harness.state().quick_switcher_open(), "Escape closed the switcher");
+    assert!(
+        !harness.state().quick_switcher_open(),
+        "Escape closed the switcher"
+    );
     assert!(
         harness.state().active_pane().is_none(),
         "Escape did not change the active pane"
@@ -369,7 +405,10 @@ fn close_button_closes_switcher() {
     harness.run();
     harness.run();
 
-    assert!(!harness.state().quick_switcher_open(), "Close button closed the switcher");
+    assert!(
+        !harness.state().quick_switcher_open(),
+        "Close button closed the switcher"
+    );
 }
 
 // ── Re-open bumps the open generation (transient state reset) ─────────────────────────────────────────
@@ -477,15 +516,12 @@ fn jump_does_not_block_on_recents_post() {
     ));
     let handle = rt.handle().clone();
     let transport: Arc<dyn LoomGraphSearchTransport> = Arc::new(stub);
-    let mut harness = Harness::builder().build_state(
-        move |ctx, a: &mut HandshakeApp| a.ui(ctx),
-        {
-            let mut app = ok_app();
-            app.set_runtime_handle(handle.clone());
-            app.set_quick_switcher_transport(transport.clone());
-            app
-        },
-    );
+    let mut harness = Harness::builder().build_state(move |ctx, a: &mut HandshakeApp| a.ui(ctx), {
+        let mut app = ok_app();
+        app.set_runtime_handle(handle.clone());
+        app.set_quick_switcher_transport(transport.clone());
+        app
+    });
 
     harness.run();
     harness.state_mut().open_quick_switcher();
@@ -493,7 +529,9 @@ fn jump_does_not_block_on_recents_post() {
     harness.run();
 
     switcher_search(&harness).type_text("shell");
-    let rendered = step_until(&mut harness, |app| !app.quick_switcher_search_results().is_empty());
+    let rendered = step_until(&mut harness, |app| {
+        !app.quick_switcher_search_results().is_empty()
+    });
     assert!(rendered, "graph-search delivered the work-packet hit");
     harness.step();
     harness.step();
@@ -521,12 +559,20 @@ fn jump_does_not_block_on_recents_post() {
         .get(active.as_str())
         .expect("active pane tab bar");
     let opened = bar.active().expect("an active tab opened by the jump");
-    assert_eq!(opened.pane_type, PaneType::KernelDcc, "work-packet hit opened a Kernel DCC tab");
+    assert_eq!(
+        opened.pane_type,
+        PaneType::KernelDcc,
+        "work-packet hit opened a Kernel DCC tab"
+    );
     assert_eq!(opened.content_id.as_deref(), Some("WP:WP-KERNEL-011"));
 
     // The optimistic local recents prepend is immediate (no wait for the POST).
     assert_eq!(
-        harness.state().quick_switcher_recents().first().map(|s| s.as_str()),
+        harness
+            .state()
+            .quick_switcher_recents()
+            .first()
+            .map(|s| s.as_str()),
         Some("work_packet:WP-KERNEL-011"),
         "the jump optimistically prepended the recent without awaiting the POST"
     );
@@ -556,7 +602,8 @@ fn jump_does_not_block_on_recents_post() {
     // key to the front. step_until tolerates the async delivery latency.
     harness.state_mut().open_quick_switcher();
     let reconciled = step_until(&mut harness, |app| {
-        app.quick_switcher_recents().first().map(|s| s.as_str()) == Some("work_packet:WP-KERNEL-011")
+        app.quick_switcher_recents().first().map(|s| s.as_str())
+            == Some("work_packet:WP-KERNEL-011")
     });
     assert!(
         reconciled,

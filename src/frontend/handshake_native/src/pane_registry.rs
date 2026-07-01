@@ -43,6 +43,7 @@ pub enum PaneType {
     InferenceLab,
     ModelRuntime,
     Swarm,
+    SwarmLaneDiagnostics,
     Problems,
     Jobs,
     Timeline,
@@ -71,6 +72,7 @@ impl PaneType {
             PaneType::InferenceLab => "Inference Lab".to_owned(),
             PaneType::ModelRuntime => "Model Runtime".to_owned(),
             PaneType::Swarm => "Swarm".to_owned(),
+            PaneType::SwarmLaneDiagnostics => "Swarm Lane Diagnostics".to_owned(),
             PaneType::Problems => "Problems".to_owned(),
             PaneType::Jobs => "Jobs".to_owned(),
             PaneType::Timeline => "Timeline".to_owned(),
@@ -101,6 +103,7 @@ impl PaneType {
             PaneType::InferenceLab => "Inference Lab",
             PaneType::ModelRuntime => "Model Runtime",
             PaneType::Swarm => "Swarm",
+            PaneType::SwarmLaneDiagnostics => "Lane Diagnostics",
             PaneType::Problems => "Problems",
             PaneType::Jobs => "Jobs",
             PaneType::Timeline => "Timeline",
@@ -225,7 +228,6 @@ impl Default for PaneRegistry {
 }
 
 impl PaneRegistry {
-
     /// Insert (or replace) a pane record and assign it a fresh, stable AccessKit node id from the
     /// monotonic counter. Re-inserting an existing `pane_id` keeps the already-assigned node id so
     /// a model that targeted the pane does not lose its handle across an in-place update.
@@ -533,7 +535,11 @@ mod tests {
             .iter()
             .map(|p| reg.accesskit_id(p).unwrap().0)
             .collect();
-        assert_eq!(ids, vec![100, 101, 102, 103], "ids follow the monotonic counter, not frame counters");
+        assert_eq!(
+            ids,
+            vec![100, 101, 102, 103],
+            "ids follow the monotonic counter, not frame counters"
+        );
 
         // Uniqueness.
         let mut sorted = ids.clone();
@@ -604,7 +610,10 @@ mod tests {
         );
         let json = serde_json::to_string(&rec).expect("serialize");
         // last_update must not appear in the serialized form.
-        assert!(!json.contains("last_update"), "last_update excluded from serde");
+        assert!(
+            !json.contains("last_update"),
+            "last_update excluded from serde"
+        );
         let back: PaneRecord = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(back.pane_id, rec.pane_id);
         assert_eq!(back.pane_type, rec.pane_type);
@@ -624,7 +633,11 @@ mod tests {
                 .build_accesskit_node(&pid, accesskit::Role::Group)
                 .expect("node built");
             assert_eq!(node_id, reg.accesskit_id(&pid).unwrap());
-            assert_eq!(node.author_id(), Some(id), "author_id equals pane id string");
+            assert_eq!(
+                node.author_id(),
+                Some(id),
+                "author_id equals pane id string"
+            );
             assert_eq!(node.role(), accesskit::Role::Group);
         }
     }
@@ -642,6 +655,7 @@ mod tests {
             PaneType::InferenceLab,
             PaneType::ModelRuntime,
             PaneType::Swarm,
+            PaneType::SwarmLaneDiagnostics,
             PaneType::Problems,
             PaneType::Jobs,
             PaneType::Timeline,

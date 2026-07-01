@@ -28,7 +28,7 @@ pub const SWARM_SCHEDULES_FILE: &str = "swarm_schedules.json";
 
 /// Current on-disk schema version. Bumped if the persisted shape changes so a
 /// future loader can migrate rather than silently mis-parse.
-pub const SWARM_SCHEDULES_SCHEMA_VERSION: u32 = 2;
+pub const SWARM_SCHEDULES_SCHEMA_VERSION: u32 = 3;
 
 /// The spawn TEMPLATE stored alongside a schedule: WHAT a scheduled spin-up
 /// launches. This is the orchestrator's spawn-template decision made durable —
@@ -59,6 +59,11 @@ pub struct SpawnTemplate {
     /// Cloud: allowlisted cloud model name (e.g. `claude-sonnet-4`, `gpt-4o`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cloud_model_name: Option<String>,
+    /// Cloud: exact BYOK provider flavor for deterministic Dexterity launch
+    /// attribution. Optional for non-BYOK providers and backward-compatible
+    /// persisted schedules.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub byok_cloud_provider: Option<TemplateByokCloudProvider>,
     /// Which concurrent instance index of this model to spawn (default 0).
     #[serde(default)]
     pub instance: u32,
@@ -85,6 +90,14 @@ pub enum TemplateProvider {
     Local,
     ByokCloud,
     OfficialCli,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TemplateByokCloudProvider {
+    Anthropic,
+    #[serde(rename = "openai", alias = "open_ai")]
+    OpenAi,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -274,9 +287,10 @@ impl SwarmScheduleStore {
     fn normalize_loaded_doc(&self, mut doc: SwarmScheduleDoc) -> Result<SwarmScheduleDoc, String> {
         match doc.schema_version {
             SWARM_SCHEDULES_SCHEMA_VERSION => Ok(doc),
-            // v1 -> v2 only added optional fields with serde defaults. Loading
-            // it as v2 is lossless; the next save persists v2.
-            1 => {
+            // v1 -> v2 -> v3 only added optional fields with serde defaults.
+            // Loading them as the current schema is lossless; the next save
+            // persists the current schema.
+            1 | 2 => {
                 doc.schema_version = SWARM_SCHEDULES_SCHEMA_VERSION;
                 Ok(doc)
             }
@@ -286,7 +300,7 @@ impl SwarmScheduleStore {
                 SWARM_SCHEDULES_SCHEMA_VERSION
             )),
             version => Err(format!(
-                "swarm schedule store at {} uses unsupported schema_version {version}; expected {} or compatible v1",
+                "swarm schedule store at {} uses unsupported schema_version {version}; expected {} or compatible v1/v2",
                 self.path.display(),
                 SWARM_SCHEDULES_SCHEMA_VERSION
             )),
@@ -353,6 +367,7 @@ mod tests {
             runtime_binding: Some(TemplateRuntimeBinding::Candle),
             local_execution_mode: None,
             cloud_model_name: None,
+            byok_cloud_provider: None,
             instance: 0,
             worktree_id: Some("wt-research".to_string()),
             isolation_tier: Some(TemplateIsolationTier::Tier3Microvm),

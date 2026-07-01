@@ -46,9 +46,10 @@ use handshake_core::flight_recorder::{
 use handshake_core::model_runtime::registry::RuntimeBinding;
 use handshake_core::model_runtime::{ModelId, ProviderKind};
 use handshake_core::swarm_orchestration::ids::LocalExecutionMode;
+use handshake_core::swarm_orchestration::model_lane::DexterityLaunchContract;
 use handshake_core::swarm_orchestration::{
-    schedules_to_ics, ModelInstanceId, ScheduledAction, ScheduledFire, SpawnRequest,
-    SwarmCoordinator, SwarmFrEventId, SwarmSchedule, SwarmScheduler,
+    schedules_to_ics, ByokCloudProvider, ModelInstanceId, ScheduledAction, ScheduledFire,
+    SpawnRequest, SwarmCoordinator, SwarmFrEventId, SwarmSchedule, SwarmScheduler,
 };
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -56,7 +57,8 @@ use uuid::Uuid;
 
 use super::swarm_schedule_store::{
     PersistedAction, RegisteredSchedule, SpawnTemplate, SwarmScheduleDoc, SwarmScheduleStore,
-    TemplateIsolationTier, TemplateLocalExecutionMode, TemplateProvider, TemplateRuntimeBinding,
+    TemplateByokCloudProvider, TemplateIsolationTier, TemplateLocalExecutionMode, TemplateProvider,
+    TemplateRuntimeBinding,
 };
 
 pub const KERNEL_SWARM_SCHEDULE_ADD_IPC_CHANNEL: &str = "kernel_swarm_schedule_add";
@@ -89,6 +91,9 @@ struct FireContext {
     /// back to a structured stderr line (mirrors the swarm runtime's fallback).
     recorder: Option<Arc<dyn FlightRecorder>>,
     trace_id: Uuid,
+    /// Product runtime guard: when true, scheduled spin-ups also receive a
+    /// core-generated Dexterity launch contract before coordinator dispatch.
+    dexterity_launch_required: bool,
     /// Instances spawned by scheduled `SpinUp` fires, grouped by `swarm_id`, so a
     /// later `Teardown` fire cancels exactly the sessions THIS scheduler launched
     /// for that swarm. The coordinator exposes no per-swarm instance iterator and
@@ -134,13 +139,22 @@ impl FireContext {
                     );
                     return;
                 };
-                let spawn = match build_spawn_request(&template, swarm_id, *time_box) {
+                let mut spawn = match build_spawn_request(&template, swarm_id, *time_box) {
                     Ok(spawn) => spawn,
                     Err(reason) => {
                         self.emit_note(trace_id, &fire.schedule_id, swarm_id, &reason);
                         return;
                     }
                 };
+                if self.dexterity_launch_required {
+                    spawn = match attach_dexterity_launch_contract(spawn) {
+                        Ok(spawn) => spawn,
+                        Err(reason) => {
+                            self.emit_note(trace_id, &fire.schedule_id, swarm_id, &reason);
+                            return;
+                        }
+                    };
+                }
                 let coordinator = self.coordinator.clone();
                 let schedule_id = fire.schedule_id.clone();
                 let swarm = swarm_id.clone();
@@ -369,8 +383,20 @@ fn build_spawn_request(
                 TemplateProvider::OfficialCli => ProviderKind::OfficialCli,
                 TemplateProvider::Local => unreachable!(),
             };
-            SpawnRequest::new(instance_id, RuntimeBinding::Candle, "operator", parent)
-                .with_cloud_provider(provider, model_name.to_string())
+            let mut spawn =
+                SpawnRequest::new(instance_id, RuntimeBinding::Candle, "operator", parent)
+                    .with_cloud_provider(provider, model_name.to_string());
+            if matches!(template.provider, TemplateProvider::ByokCloud) {
+                let byok_provider = template
+                    .byok_cloud_provider
+                    .ok_or_else(|| {
+                        "BYOK cloud scheduled spin-up requires byok_cloud_provider for Dexterity attribution"
+                            .to_string()
+                    })?;
+                spawn =
+                    spawn.with_byok_cloud_provider(template_byok_provider_to_core(byok_provider));
+            }
+            spawn
         }
     };
 
@@ -400,6 +426,15 @@ fn build_spawn_request(
     Ok(spawn)
 }
 
+fn attach_dexterity_launch_contract(spawn: SpawnRequest) -> Result<SpawnRequest, String> {
+    DexterityLaunchContract::attach_to_spawn_request(
+        spawn,
+        super::swarm_runtime::DEXTERITY_APP_WP_ID,
+        super::swarm_runtime::DEXTERITY_APP_MT_ID,
+    )
+    .map_err(|error| error.to_string())
+}
+
 fn validate_schedule_template_for_registration(template: &SpawnTemplate) -> Result<(), String> {
     match template.provider {
         TemplateProvider::Local => {
@@ -417,6 +452,20 @@ fn validate_schedule_template_for_registration(template: &SpawnTemplate) -> Resu
         TemplateProvider::ByokCloud | TemplateProvider::OfficialCli => {
             if template.local_execution_mode.is_some() {
                 return Err("local_execution_mode is only valid for local templates".to_string());
+            }
+            match template.provider {
+                TemplateProvider::ByokCloud if template.byok_cloud_provider.is_none() => {
+                    return Err(
+                        "BYOK cloud schedule requires byok_cloud_provider for Dexterity attribution"
+                            .to_string(),
+                    );
+                }
+                TemplateProvider::OfficialCli if template.byok_cloud_provider.is_some() => {
+                    return Err(
+                        "byok_cloud_provider is only valid for byok_cloud schedules".to_string()
+                    );
+                }
+                _ => {}
             }
         }
     }
@@ -449,6 +498,13 @@ fn template_isolation_to_core(
         TemplateIsolationTier::Tier1Container => IsolationTier::Tier1Container,
         TemplateIsolationTier::Tier2Syscall => IsolationTier::Tier2Syscall,
         TemplateIsolationTier::Tier3Microvm => IsolationTier::Tier3Microvm,
+    }
+}
+
+fn template_byok_provider_to_core(provider: TemplateByokCloudProvider) -> ByokCloudProvider {
+    match provider {
+        TemplateByokCloudProvider::Anthropic => ByokCloudProvider::Anthropic,
+        TemplateByokCloudProvider::OpenAi => ByokCloudProvider::OpenAi,
     }
 }
 
@@ -565,6 +621,28 @@ impl SwarmSchedulerState {
         recorder: Option<Arc<dyn FlightRecorder>>,
         runtime: tokio::runtime::Handle,
     ) -> Result<Self, String> {
+        Self::new_with_dexterity_launch_requirement(coordinator, store, recorder, runtime, true)
+            .await
+    }
+
+    #[cfg(test)]
+    async fn new_legacy_without_dexterity_for_tests(
+        coordinator: Arc<SwarmCoordinator>,
+        store: SwarmScheduleStore,
+        recorder: Option<Arc<dyn FlightRecorder>>,
+        runtime: tokio::runtime::Handle,
+    ) -> Result<Self, String> {
+        Self::new_with_dexterity_launch_requirement(coordinator, store, recorder, runtime, false)
+            .await
+    }
+
+    async fn new_with_dexterity_launch_requirement(
+        coordinator: Arc<SwarmCoordinator>,
+        store: SwarmScheduleStore,
+        recorder: Option<Arc<dyn FlightRecorder>>,
+        runtime: tokio::runtime::Handle,
+        dexterity_launch_required: bool,
+    ) -> Result<Self, String> {
         let scheduler = SwarmScheduler::new()
             .await
             .map_err(|error| format!("failed to build swarm scheduler: {error}"))?;
@@ -576,6 +654,7 @@ impl SwarmSchedulerState {
             templates: templates.clone(),
             recorder,
             trace_id: Uuid::now_v7(),
+            dexterity_launch_required,
             scheduled_instances: Arc::new(Mutex::new(BTreeMap::new())),
         };
         Ok(Self {
@@ -611,13 +690,15 @@ impl SwarmSchedulerState {
         coordinator: Arc<SwarmCoordinator>,
         app_data_root: impl AsRef<std::path::Path>,
         recorder: Option<Arc<dyn FlightRecorder>>,
+        dexterity_launch_required: bool,
     ) -> Result<Self, String> {
         let store = SwarmScheduleStore::new(app_data_root);
-        let state = Self::new(
+        let state = Self::new_with_dexterity_launch_requirement(
             coordinator,
             store,
             recorder,
             tokio::runtime::Handle::current(),
+            dexterity_launch_required,
         )
         .await?;
         state.bootstrap().await?;
@@ -894,6 +975,8 @@ pub struct SpawnTemplateIpc {
     #[serde(default)]
     pub cloud_model_name: Option<String>,
     #[serde(default)]
+    pub byok_cloud_provider: Option<TemplateByokCloudProvider>,
+    #[serde(default)]
     pub instance: u32,
     #[serde(default)]
     pub worktree_id: Option<String>,
@@ -914,6 +997,7 @@ impl From<SpawnTemplateIpc> for SpawnTemplate {
             runtime_binding: value.runtime_binding.map(Into::into),
             local_execution_mode: value.local_execution_mode,
             cloud_model_name: value.cloud_model_name,
+            byok_cloud_provider: value.byok_cloud_provider,
             instance: value.instance,
             worktree_id: value.worktree_id,
             isolation_tier: value.isolation_tier,
@@ -1160,7 +1244,9 @@ mod tests {
             create_calls: create_calls.clone(),
         });
         let sink: Arc<dyn SwarmEventSink> = Arc::new(RecordingSwarmSink::new());
-        let coordinator = Arc::new(SwarmCoordinator::new(config, factory, sink, ledger));
+        let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+            config, factory, sink, ledger,
+        ));
         coordinator.start_reaper();
         (coordinator, captured, create_calls)
     }
@@ -1173,6 +1259,7 @@ mod tests {
             runtime_binding: Some(TemplateRuntimeBinding::Candle),
             local_execution_mode: None,
             cloud_model_name: None,
+            byok_cloud_provider: None,
             instance: 0,
             worktree_id: Some("wt-sched".to_string()),
             isolation_tier: Some(TemplateIsolationTier::Tier3Microvm),
@@ -1205,7 +1292,7 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tempdir");
         let store = SwarmScheduleStore::new(tmp.path());
 
-        let state = SwarmSchedulerState::new(
+        let state = SwarmSchedulerState::new_legacy_without_dexterity_for_tests(
             coordinator,
             store,
             None, // no recorder -> FR notes go to stderr; not asserted here
@@ -1291,12 +1378,65 @@ mod tests {
         );
     }
 
+    #[test]
+    fn scheduled_spinup_attaches_dexterity_contract_when_required() {
+        let spawn = build_spawn_request(
+            &local_template(),
+            "scheduled-dexterity",
+            Some(Duration::from_secs(60)),
+        )
+        .expect("valid local scheduled spawn");
+        let spawn = attach_dexterity_launch_contract(spawn).expect("scheduled Dexterity contract");
+
+        assert_eq!(
+            spawn.wp_id.as_deref(),
+            Some(crate::commands::swarm_runtime::DEXTERITY_APP_WP_ID)
+        );
+        assert_eq!(
+            spawn.mt_id.as_deref(),
+            Some(crate::commands::swarm_runtime::DEXTERITY_APP_MT_ID)
+        );
+        assert_eq!(spawn.swarm_id(), Some("scheduled-dexterity"));
+        assert!(spawn.dexterity_launch.is_some());
+    }
+
+    #[test]
+    fn scheduled_byok_spinup_requires_provider_and_attaches_dexterity_contract() {
+        let mut template = local_template();
+        template.provider = TemplateProvider::ByokCloud;
+        template.artifact_path = None;
+        template.sha256_expected = None;
+        template.runtime_binding = None;
+        template.local_execution_mode = None;
+        template.cloud_model_name = Some("gpt-4o".to_string());
+        template.byok_cloud_provider = None;
+        template.committed_memory_bytes = None;
+
+        let err = build_spawn_request(&template, "cloud-schedule", None)
+            .expect_err("BYOK provider flavor is required");
+        assert!(err.contains("byok_cloud_provider"), "{err}");
+
+        template.byok_cloud_provider = Some(TemplateByokCloudProvider::OpenAi);
+        let spawn = build_spawn_request(&template, "cloud-schedule", None)
+            .expect("valid BYOK scheduled spawn");
+        assert_eq!(spawn.byok_cloud_provider, Some(ByokCloudProvider::OpenAi));
+        let spawn =
+            attach_dexterity_launch_contract(spawn).expect("cloud scheduled Dexterity contract");
+        let contract = spawn
+            .dexterity_launch
+            .as_ref()
+            .expect("Dexterity launch contract");
+        assert_eq!(contract.backend, "cloud_lane_openai");
+        assert!(contract.projection_plan_ref.is_some());
+        assert!(contract.consent_receipt_ref.is_some());
+    }
+
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn schedule_add_rejects_cloud_local_execution_mode_before_persisting() {
         let (coordinator, _cap, _calls) = test_coordinator();
         let tmp = tempfile::tempdir().expect("tempdir");
         let store = SwarmScheduleStore::new(tmp.path());
-        let state = SwarmSchedulerState::new(
+        let state = SwarmSchedulerState::new_legacy_without_dexterity_for_tests(
             coordinator,
             store.clone(),
             None,
@@ -1313,6 +1453,7 @@ mod tests {
             runtime_binding: None,
             local_execution_mode: Some(TemplateLocalExecutionMode::WarmVm),
             cloud_model_name: Some("gpt-4o".to_string()),
+            byok_cloud_provider: Some(TemplateByokCloudProvider::OpenAi),
             instance: 0,
             worktree_id: None,
             isolation_tier: None,
@@ -1355,7 +1496,7 @@ mod tests {
         let (coordinator, _cap, _calls) = test_coordinator();
         let tmp = tempfile::tempdir().expect("tempdir");
         let store = SwarmScheduleStore::new(tmp.path());
-        let state = SwarmSchedulerState::new(
+        let state = SwarmSchedulerState::new_legacy_without_dexterity_for_tests(
             coordinator,
             store.clone(),
             None,
@@ -1396,7 +1537,7 @@ mod tests {
         // First app instance: add a schedule, which persists to disk.
         {
             let (coordinator, _cap, _calls) = test_coordinator();
-            let state = SwarmSchedulerState::new(
+            let state = SwarmSchedulerState::new_legacy_without_dexterity_for_tests(
                 coordinator,
                 SwarmScheduleStore::new(&store_path),
                 None,
@@ -1432,7 +1573,7 @@ mod tests {
         // Second app instance: bootstrap from the SAME store re-arms it.
         {
             let (coordinator, _cap, _calls) = test_coordinator();
-            let state = SwarmSchedulerState::new(
+            let state = SwarmSchedulerState::new_legacy_without_dexterity_for_tests(
                 coordinator,
                 SwarmScheduleStore::new(&store_path),
                 None,
@@ -1461,7 +1602,7 @@ mod tests {
     async fn export_ics_contains_the_registered_schedule() {
         let (coordinator, _cap, _calls) = test_coordinator();
         let tmp = tempfile::tempdir().expect("tempdir");
-        let state = SwarmSchedulerState::new(
+        let state = SwarmSchedulerState::new_legacy_without_dexterity_for_tests(
             coordinator,
             SwarmScheduleStore::new(tmp.path()),
             None,
@@ -1501,7 +1642,7 @@ mod tests {
         let (coordinator, _cap, _calls) = test_coordinator();
         let tmp = tempfile::tempdir().expect("tempdir");
         let store = SwarmScheduleStore::new(tmp.path());
-        let state = SwarmSchedulerState::new(
+        let state = SwarmSchedulerState::new_legacy_without_dexterity_for_tests(
             coordinator,
             store.clone(),
             None,

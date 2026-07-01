@@ -11,6 +11,7 @@ use uuid::Uuid;
 use crate::diagnostics::{
     DiagFilter, Diagnostic, DiagnosticInput, DiagnosticSeverity, DiagnosticSurface, ProblemGroup,
 };
+use crate::swarm_orchestration::model_lane::{ModelLaneDiagnosticsProjection, ModelLaneStore};
 use crate::AppState;
 
 #[derive(Debug, Deserialize, Default)]
@@ -118,6 +119,29 @@ async fn create_diagnostic(
     Ok(Json(diagnostic))
 }
 
+async fn latest_model_lane_diagnostics(
+    State(state): State<AppState>,
+) -> Result<Json<ModelLaneDiagnosticsProjection>, String> {
+    let store = ModelLaneStore::new(state.postgres_pool.clone());
+    let projection = store
+        .latest_diagnostics_projection()
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(Json(projection))
+}
+
+async fn get_model_lane_diagnostics(
+    State(state): State<AppState>,
+    Path(run_id): Path<String>,
+) -> Result<Json<ModelLaneDiagnosticsProjection>, String> {
+    let store = ModelLaneStore::new(state.postgres_pool.clone());
+    let projection = store
+        .diagnostics_projection(&run_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(Json(projection))
+}
+
 pub fn routes(state: AppState) -> Router {
     Router::new()
         .route(
@@ -126,5 +150,13 @@ pub fn routes(state: AppState) -> Router {
         )
         .route("/diagnostics/problems", get(list_problems))
         .route("/diagnostics/:id", get(get_diagnostic))
+        .route(
+            "/swarm/model-lanes/diagnostics/latest",
+            get(latest_model_lane_diagnostics),
+        )
+        .route(
+            "/swarm/model-lanes/diagnostics/:run_id",
+            get(get_model_lane_diagnostics),
+        )
         .with_state(state)
 }

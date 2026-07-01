@@ -693,6 +693,51 @@ name = "parallel_swarm_state_recovery_tests"
 path = "tests/parallel_swarm_state_recovery_tests.rs"
 required-features = ["test-utils"]
 
+[[test]]
+name = "model_lane_schema_pg_tests"
+path = "tests/model_lane_schema_pg_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "model_lane_launch_tests"
+path = "tests/model_lane_launch_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "model_lane_promotion_pg_tests"
+path = "tests/model_lane_promotion_pg_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "model_lane_context_bundle_pg_tests"
+path = "tests/model_lane_context_bundle_pg_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "cloud_model_lane_policy_pg_tests"
+path = "tests/cloud_model_lane_policy_pg_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "model_lane_recovery_pg_tests"
+path = "tests/model_lane_recovery_pg_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "swarm_lane_diagnostics_pg_tests"
+path = "tests/swarm_lane_diagnostics_pg_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "mixed_model_lane_integration_pg_tests"
+path = "tests/mixed_model_lane_integration_pg_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "user_manual_behavior_coverage_tests"
+path = "tests/user_manual_behavior_coverage_tests.rs"
+required-features = ["test-utils"]
+
 # WP-KERNEL-009 UserManualAndNoContextOps (MT-193..MT-208): real-PostgreSQL
 # proof for the canonical UserManual surface (storage, API, content accuracy).
 [[test]]

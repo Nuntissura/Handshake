@@ -93,7 +93,10 @@ fn context_menu_is_closed_by_default() {
         !nodes.iter().any(|(a, _, _)| a.starts_with("ctx-menu.")),
         "no context-menu items in the default (closed) frame: {nodes:?}"
     );
-    assert!(captured.lock().unwrap().is_none(), "nothing dispatched on an idle frame");
+    assert!(
+        captured.lock().unwrap().is_none(),
+        "nothing dispatched on an idle frame"
+    );
 }
 
 // ── Secondary-click opens the menu; its items become addressable MenuItem nodes ──────────────────────
@@ -111,7 +114,11 @@ fn secondary_click_opens_menu_with_named_items() {
     harness.run();
 
     let nodes = live_author_nodes(&harness);
-    for leaf in ["ctx-menu.tab.pin", "ctx-menu.tab.close", "ctx-menu.tab.close-others"] {
+    for leaf in [
+        "ctx-menu.tab.pin",
+        "ctx-menu.tab.close",
+        "ctx-menu.tab.close-others",
+    ] {
         let found = nodes
             .iter()
             .find(|(a, _, _)| a == leaf)
@@ -119,7 +126,10 @@ fn secondary_click_opens_menu_with_named_items() {
         assert_eq!(found.1, "MenuItem", "{leaf} role is MenuItem");
     }
     // No item was confirmed merely by opening the menu.
-    assert!(captured.lock().unwrap().is_none(), "opening the menu fired no action");
+    assert!(
+        captured.lock().unwrap().is_none(),
+        "opening the menu fired no action"
+    );
 }
 
 // ── Clicking an enabled item dispatches its id and closes the menu ──────────────────────────────────
@@ -168,7 +178,9 @@ fn disabled_item_renders_but_does_not_fire() {
     // The disabled leaf is present + addressable in the open menu.
     let nodes = live_author_nodes(&harness);
     assert!(
-        nodes.iter().any(|(a, _, _)| a == "ctx-menu.tab.close-others"),
+        nodes
+            .iter()
+            .any(|(a, _, _)| a == "ctx-menu.tab.close-others"),
         "disabled 'Close Others' is present + addressable: {nodes:?}"
     );
 
@@ -196,7 +208,9 @@ fn submenu_opens_and_child_dispatches() {
     // The submenu header is itself an addressable MenuItem node.
     let nodes = live_author_nodes(&harness);
     assert!(
-        nodes.iter().any(|(a, r, _)| a == "ctx-menu.tab.move-to" && r == "MenuItem"),
+        nodes
+            .iter()
+            .any(|(a, r, _)| a == "ctx-menu.tab.move-to" && r == "MenuItem"),
         "submenu header 'Move to' is an addressable MenuItem: {nodes:?}"
     );
 
@@ -208,7 +222,9 @@ fn submenu_opens_and_child_dispatches() {
 
     let nodes = live_author_nodes(&harness);
     assert!(
-        nodes.iter().any(|(a, _, _)| a == "ctx-menu.tab.move-to.pane-b"),
+        nodes
+            .iter()
+            .any(|(a, _, _)| a == "ctx-menu.tab.move-to.pane-b"),
         "submenu child 'Pane B' is reachable once the submenu is open: {nodes:?}"
     );
 
@@ -396,7 +412,10 @@ fn arrow_up_wraps_to_last_actionable_item() {
         focused.contains(&"ctx-menu.tab.move-to".to_owned()),
         "ArrowUp from the first item wraps the cursor to the last actionable item: {focused:?}"
     );
-    assert!(captured.lock().unwrap().is_none(), "navigation alone fired no action");
+    assert!(
+        captured.lock().unwrap().is_none(),
+        "navigation alone fired no action"
+    );
 }
 
 // ── No anonymous MenuItem nodes while the menu is open (MT-025 invariant) ────────────────────────────
@@ -428,5 +447,8 @@ fn open_menu_items_are_all_named() {
         menu_item_count, named_menu_items,
         "every live context-menu MenuItem node carries an author_id (none anonymous)"
     );
-    assert!(menu_item_count >= 3, "at least the three top-level leaves; got {menu_item_count}");
+    assert!(
+        menu_item_count >= 3,
+        "at least the three top-level leaves; got {menu_item_count}"
+    );
 }

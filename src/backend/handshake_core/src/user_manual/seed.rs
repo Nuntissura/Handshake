@@ -24,17 +24,17 @@
 
 use serde_json::json;
 
-use super::USER_MANUAL_VERSION;
 use super::migration_plan::naming_migration_plan;
-use super::registry::{SurfaceGroup, user_manual_access_points, wp009_surface_registry};
+use super::registry::{wp009_surface_registry, SurfaceGroup};
 use super::store::{
-    LegacyAliasRow, NewManualAnchor, NewManualSection, NewUserManualPage, UserManualFeatureEntry,
-    UserManualStore, UserManualToolEntry, sha256_hex,
+    sha256_hex, LegacyAliasRow, NewManualAnchor, NewManualSection, NewUserManualPage,
+    UserManualFeatureEntry, UserManualStore, UserManualToolEntry,
 };
+use super::USER_MANUAL_VERSION;
 use crate::kernel::model_manual::kernel002_no_context_model_manual;
-use crate::model_manual::{CommandStatus, model_manual};
-use crate::storage::StorageResult;
+use crate::model_manual::{model_manual, CommandStatus};
 use crate::storage::postgres::PostgresDatabase;
+use crate::storage::StorageResult;
 
 /// Everything the seeder writes.
 pub struct SeedCorpus {
@@ -178,6 +178,15 @@ fn seed_pages() -> Vec<NewUserManualPage> {
         page_retrieval_surface(),
         page_memory_surface(),
         page_crdt_surface(),
+        page_model_lane_schema(),
+        page_model_lane_launch_adapters(),
+        page_model_lane_promotion(),
+        page_model_lane_context_bundle_handoff(),
+        page_model_lane_cloud_projection_consent(),
+        page_model_lane_recovery(),
+        page_model_lane_diagnostics(),
+        page_model_lane_navigation(),
+        page_model_lane_validation_harness(),
         page_usermanual_surface(),
         page_failure_modes_and_recovery(),
         page_repair_queues_and_staleness(),
@@ -203,6 +212,15 @@ fn page_manual_toc() -> NewUserManualPage {
         "retrieval-and-context-bundles-surface",
         "memory-and-claims-surface",
         "crdt-collaboration-surface",
+        "model-lane-schema",
+        "model-lane-launch-adapters",
+        "model-lane-promotion",
+        "model-lane-context-bundle-handoff",
+        "model-lane-cloud-projection-consent",
+        "model-lane-recovery",
+        "model-lane-diagnostics",
+        "model-lane-navigation",
+        "model-lane-validation-harness",
         "usermanual-surface",
         "failure-modes-and-recovery",
         "repair-queues-and-staleness",
@@ -248,7 +266,7 @@ fn page_manual_toc() -> NewUserManualPage {
                     .iter()
                     .map(|s| format!("- [[{s}]]\n"))
                     .collect::<String>(),
-                json!(all_slugs),
+                json!(all_slugs.to_vec()),
             ),
         ],
         anchors,
@@ -630,18 +648,16 @@ fn surface_page(
             "navigation",
             "Routes",
             &group_routes_md(group),
-            json!(
-                wp009_surface_registry()
-                    .iter()
-                    .filter(|s| s.group == group)
-                    .map(|s| json!({
-                        "surface_id": s.surface_id,
-                        "method": s.method,
-                        "route": s.route,
-                        "summary": s.summary,
-                    }))
-                    .collect::<Vec<_>>()
-            ),
+            json!(wp009_surface_registry()
+                .iter()
+                .filter(|s| s.group == group)
+                .map(|s| json!({
+                    "surface_id": s.surface_id,
+                    "method": s.method,
+                    "route": s.route,
+                    "summary": s.summary,
+                }))
+                .collect::<Vec<_>>()),
         ),
     ];
     sections.extend(extra_sections);
@@ -673,18 +689,16 @@ fn page_knowledge_index_surface() -> NewUserManualPage {
                 "navigation",
                 "Code navigation routes",
                 &group_routes_md(SurfaceGroup::CodeNavigation),
-                json!(
-                    wp009_surface_registry()
-                        .iter()
-                        .filter(|s| s.group == SurfaceGroup::CodeNavigation)
-                        .map(|s| json!({
-                            "surface_id": s.surface_id,
-                            "method": s.method,
-                            "route": s.route,
-                            "summary": s.summary,
-                        }))
-                        .collect::<Vec<_>>()
-                ),
+                json!(wp009_surface_registry()
+                    .iter()
+                    .filter(|s| s.group == SurfaceGroup::CodeNavigation)
+                    .map(|s| json!({
+                        "surface_id": s.surface_id,
+                        "method": s.method,
+                        "route": s.route,
+                        "summary": s.summary,
+                    }))
+                    .collect::<Vec<_>>()),
             ),
             section(
                 "inputs_outputs",
@@ -960,6 +974,1275 @@ fn page_crdt_surface() -> NewUserManualPage {
         vec![],
         vec!["2.3.13.11".into()],
     )
+}
+
+fn page_model_lane_schema() -> NewUserManualPage {
+    NewUserManualPage {
+        slug: "model-lane-schema".into(),
+        title: "Dexterity Model-Lane Schema".into(),
+        page_kind: "surface_guide",
+        audience: "model_and_operator",
+        spec_anchors: vec!["4.3.9.2.5".into()],
+        sections: vec![
+            section(
+                "purpose",
+                "What Dexterity records",
+                "Dexterity is the internal kernel for model switching and model launching. It \
+                 records every launchable or switchable participant as ModelLaneRun, ModelLane, \
+                 and ModelLaneMessage rows in PostgreSQL. Cloud, local, CLI, human, subagent, \
+                 and validator lanes do not speak through hidden peer chat authority: models \
+                 propose typed messages and artifacts, while Handshake performs deterministic \
+                 storage, EventLedger append, validation, promotion, and replay.",
+            ),
+            section_with_json(
+                "schema",
+                "Runtime schema",
+                "The stable machine schema IDs are `hsk.model_lane_run@1`, \
+                 `hsk.model_lane@1`, and `hsk.model_lane_message@1`; Dexterity is the \
+                 display/kernel name, not a schema rename. Required fields include \
+                 `locus_binding_ref`, `event_ledger_seq`, `payload_sha256`, \
+                 `replay_order_key`, `recovery_state`, and `promotion_receipt_ref`. \
+                 ModelLaneRun also carries FEMS posture fields: `memory_pack_ref`, \
+                 `memory_pack_hash`, `determinism_mode`, `budget_summary_ref`, \
+                 `selected_model_id`, `candidate_model_ids`, `procedural_review_status`, \
+                 `truncation_warning_ref`, and `rejection_reason_refs`. \
+                 Payloads live by ArtifactStore reference, shared edits carry CRDT refs and \
+                 state vectors, and every persisted row has EventLedger evidence.",
+                json!({
+                    "kernel_name": "Dexterity",
+                    "schemas": [
+                        "ModelLaneRun",
+                        "ModelLane",
+                        "ModelLaneMessage"
+                    ],
+                    "schema_ids": [
+                        "hsk.model_lane_run@1",
+                        "hsk.model_lane@1",
+                        "hsk.model_lane_message@1"
+                    ],
+                    "required_fields": [
+                        "locus_binding_ref",
+                        "event_ledger_seq",
+                        "payload_sha256",
+                        "replay_order_key",
+                        "recovery_state",
+                        "promotion_receipt_ref",
+                        "memory_pack_ref",
+                        "memory_pack_hash",
+                        "determinism_mode",
+                        "budget_summary_ref",
+                        "selected_model_id",
+                        "candidate_model_ids",
+                        "procedural_review_status",
+                        "truncation_warning_ref",
+                        "rejection_reason_refs"
+                    ],
+                    "runtime_entrypoint": "SwarmCoordinator::spawn_session + SpawnRequest::with_dexterity_launch",
+                    "fail_closed": "Dexterity launch contract requires ModelLaneStore; failed recording cancels/unloads the LiveSession before spawn success"
+                }),
+            ),
+            section(
+                "workflows",
+                "Operator and model workflow",
+                "Create or resume a Dexterity run through `SwarmCoordinator::spawn_session` with \
+                 `SpawnRequest::with_dexterity_launch`, record each lane with its launch authority \
+                 and runtime binding, then write lane messages as typed proposals, critiques, \
+                 status updates, tool results, promotion requests, or recovery messages. \
+                 `record_message` is idempotent by `idempotency_key`: same key and same \
+                 `payload_sha256` returns the existing message; same key with a different \
+                 payload fails closed. Same-key write races serialize through PostgreSQL \
+                 transaction-scoped advisory locks before EventLedger append. Replay uses \
+                 `event_ledger_seq`, not timestamps.",
+            ),
+            section(
+                "recovery",
+                "Recovery and diagnostics",
+                "Recovery starts from PostgreSQL plus EventLedger: reload ModelLaneRun, lanes, \
+                 and messages ordered by `event_ledger_seq`; inspect `recovery_state`, \
+                 failstate refs, lease/reclaim fields, and Locus ownership before relaunch. \
+                 HBR-INT-009 posture: Flight Recorder/EventLedger is WIRED through \
+                 `dexterity_model_lane` EventLedger rows; internal_diagnostics is WIRED \
+                 through the native diagnostics surface; Palmistry is DEFERRED-with-reason \
+                 because the external watcher is built in its separate worktree and must observe these records without becoming \
+                 Dexterity authority.",
+            ),
+            section(
+                "run_commands",
+                "Proof commands",
+                "Exact ModelLane schema proof commands: \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests dexterity_launch_records_real_swarm_spawn_session_runtime_path -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_serializes_competing_terminal_updates -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflict -- --exact`. \
+                 These exercise real PostgreSQL, EventLedger, schema registry rows, \
+                 SwarmCoordinator runtime launch wiring, ContextBundle, ToolGate, ArtifactStore, \
+                 Locus validation, capability validation, idempotency, and replay. There is no \
+                 SQLite, mock, or structs-only fallback for Dexterity proof.",
+            ),
+        ],
+        anchors: vec![
+            spec_anchor("4.3.9.2.5"),
+            NewManualAnchor {
+                anchor_kind: "test",
+                anchor_value: "model_lane_schema_pg_tests".into(),
+                http_method: "",
+            },
+        ],
+    }
+}
+
+fn page_model_lane_launch_adapters() -> NewUserManualPage {
+    NewUserManualPage {
+        slug: "model-lane-launch-adapters".into(),
+        title: "Dexterity Launch Adapters".into(),
+        page_kind: "surface_guide",
+        audience: "model_and_operator",
+        spec_anchors: vec!["4.3.9.2.5".into()],
+        sections: vec![
+            section(
+                "purpose",
+                "What Dexterity launches",
+                "Dexterity is the internal kernel for model switching and launching. MT-003 \
+                 normalizes local, BYOK cloud, official CLI, CLI bridge, human/operator, \
+                 subagent, and validator lanes through Rust backend authority. The runtime \
+                 entrypoints are `DexterityLaunchAdapterRegistry`, `DexterityNormalizedLaunch`, \
+                 `SwarmCoordinator::spawn_session`, `ModelRuntime`, `CloudLane/BYOK`, \
+                 `CliBridge`, `Operator`, `SubagentManager`, and `ValidatorRunner`. Models \
+                 propose edits and messages; Handshake performs deterministic validation, \
+                 PostgreSQL storage, EventLedger append, replay, promotion, and recovery.",
+            ),
+            section_with_json(
+                "schema",
+                "Lane matrix",
+                "Each lane declares a runtime binding, launch authority, provider feature \
+                 profile, requested/effective execution policy, owner_session, trace/span, \
+                 cancellation token boundary, reclaim policy, terminal status mapping, and \
+                 either `process_ownership_ref` ProcessOwnershipLedger ownership or an explicit \
+                 no-OS-process equivalent. No-OS caller receipts are minted from a live \
+                 Ready/Generating authority session and launch rechecks that the authority lease \
+                 is still live; they are not offline bearer tokens.",
+                json!({
+                    "kernel": "Dexterity",
+                    "registry": "DexterityLaunchAdapterRegistry",
+                    "normalized_record": "DexterityNormalizedLaunch",
+                    "lanes": [
+                        {"kind": "local", "authority": "ModelRuntime", "backend": "LlmClient -> ModelRuntime adapter; llama.cpp and Candle are adapter backends only"},
+                        {"kind": "BYOK cloud OpenAI/Anthropic", "authority": "CloudLane/BYOK", "requires": ["projection_plan_ref", "consent_receipt_ref"]},
+                        {"kind": "official CLI", "authority": "CliBridge", "process_engine_kind": "official_cli_bridge"},
+                        {"kind": "CLI bridge", "authority": "CliBridge", "process_engine_kind": "official_cli_bridge"},
+                        {"kind": "human/operator", "authority": "Operator", "no_os_process_reason_ref": "required"},
+                        {"kind": "subagent", "authority": "SubagentManager", "no_os_process_reason_ref": "required"},
+                        {"kind": "validator", "authority": "ValidatorRunner", "no_os_process_reason_ref": "required"}
+                    ],
+                    "forbidden_launch_authority": [
+                        "direct endpoint",
+                        "app/src",
+                        "app/src-tauri",
+                        "frontend IPC",
+                        "terminal-only",
+                        "unmanaged external model-server proof"
+                    ],
+                    "reference_only_non_authority": [
+                        "docs/model-manual",
+                        "app/MODEL_MANUAL.md",
+                        "npm/JavaScript proof"
+                    ]
+                }),
+            ),
+            section(
+                "navigation",
+                "Product entrypoints",
+                "Tauri IPC (`kernel_swarm_spawn_session`) and scheduled spin-up are request \
+                 sources only, not launch authority. The live app bootstraps \
+                 `SwarmRuntimeState` with a PostgreSQL `ModelLaneStore`; if that store is \
+                 unavailable, model launch startup fails closed instead of constructing a \
+                 no-store coordinator. Manual IPC spawns and calendar scheduled spin-ups attach \
+                 a core-generated Dexterity contract through \
+                 `DexterityLaunchContract::attach_to_spawn_request`, which sets \
+                 `SpawnRequest::with_dexterity_launch` plus the WP/MT lineage before \
+                 `SwarmCoordinator::spawn_session`. BYOK scheduled spin-ups must persist \
+                 `byok_cloud_provider` so OpenAI/Anthropic attribution, projection, consent, \
+                 and Flight Recorder/EventLedger records stay deterministic.",
+            ),
+            section(
+                "failure_modes",
+                "Failure and recovery",
+                "A Dexterity launch fails closed when `ModelLaneStore` is absent, a \
+                 ModelLaneStore-backed coordinator is called without \
+                 `SpawnRequest::with_dexterity_launch`, a BYOK provider lacks explicit \
+                 provider/projection/consent refs, a direct endpoint or frontend/Tauri/terminal-only \
+                 launch bypass is requested, cancellation or reclaim metadata is missing, no \
+                 process/no-OS ownership boundary exists, or an unsupported tool capability is \
+                 requested. Startup failure records carry \
+                 `startup_failure_code`, `startup_failure_ref`, `reason_ref`, `recovery_state`, \
+                 owner_session, trace/span, terminal status mapping, and EventLedger evidence. \
+                 Terminal ModelLane/EventLedger state is written before runtime teardown so a \
+                 failed terminal write leaves the live handle retryable; terminal writes serialize \
+                 per lane before any competing completed/failed/cancelled status can append. A \
+                 runtime terminal Failed state records a `terminal-failure://dexterity/<lane_id>` \
+                 failure ref instead of leaving the ModelLane failure shape incomplete.",
+            ),
+            section(
+                "hooks",
+                "Tools and diagnostics",
+                "Tool-capable lanes must pass capability checks before execution; unsupported \
+                 tool capabilities fail before persistence. MT-003 records launch-time ToolGate \
+                 decision refs and capability snapshots, but full cross-lane tool execution, \
+                 projection fanout, and consent revocation behavior remain in later MTs. \
+                 HBR-INT-009 posture: Flight Recorder/EventLedger is WIRED through \
+                 `dexterity_model_lane` rows; internal_diagnostics is WIRED through the \
+                 native diagnostics surface; Palmistry is DEFERRED-with-reason \
+                 because it is built in another worktree and observes these records without \
+                 becoming launch authority.",
+            ),
+            section(
+                "run_commands",
+                "Proof commands",
+                "Exact MT-003 proof commands: \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_all_lane_kinds_through_rust_registry -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_rejects_direct_endpoint_frontend_tauri_and_terminal_bypass -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_cancellation_reclaim_contracts_all_lane_kinds -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_records_factory_failure_through_swarm_coordinator -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests production_builder_wires_model_lane_store_for_failed_dexterity_launch -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_rejects_ready_transition_before_persistence_commit -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_cancel_session_records_terminal_model_lane_state -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_reaper_records_terminal_state_before_teardown -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests dexterity_launch_records_real_swarm_spawn_session_runtime_path -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_launch_user_manual_entry_is_current -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_schema_user_manual_entry_is_current -- --exact`. \
+                 These exercise real Rust backend registry normalization, SwarmCoordinator \
+                 preflight, coordinator-owned no-OS launch records, ModelRuntime load/unload, \
+                 PostgreSQL/EventLedger stream rows, production builder store wiring, factory \
+                 failure persistence, fail-closed bypass rejection, no Ready/runtime exposure \
+                 before ModelLane persistence, cancellation boundaries, durable cancellation \
+                 terminal state, retryable terminal intent before runtime teardown, per-lane \
+                 terminal serialization, \
+                 reclaim policy, terminal status mapping, startup failure rows, manual parity, \
+                 and no-OS-process equivalents. `docs/model-manual`, `app/MODEL_MANUAL.md`, \
+                 and npm/JavaScript proof are reference-only and never launch authority.",
+            ),
+        ],
+        anchors: vec![
+            spec_anchor("4.3.9.2.5"),
+            page_link("model-lane-schema"),
+            page_link("model-lane-promotion"),
+            NewManualAnchor {
+                anchor_kind: "test",
+                anchor_value: "model_lane_launch_tests".into(),
+                http_method: "",
+            },
+        ],
+    }
+}
+
+fn page_model_lane_promotion() -> NewUserManualPage {
+    NewUserManualPage {
+        slug: "model-lane-promotion".into(),
+        title: "Dexterity Routing and Promotion".into(),
+        page_kind: "surface_guide",
+        audience: "model_and_operator",
+        spec_anchors: vec!["4.3.9.2.5".into()],
+        sections: vec![
+            section(
+                "purpose",
+                "What promotion does",
+                "Dexterity keeps model output advisory until Handshake records an explicit \
+                 `ModelLanePromotionDecision`. Local models, cloud models, CLI lanes, human \
+                 operator lanes, subagents, and validator lanes can propose or critique, but \
+                 only the Rust backend writes authority after deterministic checks. The stable \
+                 machine schema is `hsk.model_lane_promotion_decision@1`; the EventLedger \
+                 aggregate is `model_lane_promotion_decision` and the source component is \
+                 `dexterity_model_lane`. The Rust input record is \
+                 `NewModelLanePromotionDecision`; replay returns \
+                 `ModelLanePromotionDecisionRecord`.",
+            ),
+            section_with_json(
+                "schema",
+                "Routing policies and decision fields",
+                "MT-004 routing policies are typed Rust data: `local_first`, `cloud_review`, \
+                 `cloud_plan_local_execute`, `parallel_debate`, `validator_lane`, and \
+                 `operator_lane`. A promotion decision records stable sorted `input_refs`, \
+                 `selected_input_refs`, `rejected_input_refs`, validator/operator authority \
+                 refs, expected EventLedger aggregate/version, DB-derived current CRDT \
+                 `current_base_snapshot_ref` and `current_state_vector`, schema guard, \
+                 deterministic tie-break rule, `promotion_gate_ref`, optional \
+                 `promotion_receipt_ref`, promoted artifact `ref`/`sha256`/`version`, \
+                 trace/span links, idempotency key, Locus WP/MT/task-board ownership, \
+                 `final_state`, and a canonical decision hash that is stable across input-ref \
+                 ordering. New `ModelLaneMessage` writes also carry typed routing metadata: \
+                 `target_role`, `target_session`, `correlation_id`, `requires_ack`, and \
+                 optional `ack_for`.",
+                json!({
+                    "kernel": "Dexterity",
+                    "schema_id": "hsk.model_lane_promotion_decision@1",
+                    "aggregate_type": "model_lane_promotion_decision",
+                    "state_machine": [
+                        "advisory",
+                        "promotion_requested",
+                        "pending_policy",
+                        "pending_approval",
+                        "approved",
+                        "denied",
+                        "expired",
+                        "executing",
+                        "executed",
+                        "skipped",
+                        "unsupported"
+                    ],
+                    "routing_policies": [
+                        "local_first",
+                        "cloud_review",
+                        "cloud_plan_local_execute",
+                        "parallel_debate",
+                        "validator_lane",
+                        "operator_lane"
+                    ],
+                    "required_guards": [
+                        "expected_event_ledger_aggregate_type",
+                        "expected_event_ledger_aggregate_id",
+                        "expected_event_ledger_version",
+                        "base_snapshot_ref",
+                        "state_vector",
+                        "schema_id",
+                        "deterministic_tie_break_rule",
+                        "validator_authority_ref_or_operator_authority_ref",
+                        "promotion_gate_ref",
+                        "promotion_receipt_ref",
+                        "promoted_artifact_ref",
+                        "promoted_artifact_sha256",
+                        "promoted_artifact_version",
+                        "idempotency_key"
+                    ],
+                    "message_routing_fields": [
+                        "target_role",
+                        "target_session",
+                        "correlation_id",
+                        "requires_ack",
+                        "ack_for"
+                    ],
+                    "canonical_hash_excludes": [
+                        "decision row id",
+                        "idempotency_key",
+                        "timestamps",
+                        "EventLedger event id"
+                    ]
+                }),
+            ),
+            section(
+                "workflows",
+                "Promotion workflow",
+                "Write advisory `ModelLaneMessage` rows first. Then call \
+                 `ModelLaneStore::record_promotion_decision` with all candidate refs and the \
+                 expected CRDT/EventLedger/schema state. Dexterity resolves every \
+                 `model-lane-message://...` ref from PostgreSQL, derives current CRDT \
+                 base/state from the selected advisory rows, and rejects phantom, cross-run, or \
+                 non-advisory refs. Approved decisions walk the deterministic \
+                 state path `advisory -> promotion_requested -> pending_policy -> \
+                 pending_approval -> approved -> executing -> executed`. Denied decisions walk \
+                 `advisory -> promotion_requested -> pending_policy -> denied`. Only after an \
+                 approved decision exists can `record_message` accept a \
+                 `ModelLaneAuthority::Promoted` message for the matching \
+                 `promotion_decision_id`, `promotion_gate_ref`, `promotion_receipt_ref`, \
+                 `promoted_artifact_ref`, `promoted_artifact_sha256`, and \
+                 `promoted_artifact_version`; direct promoted messages fail closed with \
+                 PromotionGate resolution wording.",
+            ),
+            section(
+                "workflows",
+                "Disagreement and stalled progress",
+                "For `parallel_debate`, cloud/local disagreement stays advisory until a \
+                 promotion decision selects the winning `Proposal` or `PromotionRequest` and \
+                 records rejected `Critique` refs. Stalled work should emit a `Recovery` message with \
+                 `recovery_hint_ref`, preserve the ContextBundle handoff, and let validator or \
+                 operator lanes append the next advisory verdict. Promotion never makes a \
+                 model-authored edit authoritative by itself; the deterministic Rust host records \
+                 the EventLedger decision and Locus ownership first.",
+            ),
+            section(
+                "failure_modes",
+                "Failure modes",
+                "Promotion denies durably when the current EventLedger aggregate/version is \
+                 stale or missing (`AggregateVersionMismatch`), the schema id does not match \
+                 the current ModelLane registry row (`SchemaMismatch`), the CRDT base snapshot \
+                 is stale (`StaleBase`), the CRDT state vector is stale \
+                 (`StaleStateVector`), input refs are missing, cross-run, non-advisory, or lack \
+                 selected CRDT state (`InputRefMismatch`), the request reports a direct authority \
+                 mutation attempt (`DirectAuthorityMutation`), no validator/operator authority is \
+                 present (`MissingPromotionAuthority`), or an otherwise approvable decision lacks \
+                 a promoted artifact binding (`MissingPromotedArtifactBinding`). \
+                 Same `idempotency_key` plus changed canonical content returns an explicit \
+                 idempotency conflict instead of appending another decision.",
+            ),
+            section(
+                "recovery",
+                "Recovery and diagnostics",
+                "Recover by replaying PostgreSQL rows through \
+                 `ModelLaneStore::replay_promotion_decisions(run_id)` ordered by \
+                 `event_ledger_seq`, then compare each row to its `kernel_event_ledger` receipt. \
+                 Inspect `canonical_hash_basis`, `canonical_decision_hash`, \
+                 `current_event_ledger_version`, `current_schema_id`, `denial_reason`, \
+                 `state_history`, `final_state`, `promotion_gate_ref`, \
+                 `promotion_receipt_ref`, `promotion_decision_id`, \
+                 `promoted_artifact_ref`, `promoted_artifact_sha256`, \
+                 `promoted_artifact_version`, and message routing fields. \
+                 HBR-INT-009 posture: Flight Recorder/EventLedger is WIRED through \
+                 `dexterity_model_lane` rows; internal_diagnostics is WIRED through the \
+                 native diagnostics surface; Palmistry is DEFERRED-with-reason to the \
+                 separate watcher worktree and must observe promotion rows without becoming \
+                 authority.",
+            ),
+            section(
+                "run_commands",
+                "Proof commands",
+                "Exact MT-004 proof commands: \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests model_lane_promotion_appends_eventledger_and_replays_decision -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_mutation -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests model_lane_promotion_reordered_inputs_keep_same_decision_hash -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_promotion_user_manual_entry_is_current -- --exact`. \
+                 These exercise real PostgreSQL, EventLedger append/replay, schema registry \
+                 rows, DB-derived CRDT base/state-vector guards, exact promotion decision and \
+                 artifact binding, phantom input-ref denial, direct authority mutation rejection, \
+                 duplicate idempotency conflict, deterministic sorted refs, typed message routing, \
+                 and manual parity. \
+                 There is no SQLite, mock, app/src, app/src-tauri, TypeScript, or structs-only \
+                 proof path for Dexterity promotion.",
+            ),
+        ],
+        anchors: vec![
+            spec_anchor("4.3.9.2.5"),
+            page_link("model-lane-schema"),
+            page_link("model-lane-launch-adapters"),
+            page_link("model-lane-context-bundle-handoff"),
+            NewManualAnchor {
+                anchor_kind: "test",
+                anchor_value: "model_lane_promotion_pg_tests".into(),
+                http_method: "",
+            },
+        ],
+    }
+}
+
+fn page_model_lane_context_bundle_handoff() -> NewUserManualPage {
+    NewUserManualPage {
+        slug: "model-lane-context-bundle-handoff".into(),
+        title: "Dexterity ContextBundle Handoffs".into(),
+        page_kind: "surface_guide",
+        audience: "model_and_operator",
+        spec_anchors: vec!["4.3.9.2.5".into()],
+        sections: vec![
+            section(
+                "purpose",
+                "What ContextBundle handoffs do",
+                "Dexterity uses artifact-backed `ModelLaneContextBundleHandoff` rows to move \
+                 model output between local, cloud, CLI, human, subagent, and validator lanes. \
+                 A downstream lane receives only replayable artifact refs and typed context \
+                 entries; hidden provider memory, chat history, and prompt-only state are never \
+                 authority. The stable schemas are \
+                 `hsk.model_lane_context_bundle_artifact@1` and \
+                 `hsk.model_lane_context_bundle_handoff@1`, the EventLedger aggregate types are \
+                 `model_lane_context_bundle_artifact` and \
+                 `model_lane_context_bundle_handoff`, and the Rust APIs are \
+                 `ModelLaneStore::record_context_bundle_artifact_binding`, \
+                 `ModelLaneStore::record_context_bundle_handoff`, \
+                 `ModelLaneStore::replay_context_bundle_handoffs`, \
+                 `ModelLaneStore::consume_context_bundle_for_downstream`, \
+                 `SwarmCoordinator::context_bundle_for_downstream_lane`, \
+                 `SwarmCoordinator::invoke_downstream_context_bundle`, and \
+                 `model_lane_context_bundle_id_for_handoff`.",
+            ),
+            section_with_json(
+                "schema",
+                "Handoff fields",
+                "Each artifact binding stores `artifact_binding_id`, run/trace span data, \
+                 `artifact_ref`, `artifact_sha256`, required `content_hash`, `artifact_kind`, \
+                 `artifact_manifest_ref`, `artifact_payload_ref`, canonical `payload_json`, \
+                 EventLedger stream refs, Locus WP/MT/task-board ownership, idempotency key, \
+                 `artifact_binding_hash`, and `record_json` in \
+                 `model_lane_context_bundle_artifacts`. Each handoff stores `handoff_id`, \
+                 deterministic `context_bundle_id`, required `downstream_lane_id`, \
+                 `source_lane_id`, `source_message_id`, `artifact_ref`, `artifact_sha256`, \
+                 required `content_hash`, `source_kind`, `authority_state`, `selection_state`, \
+                 `reason_code`, optional `decision_ref` and `reviewer_ref`, `replay_hint`, \
+                 optional `crdt_payload`, `loom_refs`, `memory_pack_refs`, EventLedger stream \
+                 refs, required `work_packet_id`, `micro_task_id`, `task_board_id`, \
+                 idempotency key, replay order key, and diagnostic payload. Selection state is one of \
+                 `selected`, `rejected`, `unresolved`, or `superseded`. The row-level \
+                 `context_bundle_hash` covers the replayable handoff payload while the \
+                 `context_bundle_id` groups multiple handoffs for one downstream replay.",
+                json!({
+                    "kernel": "Dexterity",
+                    "artifact_schema_id": "hsk.model_lane_context_bundle_artifact@1",
+                    "schema_id": "hsk.model_lane_context_bundle_handoff@1",
+                    "artifact_table": "model_lane_context_bundle_artifacts",
+                    "aggregate_type": "model_lane_context_bundle_handoff",
+                    "selection_states": [
+                        "selected",
+                        "rejected",
+                        "unresolved",
+                        "superseded"
+                    ],
+                    "handoff_types": [
+                        "ModelLaneContextBundleArtifactBindingRecord",
+                        "NewModelLaneContextBundleArtifactBinding",
+                        "ModelLaneContextBundleHandoffRecord",
+                        "NewModelLaneContextBundleHandoff",
+                        "ModelLaneDownstreamContextBundle",
+                        "ModelLaneCrdtHandoffMetadata",
+                        "ModelLaneLoomHandoffRef",
+                        "ModelLaneMemoryPackHandoffRef"
+                    ],
+                    "artifact_api": "ModelLaneStore::record_context_bundle_artifact_binding",
+                    "replay_api": "ModelLaneStore::replay_context_bundle_handoffs(run_id, context_bundle_id)",
+                    "downstream_api": "ModelLaneStore::consume_context_bundle_for_downstream(run_id, context_bundle_id, downstream_lane_id)",
+                    "coordinator_api": "SwarmCoordinator::context_bundle_for_downstream_lane(run_id, context_bundle_id, downstream_lane_id)",
+                    "adapter_invocation_api": "SwarmCoordinator::invoke_downstream_context_bundle(run_id, context_bundle_id, downstream_lane_id, adapter, actor)",
+                    "kernel_conversion": "ModelLaneDownstreamContextBundle::to_kernel_context_bundle"
+                }),
+            ),
+            section(
+                "workflows",
+                "Model-to-model handoff workflow",
+                "Record source `ModelLaneMessage` rows first, then record one \
+                 `NewModelLaneContextBundleArtifactBinding` for the payload with \
+                 `record_context_bundle_artifact_binding`. The binding requires canonical \
+                 `payload_json` whose sha256 equals `artifact_sha256` and `content_hash`, \
+                 writes `model_lane_context_bundle_artifacts`, and appends \
+                 `ARTIFACT_STORED` to EventLedger. Build a `NewModelLaneContextBundleHandoff` \
+                 for every output the downstream lane may see, derive the shared \
+                 `context_bundle_id` with `model_lane_context_bundle_id_for_handoff`, then call \
+                 `record_context_bundle_handoff`. Dexterity resolves `source_message_id` and \
+                 the artifact binding from PostgreSQL inside the transaction, checks same-run \
+                 and source-lane parity, requires `artifact_ref`, `artifact_sha256`, and \
+                 `content_hash` to match both the source message and artifact binding, appends \
+                 `CONTEXT_BUNDLE_RECORDED` to EventLedger, stamps the final EventLedger id/seq \
+                 into the row payload, and stores the replay row. A downstream lane uses \
+                 `ModelLaneStore::consume_context_bundle_for_downstream` or \
+                 `SwarmCoordinator::context_bundle_for_downstream_lane` to resolve only \
+                 handoffs addressed to its lane in `event_ledger_seq` order and can convert the \
+                 returned `ModelLaneDownstreamContextBundle` with `to_kernel_context_bundle`. \
+                 `to_kernel_context_bundle` preserves the downstream context hash and derives the \
+                 kernel `CTX-<hash>` id required by ContextBundle V1. \
+                 `SwarmCoordinator::invoke_downstream_context_bundle` then passes that kernel \
+                 `ContextBundle` to the adapter boundary through `ModelAdapterRequest`.",
+            ),
+            section(
+                "workflows",
+                "CRDT, Loom, and FEMS rules",
+                "CRDT handoffs use `ModelLaneCrdtHandoffMetadata` with \
+                 `schema_id = hsk.model_lane_crdt_payload@1`, `document_id`, `workspace_id`, \
+                 `actor_id`, `actor_kind`, `lane_id`, `crdt_site_id`, positive `update_seq`, \
+                 Yjs-compatible format `yjs_update_v1` or `yjs_update_v2`, \
+                 `update_bytes_ref`, `update_sha256`, `state_vector`, \
+                 `base_snapshot_ref`, `materialized_projection_hash`, object \
+                 `replay_metadata`, `promotion_gate_ref`, optional `promotion_receipt_ref`, \
+                 `validation_runner_ref`, and `authority_effect = advisory_only`. If the source \
+                 message carries CRDT refs, the handoff must carry CRDT metadata and \
+                 `update_bytes_ref` must match the source `crdt_update_ref`. Loom handoffs use \
+                 `ModelLaneLoomHandoffRef` with workspace/block ids, optional source/target block \
+                 ids, optional materialized artifact ref, content hash/version, \
+                 `event_ledger_evidence_ref` beginning with `eventledger://`, and \
+                 `flight_recorder_evidence_ref` beginning with `flight-recorder://`; \
+                 loom_refs exceeds bounded limit at 64 refs. FEMS context uses explicit \
+                 `ModelLaneMemoryPackHandoffRef` rows with `memory_pack_ref`, \
+                 `memory_pack_hash`, `scope_tag`, `review_status`, `cloud_safe`, \
+                 `classification`, optional `projection_ref`, and `evidence_ref`; \
+                 `review_status must be reviewed`, operator_reviewed, or validator_reviewed, \
+                 `classification` must be cloud_safe_context, local_only_context, or \
+                 operator_reviewed_context, `evidence_ref` must begin with `eventledger://` or \
+                 `flight-recorder://`, and `memory_pack_refs exceeds bounded FEMS limit` at 16 \
+                 refs. Cloud lanes reject missing, non-cloud-safe, or local_only_context memory \
+                 packs. Hidden provider/session memory checks trim and normalize URI case, and \
+                 apply to both `memory_pack_ref` and `projection_ref`.",
+            ),
+            section(
+                "failure_modes",
+                "Failure modes",
+                "ContextBundle handoff writes fail closed when `context_bundle_id` does not match \
+                 the deterministic shared context, `source_message_id` is missing or not \
+                 replayable, source run/lane/kind/authority differs, `downstream_lane_id`, \
+                 `work_packet_id`, `micro_task_id`, or `task_board_id` is missing, \
+                 `artifact_ref`, `artifact_sha256`, or `content_hash` differs from the source \
+                 message or `ArtifactStore/EventLedger authority`, canonical `payload_json` \
+                 does not hash to the artifact content hash, a cloud downstream receives no \
+                 `MemoryPack` refs, a `cloud_safe = false` ref, or local_only_context memory, \
+                 hidden provider/session memory is supplied through `memory_pack_ref` or \
+                 `projection_ref`, `memory_pack_refs exceeds bounded FEMS limit`, \
+                 `loom_refs exceeds bounded limit`, `review_status` is not reviewed, \
+                 operator_reviewed, or validator_reviewed, CRDT source messages lack \
+                 `crdt_payload`, `update_bytes_ref` does not match source `crdt_update_ref`, \
+                 `replay_metadata` does not declare `yjs_compatible = true` with \
+                 `format = yjs_update_v1` or `format = yjs_update_v2`, `authority_effect` is \
+                 not `advisory_only`, Loom evidence refs are missing or use non-EventLedger / \
+                 non-Flight Recorder prefixes, or idempotency is reused with a different \
+                 `context_bundle_hash` or `artifact_binding_hash`.",
+            ),
+            section(
+                "recovery",
+                "Recovery and diagnostics",
+                "Recover by querying `model_lane_context_bundle_artifacts` for the \
+                 `artifact_ref`/hash binding, then query `model_lane_context_bundle_handoffs` \
+                 through `ModelLaneStore::replay_context_bundle_handoffs(run_id, \
+                 context_bundle_id)` or the downstream-only \
+                 `ModelLaneStore::consume_context_bundle_for_downstream`. Compare each artifact \
+                 and handoff row with its `kernel_event_ledger` receipt. Inspect \
+                 `artifact_manifest_ref`, `artifact_payload_ref`, `payload_json`, \
+                 `artifact_binding_hash`, `selection_state`, `source_message_id`, \
+                 `downstream_lane_id`, `artifact_ref`, `artifact_sha256`, `content_hash`, \
+                 `context_bundle_hash`, `event_ledger_event_id`, `event_ledger_seq`, \
+                 `work_packet_id`, `micro_task_id`, `task_board_id`, \
+                 `crdt_payload.state_vector`, `crdt_payload.base_snapshot_ref`, \
+                 `crdt_payload.replay_metadata`, `loom_refs`, and `memory_pack_refs`. \
+                 HBR-INT-009 posture: EventLedger is WIRED through `ARTIFACT_STORED` and \
+                 `CONTEXT_BUNDLE_RECORDED` rows. Flight Recorder/EventLedger recovery for MT-005 \
+                 uses those EventLedger rows plus `flight_recorder_evidence_ref` fields; direct \
+                 Flight Recorder event emission is DEFERRED-with-reason until the MT-008 \
+                 diagnostics surface. internal_diagnostics is WIRED through the native \
+                 diagnostics surface; Palmistry is DEFERRED-with-reason to the separate \
+                 watcher worktree and must observe handoff rows without becoming authority.",
+            ),
+            section(
+                "run_commands",
+                "Proof commands",
+                "Exact MT-005 proof commands: \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_persists_selection_state_and_replays -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_missing_artifact_ref_fails_closed -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayable -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_context_bundle_user_manual_entry_is_current -- --exact`. \
+                 These exercise real PostgreSQL, EventLedger append/replay, schema registry rows, \
+                 selected/rejected/unresolved/superseded replay, artifact binding authority, \
+                 downstream-only consumption, coordinator adapter invocation, kernel \
+                 ContextBundle CTX-hash conversion, fail-closed \
+                 artifact mismatch, missing replay source, cloud-safe FEMS MemoryPack \
+                 enforcement, local_only_context cloud rejection, hidden projection_ref \
+                 rejection, normalized hidden-memory URI rejection, bounded Loom/FEMS refs, CRDT \
+                 state-vector and Yjs update ref validation, Loom evidence refs, Flight Recorder \
+                 refs, and manual parity. There is no SQLite, mock, \
+                 app/src, app/src-tauri, TypeScript, \
+                 prompt-only, or hidden-memory proof path for Dexterity ContextBundle handoffs.",
+            ),
+        ],
+        anchors: vec![
+            spec_anchor("4.3.9.2.5"),
+            page_link("model-lane-schema"),
+            page_link("model-lane-promotion"),
+            NewManualAnchor {
+                anchor_kind: "test",
+                anchor_value: "model_lane_context_bundle_pg_tests".into(),
+                http_method: "",
+            },
+        ],
+    }
+}
+
+fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
+    NewUserManualPage {
+        slug: "model-lane-cloud-projection-consent".into(),
+        title: "Dexterity Cloud Projection and Consent".into(),
+        page_kind: "surface_guide",
+        audience: "model_and_operator",
+        spec_anchors: vec!["4.3.9.2.5".into(), "5.8".into(), "6.13".into()],
+        sections: vec![
+            section(
+                "purpose",
+                "What this cloud boundary does",
+                "Dexterity cloud lanes use durable PostgreSQL/EventLedger authority before any \
+                 BYOK provider call. A cloud launch must resolve \
+                 `ModelLaneCloudProjectionPlanRecord` and \
+                 `ModelLaneCloudConsentReceiptRecord` rows through \
+                 `ModelLaneStore::record_cloud_projection_plan`, \
+                 `ModelLaneStore::record_cloud_consent_receipt`, and \
+                 `ModelLaneStore::preflight_cloud_spawn_request`. String refs alone are not \
+                 authority. The cloud provider is never allowed to become the source of \
+                 truth; cloud output stays `ModelLaneAuthority::Advisory` until an approved \
+                 PromotionGate decision creates authority.",
+            ),
+            section_with_json(
+                "schema",
+                "Durable records",
+                "The stable machine schemas are `hsk.model_lane_cloud_projection_plan@1` and \
+                 `hsk.model_lane_cloud_consent_receipt@1`. PostgreSQL authority tables are \
+                 `model_lane_cloud_projection_plans` and \
+                 `model_lane_cloud_consent_receipts`; each row links `run_id`, `lane_id`, \
+                 `model_session_id`, `provider_kind`, `requested_model_id`, `scope_hash`, \
+                 source artifact refs, payload artifact refs, hashes, retention/export \
+                 posture, fan-out targets, EventLedger event id/seq, `user_manual_behavior_ref`, \
+                 and Locus fields. Replay uses \
+                 `ModelLaneStore::replay_cloud_consent_authority(run_id)` and \
+                 `ModelLaneStore::replay_run(run_id)`.",
+                json!({
+                    "projection_plan": {
+                        "table": "model_lane_cloud_projection_plans",
+                        "schema_id": "hsk.model_lane_cloud_projection_plan@1",
+                        "record": "ModelLaneCloudProjectionPlanRecord",
+                        "input": "NewModelLaneCloudProjectionPlan",
+                        "event_type": "ARTIFACT_STORED",
+                        "aggregate_type": "model_lane_cloud_projection_plan"
+                    },
+                    "consent_receipt": {
+                        "table": "model_lane_cloud_consent_receipts",
+                        "schema_id": "hsk.model_lane_cloud_consent_receipt@1",
+                        "record": "ModelLaneCloudConsentReceiptRecord",
+                        "input": "NewModelLaneCloudConsentReceipt",
+                        "event_type": "ARTIFACT_STORED",
+                        "aggregate_type": "model_lane_cloud_consent_receipt"
+                    },
+                    "denial": {
+                        "schema_id": "hsk.model_lane_cloud_consent_denial@1",
+                        "table": "kernel_event_ledger",
+                        "reason_code": "CX-MM-007",
+                        "aggregate_type": "model_lane_cloud_consent_denial",
+                        "provider_call_attempted": false,
+                        "partial_authority_state_created": false
+                    }
+                }),
+            ),
+            section(
+                "workflows",
+                "Launch workflow",
+                "Create or replay the redacted cloud payload through ArtifactStore/ContextBundle \
+                 first, then record a ProjectionPlan, record a matching ConsentReceipt, attach \
+                 their refs to the cloud lane, and call `SwarmCoordinator::spawn_session`. The \
+                 coordinator invokes `ModelLaneStore::preflight_cloud_spawn_request` before \
+                 `factory.create`, so missing, expired, mismatched, or revoked consent returns \
+                 `CX-MM-007` with EventLedger evidence and no provider call. Consent binding \
+                 checks cover `projection_plan_hash`, `run_id`, `lane_id`, `model_session_id`, \
+                 `provider_kind`, `requested_model_id`, `scope_hash`, retention policy, export \
+                 posture, and fan-out targets.",
+            ),
+            section(
+                "failure_modes",
+                "Failure and recovery",
+                "Failures are durable and typed: missing ProjectionPlan, missing ConsentReceipt, \
+                 expired validity window, mismatched projection hash, provider mismatch, model \
+                 session mismatch, scope mismatch, retention/export/fan-out mismatch, revoked \
+                 ConsentReceipt, hidden provider/session memory refs, and attempted promoted \
+                 cloud output without PromotionGate approval all fail closed. Denials append \
+                 `model_lane_cloud_consent_denial` EventLedger rows with `CX-MM-007`, \
+                 `consent_status`, `provider_call_attempted = false`, and \
+                 `user_manual_behavior_ref`. Use \
+                 `ModelLaneStore::revoke_cloud_consent_receipt` to revoke a receipt; it cancels \
+                 covered non-terminal lanes as `ModelLaneStatus::Cancelled`, sets \
+                 `failstate_code = CX-MM-007`, writes a `model_lane_terminal` EventLedger row, \
+                 and keeps the lane replayable.",
+            ),
+            section(
+                "recovery",
+                "Flight Recorder and Palmistry posture",
+                "EventLedger is WIRED through `kernel_event_ledger` rows for projection, \
+                 consent, denial, advisory cloud output, and revocation terminal state. Direct \
+                 Flight Recorder event emission is DEFERRED-with-reason until the FR-EVT-CLOUD \
+                 emitter is wired to these EventLedger rows. internal_diagnostics is WIRED \
+                 through the native diagnostic surface consuming these rows. Palmistry is DEFERRED-with-reason because the external watcher is being built \
+                 in another worktree; when present it should join by `run_id`, `lane_id`, \
+                 `model_session_id`, and EventLedger refs without becoming launch authority.",
+            ),
+            section(
+                "run_commands",
+                "Proof commands",
+                "Exact MT-006 proof commands: \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests cloud_projection_and_consent_receipts_persist_and_replay -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests cloud_lane_rejects_missing_expired_mismatched_and_revoked_consent -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests cloud_consent_revocation_cancels_pending_lanes_with_eventledger_evidence -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests cloud_model_lane_policy_user_manual_entry_is_current -- --exact`. \
+                 Use `-j 1` locally if Windows linker fan-out leaves stale cargo/rustc/link \
+                 workers during test development. Passing tests must use real PostgreSQL plus \
+                 EventLedger and must not rely on SQLite, prompt-only state, synthetic refs, \
+                 or frontend/Tauri launch authority.",
+            ),
+        ],
+        anchors: vec![
+            page_link("model-lane-launch-adapters"),
+            page_link("model-lane-context-bundle-handoff"),
+            page_link("model-lane-promotion"),
+            NewManualAnchor {
+                anchor_kind: "test",
+                anchor_value: "cloud_model_lane_policy_pg_tests".into(),
+                http_method: "",
+            },
+        ],
+    }
+}
+
+fn page_model_lane_recovery() -> NewUserManualPage {
+    NewUserManualPage {
+        slug: "model-lane-recovery".into(),
+        title: "Dexterity Recovery and Replay".into(),
+        page_kind: "state_recovery",
+        audience: "model_and_operator",
+        spec_anchors: vec!["4.3.9.2.5".into(), "5.8".into(), "6.13".into()],
+        sections: vec![
+            section(
+                "purpose",
+                "What recovery reconstructs",
+                "Dexterity recovery reconstructs ModelLaneRun, ModelLane, ModelLaneMessage, \
+                 ArtifactStore payload refs, lane leases, diagnostic posture, and MT runtime \
+                 status from PostgreSQL plus kernel_event_ledger. It must not depend on chat \
+                 history, terminal scrollback, UI rows, provider traces, or prompt-only state. \
+                 Models keep proposing; Handshake performs deterministic checkpoint, replay, \
+                 validation, and typed failure recording.",
+            ),
+            section_with_json(
+                "schema",
+                "Checkpoint and event records",
+                "Recovery checkpoints use `hsk.model_lane_recovery_checkpoint@1` in \
+                 `model_lane_recovery_checkpoints`. Each checkpoint carries `run_id`, \
+                 `lane_id`, `session_id`, `model_session_id`, lane `status`, \
+                 `last_event_ledger_seq`, `last_message_id`, open payload refs, `lease_id`, \
+                 `idempotency_scope`, and `recovery_state`. Recovery events use \
+                 `hsk.model_lane_recovery_event@1` in `model_lane_recovery_events` and map \
+                 canonical event families such as RUN_CREATED, LANE_STARTED, \
+                 MESSAGE_RECORDED, PAYLOAD_REF_MISSING, RECOVERY_REQUESTED, \
+                 REPLAY_RECONSTRUCTED, RECOVERY_FAILED, and ORPHAN_DETECTED to \
+                 EventLedger rows with trace/span/session/model-session metadata.",
+                json!({
+                    "checkpoint_schema": "hsk.model_lane_recovery_checkpoint@1",
+                    "event_schema": "hsk.model_lane_recovery_event@1",
+                    "lease_schema": "hsk.model_lane_lease@1",
+                    "diagnostic_schema": "hsk.model_lane_diagnostic_tier@1",
+                    "mt_status_schema": "hsk.model_lane_mt_runtime_status@1",
+                    "tables": [
+                        "model_lane_recovery_checkpoints",
+                        "model_lane_recovery_events",
+                        "model_lane_leases",
+                        "model_lane_diagnostic_tier_statuses",
+                        "model_lane_mt_runtime_statuses",
+                        "model_lane_context_bundle_artifacts",
+                        "kernel_event_ledger"
+                    ],
+                    "failure_codes": ["CX-MM-006", "CX-MM-009", "CX-MM-012", "CX-MM-013", "CX-MM-014"]
+                }),
+            ),
+            section(
+                "workflows",
+                "Recovery workflow",
+                "Call `ModelLaneStore::recover_run_after_restart(run_id)`. Recovery loads the \
+                 latest checkpoint, validates the checkpoint EventLedger high-watermark, replays \
+                 recovery events up to that high-watermark in `replay_order_seq`, rejects \
+                 divergent duplicate idempotency, resolves payload refs through \
+                 `model_lane_context_bundle_artifacts` plus EventLedger, verifies CRDT \
+                 `base_snapshot_ref` and `state_vector` against recorded ModelLaneMessage rows, \
+                 reconstructs run/lane/message state from checkpoint-bounded EventLedger \
+                 payloads, classifies checkpoint-bounded active vs expired leases, includes \
+                 checkpoint-bounded failed cloud consent denial receipts, and restores \
+                 checkpoint-bounded MT runtime status refs.",
+            ),
+            section(
+                "failure_modes",
+                "Failure modes",
+                "Missing/corrupt payload refs return `CX-MM-006` with recovery hints. \
+                 Corrupt checkpoints, missing checkpoint high-watermarks, EventLedger sequence \
+                 gaps, missing source EventLedger rows, divergent duplicate idempotency keys, \
+                 stale CRDT bases, and expired active lease orphans fail closed or record typed \
+                 recovery status. Orphan recovery currently records durable CX-MM-009 \
+                 `orphan_detected` recovery events for checkpoint-bounded expired active leases \
+                 before takeover or denial.",
+            ),
+            section(
+                "navigation",
+                "Diagnostics and operators",
+                "HBR-INT-009 is represented by `ModelLaneDiagnosticTierStatusRecord` with \
+                 `behavior_id`, tier, state, reason, `follow_up_ref`, and `evidence_ref`. \
+                 Flight Recorder/EventLedger evidence alone must fail. `internal_diagnostics` \
+                 must be WIRED for recovery behavior; Palmistry may be WIRED or \
+                 DEFERRED-with-reason with a follow-up ref while the separate watcher worktree \
+                 is being built. Operator-facing recovery should inspect this page, \
+                 `model_lane_recovery_pg_tests`, and the native diagnostic surface from MT-008.",
+            ),
+            section(
+                "run_commands",
+                "Proof commands",
+                "Exact MT-007 proof commands: \
+                `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_replays_from_postgres_eventledger_checkpoint -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_excludes_post_checkpoint_adjunct_state -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_rejects_corrupt_checkpoint_and_event_seq_gap -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_restores_mt_runtime_status_refs_after_restart -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests diagnostic_tier_record_rejects_flight_recorder_only_evidence -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_rejects_missing_payload_stale_crdt_and_duplicate_idempotency -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_uses_eventledger_checkpoint_authority_over_mutable_row -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_rejects_post_checkpoint_payload_and_crdt_repairs -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_recovery_user_manual_entry_is_current -- --exact`.",
+            ),
+        ],
+        anchors: vec![
+            page_link("model-lane-schema"),
+            page_link("model-lane-context-bundle-handoff"),
+            page_link("model-lane-cloud-projection-consent"),
+            NewManualAnchor {
+                anchor_kind: "test",
+                anchor_value: "model_lane_recovery_pg_tests".into(),
+                http_method: "",
+            },
+        ],
+    }
+}
+
+fn page_model_lane_diagnostics() -> NewUserManualPage {
+    NewUserManualPage {
+        slug: "model-lane-diagnostics".into(),
+        title: "Dexterity Lane Diagnostics".into(),
+        page_kind: "surface_guide",
+        audience: "model_and_operator",
+        spec_anchors: vec!["4.3.9.2.5".into(), "5.8".into(), "6.13".into()],
+        sections: vec![
+            section(
+                "purpose",
+                "What the diagnostics pane proves",
+                "Dexterity Lane Diagnostics is the native Rust operator/model surface for \
+                 inspecting live and recovered ModelLaneRun state. It reads \
+                 `ModelLaneStore::diagnostics_projection(run_id)` through PostgreSQL plus \
+                 kernel_event_ledger, never from chat history, terminal scrollback, \
+                 provider state, Tauri/WebView authority, React state, or prompt-only \
+                 diagnostics. Models propose lane work; Handshake records, projects, \
+                 filters, and drills into deterministic state.",
+            ),
+            section_with_json(
+                "schema",
+                "Projection contract",
+                "The native pane consumes `native_swarm_lane_diagnostics`. The projection \
+                 includes run identity, lane status and message counts, payload errors, \
+                 orphan and reclaimable lease state, message payload refs, promotion state, \
+                 trace/span/link IDs, EventLedger event IDs, FlightRecorder correlation \
+                 IDs, HBR-INT-009 diagnostic tiers, Locus/Loom/FEMS refs, ContextBundle \
+                 refs, memory pack refs and hashes, ArtifactStore refs, and CRDT \
+                 base/state-vector refs.",
+                json!({
+                    "surface_contract_id": "native_swarm_lane_diagnostics",
+                    "backend_methods": [
+                        "ModelLaneStore::diagnostics_projection",
+                        "ModelLaneStore::latest_diagnostics_projection"
+                    ],
+                    "http_routes": [
+                        "GET /swarm/model-lanes/diagnostics/latest",
+                        "GET /swarm/model-lanes/diagnostics/{run_id}"
+                    ],
+                    "native_author_ids": [
+                        "swarm-lane-diagnostics.surface",
+                        "swarm-lane-diagnostics.filter.run",
+                        "swarm-lane-diagnostics.filter.lane",
+                        "swarm-lane-diagnostics.filter.message",
+                        "swarm-lane-diagnostics.action.refresh",
+                        "menu.run.swarm-lane-diagnostics",
+                        "settings.swarm-lane-diagnostics-default-open"
+                    ],
+                    "required_tiers": ["flight_recorder", "internal_diagnostics", "palmistry"],
+                    "authority_tables": [
+                        "model_lane_runs",
+                        "model_lanes",
+                        "model_lane_messages",
+                        "model_lane_leases",
+                        "model_lane_diagnostic_tier_statuses",
+                        "model_lane_mt_runtime_statuses",
+                        "kernel_event_ledger"
+                    ]
+                }),
+            ),
+            section(
+                "workflows",
+                "Operator and model workflow",
+                "Open the pane from `RUN > Open Lane Diagnostics` or from the command \
+                 palette action `swarmdiagnostics.open`. The settings checkbox \
+                 `settings.swarm-lane-diagnostics-default-open` persists whether Lane \
+                 Diagnostics is included with Swarm defaults. In the pane, use the run, \
+                 lane, and message filters to narrow a run; use payload and promotion \
+                 drilldowns to inspect message payload authority, EventLedger linkage, \
+                 FlightRecorder correlation, CRDT base/state-vector refs, Locus/Loom/FEMS \
+                 refs, and PromotionGate state. In this diagnostics path, \
+                 `flight_recorder_correlation_id` is an EventLedger-backed alias: the \
+                 EventLedger event ID is the durable FlightRecorder correlation until a \
+                 distinct FlightRecorder row is emitted for the same lane/message.",
+            ),
+            section(
+                "failure_modes",
+                "Failure modes",
+                "The native surface rejects projections with a wrong surface contract, \
+                 empty run ID, lane/message count mismatch, missing stable lane author IDs, \
+                 missing payload refs, missing EventLedger/FlightRecorder evidence, or \
+                 missing HBR-INT-009 tiers. Backend projection failures surface as a pane \
+                 error with author ID `swarm-lane-diagnostics.error`. Flight Recorder-only \
+                 diagnostics are not enough: EventLedger evidence, internal_diagnostics, \
+                 and Palmistry posture must be present or explicitly DEFERRED-with-reason \
+                 when a separate watcher is not yet available.",
+            ),
+            section(
+                "navigation",
+                "Diagnostics and related pillars",
+                "Dexterity Lane Diagnostics bridges the model-lane kernel to Argus, \
+                 FlightRecorder/EventLedger, Locus, Loom, and FEMS. Argus observes the \
+                 native AccessKit author IDs instead of a WebView DOM. FlightRecorder and \
+                 EventLedger provide durable business-event evidence; MT-008 uses the \
+                 EventLedger event ID as the FlightRecorder correlation alias for the lane \
+                 diagnostics projection. Locus/Loom/FEMS refs \
+                 keep model messages connected to workspace locality, artifact libraries, \
+                 and typed memory capsules. The surface is part of the Rust native frontend \
+                 and Rust backend; it does not rely on React, TypeScript, Tauri command \
+                 authority, npm tests, or WebView inspection.",
+            ),
+            section(
+                "run_commands",
+                "Proof commands",
+                "Exact MT-008 proof commands: \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test swarm_lane_diagnostics_pg_tests swarm_lane_diagnostics_backend_projection_matches_eventledger -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test swarm_lane_diagnostics_pg_tests swarm_lane_diagnostics_rejects_flight_recorder_only_hbr_posture -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus swarm_lane_diagnostics_argus_lists_filters_and_drills_down -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus swarm_lane_diagnostics_argus_rejects_missing_author_id_and_count_mismatch -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_top_menu_bar run_menu_opens_swarm_lane_diagnostics -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_command_palette typing_diagnostics_filters_to_swarm_lane_diagnostics_and_runs -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_settings_dialog swarm_lane_diagnostics_setting_persists -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_diagnostics_user_manual_entry_is_current -- --exact`.",
+            ),
+        ],
+        anchors: vec![
+            page_link("model-lane-recovery"),
+            page_link("model-lane-context-bundle-handoff"),
+            page_link("usermanual-surface"),
+            NewManualAnchor {
+                anchor_kind: "test",
+                anchor_value: "swarm_lane_diagnostics_pg_tests".into(),
+                http_method: "",
+            },
+        ],
+    }
+}
+
+fn page_model_lane_navigation() -> NewUserManualPage {
+    surface_page(
+        "model-lane-navigation",
+        "Dexterity ModelLane Backend Navigation",
+        SurfaceGroup::ModelLaneNavigation,
+        "Dexterity ModelLane navigation is the no-context lookup surface for model-lane \
+         runtime state. It resolves runs, lanes, messages, artifact/context bundle rows, \
+         traces/spans, diagnostic tiers, and recovery rows from PostgreSQL plus \
+         kernel_event_ledger. The navigation projection is read-only: models propose edits, \
+         Handshake validates and performs deterministic writes elsewhere, and this surface \
+         shows the linked authority, Flight Recorder aliases, Locus/Loom/FEMS refs, \
+         ContextBundle refs, MemoryPack refs, and UserManual recovery routes.",
+        vec![
+            section_with_json(
+                "schema",
+                "Projection contract",
+                "Every route returns `hsk.model_lane_navigation@1` as \
+                 `ModelLaneNavigationProjection`. The output includes `route_id`, \
+                 `lookup_kind`, `lookup_ref`, input/output schema refs, manual refs, run, \
+                 lane, message, artifact, context handoff, recovery checkpoint/event, lease, \
+                 diagnostic tier, MT runtime status rows, EventLedger refs, Flight Recorder \
+                 refs, error codes, and recovery routes. Lookup keys include `run_id`, \
+                 `lane_id`, `message_id`, `model_session_id`, `session_id`, `wp_id`, \
+                 `mt_id`, `task_board_id`, `artifact_ref`, `context_bundle_id`, Locus refs, Loom refs, FEMS \
+                 MemoryPack refs, EventLedger event IDs/sequences, `trace_id`, `span_id`, \
+                 and error codes carried by the recovered rows. Selectors that are not \
+                 natural route path parameters use `GET /swarm/model-lanes/navigation/lookup` \
+                 with exactly one query selector.",
+                json!({
+                    "schema_id": "hsk.model_lane_navigation@1",
+                    "surface_contract_id": "native_swarm_lane_diagnostics",
+                    "backend_methods": [
+                        "ModelLaneStore::navigation_by_run",
+                        "ModelLaneStore::navigation_by_lane",
+                        "ModelLaneStore::navigation_by_message",
+                        "ModelLaneStore::navigation_by_artifact_or_context",
+                        "ModelLaneStore::navigation_by_trace",
+                        "ModelLaneStore::navigation_by_diagnostics",
+                        "ModelLaneStore::navigation_by_recovery",
+                        "ModelLaneStore::navigation_by_lookup"
+                    ],
+                    "routes": [
+                        "GET /swarm/model-lanes/navigation/runs/{run_id}",
+                        "GET /swarm/model-lanes/navigation/lanes/{lane_id}",
+                        "GET /swarm/model-lanes/navigation/messages/{message_id}",
+                        "GET /swarm/model-lanes/navigation/artifacts",
+                        "GET /swarm/model-lanes/navigation/traces/{trace_id}",
+                        "GET /swarm/model-lanes/navigation/diagnostics/{run_id}",
+                        "GET /swarm/model-lanes/navigation/recovery/{run_id}",
+                        "GET /swarm/model-lanes/navigation/lookup"
+                    ],
+                    "authority": [
+                        "PostgreSQL",
+                        "kernel_event_ledger",
+                        "model_lane_runs",
+                        "model_lanes",
+                        "model_lane_messages",
+                        "model_lane_context_bundle_artifacts",
+                        "model_lane_context_bundle_handoffs",
+                        "model_lane_recovery_checkpoints",
+                        "model_lane_recovery_events",
+                        "model_lane_leases",
+                        "model_lane_diagnostic_tier_statuses",
+                        "model_lane_mt_runtime_statuses"
+                    ]
+                }),
+            ),
+            section(
+                "workflows",
+                "Lookup workflow",
+                "Start with the narrowest stable id. Use `/runs/:run_id` for a full run, \
+                 `/lanes/:lane_id` for a lane and its messages/recovery rows, \
+                 `/messages/:message_id` for a payload-centered drilldown, `/artifacts` with \
+                 `artifact_ref`, `artifact_binding_id`, `artifact_manifest_ref`, \
+                 `artifact_payload_ref`, `artifact_sha256`, `content_hash`, or \
+                 `context_bundle_id` for ContextBundle handoff recovery, \
+                 `/traces/:trace_id?span_id=` for trace \
+                 drilldown, `/diagnostics/:run_id?behavior_id=&tier=&mt_id=` for HBR/MT \
+                 posture, `/recovery/:run_id` for checkpoint/event/lease recovery, and \
+                 `/lookup` for `model_session_id`, `session_id`, `wp_id`, `mt_id`, \
+                 `task_board_id`, `Locus`, `Loom`, `FEMS`, `MemoryPack`, EventLedger, \
+                 trace/span, or error-code selectors. Use \
+                 returned EventLedger refs and Flight Recorder refs before trusting UI rows or \
+                 provider traces.",
+            ),
+            section(
+                "failure_modes",
+                "Failure modes",
+                "Navigation fails closed when the id token is empty, the row is absent, the \
+                 artifact/context query omits both an artifact selector and \
+                 `context_bundle_id`, multiple distinct artifact selector values are supplied, \
+                 a shared artifact hash/MemoryPack selector spans multiple runs without \
+                 `run_id`, PostgreSQL is unavailable, or diagnostics detects mutable \
+                 projection drift against EventLedger authority. Treat empty `event_ledger_refs`, missing \
+                 `internal_diagnostics`, or missing Palmistry follow-up posture as defects in \
+                 the producing lane, not as permission to infer from chat history.",
+            ),
+            section(
+                "recovery",
+                "Recovery and related pillars",
+                "For operator recovery, open `model-lane-recovery` and \
+                 `model-lane-diagnostics`, then use this page's routes to find the exact row \
+                 and EventLedger receipt. Locus links identify the work locality, Loom refs \
+                 identify workspace artifacts, FEMS/MemoryPack refs identify bounded memory \
+                 capsules, ContextBundle refs identify model-to-model handoff payloads, and \
+                 Palmistry refs are observation evidence only; none of these replace \
+                 PostgreSQL/EventLedger authority.",
+            ),
+            section(
+                "run_commands",
+                "Proof commands",
+                "Exact MT-010 proof commands: \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_navigation_api_tests model_lane_navigation_routes_return_run_lane_message_artifact_trace_and_recovery -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_navigation_api_tests model_lane_navigation_user_manual_registry_rows_match_runtime_routes -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_navigation_user_manual_entries_are_current -- --exact`.",
+            ),
+        ],
+        vec![
+            page_link("model-lane-schema"),
+            page_link("model-lane-diagnostics"),
+            page_link("model-lane-recovery"),
+            page_link("model-lane-validation-harness"),
+            NewManualAnchor {
+                anchor_kind: "test",
+                anchor_value: "model_lane_navigation_api_tests".into(),
+                http_method: "",
+            },
+        ],
+        vec!["4.3.9.2.5".into(), "5.8".into(), "6.13".into(), "10.15.8".into()],
+    )
+}
+
+fn page_model_lane_validation_harness() -> NewUserManualPage {
+    NewUserManualPage {
+        slug: "model-lane-validation-harness".into(),
+        title: "Dexterity Mixed-Lane Validation Harness".into(),
+        page_kind: "surface_guide",
+        audience: "model_and_operator",
+        spec_anchors: vec!["4.3.9.2.5".into(), "5.8".into(), "6.13".into()],
+        sections: vec![
+            section(
+                "purpose",
+                "What the validation harness proves",
+                "The mixed-lane validation harness proves that Dexterity can create a \
+                 mixed local/cloud/subagent ModelLaneRun using deterministic provider fakes, \
+                 persist it through PostgreSQL and kernel_event_ledger, replay and recover it \
+                 after restart, inspect it through native_swarm_lane_diagnostics, and fail \
+                 closed for direct endpoints, missing consent, stale CRDT base state, missing \
+                 payload authority, and FlightRecorder-only diagnostic posture. The harness is \
+                 Rust-only product validation; React, TypeScript, Tauri/WebView, npm tests, \
+                 terminal scrollback, provider chat history, and chat memory are not authority.",
+            ),
+            section_with_json(
+                "schema",
+                "Behavior coverage matrix",
+                "The Rust function `model_lane_behavior_coverage_matrix()` is the \
+                 machine-readable coverage matrix for this WP. It is keyed by behavior_id and \
+                 carries schema/event family, runtime surface id, UserManual page/tool id, \
+                 EventLedger/FlightRecorder evidence path, internal_diagnostics posture, \
+                 Palmistry posture, deferred reason, and follow-up ref. Keyword grep is only \
+                 supporting evidence; the proof queries compiled product registries and \
+                 PostgreSQL UserManual rows.",
+                json!({
+                    "schema_id": "hsk.user_manual_behavior_coverage@1",
+                    "matrix_function": "user_manual::model_lane_behavior_coverage_matrix",
+                    "verification_function": "user_manual::verify_model_lane_behavior_coverage",
+                    "required_tiers": ["flight_recorder", "internal_diagnostics", "palmistry"],
+                    "palmistry_policy": "DEFERRED-with-reason plus follow_up_ref until the separate watcher worktree is merged",
+                    "authority_inputs": [
+                        "ModelLaneStore::schema_registry_rows",
+                        "UserManualStore::list_pages",
+                        "UserManualStore::list_tool_entries",
+                        "kernel_event_ledger"
+                    ]
+                }),
+            ),
+            section(
+                "inputs_outputs",
+                "Inputs and outputs",
+                "Inputs are deterministic local/cloud/subagent lane fixtures, ProjectionPlan \
+                 and ConsentReceipt rows for cloud lanes, bounded artifact payload refs, CRDT \
+                 base snapshot/state-vector refs, ProcessOwnershipLedger-equivalent lane refs, \
+                 cancellation refs, recovery checkpoints, diagnostic tier rows, and MT runtime \
+                 status rows. Outputs are ModelLaneRun/ModelLane/ModelLaneMessage rows, \
+                 EventLedger event IDs/sequences, diagnostics projections, recovery replay \
+                 status, Rust UserManual behavior coverage matrix entries, and native AccessKit author IDs \
+                 visible to Argus.",
+            ),
+            section(
+                "failure_modes",
+                "Mandatory fail-closed cases",
+                "Negative proof must reject direct endpoint/app-src/Tauri/terminal launch \
+                 authority, cloud lane launch without durable ProjectionPlan and approved \
+                 ConsentReceipt, unbounded retry/backpressure posture, hidden provider \
+                 payloads, missing model_lane_context_bundle_artifacts payload authority, \
+                 stale CRDT base_snapshot_ref/state_vector, corrupt recovery checkpoint or \
+                 replay order gaps, Argus projection count mismatch or missing author IDs, \
+                 and FlightRecorder-only diagnostics that omit internal_diagnostics or \
+                 Palmistry posture.",
+            ),
+            section(
+                "run_commands",
+                "Proof commands",
+                "Exact MT-009 proof commands: \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_model_lane_negative_guards_fail_closed -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus mixed_model_lane_run_is_inspectable_through_argus -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests mixed_model_lane_behaviors_have_manual_coverage -- --exact`.",
+            ),
+            section(
+                "recovery",
+                "Recovery steps",
+                "When a mixed run fails validation, first replay `ModelLaneStore::replay_run` \
+                 and compare backend lane/message counts to native diagnostics rows. Then \
+                 inspect `ModelLaneStore::recover_run_after_restart` for checkpoint high-water \
+                 mark, recovery events, active/reclaimable leases, cloud consent denials, and \
+                 MT runtime status. For stale CRDT bases, replay the cited CRDT update log \
+                 before promotion. If internal_diagnostics is absent, repair the native \
+                 diagnostics wiring; for Palmistry gaps, record explicit DEFERRED-with-reason \
+                 follow-up rows instead of silently skipping HBR-INT-009.",
+            ),
+        ],
+        anchors: vec![
+            page_link("model-lane-launch-adapters"),
+            page_link("model-lane-cloud-projection-consent"),
+            page_link("model-lane-recovery"),
+            page_link("model-lane-diagnostics"),
+            NewManualAnchor {
+                anchor_kind: "test",
+                anchor_value: "mixed_model_lane_integration_pg_tests".into(),
+                http_method: "",
+            },
+            NewManualAnchor {
+                anchor_kind: "primitive",
+                anchor_value: "hsk.user_manual_behavior_coverage@1".into(),
+                http_method: "",
+            },
+        ],
+    }
 }
 
 fn page_usermanual_surface() -> NewUserManualPage {
@@ -1357,18 +2640,17 @@ fn page_legacy_bridge() -> NewUserManualPage {
                  - **P2 (frontend lane)**: rename Tauri commands \
                  (`model_manual_get` -> canonical `/usermanual` routes), app help surface.\n\
                  - **P3 (later WP)**: retire the static legacy module files.",
-                json!(
-                    plan.rows
-                        .iter()
-                        .map(|r| json!({
-                            "row_id": r.row_id,
-                            "legacy_id": r.legacy_id,
-                            "canonical_ref": r.canonical_ref,
-                            "phase": r.phase.as_str(),
-                            "shim_state": r.shim_state.as_str(),
-                        }))
-                        .collect::<Vec<_>>()
-                ),
+                json!(plan
+                    .rows
+                    .iter()
+                    .map(|r| json!({
+                        "row_id": r.row_id,
+                        "legacy_id": r.legacy_id,
+                        "canonical_ref": r.canonical_ref,
+                        "phase": r.phase.as_str(),
+                        "shim_state": r.shim_state.as_str(),
+                    }))
+                    .collect::<Vec<_>>()),
             ),
         ],
         anchors: vec![
@@ -1563,6 +2845,13 @@ fn group_common_errors(group: SurfaceGroup) -> Vec<String> {
             "403 HSK-403-SILENT-EDIT (unattributed write refused)".into(),
             "500 HSK-500-LOOM".into(),
         ],
+        SurfaceGroup::ModelLaneNavigation => vec![
+            "400 bad_request / invalid input (empty lookup token or missing artifact/context query)"
+                .into(),
+            "404 not_found (unknown run/lane/message/trace/artifact/context id)".into(),
+            "diagnostics projection row drift against kernel_event_ledger".into(),
+            "500 internal_error (PostgreSQL unavailable; fail-closed)".into(),
+        ],
         SurfaceGroup::UserManual => vec![
             "400 bad_request (empty query / bad token)".into(),
             "404 not_found (unknown slug/tool/area)".into(),
@@ -1600,6 +2889,11 @@ fn group_recovery_steps(group: SurfaceGroup) -> Vec<String> {
         SurfaceGroup::NotesLoom => vec![
             "Regenerate stale wiki projections (POST .../regenerate)".into(),
             "Recompute metrics (POST .../loom/metrics/recompute)".into(),
+        ],
+        SurfaceGroup::ModelLaneNavigation => vec![
+            "Use the narrowest known id first, then follow event_ledger_refs to kernel_event_ledger authority.".into(),
+            "If artifact/context lookup fails, recover through model_lane_context_bundle_artifacts and model_lane_context_bundle_handoffs before trusting a payload ref.".into(),
+            "If diagnostic rows drift, repair the producing ModelLane writer and rerun the MT-009 negative guard before trusting navigation.".into(),
         ],
         SurfaceGroup::UserManual => vec![
             "POST /usermanual/resync (gated) re-seeds changed pages idempotently".into(),
@@ -1708,6 +3002,944 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         });
     }
 
+    let model_lane_tool_hash = sha256_hex(
+        &serde_json::to_string(&json!({
+            "id": "model_lane_schema_pg_tests",
+            "name": "Dexterity ModelLane PostgreSQL proof",
+            "status": "wired",
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests",
+            "exact_commands": [
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_persists_and_replays_eventledger_rows -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests dexterity_launch_records_real_swarm_spawn_session_runtime_path -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_serializes_competing_terminal_updates -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflict -- --exact"
+            ],
+            "manual_version": USER_MANUAL_VERSION,
+        }))
+        .expect("model lane tool serializes"),
+    );
+    tools.push(UserManualToolEntry {
+        tool_id: "model_lane_schema_pg_tests".into(),
+        page_id: None,
+        name: "Dexterity ModelLane PostgreSQL proof".into(),
+        status: "wired".into(),
+        ipc_channel: None,
+        tauri_command: None,
+        cli_flag: Some(
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests".into(),
+        ),
+        http_route: None,
+        http_method: String::new(),
+        description:
+            "Exact Rust proof targets for Dexterity ModelLaneRun, ModelLane, ModelLaneMessage storage, and SwarmCoordinator runtime launch wiring."
+                .into(),
+        expected_input:
+            "Real PostgreSQL test URL or Handshake-managed PostgreSQL; test-utils feature enabled."
+                .into(),
+        expected_output:
+            "EventLedger-backed ModelLane rows, schema registry rows, runtime spawn_session launch rows, idempotency behavior, and replay ordered by event_ledger_seq."
+                .into(),
+        schema_fields: vec![
+            "ModelLaneRun".into(),
+            "ModelLane".into(),
+            "ModelLaneMessage".into(),
+            "DexterityLaunchContract".into(),
+            "SpawnRequest::with_dexterity_launch".into(),
+            "locus_binding_ref".into(),
+            "event_ledger_seq".into(),
+            "payload_sha256".into(),
+            "replay_order_key".into(),
+            "recovery_state".into(),
+            "promotion_receipt_ref".into(),
+            "memory_pack_ref".into(),
+            "memory_pack_hash".into(),
+            "determinism_mode".into(),
+            "budget_summary_ref".into(),
+            "selected_model_id".into(),
+            "candidate_model_ids".into(),
+            "procedural_review_status".into(),
+            "truncation_warning_ref".into(),
+            "rejection_reason_refs".into(),
+            "ArtifactStore".into(),
+            "CRDT".into(),
+            "Flight Recorder".into(),
+            "internal_diagnostics".into(),
+            "Palmistry".into(),
+        ],
+        common_errors: vec![
+            "missing PostgreSQL/EventLedger migration".into(),
+            "missing locus_binding_ref".into(),
+            "mismatched Locus WP/MT/task-board/session owner".into(),
+            "unsupported provider_kind or missing capability snapshot".into(),
+            "malformed trace/span linkage".into(),
+            "proposal without CRDT base snapshot".into(),
+            "payload_sha256 is not lowercase sha256 hex".into(),
+            "idempotency conflict".into(),
+        ],
+        recovery_steps: vec![
+            "Run migrations against the active PostgreSQL authority.".into(),
+            "Replay by event_ledger_seq and compare ModelLane records to EventLedger rows.".into(),
+            "Reuse the same idempotency_key only when payload_sha256 is unchanged.".into(),
+            "For HBR-INT-009, inspect Flight Recorder/EventLedger rows; internal_diagnostics is WIRED through the native diagnostics surface, and Palmistry is DEFERRED-with-reason to the separate watcher worktree.".into(),
+        ],
+        origin: "wp1_model_lane".into(),
+        content_hash: model_lane_tool_hash,
+        manual_version: USER_MANUAL_VERSION.into(),
+    });
+
+    let model_lane_launch_tool_hash = sha256_hex(
+        &serde_json::to_string(&json!({
+            "id": "model_lane_launch_tests",
+            "name": "Dexterity launch adapter runtime proof",
+            "status": "wired",
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests",
+            "exact_commands": [
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_all_lane_kinds_through_rust_registry -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_rejects_direct_endpoint_frontend_tauri_and_terminal_bypass -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_cancellation_reclaim_contracts_all_lane_kinds -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_records_factory_failure_through_swarm_coordinator -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests production_builder_wires_model_lane_store_for_failed_dexterity_launch -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_rejects_ready_transition_before_persistence_commit -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_cancel_session_records_terminal_model_lane_state -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_reaper_records_terminal_state_before_teardown -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests dexterity_launch_records_real_swarm_spawn_session_runtime_path -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_launch_user_manual_entry_is_current -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_schema_user_manual_entry_is_current -- --exact"
+            ],
+            "manual_version": USER_MANUAL_VERSION,
+        }))
+        .expect("model lane launch tool serializes"),
+    );
+    tools.push(UserManualToolEntry {
+        tool_id: "model_lane_launch_tests".into(),
+        page_id: None,
+        name: "Dexterity launch adapter runtime proof".into(),
+        status: "wired".into(),
+        ipc_channel: None,
+        tauri_command: None,
+        cli_flag: Some(
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests".into(),
+        ),
+        http_route: None,
+        http_method: String::new(),
+        description:
+            "Exact Rust proof targets for Dexterity launch adapter normalization and runtime-owned launch paths across local, cloud, CLI, human, subagent, and validator lanes."
+                .into(),
+        expected_input:
+            "Real PostgreSQL test URL or Handshake-managed PostgreSQL; test-utils feature enabled."
+                .into(),
+        expected_output:
+            "Registry-normalized launches, SwarmCoordinator preflight, coordinator-owned no-OS lanes with live-authority caller receipts, ModelRuntime load/unload proof, no Ready/runtime exposure before ModelLane persistence, EventLedger stream-backed rows, production builder store wiring, missing-contract bypass rejection, factory failure records, terminal-failure refs for runtime failed state, durable cancellation terminal state, lease-reaper terminal persistence before teardown, retryable terminal intent before runtime teardown, per-lane terminal serialization, bypass rejection, cancellation/reclaim contracts, schema runtime proof, and manual parity."
+                .into(),
+        schema_fields: vec![
+            "DexterityLaunchAdapterRegistry".into(),
+            "DexterityNormalizedLaunch".into(),
+            "SwarmCoordinator::spawn_session".into(),
+            "ModelRuntime".into(),
+            "CloudLane/BYOK".into(),
+            "CliBridge".into(),
+            "Operator".into(),
+            "SubagentManager".into(),
+            "ValidatorRunner".into(),
+            "cancellation_ref".into(),
+            "reclaim_policy_ref".into(),
+            "terminal_status_mapping_ref".into(),
+            "process_ownership_ref".into(),
+            "no_os_process_reason_ref".into(),
+            "startup_failure_ref".into(),
+            "event_ledger_stream_id".into(),
+            "DexterityNoOsLaunchCaller".into(),
+            "model_lane_terminal".into(),
+            "provider_feature_profile_ref".into(),
+            "requested_execution_policy_ref".into(),
+            "effective_execution_policy_ref".into(),
+            "Flight Recorder".into(),
+            "EventLedger".into(),
+            "Palmistry".into(),
+        ],
+        common_errors: vec![
+            "direct endpoint launch bypass".into(),
+            "app/src or app/src-tauri launch authority".into(),
+            "terminal-only CLI launch state".into(),
+            "missing ModelLaneStore".into(),
+            "ModelLaneStore-backed coordinator without SpawnRequest::with_dexterity_launch".into(),
+            "missing cancellation or reclaim metadata".into(),
+            "unsupported tool capability".into(),
+            "BYOK cloud missing provider/projection/consent refs".into(),
+            "human/subagent/validator lane without no-OS-process equivalent".into(),
+            "Ready transition before ModelLane persistence commit".into(),
+            "terminal state write failure before runtime teardown".into(),
+            "stale no-OS caller receipt after authority session removal".into(),
+        ],
+        recovery_steps: vec![
+            "Route through DexterityLaunchAdapterRegistry, attach SpawnRequest::with_dexterity_launch, and call SwarmCoordinator before runtime creation.".into(),
+            "Use ModelLaneStore on the same PostgreSQL/EventLedger authority path as the runtime.".into(),
+            "For cloud lanes, provide explicit BYOK provider, projection_plan_ref, and consent_receipt_ref.".into(),
+            "For no-OS lanes, authorize from a live Ready/Generating authority session and record no_os_process_reason_ref instead of faking a process.".into(),
+            "If terminal lane persistence fails, retry the terminal action while the live handle still exists; terminal writes serialize by lane_id.".into(),
+            "For HBR-INT-009, inspect Flight Recorder/EventLedger rows; internal_diagnostics is WIRED through the native diagnostics surface, and Palmistry is DEFERRED-with-reason to the separate watcher worktree.".into(),
+        ],
+        origin: "wp1_model_lane".into(),
+        content_hash: model_lane_launch_tool_hash,
+        manual_version: USER_MANUAL_VERSION.into(),
+    });
+
+    let model_lane_promotion_tool_hash = sha256_hex(
+        &serde_json::to_string(&json!({
+            "id": "model_lane_promotion_pg_tests",
+            "name": "Dexterity promotion decision runtime proof",
+            "status": "wired",
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests",
+            "exact_commands": [
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests model_lane_promotion_appends_eventledger_and_replays_decision -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_mutation -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests model_lane_promotion_reordered_inputs_keep_same_decision_hash -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_promotion_user_manual_entry_is_current -- --exact"
+            ],
+            "hardening": [
+                "final_state",
+                "typed_message_routing",
+                "db_derived_crdt_current_state",
+                "exact_promotion_decision_and_artifact_binding",
+                "phantom_input_ref_denial"
+            ],
+            "manual_version": USER_MANUAL_VERSION,
+        }))
+        .expect("model lane promotion tool serializes"),
+    );
+    tools.push(UserManualToolEntry {
+        tool_id: "model_lane_promotion_pg_tests".into(),
+        page_id: None,
+        name: "Dexterity promotion decision runtime proof".into(),
+        status: "wired".into(),
+        ipc_channel: None,
+        tauri_command: None,
+        cli_flag: Some(
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_promotion_pg_tests".into(),
+        ),
+        http_route: None,
+        http_method: String::new(),
+        description:
+            "Exact Rust proof targets for Dexterity routing policies and advisory-to-authority promotion decisions."
+                .into(),
+        expected_input:
+            "Real PostgreSQL test URL or Handshake-managed PostgreSQL; test-utils feature enabled; advisory ModelLaneMessage rows with CRDT refs."
+                .into(),
+        expected_output:
+            "EventLedger-backed ModelLanePromotionDecision rows, replay ordered by event_ledger_seq, typed approved/denied state_history plus final_state, DB-derived CRDT base/state-vector denials, schema and aggregate-version denials, phantom input-ref denial, exact promotion_decision_id and promoted artifact binding, direct authority mutation rejection, duplicate idempotency conflict, typed message routing, and canonical decision hash stable across reordered input refs."
+                .into(),
+        schema_fields: vec![
+            "ModelLaneRoutingPolicy".into(),
+            "ModelLaneRoutingMetadata".into(),
+            "ModelLanePromotionDecision".into(),
+            "NewModelLanePromotionDecision".into(),
+            "hsk.model_lane_promotion_decision@1".into(),
+            "model_lane_promotion_decision".into(),
+            "local_first".into(),
+            "cloud_review".into(),
+            "cloud_plan_local_execute".into(),
+            "parallel_debate".into(),
+            "validator_lane".into(),
+            "operator_lane".into(),
+            "input_refs".into(),
+            "selected_input_refs".into(),
+            "rejected_input_refs".into(),
+            "target_role".into(),
+            "target_session".into(),
+            "correlation_id".into(),
+            "requires_ack".into(),
+            "ack_for".into(),
+            "canonical_hash_basis".into(),
+            "canonical_decision_hash".into(),
+            "final_state".into(),
+            "expected_event_ledger_version".into(),
+            "current_event_ledger_version".into(),
+            "base_snapshot_ref".into(),
+            "current_base_snapshot_ref".into(),
+            "state_vector".into(),
+            "current_state_vector".into(),
+            "schema_id".into(),
+            "promotion_decision_id".into(),
+            "promotion_gate_ref".into(),
+            "promotion_receipt_ref".into(),
+            "promoted_artifact_ref".into(),
+            "promoted_artifact_sha256".into(),
+            "promoted_artifact_version".into(),
+            "event_ledger_seq".into(),
+            "Flight Recorder".into(),
+            "EventLedger".into(),
+            "internal_diagnostics".into(),
+            "Palmistry".into(),
+        ],
+        common_errors: vec![
+            "AggregateVersionMismatch".into(),
+            "SchemaMismatch".into(),
+            "StaleBase".into(),
+            "StaleStateVector".into(),
+            "InputRefMismatch".into(),
+            "DirectAuthorityMutation".into(),
+            "MissingPromotionAuthority".into(),
+            "MissingPromotedArtifactBinding".into(),
+            "Promoted ModelLaneMessage without approved PromotionGate resolution".into(),
+            "idempotency conflict".into(),
+        ],
+        recovery_steps: vec![
+            "Replay promotion decisions by run_id with ModelLaneStore::replay_promotion_decisions and compare event_ledger_seq to kernel_event_ledger.".into(),
+            "For stale CRDT denials, inspect the selected advisory ModelLaneMessage rows because current_base_snapshot_ref/current_state_vector are DB-derived, then request promotion again with a new idempotency_key.".into(),
+            "For schema denials, compare schema_id to model_lane_schema_registry before retry.".into(),
+            "For aggregate version denials, read the current kernel_event_ledger aggregate version and rebuild the decision input.".into(),
+            "For input-ref denials, verify every model-lane-message:// ref exists in the same run, is advisory or promotion_candidate, and carries selected CRDT state.".into(),
+            "Never write ModelLaneAuthority::Promoted directly; first record an approved ModelLanePromotionDecision with matching promotion_decision_id, promotion_gate_ref, promotion_receipt_ref, promoted_artifact_ref, promoted_artifact_sha256, and promoted_artifact_version.".into(),
+            "For HBR-INT-009, inspect Flight Recorder/EventLedger rows; internal_diagnostics is WIRED through the native diagnostics surface, and Palmistry is DEFERRED-with-reason to the separate watcher worktree.".into(),
+        ],
+        origin: "wp1_model_lane".into(),
+        content_hash: model_lane_promotion_tool_hash,
+        manual_version: USER_MANUAL_VERSION.into(),
+    });
+
+    let model_lane_context_bundle_tool_hash = sha256_hex(
+        &serde_json::to_string(&json!({
+            "id": "model_lane_context_bundle_pg_tests",
+            "name": "Dexterity ContextBundle handoff runtime proof",
+            "status": "wired",
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests",
+            "exact_commands": [
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_persists_selection_state_and_replays -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_missing_artifact_ref_fails_closed -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayable -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_context_bundle_user_manual_entry_is_current -- --exact"
+            ],
+            "hardening": [
+                "artifact_binding_authority_table",
+                "dedicated_postgresql_handoff_table",
+                "eventledger_artifact_stored",
+                "eventledger_context_bundle_recorded",
+                "source_message_artifact_ref_hash_match",
+                "artifact_binding_hash_match",
+                "downstream_lane_consumption",
+                "coordinator_adapter_invocation",
+                "kernel_context_bundle_v1_identity",
+                "selected_rejected_unresolved_superseded_replay",
+                "crdt_update_bytes_ref_state_vector_base_snapshot",
+                "yjs_compatible_replay_metadata",
+                "loom_flight_recorder_evidence",
+                "fems_memory_pack_cloud_safe",
+                "fems_local_only_cloud_rejection",
+                "hidden_projection_ref_rejection",
+                "normalized_hidden_memory_uri_rejection",
+                "bounded_loom_and_memory_refs"
+            ],
+            "manual_version": USER_MANUAL_VERSION,
+        }))
+        .expect("model lane ContextBundle tool serializes"),
+    );
+    tools.push(UserManualToolEntry {
+        tool_id: "model_lane_context_bundle_pg_tests".into(),
+        page_id: None,
+        name: "Dexterity ContextBundle handoff runtime proof".into(),
+        status: "wired".into(),
+        ipc_channel: None,
+        tauri_command: None,
+        cli_flag: Some(
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests".into(),
+        ),
+        http_route: None,
+        http_method: String::new(),
+        description:
+            "Exact Rust proof targets for Dexterity model-to-model ContextBundle handoff persistence with artifact binding, downstream replay, CRDT/Loom/FEMS binding, and fail-closed artifact refs."
+                .into(),
+        expected_input:
+            "Real PostgreSQL test URL or Handshake-managed PostgreSQL; test-utils feature enabled; source ModelLaneMessage rows with replayable payload refs; NewModelLaneContextBundleArtifactBinding rows whose payload_json sha256 equals artifact_sha256/content_hash; downstream_lane_id; work_packet_id; micro_task_id; task_board_id; explicit reviewed MemoryPack refs for cloud lanes."
+                .into(),
+        expected_output:
+            "EventLedger-backed ModelLaneContextBundleArtifactBindingRecord and ModelLaneContextBundleHandoff rows, ARTIFACT_STORED payload stamping, model_lane_context_bundle_artifacts authority rows with artifact_manifest_ref/artifact_payload_ref/payload_json/artifact_binding_hash, replay ordered by event_ledger_seq for one context_bundle_id, downstream-only ModelLaneDownstreamContextBundle consumption through ModelLaneStore::consume_context_bundle_for_downstream and SwarmCoordinator::context_bundle_for_downstream_lane, SwarmCoordinator::invoke_downstream_context_bundle adapter invocation, to_kernel_context_bundle conversion with ContextBundle V1 CTX-<hash> identity, selected/rejected/unresolved/superseded selection states, schema registry rows hsk.model_lane_context_bundle_artifact@1 and hsk.model_lane_context_bundle_handoff@1, fail-closed missing source and artifact_ref/artifact_sha256/content_hash mismatch against ArtifactStore/EventLedger authority, cloud-safe FEMS MemoryPack enforcement, local_only_context cloud rejection, review_status reviewed, operator_reviewed, or validator_reviewed, hidden provider/session memory rejection including projection_ref and normalized hidden-memory URI checks, memory_pack_refs exceeds bounded FEMS limit, CRDT state_vector/base_snapshot_ref/update_bytes_ref validation, Yjs-compatible format yjs_update_v1 or yjs_update_v2, Loom event_ledger_evidence_ref and flight_recorder_evidence_ref replay, loom_refs exceeds bounded limit, duplicate idempotency returning the original context_bundle_hash, and manual parity."
+                .into(),
+        schema_fields: vec![
+            "ModelLaneContextBundleArtifactBindingRecord".into(),
+            "NewModelLaneContextBundleArtifactBinding".into(),
+            "ModelLaneContextBundleHandoffRecord".into(),
+            "NewModelLaneContextBundleHandoff".into(),
+            "ModelLaneDownstreamContextBundle".into(),
+            "ModelLaneCrdtHandoffMetadata".into(),
+            "ModelLaneLoomHandoffRef".into(),
+            "ModelLaneMemoryPackHandoffRef".into(),
+            "hsk.model_lane_context_bundle_artifact@1".into(),
+            "hsk.model_lane_context_bundle_handoff@1".into(),
+            "model_lane_context_bundle_artifacts".into(),
+            "model_lane_context_bundle_handoff".into(),
+            "context_bundle_id".into(),
+            "context_bundle_hash".into(),
+            "artifact_binding_hash".into(),
+            "artifact_manifest_ref".into(),
+            "artifact_payload_ref".into(),
+            "payload_json".into(),
+            "downstream_lane_id".into(),
+            "SwarmCoordinator::invoke_downstream_context_bundle".into(),
+            "ModelAdapterRequest".into(),
+            "source_message_id".into(),
+            "artifact_ref".into(),
+            "artifact_sha256".into(),
+            "content_hash".into(),
+            "work_packet_id".into(),
+            "micro_task_id".into(),
+            "task_board_id".into(),
+            "to_kernel_context_bundle".into(),
+            "CTX-<hash>".into(),
+            "selected".into(),
+            "rejected".into(),
+            "unresolved".into(),
+            "superseded".into(),
+            "schema_id".into(),
+            "document_id".into(),
+            "workspace_id".into(),
+            "actor_id".into(),
+            "actor_kind".into(),
+            "lane_id".into(),
+            "crdt_site_id".into(),
+            "update_seq".into(),
+            "update_bytes_ref".into(),
+            "update_sha256".into(),
+            "state_vector".into(),
+            "base_snapshot_ref".into(),
+            "materialized_projection_hash".into(),
+            "replay_metadata".into(),
+            "yjs_update_v1".into(),
+            "yjs_update_v2".into(),
+            "promotion_gate_ref".into(),
+            "validation_runner_ref".into(),
+            "authority_effect".into(),
+            "loom_refs".into(),
+            "event_ledger_evidence_ref".into(),
+            "flight_recorder_evidence_ref".into(),
+            "memory_pack_ref".into(),
+            "memory_pack_hash".into(),
+            "scope_tag".into(),
+            "review_status".into(),
+            "cloud_safe".into(),
+            "classification".into(),
+            "projection_ref".into(),
+            "Flight Recorder".into(),
+            "EventLedger".into(),
+            "internal_diagnostics".into(),
+            "Palmistry".into(),
+        ],
+        common_errors: vec![
+            "artifact binding must exist before context handoff".into(),
+            "artifact_payload_ref must match artifact_ref".into(),
+            "payload_json sha256 must match content_hash".into(),
+            "source_message_id is not replayable".into(),
+            "handoff.artifact_ref must match source.payload_ref".into(),
+            "handoff.artifact_sha256 must match source.payload_sha256".into(),
+            "handoff.content_hash must match source.payload_sha256".into(),
+            "handoff artifact hash must match ArtifactStore/EventLedger authority".into(),
+            "downstream_lane_id is required".into(),
+            "work_packet_id is required".into(),
+            "micro_task_id is required".into(),
+            "task_board_id is required".into(),
+            "cloud downstream handoff requires every MemoryPack ref to be cloud_safe".into(),
+            "cloud downstream handoff cannot use local_only_context MemoryPack refs".into(),
+            "MemoryPack handoff cannot use hidden provider/session memory as authority".into(),
+            "MemoryPack handoff projection_ref cannot use hidden provider/session memory as authority".into(),
+            "MemoryPack review_status must be reviewed, operator_reviewed, or validator_reviewed".into(),
+            "memory_pack_refs exceeds bounded FEMS limit".into(),
+            "CRDT ModelLaneMessage handoff requires crdt_payload metadata".into(),
+            "crdt_payload.update_bytes_ref must match source.crdt_update_ref".into(),
+            "crdt_payload.replay_metadata must declare Yjs-compatible format yjs_update_v1 or yjs_update_v2".into(),
+            "crdt_payload.authority_effect must be advisory_only before promotion".into(),
+            "loom_refs exceeds bounded limit".into(),
+            "idempotency conflict".into(),
+        ],
+        recovery_steps: vec![
+            "Recover artifact authority first with ModelLaneStore::record_context_bundle_artifact_binding and verify model_lane_context_bundle_artifacts.payload_json hashes to artifact_sha256/content_hash.".into(),
+            "Replay handoffs with ModelLaneStore::replay_context_bundle_handoffs(run_id, context_bundle_id) and compare event_ledger_seq to kernel_event_ledger.".into(),
+            "For downstream recovery, call ModelLaneStore::consume_context_bundle_for_downstream or SwarmCoordinator::context_bundle_for_downstream_lane, convert ModelLaneDownstreamContextBundle with to_kernel_context_bundle, and verify the kernel ContextBundle id follows CTX-<hash>.".into(),
+            "For runtime model invocation, call SwarmCoordinator::invoke_downstream_context_bundle so the adapter receives ModelAdapterRequest.context_bundle from PostgreSQL/EventLedger replay.".into(),
+            "For missing source failures, record the source ModelLaneMessage first and retry with a new idempotency_key.".into(),
+            "For artifact failures, copy artifact_ref/artifact_sha256/content_hash from the source ModelLaneMessage row instead of trusting caller memory.".into(),
+            "For cloud handoff failures, use explicit reviewed MemoryPack refs with memory_pack_hash, scope_tag, classification, projection_ref, evidence_ref, cloud_safe = true, and classification other than local_only_context.".into(),
+            "For CRDT failures, copy update_bytes_ref, state_vector, and base_snapshot_ref from the source ModelLaneMessage CRDT fields and keep authority_effect = advisory_only until PromotionGate approval.".into(),
+            "For Loom failures, include workspace/block refs plus EventLedger and Flight Recorder evidence refs before retry.".into(),
+            "For HBR-INT-009, inspect EventLedger rows and Flight Recorder evidence refs; direct Flight Recorder event emission is DEFERRED-with-reason to MT-008, internal_diagnostics is WIRED through the native diagnostics surface, and Palmistry is DEFERRED-with-reason to the separate watcher worktree.".into(),
+        ],
+        origin: "wp1_model_lane".into(),
+        content_hash: model_lane_context_bundle_tool_hash,
+        manual_version: USER_MANUAL_VERSION.into(),
+    });
+
+    let cloud_model_lane_policy_tool_hash = sha256_hex(
+        &serde_json::to_string(&json!({
+            "id": "cloud_model_lane_policy_pg_tests",
+            "name": "Dexterity cloud ProjectionPlan and ConsentReceipt runtime proof",
+            "status": "wired",
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests",
+            "exact_commands": [
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests cloud_projection_and_consent_receipts_persist_and_replay -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests cloud_lane_rejects_missing_expired_mismatched_and_revoked_consent -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests cloud_consent_revocation_cancels_pending_lanes_with_eventledger_evidence -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests cloud_model_lane_policy_user_manual_entry_is_current -- --exact"
+            ],
+            "hardening": [
+                "durable_projection_plan_table",
+                "durable_consent_receipt_table",
+                "eventledger_denial_rows",
+                "pre_factory_provider_suppression",
+                "cx_mm_007_consent_status",
+                "revocation_cancels_covered_lanes",
+                "advisory_until_promotion"
+            ],
+            "manual_version": USER_MANUAL_VERSION,
+        }))
+        .expect("cloud model-lane policy tool serializes"),
+    );
+    tools.push(UserManualToolEntry {
+        tool_id: "cloud_model_lane_policy_pg_tests".into(),
+        page_id: None,
+        name: "Dexterity cloud ProjectionPlan and ConsentReceipt runtime proof".into(),
+        status: "wired".into(),
+        ipc_channel: None,
+        tauri_command: None,
+        cli_flag: Some(
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_model_lane_policy_pg_tests".into(),
+        ),
+        http_route: None,
+        http_method: String::new(),
+        description:
+            "Exact Rust proof targets for Dexterity cloud ProjectionPlan/ConsentReceipt persistence, CX-MM-007 denial evidence, pre-factory provider suppression, advisory cloud outputs, and revocation cancellation."
+                .into(),
+        expected_input:
+            "Real PostgreSQL test URL or Handshake-managed PostgreSQL; test-utils feature enabled; NewModelLaneCloudProjectionPlan rows; NewModelLaneCloudConsentReceipt rows; BYOK cloud SpawnRequest with DexterityLaunchContract; cloud ModelLane rows with projection_plan_ref and consent_receipt_ref; revoked receipt id for cancellation proof."
+                .into(),
+        expected_output:
+            "EventLedger-backed ModelLaneCloudProjectionPlanRecord and ModelLaneCloudConsentReceiptRecord rows in model_lane_cloud_projection_plans and model_lane_cloud_consent_receipts, schema registry rows hsk.model_lane_cloud_projection_plan@1, hsk.model_lane_cloud_consent_receipt@1, and hsk.model_lane_cloud_consent_denial@1, replay through ModelLaneStore::replay_cloud_consent_authority, cloud launch allowed only when durable ProjectionPlan and ConsentReceipt match projection_plan_hash/run_id/lane_id/model_session_id/provider_kind/requested_model_id/scope_hash/retention/export/fan_out_targets, missing/expired/mismatched/revoked consent rejected with CX-MM-007 and model_lane_cloud_consent_denial EventLedger payload provider_call_attempted = false, SwarmCoordinator::spawn_session preflight blocks before factory.create, cloud ModelLaneMessage diagnostic_payload carries projection/redaction metadata, ModelLaneAuthority::Promoted rejects without approved PromotionGate, ModelLaneStore::revoke_cloud_consent_receipt cancels covered lanes with failstate_code CX-MM-007 and model_lane_terminal EventLedger evidence, and manual parity."
+                .into(),
+        schema_fields: vec![
+            "NewModelLaneCloudProjectionPlan".into(),
+            "ModelLaneCloudProjectionPlanRecord".into(),
+            "NewModelLaneCloudConsentReceipt".into(),
+            "ModelLaneCloudConsentReceiptRecord".into(),
+            "ModelLaneCloudConsentAuthorityReplay".into(),
+            "ModelLaneStore::record_cloud_projection_plan".into(),
+            "ModelLaneStore::record_cloud_consent_receipt".into(),
+            "ModelLaneStore::replay_cloud_consent_authority".into(),
+            "ModelLaneStore::preflight_cloud_spawn_request".into(),
+            "ModelLaneStore::revoke_cloud_consent_receipt".into(),
+            "hsk.model_lane_cloud_projection_plan@1".into(),
+            "hsk.model_lane_cloud_consent_receipt@1".into(),
+            "hsk.model_lane_cloud_consent_denial@1".into(),
+            "model_lane_cloud_projection_plans".into(),
+            "model_lane_cloud_consent_receipts".into(),
+            "model_lane_cloud_consent_denial".into(),
+            "model_lane_terminal".into(),
+            "CX-MM-007".into(),
+            "consent_status".into(),
+            "provider_call_attempted".into(),
+            "projection_plan_hash".into(),
+            "scope_hash".into(),
+            "retention_policy".into(),
+            "export_posture".into(),
+            "fan_out_targets".into(),
+            "redaction_policy_ref".into(),
+            "user_manual_behavior_ref".into(),
+            "Flight Recorder".into(),
+            "EventLedger".into(),
+            "internal_diagnostics".into(),
+            "Palmistry".into(),
+        ],
+        common_errors: vec![
+            "ProjectionPlan is not durable".into(),
+            "ConsentReceipt is not durable".into(),
+            "ConsentReceipt validity window is not current".into(),
+            "ConsentReceipt is revoked".into(),
+            "ConsentReceipt policy fields must match ProjectionPlan scope, retention, export, and fan-out".into(),
+            "cloud lane launch denied before provider call".into(),
+            "Promoted ModelLaneMessage requires approved PromotionGate resolution".into(),
+            "source_artifact_refs cannot use hidden provider/session memory".into(),
+            "idempotency conflict".into(),
+        ],
+        recovery_steps: vec![
+            "Record or replay the ProjectionPlan with ModelLaneStore::record_cloud_projection_plan, then compare projection_plan_hash and event_ledger_seq to kernel_event_ledger.".into(),
+            "Record or replay the ConsentReceipt with ModelLaneStore::record_cloud_consent_receipt and verify projection_plan_hash/run_id/lane_id/model_session_id/provider_kind/requested_model_id/scope_hash/retention/export/fan_out_targets match the ProjectionPlan.".into(),
+            "For CX-MM-007 denials, inspect model_lane_cloud_consent_denial payloads and confirm provider_call_attempted = false before retrying with a new valid receipt.".into(),
+            "For revocations, call ModelLaneStore::revoke_cloud_consent_receipt and replay the affected run to confirm Cancelled lanes with failstate_code CX-MM-007.".into(),
+            "For cloud outputs, keep ModelLaneAuthority::Advisory until a PromotionGate decision exists; never write ModelLaneAuthority::Promoted directly.".into(),
+            "For HBR-INT-009, inspect EventLedger rows; direct Flight Recorder event emission is DEFERRED-with-reason to FR-EVT-CLOUD wiring, internal_diagnostics is WIRED through the native diagnostic surface, and Palmistry is DEFERRED-with-reason to the separate watcher worktree.".into(),
+        ],
+        origin: "wp1_model_lane".into(),
+        content_hash: cloud_model_lane_policy_tool_hash,
+        manual_version: USER_MANUAL_VERSION.into(),
+    });
+
+    let model_lane_recovery_tool_hash = sha256_hex(
+        &serde_json::to_string(&json!({
+            "id": "model_lane_recovery_pg_tests",
+            "name": "Dexterity recovery and replay runtime proof",
+            "status": "wired",
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests",
+            "exact_commands": [
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_replays_from_postgres_eventledger_checkpoint -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_excludes_post_checkpoint_adjunct_state -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_rejects_corrupt_checkpoint_and_event_seq_gap -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_restores_mt_runtime_status_refs_after_restart -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests diagnostic_tier_record_rejects_flight_recorder_only_evidence -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_rejects_missing_payload_stale_crdt_and_duplicate_idempotency -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_uses_eventledger_checkpoint_authority_over_mutable_row -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_rejects_post_checkpoint_payload_and_crdt_repairs -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_recovery_user_manual_entry_is_current -- --exact"
+            ],
+            "manual_version": USER_MANUAL_VERSION,
+        }))
+        .expect("model-lane recovery tool serializes"),
+    );
+    tools.push(UserManualToolEntry {
+        tool_id: "model_lane_recovery_pg_tests".into(),
+        page_id: None,
+        name: "Dexterity recovery and replay runtime proof".into(),
+        status: "wired".into(),
+        ipc_channel: None,
+        tauri_command: None,
+        cli_flag: Some(
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests".into(),
+        ),
+        http_route: None,
+        http_method: String::new(),
+        description:
+            "Exact Rust proof targets for Dexterity checkpoint/EventLedger recovery, lane leases, payload authority, CRDT stale-base rejection, MT runtime status restoration, and HBR-INT-009 diagnostic posture."
+                .into(),
+        expected_input:
+            "Real PostgreSQL test URL or Handshake-managed PostgreSQL; test-utils feature enabled; ModelLaneRun/ModelLane/ModelLaneMessage rows; ArtifactStore context-bundle artifact bindings; recovery checkpoint/event/lease/diagnostic/MT-status rows."
+                .into(),
+        expected_output:
+            "EventLedger-backed ModelLaneRecoveryCheckpointRecord, ModelLaneRecoveryEventRecord, ModelLaneLeaseRecord, ModelLaneDiagnosticTierStatusRecord, and ModelLaneMtRuntimeStatusRecord rows; checkpoint-bounded replay through ModelLaneStore::recover_run_after_restart; payload refs resolved through model_lane_context_bundle_artifacts plus kernel_event_ledger; CRDT base/state-vector validation; checkpoint-bounded failed cloud consent denial receipts; active versus expired lease classification; durable CX-MM-009 orphan_detected events for expired active leases; divergent idempotency rejected; CX-MM-006 and CX-MM-009 failure paths; Flight Recorder-only HBR-INT-009 evidence rejected; manual parity."
+                .into(),
+        schema_fields: vec![
+            "NewModelLaneRecoveryCheckpoint".into(),
+            "ModelLaneRecoveryCheckpointRecord".into(),
+            "NewModelLaneRecoveryEvent".into(),
+            "ModelLaneRecoveryEventRecord".into(),
+            "NewModelLaneLease".into(),
+            "ModelLaneLeaseRecord".into(),
+            "NewModelLaneDiagnosticTierStatus".into(),
+            "ModelLaneDiagnosticTierStatusRecord".into(),
+            "NewModelLaneMtRuntimeStatus".into(),
+            "ModelLaneMtRuntimeStatusRecord".into(),
+            "ModelLaneStore::recover_run_after_restart".into(),
+            "hsk.model_lane_recovery_checkpoint@1".into(),
+            "hsk.model_lane_recovery_event@1".into(),
+            "hsk.model_lane_lease@1".into(),
+            "hsk.model_lane_diagnostic_tier@1".into(),
+            "hsk.model_lane_mt_runtime_status@1".into(),
+            "model_lane_recovery_checkpoints".into(),
+            "model_lane_recovery_events".into(),
+            "model_lane_leases".into(),
+            "model_lane_diagnostic_tier_statuses".into(),
+            "model_lane_mt_runtime_statuses".into(),
+            "kernel_event_ledger".into(),
+            "model_lane_context_bundle_artifacts".into(),
+            "CX-MM-006".into(),
+            "CX-MM-009".into(),
+            "internal_diagnostics".into(),
+            "Palmistry".into(),
+        ],
+        common_errors: vec![
+            "missing_payload_authority".into(),
+            "event_ledger_sequence_gap".into(),
+            "stale_crdt_base".into(),
+            "orphaned_subagent".into(),
+            "idempotency conflict".into(),
+            "FlightRecorder-only".into(),
+        ],
+        recovery_steps: vec![
+            "Call ModelLaneStore::recover_run_after_restart(run_id) and inspect the checkpoint high-watermark plus recovery_events replay_order_seq.".into(),
+            "For CX-MM-006, create or repair a model_lane_context_bundle_artifacts row whose artifact_ref/artifact_payload_ref matches the message payload ref and whose kernel_event_ledger row matches.".into(),
+            "For stale CRDT, replay the advisory ModelLaneMessage CRDT base_snapshot_ref and state_vector before retrying recovery.".into(),
+            "For orphaned subagents, compare lane lease state and lease_expires_at_utc before takeover; use CX-MM-009 for unrecoverable orphan paths.".into(),
+            "For HBR-INT-009, require EventLedger/Flight Recorder plus wired internal_diagnostics; Palmistry may be DEFERRED-with-reason with a follow_up_ref until the external watcher is available.".into(),
+        ],
+        origin: "wp1_model_lane".into(),
+        content_hash: model_lane_recovery_tool_hash,
+        manual_version: USER_MANUAL_VERSION.into(),
+    });
+
+    let swarm_lane_diagnostics_tool_hash = sha256_hex(
+        &serde_json::to_string(&json!({
+            "id": "swarm_lane_diagnostics_runtime_proof",
+            "name": "Dexterity lane diagnostics runtime proof",
+            "status": "wired",
+            "http_routes": [
+                "GET /swarm/model-lanes/diagnostics/latest",
+                "GET /swarm/model-lanes/diagnostics/{run_id}"
+            ],
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test swarm_lane_diagnostics_pg_tests",
+            "exact_commands": [
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test swarm_lane_diagnostics_pg_tests swarm_lane_diagnostics_backend_projection_matches_eventledger -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test swarm_lane_diagnostics_pg_tests swarm_lane_diagnostics_rejects_flight_recorder_only_hbr_posture -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus swarm_lane_diagnostics_argus_lists_filters_and_drills_down -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus swarm_lane_diagnostics_argus_rejects_missing_author_id_and_count_mismatch -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_top_menu_bar run_menu_opens_swarm_lane_diagnostics -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_command_palette typing_diagnostics_filters_to_swarm_lane_diagnostics_and_runs -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_settings_dialog swarm_lane_diagnostics_setting_persists -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_diagnostics_user_manual_entry_is_current -- --exact"
+            ],
+            "manual_version": USER_MANUAL_VERSION,
+        }))
+        .expect("swarm lane diagnostics tool serializes"),
+    );
+    tools.push(UserManualToolEntry {
+        tool_id: "swarm_lane_diagnostics_runtime_proof".into(),
+        page_id: None,
+        name: "Dexterity lane diagnostics runtime proof".into(),
+        status: "wired".into(),
+        ipc_channel: None,
+        tauri_command: None,
+        cli_flag: Some(
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test swarm_lane_diagnostics_pg_tests".into(),
+        ),
+        http_route: Some("/swarm/model-lanes/diagnostics/latest".into()),
+        http_method: "GET".into(),
+        description:
+            "Exact Rust proof targets for the Dexterity Lane Diagnostics native pane, backend diagnostics projection, settings/menu/palette paths, and HBR-INT-009 posture."
+                .into(),
+        expected_input:
+            "Real PostgreSQL test URL or Handshake-managed PostgreSQL; test-utils feature enabled; ModelLaneRun/ModelLane/ModelLaneMessage rows; EventLedger rows; diagnostic tier and MT runtime status rows; native Rust app AccessKit/Argus harness."
+                .into(),
+        expected_output:
+            "A native_swarm_lane_diagnostics projection from ModelLaneStore::diagnostics_projection; GET /swarm/model-lanes/diagnostics/latest and GET /swarm/model-lanes/diagnostics/{run_id}; stable AccessKit author IDs for menu.run.swarm-lane-diagnostics, swarm-lane-diagnostics.surface, run/lane/message filters, payload and promotion drilldowns, and settings.swarm-lane-diagnostics-default-open; lanes and messages linked to EventLedger event IDs, EventLedger-backed FlightRecorder correlation IDs and aliases, trace/span/link IDs, CRDT refs, Locus/Loom/FEMS refs, context bundle refs, memory pack refs, artifact refs, HBR-INT-009 tiers, and MT runtime status refs; projection validation rejects missing author IDs, schema_id mismatch, count mismatch, missing payload/EventLedger/FlightRecorder evidence, missing internal_diagnostics/Palmistry tiers, missing HBR tier state, and deferred tiers without follow_up_ref."
+                .into(),
+        schema_fields: vec![
+            "ModelLaneDiagnosticsProjection".into(),
+            "SwarmLaneDiagnosticsProjection".into(),
+            "SwarmLaneDiagnosticsPaneFactory".into(),
+            "SwarmLaneDiagnosticsClient".into(),
+            "ModelLaneStore::diagnostics_projection".into(),
+            "ModelLaneStore::latest_diagnostics_projection".into(),
+            "native_swarm_lane_diagnostics".into(),
+            "swarm-lane-diagnostics.surface".into(),
+            "swarm-lane-diagnostics.filter.run".into(),
+            "swarm-lane-diagnostics.filter.lane".into(),
+            "swarm-lane-diagnostics.filter.message".into(),
+            "swarmdiagnostics.open".into(),
+            "menu.run.swarm-lane-diagnostics".into(),
+            "settings.swarm-lane-diagnostics-default-open".into(),
+            "GET /swarm/model-lanes/diagnostics/latest".into(),
+            "GET /swarm/model-lanes/diagnostics/{run_id}".into(),
+            "kernel_event_ledger".into(),
+            "model_lane_diagnostic_tier_statuses".into(),
+            "model_lane_mt_runtime_statuses".into(),
+            "FlightRecorder".into(),
+            "internal_diagnostics".into(),
+            "Palmistry".into(),
+            "Locus".into(),
+            "Loom".into(),
+            "FEMS".into(),
+        ],
+        common_errors: vec![
+            "projection_contract_mismatch".into(),
+            "lane_message_count_mismatch".into(),
+            "missing_stable_author_id".into(),
+            "missing_payload_ref".into(),
+            "missing_eventledger_evidence".into(),
+            "missing_flightrecorder_correlation".into(),
+            "missing_hbr_int_009_tier".into(),
+            "schema_id_mismatch".into(),
+            "missing_hbr_tier_state".into(),
+            "missing_deferred_follow_up_ref".into(),
+        ],
+        recovery_steps: vec![
+            "If the pane shows swarm-lane-diagnostics.error, fetch GET /swarm/model-lanes/diagnostics/{run_id} and inspect the backend projection error first.".into(),
+            "If lane/message counts disagree, replay ModelLaneStore::replay_run(run_id) and compare model_lanes.message_count with model_lane_messages rows.".into(),
+            "If author IDs are missing, repair the native Rust pane row/drilldown construction before relying on Argus inspection.".into(),
+            "If EventLedger or FlightRecorder refs are missing, repair the model lane event linkage instead of treating UI rows as authority.".into(),
+            "If HBR posture is suspected to be FlightRecorder-only, run swarm_lane_diagnostics_rejects_flight_recorder_only_hbr_posture before trusting the diagnostics pane.".into(),
+            "If internal_diagnostics is absent, repair the native internal diagnostic tier; if Palmistry is absent, record DEFERRED-with-reason and follow-up refs until that watcher tier is available; do not silently skip HBR-INT-009.".into(),
+        ],
+        origin: "wp1_model_lane".into(),
+        content_hash: swarm_lane_diagnostics_tool_hash,
+        manual_version: USER_MANUAL_VERSION.into(),
+    });
+
+    let model_lane_navigation_tool_hash = sha256_hex(
+        &serde_json::to_string(&json!({
+            "id": "model_lane_navigation_api_tests",
+            "name": "Dexterity ModelLane navigation runtime proof",
+            "status": "wired",
+            "http_routes": [
+                "GET /swarm/model-lanes/navigation/runs/{run_id}",
+                "GET /swarm/model-lanes/navigation/lanes/{lane_id}",
+                "GET /swarm/model-lanes/navigation/messages/{message_id}",
+                "GET /swarm/model-lanes/navigation/artifacts",
+                "GET /swarm/model-lanes/navigation/traces/{trace_id}",
+                "GET /swarm/model-lanes/navigation/diagnostics/{run_id}",
+                "GET /swarm/model-lanes/navigation/recovery/{run_id}",
+                "GET /swarm/model-lanes/navigation/lookup"
+            ],
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_navigation_api_tests",
+            "exact_commands": [
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_navigation_api_tests model_lane_navigation_routes_return_run_lane_message_artifact_trace_and_recovery -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_navigation_api_tests model_lane_navigation_user_manual_registry_rows_match_runtime_routes -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_navigation_user_manual_entries_are_current -- --exact"
+            ],
+            "manual_version": USER_MANUAL_VERSION,
+        }))
+        .expect("model-lane navigation tool serializes"),
+    );
+    tools.push(UserManualToolEntry {
+        tool_id: "model_lane_navigation_api_tests".into(),
+        page_id: None,
+        name: "Dexterity ModelLane navigation runtime proof".into(),
+        status: "wired".into(),
+        ipc_channel: None,
+        tauri_command: None,
+        cli_flag: Some(
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_navigation_api_tests".into(),
+        ),
+        http_route: Some("/swarm/model-lanes/navigation/runs/{run_id}".into()),
+        http_method: "GET".into(),
+        description:
+            "Exact Rust proof targets for no-context Dexterity ModelLane navigation routes and UserManual registry parity."
+                .into(),
+        expected_input:
+            "Real PostgreSQL/EventLedger test schema; ModelLaneRun, lane, message, artifact binding, recovery, lease, diagnostic tier, and MT status rows with trace/span, Locus, Loom, FEMS, ContextBundle, MemoryPack, Flight Recorder, and Palmistry refs."
+                .into(),
+        expected_output:
+            "ModelLaneNavigationProjection rows from every navigation route with hsk.model_lane_navigation@1 schema, route_id, lookup_kind, run/lane/message/artifact/context/recovery/diagnostic/MT rows, EventLedger refs, Flight Recorder refs, error codes, recovery routes, UserManual page links, runtime router rows, WP-009 registry rows, and tool/manual parity."
+                .into(),
+        schema_fields: vec![
+            "ModelLaneNavigationProjection".into(),
+            "ModelLaneStore::navigation_by_run".into(),
+            "ModelLaneStore::navigation_by_lane".into(),
+            "ModelLaneStore::navigation_by_message".into(),
+            "ModelLaneStore::navigation_by_artifact_or_context".into(),
+            "ModelLaneStore::navigation_by_trace".into(),
+            "ModelLaneStore::navigation_by_diagnostics".into(),
+            "ModelLaneStore::navigation_by_recovery".into(),
+            "ModelLaneStore::navigation_by_lookup".into(),
+            "ModelLaneNavigationLookup".into(),
+            "hsk.model_lane_navigation@1".into(),
+            "model_lane.navigation.run".into(),
+            "model_lane.navigation.lane".into(),
+            "model_lane.navigation.message".into(),
+            "model_lane.navigation.artifact_context".into(),
+            "model_lane.navigation.trace_span".into(),
+            "model_lane.navigation.diagnostic_tier".into(),
+            "model_lane.navigation.recovery".into(),
+            "model_lane.navigation.lookup".into(),
+            "kernel_event_ledger".into(),
+            "Flight Recorder".into(),
+            "EventLedger".into(),
+            "internal_diagnostics".into(),
+            "Palmistry".into(),
+            "Locus".into(),
+            "Loom".into(),
+            "FEMS".into(),
+            "ContextBundle".into(),
+            "MemoryPack".into(),
+            "model_session_id".into(),
+            "session_id".into(),
+            "wp_id".into(),
+            "mt_id".into(),
+            "task_board_id".into(),
+            "event_ledger_event_id".into(),
+            "event_ledger_seq".into(),
+            "trace_id".into(),
+            "span_id".into(),
+            "error_code".into(),
+        ],
+        common_errors: vec![
+            "missing artifact_ref or context_bundle_id".into(),
+            "unknown run_id/lane_id/message_id/trace_id".into(),
+            "missing EventLedger refs".into(),
+            "missing Flight Recorder refs".into(),
+            "missing UserManual registry row".into(),
+            "router 404/405 for documented route".into(),
+            "diagnostics projection row drift".into(),
+        ],
+        recovery_steps: vec![
+            "Start with /swarm/model-lanes/navigation/runs/{run_id}, then narrow to lane/message/artifact/trace/diagnostics/recovery routes.".into(),
+            "Use event_ledger_refs to inspect kernel_event_ledger before trusting UI rows, provider traces, or chat history.".into(),
+            "For artifact recovery, query artifact_ref, artifact_binding_id, artifact_manifest_ref, artifact_payload_ref, artifact_sha256, content_hash, or context_bundle_id through /swarm/model-lanes/navigation/artifacts.".into(),
+            "For HBR-INT-009 gaps, compare diagnostic tier rows with model-lane-diagnostics and keep Palmistry as observation-only evidence unless the separate watcher is wired.".into(),
+            "If the registry/manual route tests fail, add the route, registry row, page anchor, and tool entry in the same implementation unit.".into(),
+        ],
+        origin: "wp1_model_lane".into(),
+        content_hash: model_lane_navigation_tool_hash,
+        manual_version: USER_MANUAL_VERSION.into(),
+    });
+
+    let mixed_model_lane_validation_tool_hash = sha256_hex(
+        &serde_json::to_string(&json!({
+            "id": "mixed_model_lane_integration_pg_tests",
+            "name": "Dexterity mixed-lane validation harness",
+            "status": "wired",
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests",
+            "exact_commands": [
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_model_lane_negative_guards_fail_closed -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus mixed_model_lane_run_is_inspectable_through_argus -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests mixed_model_lane_behaviors_have_manual_coverage -- --exact"
+            ],
+            "manual_version": USER_MANUAL_VERSION,
+        }))
+        .expect("mixed model lane validation tool serializes"),
+    );
+    tools.push(UserManualToolEntry {
+        tool_id: "mixed_model_lane_integration_pg_tests".into(),
+        page_id: None,
+        name: "Dexterity mixed-lane validation harness".into(),
+        status: "wired".into(),
+        ipc_channel: None,
+        tauri_command: None,
+        cli_flag: Some(
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests".into(),
+        ),
+        http_route: None,
+        http_method: "".into(),
+        description:
+            "Exact Rust proof targets for mixed local/cloud/subagent ModelLaneRun persistence, replay, recovery, diagnostics projection, negative guards, and UserManual behavior coverage."
+                .into(),
+        expected_input:
+            "Real PostgreSQL/EventLedger test schema; deterministic local/cloud/subagent lane fixtures; ProjectionPlan/ConsentReceipt rows; bounded payload artifacts; CRDT base/state-vector refs; recovery checkpoints; diagnostic tier rows; native AccessKit Argus harness."
+                .into(),
+        expected_output:
+            "A replayable mixed ModelLaneRun with backend lane/message counts matching native diagnostics rows; EventLedger IDs/sequences on all authority rows; recovery from checkpoint without FlightRecorder/provider history; explicit cloud consent denial and stale CRDT/missing payload/direct endpoint failures; hsk.user_manual_behavior_coverage@1 Rust coverage matrix/contract entries covering every model-lane behavior with FlightRecorder/internal_diagnostics/Palmistry posture."
+                .into(),
+        schema_fields: vec![
+            "hsk.user_manual_behavior_coverage@1".into(),
+            "ModelLaneStore::replay_run".into(),
+            "ModelLaneStore::recover_run_after_restart".into(),
+            "ModelLaneStore::diagnostics_projection".into(),
+            "model_lane_behavior_coverage_matrix".into(),
+            "verify_model_lane_behavior_coverage".into(),
+            "kernel_event_ledger".into(),
+            "native_swarm_lane_diagnostics".into(),
+            "ProcessOwnershipLedger".into(),
+            "ContextBundle".into(),
+            "CRDT".into(),
+            "Locus".into(),
+            "Loom".into(),
+            "FEMS".into(),
+        ],
+        common_errors: vec![
+            "direct_endpoint_bypass".into(),
+            "missing_cloud_consent".into(),
+            "missing_payload_authority".into(),
+            "stale_crdt_base".into(),
+            "replay_order_gap".into(),
+            "argus_count_mismatch".into(),
+            "missing_manual_coverage".into(),
+            "FlightRecorder-only".into(),
+        ],
+        recovery_steps: vec![
+            "Replay ModelLaneStore::replay_run(run_id) before trusting UI row counts.".into(),
+            "Use ModelLaneStore::recover_run_after_restart(run_id) to reconstruct checkpoint, recovery events, leases, cloud denial, and MT runtime status from PostgreSQL/EventLedger.".into(),
+            "Repair missing payloads by recording model_lane_context_bundle_artifacts rows that bind payload_ref to bounded artifact refs and EventLedger evidence.".into(),
+            "Reject stale CRDT bases until state_vector and base_snapshot_ref match the current replay posture.".into(),
+            "Repair UserManual gaps by adding canonical UserManual page/tool entries and hsk.user_manual_behavior_coverage@1 Rust contract entries; do not use markdown-only docs as proof.".into(),
+        ],
+        origin: "wp1_model_lane".into(),
+        content_hash: mixed_model_lane_validation_tool_hash,
+        manual_version: USER_MANUAL_VERSION.into(),
+    });
+
     tools
 }
 
@@ -1723,6 +3955,7 @@ fn seed_feature_entries() -> Vec<UserManualFeatureEntry> {
         SurfaceGroup::MemoryClaims,
         SurfaceGroup::CrdtCollaboration,
         SurfaceGroup::NotesLoom,
+        SurfaceGroup::ModelLaneNavigation,
         SurfaceGroup::UserManual,
     ] {
         let tool_ids: Vec<String> = wp009_surface_registry()
@@ -1780,6 +4013,39 @@ fn seed_feature_entries() -> Vec<UserManualFeatureEntry> {
             manual_version: USER_MANUAL_VERSION.into(),
         });
     }
+
+    let tool_ids = vec![
+        "model_lane_schema_pg_tests".to_string(),
+        "model_lane_launch_tests".to_string(),
+        "model_lane_promotion_pg_tests".to_string(),
+        "model_lane_context_bundle_pg_tests".to_string(),
+        "cloud_model_lane_policy_pg_tests".to_string(),
+        "model_lane_recovery_pg_tests".to_string(),
+        "swarm_lane_diagnostics_runtime_proof".to_string(),
+        "mixed_model_lane_integration_pg_tests".to_string(),
+    ];
+    let title = "WP-1 Dexterity model-lane launch, storage, promotion, handoff, cloud consent, recovery, and diagnostics"
+        .to_string();
+    let description = "Dexterity ModelLaneRun/ModelLane/ModelLaneMessage storage, launch adapter normalization, advisory-to-authority promotion decisions, ContextBundle model-to-model handoffs, durable cloud ProjectionPlan/ConsentReceipt policy, checkpoint/EventLedger recovery, native lane diagnostics, runtime proof, and operator manual coverage.".to_string();
+    let content_hash = sha256_hex(
+        &serde_json::to_string(&json!({
+            "id": "wp1.dexterity_model_lane",
+            "title": title,
+            "description": description,
+            "tool_ids": tool_ids,
+            "manual_version": USER_MANUAL_VERSION,
+        }))
+        .expect("model lane feature serializes"),
+    );
+    features.push(UserManualFeatureEntry {
+        feature_id: "wp1.dexterity_model_lane".into(),
+        title,
+        description,
+        tool_ids,
+        origin: "wp1_model_lane".into(),
+        content_hash,
+        manual_version: USER_MANUAL_VERSION.into(),
+    });
 
     features
 }

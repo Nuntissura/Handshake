@@ -11,6 +11,8 @@ use crate::model_runtime::ModelId;
 use crate::model_runtime::ProviderKind;
 use crate::model_runtime::{registry::RuntimeBinding, WarmVmSnapshotManifest};
 
+use super::model_lane::DexterityLaunchContract;
+
 /// Specific BYOK provider under the coarse `ProviderKind::ByokCloud` lane.
 /// Kept optional on [`SpawnRequest`] for backward compatibility: old callers
 /// that only say "byok_cloud" keep the existing production fallback order.
@@ -150,6 +152,10 @@ pub struct SpawnRequest {
     /// this against the request's model hash, guest model path, and worktree
     /// before calling the adapter's snapshot restore path.
     pub warm_vm_restore_manifest: Option<WarmVmSnapshotManifest>,
+    /// Typed Dexterity launch-recording contract. When present, the coordinator
+    /// must persist the model-lane run/lane rows after the factory creates a
+    /// real LiveSession and before returning spawn success.
+    pub dexterity_launch: Option<DexterityLaunchContract>,
 }
 
 impl SpawnRequest {
@@ -181,6 +187,7 @@ impl SpawnRequest {
             committed_memory_bytes: None,
             local_execution_mode: None,
             warm_vm_restore_manifest: None,
+            dexterity_launch: None,
         }
     }
 
@@ -284,6 +291,11 @@ impl SpawnRequest {
     pub fn with_warm_vm_restore_manifest(mut self, manifest: WarmVmSnapshotManifest) -> Self {
         self.local_execution_mode = Some(LocalExecutionMode::WarmVm);
         self.warm_vm_restore_manifest = Some(manifest);
+        self
+    }
+
+    pub fn with_dexterity_launch(mut self, launch: DexterityLaunchContract) -> Self {
+        self.dexterity_launch = Some(launch);
         self
     }
 

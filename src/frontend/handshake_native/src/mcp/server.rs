@@ -48,7 +48,9 @@ use crate::mcp::binding::{self, McpBinding};
 use crate::mcp::leases::LeaseRegistry;
 use crate::mcp::screenshot::{capture_handshake_window, ScreenshotError, ScreenshotResult};
 use crate::mcp::session::{McpSession, SwarmSafetyState};
-use crate::mcp::tools::{McpRequest, McpResponse, SessionToken, ERR_INVALID_PARAMS, ERR_RATE_LIMITED};
+use crate::mcp::tools::{
+    McpRequest, McpResponse, SessionToken, ERR_INVALID_PARAMS, ERR_RATE_LIMITED,
+};
 
 /// Max JSON-RPC requests one connection may issue per second before the server replies `-32003`
 /// (`Rate limited`). 100/sec is generous for multi-step steering yet bounds an adversarial flood.
@@ -162,8 +164,12 @@ impl SwarmMcpServer {
             pid: std::process::id(),
         };
         match binding::write_binding(&binding) {
-            Ok(path) => tracing::info!(path = %path.display(), tcp = %binding.tcp_addr, "mcp binding written"),
-            Err(e) => tracing::warn!(error = %e, "mcp binding file write failed (server still running)"),
+            Ok(path) => {
+                tracing::info!(path = %path.display(), tcp = %binding.tcp_addr, "mcp binding written")
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "mcp binding file write failed (server still running)")
+            }
         }
 
         Ok(Self {
@@ -175,14 +181,18 @@ impl SwarmMcpServer {
     }
 
     /// The production OS-window screenshot capture (focus-safe). Pass to [`Self::bind`] in the live app.
-    pub fn os_window_capture() -> Arc<dyn Fn() -> Result<ScreenshotResult, ScreenshotError> + Send + Sync> {
+    pub fn os_window_capture(
+    ) -> Arc<dyn Fn() -> Result<ScreenshotResult, ScreenshotError> + Send + Sync> {
         Arc::new(capture_handshake_window)
     }
 
     /// Spawn the Windows named-pipe accept loop. Returns the pipe name on success, `None` (TCP-only) on
     /// any bind failure (non-fatal — red-team: named-pipe exhaustion must not crash the server).
     #[cfg(target_os = "windows")]
-    fn spawn_named_pipe(state: &ServerState, shutdown_tx: &broadcast::Sender<()>) -> Option<String> {
+    fn spawn_named_pipe(
+        state: &ServerState,
+        shutdown_tx: &broadcast::Sender<()>,
+    ) -> Option<String> {
         use tokio::net::windows::named_pipe::ServerOptions;
 
         let pipe_name = format!(r"\\.\pipe\handshake_swarm_{}", std::process::id());
@@ -242,7 +252,10 @@ impl SwarmMcpServer {
 
     /// No named pipe on non-Windows builds (TCP-only).
     #[cfg(not(target_os = "windows"))]
-    fn spawn_named_pipe(_state: &ServerState, _shutdown_tx: &broadcast::Sender<()>) -> Option<String> {
+    fn spawn_named_pipe(
+        _state: &ServerState,
+        _shutdown_tx: &broadcast::Sender<()>,
+    ) -> Option<String> {
         None
     }
 
@@ -339,7 +352,12 @@ where
 /// now AWAITS the per-widget lease (yielding the tokio worker instead of blocking it); the parse + rate
 /// limit path stays synchronous. Rate-limit and envelope-parse failures map to well-formed JSON-RPC
 /// errors. Tests `await` it on a current-thread runtime.
-async fn handle_line(line: &str, state: &ServerState, session: &McpSession, limiter: &mut RateLimiter) -> serde_json::Value {
+async fn handle_line(
+    line: &str,
+    state: &ServerState,
+    session: &McpSession,
+    limiter: &mut RateLimiter,
+) -> serde_json::Value {
     // Rate limit BEFORE parsing/dispatch so a flood cannot even reach the auth/tool path.
     if !limiter.allow() {
         return serde_json::json!({
@@ -372,7 +390,9 @@ async fn handle_line(line: &str, state: &ServerState, session: &McpSession, limi
         }
     };
 
-    dispatch_with_session(&request, session, state).await.to_json()
+    dispatch_with_session(&request, session, state)
+        .await
+        .to_json()
 }
 
 /// Dispatch one request through `session` so MT-028 leasing + attribution are applied, taking each
@@ -390,7 +410,11 @@ async fn handle_line(line: &str, state: &ServerState, session: &McpSession, limi
 ///
 /// The per-CONNECTION `session` is built once when the connection is accepted (so its `agent_id` is
 /// stable for the connection's whole lifetime) and reused for every request on that connection.
-async fn dispatch_with_session(request: &McpRequest, session: &McpSession, state: &ServerState) -> McpResponse {
+async fn dispatch_with_session(
+    request: &McpRequest,
+    session: &McpSession,
+    state: &ServerState,
+) -> McpResponse {
     let snapshot = state
         .safety
         .snapshot
@@ -405,7 +429,11 @@ async fn dispatch_with_session(request: &McpRequest, session: &McpSession, state
 
 /// Read one `\n`-terminated line into `buf`, but error out (rather than buffer unboundedly) once the
 /// pending line exceeds `max_bytes` (red-team: unbounded-line OOM). Returns bytes read (0 on EOF).
-async fn read_line_bounded<R>(reader: &mut R, buf: &mut String, max_bytes: usize) -> std::io::Result<usize>
+async fn read_line_bounded<R>(
+    reader: &mut R,
+    buf: &mut String,
+    max_bytes: usize,
+) -> std::io::Result<usize>
 where
     R: AsyncBufReadExt + Unpin,
 {
@@ -509,7 +537,11 @@ mod tests {
             bounds: None,
             children: vec![button],
         };
-        UiTreeSnapshot { root, captured_at_utc: "0Z".to_owned(), widget_count: 2 }
+        UiTreeSnapshot {
+            root,
+            captured_at_utc: "0Z".to_owned(),
+            widget_count: 2,
+        }
     }
 
     fn test_state(token: &str) -> ServerState {
@@ -520,9 +552,7 @@ mod tests {
         );
         ServerState {
             safety,
-            capture: Arc::new(|| {
-                Ok(crate::mcp::screenshot::screenshot_from_png(b"foobar", 4, 3))
-            }),
+            capture: Arc::new(|| Ok(crate::mcp::screenshot::screenshot_from_png(b"foobar", 4, 3))),
         }
     }
 
@@ -559,7 +589,8 @@ mod tests {
         assert_eq!(resp["result"]["queued"], true);
         // MAJOR #2 / AC#2: the success result carries the acting agent_id over the wire shape.
         assert_eq!(
-            resp["result"]["agent_id"], session.agent_id(),
+            resp["result"]["agent_id"],
+            session.agent_id(),
             "the click result is stamped with the acting agent_id"
         );
         assert_eq!(
@@ -569,7 +600,11 @@ mod tests {
         );
         // MT-028: the click is attributed in the shared log with this connection's agent_id.
         let entries = state.safety.log().drain_log();
-        assert_eq!(entries.len(), 1, "the click is recorded in the attribution log");
+        assert_eq!(
+            entries.len(),
+            1,
+            "the click is recorded in the attribution log"
+        );
         assert_eq!(entries[0].agent_id, session.agent_id());
         assert_eq!(entries[0].target_key, "btn");
     }
@@ -595,6 +630,9 @@ mod tests {
         // The bucket starts full at capacity (5) and barely refills within a tight loop, so far fewer
         // than 20 are allowed.
         assert!(allowed <= 6, "burst was rate-limited; allowed {allowed}");
-        assert!(allowed >= 5, "the initial full bucket is honored; allowed {allowed}");
+        assert!(
+            allowed >= 5,
+            "the initial full bucket is honored; allowed {allowed}"
+        );
     }
 }

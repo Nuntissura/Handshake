@@ -60,7 +60,9 @@ impl LayoutGuard {
     /// Take a checkpoint of the current layout before an agent-driven op. Pass the snapshot captured from
     /// the live shell (`HandshakeApp::capture_layout_snapshot()`).
     pub fn checkpoint(current: LayoutSnapshot) -> Self {
-        Self { checkpoint: Some(current) }
+        Self {
+            checkpoint: Some(current),
+        }
     }
 
     /// The op succeeded — discard the checkpoint; the new layout is authoritative. Consumes the guard so
@@ -124,7 +126,10 @@ mod tests {
     /// the snapshot passes the pane-completeness gate in `LayoutSnapshot::validate` (MT-009 remediation):
     /// a snapshot with empty `panes` would now be (correctly) rejected as structurally corrupt.
     fn layout_with_vertical_fraction(vertical: f32) -> LayoutSnapshot {
-        let weights = SplitWeights { vertical, ..SplitWeights::default() };
+        let weights = SplitWeights {
+            vertical,
+            ..SplitWeights::default()
+        };
 
         let mut panes = BTreeMap::new();
         let mut tab_bars = BTreeMap::new();
@@ -170,7 +175,10 @@ mod tests {
             "rollback restores the pre-op split fraction"
         );
         // And the restored snapshot still validates (so apply_layout_snapshot will accept it).
-        assert!(restored.validate().is_ok(), "rolled-back snapshot is still valid");
+        assert!(
+            restored.validate().is_ok(),
+            "rolled-back snapshot is still valid"
+        );
     }
 
     #[test]
@@ -182,7 +190,9 @@ mod tests {
     #[test]
     fn checkpoint_ref_exposes_pre_op_state_before_decision() {
         let guard = LayoutGuard::checkpoint(layout_with_vertical_fraction(0.33));
-        let peek = guard.checkpoint_ref().expect("checkpoint present before decision");
+        let peek = guard
+            .checkpoint_ref()
+            .expect("checkpoint present before decision");
         assert!((peek.split_weights.vertical - 0.33).abs() < f32::EPSILON);
         guard.commit();
     }

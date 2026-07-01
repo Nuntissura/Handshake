@@ -55,17 +55,29 @@ fn affordance_present_when_collapsed_and_drawer_nodes_absent() {
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
     harness.run();
 
-    assert!(!harness.state().bottom_drawer_open(), "drawer collapsed by default");
+    assert!(
+        !harness.state().bottom_drawer_open(),
+        "drawer collapsed by default"
+    );
     let nodes = drawer_nodes(&harness);
     assert!(
         nodes.contains_key(DRAWER_AFFORDANCE_AUTHOR_ID),
         "affordance is always visible; found {:?}",
         nodes.keys().collect::<Vec<_>>()
     );
-    assert_eq!(nodes[DRAWER_AFFORDANCE_AUTHOR_ID].0, "Button", "affordance role");
+    assert_eq!(
+        nodes[DRAWER_AFFORDANCE_AUTHOR_ID].0, "Button",
+        "affordance role"
+    );
     // Open-only nodes are absent while collapsed.
-    assert!(!nodes.contains_key(DRAWER_SHELF_AUTHOR_ID), "shelf absent while collapsed");
-    assert!(!nodes.contains_key(DRAWER_RESIZE_AUTHOR_ID), "resize handle absent while collapsed");
+    assert!(
+        !nodes.contains_key(DRAWER_SHELF_AUTHOR_ID),
+        "shelf absent while collapsed"
+    );
+    assert!(
+        !nodes.contains_key(DRAWER_RESIZE_AUTHOR_ID),
+        "resize handle absent while collapsed"
+    );
     for kind in DrawerCardKind::all() {
         assert!(
             !nodes.contains_key(&kind.author_id()),
@@ -88,27 +100,39 @@ fn open_drawer_shows_seven_nodes_with_correct_roles() {
     let nodes = drawer_nodes(&harness);
 
     // Affordance + shelf container.
-    assert_eq!(nodes[DRAWER_AFFORDANCE_AUTHOR_ID].0, "Button", "affordance role");
+    assert_eq!(
+        nodes[DRAWER_AFFORDANCE_AUTHOR_ID].0, "Button",
+        "affordance role"
+    );
     assert_eq!(
         nodes
             .get(DRAWER_SHELF_AUTHOR_ID)
-            .unwrap_or_else(|| panic!("shelf missing; found {:?}", nodes.keys().collect::<Vec<_>>()))
+            .unwrap_or_else(|| panic!(
+                "shelf missing; found {:?}",
+                nodes.keys().collect::<Vec<_>>()
+            ))
             .0,
         "Group",
         "shelf container role"
     );
     // Resize handle = Slider.
     assert_eq!(
-        nodes.get(DRAWER_RESIZE_AUTHOR_ID).expect("resize handle present").0,
+        nodes
+            .get(DRAWER_RESIZE_AUTHOR_ID)
+            .expect("resize handle present")
+            .0,
         "Slider",
         "resize handle role"
     );
     // Four cards = Button, in correct labels.
     for kind in DrawerCardKind::all() {
         let aid = kind.author_id();
-        let (role, label) = nodes
-            .get(&aid)
-            .unwrap_or_else(|| panic!("card {aid} missing; found {:?}", nodes.keys().collect::<Vec<_>>()));
+        let (role, label) = nodes.get(&aid).unwrap_or_else(|| {
+            panic!(
+                "card {aid} missing; found {:?}",
+                nodes.keys().collect::<Vec<_>>()
+            )
+        });
         assert_eq!(role, "Button", "{aid} role");
         // Label = "{title} ({badge})"; headless shell has no runtime so badge stays 0.
         assert_eq!(
@@ -121,14 +145,22 @@ fn open_drawer_shows_seven_nodes_with_correct_roles() {
     // `hsk.drawer.card.{kind}.overflow` author_id (AC-024-1/12).
     for kind in DrawerCardKind::all() {
         let aid = kind.overflow_author_id();
-        let (role, _) = nodes
-            .get(aid)
-            .unwrap_or_else(|| panic!("overflow {aid} missing; found {:?}", nodes.keys().collect::<Vec<_>>()));
+        let (role, _) = nodes.get(aid).unwrap_or_else(|| {
+            panic!(
+                "overflow {aid} missing; found {:?}",
+                nodes.keys().collect::<Vec<_>>()
+            )
+        });
         assert_eq!(role, "Button", "{aid} overflow role");
     }
     // Exactly the four cards + four overflow buttons + affordance + shelf + resize = 11 drawer nodes
     // when open (MT-024 added the four overflow buttons to the MT-023 seven).
-    assert_eq!(nodes.len(), 11, "exactly eleven drawer nodes when open; found {:?}", nodes.keys());
+    assert_eq!(
+        nodes.len(),
+        11,
+        "exactly eleven drawer nodes when open; found {:?}",
+        nodes.keys()
+    );
 }
 
 #[test]
@@ -211,12 +243,18 @@ fn clicking_affordance_toggles_open_state() {
     harness.get_by_label("Open stash drawer").click();
     harness.run();
     harness.run();
-    assert!(harness.state().bottom_drawer_open(), "affordance opened the drawer");
+    assert!(
+        harness.state().bottom_drawer_open(),
+        "affordance opened the drawer"
+    );
 
     harness.get_by_label("Close stash drawer").click();
     harness.run();
     harness.run();
-    assert!(!harness.state().bottom_drawer_open(), "affordance closed the drawer");
+    assert!(
+        !harness.state().bottom_drawer_open(),
+        "affordance closed the drawer"
+    );
 }
 
 #[test]
@@ -255,7 +293,10 @@ fn open_drawer_frame_has_no_unnamed_interactive_nodes() {
         .accesskit_update
         .expect("AccessKit update produced");
     let inspected = assert_no_unnamed_interactive(&update);
-    assert!(inspected >= 1, "gate inspected interactive nodes; inspected {inspected}");
+    assert!(
+        inspected >= 1,
+        "gate inspected interactive nodes; inspected {inspected}"
+    );
     println!("PASS: open drawer frame has no unnamed interactive nodes ({inspected} named)");
 }
 
@@ -273,5 +314,9 @@ fn drawer_debug_state_exposes_cards_for_no_context_models() {
     let cards = state["cards"].as_array().expect("cards array");
     assert_eq!(cards.len(), 4, "four cards in the debug surface");
     let titles: Vec<&str> = cards.iter().map(|c| c["title"].as_str().unwrap()).collect();
-    assert_eq!(titles, vec!["Agenda", "Mail", "Lists", "Notes"], "logical card order preserved");
+    assert_eq!(
+        titles,
+        vec!["Agenda", "Mail", "Lists", "Notes"],
+        "logical card order preserved"
+    );
 }

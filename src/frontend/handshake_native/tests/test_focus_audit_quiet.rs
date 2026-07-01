@@ -207,8 +207,8 @@ fn strip_comments_and_literals(src: &str) -> String {
 
 /// Recursively collect every `.rs` file under `dir`.
 fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
-    let entries = std::fs::read_dir(dir)
-        .unwrap_or_else(|e| panic!("read_dir {} failed: {e}", dir.display()));
+    let entries =
+        std::fs::read_dir(dir).unwrap_or_else(|e| panic!("read_dir {} failed: {e}", dir.display()));
     for entry in entries {
         let entry = entry.expect("dir entry");
         let path = entry.path();
@@ -385,7 +385,9 @@ fn popout_viewports_do_not_steal_focus() {
             );
         }
     }
-    println!("PASS: pop-out viewports use with_active(false); no with_active(true)/with_focused(true)");
+    println!(
+        "PASS: pop-out viewports use with_active(false); no with_active(true)/with_focused(true)"
+    );
 }
 
 /// ALLOW-LIST PROOF (AC-030-04 intent): the ONE Win32 surface in the shell (the screenshot capture)

@@ -19,6 +19,7 @@ pub mod knowledge_memory;
 pub mod knowledge_retrieval;
 pub mod logs;
 pub mod loom;
+pub mod model_lane_navigation;
 pub mod paths;
 pub mod role_mailbox;
 pub mod source_control;
@@ -32,6 +33,7 @@ pub fn routes(state: AppState) -> Router {
     let loom_routes = loom::routes(state.clone());
     let flight_recorder_routes = flight_recorder::routes(state.clone());
     let diagnostics_routes = diagnostics::routes(state.clone());
+    let model_lane_navigation_routes = model_lane_navigation::routes(state.clone());
     let bundle_routes = bundles::routes(state.clone());
     let governance_pack_routes = governance_pack::routes(state.clone());
     let role_mailbox_routes = role_mailbox::routes(state.clone());
@@ -56,6 +58,7 @@ pub fn routes(state: AppState) -> Router {
         .merge(job_routes)
         .merge(loom_routes)
         .merge(diagnostics_routes)
+        .merge(model_lane_navigation_routes)
         .merge(flight_recorder_routes)
         .merge(bundle_routes)
         .merge(governance_pack_routes)

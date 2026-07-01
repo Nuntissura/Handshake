@@ -18,12 +18,12 @@ use super::store::{UserManualPage, UserManualSection};
 use crate::knowledge_retrieval::budget::PriorityTier;
 use crate::knowledge_retrieval::compiler::BundleCandidate;
 use crate::knowledge_retrieval::snippet::EvidenceSnippet;
+use crate::storage::StorageResult;
 use crate::storage::knowledge::{
     KnowledgeBundleItemRefKind, KnowledgeEntity, KnowledgeEntityKind, KnowledgeStore,
     NewKnowledgeEntity,
 };
 use crate::storage::postgres::PostgresDatabase;
-use crate::storage::StorageResult;
 
 /// The citation base for a manual page: `usermanual:<slug>@<version>#<anchor>`.
 /// The snippet machinery appends the span range and the content-hash prefix.

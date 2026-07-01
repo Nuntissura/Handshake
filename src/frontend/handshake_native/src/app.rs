@@ -7,27 +7,27 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::accessibility::{self, ChromeWidget};
-use crate::backend_client::{self, HealthInfo, WorkbenchLayoutClient, HEALTH_URL};
+use crate::backend_client::{self, HEALTH_URL, HealthInfo, WorkbenchLayoutClient};
 use crate::error::AppError;
+use crate::event_bus::{ShellEvent, ShellEventReceiver, ShellEventSender, new_shell_event_bus};
 use crate::layout_persistence::{
-    DrawersState, LayoutPersistenceManager, LayoutPersistenceStatus, LayoutSnapshot, LayoutTransport,
-    PopOutSnapshot,
+    DrawersState, LayoutPersistenceManager, LayoutPersistenceStatus, LayoutSnapshot,
+    LayoutTransport, PopOutSnapshot,
 };
-use crate::event_bus::{new_shell_event_bus, ShellEvent, ShellEventReceiver, ShellEventSender};
 use crate::left_rail::{LeftRail, LeftRailColors, LeftRailEvent};
 use crate::module_switcher::{ModuleId, ModuleSwitcher, ModuleSwitcherColors};
-use crate::pane_header::{PaneHeader, PaneHeaderColors, PANE_HEADER_HEIGHT};
+use crate::pane_header::{PANE_HEADER_HEIGHT, PaneHeader, PaneHeaderColors};
 use crate::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneFactory, PaneId, PaneRecord, PaneRegistry,
     PaneRenderContext, PaneType, PlaceholderPaneFactory,
 };
-use crate::popout_window::{popout_title_for, PopOutGeometry, PopOutManager};
+use crate::popout_window::{PopOutGeometry, PopOutManager, popout_title_for};
 use crate::project_tabs::{
-    fetch_workspaces, ProjectItem, ProjectTabBar, ProjectTabColors, PROJECT_TAB_BAR_HEIGHT,
+    PROJECT_TAB_BAR_HEIGHT, ProjectItem, ProjectTabBar, ProjectTabColors, fetch_workspaces,
 };
-use crate::rails::{apply_rail_scrollbar_style, RailColors, RailDimensions};
+use crate::rails::{RailColors, RailDimensions, apply_rail_scrollbar_style};
 use crate::split_layout::{DividerColors, SplitDragState, SplitLayoutWidget, SplitWeights};
-use crate::tab_bar::{TabBar, TabBarColors, TabBarState, TabState, TAB_BAR_HEIGHT};
+use crate::tab_bar::{TAB_BAR_HEIGHT, TabBar, TabBarColors, TabBarState, TabState};
 use crate::theme::{self, HsTheme};
 use crate::top_menu_bar::{MenuBar, MenuBarAction, MenuBarState};
 
@@ -92,10 +92,17 @@ const DEFAULT_MONITOR_EXTENT: egui::Rect =
 struct NullLayoutTransport;
 
 impl LayoutTransport for NullLayoutTransport {
-    fn load(&self, _workspace_id: &str) -> Result<Option<serde_json::Value>, crate::layout_persistence::LayoutError> {
+    fn load(
+        &self,
+        _workspace_id: &str,
+    ) -> Result<Option<serde_json::Value>, crate::layout_persistence::LayoutError> {
         Ok(None)
     }
-    fn save(&self, _workspace_id: &str, _layout_state: serde_json::Value) -> Result<(), crate::layout_persistence::LayoutError> {
+    fn save(
+        &self,
+        _workspace_id: &str,
+        _layout_state: serde_json::Value,
+    ) -> Result<(), crate::layout_persistence::LayoutError> {
         Ok(())
     }
 }
@@ -420,8 +427,10 @@ pub struct HandshakeApp {
     /// in-app "Confirm Discard" `egui::Window` (HBR-QUIET — never an OS dialog). The DELETE fires ONLY when
     /// the window's OK is pressed; Cancel clears this with NO backend call. `None` when no discard is
     /// awaiting confirmation.
-    confirm_discard:
-        Option<(crate::stash_shelf::DrawerCardKind, crate::stash_shelf::DrawerActionTarget)>,
+    confirm_discard: Option<(
+        crate::stash_shelf::DrawerCardKind,
+        crate::stash_shelf::DrawerActionTarget,
+    )>,
     /// MT-024 MAJOR FIX (AC-024-4/5): the kind of the card whose last action SUCCEEDED, retained so the
     /// drawer shows a brief success indicator (the contract's card-removal/reorder lifecycle assumes a
     /// per-block item list; the MT-023 TYPE-card drawer's success effect is feedback + count refresh, not
@@ -512,6 +521,7 @@ fn build_default_factories() -> HashMap<PaneType, Box<dyn PaneFactory>> {
         PaneType::InferenceLab,
         PaneType::ModelRuntime,
         PaneType::Swarm,
+        PaneType::SwarmLaneDiagnostics,
         PaneType::Problems,
         PaneType::Jobs,
         PaneType::Timeline,
@@ -671,12 +681,12 @@ impl HandshakeApp {
             .build()
             .expect("build tokio runtime");
         // Fire-once, non-blocking health poll: window opens immediately, label shows Loading...
-        let health_handle = Some(rt.spawn(async { backend_client::fetch_health(HEALTH_URL).await }));
+        let health_handle =
+            Some(rt.spawn(async { backend_client::fetch_health(HEALTH_URL).await }));
         // Fire-once, non-blocking workspace list fetch (MT-011): the shell opens immediately with the
         // seeded default-project tab; when the fetch resolves, the real workspace tabs replace it.
-        let workspaces_handle = Some(rt.spawn(async {
-            fetch_workspaces(backend_client::BACKEND_BASE_URL).await
-        }));
+        let workspaces_handle =
+            Some(rt.spawn(async { fetch_workspaces(backend_client::BACKEND_BASE_URL).await }));
         // Real transport: the backend's PostgreSQL-authoritative layout REST endpoint, bridged onto
         // this app's tokio runtime handle. No local file authority (CX-503S / Data Posture).
         let transport = WorkbenchLayoutClient::production(rt.handle().clone());
@@ -690,14 +700,14 @@ impl HandshakeApp {
         // MT-017: the REAL Loom-graph search transport, bridged onto the app runtime (MT-009 pattern).
         let quick_switcher_transport: Option<
             Arc<dyn crate::quick_switcher::LoomGraphSearchTransport>,
-        > = Some(Arc::new(crate::quick_switcher::LoomGraphSearchClient::production(
-            rt_handle.clone(),
-        )));
+        > = Some(Arc::new(
+            crate::quick_switcher::LoomGraphSearchClient::production(rt_handle.clone()),
+        ));
         // MT-018: the REAL settings transport, bridged onto the app runtime (MT-009 pattern).
         let settings_transport: Option<Arc<dyn crate::workspace_settings::SettingsTransport>> =
-            Some(Arc::new(crate::workspace_settings::SettingsClient::production(
-                rt_handle.clone(),
-            )));
+            Some(Arc::new(
+                crate::workspace_settings::SettingsClient::production(rt_handle.clone()),
+            ));
         // MT-014 FIX-B: the in-process shell event bus, constructed once at app construction (the
         // "subscribe at app/LeftRail construction" control). Drained each frame in `ui()`.
         let (event_bus_tx, event_bus_rx) = new_shell_event_bus();
@@ -751,7 +761,7 @@ impl HandshakeApp {
             workspace_settings: crate::workspace_settings::default_workspace_settings_state(),
             settings_transport,
             settings_loaded_project_id: None,
-            settings_load_pending: false,
+            settings_load_pending: true,
             settings_load_cell: Arc::new(Mutex::new(None)),
             settings_save_cell: Arc::new(Mutex::new(None)),
             settings_save_due_at: None,
@@ -773,7 +783,9 @@ impl HandshakeApp {
             scm_text_cell: Arc::new(Mutex::new(None)),
             scm_display_text: None,
             scm_error: None,
-            canvas_client: Some(crate::backend_client::CanvasClient::production(rt_handle.clone())),
+            canvas_client: Some(crate::backend_client::CanvasClient::production(
+                rt_handle.clone(),
+            )),
             canvas_op_cell: Arc::new(Mutex::new(None)),
             canvas_error: None,
             loom_flag_cell: Arc::new(Mutex::new(None)),
@@ -814,6 +826,18 @@ impl HandshakeApp {
             mcp_token: crate::mcp::SessionToken::generate(),
             capturing_snapshot: false,
         };
+        app.factories.insert(
+            PaneType::SwarmLaneDiagnostics,
+            Box::new(
+                crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsPaneFactory::with_transport(
+                    Arc::new(
+                        crate::backend_client::SwarmLaneDiagnosticsClient::production(
+                            rt_handle.clone(),
+                        ),
+                    ),
+                ),
+            ),
+        );
         app.spawn_mcp_server();
         app
     }
@@ -826,9 +850,9 @@ impl HandshakeApp {
         let snapshot = self.mcp_snapshot.clone();
         let channel = self.mcp_action_channel.clone();
         let capture = crate::mcp::SwarmMcpServer::os_window_capture();
-        let result = self
-            .rt
-            .block_on(async move { crate::mcp::SwarmMcpServer::bind(token, snapshot, channel, capture).await });
+        let result = self.rt.block_on(async move {
+            crate::mcp::SwarmMcpServer::bind(token, snapshot, channel, capture).await
+        });
         match result {
             Ok(server) => {
                 tracing::info!(tcp = %server.tcp_addr(), pipe = ?server.pipe_name(), "MCP swarm server bound");
@@ -874,7 +898,7 @@ impl HandshakeApp {
         )));
         // MT-014 FIX-B: the in-process shell event bus (same construction as the production ctor).
         let (event_bus_tx, event_bus_rx) = new_shell_event_bus();
-        Self {
+        let mut app = Self {
             health_status: state,
             rt,
             health_handle: None,
@@ -990,7 +1014,12 @@ impl HandshakeApp {
             mcp_snapshot: Arc::new(Mutex::new(empty_snapshot())),
             mcp_token: crate::mcp::SessionToken::generate(),
             capturing_snapshot: false,
-        }
+        };
+        app.factories.insert(
+            PaneType::SwarmLaneDiagnostics,
+            Box::new(crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsPaneFactory::offline()),
+        );
+        app
     }
 
     /// The shared MCP action channel (MT-027): the slot the out-of-process server enqueues into and the
@@ -1250,6 +1279,7 @@ impl HandshakeApp {
                 true
             }
             "swarmboard.open" => self.navigate_to_tab("swarm"),
+            "swarmdiagnostics.open" => self.navigate_to_tab("swarm-lane-diagnostics"),
             "inferencelab.open" => self.navigate_to_tab("inference-lab"),
             "flightrecorder.open" => self.navigate_to_tab("flight-recorder"),
             "pane.next" => self.focus_pane(true),
@@ -1319,23 +1349,41 @@ impl HandshakeApp {
     pub fn set_runtime_handle(&mut self, handle: tokio::runtime::Handle) {
         // Build the Loom-block rename client onto the injected runtime so an injected-runtime shell
         // (kittest) gets live off-thread rename too (MT-020).
-        self.loom_block_client =
-            Some(crate::backend_client::LoomBlockClient::production(handle.clone()));
+        self.loom_block_client = Some(crate::backend_client::LoomBlockClient::production(
+            handle.clone(),
+        ));
         // MT-021: bridge the SCM + canvas off-thread clients onto the injected runtime too, so an
         // injected-runtime shell (kittest) gets live source-control + canvas calls.
-        self.source_control_client =
-            Some(crate::backend_client::SourceControlClient::production(handle.clone()));
-        self.canvas_client = Some(crate::backend_client::CanvasClient::production(handle.clone()));
+        self.source_control_client = Some(crate::backend_client::SourceControlClient::production(
+            handle.clone(),
+        ));
+        self.canvas_client = Some(crate::backend_client::CanvasClient::production(
+            handle.clone(),
+        ));
         // MT-022: the rail makes NO backend call (AC-022-9), so there is no rail transport to bridge onto
         // the runtime — the rail emits its RailQuery intent into `search_rail_query` silently.
         // MT-023: bridge the drawer-data client onto the injected runtime so an injected-runtime shell
         // (kittest) gets live off-thread card fetches.
-        self.drawer_data_client =
-            Some(crate::backend_client::DrawerDataClient::production(handle.clone()));
+        self.drawer_data_client = Some(crate::backend_client::DrawerDataClient::production(
+            handle.clone(),
+        ));
         // MT-024: bridge the drawer card-action client onto the injected runtime so an injected-runtime
         // shell (kittest) gets live off-thread pin/discard/stow/attach-evidence dispatch.
-        self.drawer_action_client =
-            Some(crate::backend_client::DrawerActionClient::production(handle.clone()));
+        self.drawer_action_client = Some(crate::backend_client::DrawerActionClient::production(
+            handle.clone(),
+        ));
+        self.factories.insert(
+            PaneType::SwarmLaneDiagnostics,
+            Box::new(
+                crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsPaneFactory::with_transport(
+                    Arc::new(
+                        crate::backend_client::SwarmLaneDiagnosticsClient::production(
+                            handle.clone(),
+                        ),
+                    ),
+                ),
+            ),
+        );
         self.runtime_handle = Some(handle);
     }
 
@@ -1360,17 +1408,56 @@ impl HandshakeApp {
     /// assert the EXACT URL + body reaches the wire through the REAL app dispatch path. Production code
     /// never calls this (it uses [`set_runtime_handle`](Self::set_runtime_handle) -> hardcoded backend
     /// URL); it exists so the MAJOR #1/#2/#3 "client genuinely consumed by the app" proof is end-to-end.
-    pub fn set_backend_base_url_for_test(&mut self, base_url: &str, handle: tokio::runtime::Handle) {
-        self.loom_block_client =
-            Some(crate::backend_client::LoomBlockClient::new(base_url, handle.clone()));
-        self.source_control_client =
-            Some(crate::backend_client::SourceControlClient::new(base_url, handle.clone()));
-        self.canvas_client = Some(crate::backend_client::CanvasClient::new(base_url, handle.clone()));
+    pub fn set_backend_base_url_for_test(
+        &mut self,
+        base_url: &str,
+        handle: tokio::runtime::Handle,
+    ) {
+        self.loom_block_client = Some(crate::backend_client::LoomBlockClient::new(
+            base_url,
+            handle.clone(),
+        ));
+        self.source_control_client = Some(crate::backend_client::SourceControlClient::new(
+            base_url,
+            handle.clone(),
+        ));
+        self.canvas_client = Some(crate::backend_client::CanvasClient::new(
+            base_url,
+            handle.clone(),
+        ));
         // MT-024: the drawer card-action client too, so the confirm-discard -> DELETE wire test (mirroring
         // PROOF-024-2(e)) can drive the REAL dispatch path against a localhost capture server.
-        self.drawer_action_client =
-            Some(crate::backend_client::DrawerActionClient::new(base_url, handle.clone()));
+        self.drawer_action_client = Some(crate::backend_client::DrawerActionClient::new(
+            base_url,
+            handle.clone(),
+        ));
+        self.factories.insert(
+            PaneType::SwarmLaneDiagnostics,
+            Box::new(
+                crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsPaneFactory::with_transport(
+                    Arc::new(crate::backend_client::SwarmLaneDiagnosticsClient::new(
+                        base_url,
+                        handle.clone(),
+                    )),
+                ),
+            ),
+        );
         self.runtime_handle = Some(handle);
+    }
+
+    #[doc(hidden)]
+    pub fn set_swarm_lane_diagnostics_projection_for_test(
+        &mut self,
+        projection: crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsProjection,
+    ) {
+        self.factories.insert(
+            PaneType::SwarmLaneDiagnostics,
+            Box::new(
+                crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsPaneFactory::with_projection(
+                    projection,
+                ),
+            ),
+        );
     }
 
     /// Directly seed the quick-switcher recents key list (MT-017) for tests asserting recents-first
@@ -1430,9 +1517,7 @@ impl HandshakeApp {
         use crate::quick_switcher::QuickSwitcherTarget as T;
         match target {
             T::UserManual { slug } => Some((PaneType::UserManual, slug.clone())),
-            T::WikiPage { projection_id } => {
-                Some((PaneType::LoomWikiPage, projection_id.clone()))
-            }
+            T::WikiPage { projection_id } => Some((PaneType::LoomWikiPage, projection_id.clone())),
             T::Document { document_id } => Some((PaneType::AtelierEditor, document_id.clone())),
             T::LoomBlock { block_id } => Some((PaneType::LoomBlock, block_id.clone())),
             T::CodeSymbol { symbol_entity_id } => {
@@ -1472,9 +1557,10 @@ impl HandshakeApp {
         //    the delivery cell; drive_quick_switcher drains it next frame (red-team MC3 surfaces errors).
         //    The same off-thread spawn pattern as the one-shot recents LOAD in drive_quick_switcher.
         let workspace = self.active_project_id.clone();
-        if let (Some(transport), Some(handle)) =
-            (self.quick_switcher_transport.clone(), self.runtime_handle.clone())
-        {
+        if let (Some(transport), Some(handle)) = (
+            self.quick_switcher_transport.clone(),
+            self.runtime_handle.clone(),
+        ) {
             let cell = self.quick_switcher_record_recent_cell.clone();
             let hit = hit.clone();
             handle.spawn(async move {
@@ -1790,7 +1876,12 @@ impl HandshakeApp {
         //     a brief success indicator, and refresh the affected count (re-fire the open fetches so the
         //     badge reflects the mutation). On Err, surface the error and clear the success indicator
         //     (disclosed deviation — feedback + count refresh, not removal/reorder).
-        if let Some(result) = self.drawer_action_cell.lock().ok().and_then(|mut s| s.take()) {
+        if let Some(result) = self
+            .drawer_action_cell
+            .lock()
+            .ok()
+            .and_then(|mut s| s.take())
+        {
             let kind = self.drawer_action_in_flight.take();
             match result {
                 Ok(()) => {
@@ -1825,7 +1916,8 @@ impl HandshakeApp {
         let mut action_event: Option<crate::stash_shelf::DrawerCardActionEvent> = None;
         if open {
             let avail = ctx.available_rect().height();
-            self.drawer.clamp_height(avail, crate::search_rail::RAIL_HEIGHT + 24.0);
+            self.drawer
+                .clamp_height(avail, crate::search_rail::RAIL_HEIGHT + 24.0);
             let height = self.drawer.height;
             let drawer = &mut self.drawer;
             // ORDER: drawer -> rail -> central -- do not reorder. (egui registration order in THIS
@@ -1857,7 +1949,9 @@ impl HandshakeApp {
                 crate::stash_shelf::DrawerEvent::MailTooltip => {
                     // The hover tooltip is shown by the card itself; a click is a no-op navigation
                     // (AC-023-7) — Mail has no pane to open.
-                    tracing::debug!("drawer: Mail card clicked — no backend / pane yet (Coming soon)");
+                    tracing::debug!(
+                        "drawer: Mail card clicked — no backend / pane yet (Coming soon)"
+                    );
                 }
                 crate::stash_shelf::DrawerEvent::ToggleOpen => {
                     self.bottom_drawer_open = !self.bottom_drawer_open;
@@ -1927,11 +2021,20 @@ impl HandshakeApp {
                     // OK = the single destructive trigger. A fixed-id button carrying the stable
                     // author_id `hsk.drawer.confirm.ok` (the codebase's fixed-id-button + node-builder
                     // pattern, so the interactive node and the named node are the SAME node).
-                    if Self::confirm_button(ui, "Discard", "hsk.drawer.confirm.ok", colors.error_text) {
+                    if Self::confirm_button(
+                        ui,
+                        "Discard",
+                        "hsk.drawer.confirm.ok",
+                        colors.error_text,
+                    ) {
                         do_confirm = true;
                     }
-                    if Self::confirm_button(ui, "Cancel", "hsk.drawer.confirm.cancel", colors.card_text)
-                    {
+                    if Self::confirm_button(
+                        ui,
+                        "Cancel",
+                        "hsk.drawer.confirm.cancel",
+                        colors.card_text,
+                    ) {
                         do_cancel = true;
                     }
                 });
@@ -1984,7 +2087,11 @@ impl HandshakeApp {
         self.drawer_action_error = None;
         // Attribute the delivered receipt to this card (MAJOR FIX AC-024-4/5 success feedback).
         self.drawer_action_in_flight = Some(kind);
-        client.discard(&t.workspace_id, &t.block_id, self.drawer_action_cell.clone());
+        client.discard(
+            &t.workspace_id,
+            &t.block_id,
+            self.drawer_action_cell.clone(),
+        );
         true
     }
 
@@ -2039,8 +2146,7 @@ impl HandshakeApp {
             // ── Persisting, backend actions ──────────────────────────────────────────────────────────
             A::Stow | A::Pin | A::AttachEvidence | A::Discard => {
                 let Some(t) = target else {
-                    self.drawer_action_error =
-                        Some("This card has no block to act on".to_owned());
+                    self.drawer_action_error = Some("This card has no block to act on".to_owned());
                     return false;
                 };
                 // HBR-STOP / RISK-024-A / AC-024-11 / CONTROL-024-A: a DESTRUCTIVE action
@@ -2081,7 +2187,10 @@ impl HandshakeApp {
                     }
                     A::AttachEvidence => {
                         // The no-job case was handled above; here a job is guaranteed present.
-                        let job_id = self.active_job_id.clone().expect("active job checked above");
+                        let job_id = self
+                            .active_job_id
+                            .clone()
+                            .expect("active job checked above");
                         client.attach_evidence(
                             &t.workspace_id,
                             &t.block_id,
@@ -2117,7 +2226,10 @@ impl HandshakeApp {
     /// The most recent LOCAL drawer-action intents (MT-024, HBR-SWARM): Promote / Send-to-pane signals a
     /// swarm reader or test observes off the shared lock. Cloned snapshot.
     pub fn drawer_intents(&self) -> DrawerIntents {
-        self.drawer_intents.lock().map(|i| i.clone()).unwrap_or_default()
+        self.drawer_intents
+            .lock()
+            .map(|i| i.clone())
+            .unwrap_or_default()
     }
 
     /// A cheap clone of the concurrency-safe drawer-intents handle for a swarm reader (HBR-SWARM).
@@ -2141,7 +2253,9 @@ impl HandshakeApp {
     /// RISK-024-A), with the target block id if so. Readable by tests: a `Some` proves the menu's Discard
     /// item ARMED the confirm gate instead of dispatching the DELETE.
     pub fn confirm_discard_block_id(&self) -> Option<&str> {
-        self.confirm_discard.as_ref().map(|(_, t)| t.block_id.as_str())
+        self.confirm_discard
+            .as_ref()
+            .map(|(_, t)| t.block_id.as_str())
     }
 
     /// Set the active job id an Attach-evidence action records against (MT-024 AC-024-9). `None` disables
@@ -2183,7 +2297,11 @@ impl HandshakeApp {
             crate::backend_client::DrawerDataKind::Lists,
             cell.clone(),
         );
-        client.fetch_count(&workspace_id, crate::backend_client::DrawerDataKind::Notes, cell);
+        client.fetch_count(
+            &workspace_id,
+            crate::backend_client::DrawerDataKind::Notes,
+            cell,
+        );
     }
 
     /// Open the pane a drawer card links to (AC-023-12): Agenda → the daily-journal pane, Lists/Notes →
@@ -2192,7 +2310,9 @@ impl HandshakeApp {
     fn open_drawer_card_pane(&mut self, kind: crate::stash_shelf::DrawerCardKind) -> bool {
         use crate::stash_shelf::DrawerCardKind;
         match kind {
-            DrawerCardKind::Agenda => self.open_content_on_active_pane(PaneType::LoomDailyJournal, None),
+            DrawerCardKind::Agenda => {
+                self.open_content_on_active_pane(PaneType::LoomDailyJournal, None)
+            }
             // Lists/Notes open the Loom-block collection pane; the content_id carries the content_type
             // filter the collection pane reads (its filtered content lands with the pane-content WP).
             DrawerCardKind::Lists => {
@@ -2255,6 +2375,8 @@ impl HandshakeApp {
         transport: Arc<dyn crate::workspace_settings::SettingsTransport>,
     ) {
         self.settings_transport = Some(transport);
+        self.settings_loaded_project_id = None;
+        self.settings_load_pending = true;
     }
 
     /// The last transient settings persistence error, if any (MT-018), for tests + the status row.
@@ -2266,7 +2388,10 @@ impl HandshakeApp {
     /// known theme before exercising a change. Sets both the persisted-settings theme and the in-memory
     /// `current_theme` so the dialog + the shell agree from frame one.
     #[doc(hidden)]
-    pub fn set_workspace_theme_for_test(&mut self, theme: crate::workspace_settings::WorkspaceTheme) {
+    pub fn set_workspace_theme_for_test(
+        &mut self,
+        theme: crate::workspace_settings::WorkspaceTheme,
+    ) {
         self.workspace_settings.theme = theme;
         self.current_theme = theme.to_hs_theme();
         self.last_applied_theme = None;
@@ -2278,7 +2403,8 @@ impl HandshakeApp {
     /// conflicting state through it).
     #[doc(hidden)]
     pub fn set_keybinding_for_test(&mut self, action_id: &str, chord: &str) {
-        self.workspace_settings.set_chord(action_id, chord.to_owned());
+        self.workspace_settings
+            .set_chord(action_id, chord.to_owned());
     }
 
     /// Test helper (MT-018): apply a [`crate::settings_dialog::SettingsOutcome`] directly, the same way
@@ -2329,6 +2455,110 @@ impl HandshakeApp {
                 }
                 in_flight.store(false, std::sync::atomic::Ordering::SeqCst);
             });
+        }
+    }
+
+    fn apply_loaded_workspace_settings(&mut self, blob: Option<serde_json::Value>) {
+        let fallback = crate::workspace_settings::default_workspace_settings_state();
+        self.workspace_settings = match blob {
+            Some(value) => {
+                crate::workspace_settings::normalize_workspace_settings_state(&value, &fallback)
+            }
+            None => fallback,
+        };
+        self.pending_theme_change = Some(self.workspace_settings.theme.to_hs_theme());
+        self.view_mode = match self.workspace_settings.view_mode {
+            crate::workspace_settings::SettingsViewMode::Nsfw => ViewMode::Nsfw,
+            crate::workspace_settings::SettingsViewMode::Sfw => ViewMode::Sfw,
+        };
+        self.apply_workspace_settings_runtime_defaults();
+        self.settings_persist_error = None;
+    }
+
+    fn apply_workspace_settings_runtime_defaults(&mut self) {
+        let mut changed = false;
+        if self.workspace_settings.swarm_board_default_open {
+            changed |= self.navigate_to_tab("swarm");
+        }
+        if self.workspace_settings.swarm_lane_diagnostics_default_open {
+            changed |= self.navigate_to_tab("swarm-lane-diagnostics");
+        }
+        if changed {
+            self.signal_layout_changed();
+        }
+    }
+
+    fn drive_workspace_settings_autoload(&mut self, ctx: &egui::Context) {
+        if self.capturing_snapshot || self.settings_open {
+            return;
+        }
+
+        let delivered_load = self
+            .settings_load_cell
+            .try_lock()
+            .ok()
+            .and_then(|mut cell| cell.take());
+        if let Some(result) = delivered_load {
+            match result {
+                Ok(blob) => self.apply_loaded_workspace_settings(blob),
+                Err(msg) => self.settings_persist_error = Some(msg),
+            }
+            ctx.request_repaint();
+        }
+
+        let delivered_save = self
+            .settings_save_cell
+            .try_lock()
+            .ok()
+            .and_then(|mut cell| cell.take());
+        if let Some(result) = delivered_save {
+            match result {
+                Ok(()) => self.settings_persist_error = None,
+                Err(msg) => self.settings_persist_error = Some(msg),
+            }
+            ctx.request_repaint();
+        }
+
+        if self.settings_loaded_project_id.as_deref() != Some(self.active_project_id.as_str()) {
+            self.settings_load_pending = true;
+        }
+        if self.settings_load_pending {
+            self.settings_load_pending = false;
+            let workspace = self.active_project_id.clone();
+            if !workspace.is_empty() {
+                if let (Some(transport), Some(handle)) =
+                    (self.settings_transport.clone(), self.runtime_handle.clone())
+                {
+                    if !self
+                        .settings_io_in_flight
+                        .swap(true, std::sync::atomic::Ordering::SeqCst)
+                    {
+                        let cell = self.settings_load_cell.clone();
+                        let in_flight = self.settings_io_in_flight.clone();
+                        let ws = workspace.clone();
+                        handle.spawn(async move {
+                            let result = transport.load(&ws).map_err(|e| e.to_string());
+                            if let Ok(mut slot) = cell.lock() {
+                                *slot = Some(result);
+                            }
+                            in_flight.store(false, std::sync::atomic::Ordering::SeqCst);
+                        });
+                        ctx.request_repaint();
+                    } else {
+                        self.settings_load_pending = true;
+                    }
+                }
+            }
+            self.settings_loaded_project_id = Some(workspace);
+        }
+
+        if let Some(due) = self.settings_save_due_at {
+            if std::time::Instant::now() >= due {
+                self.settings_save_due_at = None;
+                self.flush_settings_save_now();
+            } else {
+                ctx.request_repaint_after(SETTINGS_SAVE_DEBOUNCE);
+            }
         }
     }
 
@@ -2384,6 +2614,11 @@ impl HandshakeApp {
                 self.schedule_settings_save();
                 true
             }
+            O::SwarmLaneDiagnosticsDefaultOpenChanged(value) => {
+                self.workspace_settings.swarm_lane_diagnostics_default_open = value;
+                self.schedule_settings_save();
+                true
+            }
             O::ResetLayout => {
                 // Same action as VIEW > Reset Layout: arm the confirmation (red-team MC7), do not wipe
                 // here. A future confirmation overlay / agent path triggers `confirm_reset_layout`.
@@ -2399,44 +2634,31 @@ impl HandshakeApp {
     /// transport/runtime (headless) — the dialog then shows the seeded defaults and never does I/O.
     fn drive_settings_dialog(&mut self, ctx: &egui::Context) {
         // 1. Drain a delivered settings LOAD (try_lock; never hold across ui.* — red-team MC1).
-        if let Ok(mut cell) = self.settings_load_cell.try_lock() {
-            if let Some(result) = cell.take() {
-                match result {
-                    Ok(blob) => {
-                        let fallback = crate::workspace_settings::default_workspace_settings_state();
-                        self.workspace_settings = match blob {
-                            // A stored blob is normalized against defaults (red-team R6/MC6).
-                            Some(value) => {
-                                crate::workspace_settings::normalize_workspace_settings_state(
-                                    &value, &fallback,
-                                )
-                            }
-                            // First run (no settings yet): keep the defaults.
-                            None => fallback,
-                        };
-                        // Back the in-memory flags from the loaded settings (apply theme next frame).
-                        self.pending_theme_change = Some(self.workspace_settings.theme.to_hs_theme());
-                        self.view_mode = match self.workspace_settings.view_mode {
-                            crate::workspace_settings::SettingsViewMode::Nsfw => ViewMode::Nsfw,
-                            crate::workspace_settings::SettingsViewMode::Sfw => ViewMode::Sfw,
-                        };
-                        self.settings_persist_error = None;
-                    }
-                    Err(msg) => self.settings_persist_error = Some(msg),
-                }
-                ctx.request_repaint();
+        let delivered_load = self
+            .settings_load_cell
+            .try_lock()
+            .ok()
+            .and_then(|mut cell| cell.take());
+        if let Some(result) = delivered_load {
+            match result {
+                Ok(blob) => self.apply_loaded_workspace_settings(blob),
+                Err(msg) => self.settings_persist_error = Some(msg),
             }
+            ctx.request_repaint();
         }
 
         // 2. Drain a delivered settings SAVE result.
-        if let Ok(mut cell) = self.settings_save_cell.try_lock() {
-            if let Some(result) = cell.take() {
-                match result {
-                    Ok(()) => self.settings_persist_error = None,
-                    Err(msg) => self.settings_persist_error = Some(msg),
-                }
-                ctx.request_repaint();
+        let delivered_save = self
+            .settings_save_cell
+            .try_lock()
+            .ok()
+            .and_then(|mut cell| cell.take());
+        if let Some(result) = delivered_save {
+            match result {
+                Ok(()) => self.settings_persist_error = None,
+                Err(msg) => self.settings_persist_error = Some(msg),
             }
+            ctx.request_repaint();
         }
 
         // 3. Fire the one-shot settings LOAD on open (red-team: load on open, not per-frame). Guard on a
@@ -2538,13 +2760,29 @@ impl HandshakeApp {
             Some(active) => match ids.iter().position(|p| p == active) {
                 Some(i) => {
                     let len = ids.len();
-                    let ni = if forward { (i + 1) % len } else { (i + len - 1) % len };
+                    let ni = if forward {
+                        (i + 1) % len
+                    } else {
+                        (i + len - 1) % len
+                    };
                     ids[ni].clone()
                 }
                 // Active pane not in the tab-bar set (shouldn't happen): fall back to the first/last.
-                None => if forward { ids[0].clone() } else { ids[ids.len() - 1].clone() },
+                None => {
+                    if forward {
+                        ids[0].clone()
+                    } else {
+                        ids[ids.len() - 1].clone()
+                    }
+                }
             },
-            None => if forward { ids[0].clone() } else { ids[ids.len() - 1].clone() },
+            None => {
+                if forward {
+                    ids[0].clone()
+                } else {
+                    ids[ids.len() - 1].clone()
+                }
+            }
         };
         let changed = self.active_pane.as_ref() != Some(&next);
         self.active_pane = Some(next);
@@ -2577,6 +2815,7 @@ impl HandshakeApp {
             "flight-recorder" => PaneType::FlightRecorder,
             "user-manual" => PaneType::UserManual,
             "swarm" => PaneType::Swarm,
+            "swarm-lane-diagnostics" => PaneType::SwarmLaneDiagnostics,
             _ => return false,
         };
         self.open_content_on_active_pane(pane_type, None)
@@ -2702,10 +2941,7 @@ impl HandshakeApp {
             }
         }
         // Deterministic fallback: the lowest pane id (BTree-style order) that owns a tab bar.
-        self.tab_bar_states
-            .keys()
-            .min()
-            .cloned()
+        self.tab_bar_states.keys().min().cloned()
     }
 
     /// Switch the active MODULE (MT-012), mirroring the React `setModule` (`app/src/App.tsx` lines
@@ -2773,7 +3009,9 @@ impl HandshakeApp {
         pane_ids.sort();
         let mut entries = Vec::new();
         for pane_id in pane_ids {
-            let Some(bar) = self.tab_bar_states.get(pane_id) else { continue };
+            let Some(bar) = self.tab_bar_states.get(pane_id) else {
+                continue;
+            };
             for (index, tab) in bar.tabs.iter().enumerate() {
                 entries.push(crate::quick_links::QuickLinkEntry {
                     pane_id: pane_id.clone(),
@@ -2802,7 +3040,10 @@ impl HandshakeApp {
                 // Canvases open on the Atelier editor surface (the canvas editor), carrying the id.
                 self.open_content_on_active_pane(PaneType::AtelierEditor, Some(canvas_id))
             }
-            LeftRailEvent::OpenBookmark { document_id, block_id } => {
+            LeftRailEvent::OpenBookmark {
+                document_id,
+                block_id,
+            } => {
                 // Mirror React `handleOpenBookmark`: a document pin opens as that document on the
                 // Workspace surface; otherwise the pinned Loom block opens on the LoomBlock surface.
                 match document_id {
@@ -2818,7 +3059,10 @@ impl HandshakeApp {
                 ctx.copy_text(id);
                 true
             }
-            LeftRailEvent::RenameBlock { block_id, current_title } => {
+            LeftRailEvent::RenameBlock {
+                block_id,
+                current_title,
+            } => {
                 // Open the small inline rename dialog seeded with the current title; the dialog confirm
                 // spawns the verified PATCH off the UI thread (see `drive_rename` + the dialog render).
                 self.rename_error = None;
@@ -2869,7 +3113,11 @@ impl HandshakeApp {
     /// off the UI thread; Cancel/empty-title closes the dialog with no backend call.
     fn drive_rename(&mut self, ctx: &egui::Context) {
         // ── Drain a delivered PATCH result ───────────────────────────────────────────────────────────
-        let delivered = self.rename_cell.lock().ok().and_then(|mut slot| slot.take());
+        let delivered = self
+            .rename_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
         if let Some(result) = delivered {
             match result {
                 Ok(_new_title) => {
@@ -2942,7 +3190,12 @@ impl HandshakeApp {
             match (self.loom_block_client.clone(), workspace_id) {
                 (Some(client), Some(ws)) => {
                     self.rename_error = None;
-                    client.rename_block(&ws, &pending.block_id, &new_title, self.rename_cell.clone());
+                    client.rename_block(
+                        &ws,
+                        &pending.block_id,
+                        &new_title,
+                        self.rename_cell.clone(),
+                    );
                     // Keep the dialog open until the delivered result clears it (or surfaces an error),
                     // so a failed PATCH does not silently lose the operator's edit.
                     self.pending_rename = Some(pending);
@@ -3013,7 +3266,12 @@ impl HandshakeApp {
         match event {
             E::Stage { path } => {
                 self.scm_error = None;
-                client.stage_paths(ScmWriteOp::Stage, repo_path, &path, self.scm_receipt_cell.clone());
+                client.stage_paths(
+                    ScmWriteOp::Stage,
+                    repo_path,
+                    &path,
+                    self.scm_receipt_cell.clone(),
+                );
                 true
             }
             E::Unstage { path } => {
@@ -3169,9 +3427,15 @@ impl HandshakeApp {
                 );
                 true
             }
-            E::Rename { block_id, current_title } => {
+            E::Rename {
+                block_id,
+                current_title,
+            } => {
                 self.rename_error = None;
-                self.pending_rename = Some(PendingRename { block_id, text: current_title });
+                self.pending_rename = Some(PendingRename {
+                    block_id,
+                    text: current_title,
+                });
                 true
             }
             // Local UI actions (open a tab / clipboard / focus a pane): no backend call here.
@@ -3206,7 +3470,11 @@ impl HandshakeApp {
     /// native equivalent of React `setActiveTabForPane(activePaneId, tab)`. De-duplicates by
     /// `(pane_type, content_id)` (an already-open tab is re-activated, not duplicated) via the
     /// MT-007 `TabBarState::insert_tab`. Returns `true` if a pane was targeted.
-    fn open_content_on_active_pane(&mut self, pane_type: PaneType, content_id: Option<String>) -> bool {
+    fn open_content_on_active_pane(
+        &mut self,
+        pane_type: PaneType,
+        content_id: Option<String>,
+    ) -> bool {
         let Some(target) = self.module_target_pane() else {
             return false;
         };
@@ -3248,7 +3516,10 @@ impl HandshakeApp {
         // Rebuild the registry from the default panes, re-stamped to the entered project so the captured
         // snapshot's pane records are self-consistent with `active_project_id`.
         {
-            let mut guard = self.pane_registry.lock().expect("pane registry mutex poisoned");
+            let mut guard = self
+                .pane_registry
+                .lock()
+                .expect("pane registry mutex poisoned");
             *guard = PaneRegistry::new();
             for mut record in default_panes() {
                 record.project_id = project_id.to_owned();
@@ -3288,6 +3559,8 @@ impl HandshakeApp {
         //    now differs from active_project_id), else the fresh default remains.
         self.reset_to_default_layout(project_id);
         self.project_tabs.set_active_id(project_id);
+        self.settings_loaded_project_id = None;
+        self.settings_load_pending = true;
         true
     }
 
@@ -3300,7 +3573,10 @@ impl HandshakeApp {
         if self.capturing_snapshot {
             return;
         }
-        let finished = self.workspaces_handle.as_ref().is_some_and(|h| h.is_finished());
+        let finished = self
+            .workspaces_handle
+            .as_ref()
+            .is_some_and(|h| h.is_finished());
         if !finished {
             return;
         }
@@ -3313,7 +3589,9 @@ impl HandshakeApp {
                     self.active_project_id = self.project_tabs.active_id().to_owned();
                 }
                 Ok(Err(e)) => self.project_tabs.apply_fetch_error(e.to_string()),
-                Err(e) => self.project_tabs.apply_fetch_error(format!("join error: {e}")),
+                Err(e) => self
+                    .project_tabs
+                    .apply_fetch_error(format!("join error: {e}")),
             }
         }
     }
@@ -3385,8 +3663,14 @@ impl HandshakeApp {
     /// merged back this frame (`open == false`) is captured as closed.
     pub fn capture_layout_snapshot(&self) -> LayoutSnapshot {
         let panes: std::collections::BTreeMap<PaneId, PaneRecord> = {
-            let guard = self.pane_registry.lock().expect("pane registry mutex poisoned");
-            guard.iter().map(|(id, rec)| (id.clone(), rec.clone())).collect()
+            let guard = self
+                .pane_registry
+                .lock()
+                .expect("pane registry mutex poisoned");
+            guard
+                .iter()
+                .map(|(id, rec)| (id.clone(), rec.clone()))
+                .collect()
         };
 
         let tab_bars: std::collections::BTreeMap<PaneId, TabBarState> = self
@@ -3468,7 +3752,10 @@ impl HandshakeApp {
         // Rebuild the registry from the snapshot records (single source of truth). `insert` reassigns
         // stable AccessKit ids, so out-of-process steering keeps working after a restore.
         {
-            let mut guard = self.pane_registry.lock().expect("pane registry mutex poisoned");
+            let mut guard = self
+                .pane_registry
+                .lock()
+                .expect("pane registry mutex poisoned");
             *guard = PaneRegistry::new();
             for (_id, record) in snapshot.panes {
                 guard.insert(record);
@@ -3515,7 +3802,10 @@ impl HandshakeApp {
     /// lifecycle does not reload the same project every frame.
     pub fn load_layout(&mut self, project_id: &str, monitor_extent: egui::Rect) -> bool {
         let loaded = {
-            let mut mgr = self.layout_manager.lock().expect("layout manager mutex poisoned");
+            let mut mgr = self
+                .layout_manager
+                .lock()
+                .expect("layout manager mutex poisoned");
             mgr.load(project_id)
         };
         self.loaded_project_id = Some(project_id.to_owned());
@@ -3581,10 +3871,17 @@ impl HandshakeApp {
 
         // ── 3. Debounced save off the UI thread ─────────────────────────────────────────────────
         let due = {
-            let mgr = self.layout_manager.lock().expect("layout manager mutex poisoned");
+            let mgr = self
+                .layout_manager
+                .lock()
+                .expect("layout manager mutex poisoned");
             mgr.due_to_flush(now)
         };
-        if due && !self.save_in_flight.swap(true, std::sync::atomic::Ordering::SeqCst) {
+        if due
+            && !self
+                .save_in_flight
+                .swap(true, std::sync::atomic::Ordering::SeqCst)
+        {
             // Capture the snapshot on the UI thread (it reads live shell state), then flush on a worker.
             let snapshot = self.capture_layout_snapshot();
             let manager = self.layout_manager.clone();
@@ -3688,8 +3985,11 @@ impl HandshakeApp {
         // only affects IdMap distribution; one fixed widget cannot self-collide).
         let id = unsafe { egui::Id::from_high_entropy_bits(THEME_TOGGLE_NODE_ID) };
 
-        let galley =
-            ui.painter().layout_no_wrap(label.to_owned(), egui::FontId::proportional(14.0), ui.visuals().text_color());
+        let galley = ui.painter().layout_no_wrap(
+            label.to_owned(),
+            egui::FontId::proportional(14.0),
+            ui.visuals().text_color(),
+        );
         let padding = ui.spacing().button_padding;
         let desired = galley.size() + padding * 2.0;
         let (_auto, rect) = ui.allocate_space(desired);
@@ -3752,11 +4052,9 @@ impl HandshakeApp {
         let id = chrome.egui_id();
 
         let font = egui::FontId::proportional(20.0); // heading-sized
-        let galley = ui.painter().layout_no_wrap(
-            label.to_owned(),
-            font,
-            ui.visuals().text_color(),
-        );
+        let galley = ui
+            .painter()
+            .layout_no_wrap(label.to_owned(), font, ui.visuals().text_color());
         let (rect, _response) = ui.allocate_exact_size(galley.size(), egui::Sense::hover());
         if ui.is_rect_visible(rect) {
             ui.painter()
@@ -3783,22 +4081,23 @@ impl HandshakeApp {
         text: &str,
     ) -> Option<crate::context_menu_surfaces::StatusBarMenuAction> {
         use crate::context_menu_surfaces::{
-            status_bar_action_for_id, status_bar_context_items, StatusBarSegmentState,
+            StatusBarSegmentState, status_bar_action_for_id, status_bar_context_items,
         };
         let chrome = ChromeWidget::StatusBar;
         let id = chrome.egui_id();
         let segment_id = "health"; // the live status bar's one segment today (backend health).
 
         let font = egui::TextStyle::Body.resolve(ui.style());
-        let galley =
-            ui.painter()
-                .layout_no_wrap(text.to_owned(), font, ui.visuals().text_color());
+        let galley = ui
+            .painter()
+            .layout_no_wrap(text.to_owned(), font, ui.visuals().text_color());
         // Allocate with Sense::hover() (NOT click) so the auto-id allocation node is non-interactive;
         // the ONE clickable node is the interact at the FIXED chrome id below (which carries the stable
         // author_id), so the MT-025 interactive-naming gate stays green (no unnamed clickable node).
         let (rect, _response) = ui.allocate_exact_size(galley.size(), egui::Sense::hover());
         if ui.is_rect_visible(rect) {
-            ui.painter().galley(rect.min, galley, ui.visuals().text_color());
+            ui.painter()
+                .galley(rect.min, galley, ui.visuals().text_color());
         }
         // The addressable, secondary-clickable segment node at the FIXED chrome id (stable author_id).
         let seg_resp = ui.interact(rect, id, egui::Sense::click());
@@ -3812,13 +4111,14 @@ impl HandshakeApp {
             related_panel_name: statusbar_related_panel_name(segment_id),
         };
         let mut action = None;
-        let menu =
-            crate::context_menu::ContextMenu::new("statusbar").items(status_bar_context_items(&state));
+        let menu = crate::context_menu::ContextMenu::new("statusbar")
+            .items(status_bar_context_items(&state));
         if let Some(confirmed_id) = menu.show_on(&seg_resp) {
             action = status_bar_action_for_id(confirmed_id, &state);
         }
         // Shift+F10 keyboard-open parity when the segment is focused.
-        if seg_resp.has_focus() && ui.input(|i| i.key_pressed(egui::Key::F10) && i.modifiers.shift) {
+        if seg_resp.has_focus() && ui.input(|i| i.key_pressed(egui::Key::F10) && i.modifiers.shift)
+        {
             crate::context_menu::request_open(ui.ctx(), seg_resp.id, seg_resp.rect.left_bottom());
         }
         action
@@ -3851,7 +4151,9 @@ impl HandshakeApp {
             A::OpenPanel => match statusbar_related_pane_type(segment_id) {
                 Some(pane_type) => self.open_content_on_active_pane(pane_type, None),
                 None => {
-                    tracing::warn!("statusbar.open_panel: segment {segment_id} has no related pane");
+                    tracing::warn!(
+                        "statusbar.open_panel: segment {segment_id} has no related pane"
+                    );
                     false
                 }
             },
@@ -3910,6 +4212,7 @@ impl HandshakeApp {
         }
         // Apply theme tokens at the top of the frame so all panels below render themed.
         self.apply_theme_if_changed(ctx);
+        self.drive_workspace_settings_autoload(ctx);
 
         // Apply the integrated-rail scrollbar style (MT-010) every frame from the LIVE palette, so
         // egui's built-in `ScrollArea` scrollbars render in the rail dimensions + colors and track a
@@ -4042,7 +4345,10 @@ impl HandshakeApp {
         let status_text = match &self.health_status {
             HealthDisplayState::Loading => "Backend: Loading...".to_owned(),
             HealthDisplayState::Ok(h) => {
-                format!("Backend: OK (db {}, migration {:?})", h.db_status, h.migration_version)
+                format!(
+                    "Backend: OK (db {}, migration {:?})",
+                    h.db_status, h.migration_version
+                )
             }
             HealthDisplayState::Error(e) => format!("Backend: error: {e}"),
         };
@@ -4261,7 +4567,13 @@ impl HandshakeApp {
                         .as_ref()
                 },
                 |ui_ctx, pane_egui_id, pane_author_id, role, label| {
-                    accessibility::emit_pane_node(ui_ctx, pane_egui_id, pane_author_id, role, label);
+                    accessibility::emit_pane_node(
+                        ui_ctx,
+                        pane_egui_id,
+                        pane_author_id,
+                        role,
+                        label,
+                    );
                 },
             );
         });
@@ -4272,7 +4584,10 @@ impl HandshakeApp {
         // the MT-009 layout change-detector below (LockState is part of the captured pane record), so
         // it persists through the debounced save with no synchronous save here.
         if !lock_requests.is_empty() {
-            let mut guard = self.pane_registry.lock().expect("pane registry mutex poisoned");
+            let mut guard = self
+                .pane_registry
+                .lock()
+                .expect("pane registry mutex poisoned");
             for pane_id in &lock_requests {
                 if let Some(record) = guard.get_mut(pane_id) {
                     record.lock_state = match record.lock_state {
@@ -4392,8 +4707,7 @@ impl HandshakeApp {
         // egui has not reported a monitor size yet (headless).
         if let Some(monitor) = ctx.input(|i| i.viewport().monitor_size) {
             if monitor.x > 0.0 && monitor.y > 0.0 {
-                self.monitor_extent =
-                    egui::Rect::from_min_size(egui::Pos2::ZERO, monitor);
+                self.monitor_extent = egui::Rect::from_min_size(egui::Pos2::ZERO, monitor);
             }
         }
         self.drive_layout_persistence(std::time::Instant::now());
@@ -4453,10 +4767,8 @@ impl HandshakeApp {
             // stack the docked pane uses, so a popped-out pane keeps its header binding + tab badges.
             let full = ui.available_rect_before_wrap();
             let header_h = PANE_HEADER_HEIGHT.min(full.height());
-            let header_rect = egui::Rect::from_min_max(
-                full.min,
-                egui::pos2(full.right(), full.top() + header_h),
-            );
+            let header_rect =
+                egui::Rect::from_min_max(full.min, egui::pos2(full.right(), full.top() + header_h));
             let after_header_top = full.top() + header_h;
             let tab_h = TAB_BAR_HEIGHT.min((full.bottom() - after_header_top).max(0.0));
             let tab_rect = egui::Rect::from_min_max(

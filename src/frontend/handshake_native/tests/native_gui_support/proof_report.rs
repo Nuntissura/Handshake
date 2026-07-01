@@ -78,7 +78,11 @@ pub struct ScenarioResult {
 }
 
 impl ScenarioResult {
-    pub fn pass(id: impl Into<String>, asserted_widget_count: usize, note: impl Into<String>) -> Self {
+    pub fn pass(
+        id: impl Into<String>,
+        asserted_widget_count: usize,
+        note: impl Into<String>,
+    ) -> Self {
         Self {
             id: id.into(),
             status: ProofStatus::Pass,
@@ -136,7 +140,11 @@ pub struct ProofReport {
 
 impl ProofReport {
     /// Build a report from a scenario list, deriving `overall_status` and stamping a unix-nanos run id.
-    pub fn new(mt_id: impl Into<String>, scenarios: Vec<ScenarioResult>, duration_ms: u128) -> Self {
+    pub fn new(
+        mt_id: impl Into<String>,
+        scenarios: Vec<ScenarioResult>,
+        duration_ms: u128,
+    ) -> Self {
         let overall_status = if scenarios.iter().any(|s| s.status.is_terminal_fail()) {
             ProofStatus::Fail
         } else {
@@ -194,8 +202,7 @@ pub fn artifact_dir() -> PathBuf {
         }
     }
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    manifest
-        .join("../../../../Handshake_Artifacts/handshake-test/native_gui")
+    manifest.join("../../../../Handshake_Artifacts/handshake-test/native_gui")
 }
 
 /// A unix-nanos run id string, distinct per run so concurrent harness runs do not collide reports.

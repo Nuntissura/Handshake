@@ -403,7 +403,8 @@ impl SplitLayoutWidget {
                 egui::pos2(pane_rect.right(), pane_rect.top() + header_height),
             );
             let after_header_top = pane_rect.top() + header_height;
-            let tab_bar_height = TAB_BAR_HEIGHT.min((pane_rect.bottom() - after_header_top).max(0.0));
+            let tab_bar_height =
+                TAB_BAR_HEIGHT.min((pane_rect.bottom() - after_header_top).max(0.0));
             let tab_bar_rect = egui::Rect::from_min_max(
                 egui::pos2(pane_rect.left(), after_header_top),
                 egui::pos2(pane_rect.right(), after_header_top + tab_bar_height),
@@ -464,11 +465,17 @@ impl SplitLayoutWidget {
                 tab_responses.push((pane_id.clone(), resp));
             }
 
-            let factory = factory_for(&record.pane_type);
+            let mut effective_record = record.clone();
+            if let Some(active_tab) = tab_bars.get(&pane_id).and_then(|bar| bar.active()) {
+                effective_record.pane_type = active_tab.pane_type.clone();
+                effective_record.content_id = active_tab.content_id.clone();
+            }
+
+            let factory = factory_for(&effective_record.pane_type);
             let role = factory.accesskit_role();
-            let label = record.pane_type.label();
+            let label = effective_record.pane_type.label();
             let render_ctx = PaneRenderContext {
-                record,
+                record: &effective_record,
                 egui_id: pane_egui_id,
             };
 
@@ -749,7 +756,11 @@ impl SplitLayoutWidget {
 /// oracle the unit tests assert against, hence `#[cfg(test)]`.
 #[cfg(test)]
 #[inline]
-fn divider_line_color(colors: DividerColors, hovered_or_focused: bool, dragging: bool) -> egui::Color32 {
+fn divider_line_color(
+    colors: DividerColors,
+    hovered_or_focused: bool,
+    dragging: bool,
+) -> egui::Color32 {
     if dragging {
         colors.grab
     } else if hovered_or_focused {
@@ -822,13 +833,19 @@ mod tests {
             assert!((r.bottom_right.bottom() - area.bottom()).abs() < EPS);
 
             // Shared vertical boundary (left column right edge == right column left edge).
-            assert!((r.top_left.right() - r.top_right.left()).abs() < EPS, "v boundary top");
+            assert!(
+                (r.top_left.right() - r.top_right.left()).abs() < EPS,
+                "v boundary top"
+            );
             assert!(
                 (r.bottom_left.right() - r.bottom_right.left()).abs() < EPS,
                 "v boundary bottom"
             );
             // Shared horizontal boundary (top row bottom edge == bottom row top edge).
-            assert!((r.top_left.bottom() - r.bottom_left.top()).abs() < EPS, "h boundary left");
+            assert!(
+                (r.top_left.bottom() - r.bottom_left.top()).abs() < EPS,
+                "h boundary left"
+            );
             assert!(
                 (r.top_right.bottom() - r.bottom_right.top()).abs() < EPS,
                 "h boundary right"
@@ -856,14 +873,26 @@ mod tests {
     #[test]
     fn axis_semantics_match_react_grid() {
         let area = area_600(); // 800 x 600 at origin
-        let base = SplitWeights { vertical: 0.5, horizontal: 0.5 };
+        let base = SplitWeights {
+            vertical: 0.5,
+            horizontal: 0.5,
+        };
         let r0 = compute_split_rects(area, base);
         // Baseline: split_x at 0.5*800=400, split_y at 0.5*600=300.
-        assert!((r0.top_left.right() - 400.0).abs() < EPS, "baseline split_x");
-        assert!((r0.top_left.bottom() - 300.0).abs() < EPS, "baseline split_y");
+        assert!(
+            (r0.top_left.right() - 400.0).abs() < EPS,
+            "baseline split_x"
+        );
+        assert!(
+            (r0.top_left.bottom() - 300.0).abs() < EPS,
+            "baseline split_y"
+        );
 
         // Increase ONLY `vertical`: the COLUMN (X) split must move right; the ROW (Y) split must NOT.
-        let more_vertical = SplitWeights { vertical: 0.7, horizontal: 0.5 };
+        let more_vertical = SplitWeights {
+            vertical: 0.7,
+            horizontal: 0.5,
+        };
         let rv = compute_split_rects(area, more_vertical);
         assert!(
             (rv.top_left.right() - 0.7 * 800.0).abs() < EPS,
@@ -879,7 +908,10 @@ mod tests {
         );
 
         // Increase ONLY `horizontal`: the ROW (Y) split must move down; the COLUMN (X) split must NOT.
-        let more_horizontal = SplitWeights { vertical: 0.5, horizontal: 0.7 };
+        let more_horizontal = SplitWeights {
+            vertical: 0.5,
+            horizontal: 0.7,
+        };
         let rh = compute_split_rects(area, more_horizontal);
         assert!(
             (rh.top_left.bottom() - 0.7 * 600.0).abs() < EPS,
@@ -920,9 +952,15 @@ mod tests {
         assert!((clamp_split(0.5) - 0.5).abs() < EPS, "in-range unchanged");
         // Drag a near-min weight further down: clamps, never goes below SPLIT_MIN.
         let dragged = clamp_split(0.21 + (-200.0 / 600.0));
-        assert!((dragged - SPLIT_MIN).abs() < EPS, "over-drag down clamps to min");
+        assert!(
+            (dragged - SPLIT_MIN).abs() < EPS,
+            "over-drag down clamps to min"
+        );
         let dragged_up = clamp_split(0.79 + (200.0 / 600.0));
-        assert!((dragged_up - SPLIT_MAX).abs() < EPS, "over-drag up clamps to max");
+        assert!(
+            (dragged_up - SPLIT_MAX).abs() < EPS,
+            "over-drag up clamps to max"
+        );
     }
 
     /// AC: keyboard step is ±SPLIT_STEP, clamped. On the horizontal LINE, ArrowDown grows
@@ -966,7 +1004,10 @@ mod tests {
         };
         let json = serde_json::to_string(&w).expect("serialize");
         assert!(json.contains("\"vertical\""), "has vertical field: {json}");
-        assert!(json.contains("\"horizontal\""), "has horizontal field: {json}");
+        assert!(
+            json.contains("\"horizontal\""),
+            "has horizontal field: {json}"
+        );
         let back: SplitWeights = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(back, w);
     }
@@ -1075,17 +1116,35 @@ mod tests {
             ..RailDimensions::default()
         };
         let area = area_600();
-        let r = compute_split_rects(area, SplitWeights { vertical: 0.5, horizontal: 0.5 });
+        let r = compute_split_rects(
+            area,
+            SplitWeights {
+                vertical: 0.5,
+                horizontal: 0.5,
+            },
+        );
 
         let old_h = divider_visible_rect(SplitAxis::Horizontal, r.divider_h);
         let rail_h = RailWidget::visual_rect(RailOrientation::Horizontal, r.divider_h, dims);
-        assert!((old_h.min - rail_h.min).length() < EPS, "horizontal visual min matches rail");
-        assert!((old_h.max - rail_h.max).length() < EPS, "horizontal visual max matches rail");
+        assert!(
+            (old_h.min - rail_h.min).length() < EPS,
+            "horizontal visual min matches rail"
+        );
+        assert!(
+            (old_h.max - rail_h.max).length() < EPS,
+            "horizontal visual max matches rail"
+        );
 
         let old_v = divider_visible_rect(SplitAxis::Vertical, r.divider_v);
         let rail_v = RailWidget::visual_rect(RailOrientation::Vertical, r.divider_v, dims);
-        assert!((old_v.min - rail_v.min).length() < EPS, "vertical visual min matches rail");
-        assert!((old_v.max - rail_v.max).length() < EPS, "vertical visual max matches rail");
+        assert!(
+            (old_v.min - rail_v.min).length() < EPS,
+            "vertical visual min matches rail"
+        );
+        assert!(
+            (old_v.max - rail_v.max).length() < EPS,
+            "vertical visual max matches rail"
+        );
     }
 
     /// Divider node ids stay below the pane id base and are disjoint from the chrome ids, preserving

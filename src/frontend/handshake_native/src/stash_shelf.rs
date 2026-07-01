@@ -505,9 +505,10 @@ impl DrawerCard {
             overflow_size,
         );
         let overflow_aria = format!("{} actions", self.kind.title());
-        let overflow_resp = egui::Area::new(
-            egui::Id::new(("hsk.drawer.overflow_area", self.kind.snake())),
-        )
+        let overflow_resp = egui::Area::new(egui::Id::new((
+            "hsk.drawer.overflow_area",
+            self.kind.snake(),
+        )))
         .fixed_pos(overflow_rect.min)
         .order(egui::Order::Foreground)
         // interactable(false) on the AREA (the affordance-tab pattern): an interactable Area registers an
@@ -518,7 +519,11 @@ impl DrawerCard {
         .show(ui.ctx(), |ui| {
             let (orect, _) = ui.allocate_exact_size(overflow_size, egui::Sense::hover());
             let oresp = ui.interact(orect, overflow_id, egui::Sense::click());
-            let obg = if oresp.hovered() { colors.badge_bg } else { colors.card_bg };
+            let obg = if oresp.hovered() {
+                colors.badge_bg
+            } else {
+                colors.card_bg
+            };
             ui.painter().rect_filled(orect, 4.0, obg);
             let g = ui.painter().layout_no_wrap(
                 "⋯".to_owned(),
@@ -741,7 +746,10 @@ impl DrawerStashShelf {
     pub fn new() -> Self {
         Self {
             height: DRAWER_DEFAULT_HEIGHT,
-            cards: DrawerCardKind::all().iter().map(|&k| DrawerCard::new(k)).collect(),
+            cards: DrawerCardKind::all()
+                .iter()
+                .map(|&k| DrawerCard::new(k))
+                .collect(),
             drag_resize_start: None,
         }
     }
@@ -772,7 +780,9 @@ impl DrawerStashShelf {
     pub fn clamp_height(&mut self, available_window_height: f32, reserved_below: f32) {
         let ceiling = (available_window_height - reserved_below - 40.0).max(DRAWER_MIN_HEIGHT);
         let max = DRAWER_MAX_HEIGHT.min(ceiling);
-        self.height = self.height.clamp(DRAWER_MIN_HEIGHT, max.max(DRAWER_MIN_HEIGHT));
+        self.height = self
+            .height
+            .clamp(DRAWER_MIN_HEIGHT, max.max(DRAWER_MIN_HEIGHT));
     }
 
     /// Render the affordance tab as a bottom-right anchored overlay button (ALWAYS visible, open or
@@ -801,7 +811,11 @@ impl DrawerStashShelf {
                 let (rect, _) = ui.allocate_exact_size(size, egui::Sense::hover());
                 let resp = ui
                     .interact(rect, id, egui::Sense::click())
-                    .on_hover_text(if open { "Close the stash drawer" } else { "Open the stash drawer" });
+                    .on_hover_text(if open {
+                        "Close the stash drawer"
+                    } else {
+                        "Open the stash drawer"
+                    });
                 if ui.is_rect_visible(rect) {
                     let bg = if resp.hovered() {
                         colors.affordance_hover_bg
@@ -823,7 +837,11 @@ impl DrawerStashShelf {
                         colors.affordance_text,
                     );
                 }
-                let aria = if open { "Close stash drawer" } else { "Open stash drawer" };
+                let aria = if open {
+                    "Close stash drawer"
+                } else {
+                    "Open stash drawer"
+                };
                 resp.widget_info(|| {
                     egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), aria)
                 });
@@ -843,7 +861,11 @@ impl DrawerStashShelf {
     /// [`DrawerPanelOutcome`] carrying the first card NAV event (MT-023 open-pane / Mail-tooltip) AND the
     /// first confirmed card ACTION event (MT-024) produced this frame. The resize handle drag updates
     /// `self.height`.
-    pub fn show_open_panel(&mut self, ui: &mut egui::Ui, colors: DrawerColors) -> DrawerPanelOutcome {
+    pub fn show_open_panel(
+        &mut self,
+        ui: &mut egui::Ui,
+        colors: DrawerColors,
+    ) -> DrawerPanelOutcome {
         // ── Resize handle: a 4px draggable strip at the very top (AC-023-8). ──
         let resize_id = unsafe { egui::Id::from_high_entropy_bits(DRAWER_RESIZE_NODE_ID) };
         let (resize_rect, _) =
@@ -874,7 +896,11 @@ impl DrawerStashShelf {
         // Resize handle as a stable Role::Slider node (the semantically-closest role for a resize edge).
         let height_now = self.height;
         resize_resp.widget_info(|| {
-            egui::WidgetInfo::labeled(egui::WidgetType::Other, ui.is_enabled(), "Resize stash drawer")
+            egui::WidgetInfo::labeled(
+                egui::WidgetType::Other,
+                ui.is_enabled(),
+                "Resize stash drawer",
+            )
         });
         ui.ctx().accesskit_node_builder(resize_id, move |node| {
             node.set_role(accesskit::Role::Slider);
@@ -1001,8 +1027,16 @@ mod tests {
         // The registry enumerates the const arrays (a const slice cannot call the methods); this proves
         // the arrays cannot silently drift from the per-kind methods.
         for (i, &kind) in DrawerCardKind::all().iter().enumerate() {
-            assert_eq!(kind.node_id(), DRAWER_CARD_NODE_IDS[i], "{kind} node_id matches const");
-            assert_eq!(kind.author_id(), DRAWER_CARD_AUTHOR_IDS[i], "{kind} author_id matches const");
+            assert_eq!(
+                kind.node_id(),
+                DRAWER_CARD_NODE_IDS[i],
+                "{kind} node_id matches const"
+            );
+            assert_eq!(
+                kind.author_id(),
+                DRAWER_CARD_AUTHOR_IDS[i],
+                "{kind} author_id matches const"
+            );
         }
     }
 
@@ -1037,7 +1071,10 @@ mod tests {
     fn apply_ok_result_sets_badge_and_clears_loading() {
         let mut c = DrawerCard::new(DrawerCardKind::Notes);
         c.loading = true;
-        c.apply_result(Ok(DrawerCardData { badge_count: 7, subtitle: "7 items".to_owned() }));
+        c.apply_result(Ok(DrawerCardData {
+            badge_count: 7,
+            subtitle: "7 items".to_owned(),
+        }));
         assert_eq!(c.badge_count, 7);
         assert_eq!(c.subtitle, "7 items");
         assert!(!c.loading);
@@ -1086,8 +1123,14 @@ mod tests {
         // Tiny window: 200px tall, 56px reserved below (rail+status). The drawer must shrink so the
         // CentralPanel never collapses (RISK-023-B).
         shelf.clamp_height(200.0, 56.0);
-        assert!(shelf.height <= 200.0 - 56.0, "drawer fits within the window");
-        assert!(shelf.height >= DRAWER_MIN_HEIGHT, "but never below the minimum");
+        assert!(
+            shelf.height <= 200.0 - 56.0,
+            "drawer fits within the window"
+        );
+        assert!(
+            shelf.height >= DRAWER_MIN_HEIGHT,
+            "but never below the minimum"
+        );
     }
 
     #[test]
@@ -1095,7 +1138,10 @@ mod tests {
         let mut shelf = DrawerStashShelf::new();
         shelf.height = 9999.0;
         shelf.clamp_height(2000.0, 56.0);
-        assert_eq!(shelf.height, DRAWER_MAX_HEIGHT, "clamped to the 480px max on a big window");
+        assert_eq!(
+            shelf.height, DRAWER_MAX_HEIGHT,
+            "clamped to the 480px max on a big window"
+        );
     }
 
     #[test]
@@ -1105,6 +1151,9 @@ mod tests {
         assert!(shelf.card(DrawerCardKind::Agenda).unwrap().loading);
         assert!(shelf.card(DrawerCardKind::Lists).unwrap().loading);
         assert!(shelf.card(DrawerCardKind::Notes).unwrap().loading);
-        assert!(!shelf.card(DrawerCardKind::Mail).unwrap().loading, "mail never loads");
+        assert!(
+            !shelf.card(DrawerCardKind::Mail).unwrap().loading,
+            "mail never loads"
+        );
     }
 }

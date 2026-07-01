@@ -81,12 +81,17 @@ fn shell_harness<'a>() -> Harness<'a, HandshakeApp> {
 
 /// Send one JSON-RPC request line and read one JSON-RPC response line over the TCP connection.
 async fn rpc(addr: &str, request: serde_json::Value) -> serde_json::Value {
-    let stream = TcpStream::connect(addr).await.expect("connect to mcp server");
+    let stream = TcpStream::connect(addr)
+        .await
+        .expect("connect to mcp server");
     let (read_half, mut write_half) = tokio::io::split(stream);
     let mut reader = BufReader::new(read_half);
     let mut line = serde_json::to_string(&request).unwrap();
     line.push('\n');
-    write_half.write_all(line.as_bytes()).await.expect("write request");
+    write_half
+        .write_all(line.as_bytes())
+        .await
+        .expect("write request");
     write_half.flush().await.expect("flush");
     let mut resp = String::new();
     reader.read_line(&mut resp).await.expect("read response");
@@ -99,7 +104,11 @@ async fn bind_server(
     channel: Arc<Mutex<ActionChannel>>,
 ) -> SwarmMcpServer {
     let capture: Arc<dyn Fn() -> Result<ScreenshotResult, ScreenshotError> + Send + Sync> =
-        Arc::new(|| Ok(handshake_native::mcp::screenshot::screenshot_from_png(b"steer", 4, 3)));
+        Arc::new(|| {
+            Ok(handshake_native::mcp::screenshot::screenshot_from_png(
+                b"steer", 4, 3,
+            ))
+        });
     SwarmMcpServer::bind(token, snapshot, channel, capture)
         .await
         .expect("bind tcp server")
@@ -142,7 +151,10 @@ fn steer_runtime() -> tokio::runtime::Runtime {
 }
 
 /// Find a node's current `value` in the harness's live consumer tree, by stable NodeId.
-fn harness_node_value(harness: &Harness<'_, HandshakeApp>, target: egui::accesskit::NodeId) -> Option<String> {
+fn harness_node_value(
+    harness: &Harness<'_, HandshakeApp>,
+    target: egui::accesskit::NodeId,
+) -> Option<String> {
     let root = harness.kittest_state().root();
     let mut stack = vec![root];
     while let Some(node) = stack.pop() {
@@ -243,7 +255,10 @@ fn steer_loop_over_socket() {
     let widget_count = list_resp["result"]["widget_count"]
         .as_u64()
         .expect("widget_count over the wire");
-    assert!(widget_count > 0, "list_widgets returned a non-empty tree; got {widget_count}");
+    assert!(
+        widget_count > 0,
+        "list_widgets returned a non-empty tree; got {widget_count}"
+    );
     // The over-the-wire tree carries the known stable ids the steer addresses.
     let tree_json = serde_json::to_string(&list_resp["result"]).unwrap();
     assert!(
@@ -255,18 +270,33 @@ fn steer_loop_over_socket() {
         "list_widgets tree carries '{RAIL_INPUT_AUTHOR_ID}'"
     );
 
-    assert_eq!(click_resp["result"]["queued"], true, "click queued over the wire");
-    assert_eq!(click_resp["result"]["action"], "Click", "click resolved to an AccessKit Click");
-    assert_eq!(setval_resp["result"]["queued"], true, "set_value queued over the wire");
+    assert_eq!(
+        click_resp["result"]["queued"], true,
+        "click queued over the wire"
+    );
+    assert_eq!(
+        click_resp["result"]["action"], "Click",
+        "click resolved to an AccessKit Click"
+    );
+    assert_eq!(
+        setval_resp["result"]["queued"], true,
+        "set_value queued over the wire"
+    );
     // egui text inputs are steered by Focus + characters (MT-026/027 deviation: no SetValue on text).
-    assert_eq!(setval_resp["result"]["action"], "Focus", "set_value resolves to Focus on a text input");
+    assert_eq!(
+        setval_resp["result"]["action"], "Focus",
+        "set_value resolves to Focus on a text input"
+    );
 
     // ── The running shell drains the SAME shared channel and runs frames; observable state changes ──
     let events = {
         let mut chan = channel.lock().unwrap();
         chan.drain_into_events()
     };
-    assert!(!events.is_empty(), "the wire actions landed in the channel the shell drains");
+    assert!(
+        !events.is_empty(),
+        "the wire actions landed in the channel the shell drains"
+    );
     for event in events {
         harness.event(event);
     }
@@ -288,19 +318,23 @@ fn steer_loop_over_socket() {
 
     // ── Proof transcript (PT-029-02) ──
     println!("--- MT-029 out-of-process steer transcript (TCP {addr}) ---");
-    println!("{}", serde_json::to_string_pretty(&serde_json::json!({
-        "transport": "tcp",
-        "addr": addr,
-        "list_widgets.widget_count": widget_count,
-        "list_widgets.contains_theme_toggle": tree_json.contains(THEME_TOGGLE_AUTHOR_ID),
-        "list_widgets.contains_rail_input": tree_json.contains(RAIL_INPUT_AUTHOR_ID),
-        "click_widget": click_resp["result"],
-        "set_value": setval_resp["result"],
-        "observed.theme_before": format!("{before_theme:?}"),
-        "observed.theme_after": format!("{after_theme:?}"),
-        "observed.rail_value_after": rail_value,
-        "calls": transcript,
-    })).unwrap());
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&serde_json::json!({
+            "transport": "tcp",
+            "addr": addr,
+            "list_widgets.widget_count": widget_count,
+            "list_widgets.contains_theme_toggle": tree_json.contains(THEME_TOGGLE_AUTHOR_ID),
+            "list_widgets.contains_rail_input": tree_json.contains(RAIL_INPUT_AUTHOR_ID),
+            "click_widget": click_resp["result"],
+            "set_value": setval_resp["result"],
+            "observed.theme_before": format!("{before_theme:?}"),
+            "observed.theme_after": format!("{after_theme:?}"),
+            "observed.rail_value_after": rail_value,
+            "calls": transcript,
+        }))
+        .unwrap()
+    );
     println!(
         "PASS steer_loop_over_socket: list_widgets={widget_count} widgets; click flipped theme {before_theme:?}->{after_theme:?}; set_value -> rail_value={rail_value:?} (all OUT-OF-PROCESS over TCP)"
     );
@@ -339,9 +373,15 @@ fn steer_unauthorized_rejected_over_socket() {
         resp
     });
 
-    assert_eq!(resp["error"]["code"], -32001, "unauthorized rejected with -32001");
+    assert_eq!(
+        resp["error"]["code"], -32001,
+        "unauthorized rejected with -32001"
+    );
     assert_eq!(resp["error"]["message"], "Unauthorized");
-    assert!(resp.get("result").is_none(), "no result leaked to an unauthorized steer attempt");
+    assert!(
+        resp.get("result").is_none(),
+        "no result leaked to an unauthorized steer attempt"
+    );
     // The channel never received an action from the rejected steer.
     assert!(
         channel.lock().unwrap().drain_into_events().is_empty(),
@@ -407,10 +447,16 @@ fn steer_over_windows_named_pipe() {
         }))
         .unwrap();
         line.push('\n');
-        write_half.write_all(line.as_bytes()).await.expect("write pipe request");
+        write_half
+            .write_all(line.as_bytes())
+            .await
+            .expect("write pipe request");
         write_half.flush().await.expect("flush pipe");
         let mut resp = String::new();
-        reader.read_line(&mut resp).await.expect("read pipe response");
+        reader
+            .read_line(&mut resp)
+            .await
+            .expect("read pipe response");
         let click_resp: serde_json::Value =
             serde_json::from_str(resp.trim()).expect("pipe response is valid JSON");
 
@@ -418,20 +464,30 @@ fn steer_over_windows_named_pipe() {
         (pipe_name, click_resp)
     });
 
-    assert_eq!(click_resp["result"]["queued"], true, "click queued over the named pipe");
+    assert_eq!(
+        click_resp["result"]["queued"], true,
+        "click queued over the named pipe"
+    );
 
     let events = {
         let mut chan = channel.lock().unwrap();
         chan.drain_into_events()
     };
-    assert!(!events.is_empty(), "the pipe click landed in the channel the shell drains");
+    assert!(
+        !events.is_empty(),
+        "the pipe click landed in the channel the shell drains"
+    );
     for event in events {
         harness.event(event);
     }
     harness.run();
 
     let after = harness.state().current_theme();
-    assert_eq!(after, HsTheme::Light, "named-pipe click steered the running shell (theme flipped)");
+    assert_eq!(
+        after,
+        HsTheme::Light,
+        "named-pipe click steered the running shell (theme flipped)"
+    );
     println!(
         "PASS steer_over_windows_named_pipe: pipe={pipe_name}; click flipped theme {before:?}->{after:?} (OUT-OF-PROCESS over the Windows named pipe)"
     );

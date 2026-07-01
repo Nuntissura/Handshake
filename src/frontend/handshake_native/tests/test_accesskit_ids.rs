@@ -24,8 +24,7 @@ use handshake_native::backend_client::HealthInfo;
 /// Mirrors `app::default_panes()` (pane-a..pane-d). Kept here as the explicit expected contract so a
 /// drift between the seed and the live tree fails loudly.
 const EXPECTED_PANE_AUTHOR_IDS: [&str; 4] = ["pane-a", "pane-b", "pane-c", "pane-d"];
-const EXPECTED_CHROME_AUTHOR_IDS: [&str; 2] =
-    ["shell.chrome.title-bar", "shell.chrome.status-bar"];
+const EXPECTED_CHROME_AUTHOR_IDS: [&str; 2] = ["shell.chrome.title-bar", "shell.chrome.status-bar"];
 /// The two split dividers added by MT-006. They are LIVE `Role::Splitter` nodes addressable
 /// out-of-process by these stable author_ids, so the MT-025 live-tree snapshot now includes them.
 const EXPECTED_DIVIDER_AUTHOR_IDS: [&str; 2] = ["divider-horizontal", "divider-vertical"];
@@ -33,10 +32,18 @@ const EXPECTED_DIVIDER_AUTHOR_IDS: [&str; 2] = ["divider-horizontal", "divider-v
 /// contributes a `Role::TabList` container (`tabbar-pane-{x}`), one `Role::Tab` node
 /// (`tab-pane-{x}-0`), and one `Role::Button` close node (`tab-close-pane-{x}-0`). These are LIVE
 /// nodes the MT-025 snapshot now includes alongside chrome / panes / dividers.
-const EXPECTED_TABBAR_AUTHOR_IDS: [&str; 4] =
-    ["tabbar-pane-a", "tabbar-pane-b", "tabbar-pane-c", "tabbar-pane-d"];
-const EXPECTED_TAB_AUTHOR_IDS: [&str; 4] =
-    ["tab-pane-a-0", "tab-pane-b-0", "tab-pane-c-0", "tab-pane-d-0"];
+const EXPECTED_TABBAR_AUTHOR_IDS: [&str; 4] = [
+    "tabbar-pane-a",
+    "tabbar-pane-b",
+    "tabbar-pane-c",
+    "tabbar-pane-d",
+];
+const EXPECTED_TAB_AUTHOR_IDS: [&str; 4] = [
+    "tab-pane-a-0",
+    "tab-pane-b-0",
+    "tab-pane-c-0",
+    "tab-pane-d-0",
+];
 const EXPECTED_TAB_CLOSE_AUTHOR_IDS: [&str; 4] = [
     "tab-close-pane-a-0",
     "tab-close-pane-b-0",
@@ -108,11 +115,7 @@ fn live_author_nodes(harness: &Harness<'_, HandshakeApp>) -> Vec<(String, String
     for node in root.children_recursive() {
         let ak = node.accesskit_node();
         if let Some(author_id) = ak.author_id() {
-            found.push((
-                author_id.to_owned(),
-                format!("{:?}", ak.role()),
-                ak.label(),
-            ));
+            found.push((author_id.to_owned(), format!("{:?}", ak.role()), ak.label()));
         }
     }
     found
@@ -120,16 +123,13 @@ fn live_author_nodes(harness: &Harness<'_, HandshakeApp>) -> Vec<(String, String
 
 #[test]
 fn live_tree_contains_chrome_and_panes_by_author_id() {
-    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
     harness.run();
 
     let nodes = live_author_nodes(&harness);
     let author_ids: Vec<&str> = nodes.iter().map(|(a, _, _)| a.as_str()).collect();
-    println!(
-        "LIVE author_id nodes ({}): {:?}",
-        nodes.len(),
-        nodes
-    );
+    println!("LIVE author_id nodes ({}): {:?}", nodes.len(), nodes);
 
     // Chrome (MT-002) must be live.
     for expected in EXPECTED_CHROME_AUTHOR_IDS {
@@ -160,7 +160,11 @@ fn live_tree_contains_chrome_and_panes_by_author_id() {
         .expect("status-bar node");
     assert_eq!(status.1, "Status", "status bar role");
     assert!(
-        status.2.as_deref().unwrap_or_default().contains("Backend: OK"),
+        status
+            .2
+            .as_deref()
+            .unwrap_or_default()
+            .contains("Backend: OK"),
         "status bar label carries live health text, got {:?}",
         status.2
     );
@@ -170,7 +174,10 @@ fn live_tree_contains_chrome_and_panes_by_author_id() {
         .iter()
         .filter(|(a, _, _)| EXPECTED_PANE_AUTHOR_IDS.contains(&a.as_str()))
     {
-        assert_eq!(role, "Group", "pane {author_id} role is the factory Group default");
+        assert_eq!(
+            role, "Group",
+            "pane {author_id} role is the factory Group default"
+        );
         assert!(label.is_some(), "pane {author_id} carries a surface label");
     }
 
@@ -186,7 +193,8 @@ fn live_tree_findable_by_label_and_role() {
     // Second, independent proof path: kittest's own Queryable resolves the chrome by role+label,
     // which is exactly how an out-of-process UIA client locates a widget (the MT-001 spike matched
     // by Name). If the node were not live, get_by_role_and_label would panic.
-    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
     harness.run();
 
     let _title = harness.get_by_label("Handshake");
@@ -202,12 +210,23 @@ fn chrome_node_ids_are_stable_across_process_restarts() {
     let title_a = ChromeWidget::TitleBar.node_id();
     let title_b = ChromeWidget::TitleBar.node_id();
     let status_a = ChromeWidget::StatusBar.node_id();
-    assert_eq!(title_a, title_b, "title node id stable across calls/restarts");
+    assert_eq!(
+        title_a, title_b,
+        "title node id stable across calls/restarts"
+    );
     assert_ne!(title_a, status_a, "title and status node ids distinct");
     // Distinct from the theme toggle (10) and the pane id base (100).
-    assert!(title_a != 10 && status_a != 10, "chrome ids do not collide with theme toggle");
-    assert!(title_a < 100 && status_a < 100, "chrome ids stay below pane id base");
-    println!("PASS: chrome node ids stable and collision-free (title={title_a}, status={status_a})");
+    assert!(
+        title_a != 10 && status_a != 10,
+        "chrome ids do not collide with theme toggle"
+    );
+    assert!(
+        title_a < 100 && status_a < 100,
+        "chrome ids stay below pane id base"
+    );
+    println!(
+        "PASS: chrome node ids stable and collision-free (title={title_a}, status={status_a})"
+    );
 }
 
 #[test]
@@ -251,7 +270,10 @@ fn snapshot_projects_author_id_nodes_in_stable_order() {
     assert_eq!(a.role, "Group");
     assert_eq!(a.label.as_deref(), Some("Workspace"));
     assert_eq!(a.node_id, 3);
-    println!("PASS: snapshot projects {} author_id nodes in stable order", snapshot.nodes.len());
+    println!(
+        "PASS: snapshot projects {} author_id nodes in stable order",
+        snapshot.nodes.len()
+    );
 }
 
 // ── Item 1: theme toggle author_id is live ───────────────────────────────────────────────────────
@@ -317,10 +339,9 @@ fn assert_no_unnamed_interactive_fires_on_deliberately_unnamed_widget() {
         app.ui(ctx);
         // A real interactive egui button with NO author_id assigned. egui gives it Role::Button +
         // Action::Click via widget_info, exactly the shape the gate must catch.
-        egui::Area::new(egui::Id::new("unnamed_interactive_probe"))
-            .show(ctx, |ui| {
-                let _ = ui.button("Unnamed");
-            });
+        egui::Area::new(egui::Id::new("unnamed_interactive_probe")).show(ctx, |ui| {
+            let _ = ui.button("Unnamed");
+        });
     });
     let update = output
         .platform_output
@@ -359,7 +380,10 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     );
 
     // All six chrome+pane nodes are present.
-    for expected in EXPECTED_CHROME_AUTHOR_IDS.iter().chain(EXPECTED_PANE_AUTHOR_IDS.iter()) {
+    for expected in EXPECTED_CHROME_AUTHOR_IDS
+        .iter()
+        .chain(EXPECTED_PANE_AUTHOR_IDS.iter())
+    {
         assert!(
             snapshot.by_author_id(expected).is_some(),
             "author_id '{expected}' missing from LIVE-FRAME snapshot; found {:?}",
@@ -393,7 +417,10 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
         );
     }
     // The MT-013 per-pane lock buttons + header titles are present (one each per pane).
-    for expected in EXPECTED_LOCK_AUTHOR_IDS.iter().chain(EXPECTED_TITLE_AUTHOR_IDS.iter()) {
+    for expected in EXPECTED_LOCK_AUTHOR_IDS
+        .iter()
+        .chain(EXPECTED_TITLE_AUTHOR_IDS.iter())
+    {
         assert!(
             snapshot.by_author_id(expected).is_some(),
             "MT-013 author_id '{expected}' missing from LIVE-FRAME snapshot; found {:?}",
@@ -571,7 +598,11 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
         "rail query input role"
     );
     for btn in ["bottom-rail.clear", "bottom-rail.loom"] {
-        assert_eq!(snapshot.by_author_id(btn).unwrap().role, "Button", "{btn} role");
+        assert_eq!(
+            snapshot.by_author_id(btn).unwrap().role,
+            "Button",
+            "{btn} role"
+        );
     }
     for scope in [
         "bottom-rail.scope.project",
@@ -584,7 +615,11 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
         "bottom-rail.scope.stage",
         "bottom-rail.scope.layout",
     ] {
-        assert_eq!(snapshot.by_author_id(scope).unwrap().role, "Button", "{scope} pill role");
+        assert_eq!(
+            snapshot.by_author_id(scope).unwrap().role,
+            "Button",
+            "{scope} pill role"
+        );
     }
 
     // MT-011 project-tab node roles: the strip container is a TabList, the seeded project tab a Tab.
@@ -594,29 +629,57 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
         "project-tabs strip container role"
     );
     assert_eq!(
-        snapshot.by_author_id("project-tab-default-project").unwrap().role,
+        snapshot
+            .by_author_id("project-tab-default-project")
+            .unwrap()
+            .role,
         "Tab",
         "seeded project tab role"
     );
 
     // MT-014 FIX-A bookmarks nodes: the sub-container is a Tree, its group header a TreeItem.
     assert_eq!(
-        snapshot.by_author_id("project-tree.bookmarks").unwrap().role,
+        snapshot
+            .by_author_id("project-tree.bookmarks")
+            .unwrap()
+            .role,
         "Tree",
         "bookmarks sub-container role"
     );
     assert_eq!(
-        snapshot.by_author_id("project-tree.group.bookmarks").unwrap().role,
+        snapshot
+            .by_author_id("project-tree.group.bookmarks")
+            .unwrap()
+            .role,
         "TreeItem",
         "bookmarks group header role"
     );
 
     // Roles survive the projection: chrome regions, the interactive toggle, and the two dividers.
-    assert_eq!(snapshot.by_author_id("shell.chrome.title-bar").unwrap().role, "TitleBar");
-    assert_eq!(snapshot.by_author_id("shell.chrome.status-bar").unwrap().role, "Status");
-    assert_eq!(snapshot.by_author_id(THEME_TOGGLE_AUTHOR_ID).unwrap().role, "Button");
+    assert_eq!(
+        snapshot
+            .by_author_id("shell.chrome.title-bar")
+            .unwrap()
+            .role,
+        "TitleBar"
+    );
+    assert_eq!(
+        snapshot
+            .by_author_id("shell.chrome.status-bar")
+            .unwrap()
+            .role,
+        "Status"
+    );
+    assert_eq!(
+        snapshot.by_author_id(THEME_TOGGLE_AUTHOR_ID).unwrap().role,
+        "Button"
+    );
     for pane in EXPECTED_PANE_AUTHOR_IDS {
-        assert_eq!(snapshot.by_author_id(pane).unwrap().role, "Group", "{pane} role");
+        assert_eq!(
+            snapshot.by_author_id(pane).unwrap().role,
+            "Group",
+            "{pane} role"
+        );
     }
     for divider in EXPECTED_DIVIDER_AUTHOR_IDS {
         assert_eq!(
@@ -627,20 +690,36 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
     }
     // MT-007 tab node roles: TabList containers, Tab tabs, Button close buttons.
     for tabbar in EXPECTED_TABBAR_AUTHOR_IDS {
-        assert_eq!(snapshot.by_author_id(tabbar).unwrap().role, "TabList", "{tabbar} role");
+        assert_eq!(
+            snapshot.by_author_id(tabbar).unwrap().role,
+            "TabList",
+            "{tabbar} role"
+        );
     }
     for tab in EXPECTED_TAB_AUTHOR_IDS {
-        assert_eq!(snapshot.by_author_id(tab).unwrap().role, "Tab", "{tab} role");
+        assert_eq!(
+            snapshot.by_author_id(tab).unwrap().role,
+            "Tab",
+            "{tab} role"
+        );
     }
     for close in EXPECTED_TAB_CLOSE_AUTHOR_IDS {
-        assert_eq!(snapshot.by_author_id(close).unwrap().role, "Button", "{close} role");
+        assert_eq!(
+            snapshot.by_author_id(close).unwrap().role,
+            "Button",
+            "{close} role"
+        );
     }
     // MT-013 lock button roles: each is a Role::Button addressable out-of-process. Default seed panes
     // are Unlocked, so the live label is "Lock".
     for lock in EXPECTED_LOCK_AUTHOR_IDS {
         let node = snapshot.by_author_id(lock).unwrap();
         assert_eq!(node.role, "Button", "{lock} role");
-        assert_eq!(node.label.as_deref(), Some("Lock"), "{lock} default (unlocked) label");
+        assert_eq!(
+            node.label.as_deref(),
+            Some("Lock"),
+            "{lock} default (unlocked) label"
+        );
     }
     // MT-013 header title roles + binding: each is a Role::Label bound to its pane's ACTIVE tab label.
     // Seed: pane-a=Workspace, pane-b=Inference Lab, pane-c=Media Downloader, pane-d=Fonts (the SHORT
@@ -713,7 +792,11 @@ fn settings_dialog_controls_carry_correct_accesskit_roles() {
     assert_eq!(role_of("settings.dialog"), "Dialog", "dialog root role");
     // Theme + view-mode selectors = Role::ComboBox.
     assert_eq!(role_of("settings.theme"), "ComboBox", "theme selector role");
-    assert_eq!(role_of("settings.view-mode"), "ComboBox", "view-mode selector role");
+    assert_eq!(
+        role_of("settings.view-mode"),
+        "ComboBox",
+        "view-mode selector role"
+    );
     // A text field = Role::TextInput (the search box + the per-action keybinding inputs).
     assert_eq!(role_of("settings.search"), "TextInput", "search field role");
     assert_eq!(
@@ -727,9 +810,18 @@ fn settings_dialog_controls_carry_correct_accesskit_roles() {
         "CheckBox",
         "swarm board checkbox role"
     );
+    assert_eq!(
+        role_of("settings.swarm-lane-diagnostics-default-open"),
+        "CheckBox",
+        "swarm lane diagnostics checkbox role"
+    );
     // Buttons = Role::Button (Close, Reset-layout, and a per-action keybinding Reset).
     assert_eq!(role_of("settings.close"), "Button", "close button role");
-    assert_eq!(role_of("settings.reset-layout"), "Button", "reset-layout button role");
+    assert_eq!(
+        role_of("settings.reset-layout"),
+        "Button",
+        "reset-layout button role"
+    );
     assert_eq!(
         role_of("settings.keybinding-reset.app.quick_switcher.open"),
         "Button",
@@ -738,4 +830,3 @@ fn settings_dialog_controls_carry_correct_accesskit_roles() {
 
     println!("PASS: settings dialog controls carry correct AccessKit roles (AC13)");
 }
-

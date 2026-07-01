@@ -58,8 +58,8 @@ fn app_three_tab_pane_a() -> HandshakeApp {
 }
 
 fn harness_for(app: HandshakeApp) -> Harness<'static, HandshakeApp> {
-    let mut harness = Harness::builder()
-        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.set_size(egui::Vec2::new(1200.0, 800.0));
     harness.run();
     // The rail-collapse flag is applied on the next frame; run once more so the 2x2 grid settles.
@@ -111,7 +111,12 @@ fn header_targets_present_menus_closed_by_default() {
     let nodes = live_author_nodes(&harness);
 
     // The four MT-020 per-pane header right-click targets are live and named.
-    for hid in ["pane-pane-a-header", "pane-pane-b-header", "pane-pane-c-header", "pane-pane-d-header"] {
+    for hid in [
+        "pane-pane-a-header",
+        "pane-pane-b-header",
+        "pane-pane-c-header",
+        "pane-pane-d-header",
+    ] {
         let found = nodes
             .iter()
             .find(|(a, _, _)| a == hid)
@@ -133,7 +138,9 @@ fn secondary_click_tab_opens_menu_with_contract_items() {
 
     // Right-click the Workspace tab (pane-a, label "Workspace"). Address by Role::Tab + label so the
     // pointer lands on the tab widget (the pane Group also carries a "Workspace" label).
-    harness.get_by_role_and_label(egui::accesskit::Role::Tab, "Workspace").click_secondary();
+    harness
+        .get_by_role_and_label(egui::accesskit::Role::Tab, "Workspace")
+        .click_secondary();
     harness.run();
     harness.run();
 
@@ -160,7 +167,9 @@ fn tab_menu_close_removes_the_right_clicked_tab() {
     let mut harness = harness_for(app_three_tab_pane_a());
     assert_eq!(pane_a_tabs(&harness).len(), 3, "three tabs before close");
 
-    harness.get_by_role_and_label(egui::accesskit::Role::Tab, "Workspace").click_secondary();
+    harness
+        .get_by_role_and_label(egui::accesskit::Role::Tab, "Workspace")
+        .click_secondary();
     harness.run();
     harness.run();
     // Activate "Close" — the genuine pointer path through the live menu item.
@@ -169,7 +178,10 @@ fn tab_menu_close_removes_the_right_clicked_tab() {
 
     let tabs = pane_a_tabs(&harness);
     assert_eq!(tabs.len(), 2, "Close removed one tab; got {tabs:?}");
-    assert!(!tabs.contains(&PaneType::Workspace), "the right-clicked Workspace tab is gone: {tabs:?}");
+    assert!(
+        !tabs.contains(&PaneType::Workspace),
+        "the right-clicked Workspace tab is gone: {tabs:?}"
+    );
     println!("PASS: tab menu Close removed the right-clicked tab (live + state)");
 }
 
@@ -180,14 +192,20 @@ fn tab_menu_close_others_keeps_only_the_right_clicked_tab() {
 
     // Right-click the Workspace tab (unique to pane-a; "Inference Lab" also labels pane-b's seeded
     // tab, which would make the query ambiguous), then Close Others -> only Workspace survives.
-    harness.get_by_role_and_label(egui::accesskit::Role::Tab, "Workspace").click_secondary();
+    harness
+        .get_by_role_and_label(egui::accesskit::Role::Tab, "Workspace")
+        .click_secondary();
     harness.run();
     harness.run();
     harness.get_by_label("Close Others").click();
     harness.run();
 
     let tabs = pane_a_tabs(&harness);
-    assert_eq!(tabs, vec![PaneType::Workspace], "only the right-clicked tab remains: {tabs:?}");
+    assert_eq!(
+        tabs,
+        vec![PaneType::Workspace],
+        "only the right-clicked tab remains: {tabs:?}"
+    );
     println!("PASS: tab menu Close Others kept only the right-clicked tab");
 }
 
@@ -197,7 +215,9 @@ fn tab_menu_keyboard_arrow_enter_dispatches_close() {
     let mut harness = harness_for(app_three_tab_pane_a());
     assert_eq!(pane_a_tabs(&harness).len(), 3);
 
-    harness.get_by_role_and_label(egui::accesskit::Role::Tab, "Workspace").click_secondary();
+    harness
+        .get_by_role_and_label(egui::accesskit::Role::Tab, "Workspace")
+        .click_secondary();
     harness.run();
     harness.run();
 
@@ -207,8 +227,15 @@ fn tab_menu_keyboard_arrow_enter_dispatches_close() {
     harness.run();
 
     let tabs = pane_a_tabs(&harness);
-    assert_eq!(tabs.len(), 2, "Enter on the highlighted Close leaf removed a tab; got {tabs:?}");
-    assert!(!tabs.contains(&PaneType::Workspace), "Workspace closed via keyboard: {tabs:?}");
+    assert_eq!(
+        tabs.len(),
+        2,
+        "Enter on the highlighted Close leaf removed a tab; got {tabs:?}"
+    );
+    assert!(
+        !tabs.contains(&PaneType::Workspace),
+        "Workspace closed via keyboard: {tabs:?}"
+    );
     println!("PASS: keyboard Enter on the open tab menu dispatched Close");
 }
 
@@ -219,19 +246,27 @@ fn tab_menu_disabled_split_does_not_fire() {
     let mut harness = harness_for(app_three_tab_pane_a());
     let before = pane_a_tabs(&harness);
 
-    harness.get_by_role_and_label(egui::accesskit::Role::Tab, "Workspace").click_secondary();
+    harness
+        .get_by_role_and_label(egui::accesskit::Role::Tab, "Workspace")
+        .click_secondary();
     harness.run();
     harness.run();
 
     let nodes = live_author_nodes(&harness);
     assert!(
-        nodes.iter().any(|(a, _, _)| a == "ctx-menu.tab.split_right"),
+        nodes
+            .iter()
+            .any(|(a, _, _)| a == "ctx-menu.tab.split_right"),
         "disabled Split Right is present + addressable: {nodes:?}"
     );
     // Clicking a disabled egui item is ignored — the tab set is unchanged.
     harness.get_by_label("Split Right").click();
     harness.run();
-    assert_eq!(pane_a_tabs(&harness), before, "disabled Split Right fired no action");
+    assert_eq!(
+        pane_a_tabs(&harness),
+        before,
+        "disabled Split Right fired no action"
+    );
     println!("PASS: disabled tab menu item is addressable but does not fire (no fake-enable)");
 }
 
@@ -245,12 +280,16 @@ fn tab_menu_opens_via_shift_f10_keyboard() {
 
     // No menu before the keyboard open.
     assert!(
-        !live_author_nodes(&harness).iter().any(|(a, _, _)| a.starts_with("ctx-menu.")),
+        !live_author_nodes(&harness)
+            .iter()
+            .any(|(a, _, _)| a.starts_with("ctx-menu.")),
         "no context menu before Shift+F10"
     );
 
     // Focus the Workspace tab (the wiring gates the Shift+F10 open on the tab having focus), settle.
-    harness.get_by_role_and_label(egui::accesskit::Role::Tab, "Workspace").focus();
+    harness
+        .get_by_role_and_label(egui::accesskit::Role::Tab, "Workspace")
+        .focus();
     harness.run();
 
     // Press Shift+F10 — the keyboard context-menu trigger (egui 0.33 has no dedicated Menu key).
@@ -270,7 +309,9 @@ fn tab_menu_opens_via_shift_f10_keyboard() {
     );
     // Spot-check a known contract item is among the opened menu's nodes.
     assert!(
-        menu_items.iter().any(|a| a.as_str() == "ctx-menu.tab.close"),
+        menu_items
+            .iter()
+            .any(|a| a.as_str() == "ctx-menu.tab.close"),
         "the Shift+F10-opened menu carries the contract Close item; found {menu_items:?}"
     );
     println!(
@@ -288,7 +329,14 @@ fn secondary_click_pane_header_lock_toggles_lock_state() {
     // pane-a starts Unlocked.
     let pane_a: PaneId = Arc::from("pane-a");
     assert_eq!(
-        harness.state().pane_registry().lock().unwrap().get(&pane_a).unwrap().lock_state,
+        harness
+            .state()
+            .pane_registry()
+            .lock()
+            .unwrap()
+            .get(&pane_a)
+            .unwrap()
+            .lock_state,
         LockState::Unlocked,
     );
 
@@ -298,15 +346,29 @@ fn secondary_click_pane_header_lock_toggles_lock_state() {
 
     // The pane menu items are live.
     let nodes = live_author_nodes(&harness);
-    for leaf in ["ctx-menu.pane.lock", "ctx-menu.pane.pop_out", "ctx-menu.pane.set_type_editor"] {
-        assert!(nodes.iter().any(|(a, _, _)| a == leaf), "pane menu leaf {leaf} missing: {nodes:?}");
+    for leaf in [
+        "ctx-menu.pane.lock",
+        "ctx-menu.pane.pop_out",
+        "ctx-menu.pane.set_type_editor",
+    ] {
+        assert!(
+            nodes.iter().any(|(a, _, _)| a == leaf),
+            "pane menu leaf {leaf} missing: {nodes:?}"
+        );
     }
 
     // Activate "Lock Pane" -> the registry LockState flips to Locked.
     harness.get_by_label("Lock Pane").click();
     harness.run();
     assert_eq!(
-        harness.state().pane_registry().lock().unwrap().get(&pane_a).unwrap().lock_state,
+        harness
+            .state()
+            .pane_registry()
+            .lock()
+            .unwrap()
+            .get(&pane_a)
+            .unwrap()
+            .lock_state,
         LockState::Locked,
         "pane header menu Lock Pane locked the pane",
     );
@@ -329,7 +391,10 @@ fn pane_header_menu_set_type_is_disabled() {
         "ctx-menu.pane.set_type_browser",
         "ctx-menu.pane.close",
     ] {
-        assert!(nodes.iter().any(|(a, _, _)| a == leaf), "pane menu {leaf} present: {nodes:?}");
+        assert!(
+            nodes.iter().any(|(a, _, _)| a == leaf),
+            "pane menu {leaf} present: {nodes:?}"
+        );
     }
     println!("PASS: pane header Set Type / Close items are present but future-target (disabled)");
 }
@@ -421,7 +486,10 @@ fn explorer_document_rename_is_disabled() {
     harness.run();
 
     let nodes = live_author_nodes(&harness);
-    for leaf in ["ctx-menu.explorer.rename", "ctx-menu.explorer.reveal_in_graph"] {
+    for leaf in [
+        "ctx-menu.explorer.rename",
+        "ctx-menu.explorer.reveal_in_graph",
+    ] {
         assert!(
             nodes.iter().any(|(a, _, _)| a == leaf),
             "explorer {leaf} present + addressable on document row: {nodes:?}"
@@ -450,7 +518,10 @@ fn explorer_canvas_rename_is_disabled() {
     harness.run();
 
     let nodes = live_author_nodes(&harness);
-    for leaf in ["ctx-menu.explorer.rename", "ctx-menu.explorer.reveal_in_graph"] {
+    for leaf in [
+        "ctx-menu.explorer.rename",
+        "ctx-menu.explorer.reveal_in_graph",
+    ] {
         assert!(
             nodes.iter().any(|(a, _, _)| a == leaf),
             "explorer {leaf} present + addressable on canvas row: {nodes:?}"
@@ -480,13 +551,17 @@ fn secondary_click_project_tab_switches_project() {
 
     assert_eq!(harness.state().active_project_id(), "default-project");
 
-    harness.get_by_role_and_label(egui::accesskit::Role::Tab, "Second Project").click_secondary();
+    harness
+        .get_by_role_and_label(egui::accesskit::Role::Tab, "Second Project")
+        .click_secondary();
     harness.run();
     harness.run();
 
     let nodes = live_author_nodes(&harness);
     assert!(
-        nodes.iter().any(|(a, r, _)| a == "ctx-menu.project.activate" && r == "MenuItem"),
+        nodes
+            .iter()
+            .any(|(a, r, _)| a == "ctx-menu.project.activate" && r == "MenuItem"),
         "project menu Switch to Project item present: {nodes:?}"
     );
     harness.get_by_label("Switch to Project").click();

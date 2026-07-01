@@ -11,13 +11,13 @@ use std::collections::BTreeSet;
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use sqlx::Row;
 use uuid::Uuid;
 
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
-use crate::storage::postgres::{append_kernel_event_with_executor, PostgresDatabase};
+use crate::storage::postgres::{PostgresDatabase, append_kernel_event_with_executor};
 use crate::storage::{Database, StorageError, StorageResult};
 
 /// Bound for list/search reads (matches the knowledge API convention).

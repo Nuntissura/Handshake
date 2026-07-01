@@ -172,6 +172,8 @@ pub struct WorkspaceSettingsState {
     pub view_mode: SettingsViewMode,
     /// Whether the Swarm Board opens on launch (wired).
     pub swarm_board_default_open: bool,
+    /// Whether the Swarm lane diagnostics pane is part of the operator's default Swarm toolset.
+    pub swarm_lane_diagnostics_default_open: bool,
 }
 
 impl WorkspaceSettingsState {
@@ -185,7 +187,11 @@ impl WorkspaceSettingsState {
 
     /// Set (or insert) the chord for `action_id`, preserving `APP_KEYBINDING_ACTIONS` order.
     pub fn set_chord(&mut self, action_id: &str, chord: String) {
-        if let Some(existing) = self.keybindings.iter_mut().find(|b| b.action_id == action_id) {
+        if let Some(existing) = self
+            .keybindings
+            .iter_mut()
+            .find(|b| b.action_id == action_id)
+        {
             existing.chord = chord;
         } else {
             self.keybindings.push(Keybinding {
@@ -201,7 +207,10 @@ impl WorkspaceSettingsState {
     pub fn to_settings_state(&self) -> Value {
         let mut keybindings = serde_json::Map::new();
         for binding in &self.keybindings {
-            keybindings.insert(binding.action_id.clone(), Value::String(binding.chord.clone()));
+            keybindings.insert(
+                binding.action_id.clone(),
+                Value::String(binding.chord.clone()),
+            );
         }
         serde_json::json!({
             "schema_id": WORKSPACE_SETTINGS_SCHEMA_ID,
@@ -211,6 +220,7 @@ impl WorkspaceSettingsState {
             "settings": {
                 "view_mode": self.view_mode.as_str(),
                 "swarm_board_default_open": self.swarm_board_default_open,
+                "swarm_lane_diagnostics_default_open": self.swarm_lane_diagnostics_default_open,
             },
         })
     }
@@ -232,6 +242,7 @@ pub fn default_workspace_settings_state() -> WorkspaceSettingsState {
             .collect(),
         view_mode: SettingsViewMode::Nsfw,
         swarm_board_default_open: false,
+        swarm_lane_diagnostics_default_open: false,
     }
 }
 
@@ -405,12 +416,17 @@ pub fn normalize_workspace_settings_state(
         .and_then(|m| m.get("swarm_board_default_open"))
         .and_then(Value::as_bool)
         .unwrap_or(fallback.swarm_board_default_open);
+    let swarm_lane_diagnostics_default_open = raw_settings
+        .and_then(|m| m.get("swarm_lane_diagnostics_default_open"))
+        .and_then(Value::as_bool)
+        .unwrap_or(fallback.swarm_lane_diagnostics_default_open);
 
     WorkspaceSettingsState {
         theme,
         keybindings,
         view_mode,
         swarm_board_default_open,
+        swarm_lane_diagnostics_default_open,
     }
 }
 
@@ -511,7 +527,8 @@ pub trait SettingsTransport: Send + Sync {
     fn load(&self, workspace_id: &str) -> Result<Option<Value>, SettingsTransportError>;
 
     /// `PUT /workspaces/{workspace_id}/settings` with `{ settings_state }` → the persisted blob.
-    fn save(&self, workspace_id: &str, settings_state: Value) -> Result<(), SettingsTransportError>;
+    fn save(&self, workspace_id: &str, settings_state: Value)
+        -> Result<(), SettingsTransportError>;
 }
 
 /// Production transport: the backend's PostgreSQL-authoritative workspace-settings REST surface
@@ -558,7 +575,9 @@ fn urlencode(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for b in s.bytes() {
         match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => out.push(b as char),
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(b as char)
+            }
             _ => out.push_str(&format!("%{b:02X}")),
         }
     }
@@ -594,7 +613,11 @@ impl SettingsTransport for SettingsClient {
         })
     }
 
-    fn save(&self, workspace_id: &str, settings_state: Value) -> Result<(), SettingsTransportError> {
+    fn save(
+        &self,
+        workspace_id: &str,
+        settings_state: Value,
+    ) -> Result<(), SettingsTransportError> {
         let url = self.settings_url(workspace_id);
         let client = self.client.clone();
         let request_body = serde_json::json!({ "settings_state": settings_state });
@@ -662,11 +685,7 @@ mod tests {
         );
         // Three-label format ("A, B and C").
         assert_eq!(
-            keybinding_label_for_conflict(&[
-                "A".to_owned(),
-                "B".to_owned(),
-                "C".to_owned()
-            ]),
+            keybinding_label_for_conflict(&["A".to_owned(), "B".to_owned(), "C".to_owned()]),
             "A, B and C",
         );
     }
@@ -677,10 +696,19 @@ mod tests {
         // Empty query matches everything.
         assert!(setting_matches_query("", &["anything"]));
         // Substring of a joined term matches.
-        assert!(setting_matches_query("theme", &["appearance", "theme", "dark"]));
-        assert!(setting_matches_query("dar", &["appearance", "theme", "dark"]));
+        assert!(setting_matches_query(
+            "theme",
+            &["appearance", "theme", "dark"]
+        ));
+        assert!(setting_matches_query(
+            "dar",
+            &["appearance", "theme", "dark"]
+        ));
         // A term not present does not match.
-        assert!(!setting_matches_query("terminal", &["appearance", "theme", "dark"]));
+        assert!(!setting_matches_query(
+            "terminal",
+            &["appearance", "theme", "dark"]
+        ));
         // Case-insensitive (caller lowercases the query; terms are lowercased here).
         assert!(setting_matches_query("view", &["View", "Mode", "NSFW"]));
     }
@@ -732,15 +760,24 @@ mod tests {
 
         let json = settings.to_settings_state();
         let back = normalize_workspace_settings_state(&json, &default_workspace_settings_state());
-        assert_eq!(back, settings, "settings round-trip through the backend JSON shape");
+        assert_eq!(
+            back, settings,
+            "settings round-trip through the backend JSON shape"
+        );
     }
 
     #[test]
     fn theme_maps_to_and_from_hs_theme() {
         assert_eq!(WorkspaceTheme::Dark.to_hs_theme(), HsTheme::Dark);
         assert_eq!(WorkspaceTheme::Light.to_hs_theme(), HsTheme::Light);
-        assert_eq!(WorkspaceTheme::from_hs_theme(HsTheme::Dark), WorkspaceTheme::Dark);
-        assert_eq!(WorkspaceTheme::from_hs_theme(HsTheme::Light), WorkspaceTheme::Light);
+        assert_eq!(
+            WorkspaceTheme::from_hs_theme(HsTheme::Dark),
+            WorkspaceTheme::Dark
+        );
+        assert_eq!(
+            WorkspaceTheme::from_hs_theme(HsTheme::Light),
+            WorkspaceTheme::Light
+        );
     }
 
     #[test]

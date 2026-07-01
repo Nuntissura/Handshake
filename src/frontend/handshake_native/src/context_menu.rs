@@ -384,8 +384,9 @@ fn render_items(
                 // — red-team R5). The submenu header is itself a MenuItem node carrying its author_id.
                 // Nested items carry no keyboard highlight (multi-level keyboard nav is out of MT-019
                 // scope); their navigation is egui's own hover/focus behavior.
-                let inner =
-                    ui.menu_button(item.label, |ui| render_items(ui, surface_id, children, None));
+                let inner = ui.menu_button(item.label, |ui| {
+                    render_items(ui, surface_id, children, None)
+                });
                 if is_highlighted {
                     // The keyboard cursor sits on the submenu header: focus + highlight it so Enter
                     // opens it and the cursor is visible/AccessKit-discoverable like a leaf.
@@ -518,7 +519,11 @@ mod tests {
     fn model_carries_typed_items() {
         let menu = sample_menu();
         let entries = menu.entries();
-        assert_eq!(entries.len(), 5, "two actions + separator + disabled + submenu");
+        assert_eq!(
+            entries.len(),
+            5,
+            "two actions + separator + disabled + submenu"
+        );
 
         assert_eq!(entries[0].id, "tab.pin");
         assert_eq!(entries[0].shortcut_hint, Some("Ctrl+Shift+P"));
@@ -561,7 +566,11 @@ mod tests {
         let mut sorted = ids.clone();
         sorted.sort();
         sorted.dedup();
-        assert_eq!(sorted.len(), ids.len(), "every context-menu author_id is unique: {ids:?}");
+        assert_eq!(
+            sorted.len(),
+            ids.len(),
+            "every context-menu author_id is unique: {ids:?}"
+        );
     }
 
     /// Memory open/dismiss round-trip: `request_open` marks the popup open, `dismiss` closes it, using
@@ -622,7 +631,11 @@ mod tests {
             .separator()
             .item(ContextMenuItem::action("a.x", "X").disabled("nope"))
             .item(ContextMenuItem::action("a.y", "Y"));
-        assert_eq!(first_navigable(menu.entries()), Some(2), "skips separator + disabled");
+        assert_eq!(
+            first_navigable(menu.entries()),
+            Some(2),
+            "skips separator + disabled"
+        );
     }
 
     /// ArrowDown/ArrowUp skip separators + disabled items and wrap at both ends.
@@ -638,10 +651,18 @@ mod tests {
             4,
             "down: close -> move-to (skips separator + disabled)"
         );
-        assert_eq!(step_highlight(items, 4, true), 0, "down wraps: move-to -> pin");
+        assert_eq!(
+            step_highlight(items, 4, true),
+            0,
+            "down wraps: move-to -> pin"
+        );
 
         // ArrowUp is the mirror, including wrap from the first item to the last navigable.
-        assert_eq!(step_highlight(items, 0, false), 4, "up wraps: pin -> move-to");
+        assert_eq!(
+            step_highlight(items, 0, false),
+            4,
+            "up wraps: pin -> move-to"
+        );
         assert_eq!(
             step_highlight(items, 4, false),
             1,

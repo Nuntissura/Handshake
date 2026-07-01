@@ -60,6 +60,7 @@ use super::ids::SpawnRequest;
 use super::coordinator::{SwarmConfig, SwarmCoordinator};
 use super::events::FlightRecorderSwarmSink;
 use super::ids::RunBudget;
+use super::model_lane::ModelLaneStore;
 use crate::flight_recorder::FlightRecorderEvent;
 
 const SANDBOX_LLAMA_CLI_HOST_PATH_ENV: &str = "HANDSHAKE_SANDBOX_LLAMA_CLI_HOST_PATH";
@@ -172,6 +173,9 @@ pub fn default_swarm_concurrency() -> usize {
 ///   when `None`); the lifetime spawn ceiling is HBR-SWARM-002's
 ///   `HBR_SWARM_002_LOOP_CAP` (the `RunBudget::defaulted` default).
 /// - `trace_id` is the flight-recorder trace the sink stamps onto every event.
+/// - `model_lane_store` is Dexterity's PostgreSQL/EventLedger-backed launch
+///   recorder; production construction keeps it wired so Dexterity launches do
+///   not accidentally use the test-only no-store coordinator path.
 ///
 /// The reaper is NOT started here; the owner (app state) calls
 /// [`SwarmCoordinator::start_reaper`] after `.manage` so the TTL/lease reaper
@@ -179,6 +183,7 @@ pub fn default_swarm_concurrency() -> usize {
 pub fn build_production_swarm_coordinator<F>(
     ledger: LedgerBatcher,
     cloud: CloudLaneFactoryConfig,
+    model_lane_store: ModelLaneStore,
     concurrency: Option<usize>,
     trace_id: uuid::Uuid,
     emit_fn: F,
@@ -197,7 +202,7 @@ where
         None,
     ));
     let sink = Arc::new(FlightRecorderSwarmSink::new(trace_id, emit_fn));
-    SwarmCoordinator::new(config, factory, sink, ledger)
+    SwarmCoordinator::new_with_model_lane_store(config, factory, sink, ledger, model_lane_store)
 }
 
 /// Optional cloud-lane configuration the production factory needs to dispatch
@@ -907,12 +912,13 @@ impl ProductionModelSessionFactory {
                     sandbox_cfg.with_runner_host_path(std::path::PathBuf::from(runner_host));
             }
         } else {
-            let runner_host = std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV).ok_or_else(|| {
-                SwarmError::FactoryFailed(format!(
+            let runner_host =
+                std::env::var_os(SANDBOX_LLAMA_CLI_HOST_PATH_ENV).ok_or_else(|| {
+                    SwarmError::FactoryFailed(format!(
                     "warm VM local execution requires {SANDBOX_LLAMA_CLI_HOST_PATH_ENV} to point \
                      at the host llama.cpp runner binary"
                 ))
-            })?;
+                })?;
             sandbox_cfg = sandbox_cfg.with_runner_host_path(std::path::PathBuf::from(runner_host));
         }
         if let Some(bytes) = request.committed_memory_bytes {
@@ -1042,9 +1048,7 @@ impl ProductionModelSessionFactory {
                 let _ = adapter.kill(&handle, Signal::Kill).await;
                 let cleanup_detail = cleanup
                     .err()
-                    .map(|cleanup_error| {
-                        format!("; snapshot cleanup also failed: {cleanup_error}")
-                    })
+                    .map(|cleanup_error| format!("; snapshot cleanup also failed: {cleanup_error}"))
                     .unwrap_or_default();
                 return Err(SwarmError::FactoryFailed(format!(
                     "warm VM snapshot manifest capture failed after successful load/restore; \
@@ -1089,14 +1093,8 @@ impl ProductionModelSessionFactory {
         let teardown =
             sandboxed_runtime_teardown(owning, loaded_model_id, Arc::clone(&adapter), Some(handle));
 
-        let mut live = LiveSession::new(
-            shared,
-            loaded_model_id,
-            cancel,
-            teardown,
-            record_id,
-            os_pid,
-        );
+        let mut live =
+            LiveSession::new(shared, loaded_model_id, cancel, teardown, record_id, os_pid);
         live = live.with_warm_vm_restore_manifest(warm_vm_restore_manifest);
         Ok(live)
     }
@@ -1372,8 +1370,12 @@ impl ProductionModelSessionFactory {
         // in-process START so the coordinator's START==STOP invariant holds for
         // cloud sessions too.
         let os_pid = self.synthetic_pid(request);
-        let record_id =
-            self.record_start(request, model_id, os_pid, ProcessEngineKind::LlamaCpp)?;
+        let engine_kind = match provider {
+            ProviderKind::OfficialCli => ProcessEngineKind::OfficialCliBridge,
+            ProviderKind::ByokCloud => ProcessEngineKind::HelperSubprocess,
+            _ => ProcessEngineKind::ExternalCompat,
+        };
+        let record_id = self.record_start(request, model_id, os_pid, engine_kind)?;
         let cancel = CancellationToken::new();
         let teardown = cloud_teardown(runtime.clone(), model_id);
 
@@ -1722,6 +1724,13 @@ mod tests {
         .expect("manual ledger")
     }
 
+    fn lazy_model_lane_store() -> ModelLaneStore {
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .connect_lazy("postgres://handshake:handshake@127.0.0.1:5432/handshake_lazy")
+            .expect("lazy model lane pool");
+        ModelLaneStore::new(pool)
+    }
+
     fn one_slot_failing_overflow_ledger_pair() -> (LedgerBatcher, ProcessLedgerDrain) {
         LedgerBatcher::manual_for_tests(
             LedgerBatcherConfig {
@@ -1847,6 +1856,7 @@ mod tests {
         let coordinator = build_production_swarm_coordinator(
             ledger,
             CloudLaneFactoryConfig::unconfigured(),
+            lazy_model_lane_store(),
             Some(2),
             uuid::Uuid::now_v7(),
             move |_ev| {
@@ -2051,7 +2061,7 @@ mod tests {
             cloud,
             None,
         ));
-        let coordinator = SwarmCoordinator::new(
+        let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(4).with_concurrency(4),
             ),
@@ -2185,7 +2195,7 @@ mod tests {
         let store = Arc::new(InMemoryStore::default());
         let sink = Arc::new(RecordingSwarmSink::new());
         let factory = Arc::new(ProductionModelSessionFactory::local_only(ledger.clone()));
-        let coordinator = Arc::new(SwarmCoordinator::new(
+        let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(4).with_concurrency(4),
             ),
@@ -2357,7 +2367,7 @@ mod tests {
             cloud,
             None,
         ));
-        let coordinator = SwarmCoordinator::new(
+        let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(4).with_concurrency(4),
             ),
@@ -2441,7 +2451,7 @@ mod tests {
             cloud,
             None,
         ));
-        let coordinator = Arc::new(SwarmCoordinator::new(
+        let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(2).with_concurrency(2),
             ),
@@ -2658,7 +2668,7 @@ mod tests {
             cloud,
             None,
         ));
-        let coordinator = SwarmCoordinator::new(
+        let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(4).with_concurrency(4),
             ),
@@ -3279,8 +3289,14 @@ mod tests {
         std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
         let (ledger, drain) = ledger_pair();
         let store = Arc::new(InMemoryStore::default());
-        let (registry, spawned_specs, restored_snapshots, snapshotted_handles, deleted_snapshots, killed) =
-            warm_sandbox_registry_with_observed_fake();
+        let (
+            registry,
+            spawned_specs,
+            restored_snapshots,
+            snapshotted_handles,
+            deleted_snapshots,
+            killed,
+        ) = warm_sandbox_registry_with_observed_fake();
         let factory = ProductionModelSessionFactory::new(
             ledger,
             CloudLaneFactoryConfig::unconfigured(),
@@ -3379,10 +3395,16 @@ mod tests {
         std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
         let (ledger, drain) = ledger_pair();
         let store = Arc::new(InMemoryStore::default());
-        let (registry, spawned_specs, restored_snapshots, snapshotted_handles, deleted_snapshots, killed) =
-            warm_sandbox_registry_with_observed_fake_and_snapshot_error(Some(
-                "snapshot backend refused capture".to_string(),
-            ));
+        let (
+            registry,
+            spawned_specs,
+            restored_snapshots,
+            snapshotted_handles,
+            deleted_snapshots,
+            killed,
+        ) = warm_sandbox_registry_with_observed_fake_and_snapshot_error(Some(
+            "snapshot backend refused capture".to_string(),
+        ));
         let factory = ProductionModelSessionFactory::new(
             ledger,
             CloudLaneFactoryConfig::unconfigured(),
@@ -3451,8 +3473,14 @@ mod tests {
                 None,
             ))
             .expect("seed event should fill the one-slot manual ledger queue");
-        let (registry, spawned_specs, restored_snapshots, snapshotted_handles, deleted_snapshots, killed) =
-            warm_sandbox_registry_with_observed_fake();
+        let (
+            registry,
+            spawned_specs,
+            restored_snapshots,
+            snapshotted_handles,
+            deleted_snapshots,
+            killed,
+        ) = warm_sandbox_registry_with_observed_fake();
         let factory = ProductionModelSessionFactory::new(
             ledger,
             CloudLaneFactoryConfig::unconfigured(),
@@ -3471,7 +3499,10 @@ mod tests {
 
         let err = create_err(&factory, &req).await;
         let detail = format!("{err}");
-        assert!(detail.contains("forced ledger overflow failure"), "{detail}");
+        assert!(
+            detail.contains("forced ledger overflow failure"),
+            "{detail}"
+        );
         assert_eq!(
             spawned_specs.lock().unwrap().len(),
             1,
@@ -3520,8 +3551,14 @@ mod tests {
         std::env::set_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV, &warm_agent);
         let (ledger, drain) = ledger_pair();
         let store = Arc::new(InMemoryStore::default());
-        let (registry, spawned_specs, _restored_snapshots, _snapshotted_handles, _deleted_snapshots, killed) =
-            warm_sandbox_registry_with_observed_fake();
+        let (
+            registry,
+            spawned_specs,
+            _restored_snapshots,
+            _snapshotted_handles,
+            _deleted_snapshots,
+            killed,
+        ) = warm_sandbox_registry_with_observed_fake();
         let factory = ProductionModelSessionFactory::new(
             ledger,
             CloudLaneFactoryConfig::unconfigured(),
@@ -3591,8 +3628,14 @@ mod tests {
         std::env::remove_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
         std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
         let (ledger, _drain) = ledger_pair();
-        let (registry, spawned_specs, restored_snapshots, snapshotted_handles, deleted_snapshots, killed) =
-            warm_sandbox_registry_with_observed_fake();
+        let (
+            registry,
+            spawned_specs,
+            restored_snapshots,
+            snapshotted_handles,
+            deleted_snapshots,
+            killed,
+        ) = warm_sandbox_registry_with_observed_fake();
         let factory = ProductionModelSessionFactory::new(
             ledger,
             CloudLaneFactoryConfig::unconfigured(),
@@ -3633,11 +3676,13 @@ mod tests {
             successor_manifest.model_artifact_sha256,
             manifest.model_artifact_sha256
         );
-        assert_eq!(successor_manifest.model_guest_path, manifest.model_guest_path);
+        assert_eq!(
+            successor_manifest.model_guest_path,
+            manifest.model_guest_path
+        );
         assert_eq!(successor_manifest.ready_nonce, manifest.ready_nonce);
         assert_eq!(
-            successor_manifest.snapshot.snapshot_dir,
-            "/snap/hsk-ch-warm-restored-factory-fake",
+            successor_manifest.snapshot.snapshot_dir, "/snap/hsk-ch-warm-restored-factory-fake",
             "restored warm sessions should not keep reusing the consumed snapshot"
         );
         (session.teardown)().await.expect("teardown");
@@ -3682,8 +3727,14 @@ mod tests {
         std::env::remove_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV);
         std::env::remove_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
         let (ledger, _drain) = ledger_pair();
-        let (registry, spawned_specs, restored_snapshots, snapshotted_handles, _deleted_snapshots, killed) =
-            warm_sandbox_registry_with_observed_fake_options(None, false);
+        let (
+            registry,
+            spawned_specs,
+            restored_snapshots,
+            snapshotted_handles,
+            _deleted_snapshots,
+            killed,
+        ) = warm_sandbox_registry_with_observed_fake_options(None, false);
         let factory = ProductionModelSessionFactory::new(
             ledger,
             CloudLaneFactoryConfig::unconfigured(),
@@ -3750,8 +3801,14 @@ mod tests {
         std::env::remove_var(CLOUD_HYPERVISOR_WARM_AGENT_HOST_PATH_ENV);
         std::env::set_var(SANDBOX_LLAMA_CLI_HOST_PATH_ENV, &runner);
         let (ledger, _drain) = ledger_pair();
-        let (registry, spawned_specs, restored_snapshots, _snapshotted_handles, _deleted_snapshots, killed) =
-            warm_sandbox_registry_with_observed_fake();
+        let (
+            registry,
+            spawned_specs,
+            restored_snapshots,
+            _snapshotted_handles,
+            _deleted_snapshots,
+            killed,
+        ) = warm_sandbox_registry_with_observed_fake();
         let factory = ProductionModelSessionFactory::new(
             ledger,
             CloudLaneFactoryConfig::unconfigured(),

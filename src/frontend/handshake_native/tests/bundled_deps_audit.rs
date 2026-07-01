@@ -27,7 +27,10 @@ fn build_script() -> PathBuf {
 }
 
 fn artifacts_dir() -> PathBuf {
-    crate_root().join("tests").join("native_gui").join("artifacts")
+    crate_root()
+        .join("tests")
+        .join("native_gui")
+        .join("artifacts")
 }
 
 /// Mirror build_installer.ps1's short-target-dir selection so the audit finds the staging tree.
@@ -74,9 +77,7 @@ fn collect(root: &Path, dir: &Path, out: &mut Vec<String>) {
 /// Ensure the staging tree exists; build it if missing (idempotent — the smoke may have built it).
 fn ensure_staged() -> PathBuf {
     let staging = short_target_dir().join("release-native").join("staging");
-    if staging.is_dir()
-        && staging.join("handshake-native.exe").is_file()
-    {
+    if staging.is_dir() && staging.join("handshake-native.exe").is_file() {
         return staging;
     }
     let script = build_script();
@@ -125,8 +126,7 @@ fn bundle_contains_all_required_deps_and_no_system_webview() {
     // ever bundled — not as a system-level dependency. No browser_pane is bundled today.)
     let disallowed_system_webview = files.iter().any(|f| {
         let lower = f.to_ascii_lowercase();
-        lower.ends_with("webview2loader.dll")
-            && !lower.starts_with("bundled/browser_pane/")
+        lower.ends_with("webview2loader.dll") && !lower.starts_with("bundled/browser_pane/")
     });
     assert!(
         !disallowed_system_webview,
@@ -148,8 +148,14 @@ fn bundle_contains_all_required_deps_and_no_system_webview() {
         })
         .cloned();
 
-    assert!(has("handshake-native.exe"), "native binary missing from bundle");
-    assert!(postgres_binary.is_some(), "bundled postgres pg_ctl.exe missing");
+    assert!(
+        has("handshake-native.exe"),
+        "native binary missing from bundle"
+    );
+    assert!(
+        postgres_binary.is_some(),
+        "bundled postgres pg_ctl.exe missing"
+    );
     assert!(font_file.is_some(), "no bundled font file");
 
     // --- write the report (HBR-VIS) ---

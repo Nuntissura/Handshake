@@ -234,7 +234,11 @@ impl ProjectTabBar {
         // Register the container id on its rect first so the node attaches under the correct parent,
         // then enrich it (Role::TabList + author_id). Sense::focusable so keyboard nav can land on it.
         let container_id = unsafe { egui::Id::from_high_entropy_bits(PROJECT_TABS_NODE_ID) };
-        ui.interact(bar_rect, container_id, egui::Sense::focusable_noninteractive());
+        ui.interact(
+            bar_rect,
+            container_id,
+            egui::Sense::focusable_noninteractive(),
+        );
         ui.ctx().accesskit_node_builder(container_id, |node| {
             node.set_role(accesskit::Role::TabList);
             node.set_author_id(PROJECT_TABS_AUTHOR_ID.to_owned());
@@ -297,10 +301,7 @@ impl ProjectTabBar {
                 colors.inactive_bg
             };
             ui.painter().rect_filled(rect, 3.0, bg);
-            let text_pos = egui::pos2(
-                rect.left() + pad,
-                rect.center().y - galley.size().y * 0.5,
-            );
+            let text_pos = egui::pos2(rect.left() + pad, rect.center().y - galley.size().y * 0.5);
             ui.painter().galley(text_pos, galley, colors.text);
             // Active-tab underline accent (paper-strip aesthetic): a thin accent bar along the bottom.
             if is_active {
@@ -334,15 +335,16 @@ impl ProjectTabBar {
 
         // MT-020 right-click context menu (CLOSED by default, so the default snapshot is unchanged).
         let mut menu_switch = false;
-        let menu = ContextMenu::new("project")
-            .items(project_tab_context_items(is_active, project_count));
+        let menu =
+            ContextMenu::new("project").items(project_tab_context_items(is_active, project_count));
         if let Some(confirmed_id) = menu.show_on(&response) {
             if let Some(ProjectTabMenuAction::Activate) = project_tab_action_for_id(confirmed_id) {
                 menu_switch = true;
             }
         }
         // Shift+F10 opens the project-tab menu when focused (keyboard parity; gated on focus).
-        if response.has_focus() && ui.input(|i| i.key_pressed(egui::Key::F10) && i.modifiers.shift) {
+        if response.has_focus() && ui.input(|i| i.key_pressed(egui::Key::F10) && i.modifiers.shift)
+        {
             crate::context_menu::request_open(ui.ctx(), response.id, response.rect.left_bottom());
         }
 
@@ -368,8 +370,7 @@ impl ProjectTabBar {
         // NOT an interactive control (the gate only flags clickable/focusable nodes without an id).
         ui.interact(rect, id, egui::Sense::hover());
         if ui.is_rect_visible(rect) {
-            let text_pos =
-                egui::pos2(rect.left() + pad, rect.center().y - galley.size().y * 0.5);
+            let text_pos = egui::pos2(rect.left() + pad, rect.center().y - galley.size().y * 0.5);
             ui.painter().galley(text_pos, galley, colors.disabled_text);
         }
         ui.ctx().accesskit_node_builder(id, |node| {
@@ -421,7 +422,10 @@ pub async fn fetch_workspaces(base_url: &str) -> Result<Vec<ProjectItem>, AppErr
         .await
         .map_err(|e| AppError::Http(e.to_string()))?;
     if !resp.status().is_success() {
-        return Err(AppError::Http(format!("non-success status {}", resp.status())));
+        return Err(AppError::Http(format!(
+            "non-success status {}",
+            resp.status()
+        )));
     }
     let v: serde_json::Value = resp
         .json()
@@ -452,7 +456,10 @@ mod tests {
     use super::*;
 
     fn projects() -> Vec<ProjectItem> {
-        vec![ProjectItem::new("a", "Alpha"), ProjectItem::new("b", "Beta")]
+        vec![
+            ProjectItem::new("a", "Alpha"),
+            ProjectItem::new("b", "Beta"),
+        ]
     }
 
     #[test]
@@ -465,22 +472,36 @@ mod tests {
     fn apply_fetched_empty_clears_list_for_placeholder() {
         let mut bar = ProjectTabBar::new(projects(), "a");
         bar.apply_fetched(Vec::new());
-        assert!(bar.projects().is_empty(), "empty fetch -> placeholder state");
+        assert!(
+            bar.projects().is_empty(),
+            "empty fetch -> placeholder state"
+        );
         assert_eq!(bar.fetch_state(), &FetchState::Idle);
     }
 
     #[test]
     fn apply_fetched_preserves_active_when_present() {
         let mut bar = ProjectTabBar::new(projects(), "b");
-        bar.apply_fetched(vec![ProjectItem::new("b", "Beta"), ProjectItem::new("c", "Gamma")]);
-        assert_eq!(bar.active_id(), "b", "active id preserved when still present");
+        bar.apply_fetched(vec![
+            ProjectItem::new("b", "Beta"),
+            ProjectItem::new("c", "Gamma"),
+        ]);
+        assert_eq!(
+            bar.active_id(),
+            "b",
+            "active id preserved when still present"
+        );
     }
 
     #[test]
     fn apply_fetched_falls_back_to_first_when_active_gone() {
         let mut bar = ProjectTabBar::new(projects(), "a");
         bar.apply_fetched(vec![ProjectItem::new("c", "Gamma")]);
-        assert_eq!(bar.active_id(), "c", "orphaned active id falls back to first project");
+        assert_eq!(
+            bar.active_id(),
+            "c",
+            "orphaned active id falls back to first project"
+        );
     }
 
     #[test]
@@ -499,7 +520,10 @@ mod tests {
         assert_eq!(PROJECT_TABS_NODE_ID, 50);
         const { assert!(PROJECT_TABS_NODE_ID < crate::accessibility::PANE_NODE_ID_BASE) };
         for fixed in [10_u64, 20, 21, 30, 31, 40, 41, 42, 43, 60, 61, 62, 63] {
-            assert_ne!(PROJECT_TABS_NODE_ID, fixed, "container id collides with {fixed}");
+            assert_ne!(
+                PROJECT_TABS_NODE_ID, fixed,
+                "container id collides with {fixed}"
+            );
         }
     }
 }
