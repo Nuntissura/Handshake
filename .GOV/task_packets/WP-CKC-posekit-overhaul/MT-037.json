@@ -1,0 +1,98 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-037",
+  "title": "Contain CKC local fallback state and persistence receipts",
+  "status": "PENDING",
+  "created_at_utc": "2026-07-01T13:20:45.027Z",
+  "updated_at_utc": "2026-07-01T13:20:45.027Z",
+  "product_edit_allowed": true,
+  "operator_request": "Capture the local-only state risk found during MT-010: CKC album/media UI fallback must not make non-persistent edits look like real backend authority.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-037.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-037.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-037.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-010",
+      "MT-032"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_references": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs"
+    ],
+    "recovery_rule": "Resume by separating demo/local fallback state from persisted backend authority in UI, tests, and manual text."
+  },
+  "scope": {
+    "summary": "Make CKC local/demo fallback state visibly degraded, optionally disable mutating controls when backend is absent, and require receipts for persisted claims.",
+    "base_scope": [
+      "Audit CKC local fallback paths for character, album, media notes, search/tag notes, story, moodboard, and sheet artifact operations.",
+      "Mark local-only mutations with visible and Argus-readable degraded/local state.",
+      "Disable or require explicit degraded-mode acknowledgement for local-only mutating controls if they can be mistaken for persisted backend writes.",
+      "Add receipt/readout requirements before UI or models can claim a CKC write persisted.",
+      "Update manual recovery instructions for backend-down CKC work."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/atelier_panel.rs",
+      "src/frontend/handshake_native/tests/test_atelier_panel.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs"
+    ],
+    "acceptance_criteria": [
+      "Every CKC local-only mutation path surfaces local/degraded/non-persistent status through Argus-readable nodes.",
+      "Persisted-write claims require backend success receipt, backend response row, or documented durable artifact.",
+      "Backend-down/local demo mode cannot be mistaken for canonical PostgreSQL/CRDT authority in manual text.",
+      "Tests prove local album/media mutations do not present themselves as persisted writes.",
+      "Operator/model recovery steps explain how to reload from backend authority after local fallback use."
+    ],
+    "risks_and_controls": [
+      "Risk: models continue work from local-only state and later lose changes. Control: local status nodes and no persisted wording without receipts.",
+      "Risk: disabling all fallback makes UI unusable for demos/tests. Control: keep demo mode but label it explicitly.",
+      "Risk: receipt wording is inconsistent across CKC surfaces. Control: add shared status wording helper or tests across surfaces."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel ckc_local_fallback_is_argus_visible_and_never_claims_persistence -- --nocapture",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_manual_pane_editors -- --nocapture",
+      "git diff --check"
+    ],
+    "verification": [
+      "Frontend fallback status tests.",
+      "Manual text tests for backend-down/local fallback recovery.",
+      "Search for misleading persisted/saved wording in local-only paths."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "truthfulness of persisted claims",
+      "backend-down recovery",
+      "operator/model state loss",
+      "demo usability without false authority"
+    ]
+  },
+  "manual_requirement": "Required.",
+  "handoff": {
+    "status": "PENDING",
+    "note": "Created from MT-010 review finding that no-backend fallback can mutate local state and look real."
+  }
+}

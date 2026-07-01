@@ -1,0 +1,105 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-033",
+  "title": "Scale CKC media albums for large libraries and pagination",
+  "status": "PENDING",
+  "created_at_utc": "2026-07-01T13:20:45.027Z",
+  "updated_at_utc": "2026-07-01T13:20:45.027Z",
+  "product_edit_allowed": true,
+  "operator_request": "Capture the large-library risk found during MT-010: CKC albums and members must not load or collapse huge image sets in a way that breaks LoRA mining and album review.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-033.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-033.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-033.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-010"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_references": [
+      ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-010.json",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/api/atelier.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/media.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/backend_client.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs"
+    ],
+    "recovery_rule": "Resume by testing large album counts and member pages. Do not accept a UI that only works for seeded one-image albums."
+  },
+  "scope": {
+    "summary": "Make CKC media album listing and member paging safe for production-scale datasets used in image mining, character albums, and LoRA review.",
+    "base_scope": [
+      "Add or verify backend album-list pagination for GET /atelier/characters/{character_internal_id}/media-albums, including offset/limit and next offset.",
+      "Ensure member paging uses bounded limits and does not expand every album with every member by default.",
+      "Fix frontend merge behavior so add-items and load-more responses preserve already-loaded members, avoid duplicates, and keep selected media stable.",
+      "Expose visible/Argus-readable loaded count, total count, next offset, and load-more status per album.",
+      "Add tests with multiple albums and more members than one page."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/api/atelier.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/media.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/tests/atelier_stealth_window_tests.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/backend_client.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/api/atelier.rs",
+      "src/backend/handshake_core/src/atelier/media.rs",
+      "src/backend/handshake_core/tests/atelier_stealth_window_tests.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/atelier_panel.rs",
+      "src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "acceptance_criteria": [
+      "Backend album listing is bounded and returns deterministic album/member page metadata for large libraries.",
+      "Frontend load-more appends or updates members without replacing previously loaded pages unless the response is explicitly a reset.",
+      "Duplicate media assets do not create duplicate visible rows when a page or add-items response overlaps existing rows.",
+      "Selected media remains selected after load-more/add-items if it still exists.",
+      "Argus can inspect page counts and trigger load-more without foregrounding the app."
+    ],
+    "risks_and_controls": [
+      "Risk: one CKC character with thousands of album members stalls the backend or UI. Control: bounded backend queries and frontend page-size tests.",
+      "Risk: linking a new image collapses already-loaded pages. Control: merge-by-asset tests for add-items responses.",
+      "Risk: pagination order is unstable and agents miss or duplicate work. Control: deterministic sort and duplicate-prevention assertions."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_stealth_window_tests atelier_ckc_media_album_large_library_pagination -- --nocapture",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel argus_loads_more_ckc_media_without_collapsing_loaded_members -- --nocapture",
+      "git diff --check"
+    ],
+    "verification": [
+      "Backend large-library pagination test.",
+      "Frontend Argus load-more/merge/selection stability test.",
+      "Manual or status-row inspection of loaded/total/next-offset values."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "large-library performance",
+      "pagination data loss",
+      "parallel model work partitioning",
+      "backend/frontend page contract parity"
+    ]
+  },
+  "manual_requirement": "Required if user/model workflow or endpoint/query shape changes.",
+  "handoff": {
+    "status": "PENDING",
+    "note": "Created from MT-010 backend/frontend review finding that album expansion and add-items replacement are unsafe for large libraries."
+  }
+}

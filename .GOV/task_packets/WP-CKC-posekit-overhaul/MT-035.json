@@ -1,0 +1,104 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-035",
+  "title": "Define CKC folder and source-ref authority",
+  "status": "PENDING",
+  "created_at_utc": "2026-07-01T13:20:45.027Z",
+  "updated_at_utc": "2026-07-01T13:20:45.027Z",
+  "product_edit_allowed": true,
+  "operator_request": "Capture the folder/source provenance authority gap found during MT-010: CKC folder rows currently behave like generic refs, but models need deterministic folder/source meaning for albums and image mining.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-035.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-035.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-035.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-010"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_references": [
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/media.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/source_evidence.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/api/atelier.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs"
+    ],
+    "recovery_rule": "Resume by locating existing Loom/assets/source evidence authority first. Do not invent a second CKC-only folder database unless no existing authority exists."
+  },
+  "scope": {
+    "summary": "Make CKC folder/source provenance typed, validated, documented, and reusable across image mining, albums, LoRA review, and downstream CUI workflows.",
+    "base_scope": [
+      "Identify the canonical existing Handshake authority for folder refs, source paths, source URLs, and source evidence.",
+      "Define helper functions or types for CKC folder/source refs instead of ad hoc string refs.",
+      "Validate link-scoped source_path_ref/source_url_ref inputs before mutating album membership.",
+      "Expose structured folder/source readouts and drag refs with stable refKind values.",
+      "Document how models should use folder/source refs for dataset mining, CKC albums, and CUI-ready assets."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/media.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/source_evidence.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/api/atelier.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/tests/atelier_stealth_window_tests.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs"
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/atelier/media.rs",
+      "src/backend/handshake_core/src/atelier/source_evidence.rs",
+      "src/backend/handshake_core/src/api/atelier.rs",
+      "src/backend/handshake_core/tests/atelier_stealth_window_tests.rs",
+      "src/frontend/handshake_native/src/atelier_panel.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs"
+    ],
+    "acceptance_criteria": [
+      "CKC folder/source refs are backed by documented existing Handshake authority or an explicitly added authority layer.",
+      "Invalid source refs fail before album mutation and leave album/media state unchanged.",
+      "The same media asset can belong to multiple albums with different link-scoped source refs without cross-contamination.",
+      "Argus-visible folder/source rows expose typed draggable refs and structured values.",
+      "Manual text explains source_path_ref versus source_url_ref and global asset provenance versus per-link provenance."
+    ],
+    "risks_and_controls": [
+      "Risk: raw folder strings drift after project relocation. Control: use portable refs/configurable roots rather than hardcoded paths.",
+      "Risk: invalid provenance mutates album membership before failing. Control: transaction/rollback tests around invalid refs.",
+      "Risk: source refs duplicate existing source-evidence authority. Control: research existing modules first and reuse them."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_stealth_window_tests atelier_ckc_source_refs_are_validated_and_link_scoped -- --nocapture",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel argus_reads_ckc_folder_and_source_refs_as_structured_values -- --nocapture",
+      "git diff --check"
+    ],
+    "verification": [
+      "Backend validation/rollback tests for invalid source refs.",
+      "Frontend structured Argus readout tests for folder/source refs.",
+      "Manual coverage for folder/source authority."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "source-of-truth reuse",
+      "portable path/ref behavior",
+      "invalid-ref rollback",
+      "cross-album provenance isolation"
+    ]
+  },
+  "manual_requirement": "Required.",
+  "handoff": {
+    "status": "PENDING",
+    "note": "Created from MT-010 review finding that folder refs are generic provenance refs without a clear CKC authority contract."
+  }
+}

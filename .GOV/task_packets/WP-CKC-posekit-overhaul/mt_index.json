@@ -2,9 +2,9 @@
   "schema_id": "hsk.microtask_index@1",
   "schema_version": "microtask_index_v1",
   "wp_id": "WP-CKC-posekit-overhaul",
-  "updated_at_utc": "2026-07-01T12:51:36.562Z",
+  "updated_at_utc": "2026-07-01T13:20:45.027Z",
   "active_mt_id": "MT-010",
-  "next_mt_id": "MT-032",
+  "next_mt_id": "MT-039",
   "microtask_contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
   "policy": {
     "create_before_product_edit": true,
@@ -295,6 +295,69 @@
       "product_edit_allowed": true,
       "started_at_utc": null,
       "parallel_lane_note": "Follow-up from MT-029 post-review; backend must produce degraded/blocked/error command envelopes before frontend accepts them."
+    },
+    {
+      "mt_id": "MT-032",
+      "status": "PENDING",
+      "title": "Harden CKC linked-media Argus readouts and actor controls",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-032.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null,
+      "parallel_lane_note": "Follow-up from MT-010 review; captures selected media readouts, actor controls, and local fallback status hardening."
+    },
+    {
+      "mt_id": "MT-033",
+      "status": "PENDING",
+      "title": "Scale CKC media albums for large libraries and pagination",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-033.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null,
+      "parallel_lane_note": "Follow-up from MT-010 review; captures album/member pagination and large-library merge safety."
+    },
+    {
+      "mt_id": "MT-034",
+      "status": "PENDING",
+      "title": "Add CKC media album unlink, reorder, and link-edit APIs",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-034.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null,
+      "parallel_lane_note": "Follow-up from MT-010 review; captures album mutation API gaps beyond add/list."
+    },
+    {
+      "mt_id": "MT-035",
+      "status": "PENDING",
+      "title": "Define CKC folder and source-ref authority",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-035.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null,
+      "parallel_lane_note": "Follow-up from MT-010 review; captures folder/source provenance authority and validation."
+    },
+    {
+      "mt_id": "MT-036",
+      "status": "PENDING",
+      "title": "Add CKC media row-level attribution and parallel-agent conflict safety",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-036.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null,
+      "parallel_lane_note": "Follow-up from MT-010 review; captures row-level attribution and parallel-agent recovery."
+    },
+    {
+      "mt_id": "MT-037",
+      "status": "PENDING",
+      "title": "Contain CKC local fallback state and persistence receipts",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-037.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null,
+      "parallel_lane_note": "Follow-up from MT-010 review; captures local-only state and false-persistence risk."
+    },
+    {
+      "mt_id": "MT-038",
+      "status": "PENDING",
+      "title": "Run CKC linked-media runtime Argus and manual proof pass",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-038.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null,
+      "parallel_lane_note": "Follow-up from MT-010 review; captures runtime Argus/manual proof and artifact-size control."
     }
   ],
   "baseline": {

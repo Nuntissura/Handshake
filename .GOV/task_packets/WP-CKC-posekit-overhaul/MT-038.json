@@ -1,0 +1,103 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-038",
+  "title": "Run CKC linked-media runtime Argus and manual proof pass",
+  "status": "PENDING",
+  "created_at_utc": "2026-07-01T13:20:45.027Z",
+  "updated_at_utc": "2026-07-01T13:20:45.027Z",
+  "product_edit_allowed": true,
+  "operator_request": "Capture the validation risk around MT-010: CKC linked media must be proven in runtime/headless Argus and documented in the internal manual, not only inferred from code/tests.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-038.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-038.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-038.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-010",
+      "MT-032",
+      "MT-033",
+      "MT-037"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_references": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/mcp/**",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "recovery_rule": "Resume by proving CKC linked-media workflows through headless Argus inspect/click/set_value/screenshot. Do not launch foreground Handshake or steal focus."
+  },
+  "scope": {
+    "summary": "Perform the dedicated runtime proof pass for CKC linked-media workflows after the structural media gaps are fixed, including manual coverage and headless Argus evidence.",
+    "base_scope": [
+      "Start only the required backend/runtime pieces in non-intrusive/headless mode.",
+      "Use Argus inspect/click/set_value/screenshot against CKC linked-media album rows, media rows, actor field, source refs, notes/tags, and load-more controls.",
+      "Save reproducible evidence under the external artifact root without filling the drive; clean temporary targets after validation.",
+      "Update or verify internal UserManual instructions for the end-to-end CKC linked-media workflow.",
+      "Record exact commands, artifact paths, and residual gaps in the MT closeout."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/tests/test_atelier_panel.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/src/atelier_panel.rs"
+    ],
+    "acceptance_criteria": [
+      "Argus can inspect the CKC linked-media surface and all required author_ids without foregrounding the app.",
+      "Argus can steer album/media selection, actor field, image notes/tags, and load-more where available.",
+      "A headless screenshot proof shows CKC linked-media layout with readable rows and no incoherent overlap at a constrained and a wide viewport.",
+      "Manual coverage lets a no-context model operate CKC media albums and distinguish persisted backend state from local fallback.",
+      "Temporary build/test artifacts are cleaned or size-bounded after proof collection."
+    ],
+    "risks_and_controls": [
+      "Risk: tests pass but runtime UI is unreadable. Control: Argus screenshot and snapshot evidence at multiple sizes.",
+      "Risk: validation steals focus. Control: use only headless Argus paths; no foreground launch unless explicitly approved.",
+      "Risk: proof artifacts refill the drive. Control: use external artifact root, measure size, and delete throwaway Cargo targets."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel argus_inspects_and_steers_ckc_linked_media_without_touching_sheet_notes -- --nocapture",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel argus_reads_structured_ckc_media_refs_and_actor_surface -- --nocapture",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel ckc_linked_media_visual_probe -- --nocapture",
+      "git diff --check"
+    ],
+    "verification": [
+      "Headless Argus snapshot proof.",
+      "Headless Argus screenshot proof.",
+      "Manual coverage proof.",
+      "Artifact-size cleanup proof."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "runtime versus code-only proof",
+      "non-intrusive visual validation",
+      "manual usability for no-context models",
+      "artifact size control"
+    ]
+  },
+  "manual_requirement": "Required.",
+  "handoff": {
+    "status": "PENDING",
+    "note": "Created after MT-010 work exposed that code-level UI tests are not enough for the CKC linked-media backbone."
+  }
+}

@@ -1,0 +1,99 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-032",
+  "title": "Harden CKC linked-media Argus readouts and actor controls",
+  "status": "PENDING",
+  "created_at_utc": "2026-07-01T13:20:45.027Z",
+  "updated_at_utc": "2026-07-01T13:20:45.027Z",
+  "product_edit_allowed": true,
+  "operator_request": "Capture the CKC media UI gaps found during MT-010: Argus needs structured selected album/media/folder/source URL readouts and a steerable media actor identity, not just painted preview text.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-032.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-032.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-032.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-010"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_references": [
+      ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-010.json",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs"
+    ],
+    "recovery_rule": "Resume by proving Argus can inspect structured values, not OCR-painted preview text. Do not claim media row steerability from visible labels alone."
+  },
+  "scope": {
+    "summary": "Expose selected CKC media state and writer actor identity as stable AccessKit/Argus controls so parallel models can inspect, steer, and attribute album/media work.",
+    "base_scope": [
+      "Add stable author_ids for selected album ref, selected media ref, selected folder ref, selected source URL ref, selected media status, and CKC media actor identity.",
+      "Render each selected ref as an AccessKit value-bearing node, not only as painted text in the preview box.",
+      "Make the CKC media actor identity steerable by Argus and use it for album create, album link, media notes/tags save, and any local fallback status.",
+      "Add clear status text for empty asset ID input, missing selected album, backend unavailable/local fallback, and backend pending states.",
+      "Update the internal UserManual and structured agent tool rows with the new readout/control author_ids."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/atelier_panel.rs",
+      "src/frontend/handshake_native/tests/test_atelier_panel.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs"
+    ],
+    "acceptance_criteria": [
+      "Argus inspect returns stable nodes and values for selected album/media/folder/source URL/status without relying on screenshot OCR.",
+      "Argus set_value can set the CKC media actor identity and later write requests use that actor instead of silently falling back to the client default.",
+      "Argus click on a media row updates every selected readout to the clicked media occurrence.",
+      "Local fallback statuses explicitly say local/non-persistent or degraded when no backend is available.",
+      "Character sheet notes remain unchanged when media actor, album, or media notes controls are used."
+    ],
+    "risks_and_controls": [
+      "Risk: models read painted preview text as if it were structured state. Control: emit value-bearing AccessKit nodes and test snapshot values directly.",
+      "Risk: parallel agents overwrite each other's attribution through a shared client actor. Control: make the actor field steerable and include actor in request/status tests.",
+      "Risk: local fallback looks persisted. Control: status text must name local fallback and manual must tell models not to treat it as backend authority."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel argus_reads_structured_ckc_media_refs_and_actor_surface -- --nocapture",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel argus_creates_and_links_ckc_media_with_actor_status -- --nocapture",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_manual_pane_editors -- --nocapture",
+      "git diff --check"
+    ],
+    "verification": [
+      "Frontend Argus snapshot test for selected media readout values.",
+      "Frontend Argus steering test for actor field and local/backend status text.",
+      "Manual content test or direct manual row assertion covering the new controls."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "Argus inspectability versus painted-only UI",
+      "parallel-agent actor attribution",
+      "local fallback truthfulness",
+      "notes/tag separation"
+    ]
+  },
+  "manual_requirement": "Required.",
+  "handoff": {
+    "status": "PENDING",
+    "note": "Created after MT-010 review exposed missing structured selected-media readouts and media actor controls."
+  }
+}

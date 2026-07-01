@@ -1,0 +1,107 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-036",
+  "title": "Add CKC media row-level attribution and parallel-agent conflict safety",
+  "status": "PENDING",
+  "created_at_utc": "2026-07-01T13:20:45.027Z",
+  "updated_at_utc": "2026-07-01T13:20:45.027Z",
+  "product_edit_allowed": true,
+  "operator_request": "Capture the parallel-agent attribution risk found during MT-010: event headers are not enough if album rows and media links do not show who created, linked, edited, or removed them.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-036.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-036.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-036.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-010",
+      "MT-032"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_references": [
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/media.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/api/atelier.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/backend_client.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs"
+    ],
+    "recovery_rule": "Resume by adding persisted row-level attribution where missing. Do not treat HTTP headers alone as sufficient for later no-context model recovery."
+  },
+  "scope": {
+    "summary": "Persist and surface actor attribution on CKC albums, media membership links, image-note edits, and album mutations so multiple agents can work safely and recovery can explain who changed what.",
+    "base_scope": [
+      "Audit existing album/media storage rows for created_by, linked_by, updated_by, removed_by, and timestamps.",
+      "Add migrations/storage fields where attribution is missing and safe to add.",
+      "Populate row-level attribution from x-hsk-actor-id or the CKC media actor field on create/link/edit/unlink/reorder operations.",
+      "Expose attribution in backend responses and frontend Argus-readable row labels or detail readouts.",
+      "Add conflict/retry behavior or explicit last-writer status where two agents edit the same link/member."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/media.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/api/atelier.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/migrations/**",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/tests/atelier_stealth_window_tests.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/backend_client.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/atelier/media.rs",
+      "src/backend/handshake_core/src/api/atelier.rs",
+      "src/backend/handshake_core/migrations",
+      "src/backend/handshake_core/tests/atelier_stealth_window_tests.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/atelier_panel.rs",
+      "src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "acceptance_criteria": [
+      "Album create responses include persisted creator attribution.",
+      "Album membership/link responses include persisted linked_by or equivalent attribution for each member occurrence.",
+      "Image notes/tags save responses expose who last edited the notes/tags where storage supports it.",
+      "Parallel writes by two actor IDs leave inspectable attribution that distinguishes them.",
+      "No migration or response shape silently breaks existing frontend parsing."
+    ],
+    "risks_and_controls": [
+      "Risk: attribution exists only in event logs and is lost during state recovery. Control: row-level response tests assert actor fields.",
+      "Risk: migration breaks existing data. Control: nullable/defaulted fields and migration smoke tests.",
+      "Risk: parallel updates overwrite each other silently. Control: visible last-writer or conflict status and actor-specific tests."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_stealth_window_tests atelier_ckc_media_rows_preserve_actor_attribution -- --nocapture",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel argus_reads_ckc_media_row_actor_attribution -- --nocapture",
+      "git diff --check"
+    ],
+    "verification": [
+      "Backend persisted attribution tests for album and link rows.",
+      "Frontend parser/render tests for attribution readouts.",
+      "Parallel actor scenario using two distinct actor IDs."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "parallel-agent attribution",
+      "migration safety",
+      "state recovery",
+      "producer-consumer response shape parity"
+    ]
+  },
+  "manual_requirement": "Required if attribution becomes operator/model visible.",
+  "handoff": {
+    "status": "PENDING",
+    "note": "Created from MT-010 review finding that event/header attribution alone is insufficient for row-level media recovery."
+  }
+}

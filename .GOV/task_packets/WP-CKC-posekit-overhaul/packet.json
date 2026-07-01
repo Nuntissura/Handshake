@@ -16,7 +16,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "base_wp_id": "WP-CKC-posekit-overhaul",
   "created_at_utc": "2026-06-28T12:26:14.447Z",
-  "updated_at_utc": "2026-07-01T12:51:36.562Z",
+  "updated_at_utc": "2026-07-01T13:20:45.027Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
     "packet_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.md",
@@ -73,8 +73,8 @@
       "state_recovery": "Subagents must write results back to MT contracts or WP communications, not to chat-only memory."
     },
     "last_state_update": {
-      "updated_at_utc": "2026-07-01T12:51:36.562Z",
-      "summary": "MT-029 is ready for validation at product commit 10c40240. MT-031 was added for durable degraded/error Facial command envelopes. MT-010 remains the separate active media/linking lane."
+      "updated_at_utc": "2026-07-01T13:20:45.027Z",
+      "summary": "MT-032 through MT-038 were added to capture MT-010 CKC linked-media follow-up risks: Argus readouts/actor, large-library pagination, album mutation APIs, folder/source authority, row-level attribution, local fallback containment, and runtime Argus/manual proof. MT-010 remains active."
     }
   },
   "source_control": {
@@ -181,7 +181,7 @@
     "active_id": "MT-010",
     "contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
     "index_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
-    "count": 31,
+    "count": 38,
     "declared_ids": [
       "MT-001",
       "MT-002",
@@ -213,9 +213,16 @@
       "MT-028",
       "MT-029",
       "MT-030",
-      "MT-031"
+      "MT-031",
+      "MT-032",
+      "MT-033",
+      "MT-034",
+      "MT-035",
+      "MT-036",
+      "MT-037",
+      "MT-038"
     ],
-    "next_id": "MT-032",
+    "next_id": "MT-039",
     "latest_completed_id": "MT-005",
     "latest_completed_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-005.json",
     "latest_ready_for_validation_id": "MT-029",
@@ -321,8 +328,8 @@
   ],
   "execution": {
     "last_state_update": {
-      "updated_at_utc": "2026-07-01T12:51:36.562Z",
-      "summary": "MT-029 is ready for validation. Product commit 10c40240 exposes native Facial command/API success receipts, server-discovered review state recovery, and restricted Facial artifact reads. Do not claim UI/Argus/manual parity until MT-030 or durable degraded/error envelopes until MT-031."
+      "updated_at_utc": "2026-07-01T13:20:45.027Z",
+      "summary": "MT-032 through MT-038 now capture the CKC linked-media risks and concerns found during MT-010 review. Do not lose these gaps if MT-010 is resumed or narrowed."
     }
   }
 }
