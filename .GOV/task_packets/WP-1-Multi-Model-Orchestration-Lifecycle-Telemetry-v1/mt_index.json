@@ -31,7 +31,7 @@
     },
     {
       "mt_id": "MT-002",
-      "status": "READY_FOR_VALIDATION",
+      "status": "NEEDS_REIMPLEMENTATION",
       "depends_on": [
         "MT-001"
       ],
@@ -44,8 +44,8 @@
         "MT-007",
         "MT-008"
       ],
-      "proof_status": "PASS_MT002_EXACT_RUST_POSTGRES_RUNTIME_USERMANUAL_PROOFS",
-      "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT002_SCOPE",
+      "proof_status": "FAIL_MT002_2026-07-01_SCHEMA_PG_TESTS_1_PASS_3_FAIL_CLOUD_PROJECTIONPLAN_NOT_DURABLE_AND_EVENTLEDGER_PAYLOAD_MISSING_PRIOR_PASS_SELFCERT_FALSE_CRATE_DID_NOT_COMPILE",
+      "hbr_status": "PENDING_MT002_PROOFS_FAILING",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-28",
       "adversarial_findings_status": "POST_REVIEW_BLOCKERS_ADDRESSED_IN_PRODUCT_CODE_AND_TESTS"
