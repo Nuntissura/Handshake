@@ -5,9 +5,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-039",
   "title": "Add CKC linked-media backend roundtrip panel proof",
-  "status": "IN_PROGRESS",
+  "status": "READY_FOR_VALIDATION",
   "created_at_utc": "2026-07-01T13:45:51.851Z",
-  "updated_at_utc": "2026-07-01T13:59:07.293Z",
+  "updated_at_utc": "2026-07-01T15:13:33.154Z",
   "product_edit_allowed": true,
   "operator_request": "Capture the remaining MT-010 proof gap: CKC linked-media panel actions should be verified against a backend/mock roundtrip, not only local fallback UI and pure request builders.",
   "authority_files": {
@@ -21,15 +21,16 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-039.json"
   },
   "lifecycle": {
-    "status": "IN_PROGRESS",
-    "active": true,
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
     "depends_on": [
       "MT-010",
       "MT-032",
       "MT-037"
     ],
-    "validator_verdict": "PENDING",
-    "started_at_utc": "2026-07-01T13:59:07.293Z"
+    "validator_verdict": "PENDING_VALIDATOR_REVIEW",
+    "started_at_utc": "2026-07-01T13:59:07.293Z",
+    "ready_for_validation_at_utc": "2026-07-01T15:13:33.154Z"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -98,8 +99,51 @@
     ]
   },
   "manual_requirement": "Required if proof path changes operator/model workflow.",
+  "validation_evidence": {
+    "product_worktree": "../wtc-ckc-posekit-overhaul",
+    "product_commit": "7c0c31cf",
+    "changed_product_files": [
+      "src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "proof_summary": "Added a focused headless CKC linked-media panel/backend roundtrip proof using an in-process TcpListener mock, production AtelierPanel with AtelierClient, Argus click/set_value steering, exact create/link/save request body and x-hsk-actor-id assertions, strict allowed-route assertions, create<link<save ordering, and fresh-panel backend GET reconstruction after save.",
+    "commands": [
+      {
+        "command": "rustfmt --edition 2021 src/frontend/handshake_native/tests/test_atelier_panel.rs",
+        "result": "PASS"
+      },
+      {
+        "command": "cargo test -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --target-dir \"D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\handshake-cargo-target\\mt039-check\" --test test_atelier_panel ckc_linked_media_backend_roundtrip_reaches_argus -- --exact --nocapture --test-threads=1",
+        "result": "PASS: 1 passed, 0 failed, 24 filtered out"
+      },
+      {
+        "command": "repeat 5x cargo test -q -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --target-dir \"D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\handshake-cargo-target\\mt039-check\" --test test_atelier_panel ckc_linked_media_backend_roundtrip_reaches_argus -- --exact --test-threads=1",
+        "result": "PASS: 5/5 repeats passed"
+      },
+      {
+        "command": "git diff --check -- src/frontend/handshake_native/tests/test_atelier_panel.rs",
+        "result": "PASS: exit 0; only Git LF/CRLF warning"
+      }
+    ],
+    "adversarial_reviews": [
+      {
+        "lens": "SPEC/CONTRACT",
+        "agent": "019f1e38-d265-7fe2-8b06-563b2b25f4c3",
+        "result": "PASS: no blocking findings; no product patch required"
+      },
+      {
+        "lens": "CODE QUALITY / FLAKINESS / FAKE-PASS",
+        "agent": "019f1e39-00c0-70a1-b70a-da5167c8b82d",
+        "result": "PASS: no blocking findings; no product patch required"
+      }
+    ],
+    "residual_risks": [
+      "This proves the MT-required in-process backend/mock roundtrip, not a real PostgreSQL backend DB integration.",
+      "The product worktree contains unrelated dirty files outside the MT-039 candidate file; MT-039 review and verification were scoped to src/frontend/handshake_native/tests/test_atelier_panel.rs.",
+      "Existing unrelated handshake-native backend_client dead-code warnings remain outside MT-039."
+    ]
+  },
   "handoff": {
-    "status": "IN_PROGRESS",
-    "note": "Next active recovery point after MT-010 reached ready-for-validation. Implementation has not yet started beyond this contract/refinement. Created during MT-010 closeout after adversarial review found that local fallback and request-spec tests are not a full panel/backend roundtrip proof. This MT is the backend-authority proof gate for CKC linked-media persistence before MT-038 or WP closeout can claim the workflow is proven end to end."
+    "status": "READY_FOR_VALIDATION",
+    "note": "MT-039 is ready for validator review. The backend-authority proof gap from MT-010 is covered by the headless Argus-driven CKC linked-media roundtrip test in src/frontend/handshake_native/tests/test_atelier_panel.rs. Do not treat this as real DB integration proof; it is the focused in-process backend/mock panel proof required by this MT."
   }
 }
