@@ -2,8 +2,8 @@
   "schema_id": "hsk.microtask_index@1",
   "schema_version": "microtask_index_v1",
   "wp_id": "WP-CKC-posekit-overhaul",
-  "updated_at_utc": "2026-07-01T18:26:04.591Z",
-  "active_mt_id": null,
+  "updated_at_utc": "2026-07-01T18:34:39.251Z",
+  "active_mt_id": "MT-006",
   "next_mt_id": "MT-041",
   "microtask_contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
   "policy": {
@@ -65,11 +65,13 @@
     },
     {
       "mt_id": "MT-006",
-      "status": "READY_FOR_VALIDATION",
+      "status": "IN_PROGRESS",
       "title": "Promote Atelier to the main filling panel with CKC, Posekit, and Ingest sibling tabs",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-006.json",
       "product_edit_allowed": true,
-      "started_at_utc": "2026-06-28T16:56:35.333Z"
+      "started_at_utc": "2026-06-28T16:56:35.333Z",
+      "reopened_at_utc": "2026-07-01T18:34:39.251Z",
+      "reopen_reason": "MT-040 audit: remediate Atelier to a clean full-window module (P1 chrome-suppression, P2 single CKC/INGEST/PoseKit tab bar, P3 module-ckc/ingest reconcile). Pre-impl adversarial review in progress."
     },
     {
       "mt_id": "MT-007",

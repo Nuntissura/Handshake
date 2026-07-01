@@ -16,13 +16,46 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-006",
   "title": "Promote Atelier to the main filling panel with CKC, Posekit, and Ingest sibling tabs",
-  "status": "READY_FOR_VALIDATION",
+  "status": "IN_PROGRESS",
   "created_at_utc": "2026-06-28T16:49:48.833Z",
-  "updated_at_utc": "2026-06-28T23:26:05.618Z",
+  "updated_at_utc": "2026-07-01T18:34:39.251Z",
   "started_at_utc": "2026-06-28T16:56:35.333Z",
   "product_edit_allowed": true,
   "governance_edit_allowed": true,
   "operator_request": "Atelier should now be a main window filling panel. Castkit Codex should be a subtab of that panel. Posekit is a sibling of Castkit Codex and can run in a tab next to CKC. Ingest is also a tab. Everything should be usable by parallel agents inside Handshake and visually inspectable.",
+  "remediation": {
+    "reopened_at_utc": "2026-07-01T18:34:39.251Z",
+    "reopened_by": "KERNEL_BUILDER",
+    "reason": "MT-040 audit found MT-006 achieved a filling PANE but not a clean full-window MODULE: Atelier still renders with PaneHeader + outer pane TabBar chrome plus a second inner CKC/PoseKit/Ingest tab strip (double tab bar). Operator directive: redo MT-006 in parts.",
+    "audit_ref": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-040-atelier-window-audit.json",
+    "parts": [
+      "P1: full-window module render / chrome-suppression for Atelier (no PaneHeader, no outer pane TabBar); pane path untouched for Notes/others.",
+      "P2: single coherent CKC/INGEST/PoseKit sub-module tab bar (remove KernelDcc/other sibling pane tabs from the Atelier module surface).",
+      "P3: reconcile module-ckc/module-ingest into one coherent Atelier module (preserve stable ids module-ckc/module-ingest)."
+    ],
+    "out_of_mt006_scope_new_mts": ["MT-041 operator menu-bar dropdown", "MT-042 settings/options features"],
+    "open_design_decisions": ["D1 KernelDcc in/out of Atelier", "D2 module-ckc/ingest reconcile option", "D3 full-window marker: module-level flag vs pane render mode"],
+    "argus_mandate": "Argus is the mandatory visual driver; inspect the full-window Atelier panel/tabs (and menu bar for MT-041) via Argus; expand Argus if it cannot see/steer a surface (ARGUS-009/010/011, HBR-VIS-005, CX-503D1).",
+    "review_status": "PRE_IMPLEMENTATION_REVIEW_COMPLETE (4 lenses converged). Implementation dispatched.",
+    "finalized_approach": {
+      "predicate": "full_window_module = active_module.definition().full_window (true for Ckc/Ingest) && record.pane_type == PaneType::AtelierEditor. BOTH required: module-context avoids Atelier-as-tab-in-MAIN hiding MAIN tabs [R2]; pane-type avoids stranding Ckc sibling tabs when active [R1].",
+      "P1": "Add pub full_window:bool to ModuleDefinition (module_switcher.rs, after default_tab ~:142); true for Ckc(:166-184)+Ingest(:185-196), false for Main/Stage/Lab/Studio. Update drift-gate definitions_match_native_contract (:485-537) in lockstep if it serializes the new field. In BOTH render sites (docked app.rs ~7383-7437 AND popout render_popout_body app.rs ~7717-7775): when predicate true set header_h=0 + tab_h=0 and wrap PaneHeader::show + TabBar::show in if !full_window_module; body gets the full rect.",
+      "P2": "DO NOT trim MODULE_DEFINITIONS (avoids orphaning code-symbol/source-control whose only home is Ckc [R3], and drift-gate/persistence churn). The internal [CKC|Posekit|Ingest] atelier strip becomes the only visible tab bar when Atelier is the active full-window surface. Keep current tab order.",
+      "P3": "Wire set_module (app.rs ~:4569) -> atelier_panel set_active_tab (atelier_panel.rs:4750): ModuleId::Ckc->CastkitCodex, ModuleId::Ingest->Ingest. Fixes module-ingest-shows-CKC bug (manual_content_editors.rs:497-499). D2=Option A: keep BOTH module ids, MODULE_DEFINITIONS untouched.",
+      "tests": "Add negative-chrome assertions to test_ckc_embed.rs ac6_atelier_side_panel_mounted_in_live_shell (~:707): pane-pane-a-header/-title/-lock, tabbar-pane-a, tab-pane-a-0 ABSENT. Add module-ingest->Ingest landing test. Add R1 (open non-Atelier tab in full-window Atelier -> chrome reappears) + R2 (Atelier-as-tab-in-MAIN keeps MAIN chrome) regressions. VERIFY current status of test_accesskit_ids.rs (:125,:368) which hardcode 4-pane chrome the single-pane render never emits; reconcile to the actual single rendered pane, do NOT assume.",
+      "argus_proof": "Full-window Atelier is Argus-inspectable/steerable (argus.inspect/click on atelier-tab-* proven by test_ckc_embed.rs:713). Run it as evidence. Navigation contract: CKC module non-Atelier tabs (kernel-dcc/code-symbol/source-control) reachable via module switcher, not the suppressed pane tab bar.",
+      "user_manual": "Update in-product UserManual Atelier topic (manual_content_editors.rs) to reflect full-window module (no pane chrome), CKC/PoseKit/Ingest sub-module tabs, module-ckc->CKC / module-ingest->Ingest, navigation contract. HBR-MAN-001/004.",
+      "hbr_int_009_posture": "DEFERRED-with-reason: Atelier emits AccessKit/Argus nodes not Flight Recorder; FR round-trip is a verified backend blocker; internal_diagnostics/Palmistry are global/process-level and cover Atelier. PRESERVE the existing FR seam route_to_stage (stage_interop.rs:59-60)."
+    },
+    "deferrals": {
+      "R4_persist_internal_tab": "Internal atelier active_tab not persisted (singleton AtelierPanelState default CastkitCodex). Address in-MT if cheap, else new MT.",
+      "R5_swarm_per_pane_tab": "Singleton factory shares one internal tab across pop-outs/parallel agents (last-writer-wins). -> existing MT-022 (parallel-agent safe + Argus steerable).",
+      "quick_switcher_doc_fix": "quick_switcher.rs:182 stale doc (Document->AtelierEditor; live opens LoomWikiPage) - minor in-scope cleanup.",
+      "MT_041_argus_expansion": "Menu leaves are open-only dynamic (top_menu_bar.rs:78-82). MT-041 needs leaf-id discovery registry (menu.<x>.<leaf>), two-step open-then-steer Argus protocol, and a click-to-open-persistence proof. Top-level menu-* ids already Argus-visible."
+    },
+    "product_worktree": "../wtc-ckc-posekit-overhaul",
+    "product_branch": "feat/WP-CKC-posekit-overhaul"
+  },
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-006.json",
     "microtask_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-006.md",
@@ -38,8 +71,9 @@
     "generator": "manual-kernel-builder-hotfix-projection"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
-    "active": false,
+    "status": "IN_PROGRESS",
+    "active": true,
+    "reopened_at_utc": "2026-07-01T18:34:39.251Z",
     "depends_on": [
       "MT-005"
     ],
