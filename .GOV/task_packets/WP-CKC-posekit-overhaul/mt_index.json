@@ -2,9 +2,9 @@
   "schema_id": "hsk.microtask_index@1",
   "schema_version": "microtask_index_v1",
   "wp_id": "WP-CKC-posekit-overhaul",
-  "updated_at_utc": "2026-06-29T09:27:30.976Z",
-  "active_mt_id": "MT-009",
-  "next_mt_id": "MT-025",
+  "updated_at_utc": "2026-06-30T23:20:00.000Z",
+  "active_mt_id": "MT-010",
+  "next_mt_id": "MT-031",
   "microtask_contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
   "policy": {
     "create_before_product_edit": true,
@@ -89,19 +89,21 @@
     },
     {
       "mt_id": "MT-009",
-      "status": "IN_PROGRESS",
+      "status": "READY_FOR_VALIDATION",
       "title": "Restore CKC character and avatar database core parity",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-009.json",
       "product_edit_allowed": true,
-      "started_at_utc": "2026-06-28T23:28:00.301Z"
+      "started_at_utc": "2026-06-28T23:28:00.301Z",
+      "ready_for_validation_at_utc": "2026-06-29T12:03:20.530Z",
+      "product_commit": "6dd3c169"
     },
     {
       "mt_id": "MT-010",
-      "status": "PENDING",
+      "status": "IN_PROGRESS",
       "title": "Restore CKC linked images, folders, albums, and media notes",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-010.json",
       "product_edit_allowed": true,
-      "started_at_utc": null
+      "started_at_utc": "2026-06-29T12:04:21.384Z"
     },
     {
       "mt_id": "MT-011",
@@ -146,11 +148,13 @@
     },
     {
       "mt_id": "MT-016",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "title": "Link CKC sheet versions to ComfyUI renders and OpenPose artifacts",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-016.json",
       "product_edit_allowed": true,
-      "started_at_utc": null
+      "started_at_utc": "2026-06-30T21:03:12.941Z",
+      "ready_for_validation_at_utc": "2026-06-30T21:03:12.941Z",
+      "validation_blocker": "Focused cargo tests timed out during rustc compilation; source-level backend/frontend adversarial reviews passed."
     },
     {
       "mt_id": "MT-017",
@@ -170,11 +174,14 @@
     },
     {
       "mt_id": "MT-019",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "title": "Integrate Facial Rust app capabilities into native Handshake Ingest",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-019.json",
       "product_edit_allowed": true,
-      "started_at_utc": null
+      "started_at_utc": "2026-06-30T23:12:47.496Z",
+      "ready_for_validation_at_utc": "2026-07-01T02:31:32.443Z",
+      "product_commit": "adf132ec",
+      "validation_blocker": "Full handshake_core cargo proof remains a validator follow-up after earlier rustc 0xffffffff/process pressure and session-level instruction to skip the other active heavy Rust run; focused backend probe and frontend parser/panel/manual proofs passed."
     },
     {
       "mt_id": "MT-020",
@@ -213,6 +220,54 @@
       "status": "PENDING",
       "title": "Retire or contain legacy non-Rust CKC/Posekit surfaces after native parity",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-024.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null
+    },
+    {
+      "mt_id": "MT-025",
+      "status": "PENDING",
+      "title": "Create Facial native feature registry and run backbone",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-025.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null
+    },
+    {
+      "mt_id": "MT-026",
+      "status": "PENDING",
+      "title": "Port Facial quality, IQ, and dedupe plugin parity",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-026.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null
+    },
+    {
+      "mt_id": "MT-027",
+      "status": "PENDING",
+      "title": "Implement real Facial identity gate and model provenance",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-027.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null
+    },
+    {
+      "mt_id": "MT-028",
+      "status": "PENDING",
+      "title": "Add Facial review queue, montage, and export lineage",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-028.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null
+    },
+    {
+      "mt_id": "MT-029",
+      "status": "PENDING",
+      "title": "Expose Facial command and receipt API parity",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-029.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null
+    },
+    {
+      "mt_id": "MT-030",
+      "status": "PENDING",
+      "title": "Complete Facial Ingest UI, Argus, debug, and manual parity",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-030.json",
       "product_edit_allowed": true,
       "started_at_utc": null
     }

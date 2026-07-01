@@ -5,10 +5,35 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-019",
   "title": "Integrate Facial Rust app capabilities into native Handshake Ingest",
-  "status": "PENDING",
+  "status": "READY_FOR_VALIDATION",
   "created_at_utc": "2026-06-28T21:53:53.761Z",
-  "updated_at_utc": "2026-06-28T21:53:53.761Z",
+  "updated_at_utc": "2026-07-01T02:31:32.443Z",
   "product_edit_allowed": true,
+  "owned_files": [
+    "src/backend/handshake_core/src/api/atelier.rs",
+    "src/backend/handshake_core/src/atelier/facial.rs",
+    "src/backend/handshake_core/src/atelier/facial_native/common.rs",
+    "src/backend/handshake_core/src/atelier/facial_native/mod.rs",
+    "src/backend/handshake_core/src/atelier/facial_native/plugins/mod.rs",
+    "src/backend/handshake_core/src/atelier/facial_native/registry.rs",
+    "src/backend/handshake_core/src/atelier/facial_native/run.rs",
+    "src/backend/handshake_core/src/atelier/mod.rs",
+    "src/frontend/handshake_native/src/atelier_panel.rs",
+    "src/frontend/handshake_native/src/backend_client.rs",
+    "src/frontend/handshake_native/src/manual_content_editors.rs",
+    "src/frontend/handshake_native/tests/test_atelier_panel.rs",
+    "src/frontend/handshake_native/tests/test_manual_pane_editors.rs"
+  ],
+  "proof_commands": [
+    "cd ../Handshake_Artifacts/mt019_facial_probe && cargo test -j 1 --target-dir ../handshake-cargo-target/mt019-probe -- --nocapture",
+    "$env:CARGO_INCREMENTAL='0'; cargo test -j 1 --target-dir ../Handshake_Artifacts/handshake-native-target --manifest-path src/frontend/handshake_native/Cargo.toml atelier_facial_ingest_analysis_parser_requires_summary_artifacts_and_schema --lib -- --nocapture",
+    "$env:CARGO_INCREMENTAL='0'; cargo test -j 1 --target-dir ../Handshake_Artifacts/handshake-native-target --manifest-path src/frontend/handshake_native/Cargo.toml atelier_client_builds_facial_ingest_analysis_request --lib -- --nocapture",
+    "$env:CARGO_INCREMENTAL='0'; cargo test -j 1 --message-format short --target-dir ../Handshake_Artifacts/handshake-native-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel ingest_facial_backend_analysis_reaches_argus_artifact_refs -- --nocapture",
+    "$env:CARGO_INCREMENTAL='0'; cargo test -j 1 --message-format short --target-dir ../Handshake_Artifacts/handshake-native-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel posekit_and_ingest_controls_are_model_addressable -- --nocapture",
+    "$env:CARGO_INCREMENTAL='0'; cargo test -j 1 --message-format short --target-dir ../Handshake_Artifacts/handshake-native-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_manual_pane_editors manual_agent_tool_rows_cover_ingest_dataset_contact_and_facial_controls -- --nocapture",
+    "$env:CARGO_INCREMENTAL='0'; cargo test -j 1 --message-format short --target-dir ../Handshake_Artifacts/handshake-native-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_manual_pane_editors manual_documents_atelier_tabs_and_argus_control_ids -- --nocapture",
+    "git diff --cached --check"
+  ],
   "operator_request": "The Rust facial.exe app is used a lot and should be rebuilt as Handshake native tools for image mining and LoRA training ingest.",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-019.json",
@@ -21,11 +46,15 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-019.json"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "active": false,
     "depends_on": [
       "MT-017"
     ],
+    "claimed_by": "KERNEL_BUILDER",
+    "claimed_session": "KERNEL_BUILDER-20260701-014642",
+    "ready_for_validation_at_utc": "2026-07-01T02:31:32.443Z",
+    "ready_for_validation_reason": "Product commit adf132ec hardens MT-019 with a tracked native Facial registry/run module, persisted actor-stable native_run analysis projection, actor-attributed receipt/API run metadata, strict frontend parser schema checks, Atelier Argus artifact refs, and internal UserManual coverage with focused backend/frontend proof commands passing.",
     "validator_verdict": "PENDING"
   },
   "state_recovery": {
@@ -52,6 +81,21 @@
       "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
       "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/**"
     ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/api/atelier.rs",
+      "src/backend/handshake_core/src/atelier/facial.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/common.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/mod.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/plugins/mod.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/registry.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/run.rs",
+      "src/backend/handshake_core/src/atelier/mod.rs",
+      "src/frontend/handshake_native/src/atelier_panel.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/tests/test_atelier_panel.rs",
+      "src/frontend/handshake_native/tests/test_manual_pane_editors.rs"
+    ],
     "acceptance_criteria": [
       "Facial capability map exists from source/spec to Handshake native functions.",
       "At least one high-value Facial capability is implemented natively in Ingest.",
@@ -62,6 +106,15 @@
       "Capability-map review against external Facial source/spec.",
       "Native backend tests for implemented capability.",
       "Native UI/Argus evidence for operator/model workflow."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml facial_ingest --lib -- --nocapture",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml atelier_facial_ingest_analysis_parser_requires_summary_artifacts_and_schema --lib -- --nocapture",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel ingest_facial_backend_analysis_reaches_argus_artifact_refs -- --nocapture",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel posekit_and_ingest_controls_are_model_addressable -- --nocapture",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_manual_pane_editors manual_agent_tool_rows_cover_ingest_dataset_contact_and_facial_controls -- --nocapture",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_manual_pane_editors manual_documents_atelier_tabs_and_argus_control_ids -- --nocapture",
+      "git diff --cached --check"
     ]
   },
   "review_policy": {
@@ -76,6 +129,14 @@
   },
   "manual_requirement": "Required in this MT.",
   "handoff": {
-    "status": "PENDING"
+    "status": "READY_FOR_VALIDATION",
+    "implemented_at_utc": "2026-07-01T02:31:32.443Z",
+    "implemented_by": "KERNEL_BUILDER",
+    "product_commit": "adf132ec",
+    "implementation_summary": "Added and tracked the Handshake-native Facial registry/run module, wired Facial ingest summaries to native_run metadata, preserved actor-stable persisted analysis hashes by omitting requested_by/run_id from analysis_json while keeping actor-attributed run metadata in API/receipt surfaces, hardened the frontend parser, removed a dead placeholder plugin constant, and updated the internal manual/Atelier panel test fixtures.",
+    "validation_summary": "Focused backend probe passed 12 tests against product Facial modules after final commit adf132ec. Frontend parser, request-builder, Atelier panel, and manual tests passed with CARGO_INCREMENTAL=0 and shared Handshake_Artifacts target. Cross-target mt019_facial_probe cargo check passed for x86_64-unknown-linux-musl with CARGO_INCREMENTAL=0. Cached diff whitespace check passed. Product branch feat/WP-CKC-posekit-overhaul pushed through adf132ec.",
+    "validation_blockers": [
+      "Full handshake_core cargo proof remains a validator follow-up: earlier attempts hit external rustc 0xffffffff/process pressure, and this session also hit artifact disk pressure until frontend proofs were rerun with CARGO_INCREMENTAL=0. The operator separately instructed this session to skip the other active heavy Rust run."
+    ]
   }
 }
