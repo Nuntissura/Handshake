@@ -717,6 +717,9 @@ mod tests {
             export.analysis_json["summary"]["native_run"]["requested_by"].as_str(),
             None
         );
+        assert!(export.analysis_json["summary"]["capability_map"]
+            .as_array()
+            .is_some());
         assert_eq!(
             export.receipt_json["native_run"]["run_id"].as_str(),
             Some(export.summary.native_run.run_id.as_str())
