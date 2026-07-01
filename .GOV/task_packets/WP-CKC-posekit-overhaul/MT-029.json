@@ -5,9 +5,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-029",
   "title": "Expose Facial command and receipt API parity",
-  "status": "IN_PROGRESS",
+  "status": "READY_FOR_VALIDATION",
   "created_at_utc": "2026-06-30T23:20:00.000Z",
-  "updated_at_utc": "2026-07-01T11:44:06.558Z",
+  "updated_at_utc": "2026-07-01T12:51:36.562Z",
   "product_edit_allowed": true,
   "operator_request": "Facial originally exposed many workflow commands. Handshake needs native backend/API/Argus command parity so models can use the capability without file queues or external app assumptions.",
   "authority_files": {
@@ -21,8 +21,8 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-029.json"
   },
   "lifecycle": {
-    "status": "IN_PROGRESS",
-    "active": true,
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
     "depends_on": [
       "MT-025",
       "MT-026",
@@ -30,7 +30,10 @@
       "MT-028"
     ],
     "validator_verdict": "PENDING",
-    "started_at_utc": "2026-07-01T11:44:06.558Z"
+    "started_at_utc": "2026-07-01T11:44:06.558Z",
+    "ready_for_validation_at_utc": "2026-07-01T12:51:36.562Z",
+    "product_commit": "10c40240",
+    "product_branch_pushed": true
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -73,12 +76,12 @@
       "Receipts are actor/action/status/result/error structured and include artifact refs.",
       "Artifacts are readable by ref from the backend/client path.",
       "Async actions have recoverable status and no stranded run state after restart/reload.",
-      "Frontend client parses success, degraded, blocked, and error states without stale UI state."
+      "Frontend client parses the live success command envelope and rejects degraded/blocked/error envelopes until the backend emits durable failure envelopes; HTTP errors remain the current negative-path contract and MT-031 carries durable failure envelope parity."
     ],
     "risks_and_controls": [
       "Risk: routes exist but are not model-usable. Control: every route needs a client method or documented headless invocation and Argus-visible state if UI exists.",
       "Risk: async run state is stranded. Control: run status must reconstruct from persisted artifacts/receipts.",
-      "Risk: receipt schemas drift between backend and frontend. Control: parser tests for success and error receipts."
+      "Risk: receipt schemas drift between backend and frontend. Control: parser tests assert the current success-envelope contract and reject unproduced status envelopes; MT-031 carries durable degraded/error receipt parity."
     ],
     "proof_targets": [
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml facial_api -- --nocapture",
@@ -101,10 +104,102 @@
       "stale UI/error states"
     ]
   },
+  "implementation_summary": {
+    "product_commit": "10c40240",
+    "pushed_to_branch": "feat/WP-CKC-posekit-overhaul",
+    "implemented": [
+      "Added Handshake-native Facial feature listing and command route metadata under /atelier/facial/features.",
+      "Added ArtifactStore-backed JSON artifact read for Facial-owned L1 artifacts only, with schema allowlist and manifest/source metadata checks.",
+      "Added review session, shard claim, decision, status, montage, and export API routes over the MT-028 Facial review artifacts.",
+      "Made claim/status/montage/export recovery server-authoritative by discovering persisted Facial claim/decision artifacts from ArtifactStore and merging them with caller-provided refs.",
+      "Serialized claim creation through an in-process claim lock so parallel same-process agents cannot claim the same shard with stale or empty refs.",
+      "Added frontend backend-client request builders and parsers for Facial feature lists, artifact reads, and live success command envelopes.",
+      "Corrected route metadata to distinguish HTTP response schema from nested result artifact schema."
+    ],
+    "scope_boundary": "MT-029 exposes success-path command receipt parity and HTTP error negative paths. Durable degraded/error command envelopes and failure receipt artifacts are intentionally not claimed here and are captured as MT-031."
+  },
+  "verification_result": {
+    "status": "TARGETED_BACKEND_AND_FRONTEND_PROOFS_PASSED_WITH_SCOPED_CARGO_TARGET_CLEANUP",
+    "passed": [
+      "rustfmt --edition 2021 on src/backend/handshake_core/src/api/atelier.rs, src/backend/handshake_core/tests/atelier_facial_api_tests.rs, and src/frontend/handshake_native/src/backend_client.rs",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_facial_api_tests -- atelier_facial_command_routes_round_trip_artifact_backed_review_flow --exact --nocapture",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --lib atelier_facial -- --nocapture",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --lib backend_client::tests::atelier_client_builds_facial_command_and_review_requests -- --exact --nocapture",
+      "git diff --check on scoped MT-029 product files",
+      "Post-hardening subagent review passed backend claim recovery/artifact-read restrictions and frontend route metadata/success-envelope parser contract."
+    ],
+    "logs": [
+      "E:/Handshake_Artifacts/handshake-test/mt029-backend-api-test-hardening.log",
+      "E:/Handshake_Artifacts/handshake-test/mt029-frontend-facial-client-tests-hardening.log",
+      "E:/Handshake_Artifacts/handshake-test/mt029-frontend-facial-request-builder-test-hardening.log"
+    ],
+    "cleanup": [
+      "Removed E:/Handshake_Artifacts/handshake-cargo-target/wtc-ckc-posekit-overhaul after it reached roughly 55 GB.",
+      "Used and removed throwaway frontend verification target E:/Handshake_Artifacts/handshake-cargo-target/wtc-ckc-posekit-overhaul-verify.",
+      "Retained small proof logs under E:/Handshake_Artifacts/handshake-test for state recovery."
+    ],
+    "known_follow_up": [
+      "MT-030 must expose the command APIs in the Atelier/Facial UI, Argus/debug surfaces, and internal manual.",
+      "MT-031 must add durable degraded/error command envelopes and failure receipt artifacts if models need structured command errors instead of HTTP errors."
+    ]
+  },
+  "review_result": {
+    "pre_implementation_adversarial_review": [
+      {
+        "agent_id": "019f1d7f-9eff-7201-9cab-1eedac304167",
+        "lens": "backend API and ArtifactStore recovery",
+        "addressed": [
+          "Used narrow ArtifactStore read helper rather than exposing filesystem reads.",
+          "Made feature list distinguish implemented native routes from symbolic capabilities.",
+          "Added route-level API proof over real PostgreSQL intake data."
+        ]
+      },
+      {
+        "agent_id": "019f1d7f-de2b-74b0-8397-cb8d68de079b",
+        "lens": "frontend backend-client contract",
+        "addressed": [
+          "Added pure request builders for Facial feature, artifact, session, claim, decision, status, montage, and export commands.",
+          "Added parser tests that preserve artifact refs and reject unsupported command response states."
+        ]
+      }
+    ],
+    "post_implementation_adversarial_review": [
+      {
+        "agent_id": "019f1da3-f6a9-72e2-b323-7ee306062967",
+        "initial_verdict": "FAIL",
+        "findings_addressed": [
+          "Server now discovers persisted claim/decision artifacts instead of trusting only caller-supplied refs.",
+          "Facial artifact reader now rejects generic JSON artifacts and non-Facial schemas."
+        ]
+      },
+      {
+        "agent_id": "019f1da4-23c9-7e01-bff5-12056007313e",
+        "initial_verdict": "FAIL",
+        "findings_addressed": [
+          "Route metadata now separates response_schema_id and result_schema_id.",
+          "Frontend parser now rejects degraded/blocked/error command envelopes because backend does not yet produce them."
+        ]
+      },
+      {
+        "agent_id": "019f1db7-faa0-7952-b428-f78c69d186c0",
+        "final_verdict": "PASS",
+        "lens": "backend hardening re-review"
+      },
+      {
+        "agent_id": "019f1db8-18df-7e60-b23c-63e322115f3c",
+        "final_verdict": "PASS",
+        "lens": "frontend/backend-client hardening re-review"
+      }
+    ]
+  },
   "manual_requirement": "Required if this MT exposes or changes operator/model-visible Facial behavior.",
   "handoff": {
-    "status": "IN_PROGRESS",
+    "status": "READY_FOR_VALIDATION",
     "started_at_utc": "2026-07-01T11:44:06.558Z",
-    "note": "Started after MT-028 product commit 25af5486. Implement command/API/receipt parity over existing Facial native artifact modules without disturbing the separate active MT-010 media/linking lane."
+    "ready_for_validation_at_utc": "2026-07-01T12:51:36.562Z",
+    "product_commit": "10c40240",
+    "pushed_to_origin": true,
+    "next_actor": "WP_VALIDATOR",
+    "note": "MT-029 product commit pushed. Success command/API/receipt parity is implemented with server-discovered review state recovery and restricted Facial artifact reads. active_mt_id remains MT-010 because that is the separate media/linking lane. Continue operator-visible UI/manual/Argus work in MT-030 and durable failure/degraded command envelope parity in MT-031."
   }
 }

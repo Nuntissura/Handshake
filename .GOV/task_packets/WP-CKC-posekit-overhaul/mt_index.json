@@ -2,9 +2,9 @@
   "schema_id": "hsk.microtask_index@1",
   "schema_version": "microtask_index_v1",
   "wp_id": "WP-CKC-posekit-overhaul",
-  "updated_at_utc": "2026-07-01T11:44:06.558Z",
+  "updated_at_utc": "2026-07-01T12:51:36.562Z",
   "active_mt_id": "MT-010",
-  "next_mt_id": "MT-031",
+  "next_mt_id": "MT-032",
   "microtask_contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
   "policy": {
     "create_before_product_edit": true,
@@ -269,11 +269,14 @@
     },
     {
       "mt_id": "MT-029",
-      "status": "IN_PROGRESS",
+      "status": "READY_FOR_VALIDATION",
       "title": "Expose Facial command and receipt API parity",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-029.json",
       "product_edit_allowed": true,
       "started_at_utc": "2026-07-01T11:44:06.558Z",
+      "ready_for_validation_at_utc": "2026-07-01T12:51:36.562Z",
+      "product_commit": "10c40240",
+      "validation_note": "Targeted backend API and frontend client/parser proofs passed after post-review hardening. Durable degraded/error command envelopes are not claimed and are carried by MT-031.",
       "parallel_lane_note": "Facial command/API/receipt parity lane; active_mt_id intentionally remains MT-010."
     },
     {
@@ -283,6 +286,15 @@
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-030.json",
       "product_edit_allowed": true,
       "started_at_utc": null
+    },
+    {
+      "mt_id": "MT-031",
+      "status": "PENDING",
+      "title": "Add durable Facial command degraded and error receipt envelopes",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-031.json",
+      "product_edit_allowed": true,
+      "started_at_utc": null,
+      "parallel_lane_note": "Follow-up from MT-029 post-review; backend must produce degraded/blocked/error command envelopes before frontend accepts them."
     }
   ],
   "baseline": {
