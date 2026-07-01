@@ -1,0 +1,123 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-025",
+  "title": "Create Facial native feature registry and run backbone",
+  "status": "READY_FOR_VALIDATION",
+  "created_at_utc": "2026-06-30T23:20:00.000Z",
+  "updated_at_utc": "2026-07-01T03:00:32.155Z",
+  "product_edit_allowed": true,
+  "operator_request": "MT-019 proved the first native Facial bridge but did not implement full Facial parity. Capture a real Handshake-native Facial backbone before adding more feature-specific behavior.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-025.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-025.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-025.json"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
+    "depends_on": [
+      "MT-019"
+    ],
+    "claimed_by": "KERNEL_BUILDER",
+    "claimed_session": "codex-mt025-20260701",
+    "started_at_utc": "2026-07-01T00:25:00.000Z",
+    "ready_for_validation_at_utc": "2026-07-01T03:00:32.155Z",
+    "product_commit": "97646510",
+    "product_branch": "feat/WP-CKC-posekit-overhaul",
+    "validation_summary": "Native Facial registry/run backbone is implemented through product commit 97646510 on feat/WP-CKC-posekit-overhaul. Proof used E:/Handshake_Artifacts/handshake-cargo-target/wtc-ckc-posekit-overhaul because D: artifact root was full. cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib -j 2 passed. cargo test --manifest-path src/backend/handshake_core/Cargo.toml facial_native --lib -j 2 -- --nocapture passed 6/6. cargo test --manifest-path src/backend/handshake_core/Cargo.toml facial_ingest --lib -j 2 -- --nocapture passed 6/6. git diff --check passed for touched files. Final source-level adversarial re-review passed with Dirac the 2nd and Euler the 2nd.",
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_references": [
+      "D:/Projects/LLM projects/facial/governance/source_app_registry.yaml",
+      "D:/Projects/LLM projects/facial/specs/app-spec.md",
+      "D:/Projects/LLM projects/facial/product/src"
+    ],
+    "recovery_rule": "Read Facial source registry and app spec before implementation. Build native Handshake modules and receipts; do not shell out to facial.exe or Python as the default runtime path."
+  },
+  "scope": {
+    "summary": "Replace the broad MT-019 proxy bridge with a native Facial feature registry, feature dispatcher, run state, and artifact/receipt contract that later Facial parity MTs can reuse.",
+    "base_scope": [
+      "Create a Handshake-native Facial feature registry for source families used by the Facial app: facet, python-ofiq, deepface, imagededup, eDifFIQA, YuNet, ArcFace, and PIPNet where applicable.",
+      "Add native run/request structures with actor ID, batch ID, profile, selected feature IDs, deterministic item ordering, run status, and artifact refs.",
+      "Preserve MT-019 route compatibility while routing through the new registry/backbone where practical.",
+      "Represent unsupported or unconfigured models as explicit degraded-state records, not fake results.",
+      "Persist run summaries and receipts through Handshake ArtifactStore with source family, feature ID, status, artifact refs, and unsupported reasons.",
+      "Keep the backend safe for parallel agents by making run IDs and receipts actor-attributable and deterministic where inputs match."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/facial.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/facial_native/**",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/api/atelier.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/mod.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/tests/**"
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/atelier/facial.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/mod.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/common.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/registry.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/run.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/plugins/mod.rs",
+      "src/backend/handshake_core/src/atelier/mod.rs",
+      "src/backend/handshake_core/src/api/atelier.rs",
+      "src/backend/handshake_core/tests/atelier_facial_native_tests.rs"
+    ],
+    "acceptance_criteria": [
+      "Feature IDs and source-family names are traceable to Facial source registry/spec.",
+      "No Python runtime, external process shellout, or hardcoded machine-local model path is required for the default route.",
+      "MT-019 analyze route still works and emits the same or versioned-compatible artifact refs.",
+      "Receipts distinguish implemented, unavailable, unsupported, and degraded feature states.",
+      "Run records are safe for parallel agents: actor-attributed, deterministic for equal inputs, and recoverable from artifacts."
+    ],
+    "risks_and_controls": [
+      "Risk: registry becomes paperwork with no execution path. Control: require route-level test proving MT-019 analysis goes through the registry/run backbone.",
+      "Risk: unsupported model features look successful. Control: assert unavailable features produce explicit degraded status and reason fields.",
+      "Risk: hardcoded model paths break portability. Control: model paths must be config/env-based and absent by default."
+    ],
+    "proof_targets": [
+      "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml facial_native -- --nocapture",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml facial_ingest --lib -- --nocapture",
+      "git diff --check"
+    ],
+    "verification": [
+      "Compare feature IDs against Facial source_app_registry.yaml and app-spec.md.",
+      "Backend tests for registry lookup, run creation, degraded unsupported feature records, and MT-019 compatibility.",
+      "Artifact/receipt schema snapshot or direct JSON assertion for run status and source-family fields."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "source parity with Facial registry",
+      "native-vs-shellout boundary",
+      "parallel run recoverability",
+      "degraded-state honesty"
+    ]
+  },
+  "manual_requirement": "Required if this MT exposes or changes operator/model-visible Facial behavior.",
+  "handoff": {
+    "status": "READY_FOR_VALIDATION",
+    "product_commit": "97646510",
+    "pushed_to": "origin/feat/WP-CKC-posekit-overhaul",
+    "proof": [
+      "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib -j 2",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml facial_native --lib -j 2 -- --nocapture (6 passed)",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml facial_ingest --lib -j 2 -- --nocapture (6 passed)",
+      "git diff --check for touched files",
+      "final source-level adversarial re-review PASS from Dirac the 2nd and Euler the 2nd"
+    ],
+    "notes": "src/backend/handshake_core/src/api/atelier.rs was added to this MT path set as a necessary scope expansion for native_run artifact recoverability."
+  }
+}

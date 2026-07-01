@@ -2,7 +2,7 @@
   "schema_id": "hsk.microtask_index@1",
   "schema_version": "microtask_index_v1",
   "wp_id": "WP-CKC-posekit-overhaul",
-  "updated_at_utc": "2026-06-30T23:20:00.000Z",
+  "updated_at_utc": "2026-07-01T03:00:32.155Z",
   "active_mt_id": "MT-010",
   "next_mt_id": "MT-031",
   "microtask_contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
@@ -225,11 +225,13 @@
     },
     {
       "mt_id": "MT-025",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "title": "Create Facial native feature registry and run backbone",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-025.json",
       "product_edit_allowed": true,
-      "started_at_utc": null
+      "started_at_utc": "2026-07-01T00:25:00.000Z",
+      "ready_for_validation_at_utc": "2026-07-01T03:00:32.155Z",
+      "product_commit": "97646510"
     },
     {
       "mt_id": "MT-026",

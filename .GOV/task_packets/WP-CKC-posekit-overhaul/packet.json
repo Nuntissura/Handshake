@@ -16,7 +16,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "base_wp_id": "WP-CKC-posekit-overhaul",
   "created_at_utc": "2026-06-28T12:26:14.447Z",
-  "updated_at_utc": "2026-06-28T23:28:00.301Z",
+  "updated_at_utc": "2026-07-01T03:00:32.155Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
     "packet_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.md",
@@ -73,8 +73,8 @@
       "state_recovery": "Subagents must write results back to MT contracts or WP communications, not to chat-only memory."
     },
     "last_state_update": {
-      "updated_at_utc": "2026-06-28T23:28:00.301Z",
-      "summary": "MT-009 started after MT-006/007/008 reached READY_FOR_VALIDATION."
+      "updated_at_utc": "2026-07-01T03:00:32.155Z",
+      "summary": "MT-025 product commit 97646510 is ready for validation; active lane remains MT-010 for CKC linked images, folders, albums, and media notes."
     }
   },
   "source_control": {
@@ -178,10 +178,10 @@
     "enforcement_profile": "HOTFIX_ADHOC_MICROTASK_WITH_RECOVERY_POINTERS"
   },
   "microtasks": {
-    "active_id": "MT-009",
+    "active_id": "MT-010",
     "contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
     "index_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
-    "count": 24,
+    "count": 30,
     "declared_ids": [
       "MT-001",
       "MT-002",
@@ -206,13 +206,19 @@
       "MT-021",
       "MT-022",
       "MT-023",
-      "MT-024"
+      "MT-024",
+      "MT-025",
+      "MT-026",
+      "MT-027",
+      "MT-028",
+      "MT-029",
+      "MT-030"
     ],
-    "next_id": "MT-025",
+    "next_id": "MT-031",
     "latest_completed_id": "MT-005",
     "latest_completed_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-005.json",
-    "latest_ready_for_validation_id": "MT-008",
-    "latest_ready_for_validation_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-008.json"
+    "latest_ready_for_validation_id": "MT-025",
+    "latest_ready_for_validation_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-025.json"
   },
   "research_basis": {
     "sources_checked": [
@@ -311,5 +317,11 @@
     {
       "note": "Repo-wide just gov-check exceeded a 120 second timeout and left Node child processes; only the gov-check-related PIDs were stopped. Targeted checks for this WP passed: build-order-sync idempotent, wp-communication-health-check STATUS ok, and wp-declared-topology-check PASS."
     }
-  ]
+  ],
+  "execution": {
+    "last_state_update": {
+      "updated_at_utc": "2026-07-01T03:00:32.155Z",
+      "summary": "MT-025 product commit 97646510 is ready for validation; MT-026 through MT-030 remain pending Facial parity backlog without disturbing active MT-010."
+    }
+  }
 }

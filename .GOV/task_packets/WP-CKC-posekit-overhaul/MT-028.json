@@ -1,0 +1,106 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-028",
+  "title": "Add Facial review queue, montage, and export lineage",
+  "status": "PENDING",
+  "created_at_utc": "2026-06-30T23:20:00.000Z",
+  "updated_at_utc": "2026-06-30T23:20:00.000Z",
+  "product_edit_allowed": true,
+  "operator_request": "The Facial app is used to sort mined images for LoRA training. Handshake needs review queues, montage/contact-sheet style inspection, and non-destructive export lineage connected to Ingest/CKC.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-028.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-028.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-028.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-026",
+      "MT-027"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_references": [
+      "D:/Projects/LLM projects/facial/product/src/review.rs",
+      "D:/Projects/LLM projects/facial/product/src/service.rs",
+      "D:/Projects/LLM projects/facial/specs/app-spec.md"
+    ],
+    "recovery_rule": "Review decisions must be attributable and reversible. Exports must write manifests and artifact refs without mutating or deleting source images."
+  },
+  "scope": {
+    "summary": "Port Facial review sessions, parallel-safe shard claims, montage mapping, and Kohya/LoRA export lineage into Atelier Ingest.",
+    "base_scope": [
+      "Create review sessions over an Ingest batch or Facial run artifact.",
+      "Support pass/reject/unsure decisions with actor attribution, timestamps, reasons, tags, and notes.",
+      "Support parallel agent shard claims so multiple models can review without overlapping the same item by accident.",
+      "Generate montage/contact-sheet artifacts with tile-to-image mapping and source refs.",
+      "Export accepted candidates with a manifest recording source, decision lineage, dedupe state, identity/quality artifacts, and output refs.",
+      "Keep originals read-only; export copies or manifests only."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/intake.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/facial.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/facial_native/**",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/api/atelier.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/tests/**",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/backend_client.rs"
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/atelier/intake.rs",
+      "src/backend/handshake_core/src/atelier/facial.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/review.rs",
+      "src/backend/handshake_core/src/api/atelier.rs",
+      "src/backend/handshake_core/tests/atelier_facial_review_tests.rs",
+      "src/frontend/handshake_native/src/atelier_panel.rs",
+      "src/frontend/handshake_native/src/backend_client.rs"
+    ],
+    "acceptance_criteria": [
+      "Review sessions use stable content-hash/source-ref image IDs.",
+      "Shard claims are disjoint, actor-attributed, expirable/recoverable, and safe for parallel agents.",
+      "Decisions persist as receipts and can be replayed into summary status.",
+      "Montage artifacts include tile-to-image mappings for Argus/operator inspection.",
+      "Export manifest records source candidates, decisions, dedupe/identity/quality artifacts, and exported files without mutating originals."
+    ],
+    "risks_and_controls": [
+      "Risk: two agents decide the same item inconsistently. Control: shard claims and decision receipts must include actor and conflict status.",
+      "Risk: export loses source lineage. Control: manifest must include source refs, hashes, review receipts, and upstream artifact refs.",
+      "Risk: montage tile mapping becomes visually unverifiable. Control: tests must assert tile map and Argus-visible refs."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml facial_review -- --nocapture",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel facial_review_queue_is_argus_steerable -- --nocapture",
+      "git diff --check"
+    ],
+    "verification": [
+      "Review init/claim/decide/status/export tests.",
+      "Montage tile-map tests.",
+      "Non-destructive source fixture test and frontend/Argus state assertion if UI is included."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "parallel reviewer conflicts",
+      "lineage/data loss",
+      "Argus visual inspectability",
+      "LoRA export correctness"
+    ]
+  },
+  "manual_requirement": "Required if this MT exposes or changes operator/model-visible Facial behavior.",
+  "handoff": {
+    "status": "PENDING"
+  }
+}

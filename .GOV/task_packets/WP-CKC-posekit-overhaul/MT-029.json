@@ -1,0 +1,107 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-029",
+  "title": "Expose Facial command and receipt API parity",
+  "status": "PENDING",
+  "created_at_utc": "2026-06-30T23:20:00.000Z",
+  "updated_at_utc": "2026-06-30T23:20:00.000Z",
+  "product_edit_allowed": true,
+  "operator_request": "Facial originally exposed many workflow commands. Handshake needs native backend/API/Argus command parity so models can use the capability without file queues or external app assumptions.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-029.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-029.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-029.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-025",
+      "MT-026",
+      "MT-027",
+      "MT-028"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_references": [
+      "D:/Projects/LLM projects/facial/product/src/service.rs",
+      "D:/Projects/LLM projects/facial/product/src/main.rs",
+      "D:/Projects/LLM projects/facial/specs/app-spec.md"
+    ],
+    "recovery_rule": "Expose commands through Handshake API/client/Argus surfaces. Do not recreate .facial/data/api file queues as the primary product API unless explicitly accepted as an import adapter."
+  },
+  "scope": {
+    "summary": "Create Handshake-native command routes, status APIs, receipt readers, and frontend client methods for Facial features.",
+    "base_scope": [
+      "Map Facial app command surface to Handshake-native routes and client methods.",
+      "Implement list_features, start_run, get_run_status, read_artifact, identity actions, review actions, and export actions where corresponding MT backends exist.",
+      "Return structured receipts with actor, action, status, result, artifact refs, and error/degraded state.",
+      "Make async or long-running actions recoverable and observable by parallel agents.",
+      "Keep old file-queue behavior as import/reference context only unless a compatibility adapter is explicitly needed."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/api/atelier.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/facial.rs",
+      "../wtc-ckc-posekit-overhaul/src/backend/handshake_core/src/atelier/facial_native/**",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/backend_client.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/**"
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/api/atelier.rs",
+      "src/backend/handshake_core/src/atelier/facial.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/api.rs",
+      "src/backend/handshake_core/src/atelier/facial_native/commands.rs",
+      "src/backend/handshake_core/tests/atelier_facial_api_tests.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/atelier_panel.rs",
+      "src/frontend/handshake_native/tests/test_atelier_panel.rs"
+    ],
+    "acceptance_criteria": [
+      "Each relevant Facial command has a Handshake-native equivalent or an explicit deferred reason.",
+      "Receipts are actor/action/status/result/error structured and include artifact refs.",
+      "Artifacts are readable by ref from the backend/client path.",
+      "Async actions have recoverable status and no stranded run state after restart/reload.",
+      "Frontend client parses success, degraded, blocked, and error states without stale UI state."
+    ],
+    "risks_and_controls": [
+      "Risk: routes exist but are not model-usable. Control: every route needs a client method or documented headless invocation and Argus-visible state if UI exists.",
+      "Risk: async run state is stranded. Control: run status must reconstruct from persisted artifacts/receipts.",
+      "Risk: receipt schemas drift between backend and frontend. Control: parser tests for success and error receipts."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml facial_api -- --nocapture",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml facial_api_client --lib -- --nocapture",
+      "git diff --check"
+    ],
+    "verification": [
+      "Route tests for feature listing, run start/status, artifact read, identity/review/export actions.",
+      "Frontend parser tests for receipts, degraded states, and errors.",
+      "Recovery test proving status can be rebuilt from persisted artifacts."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "API parity",
+      "parallel-agent recoverability",
+      "receipt schema drift",
+      "stale UI/error states"
+    ]
+  },
+  "manual_requirement": "Required if this MT exposes or changes operator/model-visible Facial behavior.",
+  "handoff": {
+    "status": "PENDING"
+  }
+}

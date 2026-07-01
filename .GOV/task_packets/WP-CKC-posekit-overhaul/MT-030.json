@@ -1,0 +1,102 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-030",
+  "title": "Complete Facial Ingest UI, Argus, debug, and manual parity",
+  "status": "PENDING",
+  "created_at_utc": "2026-06-30T23:20:00.000Z",
+  "updated_at_utc": "2026-06-30T23:20:00.000Z",
+  "product_edit_allowed": true,
+  "operator_request": "After native Facial backend parity exists, the Atelier UI, Argus inspection, and internal manual must expose it clearly so operators and models can actually use it without foreground popups.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-030.json",
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-030.md",
+    "status": "NOT_CREATED_JSON_AUTHORITY_ONLY",
+    "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-030.json"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-026",
+      "MT-027",
+      "MT-028",
+      "MT-029"
+    ],
+    "validator_verdict": "PENDING"
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_references": [
+      "D:/Projects/LLM projects/facial/specs/app-spec.md",
+      "D:/Projects/LLM projects/facial/product"
+    ],
+    "recovery_rule": "Use Handshake native UI/Argus/manual surfaces only. The UI must be headless-inspectable, model-addressable, and non-intrusive; it must not pop windows or steal focus."
+  },
+  "scope": {
+    "summary": "Expose the completed native Facial backbone in Atelier Ingest with clear operator controls, Argus-visible state, debug/status surfaces, and internal manual instructions.",
+    "base_scope": [
+      "Add/finish Atelier Ingest controls for selecting Facial feature families and profiles.",
+      "Show analysis/run status, degraded/unavailable model reasons, artifact refs, review queue status, montage/export status, and identity provenance.",
+      "Make all controls and result regions Argus-addressable with stable IDs for parallel agents.",
+      "Update internal UserManual with startup, navigation, inputs, outputs, safety constraints, failure modes, and recovery steps for Facial-backed Ingest.",
+      "Ensure the UI does not launch external windows or steal keyboard/mouse focus during model-driven testing.",
+      "Remove proxy wording where real outputs exist, while preserving explicit unavailable/degraded labels where models are absent."
+    ],
+    "target_files": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/backend_client.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/manual_content_editors.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/**"
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/atelier_panel.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/tests/test_atelier_panel.rs",
+      "src/frontend/handshake_native/tests/test_manual_pane_editors.rs"
+    ],
+    "acceptance_criteria": [
+      "Operator can select feature families, run analysis, inspect artifacts/errors/status, and see whether identity is real or unavailable.",
+      "Argus can observe and steer all Facial Ingest controls without foregrounding the app.",
+      "Manual documents Facial purpose, core workflows, startup/run path, inputs/outputs, navigation, safety constraints, failure modes, and recovery.",
+      "No stale proxy labels remain for real implemented outputs; degraded/unavailable states remain explicit.",
+      "Controls fit at constrained desktop panel sizes without overlapping text or hidden critical state."
+    ],
+    "risks_and_controls": [
+      "Risk: backend parity exists but remains invisible to operators/models. Control: every backend action needs a visible or headless control with stable Argus ID.",
+      "Risk: UI hides degraded model state. Control: tests must assert unavailable/real identity state is visible.",
+      "Risk: visual validation steals focus. Control: use Argus/headless paths only and document non-intrusive testing."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_atelier_panel facial_ingest_full_backbone_is_argus_steerable -- --nocapture",
+      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_manual_pane_editors manual_documents_facial_backbone_and_argus_workflow -- --nocapture",
+      "git diff --check"
+    ],
+    "verification": [
+      "Frontend interaction tests for feature selection/status/artifact/error states.",
+      "Manual content tests for Facial and Argus workflow instructions.",
+      "Argus/headless visual inspection evidence at constrained panel sizes."
+    ]
+  },
+  "review_policy": {
+    "pre_implementation_adversarial_review_required": true,
+    "post_implementation_adversarial_review_required": true,
+    "review_lenses": [
+      "operator usability",
+      "Argus steerability",
+      "manual completeness",
+      "non-intrusive GUI validation"
+    ]
+  },
+  "manual_requirement": "Required if this MT exposes or changes operator/model-visible Facial behavior.",
+  "handoff": {
+    "status": "PENDING"
+  }
+}
