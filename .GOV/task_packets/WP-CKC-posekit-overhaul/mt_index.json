@@ -2,9 +2,9 @@
   "schema_id": "hsk.microtask_index@1",
   "schema_version": "microtask_index_v1",
   "wp_id": "WP-CKC-posekit-overhaul",
-  "updated_at_utc": "2026-07-01T15:13:33.154Z",
+  "updated_at_utc": "2026-07-01T18:01:26.824Z",
   "active_mt_id": null,
-  "next_mt_id": "MT-040",
+  "next_mt_id": "MT-041",
   "microtask_contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
   "policy": {
     "create_before_product_edit": true,
@@ -371,6 +371,20 @@
       "ready_for_validation_at_utc": "2026-07-01T15:13:33.154Z",
       "product_commit": "7c0c31cf",
       "parallel_lane_note": "Ready for validation. Captures full panel/backend mock roundtrip plus reload/refetch proof beyond local fallback and request-spec tests. No next MT was activated."
+    },
+    {
+      "mt_id": "MT-040",
+      "status": "PENDING",
+      "title": "Audit Atelier full-window module vs workbench-pane mounting and specify CKC/PoseKit/Ingest full-size sub-module rewiring",
+      "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-040.json",
+      "product_edit_allowed": false,
+      "started_at_utc": null,
+      "audit_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-040-atelier-window-audit.json",
+      "audits_prior_mts": [
+        "MT-004",
+        "MT-006"
+      ],
+      "note": "Read-only inspection MT. Created 2026-07-01 at operator request to determine whether Atelier is mounted as a full-window module vs a workbench PaneType (compartmentalized sub-window). Not activated; awaiting operator session goal."
     }
   ],
   "baseline": {

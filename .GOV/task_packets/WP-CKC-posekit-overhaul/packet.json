@@ -16,7 +16,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "base_wp_id": "WP-CKC-posekit-overhaul",
   "created_at_utc": "2026-06-28T12:26:14.447Z",
-  "updated_at_utc": "2026-07-01T15:13:33.154Z",
+  "updated_at_utc": "2026-07-01T18:01:26.824Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
     "packet_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.md",
@@ -73,8 +73,8 @@
       "state_recovery": "Subagents must write results back to MT contracts or WP communications, not to chat-only memory."
     },
     "last_state_update": {
-      "updated_at_utc": "2026-07-01T15:13:33.154Z",
-      "summary": "MT-039 reached ready-for-validation after focused headless CKC linked-media panel/backend mock roundtrip proof, 5-pass repeat, and two adversarial review lenses passed. No new MT was activated."
+      "updated_at_utc": "2026-07-01T18:01:26.824Z",
+      "summary": "MT-039 remains ready-for-validation. MT-040 created as a PENDING read-only inspection MT (operator request) to audit whether Atelier is mounted as a full-window module vs a workbench PaneType (compartmentalized sub-window like notes/terminals) and specify CKC/PoseKit/Ingest full-size sub-module rewiring; it audits MT-004/MT-006 outputs. MT-040 is not activated; no active MT is selected. Awaiting operator session goal."
     }
   },
   "source_control": {
@@ -181,7 +181,7 @@
     "active_id": null,
     "contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
     "index_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
-    "count": 39,
+    "count": 40,
     "declared_ids": [
       "MT-001",
       "MT-002",
@@ -221,9 +221,10 @@
       "MT-036",
       "MT-037",
       "MT-038",
-      "MT-039"
+      "MT-039",
+      "MT-040"
     ],
-    "next_id": "MT-040",
+    "next_id": "MT-041",
     "latest_completed_id": "MT-005",
     "latest_completed_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-005.json",
     "latest_ready_for_validation_id": "MT-039",
@@ -329,8 +330,8 @@
   ],
   "execution": {
     "last_state_update": {
-      "updated_at_utc": "2026-07-01T15:13:33.154Z",
-      "summary": "MT-039 product patch is ready for validation with focused headless CKC linked-media panel/backend mock roundtrip proof. No active MT is selected; do not start a new MT without operator direction."
+      "updated_at_utc": "2026-07-01T18:01:26.824Z",
+      "summary": "MT-039 product patch is ready for validation. MT-040 added as a PENDING read-only inspection MT (Atelier module-vs-pane audit) at operator request; not activated. No active MT is selected; do not start a new MT without operator direction."
     }
   }
 }

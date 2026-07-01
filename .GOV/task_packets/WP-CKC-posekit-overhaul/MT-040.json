@@ -1,0 +1,169 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "markdown_projection_intentionally_omitted": true,
+    "allowed_markdown_exceptions": [
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract"
+    ]
+  },
+  "wp_id": "WP-CKC-posekit-overhaul",
+  "mt_id": "MT-040",
+  "title": "Audit Atelier full-window module vs workbench-pane mounting and specify CKC/PoseKit/Ingest full-size sub-module rewiring",
+  "status": "PENDING",
+  "created_at_utc": "2026-07-01T18:01:26.824Z",
+  "updated_at_utc": "2026-07-01T18:01:26.824Z",
+  "started_at_utc": null,
+  "product_edit_allowed": false,
+  "governance_edit_allowed": true,
+  "operator_request": "Handshake currently splits everything into sub-windows/panes with tabs inside the main window (VS Code style). The operator WANTS to keep that compartmentalized pane-in-main-window pattern, but ONLY under the Notes Module (WP-KERNEL-012), which is in parallel live development and is the origin worktree of this WP. Atelier is now a MODULE and should open a FULL windowed experience. The operator believes it is still wired as if it is a compartmentalized window inside the main window (like a note or terminal pane). CKC, INGEST, and PoseKit are sub-modules of Atelier and should be full-size tabbed panels (each full size). The operator thinks current work (MT-004/MT-006) did not fully address this and asked for an extra inspection MT to inspect code and determine what needs changing before implementation continues.",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-040.json",
+    "microtask_projection": null,
+    "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-CKC-posekit-overhaul/mt_index.json",
+    "audit_artifact": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-040-atelier-window-audit.json"
+  },
+  "markdown_projection": {
+    "path": null,
+    "status": "NOT_GENERATED_JSON_FIRST",
+    "reason": "JSON contract is authority; no .md projection created by default per packet artifact_policy and operator no-default-md directive. Generate on explicit operator request only."
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [],
+    "blocks": [],
+    "validator_verdict": "PENDING",
+    "audits_prior_mts": [
+      "MT-004",
+      "MT-006"
+    ],
+    "audit_relationship_note": "Inspects the outputs of MT-004 (COMPLETED, renamed CKC shell to Atelier) and MT-006 (READY_FOR_VALIDATION, promoted Atelier to a filling PaneType::AtelierEditor with CKC/PoseKit/Ingest sibling tabs). This MT does NOT depend on those MTs being validator-confirmed; it inspects their current code state. MT-006 is the primary audit target because it implemented Atelier as PaneType::AtelierEditor (the workbench pane mechanism also used by notes/terminals), which is the operator's suspected root cause."
+  },
+  "state_recovery": {
+    "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
+    "primary_product_branch": "feat/WP-CKC-posekit-overhaul",
+    "parallel_active_worktree_do_not_touch": "../wtc-native-editors-v1",
+    "parallel_active_branch_do_not_touch": "feat/WP-KERNEL-012",
+    "recovery_rule": "If a no-context model resumes this MT: this is a READ_ONLY inspection MT. Do not edit product code. Inspect the native GUI shell wiring in ../wtc-ckc-posekit-overhaul to determine whether Atelier is mounted as a top-level full-window MODULE (module_switcher.rs / ModuleId path) or as a workbench PANE (PaneType::AtelierEditor / pane_registry.rs / pane_header.rs path, the same mechanism notes and terminals use). Emit MT-040-atelier-window-audit.json. Verify git -C ../wtc-ckc-posekit-overhaul status shows no product changes beyond inherited baseline."
+  },
+  "scope": {
+    "summary": "Read-only audit of how the Atelier surface is mounted in the native Handshake GUI shell. Determine with file:line evidence whether Atelier opens as a top-level FULL-WINDOW MODULE or is still hosted inside the workbench PANE grid (compartmentalized sub-window like notes/terminals). Establish the correct target model, produce a concrete rewiring change plan, and recommend whether the fix lands as MT-006 remediation or as one/more new implementation MTs. No product code is edited by this MT.",
+    "type": "READ_ONLY_INSPECTION",
+    "product_worktree": "../wtc-ckc-posekit-overhaul",
+    "source_worktree": "../wtc-native-editors-v1",
+    "product_edit_allowed": false,
+    "target_model": {
+      "atelier": "Top-level, full-window MODULE experience. When Atelier is active it owns the full work area (module-level), not a pane inside the workbench grid.",
+      "atelier_sub_modules": "CKC, INGEST, and PoseKit are full-size tabbed sub-modules INSIDE Atelier. Selecting a tab fills the Atelier module area.",
+      "notes_module_reservation": "The compartmentalized VS-Code-style pattern (multiple sub-windows/panes with tabs inside the main window) is INTENDED and must be PRESERVED, but only under the Notes Module (WP-KERNEL-012). The audit change plan must not regress Notes/workbench pane behavior."
+    },
+    "inspect_paths": [
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/module_switcher.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/pane_registry.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/pane_header.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/atelier_side_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/app.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/src/lib.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_module_switcher.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_atelier_panel.rs",
+      "../wtc-ckc-posekit-overhaul/src/frontend/handshake_native/tests/test_ckc_embed.rs",
+      "../wtc-ckc-posekit-overhaul/app/src/App.tsx",
+      "../wtc-ckc-posekit-overhaul/app/src/AtelierPanel.tsx"
+    ],
+    "inspect_notes": "inspect_paths are the known candidate surfaces from packet.relevant_product_files_initial and MT-006.scope.target_files. The auditor MUST also follow references from these files to the real Notes/terminal module and pane mounting so the module-vs-pane contrast is grounded, and MUST confirm whether any legacy React/TSX Atelier path (App.tsx/AtelierPanel.tsx) is still live or already superseded by the native Rust surfaces.",
+    "acceptance_criteria": [
+      "AC1: Document the current Atelier mount path with file:line evidence. State exactly whether Atelier is reached via a top-level module (module_switcher.rs / ModuleId) and how it is then rendered: as a full-window module region, or as a workbench PaneType (PaneType::AtelierEditor via pane_registry.rs / pane_header.rs). Name the exact enums, types, and factory functions.",
+      "AC2: For contrast, document with file:line evidence how the Notes module and at least one genuine pane (terminal or note) are mounted, to establish which mechanism is a full-window module and which is a compartmentalized pane-in-main-window.",
+      "AC3: Confirm or refute the operator's observation with concrete evidence. When the Atelier top-level entry is activated, does Atelier fill the entire work area as a module, or does it open inside the pane/workbench grid still showing pane chrome (pane header, sibling panes, split handles)? Base the verdict on code paths plus, where practical, a read-only AccessKit/Argus snapshot; do not assert from assumption.",
+      "AC4: Determine whether CKC/PoseKit/Ingest are currently pane-internal tabs (inside atelier_panel.rs within a PaneType) or module-internal full-size tabs, and what must change for them to be full-size tabbed sub-modules of a full-window Atelier module.",
+      "AC5: Define the target model precisely (Atelier = full-window module; CKC/INGEST/PoseKit = full-size tabbed sub-modules; compartmentalized pane-in-main pattern reserved to Notes/WP-KERNEL-012).",
+      "AC6: Produce a concrete change plan naming exact files, types, and the minimal rewiring to move Atelier from pane-hosted to module-hosted (or, if it is already module-hosted, name the actual defect). Include how CKC/PoseKit/Ingest tabs relocate and which stable AccessKit author_ids (module-ckc, atelier-tab-ckc/posekit/ingest, content regions) are preserved vs changed.",
+      "AC7: State that the change plan does NOT alter or regress the Notes/WP-KERNEL-012 pane/workbench model (KERNEL-012 is in parallel live development).",
+      "AC8: Recommend the disposition: fix as MT-006 remediation (reopen) or as one/more new implementation MTs (MT-041+). Give rationale and a proposed MT breakdown, and name the HBR obligations the implementation MT(s) must carry: HBR-VIS (Argus inspect/steer of the changed surface), HBR-QUIET (no focus/keyboard/mouse steal), HBR-MAN (in-product UserManual update).",
+      "AC9: Emit findings as machine-readable MT-040-atelier-window-audit.json. Leave product code untouched."
+    ],
+    "proof_targets": [
+      "MT-040-atelier-window-audit.json exists, parses as JSON, and contains: current-mount-path evidence (AC1), notes/pane contrast (AC2), operator-observation verdict with evidence (AC3), tab-model finding (AC4), target model (AC5), change plan (AC6), notes-non-regression statement (AC7), and disposition recommendation (AC8).",
+      "Every finding cites concrete file:line evidence in ../wtc-ckc-posekit-overhaul.",
+      "git -C ../wtc-ckc-posekit-overhaul status --short --branch shows no new product changes beyond the inherited baseline dirty files listed in packet.baseline.inherited_dirty_files."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": false,
+    "read_only_argus_evidence_allowed": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "READ_ONLY_INSPECTION MT. It changes no operator-visible surface; it only inspects existing wiring and emits a governance-side audit artifact. Read-only AccessKit/Argus snapshots MAY be used as inspection evidence but no GUI is created or steered destructively. GUI creation and Argus proof obligations transfer to the follow-on implementation MT(s) identified by AC8."
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "No Handshake product behavior, tool, surface, command, or contract is created or changed by this read-only audit MT, so there is nothing to document in the in-product UserManual. The follow-on implementation MT(s) MUST carry the HBR-MAN UserManual obligation for the Atelier module/sub-module change."
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [],
+  "hbr_followup_note": "This inspection MT carries no runtime/VIS/QUIET/MAN/SWARM evidence obligations (consistent with the WP's READ_ONLY inspection MTs MT-001/MT-003). The implementation MT(s) recommended by AC8 MUST carry HBR-VIS (Argus), HBR-QUIET (no focus/input steal), HBR-MAN (UserManual), and HBR-SWARM (parallel-agent addressability of the module and its sub-module tabs).",
+  "handoff": {
+    "status": "PENDING",
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "expected_output": "MT-040-atelier-window-audit.json plus a disposition recommendation (reopen MT-006 remediation vs new implementation MT-041+). This is a scoping/diagnosis MT; it produces analysis and a change plan, not product runtime behavior, so it does not claim the windowing is fixed."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      {
+        "risk": "Auditor conflates the workbench PANE mechanism with the top-level MODULE mechanism and misdiagnoses the root cause.",
+        "failure_scenario": "The change plan targets the wrong layer and a later implementation MT rewires the pane system instead of promoting Atelier to a module.",
+        "mitigation": "AC1 and AC2 force explicit, file:line documentation of both the module path and the pane path, and an explicit Notes/terminal contrast before any verdict."
+      },
+      {
+        "risk": "Auditor recommends a rewrite that breaks the Notes/WP-KERNEL-012 pane/workbench behavior the operator wants to keep.",
+        "failure_scenario": "Promoting Atelier to a full-window module also removes or regresses the pane-in-main-window model Notes depends on, damaging a parallel live-development worktree's target behavior.",
+        "mitigation": "AC7 requires an explicit non-regression statement for the Notes/workbench model; the change plan must isolate Atelier's module hosting from the shared pane system."
+      },
+      {
+        "risk": "Auditor treats MT-006's implementer-focused PASS as proof and refutes the operator without inspecting the live GUI.",
+        "failure_scenario": "The audit concludes 'already correct' from MT-006's focused AccessKit tests while the running GUI still shows compartmentalized pane behavior.",
+        "mitigation": "AC3 requires the verdict to rest on code paths plus, where practical, a read-only live AccessKit/Argus snapshot, not on MT-006's self-reported test status."
+      },
+      {
+        "risk": "Auditor breaks or proposes breaking stable AccessKit author_ids that parallel agents rely on (module-ckc, atelier-tab-*).",
+        "failure_scenario": "Downstream agent steering and existing tests break because stable IDs were changed without accounting.",
+        "mitigation": "AC6 requires enumerating preserved vs changed stable IDs explicitly."
+      },
+      {
+        "risk": "Auditor drifts into implementing the fix inside this read-only MT.",
+        "failure_scenario": "Product code is edited under a READ_ONLY inspection MT, contaminating the WP's per-MT change discipline.",
+        "mitigation": "product_edit_allowed is false; proof_targets require git status to show no product changes; implementation is explicitly deferred to the AC8 follow-on MT(s)."
+      }
+    ],
+    "minimum_controls": [
+      "No product-code edits under this MT; only the governance-side audit artifact is written.",
+      "Verdict must cite file:line evidence and, where practical, a read-only live AccessKit/Argus snapshot.",
+      "Change plan must be explicitly non-regressive to the Notes/WP-KERNEL-012 pane/workbench model.",
+      "Preserved vs changed stable AccessKit author_ids must be enumerated.",
+      "Disposition (reopen MT-006 vs new MT-041+) must be an explicit recommendation, not an implicit decision."
+    ]
+  }
+}
