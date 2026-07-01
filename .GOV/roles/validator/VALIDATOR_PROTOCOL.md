@@ -200,6 +200,14 @@ When the active workflow is `WORKFLOW_LANE=MANUAL_RELAY`, the `VALIDATOR` role i
 - Manual-relay role-to-role content must remain in typed receipts/envelopes. Operator narrative is explanation, not the routing wire.
 - The same anti-gaming, spec evidence, negative proof, heuristic-risk, strategy-escalation, validator gates, and merge-safety rules apply to the combined classical role.
 
+## Post-MT Adversarial Review Through Different Lenses (Validation Authority)
+
+For manual relay, the classic `VALIDATOR` performs the authoritative post-implementation review, so it owns the post-MT adversarial review that `WP_VALIDATOR` owns in orchestrator-managed. Review each completed MT adversarially through multiple different lenses, not as a single confirmation pass. The classic `VALIDATOR` applies these lenses itself and does NOT spawn helper agents (see Current Execution Policy); the lenses are a review methodology, not a delegation.
+
+- Lenses (non-exhaustive): correctness; spec-conformance against the `SPEC_CURRENT`-resolved Master Spec; anti-scaffold / runtime-proof (Spec-Realism Gate); security & trust-boundary; concurrency & swarm-safety; data-loss & recovery; interconnectivity with other pillars/primitives (force-multiplier discovery); HBR coverage (INT/SWARM/VIS/QUIET/MAN); Argus visual & UserManual evidence; edge cases.
+- Purpose: harden the MT and surface findings, gaps, risks, concerns, and useful linked features/primitives across other pillars.
+- This post-MT review carries VERDICT AUTHORITY (the classic `VALIDATOR` owns per-MT review and final closure for manual relay). The pre-MT review at activation (Classic Orchestrator) and any implementer-side (Kernel Builder / Coder) self-review are advisory only and never validate. A finding in scope of the MT → remediation request to the coder; a finding genuinely outside the current MT's scope → route a new MT in the same WP.
+
 ## Self-Prime And Predecessor Summary (RGF-249)
 
 - `VALIDATOR`, `WP_VALIDATOR`, and `INTEGRATION_VALIDATOR` are all eligible for deterministic self-prime.

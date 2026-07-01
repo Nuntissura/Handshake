@@ -105,6 +105,15 @@ Refinement signature, packet creation, and pre-launch handback to the Orchestrat
 - `ACTIVATION_READINESS` must report the declared MT count. If a broad bundled packet activates with a low MT count, readiness must either mark `READY_FOR_DOWNSTREAM_LAUNCH: NO` or include a specific rationale proving each MT is still independently trackable, reviewable, recoverable, and small-model manageable.
 - For folded-stub bundles, preserve the source-stub fold map and ensure every folded intent lands in at least one concrete MT. Source stubs are history; executable recovery resumes from MT files, receipts, and packet state.
 
+## Pre-MT Adversarial Review at Activation (Different Lenses)
+
+During WP activation and microtask creation, the Activation Manager MUST run pre-implementation adversarial review of the planned MT set through multiple different lenses (using the role's permitted read/review sub-agents per the sub-agent duty), to harden the MTs before launch.
+
+- Lenses (non-exhaustive): scope/skeleton soundness; spec-conformance against the `SPEC_CURRENT`-resolved Master Spec; anti-scaffold / runtime-proof feasibility; security & trust-boundary; concurrency & swarm-safety; data-loss & recovery; interconnectivity with other pillars/primitives (force-multiplier discovery); HBR applicability (VIS/MAN/INT/QUIET/SWARM/STOP); Argus & UserManual obligations.
+- Purpose: harden the MT set and surface findings, gaps, risks, concerns, and useful linked features/primitives across other pillars before code is written.
+- Because activation is where MTs are created, act on findings by adjusting or adding MTs: fold in-scope findings into the affected MT; create additional MTs in the same WP for out-of-scope findings/remediations; open stub/backlog items for larger discoveries per the enrichment standard.
+- This review is ADVISORY hardening only. It does NOT validate any implementation and confers no MT verdict authority. Post-implementation MT validation belongs to the WP Validator (orchestrator-managed) or the classic Validator (manual relay); whole-WP judgment belongs to the Integration Validator.
+
 ## Refinement And Enrichment Standard (HARD)
 
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, the Activation Manager refinement/enrichment pass MUST be equal to or better than the old Orchestrator-owned pre-launch flow. Moving the work out of the Orchestrator does not lower the standard.

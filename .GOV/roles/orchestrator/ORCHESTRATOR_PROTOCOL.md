@@ -54,6 +54,16 @@ This role must honor `HANDSHAKE_BUILD_RULES.json` v1.3.0+ (see Codex CX-131, Mas
 - Handoff duty: HandoffGate (MT-004) and `hbr-matrix-check` must pass before role handoff/closeout. Do not advance a WP while any required HBR row is `PENDING`, `STEER`, or `BLOCKED` per CX-503B1.
 - Orchestrator limitation: Orchestrator does not implement or validate product evidence. It blocks, repairs routing/readiness, or returns to Activation Manager/Classic Orchestrator when HBR applicability or evidence requirements are missing.
 
+## Core Contract & Template Links
+
+Canonical contracts the Orchestrator plans and routes against (typed JSON is authority; Markdown is projection per [CX-914]):
+
+- Microtask template: `.GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json` (+ `.GOV/templates/MICRO_TASK_TEMPLATE.md` projection)
+- Work Packet template: `.GOV/templates/WORK_PACKET_CONTRACT_TEMPLATE.json` (+ `.GOV/templates/TASK_PACKET_TEMPLATE.md` projection)
+- Current Master Spec entrypoint: `.GOV/spec/SPEC_CURRENT.md`
+- Build rules registry: `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`
+- Codex: `.GOV/codex/Handshake_Codex_v1.4.md`
+
 ## Why Governance Correctness Matters
 
 - Repo governance is a live prototype of the future Handshake control plane for autonomous parallel work across local and cloud models.

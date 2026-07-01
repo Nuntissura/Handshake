@@ -18,6 +18,16 @@ For a ready-for-development WP, `KERNEL_BUILDER` also owns the paperwork loop th
 
 If these disagree, higher-priority repo law wins. The reset brief controls build-reset intent and product-kernel focus where it does not conflict with hard repo safety law.
 
+## Core Contract & Template Links
+
+A no-context `KERNEL_BUILDER` MUST author and implement against these canonical contracts (typed JSON is authority; Markdown is projection per [CX-914]):
+
+- Microtask template: `.GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json` (authority) + `.GOV/templates/MICRO_TASK_TEMPLATE.md` (projection)
+- Work Packet template: `.GOV/templates/WORK_PACKET_CONTRACT_TEMPLATE.json` (authority) + `.GOV/templates/TASK_PACKET_TEMPLATE.md` (projection)
+- Current Master Spec entrypoint: `.GOV/spec/SPEC_CURRENT.md` (`handshake.spec_current@1` → active indexed bundle manifest/resolver/modules)
+- Build rules registry: `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json` (HBR-* gate authority, per [CX-131])
+- Codex: `.GOV/codex/Handshake_Codex_v1.4.md`
+
 ## Spec Resolver Discipline
 
 - Resolve current product authority through `.GOV/spec/SPEC_CURRENT.md` JSON. Use `current_spec.entrypoint_path` for the active indexed manifest and `current_spec.resolver_index_path` for the active bundle `INDEX.json`.
@@ -218,7 +228,11 @@ NEXT_ORCHESTRATOR_ACTION: <launch/repair/request-signature/request-enrichment>
 - Never edit product code through `wt-gov-kernel`.
 - Never edit `.GOV/` through a WP worktree junction.
 - New files, folders, artifacts, and generated paths must not contain spaces.
-- Build/test/tool/tooling artifacts (including test logs, lint/build outputs, tooling caches, and Cargo build artifacts) must stay under the repository-relative artifacts root resolved as `../Handshake_Artifacts/` (or `${HANDSHAKE_ARTIFACTS_ROOT}` when explicitly configured) and must be cleaned after WP validation passes before merge-to-main.
+- Cargo builds and all tests are the primary artifact producers and MUST target the repo-relative artifacts root `../Handshake_Artifacts/` (resolved via `${HANDSHAKE_ARTIFACTS_ROOT}`). Never write, name, or record an absolute host/drive path for this root [CX-109B]. Redirect cargo with `CARGO_TARGET_DIR` under `../Handshake_Artifacts/handshake-cargo-target/<scoped-subdir>`, and route test/lint/tool outputs and caches under `handshake-test/`, `handshake-tool/`, etc. All build/test/tool/tooling artifacts (test logs, lint/build outputs, tooling caches, Cargo target) MUST stay under this root.
+- Any repo-local or sibling `target/` folder created by a script, tool, or sub-agent is ILLEGAL workflow residue. When one appears, steer the producer (set `CARGO_TARGET_DIR`/artifacts root) or patch the offending script so it targets `../Handshake_Artifacts/`; run `just artifact-hygiene-check` to detect residue.
+- Artifact cleanup is automated per owner, never a manual afterthought: each assistant and each sub-agent OWNS a scoped artifact subdir and MUST auto-clean it as soon as its build/test finishes, to conserve disk. A sub-agent MUST NOT delete another owner's scoped dir.
+- Sub-agent cleanup compliance is unreliable, so the parent `KERNEL_BUILDER` is the cleanup backstop: after each sub-agent completes, the parent MUST inspect that sub-agent's scoped artifact dir and clean up any residue the sub-agent failed to remove. `KERNEL_BUILDER` remains responsible for total artifact hygiene regardless of sub-agent behavior.
+- The pre-merge WP-level `ARTIFACT_DIR_CLEANUP` gate (artifacts root cleaned after WP validation passes, before merge-to-main) still applies as the final backstop.
 
 ## Kernel Builder Product Implementation Mode
 
@@ -409,6 +423,18 @@ Each microtask must include:
 - validator focus.
 
 Twenty or more microtasks are acceptable when that keeps implementation restartable, reviewable, and usable by lower-context models. Do not collapse microtasks merely to reduce paperwork.
+
+## Pre-MT and Post-MT Adversarial Review (Parallel Sub-Agents)
+
+Parallel sub-agents are the `KERNEL_BUILDER` speed-build default (see Build Reset Stance and `RAM-KERNEL_BUILDER-SUBAGENT-001`). For every product MT, `KERNEL_BUILDER` MUST run adversarial review through multiple different lenses both BEFORE and AFTER implementation to harden the MT.
+
+- BEFORE implementation: spawn parallel sub-agents, each assigned a DIFFERENT lens, to adversarially review the planned MT (scope, skeleton/interface, approach) before product code is written.
+- AFTER implementation: spawn parallel sub-agents, each with a different lens, to adversarially review the implemented diff.
+- Canonical lenses (non-exhaustive): correctness; spec-conformance against the `SPEC_CURRENT`-resolved Master Spec; anti-scaffold / runtime-proof (Spec-Realism Gate); security & trust-boundary; concurrency & swarm-safety; data-loss & recovery; interconnectivity with other pillars/primitives (force-multiplier discovery); HBR coverage (VIS/MAN/INT/QUIET/SWARM/STOP); Argus visual & UserManual evidence; edge cases.
+- Purpose: harden the MT and surface findings, gaps, risks, concerns, and useful linked features/primitives across other pillars.
+- Disposition every finding: `FIXED` (in the current MT when in-scope) · `PROVEN_SAFE` · `OUT_OF_SCOPE` → create a NEW MT in the SAME WP to remediate, but ONLY when the finding is genuinely outside the current MT's scope · `OPEN_BLOCKER`.
+- `KERNEL_BUILDER` MUST review and is responsible for all sub-agent output; sub-agents do not self-certify. Record the lenses run and each disposition (this extends the `SELF_VALIDATOR_ATTACKS` handoff field).
+- Adversarial review is ADVISORY ONLY. A passing adversarial review NEVER validates an MT: no `KERNEL_BUILDER`, `CODER`, or sub-agent in any role may mark an MT passing or validated (Spec-Realism Gate sub-rule 3). `CLAIMED → READY_FOR_VALIDATION` is the terminal transition an implementer-side actor may set. Only an Operator-assigned WP Validator or Integration Validator — or an Orchestrator-launched WP Validator / Integration Validator via ACP or Handshake, operating under the validator protocols and `.GOV/codex/Handshake_Codex_v1.4.md` — may validate an MT as passing (`READY_FOR_VALIDATION → COMPLETED`).
 
 ## Validation Boundary
 

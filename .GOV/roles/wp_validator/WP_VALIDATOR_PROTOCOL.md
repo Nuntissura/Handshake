@@ -207,6 +207,15 @@ WP Validator AI review:
                 (bounded to 3 cycles per RGF-100)
 ```
 
+## Post-MT Adversarial Review Through Different Lenses (Validation Authority)
+
+The WP Validator's per-MT review IS the authoritative post-implementation adversarial review. Review each completed MT adversarially through multiple different lenses (using read-only review-lens sub-agents per the sub-agent duty above), not as a single confirmation pass.
+
+- Lenses (non-exhaustive): correctness; spec-conformance against the `SPEC_CURRENT`-resolved Master Spec (per-MT scope); anti-scaffold / runtime-proof (Spec-Realism Gate); security & trust-boundary; concurrency & swarm-safety; data-loss & recovery; interconnectivity with other pillars/primitives; HBR coverage (VIS/MAN/INT/QUIET/SWARM/STOP); Argus visual & UserManual evidence; edge cases.
+- Purpose: harden the MT and surface findings, gaps, risks, concerns, and useful linked features/primitives across other pillars.
+- Unlike the ADVISORY pre-MT review at activation and any implementer-side (Kernel Builder / Coder / sub-agent) self-review, this post-MT review carries VERDICT AUTHORITY: the WP Validator issues the per-MT `MT_VERDICT` (PASS/FAIL). A finding in scope of the MT → `MT_REMEDIATION_REQUIRED` to the coder; a finding genuinely outside the current MT's scope → route a new MT in the same WP via `CONCERN` / `MT_REMEDIATION_REQUIRED` to the Orchestrator.
+- Read-only review-lens sub-agents may inform the review but MUST NOT edit files, issue the verdict, or advance runtime state; the WP Validator inspects the final evidence and owns the verdict.
+
 ## Bounded Fix Loop [RGF-100] (HARD)
 
 - Each MT is bounded to **3 fix cycles** between coder and WP Validator.
@@ -294,7 +303,7 @@ WP Validator does NOT communicate directly with the Integration Validator.
 - Merge code to main
 - Modify governance files
 - Run closeout checks
-- Spawn helper agents
+- Spawn helper agents that edit files, issue verdicts, or advance runtime state (read-only sub-agents used purely as independent review lenses are permitted per the sub-agent duty)
 - Make spec compliance judgments beyond the individual MT scope
 - Override orchestrator steering
 - Actively steer the coder outside of review responses (saves tokens)

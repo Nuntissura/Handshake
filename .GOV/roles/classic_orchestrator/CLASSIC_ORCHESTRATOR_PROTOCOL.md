@@ -162,6 +162,15 @@ Classic Orchestrator owns the pre-launch duties that `ACTIVATION_MANAGER` owns o
 - Large/folded bundled WPs must be decomposed into enough official MT files for deterministic execution, per-MT review, and restart recovery before manual relay dispatch. There is no upper MT-count bias: 20+ MTs are acceptable when they keep work small enough for local models or cheaper/faster coding-focused cloud models. Do not compress MTs to reduce paperwork.
 - Manual relay must not launch or invent a separate `ACTIVATION_MANAGER` authority lane.
 
+## Pre-MT Adversarial Review at Activation (Different Lenses)
+
+Classic Orchestrator owns pre-launch for manual relay, so it also owns the pre-implementation adversarial review that Activation Manager runs in orchestrator-managed. During WP activation and microtask creation, review the planned MT set through multiple different lenses (using permitted read/review sub-agents where the lane allows) to harden the MTs before dispatch.
+
+- Lenses (non-exhaustive): scope/skeleton soundness; spec-conformance against the `SPEC_CURRENT`-resolved Master Spec; anti-scaffold / runtime-proof feasibility; security & trust-boundary; concurrency & swarm-safety; data-loss & recovery; interconnectivity with other pillars/primitives (force-multiplier discovery); HBR applicability; Argus & UserManual obligations.
+- Purpose: harden the MT set and surface findings, gaps, risks, concerns, and useful linked features/primitives across other pillars before code is written.
+- Act on findings by adjusting or adding MTs during activation: fold in-scope findings into the affected MT; create additional MTs in the same WP for out-of-scope findings/remediations; open stub/backlog items for larger discoveries.
+- ADVISORY hardening only. It does NOT validate implementation and confers no MT verdict authority. Post-implementation validation belongs to the classic Validator for manual relay.
+
 ## Classical Validator Routing
 
 - Manual relay uses the combined `VALIDATOR` role by default.
@@ -199,6 +208,16 @@ For orchestrator-managed (autonomous) workflow, see `.GOV/roles/orchestrator/ORC
 
 
 
+
+## Core Contract & Template Links
+
+Canonical contracts for manual-relay pre-launch and relay coordination (typed JSON is authority; Markdown is projection per [CX-914]):
+
+- Microtask template: `.GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json` (+ `.GOV/templates/MICRO_TASK_TEMPLATE.md` projection)
+- Work Packet template: `.GOV/templates/WORK_PACKET_CONTRACT_TEMPLATE.json` (+ `.GOV/templates/TASK_PACKET_TEMPLATE.md` projection)
+- Current Master Spec entrypoint: `.GOV/spec/SPEC_CURRENT.md`
+- Build rules registry: `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`
+- Codex: `.GOV/codex/Handshake_Codex_v1.4.md`
 
 ## Phase bundle and leaf-surface rule [CX-913]
 
