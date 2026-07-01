@@ -19,11 +19,19 @@
   "title": "Audit Atelier full-window module vs workbench-pane mounting and specify CKC/PoseKit/Ingest full-size sub-module rewiring",
   "status": "PENDING",
   "created_at_utc": "2026-07-01T18:01:26.824Z",
-  "updated_at_utc": "2026-07-01T18:01:26.824Z",
+  "updated_at_utc": "2026-07-01T18:12:13.516Z",
   "started_at_utc": null,
   "product_edit_allowed": false,
   "governance_edit_allowed": true,
   "operator_request": "Handshake currently splits everything into sub-windows/panes with tabs inside the main window (VS Code style). The operator WANTS to keep that compartmentalized pane-in-main-window pattern, but ONLY under the Notes Module (WP-KERNEL-012), which is in parallel live development and is the origin worktree of this WP. Atelier is now a MODULE and should open a FULL windowed experience. The operator believes it is still wired as if it is a compartmentalized window inside the main window (like a note or terminal pane). CKC, INGEST, and PoseKit are sub-modules of Atelier and should be full-size tabbed panels (each full size). The operator thinks current work (MT-004/MT-006) did not fully address this and asked for an extra inspection MT to inspect code and determine what needs changing before implementation continues.",
+  "disposition_directive": {
+    "source": "OPERATOR",
+    "recorded_at_utc": "2026-07-01T18:12:13.516Z",
+    "directive": "Operator expects MT-006 will need to be redone in parts. After the audit, LINK the remediation back to MT-006 (redo MT-006 in parts as MT-006 remediation). Only if a finding is TRULY out of MT-006 scope may a new MT be created.",
+    "default_disposition": "MT_006_REMEDIATION_IN_PARTS",
+    "link_target_mt": "MT-006",
+    "new_mt_rule": "Create a new implementation MT (MT-041+) ONLY for a finding genuinely outside MT-006's scope; state the concrete rationale for why it exceeds MT-006 scope."
+  },
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-040.json",
     "microtask_projection": null,
@@ -89,7 +97,7 @@
       "AC5: Define the target model precisely (Atelier = full-window module; CKC/INGEST/PoseKit = full-size tabbed sub-modules; compartmentalized pane-in-main pattern reserved to Notes/WP-KERNEL-012).",
       "AC6: Produce a concrete change plan naming exact files, types, and the minimal rewiring to move Atelier from pane-hosted to module-hosted (or, if it is already module-hosted, name the actual defect). Include how CKC/PoseKit/Ingest tabs relocate and which stable AccessKit author_ids (module-ckc, atelier-tab-ckc/posekit/ingest, content regions) are preserved vs changed.",
       "AC7: State that the change plan does NOT alter or regress the Notes/WP-KERNEL-012 pane/workbench model (KERNEL-012 is in parallel live development).",
-      "AC8: Recommend the disposition: fix as MT-006 remediation (reopen) or as one/more new implementation MTs (MT-041+). Give rationale and a proposed MT breakdown, and name the HBR obligations the implementation MT(s) must carry: HBR-VIS (Argus inspect/steer of the changed surface), HBR-QUIET (no focus/keyboard/mouse steal), HBR-MAN (in-product UserManual update).",
+      "AC8: Disposition per operator directive (see disposition_directive): the DEFAULT is to redo MT-006 in parts as MT-006 remediation and LINK the audit's change-plan parts back to MT-006. Break the change plan into parts; for each part, state whether it is IN MT-006 scope (-> MT-006 remediation, the default) or TRULY OUT of MT-006 scope (-> propose a new MT-041+ with concrete rationale for why it exceeds MT-006 scope). Name the HBR obligations the implementation work must carry: HBR-VIS (Argus inspect/steer of the changed surface), HBR-QUIET (no focus/keyboard/mouse steal), HBR-MAN (in-product UserManual update).",
       "AC9: Emit findings as machine-readable MT-040-atelier-window-audit.json. Leave product code untouched."
     ],
     "proof_targets": [
@@ -126,7 +134,7 @@
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
-    "expected_output": "MT-040-atelier-window-audit.json plus a disposition recommendation (reopen MT-006 remediation vs new implementation MT-041+). This is a scoping/diagnosis MT; it produces analysis and a change plan, not product runtime behavior, so it does not claim the windowing is fixed."
+    "expected_output": "MT-040-atelier-window-audit.json plus a disposition that DEFAULTS to MT-006 remediation-in-parts (link change-plan parts back to MT-006 per operator directive 2026-07-01), with a new MT proposed only for a finding truly out of MT-006 scope. This is a scoping/diagnosis MT; it produces analysis and a change plan, not product runtime behavior, so it does not claim the windowing is fixed."
   },
   "red_team": {
     "required": true,
