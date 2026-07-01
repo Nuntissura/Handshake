@@ -1,0 +1,138 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "mt_id": "MT-013",
+  "created_at_utc": "2026-07-01T19:02:22Z",
+  "updated_at_utc": "2026-07-01T19:02:22Z",
+  "scope_status": "DEFERRED_FROM_MT-003_2026-07-01_EMBEDDED_LOAD_CONFORMANCE_HARDENING",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-013.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "",
+    "status": "SKIPPED_MINIMAL_GOVERNANCE"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-003"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING",
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
+    "completed_by": null,
+    "blocker": null,
+    "missing_resource": null,
+    "proof_status": "NOT_RUN",
+    "hbr_status": "PENDING",
+    "pre_implementation_adversarial_review_status": "NOT_RUN",
+    "post_implementation_adversarial_review_status": "NOT_RUN",
+    "adversarial_findings_status": "NOT_RUN"
+  },
+  "scope": {
+    "summary": "Embedded ModelRuntime real-load conformance hardening: box the default embedded-model load path under a SandboxAdapter and emit ProcessOwnershipLedger START/STOP rows, and emit a Flight Recorder event on the DisabledLlmClient / fail-closed error paths, all validated with a REAL Candle model load.",
+    "origin": "Deferred from MT-003 (2026-07-01) pre/post-implementation review. MT-003 made the embedded ModelRuntime the default local LlmClient path, but the embedded model-load path (llm/boot.rs build_default_local_client -> CandleRuntime/LlamaCppRuntime::load) has ZERO SandboxAdapter / ProcessOwnershipLedger wiring (the boxed path is the separate SandboxModelRuntime used only by the swarm factory), which violates master-spec-v02.197 3.6.2/4.6.1 (HARD; MUST fail the 5.6 HBR gate). Additionally DisabledLlmClient returns an error without emitting a Flight Recorder event (pre-existing, mod.rs), against 4.2.3.2(3). These are coupled to a real model load, so they are deferred here rather than faked in MT-003. This is a real conformance gap, NOT a re-implementation of engines (WP-KERNEL-004 owns the adapters).",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/model_runtime/",
+      "src/backend/handshake_core/src/llm/",
+      "src/backend/handshake_core/src/process_ledger/",
+      "src/backend/handshake_core/src/sandbox/",
+      "src/backend/handshake_core/src/flight_recorder/",
+      "src/backend/handshake_core/tests/"
+    ],
+    "forbidden_paths": [
+      "re-implementing llama.cpp/Candle engine internals (WP-KERNEL-004 owns them)",
+      "new TypeScript/React/app/src implementation",
+      "SQLite runtime/test/fixture additions"
+    ],
+    "acceptance_criteria": [
+      "The default embedded-model load path (llm/boot.rs build_default_local_client) loads the model under the configured SandboxAdapter (default HandshakeNativeSandboxAdapter, master-spec 3.5.2) and registers ProcessOwnershipLedger START on load + STOP on unload (master-spec 3.6.2/4.6.1), so the boxed+ledgered obligation the swarm factory already satisfies also holds for the LlmClient default path; verified with a REAL Candle CPU model load (feature candle-runtime-engine).",
+      "DisabledLlmClient (and any fail-closed error return on the default LLM path) emits a Flight Recorder event carrying the disabled/error reason so 'every call emits a Flight Recorder event' (master-spec 4.2.3.2(3)) holds on the error path too; a test proves the FR event is emitted.",
+      "The LocalModelRuntimeLlmClient::embedding() path (added by MT-003) emits a Flight Recorder event with trace_id/model_id (embeddings carry no TokenUsage, so record the embedding-appropriate FR shape) so the embedding lane is Flight-Recorder-correlatable per 4.2.3.2(3)/11.5; a test proves emission. (Deferred from MT-003 post-review: embedding() currently carries EmbeddingRequest.trace_id but does not emit, matching the removed OllamaAdapter parity.)",
+      "A real-load runtime proof (cargo test --features \"test-utils,candle-runtime-engine\" against tests/candle_e2e_smoke.rs or a new embedded-default e2e test) shows a ProcessOwnershipLedger START row on load and STOP row on unload for the default embedded model, and no bare std::process::Command model spawn.",
+      "Same-change UserManual coverage for the embedded-load boxing/ledger + FR-on-error behavior; HBR-INT-009 three-tier posture recorded (Flight Recorder WIRED; internal_diagnostics + Palmistry DEFERRED-with-reason until WP-KERNEL-012/016).",
+      "Pre- and post-implementation adversarial review before READY_FOR_VALIDATION; implementer does not self-certify COMPLETED."
+    ],
+    "proof_targets": [
+      "TO_BE_FINALIZED_AT_ACTIVATION: exact Rust tests proving (a) embedded default load boxes under SandboxAdapter + emits ProcessOwnershipLedger START/STOP (real Candle load, --features \"test-utils,candle-runtime-engine\"); (b) DisabledLlmClient/fail-closed path emits a Flight Recorder event (engine-free, --features test-utils). Proof commands MUST name exact tests and fail on zero matching tests."
+    ],
+    "risk_if_missed": "The default local model path runs an unboxed, unledgered model load - a master-spec 3.6.2/4.6.1 HARD violation and a swarm-safety/attribution gap (no ownership/reclaim record for the default model process), and error/disabled LLM calls are invisible to Flight Recorder replay.",
+    "reference_only_paths": [
+      "src/backend/handshake_core/src/model_runtime/sandbox_runtime.rs (SandboxModelRuntime = the existing boxed path, reference pattern)",
+      "app/src-tauri/"
+    ]
+  },
+  "implementation_notes": [
+    "MT-003 already routes the default LlmClient through the embedded ModelRuntime and fails closed to DisabledLlmClient; this MT hardens the LOAD path's boxing/ledger + the error-path FR emission. It does NOT change the Ollama-kill wiring or re-implement engines.",
+    "Reference the existing boxed path model_runtime/sandbox_runtime.rs (SandboxModelRuntime) and process_ledger/ for the START/STOP row pattern; the default LlmClient load path must obtain the same boxing/ledger guarantee (either by routing the load through a SandboxAdapter/ledger-emitting seam, or by the CandleRuntime/LlamaCppRuntime load itself emitting the ledger rows).",
+    "For the in-process Candle library load, the '(1) child of a SandboxAdapter / no bare std::process::Command' clause of 3.6.2 is ambiguous (no process is spawned); the UNCONDITIONAL obligation is the ProcessOwnershipLedger START/STOP (4.6.1 unload -> STOP row). Prove the ledger obligation first; box under SandboxAdapter where a process/guest is actually spawned.",
+    "Requires a real Candle CPU model load (moderate, pure-Rust) — coordinate with heavy-load constraints; do NOT compile llama.cpp for this MT.",
+    "Rust-only; Rust backend + native egui/Argus where UI is touched."
+  ],
+  "required_build_rules": [
+    "HBR-QUIET-003",
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-MAN-004",
+    "HBR-SWARM-002"
+  ],
+  "hbr_obligations": [
+    "INT",
+    "SWARM",
+    "QUIET",
+    "MAN"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "post_implementation_adversarial_review_required": true,
+    "post_implementation_review_lenses": [
+      "sandbox_boxing_and_process_ownership_ledger",
+      "flight_recorder_on_error_and_disabled_paths",
+      "spec_realism_real_model_load_not_faked",
+      "swarm_safety_attribution_and_reclaim"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "The load path could be 'boxed' only in tests (fake sandbox) and remain unboxed in the real default path.",
+      "ProcessOwnershipLedger rows could be emitted without a real reclaim/STOP on unload.",
+      "FR-on-error could be added only to DisabledLlmClient construction, missing other fail-closed return points."
+    ],
+    "minimum_controls": [
+      "Real Candle load proof shows START+STOP rows and no bare Command spawn.",
+      "Unload/reclaim path proven, not just START.",
+      "Every fail-closed return on the default LLM path emits an FR event."
+    ]
+  },
+  "research_basis": {
+    "authority_posture": "Master spec/SPEC_CURRENT/product code are authority.",
+    "local_authority_checked": [
+      ".GOV/spec/master-spec-v02.197/spec-modules/03-local-first-infrastructure.md (3.5 SandboxAdapter, 3.6.2 boxing, 4.6.1 load/unload ledger)",
+      ".GOV/spec/master-spec-v02.197/spec-modules/04-llm-infrastructure.md (4.2.3.2(3) FR-per-call)",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+    ],
+    "product_code_evidence": [
+      "src/backend/handshake_core/src/llm/boot.rs build_default_local_client (unboxed default load path introduced by MT-003)",
+      "src/backend/handshake_core/src/model_runtime/sandbox_runtime.rs SandboxModelRuntime (existing boxed pattern)",
+      "src/backend/handshake_core/src/process_ledger/ (START/STOP row schema)",
+      "src/backend/handshake_core/src/llm/mod.rs DisabledLlmClient (no FR emit on error)"
+    ]
+  },
+  "handshake_compatibility": {
+    "native_rust_backend_first": true,
+    "rust_only_implementation": "Rust backend plus native egui/Argus only.",
+    "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after a REAL Candle model load proves boxing+ledger; COMPLETED is validator-only."
+  }
+}

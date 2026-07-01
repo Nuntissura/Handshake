@@ -1,0 +1,135 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "mt_id": "MT-014",
+  "created_at_utc": "2026-07-01T21:15:18Z",
+  "updated_at_utc": "2026-07-01T21:15:18Z",
+  "scope_status": "DEFERRED_FROM_MT-003_2026-07-01_SHARED_REGISTRY_AND_LOOM_EMBEDDING_BRIDGE",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-014.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "",
+    "status": "SKIPPED_MINIMAL_GOVERNANCE"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-003"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING",
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
+    "completed_by": null,
+    "blocker": null,
+    "missing_resource": null,
+    "proof_status": "NOT_RUN",
+    "hbr_status": "PENDING",
+    "pre_implementation_adversarial_review_status": "NOT_RUN",
+    "post_implementation_adversarial_review_status": "NOT_RUN",
+    "adversarial_findings_status": "NOT_RUN"
+  },
+  "scope": {
+    "summary": "Make the default LlmClient's embedded model registry shared, enumerable, and labeled (UUIDv7 -> display_name/base_model_tag) so downstream pillars can name and list the local model, and give LoomSearchV2 a real embedding-model contract that degrades (not hard-errors) on dimension mismatch.",
+    "origin": "Deferred from MT-003 (2026-07-01) interconnectivity post-review. MT-003 wires the default LlmClient to the embedded ModelRuntime, but constructs a THROWAWAY single-entry ModelRegistry buried inside LocalRouter (llm/boot.rs) that is not shared, enumerable, or persisted, and whose UUIDv7 has no exposed display_name join. This blocks: MT-008 TraceProjection labeling the local model (groups by opaque UUIDv7), MT-012 operator model-picker enumeration, and Work Profiles provider_ref resolution (provider_id changed ollama->local_runtime). Separately, LoomSearchV2 hard-requires 768-dim embeddings (loom_search/mod.rs LOOM_SEARCH_EMBEDDING_DIM=768) and returns a HARD StorageError::Validation on mismatch, so configuring a normal chat model as the local default makes Loom reindex/search hard-error instead of degrade.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/llm/",
+      "src/backend/handshake_core/src/model_runtime/",
+      "src/backend/handshake_core/src/loom_search/",
+      "src/backend/handshake_core/src/api/",
+      "src/backend/handshake_core/src/kernel/work_profiles.rs",
+      "src/backend/handshake_core/src/user_manual/",
+      "src/backend/handshake_core/tests/"
+    ],
+    "forbidden_paths": [
+      "re-implementing engine internals (WP-KERNEL-004)",
+      "new TypeScript/React/app/src implementation",
+      "SQLite runtime/test/fixture additions"
+    ],
+    "acceptance_criteria": [
+      "The default LlmClient's embedded model registration is exposed through a shared/enumerable registry surface (UUIDv7 -> display_name/base_model_tag/runtime_binding) rather than a throwaway single-entry ModelRegistry hidden in LocalRouter; a backend API/lookup can enumerate and label the configured local model(s).",
+      "MT-008 TraceProjection (or the diagnostics projection) can resolve a local-model UUIDv7 to a human display name via this registry; a test proves the join.",
+      "The registry surface is consumable by the MT-012 operator model-picker (enumerate available local models) and by Work Profiles provider_ref resolution; a Work Profile that pinned provider_ref='ollama' resolves or is migrated deterministically (no silent dangle).",
+      "LoomSearchV2 has an explicit embedding-model contract: a dedicated embedding model / dimension adapter distinct from the chat model, and a dimension mismatch degrades to a typed non-fatal outcome (keyword/trigram fallback) instead of propagating a hard StorageError; a test proves reindex/search degrades rather than hard-errors on a non-768 embedding.",
+      "Same-change UserManual coverage for the shared registry surface + the LoomSearchV2 embedding-model contract; HBR-INT-009 posture recorded.",
+      "Pre- and post-implementation adversarial review before READY_FOR_VALIDATION; implementer does not self-certify COMPLETED."
+    ],
+    "proof_targets": [
+      "TO_BE_FINALIZED_AT_ACTIVATION: exact Rust tests for (a) UUIDv7->display_name registry enumeration/label join (engine-free, --features test-utils), (b) LoomSearchV2 degrades (not hard-errors) on embedding-dimension mismatch, (c) Work Profiles provider_ref resolution/migration. Proof commands MUST name exact tests and fail on zero matching tests."
+    ],
+    "risk_if_missed": "The local model is unlabelable in diagnostics (MT-008) and unlistable in the operator picker (MT-012), Work Profiles pinned to the old ollama provider silently break, and configuring a local model can hard-crash LoomSearchV2 reindex on a dimension mismatch.",
+    "reference_only_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/production_factory.rs (separate model_runtime registry world)"
+    ]
+  },
+  "implementation_notes": [
+    "MT-003 boot.rs build_default_local_client constructs ModelRegistry::default() with one entry inside LocalRouter; this MT makes that a shared/enumerable/labeled surface. Reconcile with the swarm's separate model_runtime registry usage (production_factory.rs) rather than creating a third disjoint registry.",
+    "LoomSearchV2 (loom_search/mod.rs, api/loom.rs refresh_loom_block_embedding) is the ONLY production caller of LlmClient::embedding(); FEMS/memory does not consume it. The 768-dim requirement + hard StorageError on mismatch is the crash surface.",
+    "Do NOT re-introduce Ollama as the embedding provider; the embedding model is another embedded ModelRuntime registration.",
+    "Rust-only; Rust backend + native egui/Argus where UI is touched.",
+    "This MT bridges MT-003 (default local client) to MT-008 (diagnostics labeling), MT-012 (picker enumeration), and Work Profiles."
+  ],
+  "required_build_rules": [
+    "HBR-INT-001",
+    "HBR-INT-005",
+    "HBR-INT-007",
+    "HBR-MAN-004",
+    "HBR-INT-009"
+  ],
+  "hbr_obligations": [
+    "INT",
+    "MAN"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "post_implementation_adversarial_review_required": true,
+    "post_implementation_review_lenses": [
+      "registry_enumeration_and_label_join",
+      "loom_embedding_dimension_degrade_not_error",
+      "work_profiles_provider_ref_migration",
+      "interconnectivity_no_duplicate_registry_world"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "A third disjoint registry world is created instead of unifying.",
+      "The dim-mismatch degrade silently drops semantic search without surfacing the misconfiguration.",
+      "Work Profiles migration silently rewrites operator intent."
+    ],
+    "minimum_controls": [
+      "Reconcile with the existing model_runtime registry rather than adding a third.",
+      "Dim-mismatch degrade emits a typed, operator-visible warning/event, not a silent drop.",
+      "Work Profiles migration is deterministic and surfaced."
+    ]
+  },
+  "research_basis": {
+    "authority_posture": "Master spec/SPEC_CURRENT/product code are authority.",
+    "local_authority_checked": [
+      ".GOV/spec/master-spec-v02.197/spec-modules/04-llm-infrastructure.md (4.6 ModelRuntime/registry)",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+    ],
+    "product_code_evidence": [
+      "src/backend/handshake_core/src/llm/boot.rs (throwaway single-entry ModelRegistry)",
+      "src/backend/handshake_core/src/loom_search/mod.rs (LOOM_SEARCH_EMBEDDING_DIM=768, hard StorageError on mismatch)",
+      "src/backend/handshake_core/src/kernel/work_profiles.rs (provider_ref free-string)",
+      "src/backend/handshake_core/src/swarm_orchestration/production_factory.rs (separate registry world)"
+    ]
+  },
+  "handshake_compatibility": {
+    "native_rust_backend_first": true,
+    "rust_only_implementation": "Rust backend plus native egui/Argus only.",
+    "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after real proofs; COMPLETED is validator-only."
+  }
+}

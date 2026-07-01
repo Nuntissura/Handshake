@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-002"
     ],
@@ -26,15 +26,15 @@
     ],
     "active": true,
     "validator_verdict": "PENDING",
-    "claimed_by": null,
-    "claimed_at_utc": null,
-    "ready_for_validation_by": null,
-    "ready_for_validation_at_utc": null,
+    "claimed_by": "KERNEL_BUILDER-20260701-190732",
+    "claimed_at_utc": "2026-07-01T19:02:22Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
+    "ready_for_validation_at_utc": "2026-07-01T21:15:18Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "REOPENED_2026-07-01_SCOPE_EXPANDED_OLLAMA_DAEMON_KILL_AND_EMBEDDED_MODELRUNTIME_DEFAULT. Prior READY_FOR_VALIDATION evidence (8 launch + 4 schema + 2 UserManual Rust authority proofs; Dexterity/public-constructor/Tauri-request-source bypass closures; external spec-manifest drift on 04-llm-infrastructure.md) is preserved as prior-scope evidence but is NOT sufficient: MT-003 acceptance 'Local lanes launch through LlmClient -> ModelRuntime' and 'no direct endpoint may become launch authority' are contradicted while the default LlmClient (main.rs) selects the OllamaAdapter daemon client. NEEDS: remove OllamaAdapter default + auto-detect, resolve default LlmClient through embedded ModelRuntime, CPU-baseline engine features decoupled from Tauri, retain non-authoritative ExternalEngineImport compat lane.",
-    "hbr_status": "PENDING_REOPENED_SCOPE_ADDS_INT002_INT005_QUIET003_OBLIGATIONS",
+    "proof_status": "PASS_MT-003_REOPENED_2026-07-01: Ollama daemon default removed from the default path; default LlmClient resolves local inference through embedded ModelRuntime (Candle CPU baseline) via new llm::boot seam; fails closed to DisabledLlmClient (no /api/tags probe, no daemon fallback); regression guards fixed (profile.model_id = minted UUIDv7 routes to embedded runtime not fallback; embedding() wired to ModelRuntime::embed). PROOF: 4/4 engine-free tests PASS (tests/llm_default_boot_resolution_tests.rs: no-model->Disabled-never-Ollama; UUIDv7 routing; embedding-via-embed; external_compat retained non-authoritative); cargo check --features app-runtime PASS. Committed feat-branch 321543ca. Pre+post adversarial review 4 lenses each: NO BLOCKER; SOLID + HONEST-DEFERRAL; no false-green. DEFERRED (not faked): real Candle inference via candle_e2e_smoke #[ignore] (heavy toolchain under load); SandboxAdapter+ProcessOwnershipLedger boxing + FR-on-Disabled/embedding-path emission -> MT-013; enumerable/shared model registry (UUIDv7->display_name) + LoomSearchV2 768-dim embedding-model contract (degrade-not-error) -> MT-014. Prior 8+4+2 lane proofs = prior-scope evidence only.",
+    "hbr_status": "PASS_HBR_INT002_INT005_QUIET001_MAN004_FOR_MT003_WIRING_SCOPE; HBR-INT-009 FlightRecorder=WIRED(completion + external_compat), internal_diagnostics+Palmistry=DEFERRED-with-reason(built by WP-KERNEL-012/016); FR-on-Disabled-and-embedding paths + SandboxAdapter/ProcessOwnershipLedger boxing of the embedded load = DEFERRED-to-MT-013 (QUIET-003 in-process routing wiring spawns no process); shared/enumerable registry + Loom embedding contract = DEFERRED-to-MT-014.",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
     "last_recovery_event_ref": null,
@@ -88,7 +88,8 @@
       "REOPENED SCOPE (scope guard): MT-003 WIRES the default LlmClient to the already-shipped WP-KERNEL-004 ModelRuntime adapters (LlamaCppRuntime/CandleRuntime); it does NOT re-implement engines. Real embedded-engine inference (real GGUF through llama.cpp / real weights through Candle) is recorded DEFERRED-with-reason (heavy host-toolchain build under heavy load) citing tests/llama_cpp_e2e_smoke.rs and tests/candle_e2e_smoke.rs as the unfaked reproduction commands; it MUST NOT be faked green.",
       "REOPENED SCOPE (wiring approach per pre-impl review): the embedded-runtime LlmClient bridge already exists (llm/local_router.rs: LocalRouter + LocalModelRuntimeLlmClient, LlmClient-implementing, LlamaCpp-default/Candle-for-hooks, currently constructed only in tests). MT-003 does NOT add a new LlmClient impl; it (a) adds a net-new local-model config surface to llm/registry.rs from_env (GGUF artifact_path + sha256 + RuntimeBinding + display name); (b) in main.rs init_llm_client replaces the ProviderKind::Ollama auto-detect arm with a local-runtime arm that builds LlamaCppRuntime+CandleRuntime, loads+registers the artifact (minting a UUIDv7 ModelId, provider=Local, matching binding; ModelRegistry.register requires non-empty artifact_path + non-zero sha256; validate_binding forbids LlamaCpp+activation_steering so steering lanes use Candle), constructs LocalRouter + LocalModelRuntimeLlmClient with a DisabledLlmClient fallback; (c) fails closed to DisabledLlmClient AT INIT (no /api/tags probe, no daemon fallback) when no local model is configured or load() fails (do not hard-abort startup, mirror existing degradations at main.rs:396/407/439).",
       "REOPENED SCOPE (HIGH regression guard 1 - profile.model_id identity): the wired client's profile().model_id MUST be the minted UUIDv7 of the registered model, because call sites pass profile().model_id as CompletionRequest.model_id and LocalModelRuntimeLlmClient::completion only routes to the runtime for UUIDv7 ids (non-UUID silently falls back to the DisabledLlmClient fallback). A test MUST prove completion routes to the embedded runtime, not the fallback.",
-      "REOPENED SCOPE (HIGH regression guard 2 - embedding not dropped): OllamaAdapter implemented embedding(); LocalModelRuntimeLlmClient inherits the trait default embedding()->EmbeddingUnsupported. The swap MUST wire LlmClient::embedding() to ModelRuntime::embed() in llm/local_router.rs (or record an explicit operator waiver), else semantic embeddings silently drop and LoomSearchV2 degrades to keyword/trigram. A test MUST prove embedding() is not silently unsupported after the swap."
+      "REOPENED SCOPE (HIGH regression guard 2 - embedding not dropped): OllamaAdapter implemented embedding(); LocalModelRuntimeLlmClient inherits the trait default embedding()->EmbeddingUnsupported. The swap MUST wire LlmClient::embedding() to ModelRuntime::embed() in llm/local_router.rs (or record an explicit operator waiver), else semantic embeddings silently drop and LoomSearchV2 degrades to keyword/trigram. A test MUST prove embedding() is not silently unsupported after the swap.",
+    "SCOPE ACCURACY (post-review): 'kill' is LlmClient-DEFAULT-scoped, not repo-wide. The OllamaAdapter type + InMemoryLlmClient are retained ONLY as test doubles (never constructed in the default path; no ProviderKind::Ollama variant remains). Ollama couplings intentionally remain OUTSIDE the default LlmClient path and are NOT part of MT-003: tokenization.rs OllamaTokenizerConfigCache, atelier ollama: model-server scheme, bin/capability_registry_workflow.rs OLLAMA_MODEL, dependency_policy tripwires. Removing those is out of MT-003 scope; if desired, a future WP/MT should own it."
     ],
     "proof_targets": [
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_all_lane_kinds_through_rust_registry -- --exact",
