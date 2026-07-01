@@ -238,6 +238,7 @@ Format:
 | WP-KERNEL-010-Tailor-Cloth-Garment-Engine | .GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json | Stub Backlog (Not Activated): WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1 | PRIMARY_MACHINE_READABLE_STUB; READY_FOR_REFINEMENT; Tailor cloth/garment engine (Handshake-native Marvelous-Designer-equivalent); Master Spec Section 13 ACTIVE in v02.194 (sub-sections 13.1-13.15); NEXT in build order after WP-KERNEL-009 passes tests+validation; HBR directive baked in (swarm-parallel model API + front-end AND back-end visual inspect/navigate + jobs/Flight-Recorder/headless-parallel, reuse-don't-fork); ~350-MT plan; research package .GOV/reference/cloth_engine_research (17 topics) + canonical contracts 16-contracts.md / 13.14 |
 | WP-KERNEL-005 | .GOV/task_packets/WP-KERNEL-005/packet.md | Done: WP-KERNEL-005 [VALIDATED] | Integration Validation v3 PASS_V3 (205/207 MTs PASS_V3, 2 OUT_OF_SCOPE_BY_OPERATOR) at head 17b2abd4; merged to main 41b610df 2026-06-11; verdict record gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-005/MT_VERDICTS_INTEGRATION_VALIDATOR_V3.json |
 | WP-CKC-posekit-overhaul | .GOV/task_packets/WP-CKC-posekit-overhaul/packet.md | In Progress: WP-CKC-posekit-overhaul | hotfix ad hoc MT lane; product worktree ../wtc-ckc-posekit-overhaul; source branch feat/WP-KERNEL-012 at 6bb8cfb4f81a06c4718403826f3b30433f74a426 |
+| WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity | .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json | TBD |  |
 
 ## Superseded Activation History
 

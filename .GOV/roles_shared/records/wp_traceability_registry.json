@@ -4,7 +4,7 @@
   "authority_surface": "MACHINE_CONTRACT",
   "rendered_md_projection_path": ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md",
   "rendered_md_projection_policy": "GENERATED_FROM_JSON_DO_NOT_HAND_EDIT",
-  "updated_at_utc": "2026-06-28T17:44:39.421Z",
+  "updated_at_utc": "2026-07-01T15:17:12.151Z",
   "entries": [
     {
       "base_wp_id": "WP-1-ACE-Auditability",
@@ -977,6 +977,12 @@
       "active_packet_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.md",
       "task_board_projection": "In Progress: WP-CKC-posekit-overhaul",
       "notes": "hotfix ad hoc MT lane; product worktree ../wtc-ckc-posekit-overhaul; source branch feat/WP-KERNEL-012 at 6bb8cfb4f81a06c4718403826f3b30433f74a426"
+    },
+    {
+      "base_wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity",
+      "active_packet_path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+      "task_board_projection": "TBD",
+      "notes": ""
     }
   ],
   "superseded_activation_history": [

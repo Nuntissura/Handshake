@@ -14,7 +14,7 @@
   "title": "U7-MT-103-ForegroundSafeFrontEndNavigation",
   "group": "U1 Usable-Product Expansion (notes+chat worksurface, §product-vision 2026-06-27)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-06-29T18:48:30Z",
+  "updated_at_utc": "2026-07-01T16:06:37Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-103.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -105,7 +105,7 @@
     }
   ],
   "handoff": {
-    "coder_session": "KERNEL_BUILDER-20260629-164502",
+    "coder_session": "HISTORY 2026-06-29: KERNEL_BUILDER-20260629-164502 implemented foreground-safe navigation driver/proofs. REVALIDATED 2026-07-01 by Codex: cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --target-dir ../Handshake_Artifacts/handshake-native-target --test test_foreground_safe_navigation -- --nocapture => 5 passed, 0 failed; cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --target-dir ../Handshake_Artifacts/handshake-native-target --test test_focus_audit_quiet -- --nocapture => 7 passed, 0 failed. During revalidation the quiet audit exposed a repo-local native_gui/artifacts report path; patched test_focus_audit_quiet.rs plus native-gui installer/bundle/live-audit report helpers to write under external Handshake_Artifacts/handshake-test/native_gui only, removed the generated repo-local tests/native_gui/artifacts directory, and verified the local path stays absent while the focus report exists in the external root. MT-103 remains READY_FOR_VALIDATION pending WP validator review.",
     "wp_validator_session": null
   },
   "red_team": {

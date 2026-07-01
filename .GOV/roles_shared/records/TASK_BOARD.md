@@ -57,6 +57,8 @@ Rules:
 Entry format (recommended):
 - `- **[WP_ID]** - [ACTIVE] - branch: feat/WP-{ID} - coder: <name/model> - last_sync: YYYY-MM-DD`
 
+- **[WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1]** - [ACTIVE] - branch: feat/WP-KERNEL-012 - coder: KERNEL_BUILDER/Codex - last_sync: 2026-07-01
+
 
 ## Current Focus (2026-04-05)
 
@@ -165,6 +167,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 ## In Progress
 
 Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
+- **[WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1]** - [IN_PROGRESS]
 - **[WP-CKC-posekit-overhaul]** - [IN_PROGRESS]
 
 
