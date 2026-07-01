@@ -2,7 +2,7 @@
   "schema_id": "hsk.microtask_index@1",
   "schema_version": "microtask_index_v1",
   "wp_id": "WP-CKC-posekit-overhaul",
-  "updated_at_utc": "2026-07-01T10:51:44.266Z",
+  "updated_at_utc": "2026-07-01T11:41:57.603Z",
   "active_mt_id": "MT-010",
   "next_mt_id": "MT-031",
   "microtask_contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
@@ -257,11 +257,14 @@
     },
     {
       "mt_id": "MT-028",
-      "status": "IN_PROGRESS",
+      "status": "READY_FOR_VALIDATION",
       "title": "Add Facial review queue, montage, and export lineage",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-028.json",
       "product_edit_allowed": true,
       "started_at_utc": "2026-07-01T10:51:44.266Z",
+      "ready_for_validation_at_utc": "2026-07-01T11:41:57.603Z",
+      "product_commit": "25af5486",
+      "validation_note": "Backend artifact core passed targeted tests and static scans; command/API persistence and UI/Argus runtime parity remain MT-029/MT-030 follow-up before full operator-usable queue completion.",
       "parallel_lane_note": "Backend-first Facial review queue/montage/export lineage lane; active_mt_id intentionally remains MT-010."
     },
     {

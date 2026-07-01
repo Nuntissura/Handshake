@@ -5,9 +5,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-028",
   "title": "Add Facial review queue, montage, and export lineage",
-  "status": "IN_PROGRESS",
+  "status": "READY_FOR_VALIDATION",
   "created_at_utc": "2026-06-30T23:20:00.000Z",
-  "updated_at_utc": "2026-07-01T10:51:44.266Z",
+  "updated_at_utc": "2026-07-01T11:41:57.603Z",
   "product_edit_allowed": true,
   "operator_request": "The Facial app is used to sort mined images for LoRA training. Handshake needs review queues, montage/contact-sheet style inspection, and non-destructive export lineage connected to Ingest/CKC.",
   "authority_files": {
@@ -21,14 +21,17 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-028.json"
   },
   "lifecycle": {
-    "status": "IN_PROGRESS",
-    "active": true,
+    "status": "READY_FOR_VALIDATION",
+    "active": false,
     "depends_on": [
       "MT-026",
       "MT-027"
     ],
     "validator_verdict": "PENDING",
-    "started_at_utc": "2026-07-01T10:51:44.266Z"
+    "started_at_utc": "2026-07-01T10:51:44.266Z",
+    "ready_for_validation_at_utc": "2026-07-01T11:41:57.603Z",
+    "product_commit": "25af5486",
+    "product_branch_pushed": true
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -100,10 +103,78 @@
       "LoRA export correctness"
     ]
   },
+  "implementation_summary": {
+    "product_commit": "25af5486",
+    "pushed_to_branch": "feat/WP-CKC-posekit-overhaul",
+    "implemented": [
+      "Added native Facial review session artifacts with stable candidate IDs based on content hash plus source ref, with source-ref fallback.",
+      "Added actor-attributed shard claim receipts with disjoint active claims, expiry checks, and explicit expired-claim recovery.",
+      "Added review decision receipts preserving entered pass/reject/unsure vocabulary while normalizing to accept/reject/hold for replay.",
+      "Added status replay, Argus-addressable montage tile-map artifacts, and manifest-only non-destructive export lineage.",
+      "Updated the Facial native registry and internal UserManual anchors for model/operator recovery."
+    ],
+    "important_scope_boundary": "This MT implements the backend artifact contract and proof tests. Transactional API/DB persistence and operator-facing/Argus-steerable UI remain carried forward into MT-029 and MT-030; do not claim full runtime queue parity from MT-028 alone."
+  },
+  "verification_result": {
+    "status": "TARGETED_BACKEND_PROOFS_PASSED_WITH_CAVEATS",
+    "passed": [
+      "rustfmt --edition 2021 on touched Rust files",
+      "cargo check --manifest-path src/backend/handshake_core/Cargo.toml --test atelier_facial_review_tests -j 1 --message-format short",
+      "direct execution of atelier_facial_review_tests binary: 5 passed, 0 failed",
+      "direct execution of user_manual_content_tests ckc_posekit_quickstart_is_native_first_and_reachable: 1 passed, 13 filtered",
+      "git diff --check on the scoped MT-028 files",
+      "static scan found no stale Facial review placeholder strings in touched registry/test paths",
+      "static scan found no hardcoded local path leaks in scoped MT-028 files"
+    ],
+    "logs": [
+      "E:/Handshake_Artifacts/handshake-test/mt028-review-check.log",
+      "E:/Handshake_Artifacts/handshake-test/mt028-review-no-run-after-fix.log",
+      "E:/Handshake_Artifacts/handshake-test/mt028-review-direct-binary-after-fix.log",
+      "E:/Handshake_Artifacts/handshake-test/mt028-user-manual-direct-binary.log"
+    ],
+    "inconclusive": [
+      "A filtered cargo lib-test run for facial_native_registry_covers_required_source_families timed out and is not claimed as passing.",
+      "The manual filtered cargo invocation timed out before harness completion, but the freshly built manual test binary passed directly.",
+      "Full workspace Cargo proof was intentionally skipped under the operator instruction to avoid conflicting with another heavy Cargo run."
+    ],
+    "known_follow_up": [
+      "MT-029 must expose command/API/receipt parity over these artifacts with durable persistence and concurrency semantics.",
+      "MT-030 must expose the review queue/montage/export flow in the Ingest UI and make it Argus-steerable without foreground focus theft."
+    ]
+  },
+  "review_result": {
+    "pre_implementation_adversarial_review": [
+      {
+        "agent_id": "019f1d4b-afba-73d3-915f-63033c409fce",
+        "lens": "Handshake integration, parallel claims, lineage, Argus inspectability",
+        "addressed": [
+          "Did not overload review_recommendation as a decision ledger.",
+          "Registry strings now describe implemented backend artifact contracts instead of placeholder recommendation state.",
+          "Candidate IDs avoid duplicate collapse by hashing content_hash plus source_ref.",
+          "Montage output includes explicit tile-to-image mapping and Argus selectors.",
+          "Export manifest is non-destructive and replays decision receipts."
+        ],
+        "carried_forward": "Transactional API/DB persistence and UI operation are required in MT-029/MT-030."
+      },
+      {
+        "agent_id": "019f1d4d-065d-72d3-933e-9cc100c65ae8",
+        "lens": "Original Facial app review queue behavior",
+        "addressed": [
+          "Mapped Facial accept/reject/hold to operator pass/reject/unsure while preserving entered vocabulary.",
+          "Ported session, claim, decision, status, montage-map, and export-manifest concepts as native Handshake artifacts.",
+          "Kept exports manifest-only and lineage-rich rather than mutating source datasets."
+        ],
+        "carried_forward": "Original Facial command wrappers and service API parity are MT-029 scope."
+      }
+    ],
+    "post_implementation_adversarial_review": "Integrated locally through targeted tests and static scans; no separate live subagent patch was applied after implementation. Validator should treat API/DB/UI runtime parity as outstanding, not as an MT-028 pass condition."
+  },
   "manual_requirement": "Required if this MT exposes or changes operator/model-visible Facial behavior.",
   "handoff": {
-    "status": "IN_PROGRESS",
+    "status": "READY_FOR_VALIDATION",
     "started_at_utc": "2026-07-01T10:51:44.266Z",
-    "note": "Backend-first implementation started. active_mt_id remains MT-010 because that is the separate active media/linking lane; MT-028 is tracked directly in this contract and mt_index row."
+    "ready_for_validation_at_utc": "2026-07-01T11:41:57.603Z",
+    "next_actor": "WP_VALIDATOR",
+    "note": "Backend artifact core is ready for validation at product commit 25af5486. active_mt_id remains MT-010 because that is the separate active media/linking lane. Continue Facial runtime parity through MT-029 and MT-030 before claiming operator-usable review queue completion."
   }
 }
