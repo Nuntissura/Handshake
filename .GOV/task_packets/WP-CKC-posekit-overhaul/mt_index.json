@@ -2,7 +2,7 @@
   "schema_id": "hsk.microtask_index@1",
   "schema_version": "microtask_index_v1",
   "wp_id": "WP-CKC-posekit-overhaul",
-  "updated_at_utc": "2026-07-01T11:41:57.603Z",
+  "updated_at_utc": "2026-07-01T11:44:06.558Z",
   "active_mt_id": "MT-010",
   "next_mt_id": "MT-031",
   "microtask_contract_glob": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-*.json",
@@ -269,11 +269,12 @@
     },
     {
       "mt_id": "MT-029",
-      "status": "PENDING",
+      "status": "IN_PROGRESS",
       "title": "Expose Facial command and receipt API parity",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-029.json",
       "product_edit_allowed": true,
-      "started_at_utc": null
+      "started_at_utc": "2026-07-01T11:44:06.558Z",
+      "parallel_lane_note": "Facial command/API/receipt parity lane; active_mt_id intentionally remains MT-010."
     },
     {
       "mt_id": "MT-030",

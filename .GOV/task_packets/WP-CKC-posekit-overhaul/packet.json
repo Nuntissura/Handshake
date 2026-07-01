@@ -16,7 +16,7 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "base_wp_id": "WP-CKC-posekit-overhaul",
   "created_at_utc": "2026-06-28T12:26:14.447Z",
-  "updated_at_utc": "2026-07-01T11:41:57.603Z",
+  "updated_at_utc": "2026-07-01T11:44:06.558Z",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
     "packet_projection": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.md",
@@ -73,8 +73,8 @@
       "state_recovery": "Subagents must write results back to MT contracts or WP communications, not to chat-only memory."
     },
     "last_state_update": {
-      "updated_at_utc": "2026-07-01T11:41:57.603Z",
-      "summary": "MT-028 product commit 25af5486 is ready for validation with native Facial review session, claim, decision, montage-map, status replay, and non-destructive export lineage artifacts. MT-029/MT-030 remain required for command/API persistence and UI/Argus runtime parity; MT-010 remains the separate active media/linking lane."
+      "updated_at_utc": "2026-07-01T11:44:06.558Z",
+      "summary": "MT-029 is now in progress to expose Facial command/API/receipt parity over the native artifact modules. MT-010 remains the separate active media/linking lane."
     }
   },
   "source_control": {
@@ -320,8 +320,8 @@
   ],
   "execution": {
     "last_state_update": {
-      "updated_at_utc": "2026-07-01T11:41:57.603Z",
-      "summary": "MT-028 product commit 25af5486 is ready for validation; targeted backend review tests, direct manual anchor test, scoped diff check, stale-string scan, and path-leak scan passed. API/DB/UI runtime parity remains carried into MT-029/MT-030."
+      "updated_at_utc": "2026-07-01T11:44:06.558Z",
+      "summary": "MT-029 is in progress. Product target is native Facial command/API/receipt parity with recoverable status and artifact reads; do not claim UI/Argus parity until MT-030."
     }
   }
 }

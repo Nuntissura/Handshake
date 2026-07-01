@@ -5,9 +5,9 @@
   "wp_id": "WP-CKC-posekit-overhaul",
   "mt_id": "MT-029",
   "title": "Expose Facial command and receipt API parity",
-  "status": "PENDING",
+  "status": "IN_PROGRESS",
   "created_at_utc": "2026-06-30T23:20:00.000Z",
-  "updated_at_utc": "2026-06-30T23:20:00.000Z",
+  "updated_at_utc": "2026-07-01T11:44:06.558Z",
   "product_edit_allowed": true,
   "operator_request": "Facial originally exposed many workflow commands. Handshake needs native backend/API/Argus command parity so models can use the capability without file queues or external app assumptions.",
   "authority_files": {
@@ -21,15 +21,16 @@
     "source_file": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-029.json"
   },
   "lifecycle": {
-    "status": "PENDING",
-    "active": false,
+    "status": "IN_PROGRESS",
+    "active": true,
     "depends_on": [
       "MT-025",
       "MT-026",
       "MT-027",
       "MT-028"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PENDING",
+    "started_at_utc": "2026-07-01T11:44:06.558Z"
   },
   "state_recovery": {
     "primary_product_worktree": "../wtc-ckc-posekit-overhaul",
@@ -102,6 +103,8 @@
   },
   "manual_requirement": "Required if this MT exposes or changes operator/model-visible Facial behavior.",
   "handoff": {
-    "status": "PENDING"
+    "status": "IN_PROGRESS",
+    "started_at_utc": "2026-07-01T11:44:06.558Z",
+    "note": "Started after MT-028 product commit 25af5486. Implement command/API/receipt parity over existing Facial native artifact modules without disturbing the separate active MT-010 media/linking lane."
   }
 }
