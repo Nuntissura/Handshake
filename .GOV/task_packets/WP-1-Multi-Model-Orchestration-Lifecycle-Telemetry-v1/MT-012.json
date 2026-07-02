@@ -20,7 +20,9 @@
     "depends_on": [
       "MT-003",
       "MT-008",
-      "MT-010"
+      "MT-010",
+      "MT-014",
+      "MT-015"
     ],
     "blocks": [],
     "active": false,
@@ -117,6 +119,23 @@
       "rust_native_argus_operator_surface_and_usermanual",
       "spec_realism_negative_guards_and_mt_status_signaling"
     ]
+  },
+  "pre_implementation_review": {
+    "reviewed_at_utc": "2026-07-02T13:00:00Z",
+    "verdict": "NOT_IMPLEMENTABLE_AS_WRITTEN_CONTRACT_EDITS_REQUIRED_BUILD_AFTER_MT014_MT015",
+    "full_review_ref": "session task a581fe20b99b9f5b1 output (read-only adversarial, file:line evidence)",
+    "dependency_correction": "depends_on updated to add MT-014 (local model enumeration) + MT-015 (cloud config/auth+enumeration): the picker enumerates LOCAL+CLOUD models which only exist once those land. Build order MT-014 -> MT-015 -> MT-012. MT-013 is NOT required if MT-012 proves via a CLI-bridge loopback lane (recommended; decouples from GPU/real-load).",
+    "blockers_and_decisions": [
+      "P0 F1+F3 message-kind gap: ModelLaneMessageKind {Proposal,Critique,ToolRequest,ToolResult,Status,PromotionRequest,Recovery} has no kind for operator prompt / model answer / exposed thought; AgentActivity is {ToolCall,Thinking,Text,Other}. DECISION: map ToolCall->ToolRequest, rendered tool_result->ToolResult, and carry prompt/answer/thought via Status messages discriminated by diagnostic_payload.activity_kind reusing AgentActivityKind::label() (tool_call|thinking|text|other) - do NOT coerce thought into an unlabeled Status. Persist the operator turn as a HUMAN_OPERATOR ModelLane (launch_authority=Operator, runtime_binding=HUMAN, backend=human) per spec 1619.",
+      "P0 F9 launch-route seam MISSING: no api/* route reaches spawn_session (only read routes + forbidden legacy Tauri IPC). DECISION: MT-012 builds a NEW backend POST launch route resolving through SwarmCoordinator::spawn_session + a backend_client method; add a route-level negative test that a bypass fails closed (reuse the coordinator dexterity_model_lane_store_missing guard).",
+      "P0 F10 folder/worktree premise WRONG: project_tree.rs is workspace documents (not filesystem/worktree); SpawnRequest.working_dir is RECORDED-ATTRIBUTION-ONLY (not a real cwd); CliBridgeConfig.working_dir IS the real subprocess cwd but is not plumbed from SpawnRequest. DECISION: define exactly what the operator selects (path / worktree_id / workspace_id), plumb selection -> SpawnRequest.working_dir -> CliBridgeConfig.working_dir so a CLI lane truly runs in that dir; prove launched subprocess cwd == selection; drop the project_tree/project_tabs reuse claim.",
+      "P0 F11+F2 dependency+selection-audit: picker enumerates via the MT-014 registry API + MT-015 cloud enumeration API (degrade to empty/unavailable if absent); do NOT build a mock picker. Add an AC+proof that model/worktree selection emits an auditable EventLedger SELECTION-decision event per spec 4.3.9.4.4 (distinct from launch).",
+      "MED F5 streaming batching: payload_ref/payload_sha256 are required per ModelLaneMessage; a streaming turn is many lines. DECISION: coalesce to ONE message per completed activity block (agent_activity item.completed vs item.updated), not per delta line; prove with a realistic multi-line stream.",
+      "MED F6 turn model: define per-turn fresh invocation (each turn = new run/lane) vs session-resume continuity (claude --resume / codex thread_id); do not leave 'interactive' undefined.",
+      "MED F8 force stream-json: the launch MUST configure --output-format stream-json/--json so thought/tool-calls are typed, not a wall of Other{raw}; assert in proof.",
+      "LOW F14 chat-input focus: the prompt box takes keyboard focus - Argus drive must set text without stealing OS focus/Z-order (HBR-QUIET-001/003)."
+    ],
+    "positives_reuse": "The CLI-capture parser (agent_activity.rs parse_line; claude+codex+generic; lossless Other) is real + unit-tested but NOT wired to ModelLane - the core net-new deliverable is AgentActivity -> record_message under a live ModelLaneRun. spawn_session persists lanes + fails closed. MockCliSpawner/CliSubprocessSpawner enable a non-mocked loopback proof. swarm_lane_diagnostics.rs pane + register_author_id dedup guard is the copy-from template; add one PaneType variant + RUN-menu leaf."
   },
   "red_team": {
     "required": true,

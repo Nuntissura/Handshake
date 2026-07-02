@@ -230,14 +230,16 @@
       "depends_on": [
         "MT-003",
         "MT-008",
-        "MT-010"
+        "MT-010",
+        "MT-014",
+        "MT-015"
       ],
-      "summary": "Operator work-surface: interactive native chat/launch pane to pick local/cloud model + folder/worktree, launch via Dexterity SwarmCoordinator, and capture CLI conversation/thought/tool-calls as ModelLaneMessage wired to Flight Recorder. OPERATOR_REQUESTED_ADDITION 2026-07-01, pending scope confirmation.",
+      "summary": "Operator work-surface: interactive native chat/launch pane to pick local/cloud model + folder/worktree, launch via Dexterity SwarmCoordinator, and capture CLI conversation/thought/tool-calls as ModelLaneMessage wired to Flight Recorder. Build after MT-014 (local enum) + MT-015 (cloud enum/auth). OPERATOR_REQUESTED_ADDITION 2026-07-01.",
       "unlocks": "Unlocks operator-driven local/cloud model sessions inside Handshake with typed CLI-wrapper capture.",
       "blocks": [],
       "proof_status": "NOT_RUN",
       "hbr_status": "PENDING",
-      "pre_implementation_adversarial_review_status": "NOT_RUN",
+      "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review_BUILD_AFTER_MT014_MT015",
       "post_implementation_adversarial_review_status": "NOT_RUN",
       "adversarial_findings_status": "NOT_RUN"
     },
