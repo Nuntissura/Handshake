@@ -3515,19 +3515,24 @@ impl ModelLaneStore {
             &canonical_run.event_ledger_stream_id,
         )?;
         validate_recovery_checkpoint_record(&self.pool, &checkpoint).await?;
-        let recovery_high_watermark =
-            event_stream_high_watermark(&self.pool, &checkpoint.event_ledger_stream_id).await?;
+        // Spec 4.3.9.2.5 + MT-007 acceptance: deterministic recovery replays UP TO
+        // the checkpoint's last_event_ledger_seq. Adjunct state (recovery events,
+        // payload/CRDT repairs, leases, MT status, cloud denials) recorded AFTER that
+        // boundary is post-checkpoint and MUST be excluded from the recovered run, or
+        // fail closed where the payload/CRDT contract requires; it is never silently
+        // folded in by treating the whole-stream high-watermark as the replay bound.
+        let recovery_bound_event_ledger_seq = checkpoint.last_event_ledger_seq;
         let mut recovery_events = recovery_events_for_run(
             &self.pool,
             run_id,
             &checkpoint.event_ledger_stream_id,
-            recovery_high_watermark,
+            recovery_bound_event_ledger_seq,
         )
         .await?;
         validate_recovery_event_stream(
             &self.pool,
             run_id,
-            recovery_high_watermark,
+            recovery_bound_event_ledger_seq,
             &recovery_events,
         )
         .await?;
@@ -3535,7 +3540,7 @@ impl ModelLaneStore {
             &self.pool,
             run_id,
             &checkpoint,
-            recovery_high_watermark,
+            recovery_bound_event_ledger_seq,
             &recovery_events,
         )
         .await?;
@@ -3543,18 +3548,18 @@ impl ModelLaneStore {
             &self.pool,
             run_id,
             &checkpoint,
-            recovery_high_watermark,
+            recovery_bound_event_ledger_seq,
             &recovery_events,
         )
         .await?;
         let replay =
-            replay_run_at_high_watermark(&self.pool, run_id, &checkpoint, recovery_high_watermark)
+            replay_run_at_recovery_bound(&self.pool, run_id, &checkpoint, recovery_bound_event_ledger_seq)
                 .await?;
         validate_replay_message_payload_authority(
             &self.pool,
             run_id,
             &checkpoint,
-            recovery_high_watermark,
+            recovery_bound_event_ledger_seq,
             &replay.messages,
         )
         .await?;
@@ -3563,7 +3568,7 @@ impl ModelLaneStore {
             &self.pool,
             run_id,
             &checkpoint.event_ledger_stream_id,
-            recovery_high_watermark,
+            recovery_bound_event_ledger_seq,
         )
         .await?;
         let now = Utc::now();
@@ -3595,14 +3600,14 @@ impl ModelLaneStore {
             &self.pool,
             run_id,
             &checkpoint.event_ledger_stream_id,
-            recovery_high_watermark,
+            recovery_bound_event_ledger_seq,
         )
         .await?;
         let mt_runtime_statuses = mt_runtime_statuses_for_run(
             &self.pool,
             run_id,
             &checkpoint.event_ledger_stream_id,
-            recovery_high_watermark,
+            recovery_bound_event_ledger_seq,
         )
         .await?;
         Ok(ModelLaneRecoveredRun {
@@ -7693,7 +7698,7 @@ async fn recovery_events_for_run(
     pool: &PgPool,
     run_id: &str,
     event_ledger_stream_id: &str,
-    high_watermark_event_ledger_seq: i64,
+    recovery_bound_event_ledger_seq: i64,
 ) -> ModelLaneResult<Vec<ModelLaneRecoveryEventRecord>> {
     sqlx::query(
         r#"
@@ -7708,7 +7713,7 @@ async fn recovery_events_for_run(
     )
     .bind(run_id)
     .bind(event_ledger_stream_id)
-    .bind(high_watermark_event_ledger_seq)
+    .bind(recovery_bound_event_ledger_seq)
     .fetch_all(pool)
     .await?
     .into_iter()
@@ -7724,7 +7729,7 @@ async fn lane_leases_for_run(
     pool: &PgPool,
     run_id: &str,
     event_ledger_stream_id: &str,
-    high_watermark_event_ledger_seq: i64,
+    recovery_bound_event_ledger_seq: i64,
 ) -> ModelLaneResult<Vec<ModelLaneLeaseRecord>> {
     sqlx::query(
         r#"
@@ -7739,7 +7744,7 @@ async fn lane_leases_for_run(
     )
     .bind(run_id)
     .bind(event_ledger_stream_id)
-    .bind(high_watermark_event_ledger_seq)
+    .bind(recovery_bound_event_ledger_seq)
     .fetch_all(pool)
     .await?
     .into_iter()
@@ -7755,7 +7760,7 @@ async fn mt_runtime_statuses_for_run(
     pool: &PgPool,
     run_id: &str,
     event_ledger_stream_id: &str,
-    high_watermark_event_ledger_seq: i64,
+    recovery_bound_event_ledger_seq: i64,
 ) -> ModelLaneResult<Vec<ModelLaneMtRuntimeStatusRecord>> {
     sqlx::query(
         r#"
@@ -7770,7 +7775,7 @@ async fn mt_runtime_statuses_for_run(
     )
     .bind(run_id)
     .bind(event_ledger_stream_id)
-    .bind(high_watermark_event_ledger_seq)
+    .bind(recovery_bound_event_ledger_seq)
     .fetch_all(pool)
     .await?
     .into_iter()
@@ -7786,7 +7791,7 @@ async fn cloud_consent_denials_for_run(
     pool: &PgPool,
     run_id: &str,
     event_ledger_stream_id: &str,
-    high_watermark_event_ledger_seq: i64,
+    recovery_bound_event_ledger_seq: i64,
 ) -> ModelLaneResult<Vec<ModelLaneCloudConsentDenialRecord>> {
     sqlx::query(
         r#"
@@ -7801,7 +7806,7 @@ async fn cloud_consent_denials_for_run(
     )
     .bind(run_id)
     .bind(event_ledger_stream_id)
-    .bind(high_watermark_event_ledger_seq)
+    .bind(recovery_bound_event_ledger_seq)
     .fetch_all(pool)
     .await?
     .into_iter()
@@ -7842,11 +7847,11 @@ async fn cloud_consent_denials_for_run(
     .collect()
 }
 
-async fn replay_run_at_high_watermark(
+async fn replay_run_at_recovery_bound(
     pool: &PgPool,
     run_id: &str,
     checkpoint: &ModelLaneRecoveryCheckpointRecord,
-    high_watermark_event_ledger_seq: i64,
+    recovery_bound_event_ledger_seq: i64,
 ) -> ModelLaneResult<ModelLaneReplay> {
     let run_row = sqlx::query(
         r#"
@@ -7862,7 +7867,7 @@ async fn replay_run_at_high_watermark(
     )
     .bind(run_id)
     .bind(&checkpoint.event_ledger_stream_id)
-    .bind(high_watermark_event_ledger_seq)
+    .bind(recovery_bound_event_ledger_seq)
     .fetch_optional(pool)
     .await?
     .ok_or_else(|| ModelLaneError::NotFound(format!("run_id {run_id} before checkpoint")))?;
@@ -7888,7 +7893,7 @@ async fn replay_run_at_high_watermark(
     )
     .bind(&checkpoint.event_ledger_stream_id)
     .bind(run_id)
-    .bind(high_watermark_event_ledger_seq)
+    .bind(recovery_bound_event_ledger_seq)
     .fetch_all(pool)
     .await?
     .into_iter()
@@ -7919,7 +7924,7 @@ async fn replay_run_at_high_watermark(
     )
     .bind(&checkpoint.event_ledger_stream_id)
     .bind(run_id)
-    .bind(high_watermark_event_ledger_seq)
+    .bind(recovery_bound_event_ledger_seq)
     .fetch_all(pool)
     .await?
     .into_iter()
@@ -8503,7 +8508,7 @@ fn event_payload_run_id(payload: &Value) -> Option<String> {
 async fn validate_recovery_event_stream(
     pool: &PgPool,
     run_id: &str,
-    high_watermark_event_ledger_seq: i64,
+    recovery_bound_event_ledger_seq: i64,
     events: &[ModelLaneRecoveryEventRecord],
 ) -> ModelLaneResult<()> {
     let mut expected = 1_i64;
@@ -8518,14 +8523,14 @@ async fn validate_recovery_event_stream(
             )));
         }
         expected += 1;
-        if event.event_ledger_seq > high_watermark_event_ledger_seq {
+        if event.event_ledger_seq > recovery_bound_event_ledger_seq {
             let failure = ModelLaneRecoveryFailureKind::EventLedgerSequenceGap;
             return Err(ModelLaneError::InvalidInput(format!(
                 "{} {} recovery_event_id {} is after recovery high-watermark {}",
                 failure.code(),
                 failure.as_str(),
                 event.recovery_event_id,
-                high_watermark_event_ledger_seq
+                recovery_bound_event_ledger_seq
             )));
         }
         let row = sqlx::query(
@@ -8603,7 +8608,7 @@ async fn validate_recovery_payload_refs(
     pool: &PgPool,
     run_id: &str,
     checkpoint: &ModelLaneRecoveryCheckpointRecord,
-    high_watermark_event_ledger_seq: i64,
+    recovery_bound_event_ledger_seq: i64,
     events: &[ModelLaneRecoveryEventRecord],
 ) -> ModelLaneResult<()> {
     let mut refs = BTreeSet::new();
@@ -8615,7 +8620,7 @@ async fn validate_recovery_payload_refs(
         pool,
         run_id,
         checkpoint,
-        high_watermark_event_ledger_seq,
+        recovery_bound_event_ledger_seq,
         refs,
     )
     .await
@@ -8625,7 +8630,7 @@ async fn validate_replay_message_payload_authority(
     pool: &PgPool,
     run_id: &str,
     checkpoint: &ModelLaneRecoveryCheckpointRecord,
-    high_watermark_event_ledger_seq: i64,
+    recovery_bound_event_ledger_seq: i64,
     messages: &[ModelLaneMessageRecord],
 ) -> ModelLaneResult<()> {
     let mut refs = BTreeSet::new();
@@ -8647,7 +8652,7 @@ async fn validate_replay_message_payload_authority(
         pool,
         run_id,
         checkpoint,
-        high_watermark_event_ledger_seq,
+        recovery_bound_event_ledger_seq,
         refs,
     )
     .await?;
@@ -8655,7 +8660,7 @@ async fn validate_replay_message_payload_authority(
         pool,
         run_id,
         checkpoint,
-        high_watermark_event_ledger_seq,
+        recovery_bound_event_ledger_seq,
         expected_hashes,
     )
     .await
@@ -8665,7 +8670,7 @@ async fn validate_payload_authority_refs(
     pool: &PgPool,
     run_id: &str,
     checkpoint: &ModelLaneRecoveryCheckpointRecord,
-    high_watermark_event_ledger_seq: i64,
+    recovery_bound_event_ledger_seq: i64,
     refs: BTreeSet<String>,
 ) -> ModelLaneResult<()> {
     for payload_ref in refs {
@@ -8692,7 +8697,7 @@ async fn validate_payload_authority_refs(
         .bind(run_id)
         .bind(&payload_ref)
         .bind(&checkpoint.event_ledger_stream_id)
-        .bind(high_watermark_event_ledger_seq)
+        .bind(recovery_bound_event_ledger_seq)
         .fetch_optional(pool)
         .await?;
         let Some(row) = row else {
@@ -8735,7 +8740,7 @@ async fn validate_payload_authority_hashes(
     pool: &PgPool,
     run_id: &str,
     checkpoint: &ModelLaneRecoveryCheckpointRecord,
-    high_watermark_event_ledger_seq: i64,
+    recovery_bound_event_ledger_seq: i64,
     expected_hashes: BTreeMap<String, String>,
 ) -> ModelLaneResult<()> {
     for (payload_ref, payload_sha256) in expected_hashes {
@@ -8756,7 +8761,7 @@ async fn validate_payload_authority_hashes(
         .bind(run_id)
         .bind(&payload_ref)
         .bind(&checkpoint.event_ledger_stream_id)
-        .bind(high_watermark_event_ledger_seq)
+        .bind(recovery_bound_event_ledger_seq)
         .fetch_optional(pool)
         .await?;
         let Some(row) = row else {
@@ -8819,7 +8824,7 @@ async fn validate_recovery_crdt_posture(
     pool: &PgPool,
     run_id: &str,
     checkpoint: &ModelLaneRecoveryCheckpointRecord,
-    high_watermark_event_ledger_seq: i64,
+    recovery_bound_event_ledger_seq: i64,
     events: &[ModelLaneRecoveryEventRecord],
 ) -> ModelLaneResult<()> {
     for event in events {
@@ -8862,7 +8867,7 @@ async fn validate_recovery_crdt_posture(
             .bind(event.crdt_base_snapshot_ref.as_deref())
             .bind(event.crdt_state_vector.as_deref())
             .bind(&checkpoint.event_ledger_stream_id)
-            .bind(high_watermark_event_ledger_seq)
+            .bind(recovery_bound_event_ledger_seq)
             .fetch_optional(pool)
             .await?;
             let Some(row) = row else {
@@ -9065,23 +9070,6 @@ async fn ensure_event_ledger_sequence_in_stream_tx(
         "record.event_ledger_stream_id",
         event_ledger_stream_id,
     )
-}
-
-async fn event_stream_high_watermark(
-    pool: &PgPool,
-    event_ledger_stream_id: &str,
-) -> ModelLaneResult<i64> {
-    sqlx::query_scalar(
-        r#"
-        SELECT COALESCE(MAX(event_sequence), 0)
-        FROM kernel_event_ledger
-        WHERE session_run_id = $1
-        "#,
-    )
-    .bind(event_ledger_stream_id)
-    .fetch_one(pool)
-    .await
-    .map_err(Into::into)
 }
 
 async fn lane_by_id_tx(
