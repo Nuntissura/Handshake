@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-009",
       "MT-010"
@@ -23,15 +23,15 @@
     "blocks": [],
     "active": false,
     "validator_verdict": "PENDING",
-    "claimed_by": null,
-    "claimed_at_utc": null,
-    "ready_for_validation_by": null,
-    "ready_for_validation_at_utc": null,
+    "claimed_by": "KERNEL_BUILDER-20260701-190732",
+    "claimed_at_utc": "2026-07-02T12:53:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
+    "ready_for_validation_at_utc": "2026-07-02T13:14:05Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "NOT_RUN",
-    "hbr_status": "PENDING",
+    "proof_status": "PASS_MT011_2026-07-02: user_manual_behavior_coverage_tests 1/1 PASS (79s, managed PG 5544). model_lane_behavior_coverage_matrix (15 behaviors) matches the ModelLane schema registry and the seeded UserManual pages/tools; per-behavior posture asserted (internal_diagnostics Wired, palmistry DeferredWithReason with follow_up_ref palmistry://wp1/model-lane/). UserManual covers the built ModelLane behaviors; the new MTs (012/013/014/015) add their own manual coverage as implemented.",
+    "hbr_status": "PASS_HBR_MAN_FOR_MT011_USERMANUAL_COVERAGE_GREEN",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
     "last_recovery_event_ref": null,

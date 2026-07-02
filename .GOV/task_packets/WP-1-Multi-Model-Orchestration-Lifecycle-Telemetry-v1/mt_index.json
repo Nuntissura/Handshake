@@ -193,7 +193,7 @@
     },
     {
       "mt_id": "MT-010",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "depends_on": [
         "MT-007",
         "MT-008",
@@ -202,15 +202,15 @@
       "summary": "Update no-context model manual and backend navigation for lane launch, exchange, diagnostics, and recovery.",
       "unlocks": "Unlocks no-context model/operator use of the lane system through canonical UserManual and backend navigation.",
       "blocks": [],
-      "proof_status": "NOT_RUN",
-      "hbr_status": "PENDING",
+      "proof_status": "PASS_MT010_2026-07-02_NAV_API_2_PASS_506s_ARTIFACTS_LOOKUP_500_FIXED_JSON_FIELD_QUERY_TEST_REGISTERED_COMMIT_8744430f_8_SURFACES_MATCH",
+      "hbr_status": "PASS_MT010_NAV_AND_MANUAL_GREEN",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "NOT_RUN",
       "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
     },
     {
       "mt_id": "MT-011",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "depends_on": [
         "MT-009",
         "MT-010"
@@ -218,8 +218,8 @@
       "summary": "Update the internal UserManual so every WP behavior is usable by future models/operators and linked to Flight Recorder plus Palmistry posture.",
       "unlocks": "Unlocks WP-wide manual currency so every implemented behavior is discoverable, recoverable, and tied to evidence.",
       "blocks": [],
-      "proof_status": "NOT_RUN",
-      "hbr_status": "PENDING",
+      "proof_status": "PASS_MT011_2026-07-02_USERMANUAL_BEHAVIOR_COVERAGE_1_PASS_79s_15_BEHAVIORS_MATRIX_MATCHES_SCHEMA_REGISTRY_AND_SEED_CORPUS_POSTURE_ASSERTED_NEW_MTS_ADD_OWN_COVERAGE",
+      "hbr_status": "PASS_MT011_USERMANUAL_COVERAGE_GREEN",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "NOT_RUN",
       "adversarial_findings_status": "PRE_IMPLEMENTATION_FINDINGS_APPLIED_TO_CONTRACT"
