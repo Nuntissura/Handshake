@@ -14,7 +14,7 @@
   "title": "E11-MT-080-AppHostMount-SecondaryPanesAndDeepWiring",
   "group": "E11 Shell host-mount (app.rs convergence, part 2)",
   "created_at_utc": "2026-06-26T00:00:00Z",
-  "updated_at_utc": "2026-06-26T00:00:00Z",
+  "updated_at_utc": "2026-07-02T03:36:44Z",
   "authoring_note": "Authored 2026-06-26 by KERNEL_BUILDER as the MT-079 fuller-mount follow-on (the canvas/graph + side-pane + deep-wiring carries MT-079 honestly deferred). MT-079 mounted the CORE code+rich editors live; this MT mounts the secondary panes + the deeper per-pane wirings carried from MT-035/036/043/060/061/062/063/064/066/067/073.",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-080.json",
@@ -26,7 +26,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "NEEDS_REIMPLEMENTATION",
     "active": false,
     "depends_on": [
       "MT-079",
@@ -45,7 +45,11 @@
       "MT-045",
       "MT-046"
     ],
-    "validator_verdict": "PENDING"
+    "validator_verdict": "PENDING",
+    "reopened_at_utc": "2026-07-02T03:36:44Z",
+    "reopened_by": "KERNEL_BUILDER",
+    "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: (1) Relevant Memory + Stage pane mounts are OPERATOR-UNREACHABLE - register helpers called only in unit tests; no menu/palette/drawer/navigator arm opens those Placeholder pane types; the AC-080-1 mounted-LIVE proof injects pane types programmatically (retype harness) so it does not evidence operator reachability; even interop.route-to-stage routes content without opening the Stage pane. (2) PaneType collisions: singleton side-pane factories registered over CONTENT-ADDRESSED navigation types ignoring content_id - every loom-block open renders the same OutgoingLinksPanel instead of block content, and quick-switcher WP/MT hits render the generic graph view with the WP/MT id ignored. Navigation lands on unrelated pane content. Fix: VIEW-menu/palette open commands (view.relevant-memory, view.stage), give side panes their own keys or make mounts consume ctx content_id, restore honest block-content/WP surfaces, re-prove AC-080-1 via real operator routes.",
+    "deflection_category": "unreachable_secondary_panes_and_panetype_collisions"
   },
   "scope": {
     "summary": "HOST-INTEGRATION GLUE ONLY (the MT-079 fuller-mount follow-on). MT-079 mounted the CORE code + rich editor panes LIVE in app.rs (proven by a real-app kittest + screenshot) and honestly carried the secondary panes + deeper wirings. This MT mounts the rest + threads the deferred per-pane wirings so the canvas, graph, and side panes become LIVE in the running Handshake app and their MT-built event seams reach the real backend. NO new editor features, NO new backend endpoints, NO SQLite. It binds the EXISTING set_*/event seams the prior MTs built+tested; every absent backend route stays a typed blocker (FEMS/Stage/Calendar/Locus HTTP routes verified ABSENT -> the docked panes show their honest empty-states), and live-PG round-trips stay NEEDS_MANAGED_RESOURCE_PROOF. PostgreSQL/EventLedger only; src/backend reuse-via-API-only.\\n\\nPRIORITIZED MOUNT (prove the high-value live panes first, then the deeper wirings; honest typed-carry whatever the run cannot finish - NO todo!()/fake):\\nGROUP A (mount the secondary panes LIVE - prove first): (1) register the REAL CanvasBoardPaneFactory (graph/canvas_board.rs MT-026) + GraphViewPaneFactory (graph/graph_view.rs MT-021/060) over their placeholders in app.rs, threading workspace_id/runtime via the shared-cell pattern; (2) DOCK the widget-proven side panes via their register_* factories: loom.outgoing_links (MT-062), relevant-memory (MT-063), StagePane (MT-066), DailyJournalPanel (MT-067), the manual pane (MT-073). Prove with a real-app kittest that each pane's REAL AccessKit subtree renders (not placeholder) + a wgpu screenshot of the mounted secondary panes.\\nGROUP B (deep per-pane wiring - the MT-079 carries): (3) CANVAS (MT-061): host consumes ResizePlacement/AssignSection/EditTextCard events -> real PATCH/POST via the MT-026 canvas client + getCanvasBoard refresh; set CanvasCardKind from the card response; push_canvas_placement_undo + emit_canvas_node_placed FR. (4) GRAPH (MT-060): add the depth-parameterized graph-search client (backend_client.rs local_request taking backlink_depth) + host consumes GraphEvent::DepthChanged to re-query. (5) CODE pane (MT-035/036): route code Ctrl+Z/Ctrl+Y -> bus.undo/redo + push_code_edit_undo; emit_code_edit (debounced 2s); app.rs bus.set_undo_runtime + register_undo_commands + render_undo_count_indicator. (6) OUTGOING-LINKS (MT-062): build resolver_index from GET /knowledge/documents/{id} + /loom/blocks off render path; wire on_open to the MT-030 nav bus. (7) RELEVANT-MEMORY (MT-063): subscribe refresh_for_context to the MT-031 bus + wire source-links to the nav bus. (8) PROPOSE-TO-MEMORY (MT-064): wire the live command invocation (SharedSelection->dialog->confirm). (9) STAGE (MT-066): wire Route-to-Stage/embed-stage-capture commands. (10) DAILY-JOURNAL (MT-067): wire the MT-030 date-selected signal -> open_or_create_daily_note. (11) MT-043 swarm-authoring: add the AccessKit Action::SetValue/ReplaceSelectedText on the code_editor_text node + a wikilink-by-id insertion action.\\n\\nThe agent MUST prioritize GROUP A (mount the secondary panes LIVE + prove with a real-app kittest + screenshot) before GROUP B (the deep wirings). Anything not completed is an HONEST typed carry in implementation_result (NOT faked, NOT todo!()); live-PG + absent-HTTP-route halves stay gated. A partial-but-honest mount that makes the secondary panes live + threads as many wirings as the run allows is the expected, acceptable outcome (mirrors MT-079).",
