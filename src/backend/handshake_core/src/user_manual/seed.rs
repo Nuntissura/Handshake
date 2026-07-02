@@ -4111,6 +4111,69 @@ fn seed_feature_entries() -> Vec<UserManualFeatureEntry> {
         manual_version: USER_MANUAL_VERSION.into(),
     });
 
+    // WP-1 MT-014: the shared enumerable/labeled model catalog, the LoomSearchV2
+    // embedding-dimension degrade-not-error contract, and the Work Profiles
+    // provider_ref resolver — the surfaces a no-context model needs to list the
+    // configured local model, understand why a semantic search degraded, and
+    // resolve a legacy provider_ref.
+    let tool_ids = vec![
+        "mt014_catalog_enumerates_and_labels_configured_model".to_string(),
+        "mt014_catalog_empty_registry_is_empty_list".to_string(),
+        "mt014_catalog_unknown_model_id_sentinel_label".to_string(),
+        "mt014_catalog_records_selection_decision_event".to_string(),
+        "mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search".to_string(),
+        "mt014_provider_ref_migrates_ollama_to_local_runtime".to_string(),
+    ];
+    let title =
+        "WP-1 MT-014 shared model catalog, Loom embedding-dim degrade, and provider_ref resolver"
+            .to_string();
+    let description = concat!(
+        "PURPOSE: make the default LlmClient's embedded model registry shared, enumerable, and ",
+        "labeled, and make LoomSearchV2 degrade (not hard-error) on an embedding-dimension ",
+        "mismatch. USAGE: from AppState, `AppState::model_catalog()` returns the shared ",
+        "`ModelCatalog` when the configured client exposes one (the embedded local lane does); ",
+        "`ModelCatalog::list()` enumerates the configured local model(s) as ",
+        "`{model_id (per-boot UUIDv7), display_name/base_model_tag, artifact_sha256 (STABLE ",
+        "cross-session anchor), runtime_binding, ready}`; `label_for(model_id)` resolves a ",
+        "human label and returns the 'unknown model' sentinel for an unknown id (never a panic ",
+        "or blank); an empty registry lists nothing. INPUTS/OUTPUTS: recording a model-selection ",
+        "decision (`ModelCatalog::record_selection_decision`) emits an auditable EventLedger ",
+        "(Tier-1 Flight Recorder) event `FR-EVT-MODEL-SELECTION-RECORDED`, distinct from a ",
+        "launch/inference event, per master-spec 4.3.9.4.4. FAILURE/RECOVERY: when the ",
+        "configured model returns an embedding whose dimensionality != 768, LoomSearchV2 ",
+        "reindex and search DEGRADE to keyword/trigram (they do NOT hard-error or 400): they ",
+        "emit `FR-EVT-LOOM-SEMANTIC-DEGRADED` and set the response's typed ",
+        "`semantic_unavailable_reason = DimMismatch{expected, actual}` so the drop is never ",
+        "silent; recovery is to configure a matching embedding model (the dedicated embedding ",
+        "model is MT-016, deferred). Work Profiles `provider_ref` resolves against the canonical ",
+        "provider id set (`local_runtime`, `openai_compat`); the retired `ollama` id migrates ",
+        "deterministically to `local_runtime`, surfaced via an `FR-EVT-PROFILE-` event (never a ",
+        "silent rewrite); an unrecognized provider_ref resolves to a typed Unknown. ",
+        "HBR-INT-009 posture: Tier-1 Flight Recorder events are WIRED for the selection ",
+        "decision, the semantic degrade, and the provider_ref migration; Tier-2 ",
+        "internal_diagnostics and Tier-3 Palmistry are DEFERRED (not shipping in this worktree)."
+    )
+    .to_string();
+    let content_hash = sha256_hex(
+        &serde_json::to_string(&json!({
+            "id": "wp1.mt014_model_catalog_and_loom_degrade",
+            "title": title,
+            "description": description,
+            "tool_ids": tool_ids,
+            "manual_version": USER_MANUAL_VERSION,
+        }))
+        .expect("mt014 feature serializes"),
+    );
+    features.push(UserManualFeatureEntry {
+        feature_id: "wp1.mt014_model_catalog_and_loom_degrade".into(),
+        title,
+        description,
+        tool_ids,
+        origin: "wp1_mt014".into(),
+        content_hash,
+        manual_version: USER_MANUAL_VERSION.into(),
+    });
+
     features
 }
 

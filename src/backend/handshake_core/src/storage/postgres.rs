@@ -8049,6 +8049,7 @@ impl super::Database for PostgresDatabase {
                 hits: Vec::new(),
                 content_type_facets: std::collections::BTreeMap::new(),
                 semantic_available: request.query_embedding.is_some(),
+                semantic_unavailable_reason: None,
                 total: 0,
             });
         }
@@ -8178,6 +8179,7 @@ impl super::Database for PostgresDatabase {
             hits,
             content_type_facets,
             semantic_available,
+            semantic_unavailable_reason: None,
             total,
         })
     }

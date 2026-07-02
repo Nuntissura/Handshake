@@ -1,6 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
+use serde_json::json;
+use uuid::Uuid;
+
+use crate::flight_recorder::{
+    FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType, RecorderError,
+};
 
 pub const FOLDED_WORK_PROFILES_STUB_ID: &str = "WP-1-Work-Profiles-v1";
 
@@ -508,4 +514,137 @@ fn contains_exact(values: &[String], needle: &str) -> bool {
 
 fn contains_text(values: &[String], needle: &str) -> bool {
     values.iter().any(|value| value.contains(needle))
+}
+
+// ===========================================================================
+// WP-1 MT-014: Work Profiles `provider_ref` resolver.
+//
+// `WorkProfileRoleRouteV1.provider_ref` is a free String with only a non-empty
+// check today. MT-014 adds a resolver that validates a route's `provider_ref`
+// against the canonical provider id set (`local_runtime`, `openai_compat`,
+// mirroring `llm::registry::ProviderKind`) and migrates the retired `ollama`
+// daemon id to `local_runtime` deterministically. The migration is SURFACED via
+// an FR-EVT-PROFILE Flight Recorder event (mirroring the FR-EVT-PROFILE- receipt
+// convention) rather than being silently rewritten in place. This is an
+// additive surface consumers MAY adopt; it does not tighten the existing
+// `validate_work_profiles` pass (so already-authored profiles do not need
+// rework).
+// ===========================================================================
+
+/// Stable Flight Recorder event key for a surfaced provider_ref migration.
+/// Mirrors the FR-EVT-PROFILE- receipt convention
+/// ([`WorkProfileReceiptV1::event_ref`] must start with `FR-EVT-PROFILE-`).
+pub const PROVIDER_REF_MIGRATION_FR_EVENT: &str = "FR-EVT-PROFILE-PROVIDER-REF-MIGRATED";
+
+/// The canonical provider ids a Work Profile `provider_ref` may resolve to,
+/// mirroring `llm::registry::ProviderKind` (`local_runtime` | `openai_compat`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CanonicalProviderRef {
+    LocalRuntime,
+    OpenAiCompat,
+}
+
+impl CanonicalProviderRef {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::LocalRuntime => "local_runtime",
+            Self::OpenAiCompat => "openai_compat",
+        }
+    }
+}
+
+/// The typed resolution of a Work Profile role-route `provider_ref` (MT-014).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ProviderRefResolution {
+    /// Already a canonical provider id; no change needed.
+    Canonical(CanonicalProviderRef),
+    /// A legacy provider id migrated deterministically to a canonical one. The
+    /// migration is SURFACED (carries an FR-EVT-PROFILE- event ref) — never a
+    /// silent in-place rewrite.
+    Migrated {
+        from: String,
+        to: CanonicalProviderRef,
+        event_ref: String,
+    },
+    /// Not a canonical id and not a known legacy alias — unresolvable. Callers
+    /// must surface this as a validation error, never silently coerce it.
+    Unknown(String),
+}
+
+impl ProviderRefResolution {
+    /// The canonical provider id this route resolves to, if any (both the
+    /// already-canonical and the migrated cases). `None` for `Unknown`.
+    pub fn canonical(&self) -> Option<CanonicalProviderRef> {
+        match self {
+            Self::Canonical(id) => Some(*id),
+            Self::Migrated { to, .. } => Some(*to),
+            Self::Unknown(_) => None,
+        }
+    }
+
+    /// Whether this resolution migrated a legacy id (and therefore must be
+    /// surfaced via an FR-EVT-PROFILE event).
+    pub fn is_migration(&self) -> bool {
+        matches!(self, Self::Migrated { .. })
+    }
+}
+
+/// Resolves a Work Profile role-route `provider_ref` against the canonical
+/// provider id set, migrating the retired `ollama` daemon id to `local_runtime`
+/// (the Ollama-as-primary architecture was retired; the embedded ModelRuntime is
+/// the local authority). Deterministic and pure: a migration is surfaced in the
+/// returned [`ProviderRefResolution::Migrated`] (carrying an FR-EVT-PROFILE-
+/// event ref) rather than rewritten in place, and an unrecognized id resolves to
+/// [`ProviderRefResolution::Unknown`] (never silently coerced to a default).
+pub fn resolve_provider_ref(provider_ref: &str) -> ProviderRefResolution {
+    let trimmed = provider_ref.trim();
+    match trimmed {
+        "local_runtime" => ProviderRefResolution::Canonical(CanonicalProviderRef::LocalRuntime),
+        "openai_compat" => ProviderRefResolution::Canonical(CanonicalProviderRef::OpenAiCompat),
+        // Legacy daemon id retired with the Ollama-as-primary architecture.
+        "ollama" => ProviderRefResolution::Migrated {
+            from: trimmed.to_string(),
+            to: CanonicalProviderRef::LocalRuntime,
+            event_ref: format!("{PROVIDER_REF_MIGRATION_FR_EVENT}:ollama->local_runtime"),
+        },
+        other => ProviderRefResolution::Unknown(other.to_string()),
+    }
+}
+
+/// Emits a surfaced FR-EVT-PROFILE Flight Recorder event recording a
+/// deterministic provider_ref migration (MT-014). Only a
+/// [`ProviderRefResolution::Migrated`] is recorded; canonical/unknown
+/// resolutions are no-ops (return `Ok(())` without emitting). A recorder failure
+/// is returned to the caller (never silently swallowed) so the migration audit
+/// is honest.
+pub async fn record_provider_ref_migration(
+    recorder: &dyn FlightRecorder,
+    profile_id: &str,
+    role_id: &str,
+    resolution: &ProviderRefResolution,
+) -> Result<(), RecorderError> {
+    let ProviderRefResolution::Migrated {
+        from,
+        to,
+        event_ref,
+    } = resolution
+    else {
+        return Ok(());
+    };
+    let event = FlightRecorderEvent::new(
+        FlightRecorderEventType::System,
+        FlightRecorderActor::System,
+        Uuid::now_v7(),
+        json!({
+            "fr_event": PROVIDER_REF_MIGRATION_FR_EVENT,
+            "type": "work_profile_provider_ref_migrated",
+            "event_ref": event_ref,
+            "profile_id": profile_id,
+            "role_id": role_id,
+            "from": from,
+            "to": to.as_str(),
+        }),
+    );
+    recorder.record_event(event).await
 }

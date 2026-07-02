@@ -470,6 +470,7 @@ async fn refresh_loom_block_embedding(state: &AppState, ctx: &WriteContext, bloc
     match crate::loom_search::reindex_block(
         state.storage.as_ref(),
         state.llm_client.as_ref(),
+        state.flight_recorder.as_ref(),
         ctx,
         block,
     )
@@ -2699,6 +2700,7 @@ async fn loom_search_v2(
     let resp = crate::loom_search::search(
         state.storage.as_ref(),
         state.llm_client.as_ref(),
+        state.flight_recorder.as_ref(),
         &workspace_id,
         request,
     )

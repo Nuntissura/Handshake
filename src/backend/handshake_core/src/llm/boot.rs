@@ -27,8 +27,8 @@ use chrono::Utc;
 use crate::flight_recorder::FlightRecorder;
 use crate::model_runtime::{
     candle::CandleRuntime, llama_cpp::LlamaCppRuntime, BaseModelTag, KvCachePolicy,
-    LoadSpec, ModelCapabilities, ModelRegistration, ModelRegistry, ModelRuntime, OperatorId,
-    ProviderKind as RuntimeProviderKind, RuntimeBinding, SamplingParams,
+    LoadSpec, ModelCapabilities, ModelCatalog, ModelRegistration, ModelRegistry, ModelRuntime,
+    OperatorId, ProviderKind as RuntimeProviderKind, RuntimeBinding, SamplingParams,
 };
 
 use super::guard::CloudEscalationGuard;
@@ -237,8 +237,21 @@ pub fn assemble_local_runtime_client(
     registry.register(registration).map_err(|err| {
         LlmError::ProviderError(format!("local model registration failed: {err}"))
     })?;
+    // MT-014: the embedded model is already loaded before assemble (load then
+    // freeze), so mark it loaded. The shared ModelCatalog surfaces READY state
+    // (master-spec §4.3.9.4.4) from this marker; without it a genuinely-loaded
+    // boot model would enumerate as not-ready.
+    registry.mark_loaded(model_id).map_err(|err| {
+        LlmError::ProviderError(format!("local model load-marking failed: {err}"))
+    })?;
 
-    let router = LocalRouter::new(Arc::new(registry), llama_runtime, candle_runtime);
+    // MT-014: share ONE `Arc<ModelRegistry>` between the router (dispatch) and
+    // the catalog (enumeration/label). This makes the single boot registry
+    // shared + enumerable — it does NOT create a second registry world.
+    let registry = Arc::new(registry);
+    let catalog = ModelCatalog::from_registry(Arc::clone(&registry));
+
+    let router = LocalRouter::new(registry, llama_runtime, candle_runtime);
     let profile =
         ModelProfile::new(model_id.to_string(), max_context_tokens).with_streaming(true);
 
@@ -247,7 +260,8 @@ pub fn assemble_local_runtime_client(
         fallback,
         flight_recorder,
         profile,
-    ))
+    )
+    .with_catalog(catalog))
 }
 
 /// Builds the retained, NON-authoritative external_compat OpenAI-compatible lane.

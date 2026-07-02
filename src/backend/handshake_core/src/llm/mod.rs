@@ -19,7 +19,9 @@ use thiserror::Error;
 use unicode_normalization::UnicodeNormalization;
 use uuid::Uuid;
 
-use crate::model_runtime::CancellationToken;
+use std::sync::Arc;
+
+use crate::model_runtime::{CancellationToken, ModelCatalog};
 use crate::workflows::ModelSwapRequestV0_4;
 use guard::CloudEscalationBundleV0_4;
 
@@ -79,6 +81,21 @@ pub trait LlmClient: Send + Sync {
 
     /// Returns the model profile (capabilities, token limits).
     fn profile(&self) -> &ModelProfile;
+
+    /// Returns the shared, enumerable, labeled [`ModelCatalog`] over this
+    /// client's model registry, when it has one (WP-1 MT-014).
+    ///
+    /// The default embedded local lane
+    /// ([`local_router::LocalModelRuntimeLlmClient`]) returns `Some` so a
+    /// backend surface reachable from `AppState.llm_client` can enumerate and
+    /// label the configured local model(s) — including the STABLE cross-session
+    /// anchor alongside the per-boot UUIDv7. Providers without a local registry
+    /// (external OpenAI-compat, disabled) return the default `None`, so callers
+    /// must treat the catalog as optional and degrade to no-enumeration rather
+    /// than assuming a registry exists.
+    fn model_catalog(&self) -> Option<Arc<ModelCatalog>> {
+        None
+    }
 }
 
 /// Request payload for LLM completion.

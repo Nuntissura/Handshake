@@ -22,14 +22,64 @@
 
 mod knowledge_pg_support;
 
+use std::sync::{Mutex, OnceLock};
+
+use async_trait::async_trait;
+
+use handshake_core::flight_recorder::{
+    EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError,
+};
 use handshake_core::llm::ollama::InMemoryLlmClient;
 use handshake_core::llm::DisabledLlmClient;
 use handshake_core::loom_search;
 use handshake_core::storage::{
     Database, LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomBlockUpdate, LoomEdgeCreatedBy,
-    LoomEdgeType, LoomSearchV2Request, NewLoomBlock, NewLoomEdge, WriteContext,
+    LoomEdgeType, LoomSearchV2Request, NewLoomBlock, NewLoomEdge, SemanticUnavailableReason,
+    WriteContext,
 };
 use knowledge_pg_support::knowledge_pg;
+
+/// A capturing Flight Recorder for the semantic-degrade proofs. The existing
+/// modality tests do not inspect events (they pass the shared [`rec`] handle);
+/// the MT-014 dim-mismatch test uses a fresh instance and asserts the surfaced
+/// degrade event.
+#[derive(Default)]
+struct CapturingRecorder {
+    events: Mutex<Vec<FlightRecorderEvent>>,
+}
+
+impl CapturingRecorder {
+    fn events(&self) -> Vec<FlightRecorderEvent> {
+        self.events.lock().expect("recorder lock").clone()
+    }
+}
+
+#[async_trait]
+impl FlightRecorder for CapturingRecorder {
+    async fn record_event(&self, event: FlightRecorderEvent) -> Result<(), RecorderError> {
+        event.validate()?;
+        self.events.lock().expect("recorder lock").push(event);
+        Ok(())
+    }
+
+    async fn enforce_retention(&self) -> Result<u64, RecorderError> {
+        Ok(0)
+    }
+
+    async fn list_events(
+        &self,
+        _filter: EventFilter,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        Ok(self.events())
+    }
+}
+
+/// Shared no-inspect recorder for the pre-existing modality tests (they degrade
+/// only via `NoModel`, which emits no event).
+fn rec() -> &'static CapturingRecorder {
+    static REC: OnceLock<CapturingRecorder> = OnceLock::new();
+    REC.get_or_init(CapturingRecorder::default)
+}
 
 macro_rules! pg_or_skip {
     () => {{
@@ -108,7 +158,7 @@ async fn mt264_fulltext_rank_and_highlight() {
     )
     .await;
 
-    let resp = loom_search::search(&pg.db, &llm, &ws, req("database migration"))
+    let resp = loom_search::search(&pg.db, &llm, rec(), &ws, req("database migration"))
         .await
         .expect("search");
     assert!(!resp.hits.is_empty(), "expected FTS hits");
@@ -147,7 +197,7 @@ async fn mt264_trigram_fuzzy_match() {
 
     // Misspelled query: "kubernates deploymnet" -- no exact FTS lexeme match,
     // but pg_trgm similarity finds the near-match.
-    let resp = loom_search::search(&pg.db, &llm, &ws, req("kubernates deploymnet"))
+    let resp = loom_search::search(&pg.db, &llm, rec(), &ws, req("kubernates deploymnet"))
         .await
         .expect("search");
     assert!(
@@ -189,7 +239,7 @@ async fn mt264_pgvector_semantic_and_hybrid() {
 
     // Reindex both blocks WITH real embeddings via the configured model.
     for block in [&canine, &finance] {
-        let wrote = loom_search::reindex_block(&pg.db, &llm, &ctx, block)
+        let wrote = loom_search::reindex_block(&pg.db, &llm, rec(), &ctx, block)
             .await
             .expect("reindex with embedding");
         assert!(wrote, "an embedding model is configured -> embedding written");
@@ -199,6 +249,7 @@ async fn mt264_pgvector_semantic_and_hybrid() {
     let resp = loom_search::search(
         &pg.db,
         &llm,
+        rec(),
         &ws,
         req("the dog runs fast in the park"),
     )
@@ -271,7 +322,7 @@ async fn mt264_graph_blend_facets_and_edges() {
 
     let mut request = req("alpha project");
     request.graph_boost = 5.0;
-    let resp = loom_search::search(&pg.db, &llm, &ws, request)
+    let resp = loom_search::search(&pg.db, &llm, rec(), &ws, request)
         .await
         .expect("search");
     assert!(resp.hits.len() >= 2, "both alpha blocks match");
@@ -307,7 +358,7 @@ async fn mt264_reindex_consistency_edit_and_delete() {
     .await;
 
     // Initially findable by its original term.
-    let resp = loom_search::search(&pg.db, &llm, &ws, req("aardvark"))
+    let resp = loom_search::search(&pg.db, &llm, rec(), &ws, req("aardvark"))
         .await
         .expect("search");
     assert_eq!(resp.hits.len(), 1, "block found by original term");
@@ -325,7 +376,7 @@ async fn mt264_reindex_consistency_edit_and_delete() {
         )
         .await
         .expect("update");
-    let after_edit = loom_search::search(&pg.db, &llm, &ws, req("platypus"))
+    let after_edit = loom_search::search(&pg.db, &llm, rec(), &ws, req("platypus"))
         .await
         .expect("search");
     assert_eq!(
@@ -339,7 +390,7 @@ async fn mt264_reindex_consistency_edit_and_delete() {
         .delete_loom_block(&ctx, &ws, &block.block_id)
         .await
         .expect("delete");
-    let after_delete = loom_search::search(&pg.db, &llm, &ws, req("platypus"))
+    let after_delete = loom_search::search(&pg.db, &llm, rec(), &ws, req("platypus"))
         .await
         .expect("search");
     assert!(
@@ -348,7 +399,7 @@ async fn mt264_reindex_consistency_edit_and_delete() {
         after_delete.hits.len()
     );
     // And the original term is also gone.
-    let orig = loom_search::search(&pg.db, &llm, &ws, req("aardvark"))
+    let orig = loom_search::search(&pg.db, &llm, rec(), &ws, req("aardvark"))
         .await
         .expect("search");
     assert!(orig.hits.is_empty(), "no stale hit for the deleted block");
@@ -374,12 +425,12 @@ async fn mt264_no_model_typed_fallback_no_fabrication() {
 
     // reindex_block must NOT write an embedding (typed decline), but MUST keep
     // the keyword/trigram projection.
-    let wrote = loom_search::reindex_block(&pg.db, &disabled, &ctx, &block)
+    let wrote = loom_search::reindex_block(&pg.db, &disabled, rec(), &ctx, &block)
         .await
         .expect("reindex");
     assert!(!wrote, "no model -> NO embedding written (no fabrication)");
 
-    let resp = loom_search::search(&pg.db, &disabled, &ws, req("searchable keyword"))
+    let resp = loom_search::search(&pg.db, &disabled, rec(), &ws, req("searchable keyword"))
         .await
         .expect("search");
     assert!(!resp.semantic_available, "no model -> semantic not available");
@@ -388,4 +439,86 @@ async fn mt264_no_model_typed_fallback_no_fabrication() {
         resp.hits[0].vector_sim, 0.0,
         "no fabricated vector similarity when no model is configured"
     );
+}
+
+/// WP-1 MT-014: a configured model whose embedding dimensionality does NOT match
+/// the index (896 vs 768) DEGRADES to keyword/trigram rather than hard-erroring
+/// — on BOTH reindex AND search. It emits a surfaced Flight Recorder event and
+/// sets a TYPED `semantic_unavailable_reason::DimMismatch`. This proves the
+/// prior behavior (a hard `StorageError::Validation` that errored reindex and
+/// 400'd the search query path) is gone. Engine-free (InMemoryLlmClient).
+#[tokio::test]
+async fn mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search() {
+    let pg = pg_or_skip!();
+    let ws = pg.create_workspace().await;
+    let ctx = WriteContext::human(None);
+    // 896-dim model vs the index's 768 -> dimensionality mismatch.
+    let llm = InMemoryLlmClient::new(String::new()).with_embedding_dim(896);
+    let recorder = CapturingRecorder::default();
+
+    let block = make_block(
+        &pg.db,
+        &ctx,
+        &ws,
+        "Dimension mismatch note",
+        "a note whose embedding dimensionality does not match the search index",
+    )
+    .await;
+
+    // REINDEX degrades: returns Ok(false) (no embedding written), NOT Err.
+    let wrote = loom_search::reindex_block(&pg.db, &llm, &recorder, &ctx, &block)
+        .await
+        .expect("reindex must DEGRADE (Ok), not hard-error on dim mismatch");
+    assert!(!wrote, "dim mismatch -> NO embedding written (degraded)");
+
+    // SEARCH degrades: returns Ok with semantic_available=false + typed reason,
+    // NOT a 400 / hard error. The keyword modality still finds the block.
+    let resp = loom_search::search(&pg.db, &llm, &recorder, &ws, req("dimension mismatch"))
+        .await
+        .expect("search must DEGRADE (Ok), not hard-error/400 on dim mismatch");
+    assert!(
+        !resp.semantic_available,
+        "dim mismatch -> semantic not available"
+    );
+    assert_eq!(
+        resp.semantic_unavailable_reason,
+        Some(SemanticUnavailableReason::DimMismatch {
+            expected: 768,
+            actual: 896,
+        }),
+        "typed dim-mismatch reason surfaced (no silent drop)"
+    );
+    assert!(
+        !resp.hits.is_empty(),
+        "keyword modality still finds the block after semantic degrade"
+    );
+
+    // A surfaced Flight Recorder event was emitted on BOTH surfaces.
+    let events = recorder.events();
+    let degrade_events: Vec<&FlightRecorderEvent> = events
+        .iter()
+        .filter(|e| e.payload["fr_event"] == loom_search::LOOM_SEMANTIC_DEGRADED_FR_EVENT)
+        .collect();
+    assert_eq!(
+        degrade_events.len(),
+        2,
+        "one surfaced degrade event per surface (reindex + search)"
+    );
+    let surfaces: Vec<&str> = degrade_events
+        .iter()
+        .filter_map(|e| e.payload["surface"].as_str())
+        .collect();
+    assert!(
+        surfaces.contains(&"reindex"),
+        "reindex surface degrade event present"
+    );
+    assert!(
+        surfaces.contains(&"search"),
+        "search surface degrade event present"
+    );
+    for event in &degrade_events {
+        assert_eq!(event.payload["reason"], "embedding_dim_mismatch");
+        assert_eq!(event.payload["expected_dim"], 768);
+        assert_eq!(event.payload["actual_dim"], 896);
+    }
 }

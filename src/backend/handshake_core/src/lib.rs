@@ -304,3 +304,17 @@ pub struct AppState {
     /// (e.g. the WP-KERNEL-005 atelier store). Reused, never reconnected.
     pub postgres_pool: sqlx::PgPool,
 }
+
+#[cfg(feature = "runtime-full")]
+impl AppState {
+    /// MT-014: the shared, enumerable, labeled [`model_runtime::ModelCatalog`]
+    /// reachable from `AppState`, when the configured LLM client exposes one
+    /// (the embedded local lane does). Returns `None` for providers without a
+    /// local model registry (external OpenAI-compat, disabled). This is the
+    /// enumeration/label surface MT-008 diagnostics labeling and the MT-012
+    /// operator model-picker MAY adopt to list the configured local model(s)
+    /// and resolve the stable cross-session anchor alongside the per-boot id.
+    pub fn model_catalog(&self) -> Option<Arc<model_runtime::ModelCatalog>> {
+        self.llm_client.model_catalog()
+    }
+}

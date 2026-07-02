@@ -20,8 +20,8 @@ use crate::{
         MemoryInjectionReceipt, ModelCallContextSource,
     },
     model_runtime::{
-        CancellationToken, GenPrompt, GenerateRequest, ModelId, ModelRegistry, ModelRuntime,
-        ModelRuntimeError, ProviderKind, RuntimeBinding, SamplingParams,
+        CancellationToken, GenPrompt, GenerateRequest, ModelCatalog, ModelId, ModelRegistry,
+        ModelRuntime, ModelRuntimeError, ProviderKind, RuntimeBinding, SamplingParams,
     },
 };
 
@@ -89,6 +89,13 @@ pub struct LocalModelRuntimeLlmClient {
     // need to be reworked.
     capsule_injector: Option<Arc<dyn MemoryCapsuleInjection>>,
     capsule_context_source: Option<Arc<dyn ModelCallContextSource<CompletionRequest>>>,
+    // MT-014 wiring: the shared, enumerable, labeled ModelCatalog over the SAME
+    // `Arc<ModelRegistry>` this router dispatches through. Populated by the boot
+    // assembler (`assemble_local_runtime_client`) so a surface reachable from
+    // `AppState.llm_client` can enumerate/label the configured local model(s).
+    // `None` for clients constructed via `new` without a catalog (e.g. the
+    // in-tree routing-test fleet), which preserves the legacy accessor contract.
+    catalog: Option<Arc<ModelCatalog>>,
 }
 
 impl LocalModelRuntimeLlmClient {
@@ -106,7 +113,17 @@ impl LocalModelRuntimeLlmClient {
             active_cancellations: Mutex::new(HashMap::new()),
             capsule_injector: None,
             capsule_context_source: None,
+            catalog: None,
         }
+    }
+
+    /// Attaches the shared [`ModelCatalog`] enumeration/label surface (MT-014).
+    /// The boot assembler passes the catalog built over the SAME
+    /// `Arc<ModelRegistry>` this client's `LocalRouter` routes through, so the
+    /// enumeration surface can never drift from the registry that dispatches.
+    pub fn with_catalog(mut self, catalog: Arc<ModelCatalog>) -> Self {
+        self.catalog = Some(catalog);
+        self
     }
 
     /// Wires the MemoryCapsule injection surface (MT-144) into this LocalRouter
@@ -412,5 +429,13 @@ impl LlmClient for LocalModelRuntimeLlmClient {
 
     fn profile(&self) -> &ModelProfile {
         &self.profile
+    }
+
+    /// MT-014: expose the shared, enumerable, labeled model catalog so a surface
+    /// reachable from `AppState.llm_client` can list/label the configured local
+    /// model(s) and resolve the stable cross-session anchor. `None` when this
+    /// client was constructed without a catalog.
+    fn model_catalog(&self) -> Option<Arc<ModelCatalog>> {
+        self.catalog.clone()
     }
 }

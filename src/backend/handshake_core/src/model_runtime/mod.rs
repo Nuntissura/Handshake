@@ -1,5 +1,6 @@
 pub mod candle;
 pub mod capabilities;
+pub mod catalog;
 pub mod cloud;
 pub mod error;
 pub mod invariant;
@@ -18,6 +19,7 @@ pub mod warm_agent_protocol;
 pub mod warm_vm_runtime;
 
 pub use capabilities::*;
+pub use catalog::*;
 pub use error::*;
 pub use invariant::*;
 pub use kv_cache::*;
