@@ -120,6 +120,11 @@ pub fn editors_manual_section() -> ManualSection {
         heading: "Menu Bar and Atelier Navigation",
         body: menu_bar_navigation_body(),
     });
+    // WP-CKC MT-042: operator-facing Atelier/CKC/PoseKit/Ingest default preferences.
+    topics.push(ManualTopic {
+        heading: "Atelier Settings and Defaults",
+        body: atelier_settings_defaults_body(),
+    });
     // The interop topic (its own addressable topic). AC-005/MC-007 assert all four edge names + an
     // author_id + mcp_tool appear in this topic's body.
     topics.push(ManualTopic {
@@ -308,6 +313,68 @@ open — do step 1 first (open the menu button, drain one frame), then retry the
 present but disabled (its target surface is a future MT, for example menu.run.terminal), argus.click is \
 rejected rather than fake-activated; that is expected, not a bug. Persistence of the Atelier jump routes \
 through handshake_core (PostgreSQL/EventLedger); the menu bar never writes state directly."
+        .to_owned()
+}
+
+fn atelier_settings_defaults_body() -> String {
+    "ATELIER SETTINGS / DEFAULTS (WP-CKC MT-042): a panel-wide, operator-facing collapsing region \
+rendered ABOVE the Atelier tab strip (author_id atelier-settings-region) — it is NOT a fourth Atelier \
+tab. It surfaces the runtime defaults for the whole CKC/PoseKit/Ingest family as TYPED preferences in \
+the atelier preference store. Every value persists to PostgreSQL and emits an EventLedger event \
+(atelier.preference.set on Save, atelier.preference.reset_to_default on Reset); nothing is written to a \
+local file or SQLite. On panel open the region asynchronously loads the effective defaults (GET \
+/atelier/preferences) off the UI thread (HBR-QUIET) and APPLIES them to the live runtime fields \
+(landing tab, CKC book mode, PoseKit framing/markers, Ingest batch tags/policy), so a saved default \
+becomes the active default next open.\n\
+\n\
+SURFACED PREFERENCES (backend key -> control author_id -> what it seeds):\n\
+- atelier-ui.landing-tab -> atelier-settings-default-tab -> the Atelier tab shown on open \
+(castkit-codex | posekit | ingest).\n\
+- ckc.book-mode -> atelier-settings-ckc-book-mode -> the CKC book layout (sheet | story | notes | \
+moodboard).\n\
+- posekit.framing-preset -> atelier-settings-posekit-framing-preset -> the PoseKit export framing \
+preset (standard | full_body_with_feet | portrait | custom).\n\
+- posekit.framing-lens-mm -> atelier-settings-posekit-lens -> the PoseKit framing lens (mm, integer, \
+clamped 18..120).\n\
+- posekit.framing-padding-top/right/bottom/left-px -> \
+atelier-settings-posekit-padding-top / -right / -bottom / -left -> the default OpenPose export framing \
+padding (px, 0..256); synced end-to-end to the runtime pose_framing_padding_* fields that feed export.\n\
+- posekit.marker-face / posekit.marker-body / posekit.marker-hands -> \
+atelier-settings-posekit-markers-face / -body / -hands -> the default OpenPose marker-layer toggles.\n\
+- ingest.batch-tags -> atelier-settings-ingest-batch-tags -> the default Ingest batch tag list.\n\
+- ingest.default-policy -> atelier-settings-ingest-policy -> the default pass/reject/unsure review \
+policy.\n\
+\n\
+CONTROLS: each text/number field is Argus-steerable via argus.set_value{target:'<author_id>',value}; \
+the marker toggles are checkboxes driven by argus.click. The enumerated fields (landing-tab, book-mode, \
+framing-preset, ingest-policy) are kept as steerable text inputs and validated CLIENT-SIDE against their \
+token vocabularies before any write, rather than native egui combo boxes: argus.set_value is TextInput- \
+only (mcp/action.rs), so a native combo would not be set_value-steerable. Save (author_id \
+atelier-settings-save) persists ONLY the keys whose value changed (one PUT /atelier/preferences per \
+changed key) and then reloads to re-sync; an invalid enumerated/integer value rejects the whole save \
+before any write, so there is never a partial save. Each key also has a per-key reset button whose \
+author_id is atelier-settings-reset-<key> with the dotted key hyphenated (for example \
+atelier-settings-reset-posekit-marker-hands); a reset POSTs /atelier/preferences/reset and then reloads \
+all defaults. The status line (author_id atelier-settings-status) reports load/save/reset outcomes, \
+including the exact key that failed on a partial-save error.\n\
+\n\
+NAVIGATION: the live landing tab and CKC book mode are seeded from the store ONLY on the first load, and \
+only if the operator/deep-link has not already navigated; Save and Reset never yank the active tab.\n\
+\n\
+INPUTS / OUTPUTS: inputs are the effective preference projection from GET /atelier/preferences; outputs \
+are typed Preference rows plus atelier.preference.set / atelier.preference.reset_to_default EventLedger \
+events. Every write threads the actor header (x-hsk-actor-id) into the row's updated_by and the event \
+payload (reset records reset_by) for attribution, and is fail-closed: an unknown namespace/key or an \
+out-of-vocabulary enumerated value (for example an ingest policy other than pass/reject/unsure) is \
+rejected with a typed 400, never silently stored.\n\
+\n\
+FAILURE / RECOVERY: without a live backend client the region shows seeded defaults and Save/Reset are \
+inert (no client to dispatch). If a load or save fails, the status line carries the typed backend \
+detail; retry after the backend is reachable. A reset never deletes provenance — it bumps the \
+preference revision and records a reset event, so the change is auditable in the EventLedger. \
+Flight Recorder / internal_diagnostics / Palmistry: Tier 1 Flight Recorder is WIRED via the store's \
+EventLedger events; Tier 2 internal_diagnostics and Tier 3 Palmistry are DEFERRED (not yet shipped in \
+this worktree) per HBR-INT-009."
         .to_owned()
 }
 

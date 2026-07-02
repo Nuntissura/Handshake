@@ -5909,6 +5909,43 @@ pub type AtelierFacialIngestAnalysisCell =
 pub type AtelierCkcFieldSuggestionsCell =
     Arc<Mutex<Option<Result<Vec<AtelierSheetFieldSuggestionRow>, String>>>>;
 
+/// WP-CKC MT-042: one effective Atelier default-preference row, parsed from an
+/// `EffectivePreference` JSON projection returned by `/atelier/preferences*`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierPreferenceRow {
+    pub key: String,
+    pub namespace: String,
+    pub name: String,
+    pub value: String,
+    pub value_type: String,
+    pub default_value: Option<String>,
+    /// "operator" when an operator row overrides the default, else "default".
+    pub source: String,
+    pub revision: i64,
+}
+
+/// One-slot delivery cell for the effective Atelier default-preferences list
+/// (load + save-result reload). Mirrors the CKC delivery-cell shape.
+pub type AtelierPreferencesCell = Arc<Mutex<Option<Result<Vec<AtelierPreferenceRow>, String>>>>;
+
+/// One-slot delivery cell for a single reset-to-default preference mutation.
+pub type AtelierPreferenceMutationCell =
+    Arc<Mutex<Option<Result<AtelierPreferenceRow, String>>>>;
+
+/// WP-CKC MT-042 (F1): the result of a sequential multi-key save. Because the save
+/// PUTs one key at a time and stops on the first backend error, this carries the rows
+/// that DID persist plus the exact key + detail that failed, so the UI can report which
+/// key failed (not a bare "save failed") and re-sync from the DB.
+#[derive(Debug, Clone, Default)]
+pub struct AtelierPreferenceSaveOutcome {
+    pub saved: Vec<AtelierPreferenceRow>,
+    pub failed_key: Option<String>,
+    pub error: Option<String>,
+}
+
+/// One-slot delivery cell for a multi-key save outcome.
+pub type AtelierPreferenceSaveCell = Arc<Mutex<Option<AtelierPreferenceSaveOutcome>>>;
+
 /// REST client for the VERIFIED atelier read surface the MT-033 AtelierSidePanel consumes.
 #[derive(Clone)]
 pub struct AtelierClient {
@@ -5963,6 +6000,47 @@ impl AtelierClient {
             method: HttpMethod::Get,
             url: format!("{}/atelier/command-corpus", self.base_url),
             query: vec![],
+        }
+    }
+
+    /// WP-CKC MT-042 pure request builder for `GET /atelier/preferences`.
+    pub fn preferences_request(&self) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/preferences", self.base_url),
+            query: vec![],
+        }
+    }
+
+    /// WP-CKC MT-042 pure actor-attributed request builder for
+    /// `PUT /atelier/preferences` (set one operator default).
+    pub fn set_preference_actor_request(
+        &self,
+        key: &str,
+        value: &str,
+        value_type: &str,
+        actor_id: &str,
+    ) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Put,
+            url: format!("{}/atelier/preferences", self.base_url),
+            body: Some(serde_json::json!({
+                "key": key,
+                "value": value,
+                "value_type": value_type,
+            })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
+        }
+    }
+
+    /// WP-CKC MT-042 pure actor-attributed request builder for
+    /// `POST /atelier/preferences/reset` (reset one default).
+    pub fn reset_preference_actor_request(&self, key: &str, actor_id: &str) -> ActorRequestSpec {
+        ActorRequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/atelier/preferences/reset", self.base_url),
+            body: Some(serde_json::json!({ "key": key })),
+            headers: vec![(HSK_HEADER_ACTOR_ID.to_owned(), actor_id.to_owned())],
         }
     }
 
@@ -7680,6 +7758,96 @@ impl AtelierClient {
         });
     }
 
+    /// WP-CKC MT-042: load the effective Atelier default preferences off the UI
+    /// thread and deliver them into `cell` (HBR-QUIET). Fail-closed: a non-success
+    /// status is delivered as an `Err`, never a fabricated default set.
+    pub fn fetch_preferences(&self, cell: AtelierPreferencesCell) {
+        let spec = self.preferences_request();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &spec.url, &[])
+                .await
+                .map(|value| parse_atelier_preference_rows(&value))
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    /// WP-CKC MT-042 (F1/F5): persist a batch of CHANGED operator defaults
+    /// sequentially (one `PUT /atelier/preferences` per entry) and deliver an
+    /// [`AtelierPreferenceSaveOutcome`] into `cell`. Each entry is
+    /// `(key, value, value_type)`. On the first backend error the batch stops and
+    /// records the exact failing key + detail, alongside the rows that DID persist,
+    /// so the panel can report which key failed and re-sync the UI from the DB.
+    pub fn save_preferences(
+        &self,
+        entries: Vec<(String, String, String)>,
+        actor_id: &str,
+        cell: AtelierPreferenceSaveCell,
+    ) {
+        let planned: Vec<(String, ActorRequestSpec)> = entries
+            .iter()
+            .map(|(key, value, value_type)| {
+                (
+                    key.clone(),
+                    self.set_preference_actor_request(key, value, value_type, actor_id),
+                )
+            })
+            .collect();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let mut outcome = AtelierPreferenceSaveOutcome::default();
+            for (key, spec) in &planned {
+                match send_json_with_actor(&client, spec).await {
+                    Ok(value) => match parse_atelier_preference_row(&value) {
+                        Some(row) => outcome.saved.push(row),
+                        None => {
+                            outcome.failed_key = Some(key.clone());
+                            outcome.error =
+                                Some("missing preference row in set response".to_owned());
+                            break;
+                        }
+                    },
+                    Err(e) => {
+                        outcome.failed_key = Some(key.clone());
+                        outcome.error = Some(e.to_string());
+                        break;
+                    }
+                }
+            }
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(outcome);
+            }
+        });
+    }
+
+    /// WP-CKC MT-042: reset one operator default to its registry default off the
+    /// UI thread and deliver the resulting effective row into `cell`.
+    pub fn reset_preference(
+        &self,
+        key: &str,
+        actor_id: &str,
+        cell: AtelierPreferenceMutationCell,
+    ) {
+        let spec = self.reset_preference_actor_request(key, actor_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = send_json_with_actor(&client, &spec)
+                .await
+                .and_then(|value| {
+                    parse_atelier_preference_row(&value).ok_or_else(|| {
+                        AppError::Parse("missing preference row in reset response".to_owned())
+                    })
+                })
+                .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
     /// Create a CKC character with backend actor attribution.
     pub fn create_ckc_character(
         &self,
@@ -8611,6 +8779,52 @@ async fn post_json_with_actor(
         .map_err(|e| AppError::Parse(e.to_string()))
 }
 
+/// WP-CKC MT-042: send an actor-attributed JSON request whose HTTP verb is taken
+/// from `spec.method` (PUT or POST). Mirrors [`post_json_with_actor`] but honors the
+/// method so the preference set (PUT) and reset (POST) routes share one worker path.
+/// Fail-closed: a non-success status is a typed error carrying the backend detail.
+async fn send_json_with_actor(
+    client: &reqwest::Client,
+    spec: &ActorRequestSpec,
+) -> Result<serde_json::Value, AppError> {
+    let body = spec
+        .body
+        .as_ref()
+        .ok_or_else(|| AppError::Parse("actor request missing JSON body".to_owned()))?;
+    let builder = match spec.method {
+        HttpMethod::Put => client.put(&spec.url),
+        HttpMethod::Post => client.post(&spec.url),
+        _ => {
+            return Err(AppError::Parse(
+                "send_json_with_actor only supports PUT/POST".to_owned(),
+            ))
+        }
+    };
+    let mut request = builder.timeout(Duration::from_secs(5)).json(body);
+    for (name, value) in &spec.headers {
+        request = request.header(name.as_str(), value.as_str());
+    }
+    let resp = request
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        let detail = actor_post_error_detail(&text);
+        return Err(AppError::Http(format!(
+            "{} non-success status {status}: {detail}",
+            match spec.method {
+                HttpMethod::Put => "PUT",
+                _ => "POST",
+            }
+        )));
+    }
+    resp.json()
+        .await
+        .map_err(|e| AppError::Parse(e.to_string()))
+}
+
 async fn delete_json_with_actor(
     client: &reqwest::Client,
     spec: &ActorRequestSpec,
@@ -9322,6 +9536,30 @@ fn parse_atelier_sheet_template_row(row: &serde_json::Value) -> Option<AtelierSh
         section_count: row.get("section_count").and_then(|value| value.as_u64())? as usize,
         raw_text: json_string(row, "raw_text")?,
     })
+}
+
+/// WP-CKC MT-042: parse one `EffectivePreference` JSON projection into an
+/// [`AtelierPreferenceRow`]. `value` and `default_value` may be empty/absent, so
+/// they use the empty-tolerant field readers.
+fn parse_atelier_preference_row(row: &serde_json::Value) -> Option<AtelierPreferenceRow> {
+    Some(AtelierPreferenceRow {
+        key: json_string(row, "key")?,
+        namespace: json_string(row, "namespace")?,
+        name: json_string(row, "name")?,
+        value: json_string_field(row, "value")?,
+        value_type: json_string(row, "value_type")?,
+        default_value: json_string_field(row, "default_value"),
+        source: json_string(row, "source")?,
+        revision: json_required_i64(row, "revision").unwrap_or(0),
+    })
+}
+
+/// Parse a JSON array of `EffectivePreference` projections, skipping malformed rows.
+fn parse_atelier_preference_rows(value: &serde_json::Value) -> Vec<AtelierPreferenceRow> {
+    value
+        .as_array()
+        .map(|arr| arr.iter().filter_map(parse_atelier_preference_row).collect())
+        .unwrap_or_default()
 }
 
 fn parse_atelier_safe_subset_row(row: &serde_json::Value) -> Option<AtelierSafeSubsetRow> {

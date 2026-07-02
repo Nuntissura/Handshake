@@ -110,6 +110,18 @@ use handshake_native::atelier_panel::{
     ATELIER_TABLIST_AUTHOR_ID, ATELIER_TAB_CKC_AUTHOR_ID, ATELIER_TAB_INGEST_AUTHOR_ID,
     ATELIER_TAB_POSEKIT_AUTHOR_ID,
 };
+// WP-CKC MT-042: operator-facing "Settings / Defaults" region symbols.
+use handshake_native::atelier_panel::{
+    settings_reset_author_id, ATELIER_SETTINGS_CKC_BOOK_MODE_AUTHOR_ID,
+    ATELIER_SETTINGS_DEFAULT_TAB_AUTHOR_ID, ATELIER_SETTINGS_INGEST_BATCH_TAGS_AUTHOR_ID,
+    ATELIER_SETTINGS_INGEST_POLICY_AUTHOR_ID, ATELIER_SETTINGS_POSEKIT_FRAMING_PRESET_AUTHOR_ID,
+    ATELIER_SETTINGS_POSEKIT_LENS_AUTHOR_ID, ATELIER_SETTINGS_POSEKIT_MARKERS_BODY_AUTHOR_ID,
+    ATELIER_SETTINGS_POSEKIT_MARKERS_FACE_AUTHOR_ID, ATELIER_SETTINGS_POSEKIT_MARKERS_HANDS_AUTHOR_ID,
+    ATELIER_SETTINGS_POSEKIT_PADDING_BOTTOM_AUTHOR_ID, ATELIER_SETTINGS_POSEKIT_PADDING_LEFT_AUTHOR_ID,
+    ATELIER_SETTINGS_POSEKIT_PADDING_RIGHT_AUTHOR_ID, ATELIER_SETTINGS_POSEKIT_PADDING_TOP_AUTHOR_ID,
+    ATELIER_SETTINGS_REGION_AUTHOR_ID, ATELIER_SETTINGS_SAVE_AUTHOR_ID,
+    ATELIER_SETTINGS_STATUS_AUTHOR_ID,
+};
 use handshake_native::atelier_side_panel::{
     batch_author_id, item_author_id, AtelierSidePanel, PANEL_AUTHOR_ID,
 };
@@ -629,6 +641,24 @@ struct CapturedHttpRequest {
     body: String,
 }
 
+/// WP-CKC MT-042: the panel's load-on-open now fires `GET /atelier/preferences` on every
+/// panel show (correct runtime behavior). This single-response mock therefore must tolerate
+/// that extra request: it LOOPS over connections/requests, answers any settings-preferences
+/// GET with `200 []` (empty list) and keeps serving, and returns the test's INTENDED
+/// (non-preferences) request once it arrives. A short per-read timeout lets it move to the
+/// next connection when the intended request arrives on a fresh (non-keep-alive) socket.
+fn is_settings_preferences_get(request_line: &str) -> bool {
+    let mut parts = request_line.split_whitespace();
+    let method = parts.next().unwrap_or_default();
+    let path = parts
+        .next()
+        .unwrap_or_default()
+        .split('?')
+        .next()
+        .unwrap_or_default();
+    method == "GET" && path == "/atelier/preferences"
+}
+
 fn spawn_posekit_export_server(
     response_body: serde_json::Value,
 ) -> (String, std::thread::JoinHandle<CapturedHttpRequest>) {
@@ -640,48 +670,79 @@ fn spawn_posekit_export_server(
             .set_nonblocking(true)
             .expect("set Posekit mock server nonblocking");
         let started = std::time::Instant::now();
-        let (mut stream, _) = loop {
-            match listener.accept() {
-                Ok(accepted) => break accepted,
-                Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {
-                    if started.elapsed() > std::time::Duration::from_secs(5) {
-                        return CapturedHttpRequest {
-                            request_line: "TIMEOUT waiting for Posekit export request".to_owned(),
-                            headers: std::collections::HashMap::new(),
-                            body: String::new(),
-                        };
+        loop {
+            // Accept the next connection within the overall budget.
+            let mut stream = loop {
+                match listener.accept() {
+                    Ok((stream, _)) => break stream,
+                    Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {
+                        if started.elapsed() > std::time::Duration::from_secs(5) {
+                            return CapturedHttpRequest {
+                                request_line: "TIMEOUT waiting for Posekit export request"
+                                    .to_owned(),
+                                headers: std::collections::HashMap::new(),
+                                body: String::new(),
+                            };
+                        }
+                        std::thread::sleep(std::time::Duration::from_millis(10));
                     }
-                    std::thread::sleep(std::time::Duration::from_millis(10));
+                    Err(err) => panic!("accept Posekit export request: {err}"),
                 }
-                Err(err) => panic!("accept Posekit export request: {err}"),
+            };
+            // Short read timeout so an idle keep-alive socket yields and we accept the next
+            // connection where the intended request may arrive.
+            stream
+                .set_read_timeout(Some(std::time::Duration::from_millis(500)))
+                .expect("set Posekit mock read timeout");
+            // Serve requests on this connection until the intended (non-preferences) one.
+            loop {
+                let Some(captured) = read_http_request(&mut stream) else {
+                    break; // connection closed / idle: accept the next one
+                };
+                if is_settings_preferences_get(&captured.request_line) {
+                    // The panel's load-on-open GET: answer empty and keep serving.
+                    write_json_response(&mut stream, 200, serde_json::json!([]));
+                    continue;
+                }
+                // The test's intended request. Keep the response slow enough for Argus to
+                // inspect the backend-pending UI state.
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                let body = response_body.to_string();
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",
+                    body.len()
+                );
+                stream
+                    .write_all(response.as_bytes())
+                    .expect("write Posekit export response");
+                stream.flush().expect("flush Posekit export response");
+                return captured;
             }
-        };
-        stream
-            .set_read_timeout(Some(std::time::Duration::from_secs(5)))
-            .expect("set Posekit mock read timeout");
-        let captured = read_http_request(&mut stream);
-        // Keep the mock response slow enough for Argus to inspect the backend-pending UI state.
-        std::thread::sleep(std::time::Duration::from_millis(100));
-        let body = response_body.to_string();
-        let response = format!(
-            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",
-            body.len()
-        );
-        stream
-            .write_all(response.as_bytes())
-            .expect("write Posekit export response");
-        stream.flush().expect("flush Posekit export response");
-        captured
+        }
     });
     (base_url, handle)
 }
 
-fn read_http_request(stream: &mut std::net::TcpStream) -> CapturedHttpRequest {
+/// Read one HTTP request from `stream`. Returns `None` on a closed/idle connection (EOF or
+/// read timeout) so callers that serve multiple connections can move on instead of panicking.
+fn read_http_request(stream: &mut std::net::TcpStream) -> Option<CapturedHttpRequest> {
     let mut data = Vec::new();
     let mut buffer = [0_u8; 8192];
     loop {
-        let read = stream.read(&mut buffer).expect("read HTTP request");
+        let read = match stream.read(&mut buffer) {
+            Ok(read) => read,
+            // Timeout / WouldBlock / reset: treat as end-of-connection.
+            Err(_) => {
+                if data.is_empty() {
+                    return None;
+                }
+                break;
+            }
+        };
         if read == 0 {
+            if data.is_empty() {
+                return None;
+            }
             break;
         }
         data.extend_from_slice(&buffer[..read]);
@@ -719,11 +780,11 @@ fn read_http_request(stream: &mut std::net::TcpStream) -> CapturedHttpRequest {
             Some((name.to_ascii_lowercase(), value.trim().to_owned()))
         })
         .collect::<std::collections::HashMap<_, _>>();
-    CapturedHttpRequest {
+    Some(CapturedHttpRequest {
         request_line,
         headers,
         body,
-    }
+    })
 }
 
 const CKC_ROUNDTRIP_CHARACTER_ID: &str = "018f7848-1111-7000-9000-00000000c039";
@@ -826,7 +887,9 @@ fn spawn_ckc_roundtrip_server() -> CkcRoundtripServer {
             stream
                 .set_read_timeout(Some(std::time::Duration::from_secs(5)))
                 .expect("set CKC mock read timeout");
-            let captured_request = read_http_request(&mut stream);
+            let Some(captured_request) = read_http_request(&mut stream) else {
+                continue;
+            };
             if captured_request.request_line.trim().is_empty() {
                 continue;
             }
@@ -874,6 +937,9 @@ fn handle_ckc_roundtrip_request(
     let path = target.split('?').next().unwrap_or(target);
 
     match (method, path) {
+        // WP-CKC MT-042: the panel's load-on-open settings fetch. Answer empty so the
+        // CKC roundtrip flow is unaffected.
+        ("GET", "/atelier/preferences") => (200, serde_json::json!([])),
         ("GET", "/atelier/characters") => {
             (200, serde_json::json!([ckc_roundtrip_character_json()]))
         }
@@ -1199,6 +1265,8 @@ fn ckc_roundtrip_route_kind(request_line: &str) -> Option<&'static str> {
     let target = parts.next().unwrap_or_default();
     let path = target.split('?').next().unwrap_or(target);
     match (method, path) {
+        // WP-CKC MT-042: the panel's load-on-open settings fetch is an expected route.
+        ("GET", "/atelier/preferences") => Some("preferences"),
         ("GET", "/atelier/characters") => Some("characters"),
         ("GET", path)
             if path
@@ -5844,4 +5912,145 @@ fn ckc_moodboard_reverse_projection_preserves_submin_sizes_shapes_and_text_move(
     assert_eq!(saved_value["shapes"][0]["size"]["height"].as_f64(), Some(24.0));
     assert_eq!(saved_value["shapes"][0]["position"]["y"].as_f64(), Some(200.0));
     assert_eq!(saved_value["shapes"][0]["shape_type"].as_str(), Some("rectangle"));
+}
+
+// ── WP-CKC MT-042: operator-facing "Settings / Defaults" region proofs ──────────────────────────────
+
+#[test]
+fn atelier_settings_region_controls_resolve_and_are_argus_steerable() {
+    // The region is panel-wide (rendered above the tab strip), NOT a 4th tab.
+    assert_eq!(
+        AtelierPanelTab::ALL.len(),
+        3,
+        "MT-042 must not add a 4th Atelier tab"
+    );
+
+    let mut harness = build_panel_harness();
+    harness.run();
+    harness.run();
+
+    let ids = author_ids(&harness);
+    for expected in [
+        ATELIER_SETTINGS_REGION_AUTHOR_ID,
+        ATELIER_SETTINGS_DEFAULT_TAB_AUTHOR_ID,
+        ATELIER_SETTINGS_CKC_BOOK_MODE_AUTHOR_ID,
+        ATELIER_SETTINGS_POSEKIT_FRAMING_PRESET_AUTHOR_ID,
+        ATELIER_SETTINGS_POSEKIT_LENS_AUTHOR_ID,
+        ATELIER_SETTINGS_POSEKIT_PADDING_TOP_AUTHOR_ID,
+        ATELIER_SETTINGS_POSEKIT_PADDING_RIGHT_AUTHOR_ID,
+        ATELIER_SETTINGS_POSEKIT_PADDING_BOTTOM_AUTHOR_ID,
+        ATELIER_SETTINGS_POSEKIT_PADDING_LEFT_AUTHOR_ID,
+        ATELIER_SETTINGS_POSEKIT_MARKERS_FACE_AUTHOR_ID,
+        ATELIER_SETTINGS_POSEKIT_MARKERS_BODY_AUTHOR_ID,
+        ATELIER_SETTINGS_POSEKIT_MARKERS_HANDS_AUTHOR_ID,
+        ATELIER_SETTINGS_INGEST_BATCH_TAGS_AUTHOR_ID,
+        ATELIER_SETTINGS_INGEST_POLICY_AUTHOR_ID,
+        ATELIER_SETTINGS_SAVE_AUTHOR_ID,
+        ATELIER_SETTINGS_STATUS_AUTHOR_ID,
+    ] {
+        assert!(
+            ids.contains(expected),
+            "settings-region author_id {expected} must resolve in the live tree"
+        );
+    }
+
+    // Text/number defaults are Argus set_value targets (Focus action).
+    for expected in [
+        ATELIER_SETTINGS_DEFAULT_TAB_AUTHOR_ID,
+        ATELIER_SETTINGS_CKC_BOOK_MODE_AUTHOR_ID,
+        ATELIER_SETTINGS_POSEKIT_FRAMING_PRESET_AUTHOR_ID,
+        ATELIER_SETTINGS_POSEKIT_LENS_AUTHOR_ID,
+        ATELIER_SETTINGS_POSEKIT_PADDING_TOP_AUTHOR_ID,
+        ATELIER_SETTINGS_POSEKIT_PADDING_RIGHT_AUTHOR_ID,
+        ATELIER_SETTINGS_POSEKIT_PADDING_BOTTOM_AUTHOR_ID,
+        ATELIER_SETTINGS_POSEKIT_PADDING_LEFT_AUTHOR_ID,
+        ATELIER_SETTINGS_INGEST_BATCH_TAGS_AUTHOR_ID,
+        ATELIER_SETTINGS_INGEST_POLICY_AUTHOR_ID,
+    ] {
+        let node = harness.get_by(|node| node.author_id() == Some(expected));
+        assert!(
+            node.accesskit_node()
+                .data()
+                .supports_action(egui::accesskit::Action::Focus),
+            "settings text control {expected} must be steerable by Argus set_value"
+        );
+    }
+
+    // Marker toggles + Save + per-key Reset are Argus click targets.
+    let reset_book_mode = settings_reset_author_id("ckc.book-mode");
+    let reset_markers_hands = settings_reset_author_id("posekit.marker-hands");
+    assert_eq!(reset_book_mode, "atelier-settings-reset-ckc-book-mode");
+    assert_eq!(
+        reset_markers_hands,
+        "atelier-settings-reset-posekit-marker-hands"
+    );
+    for expected in [
+        ATELIER_SETTINGS_POSEKIT_MARKERS_FACE_AUTHOR_ID,
+        ATELIER_SETTINGS_POSEKIT_MARKERS_BODY_AUTHOR_ID,
+        ATELIER_SETTINGS_POSEKIT_MARKERS_HANDS_AUTHOR_ID,
+        ATELIER_SETTINGS_SAVE_AUTHOR_ID,
+        reset_book_mode.as_str(),
+        reset_markers_hands.as_str(),
+    ] {
+        let node = harness.get_by(|node| node.author_id() == Some(expected));
+        assert!(
+            node.accesskit_node()
+                .data()
+                .supports_action(egui::accesskit::Action::Click),
+            "settings toggle/button control {expected} must be steerable by Argus click"
+        );
+    }
+}
+
+#[test]
+fn atelier_settings_preference_requests_are_actor_attributed_and_route() {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("request-spec runtime");
+    let base = "http://127.0.0.1:17777";
+    let client = AtelierClient::new_with_actor_id(base, runtime.handle().clone(), "settings-agent-042");
+
+    // GET list.
+    let list = client.preferences_request();
+    assert_eq!(list.method, HttpMethod::Get);
+    assert_eq!(list.url, "http://127.0.0.1:17777/atelier/preferences");
+
+    // PUT set one default (the request the settings control's Save fires per key).
+    let set = client.set_preference_actor_request(
+        "ckc.book-mode",
+        "story",
+        "string",
+        client.actor_id(),
+    );
+    assert_eq!(set.method, HttpMethod::Put);
+    assert_eq!(set.url, "http://127.0.0.1:17777/atelier/preferences");
+    assert_eq!(
+        set.headers,
+        vec![(
+            HSK_HEADER_ACTOR_ID.to_owned(),
+            "settings-agent-042".to_owned()
+        )]
+    );
+    let set_body = set.body.expect("set preference body");
+    assert_eq!(set_body["key"], "ckc.book-mode");
+    assert_eq!(set_body["value"], "story");
+    assert_eq!(set_body["value_type"], "string");
+
+    // POST reset one default (the per-key Reset button).
+    let reset = client.reset_preference_actor_request("posekit.marker-hands", client.actor_id());
+    assert_eq!(reset.method, HttpMethod::Post);
+    assert_eq!(
+        reset.url,
+        "http://127.0.0.1:17777/atelier/preferences/reset"
+    );
+    assert_eq!(
+        reset.headers,
+        vec![(
+            HSK_HEADER_ACTOR_ID.to_owned(),
+            "settings-agent-042".to_owned()
+        )]
+    );
+    let reset_body = reset.body.expect("reset preference body");
+    assert_eq!(reset_body["key"], "posekit.marker-hands");
 }

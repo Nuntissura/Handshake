@@ -50,6 +50,22 @@ pub mod settings_event_family {
 
 const RETENTION_DEFAULT_POLICY_KEY: &str = "retention.default-policy";
 
+// WP-CKC MT-042: operator-facing Atelier/CKC/PoseKit/Ingest default preference keys.
+// These surface the runtime defaults the `atelier_panel` "Settings / Defaults" region
+// edits, persisted as typed preferences (PostgreSQL + EventLedger) exactly like the
+// general settings above. Enumerated keys are constrained to a known token vocabulary
+// so a corrupt value can never masquerade as a valid default.
+const CKC_BOOK_MODE_KEY: &str = "ckc.book-mode";
+const POSEKIT_FRAMING_PRESET_KEY: &str = "posekit.framing-preset";
+const INGEST_DEFAULT_POLICY_KEY: &str = "ingest.default-policy";
+const ATELIER_LANDING_TAB_KEY: &str = "atelier-ui.landing-tab";
+
+const CKC_BOOK_MODE_TOKENS: &[&str] = &["sheet", "story", "notes", "moodboard"];
+const POSEKIT_FRAMING_PRESET_TOKENS: &[&str] =
+    &["standard", "full_body_with_feet", "portrait", "custom"];
+const INGEST_DEFAULT_POLICY_TOKENS: &[&str] = &["pass", "reject", "unsure"];
+const ATELIER_LANDING_TAB_TOKENS: &[&str] = &["castkit-codex", "posekit", "ingest"];
+
 /// Declared type of a preference value. Drives server-side validation so a
 /// `Bool` preference cannot silently hold `"maybe"`.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -395,6 +411,103 @@ const PREFERENCE_DEFINITIONS: &[PreferenceDefinition] = &[
         value_type: PreferenceType::Bool,
         default_value: "true",
     },
+    // ---- WP-CKC MT-042: Atelier/CKC/PoseKit/Ingest operator defaults ----
+    // Atelier default landing tab (mirrors `AtelierPanelState.active_tab`).
+    PreferenceDefinition {
+        key: ATELIER_LANDING_TAB_KEY,
+        namespace: "atelier-ui",
+        name: "landing-tab",
+        value_type: PreferenceType::String,
+        default_value: "castkit-codex",
+    },
+    // CKC default book-layout mode (mirrors `AtelierPanelState.ckc_book_mode` / `CkcBookMode`).
+    PreferenceDefinition {
+        key: CKC_BOOK_MODE_KEY,
+        namespace: "ckc",
+        name: "book-mode",
+        value_type: PreferenceType::String,
+        default_value: "sheet",
+    },
+    // PoseKit default framing preset + lens + padding (mirrors the `pose_framing_*` fields).
+    PreferenceDefinition {
+        key: POSEKIT_FRAMING_PRESET_KEY,
+        namespace: "posekit",
+        name: "framing-preset",
+        value_type: PreferenceType::String,
+        default_value: "standard",
+    },
+    PreferenceDefinition {
+        key: "posekit.framing-lens-mm",
+        namespace: "posekit",
+        name: "framing-lens-mm",
+        value_type: PreferenceType::Integer,
+        default_value: "50",
+    },
+    PreferenceDefinition {
+        key: "posekit.framing-padding-top-px",
+        namespace: "posekit",
+        name: "framing-padding-top-px",
+        value_type: PreferenceType::Integer,
+        default_value: "0",
+    },
+    PreferenceDefinition {
+        key: "posekit.framing-padding-right-px",
+        namespace: "posekit",
+        name: "framing-padding-right-px",
+        value_type: PreferenceType::Integer,
+        default_value: "0",
+    },
+    PreferenceDefinition {
+        key: "posekit.framing-padding-bottom-px",
+        namespace: "posekit",
+        name: "framing-padding-bottom-px",
+        value_type: PreferenceType::Integer,
+        default_value: "0",
+    },
+    PreferenceDefinition {
+        key: "posekit.framing-padding-left-px",
+        namespace: "posekit",
+        name: "framing-padding-left-px",
+        value_type: PreferenceType::Integer,
+        default_value: "0",
+    },
+    // PoseKit default marker-layer toggles (mirrors `pose_face` / `pose_body` / `pose_hands`).
+    PreferenceDefinition {
+        key: "posekit.marker-face",
+        namespace: "posekit",
+        name: "marker-face",
+        value_type: PreferenceType::Bool,
+        default_value: "true",
+    },
+    PreferenceDefinition {
+        key: "posekit.marker-body",
+        namespace: "posekit",
+        name: "marker-body",
+        value_type: PreferenceType::Bool,
+        default_value: "true",
+    },
+    PreferenceDefinition {
+        key: "posekit.marker-hands",
+        namespace: "posekit",
+        name: "marker-hands",
+        value_type: PreferenceType::Bool,
+        default_value: "false",
+    },
+    // Ingest default batch tags + pass/reject/unsure policy (mirrors the `ingest_*` fields).
+    PreferenceDefinition {
+        key: "ingest.batch-tags",
+        namespace: "ingest",
+        name: "batch-tags",
+        value_type: PreferenceType::String,
+        default_value: "event, outfit, source",
+    },
+    PreferenceDefinition {
+        key: INGEST_DEFAULT_POLICY_KEY,
+        namespace: "ingest",
+        name: "default-policy",
+        value_type: PreferenceType::String,
+        default_value: "unsure",
+    },
 ];
 
 const ALLOWED_PREFERENCE_NAMESPACES: &[&str] = &[
@@ -402,6 +515,11 @@ const ALLOWED_PREFERENCE_NAMESPACES: &[&str] = &[
     "view-defaults",
     "retention",
     "feature-toggles",
+    // WP-CKC MT-042 dedicated namespaces for operator-facing Atelier defaults.
+    "atelier-ui",
+    "ckc",
+    "posekit",
+    "ingest",
 ];
 const SECRET_KEY_MARKERS: &[&str] = &[
     "secret",
@@ -444,6 +562,43 @@ fn validate_preference_input(input: &SetPreference) -> AtelierResult<()> {
 fn validate_defined_preference_value(key: &str, value: &str) -> AtelierResult<()> {
     if key == RETENTION_DEFAULT_POLICY_KEY {
         RetentionDefaultPolicy::from_str(value)?;
+    }
+    // WP-CKC MT-042: enumerated Atelier defaults are constrained to a known token set so a
+    // corrupt value can never masquerade as a valid default.
+    validate_enumerated_preference_value(key, value, CKC_BOOK_MODE_KEY, CKC_BOOK_MODE_TOKENS)?;
+    validate_enumerated_preference_value(
+        key,
+        value,
+        POSEKIT_FRAMING_PRESET_KEY,
+        POSEKIT_FRAMING_PRESET_TOKENS,
+    )?;
+    validate_enumerated_preference_value(
+        key,
+        value,
+        INGEST_DEFAULT_POLICY_KEY,
+        INGEST_DEFAULT_POLICY_TOKENS,
+    )?;
+    validate_enumerated_preference_value(
+        key,
+        value,
+        ATELIER_LANDING_TAB_KEY,
+        ATELIER_LANDING_TAB_TOKENS,
+    )?;
+    Ok(())
+}
+
+/// Reject a value for `expected_key` that is not one of the allowed tokens. A no-op for any
+/// other key so this composes cleanly per enumerated definition.
+fn validate_enumerated_preference_value(
+    key: &str,
+    value: &str,
+    expected_key: &str,
+    allowed: &[&str],
+) -> AtelierResult<()> {
+    if key == expected_key && !allowed.contains(&value) {
+        return Err(AtelierError::Validation(format!(
+            "preference {expected_key:?} value {value:?} is not allowed; use one of {allowed:?}"
+        )));
     }
     Ok(())
 }
@@ -639,10 +794,23 @@ impl AtelierStore {
     }
 
     /// Set a preference and return a recoverable receipt with before/after
-    /// revision metadata.
+    /// revision metadata. Attribution-free convenience wrapper; prefer
+    /// [`Self::set_preference_with_receipt_as`] when an actor is known.
     pub async fn set_preference_with_receipt(
         &self,
         input: &SetPreference,
+    ) -> AtelierResult<PreferenceChangeReceipt> {
+        self.set_preference_with_receipt_as(input, None).await
+    }
+
+    /// WP-CKC MT-042 (F4): set a preference and record WHO changed the default.
+    /// `updated_by` is persisted on the row (`updated_by` column) and echoed into
+    /// the `atelier.preference.set` EventLedger payload so the default change is
+    /// attributable. `None` keeps the legacy NULL attribution.
+    pub async fn set_preference_with_receipt_as(
+        &self,
+        input: &SetPreference,
+        updated_by: Option<&str>,
     ) -> AtelierResult<PreferenceChangeReceipt> {
         validate_preference_input(input)?;
         input.value_type.validate(&input.value)?;
@@ -664,7 +832,7 @@ impl AtelierStore {
             r#"INSERT INTO atelier_preference
                  (scope_kind, character_internal_id, key, namespace, name, value_type, value,
                   redacted, default_value, source, updated_by, revision, redaction_class)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NULL, 1, 'public')
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 1, 'public')
                ON CONFLICT (scope_kind, character_internal_id, key)
                DO UPDATE SET value      = EXCLUDED.value,
                              namespace  = EXCLUDED.namespace,
@@ -689,6 +857,7 @@ impl AtelierStore {
         .bind(input.redacted)
         .bind(default_value.clone())
         .bind(PreferenceValueSource::Operator.as_str())
+        .bind(updated_by)
         .fetch_one(self.pool())
         .await?;
 
@@ -719,6 +888,8 @@ impl AtelierStore {
                 "value_type": preference.value_type.as_str(),
                 "redacted": preference.redacted,
                 "source": preference.source.as_str(),
+                // WP-CKC MT-042 (F4): who changed the default (attribution).
+                "updated_by": preference.updated_by.clone(),
                 "revision_before": receipt.revision_before,
                 "revision_after": receipt.revision_after,
                 "value_before": receipt.value_before.clone(),
@@ -854,10 +1025,25 @@ impl AtelierStore {
 
     /// Reset a registered preference to its default without deleting the row,
     /// preserving provenance through a revision bump and reset receipt.
+    /// Attribution-free convenience wrapper; prefer
+    /// [`Self::reset_preference_to_default_as`] when an actor is known.
     pub async fn reset_preference_to_default(
         &self,
         scope: PreferenceScope,
         key: &str,
+    ) -> AtelierResult<PreferenceChangeReceipt> {
+        self.reset_preference_to_default_as(scope, key, None).await
+    }
+
+    /// WP-CKC MT-042 (F4): reset a preference to its default and record WHO
+    /// performed the reset in the `atelier.preference.reset_to_default` event
+    /// payload (`reset_by`). The row's `updated_by` returns to NULL because the
+    /// value is back to the registry default (no operator override remains).
+    pub async fn reset_preference_to_default_as(
+        &self,
+        scope: PreferenceScope,
+        key: &str,
+        reset_by: Option<&str>,
     ) -> AtelierResult<PreferenceChangeReceipt> {
         validate_preference_key(key)?;
         let definition = preference_definition(key).ok_or_else(|| {
@@ -925,6 +1111,8 @@ impl AtelierStore {
                 "namespace": preference.namespace.clone(),
                 "name": preference.name.clone(),
                 "value_type": preference.value_type.as_str(),
+                // WP-CKC MT-042 (F4): who performed the reset (attribution).
+                "reset_by": reset_by,
                 "revision_before": receipt.revision_before,
                 "revision_after": receipt.revision_after,
                 "value_before": receipt.value_before.clone(),
@@ -1326,10 +1514,7 @@ impl AtelierStore {
     /// and never echoed into the emitted event. Upsert key is `config_id`, so
     /// re-recording the same id refreshes the config. Emits
     /// `MODEL_CONFIG_RECORDED`.
-    pub async fn record_model_config(
-        &self,
-        new: &NewModelConfig,
-    ) -> AtelierResult<ModelConfig> {
+    pub async fn record_model_config(&self, new: &NewModelConfig) -> AtelierResult<ModelConfig> {
         let api_key_ref = validate_new_model_config(new)?;
 
         let row = sqlx::query(
@@ -1376,10 +1561,7 @@ impl AtelierStore {
     }
 
     /// Fetch a model config by id.
-    pub async fn get_model_config(
-        &self,
-        config_id: &str,
-    ) -> AtelierResult<Option<ModelConfig>> {
+    pub async fn get_model_config(&self, config_id: &str) -> AtelierResult<Option<ModelConfig>> {
         let row = sqlx::query(
             r#"SELECT config_id, base_url, model, api_key_ref, system_prompt,
                       timeout_ms, created_at_utc
@@ -1507,10 +1689,7 @@ impl AtelierStore {
     }
 
     /// Fetch a model apply record by id.
-    pub async fn get_model_apply(
-        &self,
-        apply_id: &str,
-    ) -> AtelierResult<Option<ModelApply>> {
+    pub async fn get_model_apply(&self, apply_id: &str) -> AtelierResult<Option<ModelApply>> {
         let row = sqlx::query(
             r#"SELECT apply_id, suggestion_ref, state, evidence_ref,
                       created_at_utc, updated_at_utc

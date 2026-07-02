@@ -25,7 +25,8 @@ use crate::backend_client::{
     AtelierContactSheetExportRow, AtelierContactSheetItem, AtelierFacialIngestAnalysisCell,
     AtelierFacialIngestAnalysisRow, AtelierIntakeClassificationCell,
     AtelierIntakeClassificationDecision, AtelierItemRow, AtelierPoseSourceBytesCell,
-    AtelierPosekitExportCell, AtelierPosekitExportRow, AtelierSheetExportRow,
+    AtelierPosekitExportCell, AtelierPosekitExportRow, AtelierPreferenceMutationCell,
+    AtelierPreferenceRow, AtelierPreferenceSaveCell, AtelierPreferencesCell, AtelierSheetExportRow,
     AtelierSheetFieldSuggestionRow, AtelierSheetVersionRow,
 };
 use crate::editor_pane_factories::SharedPalette;
@@ -50,6 +51,31 @@ pub const ATELIER_TAB_INGEST_AUTHOR_ID: &str = "atelier-tab-ingest";
 pub const ATELIER_CONTENT_CKC_AUTHOR_ID: &str = "atelier-content-ckc";
 pub const ATELIER_CONTENT_POSEKIT_AUTHOR_ID: &str = "atelier-content-posekit";
 pub const ATELIER_CONTENT_INGEST_AUTHOR_ID: &str = "atelier-content-ingest";
+// WP-CKC MT-042: operator-facing "Settings / Defaults" region (panel-wide, not a 4th tab).
+pub const ATELIER_SETTINGS_REGION_AUTHOR_ID: &str = "atelier-settings-region";
+pub const ATELIER_SETTINGS_DEFAULT_TAB_AUTHOR_ID: &str = "atelier-settings-default-tab";
+pub const ATELIER_SETTINGS_CKC_BOOK_MODE_AUTHOR_ID: &str = "atelier-settings-ckc-book-mode";
+pub const ATELIER_SETTINGS_POSEKIT_LENS_AUTHOR_ID: &str = "atelier-settings-posekit-lens";
+pub const ATELIER_SETTINGS_POSEKIT_FRAMING_PRESET_AUTHOR_ID: &str =
+    "atelier-settings-posekit-framing-preset";
+pub const ATELIER_SETTINGS_POSEKIT_MARKERS_FACE_AUTHOR_ID: &str =
+    "atelier-settings-posekit-markers-face";
+pub const ATELIER_SETTINGS_POSEKIT_MARKERS_BODY_AUTHOR_ID: &str =
+    "atelier-settings-posekit-markers-body";
+pub const ATELIER_SETTINGS_POSEKIT_MARKERS_HANDS_AUTHOR_ID: &str =
+    "atelier-settings-posekit-markers-hands";
+pub const ATELIER_SETTINGS_POSEKIT_PADDING_TOP_AUTHOR_ID: &str =
+    "atelier-settings-posekit-padding-top";
+pub const ATELIER_SETTINGS_POSEKIT_PADDING_RIGHT_AUTHOR_ID: &str =
+    "atelier-settings-posekit-padding-right";
+pub const ATELIER_SETTINGS_POSEKIT_PADDING_BOTTOM_AUTHOR_ID: &str =
+    "atelier-settings-posekit-padding-bottom";
+pub const ATELIER_SETTINGS_POSEKIT_PADDING_LEFT_AUTHOR_ID: &str =
+    "atelier-settings-posekit-padding-left";
+pub const ATELIER_SETTINGS_INGEST_BATCH_TAGS_AUTHOR_ID: &str = "atelier-settings-ingest-batch-tags";
+pub const ATELIER_SETTINGS_INGEST_POLICY_AUTHOR_ID: &str = "atelier-settings-ingest-policy";
+pub const ATELIER_SETTINGS_SAVE_AUTHOR_ID: &str = "atelier-settings-save";
+pub const ATELIER_SETTINGS_STATUS_AUTHOR_ID: &str = "atelier-settings-status";
 pub const ATELIER_CKC_CHARACTER_LIST_AUTHOR_ID: &str = "atelier-ckc-character-list";
 pub const ATELIER_CKC_SELECTED_CHARACTER_AUTHOR_ID: &str = "atelier-ckc-selected-character";
 pub const ATELIER_CKC_CHARACTER_CREATE_NAME_AUTHOR_ID: &str = "atelier-ckc-character-create-name";
@@ -291,6 +317,24 @@ impl AtelierPanelTab {
             Self::Ingest => ATELIER_CONTENT_INGEST_AUTHOR_ID,
         }
     }
+
+    /// WP-CKC MT-042 stable token persisted as the `atelier-ui.landing-tab` default.
+    fn settings_token(self) -> &'static str {
+        match self {
+            Self::CastkitCodex => "castkit-codex",
+            Self::Posekit => "posekit",
+            Self::Ingest => "ingest",
+        }
+    }
+
+    fn from_settings_token(token: &str) -> Option<Self> {
+        match token.trim() {
+            "castkit-codex" => Some(Self::CastkitCodex),
+            "posekit" => Some(Self::Posekit),
+            "ingest" => Some(Self::Ingest),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -333,6 +377,26 @@ impl CkcBookMode {
 
     fn has_middle_panel(self) -> bool {
         !matches!(self, Self::Sheet)
+    }
+
+    /// WP-CKC MT-042 stable token persisted as the `ckc.book-mode` default.
+    fn settings_token(self) -> &'static str {
+        match self {
+            Self::Sheet => "sheet",
+            Self::Story => "story",
+            Self::Notes => "notes",
+            Self::Moodboard => "moodboard",
+        }
+    }
+
+    fn from_settings_token(token: &str) -> Option<Self> {
+        match token.trim() {
+            "sheet" => Some(Self::Sheet),
+            "story" => Some(Self::Story),
+            "notes" => Some(Self::Notes),
+            "moodboard" => Some(Self::Moodboard),
+            _ => None,
+        }
     }
 }
 
@@ -2663,6 +2727,28 @@ struct AtelierPanelState {
     ingest_apply_batch_id: Option<String>,
     ingest_apply_actor_id: Option<String>,
     ingest_last_apply_receipt: String,
+    // WP-CKC MT-042: operator-facing "Settings / Defaults" region state. These edit
+    // buffers hold the pending default values; on load/save/reset they are applied to
+    // the live runtime fields above (active_tab, ckc_book_mode, pose_*, ingest_*).
+    settings_load_requested: bool,
+    settings_loading: bool,
+    settings_loaded: bool,
+    settings_save_pending: bool,
+    settings_status: String,
+    settings_landing_tab: String,
+    settings_ckc_book_mode: String,
+    settings_pose_framing_preset: String,
+    settings_pose_lens_mm: String,
+    settings_pose_padding_top: String,
+    settings_pose_padding_right: String,
+    settings_pose_padding_bottom: String,
+    settings_pose_padding_left: String,
+    settings_pose_face: bool,
+    settings_pose_body: bool,
+    settings_pose_hands: bool,
+    settings_ingest_batch_tags: String,
+    settings_ingest_policy: String,
+    settings_rows: Vec<AtelierPreferenceRow>,
 }
 
 impl Default for AtelierPanelState {
@@ -2827,8 +2913,324 @@ impl Default for AtelierPanelState {
             ingest_apply_batch_id: None,
             ingest_apply_actor_id: None,
             ingest_last_apply_receipt: "No backend apply receipt yet.".to_owned(),
+            // WP-CKC MT-042: settings-region defaults mirror the backend registry
+            // defaults, so the region is coherent before the live load resolves.
+            settings_load_requested: false,
+            settings_loading: false,
+            settings_loaded: false,
+            settings_save_pending: false,
+            settings_status: "Atelier defaults: not loaded (open panel to load from PostgreSQL)."
+                .to_owned(),
+            settings_landing_tab: AtelierPanelTab::CastkitCodex.settings_token().to_owned(),
+            settings_ckc_book_mode: CkcBookMode::Sheet.settings_token().to_owned(),
+            settings_pose_framing_preset: "standard".to_owned(),
+            settings_pose_lens_mm: "50".to_owned(),
+            settings_pose_padding_top: "0".to_owned(),
+            settings_pose_padding_right: "0".to_owned(),
+            settings_pose_padding_bottom: "0".to_owned(),
+            settings_pose_padding_left: "0".to_owned(),
+            settings_pose_face: true,
+            settings_pose_body: true,
+            settings_pose_hands: false,
+            settings_ingest_batch_tags: "event, outfit, source".to_owned(),
+            settings_ingest_policy: "unsure".to_owned(),
+            settings_rows: Vec::new(),
         }
     }
+}
+
+// WP-CKC MT-042: the operator-default preference keys surfaced by the "Settings /
+// Defaults" region. These match the backend `PREFERENCE_DEFINITIONS` keys exactly.
+const SETTINGS_KEY_LANDING_TAB: &str = "atelier-ui.landing-tab";
+const SETTINGS_KEY_CKC_BOOK_MODE: &str = "ckc.book-mode";
+const SETTINGS_KEY_POSEKIT_FRAMING_PRESET: &str = "posekit.framing-preset";
+const SETTINGS_KEY_POSEKIT_LENS_MM: &str = "posekit.framing-lens-mm";
+const SETTINGS_KEY_POSEKIT_PADDING_TOP: &str = "posekit.framing-padding-top-px";
+const SETTINGS_KEY_POSEKIT_PADDING_RIGHT: &str = "posekit.framing-padding-right-px";
+const SETTINGS_KEY_POSEKIT_PADDING_BOTTOM: &str = "posekit.framing-padding-bottom-px";
+const SETTINGS_KEY_POSEKIT_PADDING_LEFT: &str = "posekit.framing-padding-left-px";
+const SETTINGS_KEY_POSEKIT_MARKER_FACE: &str = "posekit.marker-face";
+const SETTINGS_KEY_POSEKIT_MARKER_BODY: &str = "posekit.marker-body";
+const SETTINGS_KEY_POSEKIT_MARKER_HANDS: &str = "posekit.marker-hands";
+const SETTINGS_KEY_INGEST_BATCH_TAGS: &str = "ingest.batch-tags";
+const SETTINGS_KEY_INGEST_POLICY: &str = "ingest.default-policy";
+
+/// The WP-CKC MT-042 keys the region owns (all 13, incl. the 4 PoseKit paddings).
+/// Order drives the reset-button row layout and the changed-key save scan.
+const SETTINGS_MANAGED_KEYS: &[&str] = &[
+    SETTINGS_KEY_LANDING_TAB,
+    SETTINGS_KEY_CKC_BOOK_MODE,
+    SETTINGS_KEY_POSEKIT_FRAMING_PRESET,
+    SETTINGS_KEY_POSEKIT_LENS_MM,
+    SETTINGS_KEY_POSEKIT_PADDING_TOP,
+    SETTINGS_KEY_POSEKIT_PADDING_RIGHT,
+    SETTINGS_KEY_POSEKIT_PADDING_BOTTOM,
+    SETTINGS_KEY_POSEKIT_PADDING_LEFT,
+    SETTINGS_KEY_POSEKIT_MARKER_FACE,
+    SETTINGS_KEY_POSEKIT_MARKER_BODY,
+    SETTINGS_KEY_POSEKIT_MARKER_HANDS,
+    SETTINGS_KEY_INGEST_BATCH_TAGS,
+    SETTINGS_KEY_INGEST_POLICY,
+];
+
+// WP-CKC MT-042 (F6 intent): the enumerated token vocabularies, mirrored from the
+// backend so the client can validate BEFORE sending and never 400 mid-batch (F1).
+// The fields stay steerable TextInputs (argus.set_value is TextInput-only per
+// mcp/action.rs); a native egui ComboBox would not be set_value-steerable.
+const SETTINGS_LANDING_TAB_TOKENS: &[&str] = &["castkit-codex", "posekit", "ingest"];
+const SETTINGS_CKC_BOOK_MODE_TOKENS: &[&str] = &["sheet", "story", "notes", "moodboard"];
+const SETTINGS_INGEST_POLICY_TOKENS: &[&str] = &["pass", "reject", "unsure"];
+
+const SETTINGS_LENS_MIN: i32 = 18;
+const SETTINGS_LENS_MAX: i32 = 120;
+const SETTINGS_PADDING_MIN: i32 = 0;
+const SETTINGS_PADDING_MAX: i32 = 256;
+
+/// WP-CKC MT-042 stable Argus author_id for a per-key reset button
+/// (`atelier-settings-reset-<key>` with the dotted key hyphenated).
+pub fn settings_reset_author_id(key: &str) -> String {
+    format!("atelier-settings-reset-{}", key.replace('.', "-"))
+}
+
+/// The backend value_type token for a managed key.
+fn settings_value_type(key: &str) -> &'static str {
+    match key {
+        SETTINGS_KEY_POSEKIT_LENS_MM
+        | SETTINGS_KEY_POSEKIT_PADDING_TOP
+        | SETTINGS_KEY_POSEKIT_PADDING_RIGHT
+        | SETTINGS_KEY_POSEKIT_PADDING_BOTTOM
+        | SETTINGS_KEY_POSEKIT_PADDING_LEFT => "integer",
+        SETTINGS_KEY_POSEKIT_MARKER_FACE
+        | SETTINGS_KEY_POSEKIT_MARKER_BODY
+        | SETTINGS_KEY_POSEKIT_MARKER_HANDS => "bool",
+        _ => "string",
+    }
+}
+
+/// Normalize the current edit buffer for `key` into the exact value to persist, or
+/// return a human-readable error (invalid enum / non-integer) so the whole save is
+/// rejected BEFORE any PUT (F1: no partial save, no mid-batch 400).
+fn settings_desired_value(state: &AtelierPanelState, key: &str) -> Result<String, String> {
+    let enum_value = |buffer: &str, tokens: &[&str], label: &str| -> Result<String, String> {
+        let value = buffer.trim();
+        if tokens.contains(&value) {
+            Ok(value.to_owned())
+        } else {
+            Err(format!(
+                "{label} '{value}' is not one of {tokens:?}"
+            ))
+        }
+    };
+    let int_value = |buffer: &str, min: i32, max: i32, label: &str| -> Result<String, String> {
+        match buffer.trim().parse::<i32>() {
+            Ok(parsed) => Ok(parsed.clamp(min, max).to_string()),
+            Err(_) => Err(format!("{label} '{}' must be an integer", buffer.trim())),
+        }
+    };
+    match key {
+        SETTINGS_KEY_LANDING_TAB => enum_value(
+            &state.settings_landing_tab,
+            SETTINGS_LANDING_TAB_TOKENS,
+            "landing tab",
+        ),
+        SETTINGS_KEY_CKC_BOOK_MODE => enum_value(
+            &state.settings_ckc_book_mode,
+            SETTINGS_CKC_BOOK_MODE_TOKENS,
+            "CKC book mode",
+        ),
+        // Framing preset is normalized to a canonical token (never invalid).
+        SETTINGS_KEY_POSEKIT_FRAMING_PRESET => {
+            Ok(posekit_framing_preset(&state.settings_pose_framing_preset))
+        }
+        SETTINGS_KEY_POSEKIT_LENS_MM => int_value(
+            &state.settings_pose_lens_mm,
+            SETTINGS_LENS_MIN,
+            SETTINGS_LENS_MAX,
+            "PoseKit lens mm",
+        ),
+        SETTINGS_KEY_POSEKIT_PADDING_TOP => int_value(
+            &state.settings_pose_padding_top,
+            SETTINGS_PADDING_MIN,
+            SETTINGS_PADDING_MAX,
+            "PoseKit top padding",
+        ),
+        SETTINGS_KEY_POSEKIT_PADDING_RIGHT => int_value(
+            &state.settings_pose_padding_right,
+            SETTINGS_PADDING_MIN,
+            SETTINGS_PADDING_MAX,
+            "PoseKit right padding",
+        ),
+        SETTINGS_KEY_POSEKIT_PADDING_BOTTOM => int_value(
+            &state.settings_pose_padding_bottom,
+            SETTINGS_PADDING_MIN,
+            SETTINGS_PADDING_MAX,
+            "PoseKit bottom padding",
+        ),
+        SETTINGS_KEY_POSEKIT_PADDING_LEFT => int_value(
+            &state.settings_pose_padding_left,
+            SETTINGS_PADDING_MIN,
+            SETTINGS_PADDING_MAX,
+            "PoseKit left padding",
+        ),
+        SETTINGS_KEY_POSEKIT_MARKER_FACE => Ok(state.settings_pose_face.to_string()),
+        SETTINGS_KEY_POSEKIT_MARKER_BODY => Ok(state.settings_pose_body.to_string()),
+        SETTINGS_KEY_POSEKIT_MARKER_HANDS => Ok(state.settings_pose_hands.to_string()),
+        SETTINGS_KEY_INGEST_BATCH_TAGS => Ok(state.settings_ingest_batch_tags.trim().to_owned()),
+        SETTINGS_KEY_INGEST_POLICY => enum_value(
+            &state.settings_ingest_policy,
+            SETTINGS_INGEST_POLICY_TOKENS,
+            "ingest policy",
+        ),
+        other => Err(format!("unknown settings key {other}")),
+    }
+}
+
+/// The last-loaded effective value for `key`, if a projection row is present.
+fn settings_loaded_value<'a>(state: &'a AtelierPanelState, key: &str) -> Option<&'a str> {
+    state
+        .settings_rows
+        .iter()
+        .find(|row| row.key == key)
+        .map(|row| row.value.as_str())
+}
+
+/// WP-CKC MT-042 (F1/F5): build the `(key, value, value_type)` entries for ONLY the
+/// keys whose normalized buffer differs from the last-loaded value. Returns an error
+/// (whole save rejected) if any enumerated/integer buffer is invalid, so a save is
+/// atomic in intent: it never PUTs a value the backend would 400 on mid-batch.
+fn settings_save_entries(state: &AtelierPanelState) -> Result<Vec<(String, String, String)>, String> {
+    let mut entries = Vec::new();
+    for key in SETTINGS_MANAGED_KEYS {
+        let desired = settings_desired_value(state, key)?;
+        let changed = settings_loaded_value(state, key)
+            .map(|loaded| loaded != desired.as_str())
+            .unwrap_or(true);
+        if changed {
+            entries.push((
+                (*key).to_owned(),
+                desired,
+                settings_value_type(key).to_owned(),
+            ));
+        }
+    }
+    Ok(entries)
+}
+
+/// WP-CKC MT-042 (F2): sync the settings-region edit buffers AND the non-navigation
+/// runtime defaults (PoseKit framing/lens/padding/markers, Ingest tags/policy) from a
+/// loaded/saved projection. Deliberately does NOT touch the live-nav fields
+/// (`active_tab`, `ckc_book_mode`) — those are seeded only on first load by
+/// [`seed_settings_live_nav`], so Save/Reset never yank the operator's current view.
+fn sync_settings_buffers(state: &mut AtelierPanelState, rows: Vec<AtelierPreferenceRow>) {
+    for row in &rows {
+        match row.key.as_str() {
+            SETTINGS_KEY_LANDING_TAB => state.settings_landing_tab = row.value.clone(),
+            SETTINGS_KEY_CKC_BOOK_MODE => state.settings_ckc_book_mode = row.value.clone(),
+            SETTINGS_KEY_POSEKIT_FRAMING_PRESET => {
+                state.settings_pose_framing_preset = row.value.clone();
+                state.pose_framing_preset = row.value.clone();
+            }
+            SETTINGS_KEY_POSEKIT_LENS_MM => {
+                let value = row
+                    .value
+                    .trim()
+                    .parse::<i32>()
+                    .map(|value| value.clamp(SETTINGS_LENS_MIN, SETTINGS_LENS_MAX))
+                    .unwrap_or(state.pose_framing_lens_mm);
+                state.pose_framing_lens_mm = value;
+                state.settings_pose_lens_mm = value.to_string();
+            }
+            SETTINGS_KEY_POSEKIT_PADDING_TOP => {
+                let value = settings_clamped_padding(row, state.pose_framing_padding_top_px);
+                state.pose_framing_padding_top_px = value;
+                state.settings_pose_padding_top = value.to_string();
+            }
+            SETTINGS_KEY_POSEKIT_PADDING_RIGHT => {
+                let value = settings_clamped_padding(row, state.pose_framing_padding_right_px);
+                state.pose_framing_padding_right_px = value;
+                state.settings_pose_padding_right = value.to_string();
+            }
+            SETTINGS_KEY_POSEKIT_PADDING_BOTTOM => {
+                let value = settings_clamped_padding(row, state.pose_framing_padding_bottom_px);
+                state.pose_framing_padding_bottom_px = value;
+                state.settings_pose_padding_bottom = value.to_string();
+            }
+            SETTINGS_KEY_POSEKIT_PADDING_LEFT => {
+                let value = settings_clamped_padding(row, state.pose_framing_padding_left_px);
+                state.pose_framing_padding_left_px = value;
+                state.settings_pose_padding_left = value.to_string();
+            }
+            SETTINGS_KEY_POSEKIT_MARKER_FACE => {
+                let enabled = row.value == "true";
+                state.settings_pose_face = enabled;
+                state.pose_face = enabled;
+            }
+            SETTINGS_KEY_POSEKIT_MARKER_BODY => {
+                let enabled = row.value == "true";
+                state.settings_pose_body = enabled;
+                state.pose_body = enabled;
+            }
+            SETTINGS_KEY_POSEKIT_MARKER_HANDS => {
+                let enabled = row.value == "true";
+                state.settings_pose_hands = enabled;
+                state.pose_hands = enabled;
+            }
+            SETTINGS_KEY_INGEST_BATCH_TAGS => {
+                state.settings_ingest_batch_tags = row.value.clone();
+                state.ingest_tag_buffer = row.value.clone();
+            }
+            SETTINGS_KEY_INGEST_POLICY => {
+                state.settings_ingest_policy = row.value.clone();
+                if let Some(decision) = IngestDecision::from_policy_token(&row.value) {
+                    state.ingest_decision = decision;
+                }
+            }
+            _ => {}
+        }
+    }
+    state.settings_rows = rows;
+}
+
+fn settings_clamped_padding(row: &AtelierPreferenceRow, fallback: i32) -> i32 {
+    row.value
+        .trim()
+        .parse::<i32>()
+        .map(|value| value.clamp(SETTINGS_PADDING_MIN, SETTINGS_PADDING_MAX))
+        .unwrap_or(fallback)
+}
+
+/// WP-CKC MT-042 (F2): seed the live-navigation defaults (`active_tab`,
+/// `ckc_book_mode`) from the stored projection ONLY on the initial load, and only
+/// when the operator/deep-link has NOT already navigated away from the construction
+/// defaults this session. This prevents Save/Reset from yanking the active tab and
+/// prevents overriding a `GO>Atelier>Posekit` deep-link (singleton panel race).
+fn seed_settings_live_nav(state: &mut AtelierPanelState, rows: &[AtelierPreferenceRow]) {
+    for row in rows {
+        match row.key.as_str() {
+            SETTINGS_KEY_LANDING_TAB => {
+                if state.active_tab == AtelierPanelTab::CastkitCodex {
+                    if let Some(tab) = AtelierPanelTab::from_settings_token(&row.value) {
+                        state.active_tab = tab;
+                    }
+                }
+            }
+            SETTINGS_KEY_CKC_BOOK_MODE => {
+                if state.ckc_book_mode == CkcBookMode::Sheet {
+                    if let Some(mode) = CkcBookMode::from_settings_token(&row.value) {
+                        state.ckc_book_mode = mode;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Count how many of the region's managed keys are present in a projection (F7).
+fn settings_managed_key_count(rows: &[AtelierPreferenceRow]) -> usize {
+    rows.iter()
+        .filter(|row| SETTINGS_MANAGED_KEYS.contains(&row.key.as_str()))
+        .count()
 }
 
 fn posekit_state_readout(state: &AtelierPanelState) -> String {
@@ -4492,6 +4894,17 @@ impl IngestDecision {
             _ => Self::Unsure,
         }
     }
+
+    /// WP-CKC MT-042: parse the persisted `ingest.default-policy` token
+    /// (pass/reject/unsure) into a decision, or `None` for an unknown token.
+    fn from_policy_token(token: &str) -> Option<Self> {
+        match token.trim().to_ascii_lowercase().as_str() {
+            "pass" => Some(Self::Pass),
+            "reject" => Some(Self::Reject),
+            "unsure" => Some(Self::Unsure),
+            _ => None,
+        }
+    }
 }
 
 fn ingest_bounded_number(value: &str, fallback: usize, min: usize, max: usize) -> usize {
@@ -4960,6 +5373,12 @@ pub struct AtelierPanel {
     ingest_contact_export_cell: AtelierContactSheetExportCell,
     ingest_facial_analysis_cell: AtelierFacialIngestAnalysisCell,
     ingest_classification_cell: AtelierIntakeClassificationCell,
+    /// WP-CKC MT-042 delivery cells: load/reload effective defaults, save-batch
+    /// outcome (with the failing key on error), and single reset-to-default result.
+    /// Drained each frame (HBR-QUIET).
+    settings_cell: AtelierPreferencesCell,
+    settings_save_cell: AtelierPreferenceSaveCell,
+    settings_reset_cell: AtelierPreferenceMutationCell,
 }
 
 impl AtelierPanel {
@@ -5027,6 +5446,9 @@ impl AtelierPanel {
             ingest_contact_export_cell: Arc::new(Mutex::new(None)),
             ingest_facial_analysis_cell: Arc::new(Mutex::new(None)),
             ingest_classification_cell: Arc::new(Mutex::new(None)),
+            settings_cell: Arc::new(Mutex::new(None)),
+            settings_save_cell: Arc::new(Mutex::new(None)),
+            settings_reset_cell: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -5061,12 +5483,19 @@ impl AtelierPanel {
     }
 
     fn show_inner(&self, ui: &mut egui::Ui, palette: &HsPalette) {
+        // WP-CKC MT-042: load-on-open + drain effective defaults before rendering, so a
+        // freshly-loaded default is applied to the runtime fields the same frame. This runs
+        // regardless of the active tab because the defaults are panel-wide.
+        self.ensure_settings_load_requested();
+        self.drain_settings_backend();
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
                 ui.heading(egui::RichText::new("Atelier").color(palette.text));
                 ui.add_space(8.0);
                 ui.label(egui::RichText::new("CKC").color(palette.text_subtle));
             });
+            ui.add_space(4.0);
+            self.show_settings_region(ui, palette);
             ui.add_space(4.0);
             self.show_tab_strip(ui);
             ui.separator();
@@ -5135,6 +5564,386 @@ impl AtelierPanel {
             tab.label(),
             false,
         );
+    }
+
+    /// WP-CKC MT-042: fire the one-shot effective-defaults load on first panel show
+    /// (HBR-QUIET, off-thread). No-op without a live client (seeded/demo mode).
+    fn ensure_settings_load_requested(&self) {
+        let Some(client) = self.ckc_client.as_ref() else {
+            return;
+        };
+        let should_request = {
+            let Ok(mut state) = self.state.lock() else {
+                return;
+            };
+            if state.settings_load_requested {
+                false
+            } else {
+                state.settings_load_requested = true;
+                state.settings_loading = true;
+                state.settings_status = "Loading Atelier defaults from PostgreSQL...".to_owned();
+                true
+            }
+        };
+        if should_request {
+            client.fetch_preferences(self.settings_cell.clone());
+        }
+    }
+
+    /// WP-CKC MT-042: drain the load/save/reset delivery cells and apply results.
+    /// - Load: sync edit buffers + non-nav runtime defaults; seed live nav ONLY on the
+    ///   first load (F2). - Save: report which key failed (F1) and ALWAYS reload so the
+    ///   UI re-syncs to the DB (whether some, all, or no keys persisted). - Reset:
+    ///   reload so buffers + runtime re-derive from the store.
+    fn drain_settings_backend(&self) {
+        let load_result = self
+            .settings_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        if let Some(result) = load_result {
+            if let Ok(mut state) = self.state.lock() {
+                state.settings_loading = false;
+                match result {
+                    Ok(rows) => {
+                        let first_load = !state.settings_loaded;
+                        if first_load {
+                            // Seed live nav from the store BEFORE syncing buffers, using
+                            // the pre-sync active_tab/book_mode to decide (F2 guard).
+                            seed_settings_live_nav(&mut state, &rows);
+                        }
+                        let managed = settings_managed_key_count(&rows);
+                        sync_settings_buffers(&mut state, rows);
+                        state.settings_loaded = true;
+                        state.settings_status =
+                            format!("Atelier defaults loaded ({managed} keys).");
+                    }
+                    Err(err) => {
+                        state.settings_status = format!("Atelier defaults load failed: {err}");
+                    }
+                }
+            }
+        }
+
+        let mut reload = false;
+        let save_outcome = self
+            .settings_save_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        if let Some(outcome) = save_outcome {
+            if let Ok(mut state) = self.state.lock() {
+                state.settings_save_pending = false;
+                match (outcome.failed_key, outcome.error) {
+                    (Some(failed_key), error) => {
+                        // F1: report the exact failing key; a reload re-syncs so the UI
+                        // never diverges from the DB (some keys before it may have saved).
+                        state.settings_status = format!(
+                            "Save failed at '{failed_key}': {}. Reloaded {} saved key(s) to re-sync.",
+                            error.unwrap_or_else(|| "unknown error".to_owned()),
+                            outcome.saved.len()
+                        );
+                    }
+                    (None, _) => {
+                        state.settings_status =
+                            format!("Saved {} default(s) to PostgreSQL + EventLedger.", outcome.saved.len());
+                    }
+                }
+                reload = self.ckc_client.is_some();
+            }
+        }
+
+        let reset_result = self
+            .settings_reset_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        if let Some(result) = reset_result {
+            if let Ok(mut state) = self.state.lock() {
+                match result {
+                    Ok(row) => {
+                        state.settings_status =
+                            format!("Reset {} to default ({}).", row.key, row.value);
+                        reload = reload || self.ckc_client.is_some();
+                    }
+                    Err(err) => {
+                        state.settings_status = format!("Atelier default reset failed: {err}");
+                    }
+                }
+            }
+        }
+        if reload {
+            if let Some(client) = self.ckc_client.as_ref() {
+                client.fetch_preferences(self.settings_cell.clone());
+            }
+        }
+    }
+
+    /// WP-CKC MT-042: the operator-facing collapsing "Settings / Defaults" region.
+    /// Not a 4th `AtelierPanelTab` — it renders panel-wide above the tab strip. Every
+    /// control is Argus-steerable by stable author_id; Save/Reset route through the
+    /// atelier preference store (PostgreSQL + EventLedger).
+    fn show_settings_region(&self, ui: &mut egui::Ui, palette: &HsPalette) {
+        let actor = self
+            .ckc_client
+            .as_ref()
+            .map(|client| client.actor_id().to_owned())
+            .unwrap_or_default();
+        let client_present = self.ckc_client.is_some();
+        let mut dispatch_save: Option<Vec<(String, String, String)>> = None;
+        let mut dispatch_reset: Option<String> = None;
+        {
+            let Ok(mut state) = self.state.lock() else {
+                return;
+            };
+            let region = egui::CollapsingHeader::new("Settings / Defaults")
+                .default_open(true)
+                .show(ui, |ui| {
+                    ui.label(
+                        egui::RichText::new(
+                            "Operator defaults for Atelier / CKC / PoseKit / Ingest. Persisted to \
+                             PostgreSQL + EventLedger; applied to the live fields on load and save.",
+                        )
+                        .color(palette.text_subtle),
+                    );
+
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label(egui::RichText::new("Default landing tab").color(palette.text));
+                        let response = ui.text_edit_singleline(&mut state.settings_landing_tab);
+                        emit_value_node(
+                            ui.ctx(),
+                            response.id,
+                            accesskit::Role::TextInput,
+                            ATELIER_SETTINGS_DEFAULT_TAB_AUTHOR_ID,
+                            "Atelier default landing tab (castkit-codex | posekit | ingest)",
+                            &state.settings_landing_tab,
+                        );
+
+                        ui.label(egui::RichText::new("CKC book mode").color(palette.text));
+                        let response = ui.text_edit_singleline(&mut state.settings_ckc_book_mode);
+                        emit_value_node(
+                            ui.ctx(),
+                            response.id,
+                            accesskit::Role::TextInput,
+                            ATELIER_SETTINGS_CKC_BOOK_MODE_AUTHOR_ID,
+                            "CKC default book mode (sheet | story | notes | moodboard)",
+                            &state.settings_ckc_book_mode,
+                        );
+                    });
+
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label(egui::RichText::new("PoseKit framing preset").color(palette.text));
+                        let response =
+                            ui.text_edit_singleline(&mut state.settings_pose_framing_preset);
+                        emit_value_node(
+                            ui.ctx(),
+                            response.id,
+                            accesskit::Role::TextInput,
+                            ATELIER_SETTINGS_POSEKIT_FRAMING_PRESET_AUTHOR_ID,
+                            "PoseKit default framing preset",
+                            &state.settings_pose_framing_preset,
+                        );
+
+                        ui.label(egui::RichText::new("PoseKit lens mm").color(palette.text));
+                        let response = ui.text_edit_singleline(&mut state.settings_pose_lens_mm);
+                        emit_value_node(
+                            ui.ctx(),
+                            response.id,
+                            accesskit::Role::TextInput,
+                            ATELIER_SETTINGS_POSEKIT_LENS_AUTHOR_ID,
+                            "PoseKit default framing lens millimeters (18..120)",
+                            &state.settings_pose_lens_mm,
+                        );
+                    });
+
+                    // WP-CKC MT-042 (F3): the 4 PoseKit framing-padding defaults, now
+                    // functional end-to-end (synced to pose_framing_padding_*_px).
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label(egui::RichText::new("PoseKit padding px").color(palette.text));
+                        ui.label(egui::RichText::new("Top").color(palette.text_subtle));
+                        let top = ui.text_edit_singleline(&mut state.settings_pose_padding_top);
+                        emit_value_node(
+                            ui.ctx(),
+                            top.id,
+                            accesskit::Role::TextInput,
+                            ATELIER_SETTINGS_POSEKIT_PADDING_TOP_AUTHOR_ID,
+                            "PoseKit default top padding pixels (0..256)",
+                            &state.settings_pose_padding_top,
+                        );
+                        ui.label(egui::RichText::new("Right").color(palette.text_subtle));
+                        let right = ui.text_edit_singleline(&mut state.settings_pose_padding_right);
+                        emit_value_node(
+                            ui.ctx(),
+                            right.id,
+                            accesskit::Role::TextInput,
+                            ATELIER_SETTINGS_POSEKIT_PADDING_RIGHT_AUTHOR_ID,
+                            "PoseKit default right padding pixels (0..256)",
+                            &state.settings_pose_padding_right,
+                        );
+                        ui.label(egui::RichText::new("Bottom").color(palette.text_subtle));
+                        let bottom =
+                            ui.text_edit_singleline(&mut state.settings_pose_padding_bottom);
+                        emit_value_node(
+                            ui.ctx(),
+                            bottom.id,
+                            accesskit::Role::TextInput,
+                            ATELIER_SETTINGS_POSEKIT_PADDING_BOTTOM_AUTHOR_ID,
+                            "PoseKit default bottom padding pixels (0..256)",
+                            &state.settings_pose_padding_bottom,
+                        );
+                        ui.label(egui::RichText::new("Left").color(palette.text_subtle));
+                        let left = ui.text_edit_singleline(&mut state.settings_pose_padding_left);
+                        emit_value_node(
+                            ui.ctx(),
+                            left.id,
+                            accesskit::Role::TextInput,
+                            ATELIER_SETTINGS_POSEKIT_PADDING_LEFT_AUTHOR_ID,
+                            "PoseKit default left padding pixels (0..256)",
+                            &state.settings_pose_padding_left,
+                        );
+                    });
+
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label(egui::RichText::new("PoseKit default markers").color(palette.text));
+                        let face = ui.checkbox(&mut state.settings_pose_face, "Face");
+                        emit_node(
+                            ui.ctx(),
+                            face.id,
+                            accesskit::Role::CheckBox,
+                            ATELIER_SETTINGS_POSEKIT_MARKERS_FACE_AUTHOR_ID,
+                            "PoseKit default face markers",
+                            state.settings_pose_face,
+                        );
+                        let body = ui.checkbox(&mut state.settings_pose_body, "Body");
+                        emit_node(
+                            ui.ctx(),
+                            body.id,
+                            accesskit::Role::CheckBox,
+                            ATELIER_SETTINGS_POSEKIT_MARKERS_BODY_AUTHOR_ID,
+                            "PoseKit default body markers",
+                            state.settings_pose_body,
+                        );
+                        let hands = ui.checkbox(&mut state.settings_pose_hands, "Hands");
+                        emit_node(
+                            ui.ctx(),
+                            hands.id,
+                            accesskit::Role::CheckBox,
+                            ATELIER_SETTINGS_POSEKIT_MARKERS_HANDS_AUTHOR_ID,
+                            "PoseKit default hand markers",
+                            state.settings_pose_hands,
+                        );
+                    });
+
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label(egui::RichText::new("Ingest batch tags").color(palette.text));
+                        let response =
+                            ui.text_edit_singleline(&mut state.settings_ingest_batch_tags);
+                        emit_value_node(
+                            ui.ctx(),
+                            response.id,
+                            accesskit::Role::TextInput,
+                            ATELIER_SETTINGS_INGEST_BATCH_TAGS_AUTHOR_ID,
+                            "Ingest default batch tags",
+                            &state.settings_ingest_batch_tags,
+                        );
+
+                        ui.label(egui::RichText::new("Ingest policy").color(palette.text));
+                        let response = ui.text_edit_singleline(&mut state.settings_ingest_policy);
+                        emit_value_node(
+                            ui.ctx(),
+                            response.id,
+                            accesskit::Role::TextInput,
+                            ATELIER_SETTINGS_INGEST_POLICY_AUTHOR_ID,
+                            "Ingest default policy (pass | reject | unsure)",
+                            &state.settings_ingest_policy,
+                        );
+                    });
+
+                    ui.horizontal_wrapped(|ui| {
+                        let save = ui.button("Save defaults");
+                        emit_node(
+                            ui.ctx(),
+                            save.id,
+                            accesskit::Role::Button,
+                            ATELIER_SETTINGS_SAVE_AUTHOR_ID,
+                            "Save Atelier defaults",
+                            false,
+                        );
+                        if save.clicked() && client_present && !state.settings_save_pending {
+                            // F1/F5/F6: validate + normalize client-side and send ONLY
+                            // changed keys. An invalid enum/integer rejects the WHOLE
+                            // save before any PUT, so there is never a partial write.
+                            match settings_save_entries(&state) {
+                                Ok(entries) if entries.is_empty() => {
+                                    state.settings_status = "No default changes to save.".to_owned();
+                                }
+                                Ok(entries) => {
+                                    state.settings_save_pending = true;
+                                    dispatch_save = Some(entries);
+                                }
+                                Err(message) => {
+                                    state.settings_status = format!("Cannot save: {message}.");
+                                }
+                            }
+                        }
+                        if state.settings_save_pending {
+                            ui.label(
+                                egui::RichText::new("saving...").color(palette.text_subtle),
+                            );
+                        }
+                    });
+
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label(
+                            egui::RichText::new("Reset to default:").color(palette.text_subtle),
+                        );
+                        for key in SETTINGS_MANAGED_KEYS {
+                            let button = ui.button(*key);
+                            emit_node(
+                                ui.ctx(),
+                                button.id,
+                                accesskit::Role::Button,
+                                &settings_reset_author_id(key),
+                                &format!("Reset {key} to default"),
+                                false,
+                            );
+                            if button.clicked() && client_present {
+                                dispatch_reset = Some((*key).to_owned());
+                            }
+                        }
+                    });
+
+                    let status = state.settings_status.clone();
+                    let status_response =
+                        ui.label(egui::RichText::new(&status).color(palette.text_subtle));
+                    emit_value_node(
+                        ui.ctx(),
+                        status_response.id,
+                        accesskit::Role::Label,
+                        ATELIER_SETTINGS_STATUS_AUTHOR_ID,
+                        "Atelier defaults status",
+                        &status,
+                    );
+                });
+            emit_node(
+                ui.ctx(),
+                region.header_response.id,
+                accesskit::Role::Group,
+                ATELIER_SETTINGS_REGION_AUTHOR_ID,
+                "Atelier settings and defaults",
+                false,
+            );
+        }
+        if let Some(entries) = dispatch_save {
+            if let Some(client) = self.ckc_client.as_ref() {
+                client.save_preferences(entries, &actor, self.settings_save_cell.clone());
+            }
+        }
+        if let Some(key) = dispatch_reset {
+            if let Some(client) = self.ckc_client.as_ref() {
+                client.reset_preference(&key, &actor, self.settings_reset_cell.clone());
+            }
+        }
     }
 
     fn ensure_ckc_load_requested(&self) {
@@ -13122,5 +13931,132 @@ mod tests {
                 state.ckc_media_image_status
             );
         }
+    }
+
+    // ── WP-CKC MT-042 settings-region logic (F1/F2/F3/F5) ─────────────────────────────────────────
+    fn mt042_pref_row(key: &str, value: &str, value_type: &str) -> AtelierPreferenceRow {
+        AtelierPreferenceRow {
+            key: key.to_owned(),
+            namespace: key.split('.').next().unwrap_or_default().to_owned(),
+            name: key.split('.').nth(1).unwrap_or_default().to_owned(),
+            value: value.to_owned(),
+            value_type: value_type.to_owned(),
+            default_value: Some(value.to_owned()),
+            source: "default".to_owned(),
+            revision: 0,
+        }
+    }
+
+    /// A projection whose values equal the panel's construction defaults, so a freshly
+    /// synced panel has zero pending changes.
+    fn mt042_default_rows() -> Vec<AtelierPreferenceRow> {
+        vec![
+            mt042_pref_row(SETTINGS_KEY_LANDING_TAB, "castkit-codex", "string"),
+            mt042_pref_row(SETTINGS_KEY_CKC_BOOK_MODE, "sheet", "string"),
+            mt042_pref_row(SETTINGS_KEY_POSEKIT_FRAMING_PRESET, "standard", "string"),
+            mt042_pref_row(SETTINGS_KEY_POSEKIT_LENS_MM, "50", "integer"),
+            mt042_pref_row(SETTINGS_KEY_POSEKIT_PADDING_TOP, "0", "integer"),
+            mt042_pref_row(SETTINGS_KEY_POSEKIT_PADDING_RIGHT, "0", "integer"),
+            mt042_pref_row(SETTINGS_KEY_POSEKIT_PADDING_BOTTOM, "0", "integer"),
+            mt042_pref_row(SETTINGS_KEY_POSEKIT_PADDING_LEFT, "0", "integer"),
+            mt042_pref_row(SETTINGS_KEY_POSEKIT_MARKER_FACE, "true", "bool"),
+            mt042_pref_row(SETTINGS_KEY_POSEKIT_MARKER_BODY, "true", "bool"),
+            mt042_pref_row(SETTINGS_KEY_POSEKIT_MARKER_HANDS, "false", "bool"),
+            mt042_pref_row(SETTINGS_KEY_INGEST_BATCH_TAGS, "event, outfit, source", "string"),
+            mt042_pref_row(SETTINGS_KEY_INGEST_POLICY, "unsure", "string"),
+        ]
+    }
+
+    #[test]
+    fn mt042_save_entries_only_include_changed_keys() {
+        // F5: after syncing the loaded projection, nothing has changed.
+        let mut state = AtelierPanelState::default();
+        sync_settings_buffers(&mut state, mt042_default_rows());
+        assert_eq!(
+            settings_save_entries(&state).expect("valid entries"),
+            Vec::<(String, String, String)>::new(),
+            "unchanged buffers must yield zero PUTs"
+        );
+
+        // Change exactly one field: only that key is planned, with its value_type.
+        state.settings_ingest_batch_tags = "studio, set-a".to_owned();
+        let entries = settings_save_entries(&state).expect("valid entries");
+        assert_eq!(
+            entries,
+            vec![(
+                SETTINGS_KEY_INGEST_BATCH_TAGS.to_owned(),
+                "studio, set-a".to_owned(),
+                "string".to_owned(),
+            )],
+            "only the changed key must be sent"
+        );
+    }
+
+    #[test]
+    fn mt042_save_entries_reject_invalid_enum_atomically() {
+        // F1: an invalid enum value rejects the WHOLE save (no partial PUTs).
+        let mut state = AtelierPanelState::default();
+        sync_settings_buffers(&mut state, mt042_default_rows());
+        state.settings_ingest_policy = "maybe".to_owned();
+        let error = settings_save_entries(&state).expect_err("invalid enum must reject");
+        assert!(
+            error.contains("ingest policy"),
+            "error should name the offending field: {error}"
+        );
+
+        // A non-integer lens likewise rejects the whole save.
+        let mut state = AtelierPanelState::default();
+        sync_settings_buffers(&mut state, mt042_default_rows());
+        state.settings_pose_lens_mm = "wide".to_owned();
+        assert!(settings_save_entries(&state)
+            .expect_err("non-integer lens must reject")
+            .contains("lens"));
+    }
+
+    #[test]
+    fn mt042_seed_live_nav_respects_operator_navigation() {
+        // F2: on first load with the construction default tab, nav is seeded.
+        let mut state = AtelierPanelState::default();
+        assert_eq!(state.active_tab, AtelierPanelTab::CastkitCodex);
+        let rows = vec![
+            mt042_pref_row(SETTINGS_KEY_LANDING_TAB, "posekit", "string"),
+            mt042_pref_row(SETTINGS_KEY_CKC_BOOK_MODE, "story", "string"),
+        ];
+        seed_settings_live_nav(&mut state, &rows);
+        assert_eq!(state.active_tab, AtelierPanelTab::Posekit);
+        assert_eq!(state.ckc_book_mode, CkcBookMode::Story);
+
+        // If the operator/deep-link already navigated, the seed must NOT override it.
+        let mut navigated = AtelierPanelState::default();
+        navigated.active_tab = AtelierPanelTab::Ingest;
+        seed_settings_live_nav(&mut navigated, &rows);
+        assert_eq!(
+            navigated.active_tab,
+            AtelierPanelTab::Ingest,
+            "seed must not yank an operator/deep-link tab"
+        );
+    }
+
+    #[test]
+    fn mt042_sync_buffers_never_touches_active_tab_and_padding_reaches_runtime() {
+        // F2: sync (used by Save/Reset re-applies) must leave the live tab alone.
+        // F3: padding rows must reach the runtime pose_framing_padding_* fields.
+        let mut state = AtelierPanelState::default();
+        state.active_tab = AtelierPanelTab::Posekit;
+        let mut rows = mt042_default_rows();
+        // Landing-tab default is castkit-codex; padding-top set to 20.
+        for row in &mut rows {
+            if row.key == SETTINGS_KEY_POSEKIT_PADDING_TOP {
+                row.value = "20".to_owned();
+            }
+        }
+        sync_settings_buffers(&mut state, rows);
+        assert_eq!(
+            state.active_tab,
+            AtelierPanelTab::Posekit,
+            "sync must not re-seed the active tab"
+        );
+        assert_eq!(state.pose_framing_padding_top_px, 20, "F3: padding reaches runtime");
+        assert_eq!(state.settings_pose_padding_top, "20");
     }
 }

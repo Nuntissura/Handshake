@@ -72,6 +72,9 @@ use crate::atelier::search::{
     normalize_tag, AiTagSuggestion, AiTagSuggestionDecision, AiTagSuggestionStatus, CkcSearchMode,
     CkcSearchRequest, CkcSearchResponse, CkcTagNote, NewAiTagSuggestion, UpsertCkcTagNote,
 };
+use crate::atelier::settings::{
+    EffectivePreference, PreferenceScope, PreferenceType, SetPreference,
+};
 use crate::atelier::sheet::{
     sheet_field_id_from_line, sheet_field_values, sheet_line_looks_like_field,
 };
@@ -241,6 +244,15 @@ pub fn routes(state: AppState) -> Router {
             post(apply_intake_item_classification),
         )
         .route("/atelier/command-corpus", get(list_command_corpus))
+        // WP-CKC MT-042: operator-facing Atelier/CKC/PoseKit/Ingest default preferences.
+        .route(
+            "/atelier/preferences",
+            get(list_atelier_preferences).put(set_atelier_preference),
+        )
+        .route(
+            "/atelier/preferences/reset",
+            post(reset_atelier_preference),
+        )
         .route(
             "/atelier/filesystem-health/checks",
             post(run_filesystem_health_check),
@@ -2892,6 +2904,118 @@ async fn upsert_ckc_tag_note(
         "upsert CKC tag note"
     );
     Ok(Json(tag_note))
+}
+
+// ---------------------------------------------------------------------------
+// WP-CKC MT-042: operator-facing Atelier/CKC/PoseKit/Ingest default preferences.
+//
+// These expose the EXISTING atelier preference store (typed Preference rows +
+// `atelier.preference.set` / `atelier.preference.reset_to_default` EventLedger
+// events) over HTTP so the `atelier_panel` "Settings / Defaults" region can read
+// effective defaults and edit them. All routes are Global-scope, fail-closed with
+// typed errors, and require an actor header for attribution. Namespace/key
+// validation is enforced by the store (`split_preference_key`); enumerated values
+// are constrained by the store's `validate_defined_preference_value`.
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+struct SetAtelierPreferenceRequest {
+    key: String,
+    value: String,
+    /// Declared value type ("string" | "bool" | "integer" | "float" | "path").
+    /// Validated against the registered definition by the store on the way in.
+    value_type: PreferenceType,
+}
+
+#[derive(Debug, Deserialize)]
+struct ResetAtelierPreferenceRequest {
+    key: String,
+}
+
+/// GET /atelier/preferences — the effective, operator-safe projection of the
+/// Global-scope preferences, including registry defaults for unset keys.
+async fn list_atelier_preferences(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<EffectivePreference>>, (StatusCode, Json<ErrorResponse>)> {
+    let store = atelier_store(&state);
+    let preferences = store
+        .list_preference_projection(PreferenceScope::Global, true)
+        .await
+        .map_err(atelier_error)?;
+    tracing::info!(
+        target: "handshake_core::atelier",
+        route = "/atelier/preferences",
+        status = "ok",
+        count = preferences.len(),
+        "list atelier preferences"
+    );
+    Ok(Json(preferences))
+}
+
+/// PUT /atelier/preferences — set one Global-scope preference to an operator
+/// value. Returns the resulting effective preference. Fail-closed: an unknown
+/// namespace/key or an out-of-vocabulary enumerated value is a typed 400.
+async fn set_atelier_preference(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<SetAtelierPreferenceRequest>,
+) -> Result<Json<EffectivePreference>, (StatusCode, Json<ErrorResponse>)> {
+    let actor = calling_actor(&headers)?;
+    let store = atelier_store(&state);
+    store
+        .set_preference_with_receipt_as(
+            &SetPreference {
+                scope: PreferenceScope::Global,
+                key: payload.key.clone(),
+                value_type: payload.value_type,
+                value: payload.value,
+                redacted: false,
+            },
+            Some(actor.as_str()),
+        )
+        .await
+        .map_err(atelier_error)?;
+    let effective = store
+        .get_effective_preference(PreferenceScope::Global, &payload.key)
+        .await
+        .map_err(atelier_error)?;
+    tracing::info!(
+        target: "handshake_core::atelier",
+        route = "/atelier/preferences",
+        status = "ok",
+        actor = %actor,
+        key = %effective.key,
+        "set atelier preference"
+    );
+    Ok(Json(effective))
+}
+
+/// POST /atelier/preferences/reset — reset one Global-scope preference to its
+/// registered default without deleting provenance (revision bump + reset event).
+async fn reset_atelier_preference(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<ResetAtelierPreferenceRequest>,
+) -> Result<Json<EffectivePreference>, (StatusCode, Json<ErrorResponse>)> {
+    let actor = calling_actor(&headers)?;
+    let store = atelier_store(&state);
+    store
+        .reset_preference_to_default_as(PreferenceScope::Global, &payload.key, Some(actor.as_str()))
+        .await
+        .map_err(atelier_error)?;
+    let effective = store
+        .get_effective_preference(PreferenceScope::Global, &payload.key)
+        .await
+        .map_err(atelier_error)?;
+    tracing::info!(
+        target: "handshake_core::atelier",
+        route = "/atelier/preferences/reset",
+        status = "ok",
+        actor = %actor,
+        key = %effective.key,
+        "reset atelier preference to default"
+    );
+    Ok(Json(effective))
 }
 
 /// POST /atelier/posekit/openpose-export — native Rust Posekit/OpenRepose export into ArtifactStore.
