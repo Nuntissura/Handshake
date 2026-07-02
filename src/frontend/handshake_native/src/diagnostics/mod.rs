@@ -126,9 +126,9 @@ pub use survivor_forward::{
 // `use crate::diagnostics::{launch_palmistry_or_degrade, set_preinstalled_diag_session, ...}` without
 // reaching into the `palmistry_launch` submodule path.
 pub use palmistry_launch::{
-    control_socket_name, drain_palmistry_child_watch_commands, enqueue_palmistry_child_deregister,
-    enqueue_palmistry_child_liveness_file, launch_palmistry, launch_palmistry_at,
-    launch_palmistry_or_degrade, resolve_palmistry_exe, set_preinstalled_diag_session,
-    take_preinstalled_diag_session, PalmistryHandle, ShutdownOutcome, ENV_PALMISTRY_EXE,
-    SPAWN_NOT_KILL_ON_JOB_CLOSE,
+    control_socket_name, crash_socket_path, drain_palmistry_child_watch_commands,
+    enqueue_palmistry_child_deregister, enqueue_palmistry_child_liveness_file, launch_palmistry,
+    launch_palmistry_at, launch_palmistry_or_degrade, resolve_palmistry_exe,
+    set_preinstalled_diag_session, take_preinstalled_diag_session, PalmistryHandle,
+    ShutdownOutcome, ENV_PALMISTRY_EXE, SPAWN_NOT_KILL_ON_JOB_CLOSE,
 };

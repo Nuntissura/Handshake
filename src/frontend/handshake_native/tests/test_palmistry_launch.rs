@@ -16,8 +16,8 @@
 //!   it with a SUCCESS exit and NO crash record written (a clean shutdown is not a crash). The real
 //!   windowed binary is NEVER executed (it would hang the suite — the MT-094 HANG lesson). This live
 //!   proof is `#[ignore]`d so a DEFAULT `cargo test` reports it as not-run (a visible "ignored", never a
-//!   FALSE green that masks an un-run handshake proof); the governed lane MUST build `-p palmistry`
-//!   (into `../../../../Handshake_Artifacts/palmistry-target/debug`) and run it via
+//!   FALSE green that masks an un-run handshake proof); the governed lane MUST build palmistry
+//!   (into `../../../../Handshake_Artifacts/handshake-cargo-target/debug`) and run it via
 //!   `cargo test ... -- --include-ignored`. When the live test IS run but no `palmistry` binary is
 //!   discoverable it HARD-FAILS (build `-p palmistry` or set `HANDSHAKE_PALMISTRY_EXE`) — it NEVER
 //!   silently skips, so a passing live result is durable proof the real cross-process handshake ran.
@@ -225,9 +225,14 @@ fn find_palmistry_binary() -> Option<PathBuf> {
     } else {
         "palmistry"
     };
+    // MT-094 remediation: the discovery fallbacks previously pointed at
+    // `Handshake_Artifacts/palmistry-target/{debug,release}`, a layout that NEVER existed — real
+    // builds land in the shared `Handshake_Artifacts/handshake-cargo-target/{debug,release}` (the
+    // repo-root + palmistry `.cargo/config.toml` target dir). Point at the REAL layout so the live
+    // proof finds a built binary without HANDSHAKE_PALMISTRY_EXE.
     for base in [
-        "../../../../Handshake_Artifacts/palmistry-target/debug",
-        "../../../../Handshake_Artifacts/palmistry-target/release",
+        "../../../../Handshake_Artifacts/handshake-cargo-target/debug",
+        "../../../../Handshake_Artifacts/handshake-cargo-target/release",
     ] {
         let p = Path::new(base).join(bin);
         if p.is_file() {

@@ -332,19 +332,19 @@ fn tier3_palmistry_empty_state_and_accesskit_ids_present() {
 
     // The honest empty-state text is rendered (not faked / not a record). egui stores a plain
     // `ui.label` text run as the node's accessible VALUE (and sometimes label), so check BOTH fields.
+    // MT-087 remediation: assert the STABLE PREFIX "No freeze/crash" rather than the full sentence —
+    // MT-106 extended the panel text to "No freeze/crash/child-stall records." and the empty-state
+    // wording may legitimately grow again as new Tier-3 record kinds land; the prefix is the stable
+    // contract (an honest "nothing captured" empty-state, not a record).
     let has_empty_state = harness.root().children_recursive().any(|n| {
         let ak = n.accesskit_node();
-        let in_value = ak
-            .value()
-            .is_some_and(|v| v.contains("No freeze/crash records"));
-        let in_label = ak
-            .label()
-            .is_some_and(|l| l.contains("No freeze/crash records"));
+        let in_value = ak.value().is_some_and(|v| v.contains("No freeze/crash"));
+        let in_label = ak.label().is_some_and(|l| l.contains("No freeze/crash"));
         in_value || in_label
     });
     assert!(
         has_empty_state,
-        "AC-007-4: the Palmistry section must render the honest 'No freeze/crash records' empty-state"
+        "AC-007-4: the Palmistry section must render the honest 'No freeze/crash...' empty-state"
     );
 
     // AC-007-5: ALL panel AccessKit section ids present (the full §5.8.4 layout).

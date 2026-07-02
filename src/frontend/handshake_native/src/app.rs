@@ -760,15 +760,20 @@ pub struct HandshakeApp {
     /// closed so the default work surface stays editor/chat-focused; tests or an affordance can open it
     /// when the drag source is needed.
     atelier_panel_open: bool,
-    /// MT-033: the live Stage pane (the route-to-Stage DISPLAY surface). Held by the shell and mounted as
-    /// a bottom panel; the per-frame bus drain (`take_pending_stage_content`) sets its content when a
-    /// "Route to Stage" command is dispatched (palette or context menu). Read-only display — deeper Stage
-    /// capture/embed-back is E10 (MT-066).
-    stage_pane: StagePane,
+    /// MT-033/MT-066 REMEDIATION: the ONE live Stage pane, shared between the bottom route-to-Stage
+    /// panel AND the dockable Stage pane (`PaneType::Placeholder("Stage")` / `view.stage`). This is the
+    /// SAME `Arc<Mutex<StagePane>>` behind `editor_mounts.secondary.stage`, so routed content and the
+    /// embed-back round-trip surface share ONE state (the audit found two forked StagePane instances).
+    stage_pane: Arc<Mutex<StagePane>>,
     /// MT-033: whether the Stage pane (bottom panel) is shown. Starts closed; the shell drain OPENS it the
     /// frame content is routed in (so "Route to Stage" is observable, not a silent no-op). A future
     /// affordance / pane-close action can flip it back.
     stage_panel_open: bool,
+    /// WP-KERNEL-012 MT-036 REMEDIATION: true once the shell installed the ONE native-editor event
+    /// emitter on the shared InteractionBus (previously `set_event_emitter` had ZERO production callers,
+    /// so every LIVE emit call site was a guaranteed no-op). Installed at the first frame where a
+    /// runtime + workspace are bound.
+    event_emitter_installed: bool,
 }
 
 /// MT-024 LOCAL drawer-action intents (no backend): the most recent Promote / SendToPane signal a swarm
@@ -913,6 +918,12 @@ struct EditorMountHandles {
     /// (canvas / graph / outgoing-links / relevant-memory / Stage / daily-journal / manual). The shell
     /// pushes the live palette into `secondary_palette` each frame and drains the per-pane outbound queues.
     secondary: SecondaryMountHandles,
+    /// WP-KERNEL-012 MT-041 REMEDIATION: the ONE shared editor-action AccessKit registry, installed on
+    /// the mounted code panel + rich state at mount build (previously `install_editor_action_registry`
+    /// had zero production callers, so the canonical `editor.code.*`/`editor.rich.*` action nodes existed
+    /// only in kittests).
+    editor_action_registry:
+        Arc<Mutex<crate::accessibility::editor_action_registry::EditorActionRegistry>>,
 }
 
 /// WP-KERNEL-012 MT-080: the live handles the shell keeps for the SECONDARY mounted panes. Each `state`
@@ -947,6 +958,79 @@ struct SecondaryMountHandles {
     /// True once the relevant-memory pane has requested its first FEMS fetch (so the EndpointMissing
     /// blocker is surfaced exactly once — the route is verified ABSENT in this build).
     relevant_memory_fetched: std::sync::atomic::AtomicBool,
+
+    // ── WP-KERNEL-012 E11 remediation wave (lane W1): the previously ORPHANED side panes ────────────
+    /// MT-023: the tags list panel + the (optional) open tag-hub page + their outbound event queue.
+    tags_panel: Arc<Mutex<crate::graph::tags_panel::LoomTagsPanel>>,
+    tags_hub: Arc<Mutex<Option<crate::graph::tags_panel::LoomTagHubPanel>>>,
+    tags_events: Arc<Mutex<Vec<crate::editor_pane_factories::TagsPaneEvent>>>,
+    tags_fetched: std::sync::atomic::AtomicBool,
+    tag_list_cell: crate::backend_client::TagListCell,
+    tag_hub_cell: crate::backend_client::TagHubDetailCell,
+    tag_candidates_cell: crate::backend_client::AddTagCandidatesCell,
+    tag_edge_cell: crate::backend_client::ScmReceiptCell,
+    /// The hub block id an in-flight tag-edge POST re-queries on delivery.
+    tag_edge_hub: Arc<Mutex<Option<String>>>,
+
+    /// MT-024: the sidebar panel (pins/favorites/backlinks/unlinked/breadcrumbs) + its queue + cells.
+    sidebar_panel: Arc<Mutex<crate::graph::sidebar_panel::LoomSidebarPanel>>,
+    sidebar_events: Arc<Mutex<Vec<crate::graph::sidebar_panel::SidebarEvent>>>,
+    sidebar_fetched: std::sync::atomic::AtomicBool,
+    sidebar_pins_cell: crate::backend_client::SidebarBlockListCell,
+    sidebar_favorites_cell: crate::backend_client::SidebarBlockListCell,
+    sidebar_action_cell: crate::backend_client::DrawerActionCell,
+    /// The (kind, block_id) of the in-flight pin/favorite removal, so the receipt drain can emit the
+    /// `ShellEvent::BookmarkRemoved` + re-fetch the right section.
+    sidebar_action_in_flight: Arc<Mutex<Option<(crate::graph::sidebar_panel::SectionKind, String)>>>,
+
+    /// MT-027: the block-collections view + its outbound queue + delivery cells.
+    collection_view: Arc<Mutex<crate::graph::block_collection_view::BlockCollectionView>>,
+    collection_events: Arc<Mutex<Vec<crate::graph::block_collection_view::BlockViewEvent>>>,
+    collection_record_cell: crate::backend_client::BlockViewRecordCell,
+    collection_results_cell: crate::backend_client::BlockViewResultsCell,
+    collection_op_cell: crate::backend_client::BlockViewOpCell,
+
+    /// MT-056: the outline panel (renders over the SAME mounted rich state).
+    outline_panel: Arc<Mutex<crate::rich_editor::outline_panel::OutlinePanel>>,
+
+    /// MT-025/059: the wiki-page pane binding + its request queue + delivery cells.
+    wiki_bound: Arc<Mutex<Option<(String, crate::graph::wiki_page_panel::LoomWikiPagePanel)>>>,
+    wiki_requests: Arc<Mutex<Vec<crate::editor_pane_factories::WikiPaneRequest>>>,
+    wiki_cell: crate::backend_client::WikiProjectionCell,
+    wiki_save_cell: crate::backend_client::ScmReceiptCell,
+    /// The projection id of the in-flight overlay save (receipt attribution + post-save re-fetch).
+    wiki_save_in_flight: Arc<Mutex<Option<String>>>,
+
+    /// MT-022: the folder tree + its outbound queue + delivery cells.
+    folder_tree: Arc<Mutex<crate::graph::folder_tree::LoomFolderTree>>,
+    folder_events: Arc<Mutex<Vec<crate::graph::folder_tree::FolderTreeEvent>>>,
+    folder_fetched: std::sync::atomic::AtomicBool,
+    folder_list_cell: crate::backend_client::FolderListCell,
+    /// In-flight lazy child-block fetches: (folder_id, delivery cell) pairs polled each frame.
+    folder_children_cells: Arc<Mutex<Vec<(String, crate::backend_client::FolderChildrenCell)>>>,
+    /// In-flight recolor PATCHes: (folder_id, hex, receipt cell) polled each frame.
+    folder_recolor_cells:
+        Arc<Mutex<Vec<(String, String, crate::backend_client::ScmReceiptCell)>>>,
+
+    /// MT-009: the diff/merge pane slot (None => honest empty state).
+    diff_slot: Arc<Mutex<Option<Arc<crate::code_editor::DiffEditorPanel>>>>,
+
+    /// MT-036: the flight-recorder pane + its fetch cell + lifecycle flags.
+    fr_pane: Arc<Mutex<crate::flight_recorder_pane::FlightRecorderPane>>,
+    fr_fetch: crate::editor_pane_factories::FlightRecorderFetchCell,
+    fr_load_requested: Arc<std::sync::atomic::AtomicBool>,
+    fr_fetch_started: std::sync::atomic::AtomicBool,
+    fr_delivered: std::sync::atomic::AtomicBool,
+
+    /// MT-019: the bound journal editing panel (None until runtime + workspace bind).
+    journal_slot: crate::editor_pane_factories::SharedJournalPanel,
+    /// MT-067: one calendar-interop fetch per journal-pane visibility (events + activity spans).
+    calendar_fetched: std::sync::atomic::AtomicBool,
+
+    /// MT-042: the ONE shared knowledge AccessKit action registry installed on every mounted knowledge
+    /// pane (canvas / graph / block collections).
+    knowledge_registry:
+        Arc<Mutex<crate::accessibility::knowledge_action_registry::KnowledgeActionRegistry>>,
 }
 
 /// Build the pane factory map AND install the CONCRETE [`LoomSearchV2PaneFactory`] over its placeholder
@@ -1042,9 +1126,22 @@ fn install_editor_mounts(map: &mut HashMap<PaneType, Box<dyn PaneFactory>>) -> E
     );
     map.insert(PaneType::LoomWikiPage, Box::new(rich_mount));
 
+    // WP-KERNEL-012 MT-041 REMEDIATION: construct the ONE shared EditorActionRegistry and install it on
+    // BOTH mounted editors (code pane instance 0, rich pane instance 0) so the canonical
+    // `editor.code.*` / `editor.rich.*` AccessKit action nodes exist in the LIVE app tree — previously
+    // `install_editor_action_registry` had zero production callers (kittest-only).
+    let editor_action_registry = Arc::new(Mutex::new(
+        crate::accessibility::editor_action_registry::EditorActionRegistry::new(),
+    ));
+    code_panel.install_editor_action_registry(Arc::clone(&editor_action_registry), 0);
+    if let Ok(mut state) = rich_state.lock() {
+        state.install_editor_action_registry(Arc::clone(&editor_action_registry), 0);
+    }
+
     // WP-KERNEL-012 MT-080 (E11 host-mount, part 2): install the SECONDARY pane factories over their
-    // placeholders so the canvas / graph / side panes render LIVE too.
-    let secondary = install_secondary_mounts(map);
+    // placeholders so the canvas / graph / side panes render LIVE too. The remediation wave hands the
+    // rich state through so the outline pane renders over the SAME mounted document.
+    let secondary = install_secondary_mounts(map, &session, &rich_state);
 
     EditorMountHandles {
         session,
@@ -1053,6 +1150,7 @@ fn install_editor_mounts(map: &mut HashMap<PaneType, Box<dyn PaneFactory>>) -> E
         command_rx,
         rich_events,
         secondary,
+        editor_action_registry,
     }
 }
 
@@ -1065,10 +1163,14 @@ fn install_editor_mounts(map: &mut HashMap<PaneType, Box<dyn PaneFactory>>) -> E
 /// placeholder.
 fn install_secondary_mounts(
     map: &mut HashMap<PaneType, Box<dyn PaneFactory>>,
+    session: &SharedSessionContext,
+    rich_state: &Arc<Mutex<RichEditorState>>,
 ) -> SecondaryMountHandles {
     use crate::editor_pane_factories::{
-        CanvasBoardPaneMount, DailyJournalPaneMount, GraphViewPaneMount, ManualPaneMount,
-        OutgoingLinksPaneMount, RelevantMemoryPaneMount, StagePaneMount,
+        BlockCollectionPaneMount, CanvasBoardPaneMount, DailyJournalPaneMount, DiffMergePaneMount,
+        FlightRecorderPaneMount, FolderTreePaneMount, GraphViewPaneMount, ManualPaneMount,
+        OutgoingLinksPaneMount, OutlinePaneMount, RelevantMemoryPaneMount, SidebarPaneMount,
+        StagePaneMount, TagsPaneMount, WikiPagePaneMount,
     };
 
     // One shared palette cell, seeded with the default dark palette; the shell overwrites it from the
@@ -1076,13 +1178,22 @@ fn install_secondary_mounts(
     let palette: crate::editor_pane_factories::SharedPalette =
         Arc::new(Mutex::new(HsTheme::Dark.palette()));
 
-    // ── Canvas board (PaneType::AtelierEditor) ───────────────────────────────────────────────────────
-    let canvas_board = Arc::new(Mutex::new(
-        crate::graph::canvas_board::LoomCanvasBoard::new(
-            DEFAULT_PROJECT_ID,
-            SECONDARY_CANVAS_BLOCK_ID,
-        ),
+    // ── MT-042 REMEDIATION: the ONE shared KnowledgeActionRegistry, installed on every mounted
+    // knowledge pane below (canvas / graph / block collections) — previously
+    // `install_knowledge_action_registry` had zero production callers (kittest-only).
+    let knowledge_registry = Arc::new(Mutex::new(
+        crate::accessibility::knowledge_action_registry::KnowledgeActionRegistry::new(),
     ));
+
+    // ── Canvas board (PaneType::AtelierEditor) ───────────────────────────────────────────────────────
+    let mut canvas = crate::graph::canvas_board::LoomCanvasBoard::new(
+        DEFAULT_PROJECT_ID,
+        SECONDARY_CANVAS_BLOCK_ID,
+    );
+    // MT-042 REMEDIATION: install the shared knowledge registry on the mounted canvas (previously
+    // kittest-only), so the `canvas.*` swarm action nodes exist in the LIVE app tree.
+    canvas.install_knowledge_action_registry(Arc::clone(&knowledge_registry));
+    let canvas_board = Arc::new(Mutex::new(canvas));
     let canvas_events = Arc::new(Mutex::new(Vec::new()));
     map.insert(
         PaneType::AtelierEditor,
@@ -1093,13 +1204,19 @@ fn install_secondary_mounts(
         )),
     );
 
-    // ── Graph view (PaneType::KernelDcc) ─────────────────────────────────────────────────────────────
+    // ── Graph view — REMEDIATION: its OWN key (Placeholder "Graph View"), NOT PaneType::KernelDcc.
+    // The old KernelDcc registration hijacked quick-switcher WP/MT navigation (the WP:/MT: content id
+    // was ignored and an unrelated graph rendered). KernelDcc now falls back to the honest
+    // content-aware placeholder; the graph opens via its own `view.graph` operator route.
     let mut gv = crate::graph::graph_view::LoomGraphView::default();
     gv.workspace_id = DEFAULT_PROJECT_ID.to_owned();
+    gv.install_knowledge_action_registry(Arc::clone(&knowledge_registry));
     let graph_view = Arc::new(Mutex::new(gv));
     let graph_events = Arc::new(Mutex::new(Vec::new()));
     map.insert(
-        PaneType::KernelDcc,
+        crate::editor_pane_factories::placeholder_pane_type(
+            crate::editor_pane_factories::GRAPH_VIEW_PANE_LABEL,
+        ),
         Box::new(GraphViewPaneMount::new(
             Arc::clone(&graph_view),
             Arc::clone(&palette),
@@ -1107,13 +1224,17 @@ fn install_secondary_mounts(
         )),
     );
 
-    // ── Outgoing-links side pane (PaneType::LoomBlock) ───────────────────────────────────────────────
+    // ── Outgoing-links side pane — REMEDIATION: its OWN key (Placeholder "Outgoing Links"), NOT
+    // PaneType::LoomBlock. The old LoomBlock registration made EVERY loom-block open render the same
+    // content-blind links panel; LoomBlock now falls back to the honest content-aware placeholder.
     let outgoing_links = Arc::new(Mutex::new(
         crate::rich_editor::wikilinks::outgoing_links_panel::OutgoingLinksPanel::new(),
     ));
     let outgoing_nav = Arc::new(Mutex::new(Vec::new()));
     map.insert(
-        PaneType::LoomBlock,
+        crate::editor_pane_factories::placeholder_pane_type(
+            crate::editor_pane_factories::OUTGOING_LINKS_PANE_LABEL,
+        ),
         Box::new(OutgoingLinksPaneMount::new(
             Arc::clone(&outgoing_links),
             Arc::clone(&palette),
@@ -1147,19 +1268,24 @@ fn install_secondary_mounts(
         )),
     );
 
-    // ── Daily-journal pane (PaneType::LoomDailyJournal) ──────────────────────────────────────────────
+    // ── Daily-journal pane (PaneType::LoomDailyJournal) — MT-019 REMEDIATION: the journal EDITING
+    // surface (JournalPanelState + embedded editor + auto-save) folds into this pane host; the shell
+    // binds the production store into `journal_slot` once a runtime + workspace are live.
     let daily_journal = Arc::new(Mutex::new(
         crate::graph::daily_journal_panel::DailyJournalState::new(
             crate::rich_editor::daily_notes::date_nav::DateNav::today_now(),
         ),
     ));
     let daily_journal_events = Arc::new(Mutex::new(Vec::new()));
+    let journal_slot: crate::editor_pane_factories::SharedJournalPanel =
+        Arc::new(Mutex::new(None));
     map.insert(
         PaneType::LoomDailyJournal,
         Box::new(DailyJournalPaneMount::new(
             Arc::clone(&daily_journal),
             Arc::clone(&palette),
             Arc::clone(&daily_journal_events),
+            Arc::clone(&journal_slot),
         )),
     );
 
@@ -1174,6 +1300,137 @@ fn install_secondary_mounts(
             Arc::clone(&manual_registry),
             Arc::clone(&manual_state),
             Arc::clone(&palette),
+        )),
+    );
+
+    // ═══ WP-KERNEL-012 E11 remediation wave (lane W1): mount the previously ORPHANED side panes ═══════
+
+    // ── MT-023: Tags panel + tag hub (Placeholder "Tags") ────────────────────────────────────────────
+    let tags_panel = Arc::new(Mutex::new(crate::graph::tags_panel::LoomTagsPanel::new(
+        DEFAULT_PROJECT_ID,
+    )));
+    let tags_hub = Arc::new(Mutex::new(None));
+    let tags_events = Arc::new(Mutex::new(Vec::new()));
+    map.insert(
+        crate::editor_pane_factories::placeholder_pane_type(
+            crate::editor_pane_factories::TAGS_PANE_LABEL,
+        ),
+        Box::new(TagsPaneMount::new(
+            Arc::clone(&tags_panel),
+            Arc::clone(&tags_hub),
+            Arc::clone(&palette),
+            Arc::clone(&tags_events),
+        )),
+    );
+
+    // ── MT-024: Sidebar (Placeholder "Sidebar") ──────────────────────────────────────────────────────
+    let sidebar_panel = Arc::new(Mutex::new(
+        crate::graph::sidebar_panel::LoomSidebarPanel::new(DEFAULT_PROJECT_ID),
+    ));
+    let sidebar_events = Arc::new(Mutex::new(Vec::new()));
+    map.insert(
+        crate::editor_pane_factories::placeholder_pane_type(
+            crate::editor_pane_factories::SIDEBAR_PANE_LABEL,
+        ),
+        Box::new(SidebarPaneMount::new(
+            Arc::clone(&sidebar_panel),
+            Arc::clone(&palette),
+            Arc::clone(&sidebar_events),
+        )),
+    );
+
+    // ── MT-027: Block collections (Placeholder "Block Collections") ─────────────────────────────────
+    // The view starts UNBOUND (empty view id — its own status/new-view UI renders honestly); opening a
+    // saved view binds `view_block_id` and fires the real getBlockView + queryBlockViewResults.
+    let mut collection =
+        crate::graph::block_collection_view::BlockCollectionView::new(DEFAULT_PROJECT_ID, "");
+    collection.install_knowledge_action_registry(Arc::clone(&knowledge_registry));
+    let collection_view = Arc::new(Mutex::new(collection));
+    let collection_events = Arc::new(Mutex::new(Vec::new()));
+    map.insert(
+        crate::editor_pane_factories::placeholder_pane_type(
+            crate::editor_pane_factories::BLOCK_COLLECTIONS_PANE_LABEL,
+        ),
+        Box::new(BlockCollectionPaneMount::new(
+            Arc::clone(&collection_view),
+            Arc::clone(&palette),
+            Arc::clone(&collection_events),
+        )),
+    );
+
+    // ── MT-056: Outline pane (Placeholder "Outline") over the SAME mounted rich state ───────────────
+    let outline_panel = Arc::new(Mutex::new(
+        crate::rich_editor::outline_panel::OutlinePanel::new(),
+    ));
+    map.insert(
+        crate::editor_pane_factories::placeholder_pane_type(
+            crate::editor_pane_factories::OUTLINE_PANE_LABEL,
+        ),
+        Box::new(OutlinePaneMount::new(
+            Arc::clone(&outline_panel),
+            Arc::clone(rich_state),
+        )),
+    );
+
+    // ── MT-025/059: Wiki-projection page pane (Placeholder "Wiki Page") ──────────────────────────────
+    let wiki_bound = Arc::new(Mutex::new(None));
+    let wiki_requests = Arc::new(Mutex::new(Vec::new()));
+    map.insert(
+        crate::editor_pane_factories::placeholder_pane_type(
+            crate::editor_pane_factories::WIKI_PAGE_PANE_LABEL,
+        ),
+        Box::new(WikiPagePaneMount::new(
+            Arc::clone(&wiki_bound),
+            Arc::clone(session),
+            Arc::clone(&palette),
+            Arc::clone(&wiki_requests),
+        )),
+    );
+
+    // ── MT-022: Folder tree (Placeholder "Folders") ──────────────────────────────────────────────────
+    let folder_tree = Arc::new(Mutex::new(crate::graph::folder_tree::LoomFolderTree::new(
+        DEFAULT_PROJECT_ID,
+    )));
+    let folder_events = Arc::new(Mutex::new(Vec::new()));
+    map.insert(
+        crate::editor_pane_factories::placeholder_pane_type(
+            crate::editor_pane_factories::FOLDER_TREE_PANE_LABEL,
+        ),
+        Box::new(FolderTreePaneMount::new(
+            Arc::clone(&folder_tree),
+            Arc::clone(&palette),
+            Arc::clone(&folder_events),
+        )),
+    );
+
+    // ── MT-009: Diff/merge pane (Placeholder "Diff Merge" — no CodeSymbol collision) ─────────────────
+    let diff_slot = Arc::new(Mutex::new(None));
+    map.insert(
+        crate::editor_pane_factories::placeholder_pane_type(
+            crate::editor_pane_factories::DIFF_MERGE_PANE_LABEL,
+        ),
+        Box::new(DiffMergePaneMount::new(
+            Arc::clone(&diff_slot),
+            Arc::clone(&palette),
+        )),
+    );
+
+    // ── MT-036: Flight-recorder pane (the REAL PaneType::FlightRecorder key — the existing
+    // `flightrecorder.open` palette command + RUN menu entry now render the real pane) ────────────────
+    let fr_fetch = crate::editor_pane_factories::FlightRecorderFetchCell::new();
+    let fr_pane = Arc::new(Mutex::new(
+        crate::flight_recorder_pane::FlightRecorderPane::new(
+            std::sync::Arc::new(fr_fetch.clone()),
+            crate::event_emitter::ErrorRing::new(),
+        ),
+    ));
+    let fr_load_requested = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    map.insert(
+        PaneType::FlightRecorder,
+        Box::new(FlightRecorderPaneMount::new(
+            Arc::clone(&fr_pane),
+            Arc::clone(&palette),
+            Arc::clone(&fr_load_requested),
         )),
     );
 
@@ -1193,6 +1450,48 @@ fn install_secondary_mounts(
         daily_journal_events,
         manual_state,
         relevant_memory_fetched: std::sync::atomic::AtomicBool::new(false),
+        tags_panel,
+        tags_hub,
+        tags_events,
+        tags_fetched: std::sync::atomic::AtomicBool::new(false),
+        tag_list_cell: Arc::new(Mutex::new(None)),
+        tag_hub_cell: Arc::new(Mutex::new(None)),
+        tag_candidates_cell: Arc::new(Mutex::new(None)),
+        tag_edge_cell: Arc::new(Mutex::new(None)),
+        tag_edge_hub: Arc::new(Mutex::new(None)),
+        sidebar_panel,
+        sidebar_events,
+        sidebar_fetched: std::sync::atomic::AtomicBool::new(false),
+        sidebar_pins_cell: Arc::new(Mutex::new(None)),
+        sidebar_favorites_cell: Arc::new(Mutex::new(None)),
+        sidebar_action_cell: Arc::new(Mutex::new(None)),
+        sidebar_action_in_flight: Arc::new(Mutex::new(None)),
+        collection_view,
+        collection_events,
+        collection_record_cell: Arc::new(Mutex::new(None)),
+        collection_results_cell: Arc::new(Mutex::new(None)),
+        collection_op_cell: Arc::new(Mutex::new(None)),
+        outline_panel,
+        wiki_bound,
+        wiki_requests,
+        wiki_cell: Arc::new(Mutex::new(None)),
+        wiki_save_cell: Arc::new(Mutex::new(None)),
+        wiki_save_in_flight: Arc::new(Mutex::new(None)),
+        folder_tree,
+        folder_events,
+        folder_fetched: std::sync::atomic::AtomicBool::new(false),
+        folder_list_cell: Arc::new(Mutex::new(None)),
+        folder_children_cells: Arc::new(Mutex::new(Vec::new())),
+        folder_recolor_cells: Arc::new(Mutex::new(Vec::new())),
+        diff_slot,
+        fr_pane,
+        fr_fetch,
+        fr_load_requested,
+        fr_fetch_started: std::sync::atomic::AtomicBool::new(false),
+        fr_delivered: std::sync::atomic::AtomicBool::new(false),
+        journal_slot,
+        calendar_fetched: std::sync::atomic::AtomicBool::new(false),
+        knowledge_registry,
     }
 }
 
@@ -1529,6 +1828,8 @@ impl HandshakeApp {
                 "internal_diagnostics GPU identity captured (Tier 2 §5.8.2 resource counters)"
             );
         }
+        // MT-066 REMEDIATION: the bottom Stage panel and the dockable Stage pane share ONE StagePane.
+        let stage_pane_shared = Arc::clone(&editor_mounts.secondary.stage);
         let mut app = Self {
             health_status: HealthDisplayState::Loading,
             rt,
@@ -1707,8 +2008,9 @@ impl HandshakeApp {
             // mounted but CLOSED by default so a fresh launch is editor/chat-focused.
             atelier_side_panel: AtelierSidePanel::production(rt_handle.clone()),
             atelier_panel_open: false,
-            stage_pane: StagePane::new(),
+            stage_pane: stage_pane_shared,
             stage_panel_open: false,
+            event_emitter_installed: false,
         };
         app.spawn_mcp_server();
         // WP-KERNEL-012 MT-082 (D2 — internal_diagnostics): the REQUIRED LIVE call site (AC-002-4 / the
@@ -2005,6 +2307,8 @@ impl HandshakeApp {
             runtime_chat_panel,
             editor_mounts,
         ) = build_factories_with_loom_search_v2(rt.handle().clone(), HsTheme::Dark.palette());
+        // MT-066 REMEDIATION: the bottom Stage panel and the dockable Stage pane share ONE StagePane.
+        let stage_pane_shared = Arc::clone(&editor_mounts.secondary.stage);
         Self {
             health_status: state,
             rt,
@@ -2187,8 +2491,9 @@ impl HandshakeApp {
             // panel stays mounted but CLOSED by default so the fresh default frame is editor/chat-focused.
             atelier_side_panel: AtelierSidePanel::with_client(None),
             atelier_panel_open: false,
-            stage_pane: StagePane::new(),
+            stage_pane: stage_pane_shared,
             stage_panel_open: false,
+            event_emitter_installed: false,
         }
     }
 
@@ -2367,10 +2672,14 @@ impl HandshakeApp {
         &mut self.atelier_side_panel
     }
 
-    /// MT-033: the Stage pane's currently-staged content (read-only; for tests asserting the shell drain
-    /// delivered routed content into the mounted pane).
-    pub fn stage_content(&self) -> &StageContent {
-        &self.stage_pane.content
+    /// MT-033: the Stage pane's currently-staged content (a clone; for tests asserting the shell drain
+    /// delivered routed content into the mounted pane). MT-066 REMEDIATION: reads through the ONE shared
+    /// `Arc<Mutex<StagePane>>` the bottom panel and the dockable Stage pane both render.
+    pub fn stage_content(&self) -> StageContent {
+        self.stage_pane
+            .lock()
+            .map(|p| p.content.clone())
+            .unwrap_or_else(|p| p.into_inner().content.clone())
     }
 
     /// MT-033: whether the Stage pane (bottom panel) is currently shown.
@@ -2697,6 +3006,104 @@ impl HandshakeApp {
                 })
                 .unwrap_or(false)
             }
+            crate::interop::CMD_EMBED_STAGE_CAPTURE => {
+                // WP-KERNEL-012 MT-066 REMEDIATION: the Embed-Stage-Capture palette row previously fell
+                // through to the silent warn+false no-op (contradicting its catalog comment). Register the
+                // runtime handler (idempotent — the same WRAP-not-fork pattern route-to-stage uses) and
+                // dispatch the ONE named bus command. The Stage embed-back HTTP route is ABSENT in this
+                // build, so the handler surfaces the typed `EmbedBackEndpointAbsent` blocker on the shared
+                // Stage pane — an OBSERVABLE result, never a fake embed. Open the Stage bottom panel so
+                // the blocker/state is visible to the operator.
+                let bus = crate::interop::InteractionBus::get_or_init(ctx);
+                let dispatched = crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+                    crate::interop::register_embed_stage_capture_command(bus);
+                    bus.dispatch_command(ctx, crate::interop::CMD_EMBED_STAGE_CAPTURE)
+                })
+                .unwrap_or(false);
+                if dispatched {
+                    self.stage_panel_open = true;
+                    ctx.request_repaint();
+                }
+                dispatched
+            }
+            // ── WP-KERNEL-012 E11 remediation wave: the `view.*` operator open routes for the previously
+            // ORPHANED side panes. Each opens the named pane on the active work surface through the SAME
+            // `open_content_on_active_pane` primitive every other open route uses.
+            crate::command_registry::CMD_VIEW_RELEVANT_MEMORY => self.open_content_on_active_pane(
+                crate::editor_pane_factories::placeholder_pane_type(
+                    crate::editor_pane_factories::RELEVANT_MEMORY_PANE_LABEL,
+                ),
+                None,
+            ),
+            crate::command_registry::CMD_VIEW_STAGE => self.open_content_on_active_pane(
+                crate::editor_pane_factories::placeholder_pane_type(
+                    crate::editor_pane_factories::STAGE_PANE_LABEL,
+                ),
+                None,
+            ),
+            crate::command_registry::CMD_VIEW_TAGS => self.open_content_on_active_pane(
+                crate::editor_pane_factories::placeholder_pane_type(
+                    crate::editor_pane_factories::TAGS_PANE_LABEL,
+                ),
+                None,
+            ),
+            crate::command_registry::CMD_VIEW_SIDEBAR => self.open_content_on_active_pane(
+                crate::editor_pane_factories::placeholder_pane_type(
+                    crate::editor_pane_factories::SIDEBAR_PANE_LABEL,
+                ),
+                None,
+            ),
+            crate::command_registry::CMD_VIEW_BLOCK_COLLECTIONS => self
+                .open_content_on_active_pane(
+                    crate::editor_pane_factories::placeholder_pane_type(
+                        crate::editor_pane_factories::BLOCK_COLLECTIONS_PANE_LABEL,
+                    ),
+                    None,
+                ),
+            crate::command_registry::CMD_VIEW_OUTLINE => {
+                // MT-056: register the outline pane descriptor (stable `rich.outline` id) then open the
+                // pane docked beside the rich editor (the module target pane hosts the Notes surface).
+                if let Ok(mut registry) = self.pane_registry.lock() {
+                    crate::pane_registry::register_outline_pane(
+                        &mut registry,
+                        self.active_project_id.clone(),
+                        self.active_rich_document_id(),
+                    );
+                }
+                self.open_content_on_active_pane(
+                    crate::editor_pane_factories::placeholder_pane_type(
+                        crate::editor_pane_factories::OUTLINE_PANE_LABEL,
+                    ),
+                    None,
+                )
+            }
+            crate::command_registry::CMD_VIEW_GRAPH => self.open_content_on_active_pane(
+                crate::editor_pane_factories::placeholder_pane_type(
+                    crate::editor_pane_factories::GRAPH_VIEW_PANE_LABEL,
+                ),
+                None,
+            ),
+            crate::command_registry::CMD_VIEW_FOLDERS => self.open_content_on_active_pane(
+                crate::editor_pane_factories::placeholder_pane_type(
+                    crate::editor_pane_factories::FOLDER_TREE_PANE_LABEL,
+                ),
+                None,
+            ),
+            crate::command_registry::CMD_VIEW_OUTGOING_LINKS => self.open_content_on_active_pane(
+                crate::editor_pane_factories::placeholder_pane_type(
+                    crate::editor_pane_factories::OUTGOING_LINKS_PANE_LABEL,
+                ),
+                None,
+            ),
+            crate::command_registry::CMD_VIEW_JOURNAL => {
+                self.open_content_on_active_pane(PaneType::LoomDailyJournal, None)
+            }
+            crate::command_registry::CMD_VIEW_DIFF_MERGE => self.open_content_on_active_pane(
+                crate::editor_pane_factories::placeholder_pane_type(
+                    crate::editor_pane_factories::DIFF_MERGE_PANE_LABEL,
+                ),
+                None,
+            ),
             // WP-KERNEL-012 MT-069 (E11 menu wire-up): the editor FILE/EDIT menu + palette commands MT-079
             // host-mounted. Route through the ONE shared dispatcher the menu bar also calls, so the palette
             // path and the menu path are the SAME single substrate (RISK-001: no forked dispatch). The
@@ -6295,16 +6702,91 @@ impl HandshakeApp {
                 EditorEvent::WikilinkActivated {
                     ref_kind,
                     ref_value,
-                    ..
+                    resolved,
                 } => {
                     // Route through the MT-030 ShellNavigator: a note/document target opens the rich
-                    // editor; any other ref kind opens as a Loom block reference (the same routing the
-                    // search panes use). The editor enqueues even an unresolved link so the shell can
-                    // surface a status rather than silently no-op (the `pending_events` contract).
+                    // editor; a CODE ref routes through the MT-034 open-code-symbol bridge to the code
+                    // editor (previously mis-routed to open_loom_block — the audited live dead-end); a
+                    // LOCUS ref routes through the MT-068 open-locus-ref bridge to the WP/MT seams; any
+                    // other ref kind opens as a Loom block reference (the same routing the search panes
+                    // use). The editor enqueues even an unresolved link so the shell can surface a
+                    // status rather than silently no-op (the `pending_events` contract).
                     self.nav_pending_label = Some(ref_value.clone());
                     let outcome = match ref_kind.as_str() {
                         "note" | "file" | "doc" | "document" => {
                             crate::quick_switcher::ShellNavigator::open_document(self, &ref_value)
+                        }
+                        kind if kind == crate::interop::cross_ref::CODE_REF_KIND => {
+                            // MT-034: stage + dispatch through the ONE named cross-pane command (the
+                            // same bridge the interconnect tests prove), then drain the staged symbol
+                            // THIS frame and route it to the mounted code pane.
+                            let event = EditorEvent::WikilinkActivated {
+                                ref_kind: ref_kind.clone(),
+                                ref_value: ref_value.clone(),
+                                resolved,
+                            };
+                            let bus = crate::interop::InteractionBus::get_or_init(ctx);
+                            let staged =
+                                crate::interop::InteractionBus::with_try_lock(&bus, |b| {
+                                    b.register_open_code_symbol_command();
+                                    crate::interop::cross_ref::dispatch_code_ref_open(
+                                        ctx, b, &event,
+                                    );
+                                    b.take_pending_code_symbol()
+                                })
+                                .flatten();
+                            match staged {
+                                Some(symbol_entity_id) => {
+                                    crate::quick_switcher::ShellNavigator::open_code_symbol(
+                                        self,
+                                        &symbol_entity_id,
+                                    )
+                                }
+                                // Bus contended this frame: the dispatch did not stage; fall back to
+                                // routing the raw ref directly so the click is never dropped.
+                                None => crate::quick_switcher::ShellNavigator::open_code_symbol(
+                                    self, &ref_value,
+                                ),
+                            }
+                        }
+                        kind if kind == crate::interop::locus_interop::LOCUS_REF_KIND => {
+                            // MT-068: stage + dispatch the normalized locus ref, then drain + route it
+                            // THIS frame through the WP/MT navigator seams.
+                            let event = EditorEvent::WikilinkActivated {
+                                ref_kind: ref_kind.clone(),
+                                ref_value: ref_value.clone(),
+                                resolved,
+                            };
+                            let bus = crate::interop::InteractionBus::get_or_init(ctx);
+                            let staged =
+                                crate::interop::InteractionBus::with_try_lock(&bus, |b| {
+                                    b.register_open_locus_ref_command();
+                                    crate::interop::locus_interop::dispatch_locus_ref_open(
+                                        ctx, b, &event,
+                                    );
+                                    b.take_pending_locus_ref()
+                                })
+                                .flatten();
+                            let target = staged.unwrap_or_else(|| ref_value.clone());
+                            match crate::interop::locus_interop::parse_locus_ref(&target) {
+                                Some(locus) => match locus.kind {
+                                    crate::interop::locus_interop::LocusRefKind::WorkPacket => {
+                                        crate::quick_switcher::ShellNavigator::open_work_packet(
+                                            self, &locus.id,
+                                        )
+                                    }
+                                    crate::interop::locus_interop::LocusRefKind::Microtask => {
+                                        crate::quick_switcher::ShellNavigator::open_micro_task(
+                                            self, &locus.id, None,
+                                        )
+                                    }
+                                },
+                                // Unparseable locus ref: open as a Loom block reference so the click
+                                // surfaces a typed status rather than silently dropping.
+                                None => crate::quick_switcher::ShellNavigator::open_loom_block(
+                                    self, &target,
+                                ),
+                            }
                         }
                         _ => {
                             crate::quick_switcher::ShellNavigator::open_loom_block(self, &ref_value)
@@ -6531,6 +7013,1054 @@ impl HandshakeApp {
                 }
             }
         }
+
+        // ── WP-KERNEL-012 E11 remediation wave: drive the newly mounted side panes ───────────────────
+        self.drive_remediation_mounts(ctx);
+    }
+
+    /// True when any pane's tab strip currently hosts a tab of `pane_type` (the cheap visibility signal
+    /// the remediation-wave initial fetches key on, so a pane the operator never opened costs no HTTP).
+    fn any_tab_of_type(&self, pane_type: &PaneType) -> bool {
+        self.tab_bar_states
+            .values()
+            .any(|bar| bar.tabs.iter().any(|tab| &tab.pane_type == pane_type))
+    }
+
+    /// WP-KERNEL-012 E11 remediation wave (lane W1): the per-frame drive for the previously ORPHANED
+    /// side panes — tags (MT-023), sidebar (MT-024), folders (MT-022), wiki page (MT-025/059), block
+    /// collections (MT-027), flight recorder (MT-036), journal editing + calendar interop (MT-019/067).
+    /// Same discipline as the other drives: initial fetch on first visibility, non-blocking cell polls,
+    /// event queues drained + routed through the EXISTING verified clients, skipped during a
+    /// snapshot-capture pass.
+    fn drive_remediation_mounts(&mut self, ctx: &egui::Context) {
+        if self.capturing_snapshot {
+            return;
+        }
+        let workspace = if self.active_project_id.is_empty() {
+            DEFAULT_PROJECT_ID.to_owned()
+        } else {
+            self.active_project_id.clone()
+        };
+
+        self.drive_tags_pane(ctx, &workspace);
+        self.drive_sidebar_pane(ctx, &workspace);
+        self.drive_folder_pane(ctx, &workspace);
+        self.drive_wiki_pane(ctx, &workspace);
+        self.drive_collections_pane(ctx, &workspace);
+        self.drive_flight_recorder_pane(ctx);
+        self.drive_journal_and_calendar(ctx, &workspace);
+    }
+
+    /// MT-023 REMEDIATION: initial tag-list fetch on first visibility, cell polls, and the
+    /// tags-panel/tag-hub event consumers over the verified `LoomTagClient` routes.
+    fn drive_tags_pane(&mut self, ctx: &egui::Context, workspace: &str) {
+        use crate::editor_pane_factories::TagsPaneEvent;
+        use crate::graph::tags_panel::{TagHubEvent, TagsPanelEvent};
+        let sec = &self.editor_mounts.secondary;
+        let tags_type = crate::editor_pane_factories::placeholder_pane_type(
+            crate::editor_pane_factories::TAGS_PANE_LABEL,
+        );
+
+        // Initial fetch (once per shell) when the pane first becomes visible.
+        if self.any_tab_of_type(&tags_type)
+            && !sec
+                .tags_fetched
+                .swap(true, std::sync::atomic::Ordering::Relaxed)
+        {
+            if let Some(rt) = self.runtime_handle.clone() {
+                if let Ok(mut p) = sec.tags_panel.lock() {
+                    p.workspace_id = workspace.to_owned();
+                    p.loading = true;
+                    p.error = None;
+                }
+                crate::backend_client::LoomTagClient::production(rt).fetch_tags(
+                    workspace,
+                    Arc::clone(&sec.tag_list_cell),
+                );
+            } else {
+                // Headless shell: honest unfetched state (no fake tags), re-armed for a later runtime.
+                sec.tags_fetched
+                    .store(false, std::sync::atomic::Ordering::Relaxed);
+            }
+        }
+
+        // Poll the list / hub-detail / candidates / edge-receipt cells (non-blocking).
+        if let Some(result) = sec.tag_list_cell.lock().ok().and_then(|mut c| c.take()) {
+            if let Ok(mut p) = sec.tags_panel.lock() {
+                match result {
+                    Ok(tags) => p.set_tags(tags),
+                    Err(e) => {
+                        p.loading = false;
+                        p.error = Some(e);
+                    }
+                }
+            }
+            ctx.request_repaint();
+        }
+        if let Some(result) = sec.tag_hub_cell.lock().ok().and_then(|mut c| c.take()) {
+            if let Ok(mut hub) = sec.tags_hub.lock() {
+                if let Some(h) = hub.as_mut() {
+                    match result {
+                        Ok((title, members)) => h.set_detail(title, members),
+                        Err(e) => {
+                            h.loading = false;
+                            h.error = Some(e);
+                        }
+                    }
+                }
+            }
+            ctx.request_repaint();
+        }
+        if let Some(result) = sec
+            .tag_candidates_cell
+            .lock()
+            .ok()
+            .and_then(|mut c| c.take())
+        {
+            if let Ok(mut hub) = sec.tags_hub.lock() {
+                if let Some(h) = hub.as_mut() {
+                    match result {
+                        Ok(candidates) => h.set_add_candidates(candidates),
+                        Err(e) => h.error = Some(e),
+                    }
+                }
+            }
+            ctx.request_repaint();
+        }
+        if let Some(result) = sec.tag_edge_cell.lock().ok().and_then(|mut c| c.take()) {
+            // The tag-edge POST resolved: re-query the hub members AFTER the response (AC6 — no fixed
+            // sleep). A failure surfaces on the hub error banner.
+            let hub_id = sec.tag_edge_hub.lock().ok().and_then(|mut h| h.take());
+            match (result, hub_id, self.runtime_handle.clone()) {
+                (Ok(()), Some(hub_id), Some(rt)) => {
+                    crate::backend_client::LoomTagClient::production(rt).fetch_hub_detail(
+                        workspace,
+                        &hub_id,
+                        Arc::clone(&sec.tag_hub_cell),
+                    );
+                }
+                (Err(e), _, _) => {
+                    if let Ok(mut hub) = sec.tags_hub.lock() {
+                        if let Some(h) = hub.as_mut() {
+                            h.error = Some(e);
+                        }
+                    }
+                }
+                _ => {}
+            }
+            ctx.request_repaint();
+        }
+
+        // Drain + route the widget events.
+        let events: Vec<TagsPaneEvent> = sec
+            .tags_events
+            .lock()
+            .map(|mut q| std::mem::take(&mut *q))
+            .unwrap_or_default();
+        for event in events {
+            match event {
+                TagsPaneEvent::Panel(
+                    TagsPanelEvent::OpenTag { block_id } | TagsPanelEvent::FilterTag { block_id },
+                ) => {
+                    // Open the tag-hub page IN the tags pane (the MT-023 hub open) + fetch its detail.
+                    let sec = &self.editor_mounts.secondary;
+                    if let Ok(mut hub) = sec.tags_hub.lock() {
+                        let mut h = crate::graph::tags_panel::LoomTagHubPanel::new(
+                            workspace.to_owned(),
+                            block_id.clone(),
+                        );
+                        h.loading = true;
+                        *hub = Some(h);
+                    }
+                    if let Some(rt) = self.runtime_handle.clone() {
+                        crate::backend_client::LoomTagClient::production(rt).fetch_hub_detail(
+                            workspace,
+                            &block_id,
+                            Arc::clone(&sec.tag_hub_cell),
+                        );
+                    }
+                    ctx.request_repaint();
+                }
+                TagsPaneEvent::Panel(TagsPanelEvent::Retry) => {
+                    if let Some(rt) = self.runtime_handle.clone() {
+                        let sec = &self.editor_mounts.secondary;
+                        if let Ok(mut p) = sec.tags_panel.lock() {
+                            p.loading = true;
+                            p.error = None;
+                        }
+                        crate::backend_client::LoomTagClient::production(rt)
+                            .fetch_tags(workspace, Arc::clone(&sec.tag_list_cell));
+                    }
+                }
+                TagsPaneEvent::Hub(TagHubEvent::OpenMember { block_id }) => {
+                    self.open_content_on_active_pane(PaneType::LoomBlock, Some(block_id));
+                    ctx.request_repaint();
+                }
+                TagsPaneEvent::Hub(TagHubEvent::AddTagSearch { query }) => {
+                    if let Some(rt) = self.runtime_handle.clone() {
+                        let sec = &self.editor_mounts.secondary;
+                        crate::backend_client::LoomTagClient::production(rt).search_blocks(
+                            workspace,
+                            &query,
+                            Arc::clone(&sec.tag_candidates_cell),
+                        );
+                    }
+                }
+                TagsPaneEvent::Hub(TagHubEvent::AddTagSelected { source_block_id }) => {
+                    let sec = &self.editor_mounts.secondary;
+                    let hub_id = sec
+                        .tags_hub
+                        .lock()
+                        .ok()
+                        .and_then(|h| h.as_ref().map(|h| h.block_id.clone()));
+                    if let (Some(hub_id), Some(rt)) = (hub_id, self.runtime_handle.clone()) {
+                        if let Ok(mut slot) = sec.tag_edge_hub.lock() {
+                            *slot = Some(hub_id.clone());
+                        }
+                        crate::backend_client::LoomTagClient::production(rt).tag_block(
+                            workspace,
+                            &source_block_id,
+                            &hub_id,
+                            Arc::clone(&sec.tag_edge_cell),
+                        );
+                    }
+                }
+                TagsPaneEvent::Hub(TagHubEvent::Retry) => {
+                    let sec = &self.editor_mounts.secondary;
+                    let hub_id = sec
+                        .tags_hub
+                        .lock()
+                        .ok()
+                        .and_then(|h| h.as_ref().map(|h| h.block_id.clone()));
+                    if let (Some(hub_id), Some(rt)) = (hub_id, self.runtime_handle.clone()) {
+                        if let Ok(mut hub) = sec.tags_hub.lock() {
+                            if let Some(h) = hub.as_mut() {
+                                h.loading = true;
+                                h.error = None;
+                            }
+                        }
+                        crate::backend_client::LoomTagClient::production(rt).fetch_hub_detail(
+                            workspace,
+                            &hub_id,
+                            Arc::clone(&sec.tag_hub_cell),
+                        );
+                    }
+                }
+                TagsPaneEvent::BackToList => {
+                    if let Ok(mut hub) = self.editor_mounts.secondary.tags_hub.lock() {
+                        *hub = None;
+                    }
+                    ctx.request_repaint();
+                }
+            }
+        }
+    }
+
+    /// MT-024 REMEDIATION: initial pins/favorites fetch on first visibility, cell polls, the
+    /// SidebarEvent consumers (two-call pin removal, unfavorite PATCH, section retry), and the
+    /// `ShellEvent::BookmarkRemoved` emission on a confirmed removal.
+    fn drive_sidebar_pane(&mut self, ctx: &egui::Context, workspace: &str) {
+        use crate::graph::sidebar_panel::{SectionKind, SidebarEvent};
+        let sec = &self.editor_mounts.secondary;
+        let sidebar_type = crate::editor_pane_factories::placeholder_pane_type(
+            crate::editor_pane_factories::SIDEBAR_PANE_LABEL,
+        );
+
+        if self.any_tab_of_type(&sidebar_type)
+            && !sec
+                .sidebar_fetched
+                .swap(true, std::sync::atomic::Ordering::Relaxed)
+        {
+            if let Some(rt) = self.runtime_handle.clone() {
+                if let Ok(mut p) = sec.sidebar_panel.lock() {
+                    p.workspace_id = workspace.to_owned();
+                    p.set_loading(SectionKind::Pins);
+                    p.set_loading(SectionKind::Favorites);
+                }
+                let client = crate::backend_client::LoomSidebarClient::production(rt);
+                client.fetch_pins(workspace, Arc::clone(&sec.sidebar_pins_cell));
+                client.fetch_favorites(workspace, Arc::clone(&sec.sidebar_favorites_cell));
+            } else {
+                sec.sidebar_fetched
+                    .store(false, std::sync::atomic::Ordering::Relaxed);
+            }
+        }
+
+        if let Some(result) = sec
+            .sidebar_pins_cell
+            .lock()
+            .ok()
+            .and_then(|mut c| c.take())
+        {
+            if let Ok(mut p) = sec.sidebar_panel.lock() {
+                match result {
+                    Ok(pins) => p.set_pins(pins),
+                    Err(e) => p.set_error(SectionKind::Pins, e),
+                }
+            }
+            ctx.request_repaint();
+        }
+        if let Some(result) = sec
+            .sidebar_favorites_cell
+            .lock()
+            .ok()
+            .and_then(|mut c| c.take())
+        {
+            if let Ok(mut p) = sec.sidebar_panel.lock() {
+                match result {
+                    Ok(favorites) => p.set_favorites(favorites),
+                    Err(e) => p.set_error(SectionKind::Favorites, e),
+                }
+            }
+            ctx.request_repaint();
+        }
+
+        // Receipt of an in-flight pin/favorite removal: emit BookmarkRemoved (the half-wired event_bus
+        // seam the audit named — project_tree consumes but nothing emitted) + re-fetch the section so
+        // backend authority replaces the optimistic removal (or rolls it back on failure).
+        if let Some(result) = sec
+            .sidebar_action_cell
+            .lock()
+            .ok()
+            .and_then(|mut c| c.take())
+        {
+            let in_flight = sec
+                .sidebar_action_in_flight
+                .lock()
+                .ok()
+                .and_then(|mut s| s.take());
+            if let Some((section, block_id)) = in_flight {
+                match result {
+                    Ok(()) => {
+                        self.event_bus_tx.send(crate::event_bus::ShellEvent::BookmarkRemoved {
+                            block_id: block_id.clone(),
+                        });
+                    }
+                    Err(e) => {
+                        if let Ok(mut p) = self.editor_mounts.secondary.sidebar_panel.lock() {
+                            p.set_error(section, e);
+                        }
+                    }
+                }
+                if let Some(rt) = self.runtime_handle.clone() {
+                    let sec = &self.editor_mounts.secondary;
+                    let client = crate::backend_client::LoomSidebarClient::production(rt);
+                    match section {
+                        SectionKind::Pins => {
+                            client.fetch_pins(workspace, Arc::clone(&sec.sidebar_pins_cell))
+                        }
+                        SectionKind::Favorites => client
+                            .fetch_favorites(workspace, Arc::clone(&sec.sidebar_favorites_cell)),
+                        _ => {}
+                    }
+                }
+            }
+            ctx.request_repaint();
+        }
+
+        let events: Vec<SidebarEvent> = self
+            .editor_mounts
+            .secondary
+            .sidebar_events
+            .lock()
+            .map(|mut q| std::mem::take(&mut *q))
+            .unwrap_or_default();
+        for event in events {
+            match event {
+                SidebarEvent::Open { block_id } => {
+                    if let Ok(mut p) = self.editor_mounts.secondary.sidebar_panel.lock() {
+                        p.push_breadcrumb(block_id.clone(), block_id.clone());
+                    }
+                    self.open_content_on_active_pane(PaneType::LoomBlock, Some(block_id));
+                    ctx.request_repaint();
+                }
+                SidebarEvent::RemovePin { block_id } => {
+                    if let Some(rt) = self.runtime_handle.clone() {
+                        let sec = &self.editor_mounts.secondary;
+                        if let Ok(mut slot) = sec.sidebar_action_in_flight.lock() {
+                            *slot = Some((SectionKind::Pins, block_id.clone()));
+                        }
+                        crate::backend_client::LoomSidebarClient::production(rt).remove_pin(
+                            workspace,
+                            &block_id,
+                            Arc::clone(&sec.sidebar_action_cell),
+                        );
+                    }
+                }
+                SidebarEvent::RemoveFavorite { block_id } => {
+                    if let Some(rt) = self.runtime_handle.clone() {
+                        let sec = &self.editor_mounts.secondary;
+                        if let Ok(mut slot) = sec.sidebar_action_in_flight.lock() {
+                            *slot = Some((SectionKind::Favorites, block_id.clone()));
+                        }
+                        crate::backend_client::LoomSidebarClient::production(rt).remove_favorite(
+                            workspace,
+                            &block_id,
+                            Arc::clone(&sec.sidebar_action_cell),
+                        );
+                    }
+                }
+                SidebarEvent::Retry { section } => {
+                    if let Some(rt) = self.runtime_handle.clone() {
+                        let sec = &self.editor_mounts.secondary;
+                        let client = crate::backend_client::LoomSidebarClient::production(rt);
+                        match section {
+                            SectionKind::Pins => {
+                                if let Ok(mut p) = sec.sidebar_panel.lock() {
+                                    p.set_loading(SectionKind::Pins);
+                                }
+                                client.fetch_pins(workspace, Arc::clone(&sec.sidebar_pins_cell));
+                            }
+                            SectionKind::Favorites => {
+                                if let Ok(mut p) = sec.sidebar_panel.lock() {
+                                    p.set_loading(SectionKind::Favorites);
+                                }
+                                client.fetch_favorites(
+                                    workspace,
+                                    Arc::clone(&sec.sidebar_favorites_cell),
+                                );
+                            }
+                            // Backlinks/Unlinked are per-active-block sections; the shell has no bound
+                            // active-block context yet (a typed carry, not a fake): disclose honestly.
+                            other => {
+                                if let Ok(mut p) = sec.sidebar_panel.lock() {
+                                    p.set_error(
+                                        other,
+                                        "No active block context bound yet (host carry)",
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// MT-022 REMEDIATION: initial folder fetch on first visibility, lazy child-block fetches on
+    /// expand, the recolor PATCH, and open routing.
+    fn drive_folder_pane(&mut self, ctx: &egui::Context, workspace: &str) {
+        use crate::graph::folder_tree::FolderTreeEvent;
+        let sec = &self.editor_mounts.secondary;
+        let folders_type = crate::editor_pane_factories::placeholder_pane_type(
+            crate::editor_pane_factories::FOLDER_TREE_PANE_LABEL,
+        );
+
+        if self.any_tab_of_type(&folders_type)
+            && !sec
+                .folder_fetched
+                .swap(true, std::sync::atomic::Ordering::Relaxed)
+        {
+            if let Some(rt) = self.runtime_handle.clone() {
+                if let Ok(mut t) = sec.folder_tree.lock() {
+                    t.workspace_id = workspace.to_owned();
+                    t.loading = true;
+                    t.error = None;
+                }
+                crate::backend_client::LoomFolderClient::production(rt)
+                    .fetch_folders(workspace, Arc::clone(&sec.folder_list_cell));
+            } else {
+                sec.folder_fetched
+                    .store(false, std::sync::atomic::Ordering::Relaxed);
+            }
+        }
+
+        if let Some(result) = sec.folder_list_cell.lock().ok().and_then(|mut c| c.take()) {
+            if let Ok(mut t) = sec.folder_tree.lock() {
+                match result {
+                    Ok(rows) => t.set_folders(&rows),
+                    Err(e) => {
+                        t.loading = false;
+                        t.error = Some(e);
+                    }
+                }
+            }
+            ctx.request_repaint();
+        }
+
+        // Poll in-flight lazy child-block fetches (retain unresolved).
+        {
+            let resolved: Vec<(String, Result<Vec<crate::graph::folder_tree::LeafBlock>, String>)> = {
+                let mut cells = match sec.folder_children_cells.lock() {
+                    Ok(c) => c,
+                    Err(p) => p.into_inner(),
+                };
+                let mut done = Vec::new();
+                cells.retain(|(folder_id, cell)| {
+                    match cell.lock().ok().and_then(|mut c| c.take()) {
+                        Some(result) => {
+                            done.push((folder_id.clone(), result));
+                            false
+                        }
+                        None => true,
+                    }
+                });
+                done
+            };
+            for (folder_id, result) in resolved {
+                if let Ok(mut t) = sec.folder_tree.lock() {
+                    match result {
+                        Ok(blocks) => {
+                            if let Some(node) = t.find_folder_mut(&folder_id) {
+                                node.child_blocks = Some(blocks);
+                                node.loading = false;
+                            }
+                        }
+                        Err(e) => {
+                            if let Some(node) = t.find_folder_mut(&folder_id) {
+                                node.loading = false;
+                            }
+                            t.error = Some(e);
+                        }
+                    }
+                }
+                ctx.request_repaint();
+            }
+        }
+
+        // Poll in-flight recolor PATCHes (retain unresolved); a 2xx updates the swatch from the
+        // PATCHed hex (backend authority), a failure surfaces on the tree error banner.
+        {
+            let resolved: Vec<(String, String, Result<(), String>)> = {
+                let mut cells = match sec.folder_recolor_cells.lock() {
+                    Ok(c) => c,
+                    Err(p) => p.into_inner(),
+                };
+                let mut done = Vec::new();
+                cells.retain(|(folder_id, hex, cell)| {
+                    match cell.lock().ok().and_then(|mut c| c.take()) {
+                        Some(result) => {
+                            done.push((folder_id.clone(), hex.clone(), result));
+                            false
+                        }
+                        None => true,
+                    }
+                });
+                done
+            };
+            for (folder_id, hex, result) in resolved {
+                if let Ok(mut t) = sec.folder_tree.lock() {
+                    match result {
+                        Ok(()) => {
+                            if let Some(node) = t.find_folder_mut(&folder_id) {
+                                node.color = crate::graph::folder_tree::parse_hex_color(&hex);
+                            }
+                        }
+                        Err(e) => t.error = Some(e),
+                    }
+                }
+                ctx.request_repaint();
+            }
+        }
+
+        let events: Vec<FolderTreeEvent> = sec
+            .folder_events
+            .lock()
+            .map(|mut q| std::mem::take(&mut *q))
+            .unwrap_or_default();
+        for event in events {
+            match event {
+                FolderTreeEvent::ExpandFolder { folder_id } => {
+                    let sec = &self.editor_mounts.secondary;
+                    let needs_fetch = sec
+                        .folder_tree
+                        .lock()
+                        .ok()
+                        .and_then(|mut t| {
+                            t.find_folder_mut(&folder_id).map(|node| {
+                                node.expanded = true;
+                                if node.child_blocks.is_none() && !node.loading {
+                                    node.loading = true;
+                                    true
+                                } else {
+                                    false
+                                }
+                            })
+                        })
+                        .unwrap_or(false);
+                    if needs_fetch {
+                        if let Some(rt) = self.runtime_handle.clone() {
+                            let cell: crate::backend_client::FolderChildrenCell =
+                                Arc::new(Mutex::new(None));
+                            crate::backend_client::LoomFolderClient::production(rt)
+                                .fetch_folder_blocks(workspace, &folder_id, Arc::clone(&cell));
+                            if let Ok(mut cells) = sec.folder_children_cells.lock() {
+                                cells.push((folder_id, cell));
+                            }
+                        } else if let Ok(mut t) = sec.folder_tree.lock() {
+                            // Headless: never a perpetual spinner.
+                            if let Some(node) = t.find_folder_mut(&folder_id) {
+                                node.loading = false;
+                            }
+                        }
+                    }
+                    ctx.request_repaint();
+                }
+                FolderTreeEvent::CollapseFolder { folder_id } => {
+                    if let Ok(mut t) = self.editor_mounts.secondary.folder_tree.lock() {
+                        if let Some(node) = t.find_folder_mut(&folder_id) {
+                            node.expanded = false;
+                        }
+                    }
+                }
+                FolderTreeEvent::OpenFolder { folder_id } => {
+                    self.open_content_on_active_pane(PaneType::LoomBlock, Some(folder_id));
+                    ctx.request_repaint();
+                }
+                FolderTreeEvent::OpenBlock { block_id } => {
+                    self.open_content_on_active_pane(PaneType::LoomBlock, Some(block_id));
+                    ctx.request_repaint();
+                }
+                FolderTreeEvent::ChangeColor { folder_id, color } => {
+                    if let Some(rt) = self.runtime_handle.clone() {
+                        let sec = &self.editor_mounts.secondary;
+                        let hex = crate::graph::folder_tree::color_to_hex(color);
+                        let cell: crate::backend_client::ScmReceiptCell =
+                            Arc::new(Mutex::new(None));
+                        crate::backend_client::LoomFolderClient::production(rt).recolor_folder(
+                            workspace,
+                            &folder_id,
+                            &hex,
+                            Arc::clone(&cell),
+                        );
+                        if let Ok(mut cells) = sec.folder_recolor_cells.lock() {
+                            cells.push((folder_id, hex, cell));
+                        }
+                    }
+                }
+                FolderTreeEvent::Retry => {
+                    if let Some(rt) = self.runtime_handle.clone() {
+                        let sec = &self.editor_mounts.secondary;
+                        if let Ok(mut t) = sec.folder_tree.lock() {
+                            t.loading = true;
+                            t.error = None;
+                        }
+                        crate::backend_client::LoomFolderClient::production(rt)
+                            .fetch_folders(workspace, Arc::clone(&sec.folder_list_cell));
+                    }
+                }
+            }
+        }
+    }
+
+    /// MT-025/059 REMEDIATION: drain the wiki pane's load/save/regenerate requests onto the verified
+    /// `LoomWikiClient` routes and deliver results back into the bound panel.
+    fn drive_wiki_pane(&mut self, ctx: &egui::Context, workspace: &str) {
+        use crate::editor_pane_factories::WikiPaneRequest;
+        let sec = &self.editor_mounts.secondary;
+
+        let requests: Vec<WikiPaneRequest> = sec
+            .wiki_requests
+            .lock()
+            .map(|mut q| std::mem::take(&mut *q))
+            .unwrap_or_default();
+        for request in requests {
+            let Some(rt) = self.runtime_handle.clone() else {
+                // Headless: the panel keeps its honest unloaded state (no fake page).
+                continue;
+            };
+            let client = crate::backend_client::LoomWikiClient::production(rt);
+            match request {
+                WikiPaneRequest::Load { projection_id } => {
+                    if let Ok(mut bound) = sec.wiki_bound.lock() {
+                        if let Some((pid, panel)) = bound.as_mut() {
+                            if pid == &projection_id {
+                                panel.loading = true;
+                                panel.error = None;
+                            }
+                        }
+                    }
+                    client.fetch_projection(workspace, &projection_id, Arc::clone(&sec.wiki_cell));
+                }
+                WikiPaneRequest::Save {
+                    projection_id,
+                    annotation,
+                } => {
+                    if let Ok(mut slot) = sec.wiki_save_in_flight.lock() {
+                        *slot = Some(projection_id.clone());
+                    }
+                    client.add_overlay(
+                        workspace,
+                        &projection_id,
+                        &annotation,
+                        None,
+                        Arc::clone(&sec.wiki_save_cell),
+                    );
+                }
+                WikiPaneRequest::Regenerate { projection_id } => {
+                    if let Ok(mut bound) = sec.wiki_bound.lock() {
+                        if let Some((pid, panel)) = bound.as_mut() {
+                            if pid == &projection_id {
+                                panel.loading = true;
+                            }
+                        }
+                    }
+                    client.regenerate_projection(
+                        workspace,
+                        &projection_id,
+                        Arc::clone(&sec.wiki_cell),
+                    );
+                }
+            }
+        }
+
+        // Poll the projection delivery (load OR regenerate result).
+        if let Some(result) = sec.wiki_cell.lock().ok().and_then(|mut c| c.take()) {
+            if let Ok(mut bound) = sec.wiki_bound.lock() {
+                if let Some((_, panel)) = bound.as_mut() {
+                    match result {
+                        Ok(page) => panel.set_page(page),
+                        Err(e) => panel.set_error(e),
+                    }
+                }
+            }
+            ctx.request_repaint();
+        }
+
+        // Poll the overlay-save receipt: success finishes the save + re-fetches the projection (AC3);
+        // failure keeps the buffer + surfaces the inline save error (AC5).
+        if let Some(result) = sec.wiki_save_cell.lock().ok().and_then(|mut c| c.take()) {
+            let pid = sec.wiki_save_in_flight.lock().ok().and_then(|mut s| s.take());
+            if let Ok(mut bound) = sec.wiki_bound.lock() {
+                if let Some((bound_pid, panel)) = bound.as_mut() {
+                    match result {
+                        Ok(()) => {
+                            panel.finish_save_success();
+                            if let (Some(pid), Some(rt)) = (pid, self.runtime_handle.clone()) {
+                                if &pid == bound_pid {
+                                    crate::backend_client::LoomWikiClient::production(rt)
+                                        .fetch_projection(
+                                            workspace,
+                                            &pid,
+                                            Arc::clone(&sec.wiki_cell),
+                                        );
+                                }
+                            }
+                        }
+                        Err(e) => panel.apply_save_error(e),
+                    }
+                }
+            }
+            ctx.request_repaint();
+        }
+    }
+
+    /// MT-027 REMEDIATION: route the block-collections events (open / sort / kind / card-move /
+    /// date-range / create-view) onto the verified `BlockViewClient` routes and deliver the definition +
+    /// results back into the mounted view.
+    fn drive_collections_pane(&mut self, ctx: &egui::Context, workspace: &str) {
+        use crate::graph::block_collection_view::BlockViewEvent;
+        let sec = &self.editor_mounts.secondary;
+
+        let events: Vec<BlockViewEvent> = sec
+            .collection_events
+            .lock()
+            .map(|mut q| std::mem::take(&mut *q))
+            .unwrap_or_default();
+        for event in events {
+            match event {
+                BlockViewEvent::OpenBlock { block_id } => {
+                    self.open_content_on_active_pane(PaneType::LoomBlock, Some(block_id));
+                    ctx.request_repaint();
+                    continue;
+                }
+                other => {
+                    let Some(rt) = self.runtime_handle.clone() else {
+                        continue; // headless: mutations honestly do not dispatch (no fake write).
+                    };
+                    let sec = &self.editor_mounts.secondary;
+                    let client = crate::backend_client::BlockViewClient::production(rt);
+                    let (view_block_id, mut definition) = match sec.collection_view.lock() {
+                        Ok(v) => (v.view_block_id.clone(), v.definition.clone()),
+                        Err(_) => continue,
+                    };
+                    if view_block_id.is_empty() {
+                        // No saved view bound: only CreateView is meaningful.
+                        if let BlockViewEvent::CreateView { title, kind } = other {
+                            let def =
+                                crate::graph::block_collection_view::BlockViewDefinition::of_kind(
+                                    kind,
+                                );
+                            let spec = client.create_view_request(workspace, &title, &def);
+                            client.dispatch(
+                                spec,
+                                title.clone(),
+                                Arc::clone(&sec.collection_op_cell),
+                            );
+                        }
+                        continue;
+                    }
+                    let spec = match other {
+                        BlockViewEvent::Sort { sort } => definition.as_mut().map(|def| {
+                            def.sort = Some(sort);
+                            client.update_view_request(workspace, &view_block_id, def)
+                        }),
+                        BlockViewEvent::KindChange { kind } => definition.as_mut().map(|def| {
+                            def.kind = kind;
+                            client.update_view_request(workspace, &view_block_id, def)
+                        }),
+                        BlockViewEvent::DateRange { date_from, date_to } => {
+                            definition.as_mut().map(|def| {
+                                def.query.date_from = date_from;
+                                def.query.date_to = date_to;
+                                client.update_view_request(workspace, &view_block_id, def)
+                            })
+                        }
+                        BlockViewEvent::CardMove {
+                            block_id,
+                            add_tags,
+                            remove_tags,
+                        } => Some(client.card_move_request(
+                            workspace,
+                            &block_id,
+                            &add_tags,
+                            &remove_tags,
+                        )),
+                        BlockViewEvent::CreateView { title, kind } => {
+                            let def =
+                                crate::graph::block_collection_view::BlockViewDefinition::of_kind(
+                                    kind,
+                                );
+                            Some(client.create_view_request(workspace, &title, &def))
+                        }
+                        BlockViewEvent::OpenBlock { .. } => None, // handled above
+                    };
+                    if let Some(spec) = spec {
+                        if let Ok(mut v) = sec.collection_view.lock() {
+                            v.in_flight = true;
+                            v.status = "Applying…".to_owned();
+                        }
+                        client.dispatch(
+                            spec,
+                            view_block_id.clone(),
+                            Arc::clone(&sec.collection_op_cell),
+                        );
+                    }
+                }
+            }
+        }
+
+        // A resolved mutation re-queries the definition + results (the re-query is truth — the local
+        // lane/sort state is never mutated directly).
+        if let Some(result) = sec
+            .collection_op_cell
+            .lock()
+            .ok()
+            .and_then(|mut c| c.take())
+        {
+            let sec = &self.editor_mounts.secondary;
+            match result {
+                Ok(_) => {
+                    let view_block_id = sec
+                        .collection_view
+                        .lock()
+                        .map(|v| v.view_block_id.clone())
+                        .unwrap_or_default();
+                    if let (false, Some(rt)) =
+                        (view_block_id.is_empty(), self.runtime_handle.clone())
+                    {
+                        let client = crate::backend_client::BlockViewClient::production(rt);
+                        client.fetch_view(
+                            workspace,
+                            &view_block_id,
+                            Arc::clone(&sec.collection_record_cell),
+                        );
+                        client.query_results(
+                            workspace,
+                            &view_block_id,
+                            200,
+                            0,
+                            Arc::clone(&sec.collection_results_cell),
+                        );
+                    } else if let Ok(mut v) = sec.collection_view.lock() {
+                        v.in_flight = false;
+                        v.status.clear();
+                    }
+                }
+                Err(e) => {
+                    if let Ok(mut v) = sec.collection_view.lock() {
+                        v.set_error(e);
+                    }
+                }
+            }
+            ctx.request_repaint();
+        }
+
+        // Deliver a resolved definition + results pair into the view (set_loaded clears in-flight).
+        let record = sec
+            .collection_record_cell
+            .lock()
+            .ok()
+            .and_then(|mut c| c.take());
+        if let Some(result) = record {
+            match result {
+                Ok(record) => {
+                    // Hold the definition until the results deliver (set_loaded wants both). Results
+                    // normally resolve right after; stash the definition on the view meanwhile.
+                    if let Ok(mut v) = sec.collection_view.lock() {
+                        v.view_block_id = record.view_block_id.clone();
+                        v.definition = Some(record.definition);
+                    }
+                }
+                Err(e) => {
+                    if let Ok(mut v) = sec.collection_view.lock() {
+                        v.set_error(e);
+                    }
+                }
+            }
+            ctx.request_repaint();
+        }
+        let results = sec
+            .collection_results_cell
+            .lock()
+            .ok()
+            .and_then(|mut c| c.take());
+        if let Some(result) = results {
+            if let Ok(mut v) = sec.collection_view.lock() {
+                match result {
+                    Ok(results) => {
+                        if let Some(def) = v.definition.clone() {
+                            v.set_loaded(def, results);
+                        }
+                    }
+                    Err(e) => v.set_error(e),
+                }
+            }
+            ctx.request_repaint();
+        }
+    }
+
+    /// MT-036 REMEDIATION: fire ONE real `GET /flight_recorder` when the mounted pane first renders,
+    /// and resolve the pane's load state when the fetch cell delivers (no perpetual spinner).
+    fn drive_flight_recorder_pane(&mut self, ctx: &egui::Context) {
+        use std::sync::atomic::Ordering;
+        let sec = &self.editor_mounts.secondary;
+        if sec.fr_load_requested.swap(false, Ordering::Relaxed)
+            && !sec.fr_fetch_started.swap(true, Ordering::Relaxed)
+        {
+            match self.runtime_handle.clone() {
+                Some(rt) => {
+                    let url = format!("{}/api/flight_recorder", self.rich_doc_base_url);
+                    let cell = sec.fr_fetch.clone();
+                    let repaint = ctx.clone();
+                    rt.spawn(async move {
+                        let result = async {
+                            let resp = reqwest::get(&url).await.map_err(|e| e.to_string())?;
+                            if !resp.status().is_success() {
+                                return Err(format!("GET /flight_recorder -> {}", resp.status()));
+                            }
+                            let body: serde_json::Value =
+                                resp.json().await.map_err(|e| e.to_string())?;
+                            crate::editor_pane_factories::flight_recorder_rows_from_json(&body)
+                        }
+                        .await;
+                        cell.deliver(result);
+                        repaint.request_repaint();
+                    });
+                }
+                None => {
+                    // Headless: a typed failure, never a hang.
+                    sec.fr_fetch.deliver(Err(
+                        "no runtime bound (headless shell): flight recorder fetch unavailable"
+                            .to_owned(),
+                    ));
+                }
+            }
+        }
+        if sec.fr_fetch.is_resolved() && !sec.fr_delivered.swap(true, std::sync::atomic::Ordering::Relaxed)
+        {
+            if let Ok(mut pane) = sec.fr_pane.lock() {
+                pane.load_now();
+            }
+            ctx.request_repaint();
+        }
+    }
+
+    /// MT-019/067 REMEDIATION: bind the journal EDITING surface (production `JournalStore` +
+    /// `JournalPanelState`) once a runtime + workspace are live, and fire ONE calendar-interop fetch
+    /// (events-for-today + activity spans) applying `set_calendar_unavailable` on the typed
+    /// `EndpointUnavailable` blocker.
+    fn drive_journal_and_calendar(&mut self, ctx: &egui::Context, workspace: &str) {
+        let sec = &self.editor_mounts.secondary;
+        let journal_visible = self.any_tab_of_type(&PaneType::LoomDailyJournal);
+        if !journal_visible {
+            return;
+        }
+        let Some(rt) = self.runtime_handle.clone() else {
+            return; // headless: the pane renders its honest unbound disclosure.
+        };
+
+        // Bind the MT-019 editing surface once (open/create today's note through the production store).
+        let needs_bind = sec
+            .journal_slot
+            .lock()
+            .map(|slot| slot.is_none())
+            .unwrap_or(false);
+        if needs_bind {
+            let store = crate::rich_editor::daily_notes::journal_store::JournalStore::production(
+                workspace.to_owned(),
+                rt.clone(),
+            );
+            let nav = crate::rich_editor::daily_notes::date_nav::DateNav::today_now();
+            let mut state =
+                crate::rich_editor::daily_notes::journal_panel::JournalPanelState::new(store, nav);
+            state.open_current();
+            if let Ok(mut slot) = sec.journal_slot.lock() {
+                *slot = Some(Arc::new(Mutex::new(state)));
+            }
+            ctx.request_repaint();
+        }
+
+        // MT-067: ONE calendar-interop fetch per shell (events for today + the linked activity spans);
+        // the ABSENT /calendar/events route resolves to the typed EndpointUnavailable blocker and the
+        // pane renders its operator-visible unavailable empty-state (previously unreachable).
+        if !sec
+            .calendar_fetched
+            .swap(true, std::sync::atomic::Ordering::Relaxed)
+        {
+            let state = Arc::clone(&sec.daily_journal);
+            let ws = workspace.to_owned();
+            let repaint = ctx.clone();
+            rt.spawn(async move {
+                let backend = std::sync::Arc::new(
+                    crate::rich_editor::daily_notes::journal_store::ReqwestJournalBackend::production(),
+                );
+                let service =
+                    crate::interop::calendar_interop::CalendarInteropService::production(
+                        ws, backend,
+                    );
+                let today = chrono::Utc::now().date_naive();
+                match service.events_for_range(today, today).await {
+                    Ok(events) => {
+                        let picked =
+                            crate::interop::calendar_interop::pick_event_for_date(&events, today);
+                        if let Some(event) = picked {
+                            let spans = service
+                                .activity_spans_for_event(&event.id)
+                                .await
+                                .unwrap_or_default();
+                            if let Ok(mut s) = state.lock() {
+                                s.set_event_with_spans(event, spans);
+                            }
+                        }
+                    }
+                    Err(e) if e.is_endpoint_unavailable() => {
+                        if let Ok(mut s) = state.lock() {
+                            s.set_calendar_unavailable();
+                        }
+                    }
+                    Err(e) => {
+                        // A transport failure is ALSO an unavailable calendar this session (typed
+                        // empty-state, never a spinner); logged for diagnosis.
+                        tracing::warn!("calendar interop fetch failed: {e:?}");
+                        if let Ok(mut s) = state.lock() {
+                            s.set_calendar_unavailable();
+                        }
+                    }
+                }
+                repaint.request_repaint();
+            });
+        }
     }
 
     /// WP-KERNEL-012 MT-080 (AC-080-2 / MT-061): map each drained [`crate::graph::canvas_board::CanvasEvent`]
@@ -6679,15 +8209,77 @@ impl HandshakeApp {
         // item would be lost to the throwaway capture context (the `drain_shell_events` guard pattern).
         if !self.capturing_snapshot {
             let bus = crate::interop::InteractionBus::get_or_init(ctx);
-            let routed: Option<StageContent> =
-                crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
-                    bus.take_pending_stage_content()
-                })
-                .flatten();
-            if let Some(content) = routed {
-                self.stage_pane.set_content(content);
-                self.stage_panel_open = true;
-                ctx.request_repaint();
+            // WP-KERNEL-012 MT-032/034/068 REMEDIATION: drain ALL FOUR pending nav seams each frame
+            // (previously only the stage-content drain existed; the navigation / code-symbol / locus
+            // seams were staged by real click paths but drained ONLY by tests — a live dead-end).
+            let drained = crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+                (
+                    bus.take_pending_stage_content(),
+                    bus.take_pending_navigation(),
+                    bus.take_pending_code_symbol(),
+                    bus.take_pending_locus_ref(),
+                )
+            });
+            if let Some((routed, nav_doc, code_symbol, locus_ref)) = drained {
+                if let Some(content) = routed {
+                    if let Ok(mut stage) = self.stage_pane.lock() {
+                        stage.set_content(content);
+                    }
+                    self.stage_panel_open = true;
+                    ctx.request_repaint();
+                }
+                // MT-032: a staged CMD_OPEN_DOCUMENT target (NoteRefs click / backlink row) opens the
+                // document through the SAME ShellNavigator seam the quick switcher uses.
+                if let Some(document_id) = nav_doc {
+                    self.nav_pending_label = Some(document_id.clone());
+                    let outcome =
+                        crate::quick_switcher::ShellNavigator::open_document(self, &document_id);
+                    self.nav_pending_label = None;
+                    self.surface_nav_outcome(&outcome);
+                    ctx.request_repaint();
+                }
+                // MT-034: a staged CMD_OPEN_CODE_SYMBOL target (a clicked [[code:…]] chip) opens the
+                // code editor at the symbol through ShellNavigator::open_code_symbol.
+                if let Some(symbol_entity_id) = code_symbol {
+                    self.nav_pending_label = Some(symbol_entity_id.clone());
+                    let outcome = crate::quick_switcher::ShellNavigator::open_code_symbol(
+                        self,
+                        &symbol_entity_id,
+                    );
+                    self.nav_pending_label = None;
+                    self.surface_nav_outcome(&outcome);
+                    ctx.request_repaint();
+                }
+                // MT-068: a staged CMD_OPEN_LOCUS_REF target (a clicked locus chip, normalized
+                // `locus://{wp|mt}/{id}`) routes to the WP/MT navigator seams.
+                if let Some(locus_uri) = locus_ref {
+                    match crate::interop::locus_interop::parse_locus_ref(&locus_uri) {
+                        Some(locus) => {
+                            self.nav_pending_label = Some(locus.id.clone());
+                            let outcome = match locus.kind {
+                                crate::interop::locus_interop::LocusRefKind::WorkPacket => {
+                                    crate::quick_switcher::ShellNavigator::open_work_packet(
+                                        self, &locus.id,
+                                    )
+                                }
+                                crate::interop::locus_interop::LocusRefKind::Microtask => {
+                                    crate::quick_switcher::ShellNavigator::open_micro_task(
+                                        self, &locus.id, None,
+                                    )
+                                }
+                            };
+                            self.nav_pending_label = None;
+                            self.surface_nav_outcome(&outcome);
+                        }
+                        None => {
+                            // Unparseable ref: never a silent drop — surface the typed status.
+                            tracing::warn!("locus drain: unparseable locus ref '{locus_uri}'");
+                            self.quick_switcher_nav_status =
+                                Some(format!("Unrecognized locus reference: {locus_uri}"));
+                        }
+                    }
+                    ctx.request_repaint();
+                }
             }
         }
 
@@ -6707,14 +8299,18 @@ impl HandshakeApp {
         }
 
         // ── Bottom edge: the Stage pane (route-to-Stage display surface), shown when content is routed ──
+        // MT-066 REMEDIATION: renders through the ONE shared StagePane (the same Arc the dockable Stage
+        // pane renders), so routed content and the embed-back surface never fork.
         if self.stage_panel_open {
-            let stage = &mut self.stage_pane;
+            let stage = Arc::clone(&self.stage_pane);
             let stage_palette = palette;
             egui::TopBottomPanel::bottom("stage-pane-host")
                 .resizable(true)
                 .default_height(160.0)
                 .show(ctx, |ui| {
-                    stage.show(ui, &stage_palette);
+                    if let Ok(mut stage) = stage.lock() {
+                        stage.show(ui, &stage_palette);
+                    }
                 });
         }
     }
@@ -8245,7 +9841,47 @@ impl HandshakeApp {
             if !self.capturing_snapshot {
                 if let (Some(ws), Some(rt)) = (workspace_id, self.runtime_handle.clone()) {
                     if let Ok(mut sess) = self.editor_mounts.session.lock() {
-                        *sess = EditorSessionContext::new(ws, rt);
+                        *sess = EditorSessionContext::new(ws.clone(), rt.clone());
+                    }
+                    // WP-KERNEL-012 MT-036 REMEDIATION: install the ONE native-editor event emitter on
+                    // the shared InteractionBus at shell startup (the first frame with a bound workspace
+                    // + runtime). Previously `set_event_emitter` had ZERO production callers, so every
+                    // LIVE emit call site (rich save / rich undo / route-to-stage) was a guaranteed
+                    // no-op. The emitter uses the honest typed transport: the verified
+                    // `POST /api/flight_recorder/runtime_chat_event` route; a native-editor event the
+                    // backend rejects lands in the emitter's bounded ERROR RING (surfaced by the
+                    // FlightRecorderPane) — a typed, observable blocker, never a fake emit. The
+                    // FlightRecorderPane is rebuilt over the SAME fetch cell with the emitter's ring so
+                    // the pane EXPLAINS emit failures (the MT-036 empty-state contract).
+                    if !self.event_emitter_installed {
+                        let emitter = crate::event_emitter::NativeEditorEventEmitter::production(
+                            ws.clone(),
+                            self.rich_doc_base_url.clone(),
+                            rt.clone(),
+                        );
+                        let ring = emitter.error_ring().clone();
+                        let bus = crate::interop::InteractionBus::get_or_init(ctx);
+                        let installed =
+                            crate::interop::InteractionBus::with_try_lock(&bus, |b| {
+                                b.set_event_emitter(emitter);
+                            })
+                            .is_some();
+                        if installed {
+                            if let Ok(mut pane) = self.editor_mounts.secondary.fr_pane.lock() {
+                                *pane = crate::flight_recorder_pane::FlightRecorderPane::new(
+                                    std::sync::Arc::new(
+                                        self.editor_mounts.secondary.fr_fetch.clone(),
+                                    ),
+                                    ring,
+                                );
+                                // If the fetch already resolved before the rebuild, re-apply it so the
+                                // pane does not regress to Idle.
+                                if self.editor_mounts.secondary.fr_fetch.is_resolved() {
+                                    pane.load_now();
+                                }
+                            }
+                            self.event_emitter_installed = true;
+                        }
                     }
                 }
             }
@@ -9112,11 +10748,22 @@ impl crate::quick_switcher::ShellNavigator for HandshakeApp {
     }
 
     fn open_wiki_page(&mut self, projection_id: &str) -> crate::quick_switcher::NavDispatchOutcome {
+        // WP-KERNEL-012 MT-025/059 REMEDIATION: route wiki projection ids to the DEDICATED wiki-page
+        // pane (Placeholder "Wiki Page" -> WikiPagePaneMount -> LoomWikiPagePanel), NOT to
+        // PaneType::LoomWikiPage — that key is the mounted RICH-DOCUMENT editor, and feeding a wiki
+        // projection id into the rich-document loader was the audited live nav misroute (the rich
+        // loader GETs `/knowledge/documents/{projection_id}` and fails).
         let label = self
             .nav_pending_label
             .clone()
             .unwrap_or_else(|| projection_id.to_owned());
-        match self.open_navigator_tab(PaneType::LoomWikiPage, projection_id.to_owned(), &label) {
+        match self.open_navigator_tab(
+            crate::editor_pane_factories::placeholder_pane_type(
+                crate::editor_pane_factories::WIKI_PAGE_PANE_LABEL,
+            ),
+            projection_id.to_owned(),
+            &label,
+        ) {
             Some(surface) => crate::quick_switcher::NavDispatchOutcome::Opened { surface },
             None => crate::quick_switcher::NavDispatchOutcome::NoTargetPane,
         }

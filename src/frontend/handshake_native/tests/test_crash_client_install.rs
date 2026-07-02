@@ -139,3 +139,96 @@ fn main_installs_and_holds_the_crash_handler() {
          self-dump the crashing process"
     );
 }
+
+// ===================================================================================================
+// MT-092/MT-094 remediation — the §6.13.6 CRASH-SOCKET RENDEZVOUS.
+//
+// The audited defect: HANDSHAKE_CRASH_SOCK was set NOWHERE, so `client=None` on every production run
+// and the rich CrashContext -> out-of-process-minidump pipeline was DEAD. The fix derives the crash
+// socket on BOTH sides from the SAME control-socket base name and arms the client AFTER the MT-094
+// launcher brought Palmistry up. These tests pin the fix.
+// ===================================================================================================
+
+/// THE CROSS-CRATE WIRE TEST: the client-side derivation (`diagnostics::crash_socket_path`) and the
+/// server-side derivation (`palmistry::crash_capture::crash_socket_path` — the REAL palmistry library,
+/// a dev-dependency here) must be EQUAL for every control-socket shape the launcher can produce. A
+/// drift on either side would silently leave the crash client unarmed (connect to a socket nothing
+/// binds); this pin turns that silence into a test failure.
+#[test]
+fn crash_socket_derivation_is_pinned_equal_across_crates() {
+    let cases = [
+        // The production shape: control_socket_name(uuid-v4 session id).
+        handshake_native::diagnostics::control_socket_name("3f2a9c44-6f6e-4d2b-9c1e-8f5a2b7c9d10"),
+        // Simple names.
+        "handshake-palmistry-abc".to_string(),
+        "plain_token".to_string(),
+        // Characters outside [A-Za-z0-9_-] must sanitize IDENTICALLY on both sides.
+        "weird name/with:chars\\and.dots".to_string(),
+        // Longer than the 40-char truncation budget: both sides must truncate identically.
+        "x".repeat(120),
+        format!("handshake-palmistry-{}", "y".repeat(100)),
+        // Empty edge.
+        String::new(),
+    ];
+    for control_socket in &cases {
+        let client_side = handshake_native::diagnostics::crash_socket_path(control_socket);
+        let server_side = palmistry::crash_capture::crash_socket_path(control_socket);
+        assert_eq!(
+            client_side, server_side,
+            "the §6.13.6 crash-socket rendezvous derivation must be IDENTICAL on both sides for \
+             control socket {control_socket:?} — a drift leaves the crash client silently unarmed"
+        );
+    }
+}
+
+/// The launcher-side half is actually WIRED: `launch_palmistry_at` derives the crash socket and the
+/// handle carries it; `main()` arms the client AFTER the Palmistry launch (the late-connect step) — a
+/// source-order scan mirroring the AC-014-1 proof shape (`main()` is a binary entrypoint whose items
+/// are not importable from tests/).
+#[test]
+fn main_arms_the_crash_client_after_palmistry_launch() {
+    let main_src = include_str!("../src/main.rs");
+    let launcher_src = include_str!("../src/diagnostics/palmistry_launch.rs");
+
+    // Strip full-line comments so the scan matches CODE, not the prose that names these APIs.
+    let code_only = |src: &str| -> String {
+        src.lines()
+            .filter(|l| !l.trim_start().starts_with("//"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    let main_code = code_only(main_src);
+    let launcher_code = code_only(launcher_src);
+
+    // The launcher derives the crash socket and the handle exposes it.
+    assert!(
+        launcher_code.contains("crash_socket_path(control_socket)"),
+        "launch_palmistry_at must DERIVE the crash socket from the control socket (the launcher-side \
+         half of the §6.13.6 rendezvous)"
+    );
+    assert!(
+        launcher_code.contains("pub fn crash_socket(&self)"),
+        "PalmistryHandle must expose the derived crash socket for the late-arm step"
+    );
+
+    // main() arms the client AFTER the launch (late-connect: the crash server must exist first).
+    let launch_idx = main_code
+        .find("launch_palmistry_or_degrade")
+        .expect("main.rs must call the Palmistry launcher");
+    let arm_idx = main_code
+        .find("arm_crash_client_late(")
+        .expect("main.rs must call arm_crash_client_late (the §6.13.6 late-connect step)");
+    assert!(
+        arm_idx > launch_idx,
+        "the crash client must arm AFTER the Palmistry launch (the crash server binds the derived \
+         socket during Palmistry startup; connecting before the launch can never succeed)"
+    );
+    // And the arm happens BEFORE the event loop starts (a crash during the session is covered).
+    let run_native_idx = main_code
+        .find("eframe::run_native")
+        .expect("main.rs must call eframe::run_native");
+    assert!(
+        arm_idx < run_native_idx,
+        "the crash client must be armed BEFORE eframe::run_native so the session is covered"
+    );
+}

@@ -166,6 +166,35 @@ pub fn control_socket_name(session_id: &str) -> String {
     format!("handshake-palmistry-{safe}")
 }
 
+/// Derive the DEDICATED minidumper CRASH-socket path from the control-socket base name — the
+/// CLIENT-side half of the §6.13.6 crash rendezvous (MT-092/MT-094 remediation).
+///
+/// This is an EXACT MIRROR of `palmistry::crash_capture::crash_socket_path` (the SERVER side binds
+/// the path it derives from the same `--control-socket` the launcher passes): sanitize the base name
+/// to `[A-Za-z0-9_-]` (everything else becomes `_`), truncate to 40 chars (the AF_UNIX `sun_path`
+/// 108-byte budget), and place `hsk-crash-<token>.sock` under the OS temp dir. minidumper binds an
+/// AF_UNIX FILESYSTEM-path socket on every platform (including Windows 10+), so this is a real file
+/// path, never a `\\.\pipe\` name. The two derivations are pinned EQUAL by the cross-crate wire test
+/// in `tests/test_crash_client_install.rs` (palmistry is a dev-dependency there); a drift on either
+/// side fails that pin instead of silently leaving the crash client unarmed.
+pub fn crash_socket_path(control_socket: &str) -> String {
+    let token: String = control_socket
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    let short: String = token.chars().take(40).collect();
+    std::env::temp_dir()
+        .join(format!("hsk-crash-{short}.sock"))
+        .to_string_lossy()
+        .into_owned()
+}
+
 fn enqueue_child_watch_command(command: PalmistryChildWatchCommand) {
     let Ok(mut guard) = pending_child_watch_commands().lock() else {
         return;
@@ -587,6 +616,11 @@ pub struct PalmistryHandle {
     handshake_acked: bool,
     handshake_error: Option<String>,
     socket_name: String,
+    /// The DERIVED minidumper crash-socket path (the §6.13.6 rendezvous) Palmistry's crash server
+    /// binds for this session — `crash_socket_path(control_socket)`. The launcher derives + carries
+    /// it so `main()` can arm the MT-092 crash CLIENT against it AFTER the watcher is up (the
+    /// late-connect step; MT-092/MT-094 remediation).
+    crash_socket: String,
     shutdown_done: bool,
 }
 
@@ -610,6 +644,13 @@ impl PalmistryHandle {
     /// The control-socket name Palmistry bound (for logging / a reconnect on shutdown).
     pub fn socket_name(&self) -> &str {
         &self.socket_name
+    }
+
+    /// The DERIVED minidumper crash-socket path Palmistry's crash server binds for this session
+    /// (`crash_socket_path(control_socket)` — the §6.13.6 rendezvous). `main()` arms the MT-092
+    /// crash CLIENT against this path after the watcher launch (the late-connect step).
+    pub fn crash_socket(&self) -> &str {
+        &self.crash_socket
     }
 
     /// Register a child process with Palmistry's MT-106 passive stall watcher. This uses the SAME held
@@ -822,6 +863,14 @@ pub fn launch_palmistry_at(
 ) -> io::Result<PalmistryHandle> {
     let parent_pid = std::process::id();
 
+    // MT-092/MT-094 remediation — the launcher-side half of the §6.13.6 crash rendezvous: DERIVE the
+    // minidumper crash-socket path from the SAME control-socket base name Palmistry derives it from
+    // (Palmistry's crash server binds `crash_socket_path(control_socket)` during its startup; no extra
+    // CLI arg is needed because both sides share the one derivation rule, pinned equal by the
+    // cross-crate wire test). The handle carries it so `main()` can arm the crash CLIENT against it
+    // AFTER the watcher is up (late-connect).
+    let crash_socket = crash_socket_path(control_socket);
+
     // The MT-089 inputs, passed as CLI args (which OVERRIDE env in palmistry's intake) so the launcher
     // never mutates its OWN process environment. Spawn FREE-STANDING (no job — SPAWN_NOT_KILL_ON_JOB_CLOSE)
     // and HEADLESS/QUIET: CREATE_NO_WINDOW + null stdio (never inherits/steals the console; HBR-QUIET).
@@ -850,6 +899,7 @@ pub fn launch_palmistry_at(
         session_id = %session.session_id,
         ring_path = %ring_path.display(),
         control_socket,
+        crash_socket = %crash_socket,
         "palmistry watcher spawned (Tier 3, §6.13.3 launched-with-Handshake); starting bounded handshake"
     );
 
@@ -926,6 +976,7 @@ pub fn launch_palmistry_at(
         handshake_acked,
         handshake_error,
         socket_name: control_socket.to_string(),
+        crash_socket,
         shutdown_done: false,
     })
 }

@@ -12,7 +12,9 @@
 //! `content_json` (no new node type the backend would strip on save), and (b) converge with the
 //! property-panel tag set on the SAME normalized identity (one tag, one hub — RISK-001 / MC-001). This
 //! module produces the SYNTAX tokens; the commit path inserts the atom via the EXISTING
-//! [`crate::rich_editor::wikilinks::confirm::confirm_wikilink`] insert (NOT a new model step).
+//! [`crate::rich_editor::wikilinks::confirm::confirm_wikilink`] insert (which, per the MT-020 undo
+//! rewire, applies a transactional `Step::InsertInlineChild` and pushes the receipt on the undo
+//! manager — no tag-specific model step is introduced).
 //!
 //! ## normalize_tag is DEFINED HERE (typed-blocker realism gate — RISK-001 / MC-007)
 //!
@@ -71,7 +73,8 @@ impl Tag {
 /// `label = "#" + display_name` (so the EXISTING chip renderer paints `#name` directly from the
 /// non-empty label). `resolved = true` (a committed tag is a live link to its hub). This is the node the
 /// commit path inserts via the EXISTING [`crate::rich_editor::wikilinks::confirm::confirm_wikilink`]
-/// insert — NOT a new model step and NOT a new mark variant (the KERNEL_BUILDER "everything is an hsLink
+/// insert (transactional `Step::InsertInlineChild` + undo receipt per the MT-020 rewire) — NOT a
+/// tag-specific model step and NOT a new mark variant (the KERNEL_BUILDER "everything is an hsLink
 /// by ref_kind" gate). A tag whose canonical identity is empty (a bare `#`) is never committed, so this
 /// always produces a valid atom.
 pub fn tag_to_hs_link(tag: &Tag) -> HsLinkNode {

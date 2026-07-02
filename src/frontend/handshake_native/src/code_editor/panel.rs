@@ -118,7 +118,8 @@ use super::signature_help::{
 // MT-054 editor-chrome decorations: bracket match / pair-colorize + indent-guide geometry, and the
 // word-wrap VisualRow layout math. Pure over the buffer; the panel paint path consumes them.
 use super::render_decorations::{
-    bracket_pair_colors, find_matching_bracket, indent_guide_x, indent_level_of, BracketMatch,
+    bracket_pair_colors_in_segments, find_matching_bracket, indent_guide_x, indent_level_of,
+    BracketMatch,
 };
 use super::word_wrap::{count_visual_rows_for_line, layout_visual_rows, VisualRow, WrapConfig};
 
@@ -552,8 +553,10 @@ pub struct CodeEditorPanel {
     /// Cached highlight spans + the `buffer_version` they were computed for (MT-002 step 3). Recomputed
     /// only when the version changes, so the render path never re-parses every frame.
     highlight_cache: Mutex<Option<(Vec<HighlightSpan>, u64)>>,
-    /// Cached measured monospace line height (px), set on the first `show` from
-    /// `ui.text_style_height(&TextStyle::Monospace)` (implementation note). `None` until measured.
+    /// Cached measured monospace line height (px), set on the first `show` from the row height of the
+    /// EXACT `FontId::monospace(MONO_FONT_SIZE)` galley the glyphs are painted with (MT-054 row-pitch
+    /// unit fix — one unit for painted rows, `show_rows` stride, gutter, overlays, and decorations).
+    /// `None` until measured.
     line_height_px: Mutex<Option<f32>>,
     /// Per-frame virtualization diagnostics (MT-002 step 4), updated each `show`.
     perf: Mutex<PerfStats>,
@@ -1233,8 +1236,10 @@ impl FindState {
 
 /// Screen-space geometry of the painted row window for one frame (MT-003 overlay positioning). The
 /// overlay maps a `(line, col)` to a pixel rect using these: `x = left + col * glyph_width`,
-/// `y = top + (line - first_line) * line_height`. Captured from egui's own row layout so carets align
-/// with the glyphs egui actually painted (the MT-002 sans-spacing unit discipline).
+/// `y = top + painted_row_offset * line_height`, where the row offset comes from the FOLD-AWARE
+/// painted-lines map (`painted_row_offset` — MT-054 Wave-B fix; `line - first_line` is wrong across a
+/// fold). Captured from egui's own row layout so carets align with the glyphs egui actually painted;
+/// the rows scope pins its `interact_size.y` floor to `line_height` so the painted pitch IS this unit.
 #[derive(Debug, Clone, Copy)]
 struct RowGeometry {
     /// Screen x of the left edge of the painted text rows (column 0).
@@ -6829,7 +6834,16 @@ impl CodeEditorPanel {
         if let Some(h) = *cached {
             return h;
         }
-        let h = ui.text_style_height(&egui::TextStyle::Monospace).max(1.0);
+        // MT-054 ROW-PITCH UNIT FIX: measure the row height of the EXACT `FontId::monospace(
+        // MONO_FONT_SIZE)` galley `render_line` paints glyphs with — NOT `text_style_height(Monospace)`,
+        // which reads the style's (potentially differently sized) Monospace TextStyle. This is the ONE
+        // row unit everywhere: the painted row pitch (each row's label galley is this tall and the rows
+        // scope pins `interact_size.y` to it, so egui advances exactly this much per row), the
+        // `show_rows` stride, the gutter row_top, the cursor/find/whitespace overlays, and every
+        // decoration y. Deriving it from any other metric re-opens the ghost-bracket / gutter-drift
+        // unit mismatch the Wave-B audit measured.
+        let font = egui::FontId::monospace(MONO_FONT_SIZE);
+        let h = ui.fonts_mut(|f| f.row_height(&font)).max(1.0);
         *cached = Some(h);
         h
     }
@@ -6881,6 +6895,15 @@ impl CodeEditorPanel {
                 .lock()
                 .unwrap_or_else(|e| e.into_inner()) = Some(text_node_id);
             ui.style_mut().spacing.item_spacing.y = 0.0;
+            // MT-054 ROW-PITCH UNIT FIX: `ui.horizontal` floors each row's frame at
+            // `spacing.interact_size.y` (egui 0.33.3 ui.rs:2700 — 18.0 by default), while `show_rows`,
+            // the gutter, the cursor overlay, and every decoration stride by `line_height` (~15.1 for
+            // monospace 13). Pin the floor to EXACTLY `line_height` so each painted row advances egui's
+            // cursor by exactly one `line_height` (the label galley is measured from the same
+            // `FontId::monospace(MONO_FONT_SIZE)` and is exactly this tall, so the centered content has
+            // zero vertical offset). One unit everywhere — the Wave-B audit's ghost-bracket/gutter-drift
+            // root cause.
+            ui.style_mut().spacing.interact_size.y = line_height;
 
             // Capture the screen-space TOP-LEFT of the painted text rows BEFORE painting (the cursor
             // overlay + pointer hit-testing map (line,col) against this origin — MT-003). `cursor()` is
@@ -6932,11 +6955,18 @@ impl CodeEditorPanel {
             // Paint one row per VISIBLE line index, mapping each to its buffer line (MT step 4). When the
             // buffer line is the start of a FOLDED region, render the collapsed summary label instead of
             // the line text; the hidden lines are simply never visited (they are not in the visible map).
+            // MT-054/MT-005 FOLD-AWARE DECORATIONS: record the buffer line of EACH painted row, in row
+            // order, so every decoration/overlay painter below maps a buffer line to its PAINTED row
+            // offset through this list (a fold makes the buffer lines non-contiguous — `line -
+            // first_line` is NOT the row offset). The list is strictly ascending (the fold map is
+            // monotonic), so a binary search resolves a line to its row or `None` when hidden/off-window.
+            let mut painted_lines: Vec<usize> = Vec::with_capacity(visible_end - row_range.start);
             for visible_idx in row_range.start..visible_end {
                 let buffer_line = {
                     let mut set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
                     set.visible_line_to_buffer_line(visible_idx)
                 };
+                painted_lines.push(buffer_line);
                 let folded_label = {
                     let set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
                     match set.region_starting_at(buffer_line) {
@@ -6965,8 +6995,6 @@ impl CodeEditorPanel {
             };
             *self.row_geometry.lock().unwrap_or_else(|e| e.into_inner()) = Some(geometry);
 
-            let end = buffer_end; // alias kept for the overlay calls below (buffer-line exclusive end).
-
             // MT-054: paint the editor-chrome decorations (indent guides, bracket-pair colorization,
             // matching-bracket highlight) over the painted rows in the contract z-order: indent guides
             // first (faint lines that sit in the whitespace columns, below the glyphs), then re-draw each
@@ -6974,7 +7002,10 @@ impl CodeEditorPanel {
             // (CONTROL-4 — colors come from the palette tokens, never a hex literal here). Each visible
             // row in this non-wrap path is one logical line, so every row is a `wrap_index == 0` first
             // fragment and carries its indent guides (RISK-007 trivially holds when wrap is off).
-            self.paint_chrome_decorations(ui, &geometry, glyph_width, first_buffer_line, end, None);
+            // FOLD-AWARE: `painted_lines` (the buffer line per painted row) is the ONLY line->row map —
+            // hidden folded lines are not in it, so their decorations are never painted, and rows after
+            // a fold land at their real painted offset (the Wave-B fold-mapping fix).
+            self.paint_chrome_decorations(ui, &geometry, glyph_width, &painted_lines, None);
 
             // MT-071: when the render-whitespace toggle is ON, overlay middots for spaces + arrows for
             // tabs in the painted row window (VS Code's "render whitespace" — read from the doc-model
@@ -6982,19 +7013,21 @@ impl CodeEditorPanel {
             // visible window so it stays cheap on a large file. A no-op when the toggle is off (the
             // baseline render is unchanged).
             if self.render_whitespace() {
-                self.paint_whitespace_glyphs(ui, &geometry, glyph_width, end, syntax);
+                self.paint_whitespace_glyphs(ui, &geometry, glyph_width, &painted_lines, syntax);
             }
 
             // MT-004: paint the find-match highlights (below the carets) so a caret/selection stays
             // visible on top of a match rect. Restricted to the painted row window (the same sans-spacing
-            // line_height + monospace glyph_width units as the cursor overlay).
-            self.paint_match_highlights(ui, &geometry, glyph_width, end);
+            // line_height + monospace glyph_width units as the cursor overlay), fold-aware via
+            // `painted_lines`.
+            self.paint_match_highlights(ui, &geometry, glyph_width, &painted_lines);
 
             // MT-003: paint every caret + selection as a painter overlay OVER the rows, restricted to
             // the painted row window so carets align exactly with rendered glyphs (no draw for cursors
-            // scrolled off-screen). Uses `y_for_line`-equivalent units (line * line_height) + the same
-            // monospace glyph width.
-            self.paint_cursor_overlay(ui, &geometry, glyph_width, end, syntax);
+            // scrolled off-screen, none for cursors on fold-hidden lines). Row y comes from the painted
+            // row offset in `painted_lines` (fold-aware — the MT-003-era `y_for` contiguity fix) + the
+            // same monospace glyph width.
+            self.paint_cursor_overlay(ui, &geometry, glyph_width, &painted_lines, syntax);
 
             // Emit the TextInput node onto this nested scope's Ui id (AC-005). Because this scope is a
             // child of the scroll-area scope (itself a child of the container), the node is a
@@ -7223,6 +7256,10 @@ impl CodeEditorPanel {
                 .lock()
                 .unwrap_or_else(|e| e.into_inner()) = Some(text_node_id);
             ui.style_mut().spacing.item_spacing.y = 0.0;
+            // MT-054 ROW-PITCH UNIT FIX (same as `render_rows`): pin the `ui.horizontal` frame floor to
+            // exactly `line_height` so each painted visual row advances exactly one `line_height` — the
+            // same unit the wrap-row index, `show_rows`, and the decoration y mapping stride by.
+            ui.style_mut().spacing.interact_size.y = line_height;
             let origin = ui.cursor().min;
 
             // The buffer-line span the painted visual rows cover, for the highlight-span byte window.
@@ -7270,15 +7307,10 @@ impl CodeEditorPanel {
             *self.row_geometry.lock().unwrap_or_else(|e| e.into_inner()) = Some(geometry);
 
             // MT-054 decorations under wrap: indent guides only on first-fragment rows, bracket colors +
-            // match highlight mapped through the painted visual-row window (RISK-007 / MC-007).
-            self.paint_chrome_decorations(
-                ui,
-                &geometry,
-                glyph_width,
-                first_buffer_line,
-                buffer_end,
-                Some(window_rows),
-            );
+            // match highlight mapped through the painted visual-row window (RISK-007 / MC-007). The
+            // `painted_lines` slice is empty because the wrap arm maps bytes through `window_rows`
+            // directly (each visual row carries its own byte range — already fold-filtered + bounded).
+            self.paint_chrome_decorations(ui, &geometry, glyph_width, &[], Some(window_rows));
 
             let author = text_author.to_owned();
             ui.ctx().accesskit_node_builder(text_node_id, move |node| {
@@ -7418,8 +7450,7 @@ impl CodeEditorPanel {
         ui: &egui::Ui,
         geometry: &RowGeometry,
         glyph_width: f32,
-        first_buffer_line: usize,
-        end_line: usize,
+        painted_lines: &[usize],
         wrap_rows: Option<&[VisualRow]>,
     ) {
         // Resolve the theme tokens (dark/light) for the guides + bracket palette.
@@ -7472,11 +7503,12 @@ impl CodeEditorPanel {
         };
         match wrap_rows {
             None => {
-                // Buffer lines are contiguous in the non-wrap painted window EXCEPT across folded
-                // regions; we map each buffer line in range to its row offset by counting from
-                // first_buffer_line. A folded gap simply leaves that row offset unused (the guide for a
-                // hidden line is never drawn — correct).
-                for (row_offset, line) in (first_buffer_line..end_line).enumerate() {
+                // FOLD-AWARE (Wave-B fix): the painted rows are exactly `painted_lines` — one buffer
+                // line per row, in row order, with fold-hidden lines absent. Enumerating THIS list (not
+                // a contiguous `first..end` line range, which the old code wrongly assumed mapped 1:1 to
+                // row offsets) puts every guide on its real painted row and never draws a hidden line's
+                // guide.
+                for (row_offset, &line) in painted_lines.iter().enumerate() {
                     paint_guides_for(row_offset, line);
                 }
             }
@@ -7490,21 +7522,51 @@ impl CodeEditorPanel {
         }
 
         // 2) BRACKET-PAIR COLORIZATION: re-draw each bracket glyph in its depth color over the painted
-        //    text (z-order: above guides + text). Computed over the painted buffer byte window.
-        let (win_start, win_end) = {
-            let ws = buffer.line_to_byte(first_buffer_line).unwrap_or(0);
-            let we = buffer
-                .line_to_byte(end_line)
-                .unwrap_or_else(|| buffer.len_bytes());
-            (ws, we)
+        //    text (z-order: above guides + text). FOLD-AWARE (Wave-B fix): the scan runs over the
+        //    VISIBLE rows' byte segments ONLY — a folded region's hidden bytes are never scanned, so no
+        //    hidden bracket is ever colored (and the per-frame cost is O(visible bytes) even when a
+        //    huge folded region sits inside the window). Depth carries ACROSS the segments (as if the
+        //    hidden text were absent), consistent with the documented window-relative depth.
+        let visible_segments: Vec<std::ops::Range<usize>> = match wrap_rows {
+            None => {
+                let mut segs: Vec<std::ops::Range<usize>> = Vec::new();
+                for &line in painted_lines {
+                    let s = buffer.line_to_byte(line).unwrap_or(0);
+                    let e = buffer
+                        .line_to_byte(line + 1)
+                        .unwrap_or_else(|| buffer.len_bytes());
+                    match segs.last_mut() {
+                        Some(last) if last.end == s => last.end = e,
+                        _ => segs.push(s..e),
+                    }
+                }
+                segs
+            }
+            Some(rows) => {
+                let mut segs: Vec<std::ops::Range<usize>> = Vec::new();
+                for row in rows {
+                    let (s, e) = (row.byte_start, row.byte_end);
+                    match segs.last_mut() {
+                        Some(last) if last.end == s => last.end = e,
+                        _ => segs.push(s..e),
+                    }
+                }
+                segs
+            }
         };
         if !bracket_palette.is_empty() {
-            let colors = bracket_pair_colors(&buffer, win_start..win_end, &bracket_palette);
+            let colors =
+                bracket_pair_colors_in_segments(&buffer, &visible_segments, &bracket_palette);
             let mono = egui::FontId::monospace(MONO_FONT_SIZE);
             for (range, color) in colors {
-                if let Some((x, y)) =
-                    self.decoration_xy(&buffer, range.start, geometry, glyph_width, wrap_rows)
-                {
+                if let Some((x, y)) = self.decoration_xy(
+                    &buffer,
+                    range.start,
+                    geometry,
+                    glyph_width,
+                    painted_lines,
+                    wrap_rows,
+                ) {
                     let ch = buffer.byte_slice_to_string(range.clone());
                     if !ch.is_empty() {
                         painter.text(
@@ -7533,7 +7595,7 @@ impl CodeEditorPanel {
             let stroke = egui::Stroke::new(1.0, active_guide_color);
             for b in [open_byte, close_byte] {
                 if let Some((x, y)) =
-                    self.decoration_xy(&buffer, b, geometry, glyph_width, wrap_rows)
+                    self.decoration_xy(&buffer, b, geometry, glyph_width, painted_lines, wrap_rows)
                 {
                     let rect = egui::Rect::from_min_size(
                         egui::pos2(x, y),
@@ -7545,27 +7607,35 @@ impl CodeEditorPanel {
         }
     }
 
+    /// MT-054/MT-005 FOLD-AWARE ROW MAP: the PAINTED row offset of `buffer_line` in the current window,
+    /// or `None` when the line is fold-hidden or off-window. `painted_lines` is the strictly-ascending
+    /// buffer line per painted row `render_rows` recorded this frame — the ONE line->row map every
+    /// overlay/decoration painter shares (never `line - first_line`, which drifts across folds).
+    fn painted_row_offset(painted_lines: &[usize], buffer_line: usize) -> Option<usize> {
+        painted_lines.binary_search(&buffer_line).ok()
+    }
+
     /// MT-054: map an absolute buffer byte offset to the (x, y) top-left of its glyph in the painted row
-    /// window, or `None` if the offset is not on a painted row. Non-wrap: the row y is the buffer line
-    /// offset from `geometry.first_line`; the column is the char offset within the line. Wrap: find the
-    /// visual row whose byte fragment contains the offset and use its visual-row index for y + the offset
-    /// within the fragment for the column. Reuses the SAME `glyph_width` + `line_height` units the rows
-    /// were painted with (RISK-002 / MC-002 — no independent metric recompute).
+    /// window, or `None` if the offset is not on a painted row. Non-wrap: the row y is the buffer line's
+    /// PAINTED row offset in `painted_lines` (fold-aware — a fold-hidden line is not in the list, so its
+    /// decoration is skipped, and the mapping is bounded above AND below by the painted window — the
+    /// Wave-B fix); the column is the char offset within the line. Wrap: find the visual row whose byte
+    /// fragment contains the offset and use its visual-row index for y + the offset within the fragment
+    /// for the column. Reuses the SAME `glyph_width` + `line_height` units the rows were painted with
+    /// (RISK-002 / MC-002 — no independent metric recompute).
     fn decoration_xy(
         &self,
         buffer: &TextBuffer,
         byte_offset: usize,
         geometry: &RowGeometry,
         glyph_width: f32,
+        painted_lines: &[usize],
         wrap_rows: Option<&[VisualRow]>,
     ) -> Option<(f32, f32)> {
         match wrap_rows {
             None => {
                 let (line, col) = byte_to_line_col(byte_offset, buffer);
-                if line < geometry.first_line {
-                    return None;
-                }
-                let row_offset = line - geometry.first_line;
+                let row_offset = Self::painted_row_offset(painted_lines, line)?;
                 let x = geometry.left + col as f32 * glyph_width;
                 let y = geometry.top + row_offset as f32 * geometry.line_height;
                 Some((x, y))
@@ -7858,12 +7928,14 @@ impl CodeEditorPanel {
             if !self.has_quickfix_on_line(line) {
                 continue;
             }
-            // Center the bulb on the row, near the gutter's left edge (left of the line number / diagnostic
-            // glyph column). The origin.x is the gutter strip left; offset a half-glyph in so it has margin.
+            // Center the bulb on the row, INSIDE the gutter strip (MT-049 Wave-B fix: the old anchor
+            // `origin.x + char_width * 0.6` put the glyph CENTER ~4.7px from the panel's left edge, so
+            // the CENTER_CENTER-drawn ~13px glyph clipped half off the panel). Anchoring the center a
+            // full half-glyph-plus-margin in keeps the whole bulb visible in the gutter's left column.
             let y = geometry.origin.y
                 + painted_idx as f32 * geometry.line_height
                 + geometry.line_height * 0.5;
-            let x = geometry.origin.x + geometry.char_width * 0.6;
+            let x = geometry.origin.x + code_actions::LIGHTBULB_GLYPH_SIZE * 0.5 + 2.0;
             let pos = egui::pos2(x, y);
             let resp = code_actions::draw_lightbulb(ui, line, pos, &self.instance);
             if resp.clicked() {
@@ -8341,7 +8413,7 @@ impl CodeEditorPanel {
         ui: &egui::Ui,
         geometry: &RowGeometry,
         glyph_width: f32,
-        end_line: usize,
+        painted_lines: &[usize],
     ) {
         let state = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
         let Some(state) = state.as_ref() else {
@@ -8353,8 +8425,12 @@ impl CodeEditorPanel {
         let painter = ui.painter();
         let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
         let x_for = |col: usize| geometry.left + col as f32 * glyph_width;
-        let y_for =
-            |line: usize| geometry.top + (line - geometry.first_line) as f32 * geometry.line_height;
+        // FOLD-AWARE row y (Wave-B fix): a line's y is its PAINTED row offset — `None` for a
+        // fold-hidden or off-window line (no rect painted), never `line - first_line` arithmetic.
+        let y_for = |line: usize| -> Option<f32> {
+            Self::painted_row_offset(painted_lines, line)
+                .map(|row| geometry.top + row as f32 * geometry.line_height)
+        };
 
         for (idx, m) in state.matches.iter().enumerate() {
             let color = if idx == state.current_match {
@@ -8368,9 +8444,9 @@ impl CodeEditorPanel {
             let (start_line, start_col) = byte_to_line_col(m.byte_range.start, &buffer);
             let (end_match_line, end_col) = byte_to_line_col(m.byte_range.end, &buffer);
             for line in start_line..=end_match_line {
-                if line < geometry.first_line || line >= end_line {
-                    continue; // off-screen row (implementation note 2)
-                }
+                let Some(y0) = y_for(line) else {
+                    continue; // off-screen or fold-hidden row (implementation note 2)
+                };
                 let line_start_col = if line == start_line { start_col } else { 0 };
                 let line_end_col = if line == end_match_line {
                     end_col
@@ -8385,7 +8461,6 @@ impl CodeEditorPanel {
                 let visual_end_col = line_end_col.max(line_start_col + 1);
                 let x0 = x_for(line_start_col);
                 let x1 = x_for(visual_end_col);
-                let y0 = y_for(line);
                 let rect = egui::Rect::from_min_max(
                     egui::pos2(x0, y0),
                     egui::pos2(x1, y0 + geometry.line_height),
@@ -8407,18 +8482,19 @@ impl CodeEditorPanel {
         ui: &egui::Ui,
         geometry: &RowGeometry,
         glyph_width: f32,
-        end_line: usize,
+        painted_lines: &[usize],
         syntax: &HsSyntaxTokens,
     ) {
         let painter = ui.painter();
         let color = syntax.punctuation;
         let font = egui::FontId::monospace(MONO_FONT_SIZE);
         let x_for = |col: usize| geometry.left + col as f32 * glyph_width;
-        let y_for =
-            |line: usize| geometry.top + (line - geometry.first_line) as f32 * geometry.line_height;
-        // Read only the visible line window (never the whole rope — RISK-003 window discipline).
+        // Read only the PAINTED rows (never the whole rope — RISK-003 window discipline). FOLD-AWARE
+        // (Wave-B fix): iterate the painted row list itself, so a fold-hidden line's whitespace is
+        // never marked and each row's y is its real painted offset.
         let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
-        for line in geometry.first_line..end_line {
+        for (row_offset, &line) in painted_lines.iter().enumerate() {
+            let row_y = geometry.top + row_offset as f32 * geometry.line_height;
             let line_text = buffer.slice_to_string(line..line + 1);
             // Column index in CHARS (the editor's monospace column unit), tracking each glyph.
             let mut col = 0usize;
@@ -8427,7 +8503,7 @@ impl CodeEditorPanel {
                     ' ' => {
                         let center = egui::pos2(
                             x_for(col) + glyph_width * 0.5,
-                            y_for(line) + geometry.line_height * 0.5,
+                            row_y + geometry.line_height * 0.5,
                         );
                         painter.text(
                             center,
@@ -8441,7 +8517,7 @@ impl CodeEditorPanel {
                     '\t' => {
                         let center = egui::pos2(
                             x_for(col) + glyph_width * 0.5,
-                            y_for(line) + geometry.line_height * 0.5,
+                            row_y + geometry.line_height * 0.5,
                         );
                         painter.text(
                             center,
@@ -8464,17 +8540,18 @@ impl CodeEditorPanel {
     // ── MT-003 overlay + AccessKit + input ───────────────────────────────────────────────────────────
 
     /// Paint every caret (a 2px vertical bar) and every selection (a semi-transparent rect) over the
-    /// painted rows, restricted to lines `geometry.first_line..end_line` (the on-screen window) so a
-    /// caret only draws where its glyph is actually rendered (MT-003 step 6). A selection that spans
-    /// multiple lines is drawn as one rect per line in the span (so a box/column selection naturally
-    /// shows one rect per row). Column->x uses `glyph_width`; line->y uses `(line - first_line) *
-    /// line_height` from the captured geometry (the MT-002 sans-spacing unit).
+    /// painted rows, restricted to the PAINTED row window so a caret only draws where its glyph is
+    /// actually rendered (MT-003 step 6). A selection that spans multiple lines is drawn as one rect
+    /// per PAINTED line in the span (so a box/column selection naturally shows one rect per row, and a
+    /// fold-hidden line draws nothing). Column->x uses `glyph_width`; line->y is the line's painted row
+    /// offset in `painted_lines` times `line_height` (the MT-054 fold-aware unit — the MT-003-era
+    /// `line - first_line` contiguity bug is fixed here per the Wave-B audit).
     fn paint_cursor_overlay(
         &self,
         ui: &egui::Ui,
         geometry: &RowGeometry,
         glyph_width: f32,
-        end_line: usize,
+        painted_lines: &[usize],
         syntax: &HsSyntaxTokens,
     ) {
         let painter = ui.painter();
@@ -8493,8 +8570,12 @@ impl CodeEditorPanel {
         let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
 
         let x_for = |col: usize| geometry.left + col as f32 * glyph_width;
-        let y_for =
-            |line: usize| geometry.top + (line - geometry.first_line) as f32 * geometry.line_height;
+        // FOLD-AWARE row y (Wave-B fix): a line's y is its PAINTED row offset — `None` for a
+        // fold-hidden or off-window line (nothing drawn there).
+        let y_for = |line: usize| -> Option<f32> {
+            Self::painted_row_offset(painted_lines, line)
+                .map(|row| geometry.top + row as f32 * geometry.line_height)
+        };
 
         for cursor in cursors.cursors() {
             // Draw the SELECTION (if any) first, then the caret on top, so the caret stays visible.
@@ -8503,9 +8584,9 @@ impl CodeEditorPanel {
                 let (start_line, start_col) = byte_to_line_col(range.start, &buffer);
                 let (end_line_sel, end_col) = byte_to_line_col(range.end, &buffer);
                 for line in start_line..=end_line_sel {
-                    if line < geometry.first_line || line >= end_line {
-                        continue; // off-screen row
-                    }
+                    let Some(y0) = y_for(line) else {
+                        continue; // off-screen or fold-hidden row
+                    };
                     // Column span on THIS line: from the selection start col (or 0 if the line is not the
                     // first) to the end col (or the line's content end if the line is not the last).
                     let line_start_col = if line == start_line { start_col } else { 0 };
@@ -8522,7 +8603,6 @@ impl CodeEditorPanel {
                     }
                     let x0 = x_for(line_start_col);
                     let x1 = x_for(line_end_col);
-                    let y0 = y_for(line);
                     let rect = egui::Rect::from_min_max(
                         egui::pos2(x0, y0),
                         egui::pos2(x1, y0 + geometry.line_height),
@@ -8532,9 +8612,8 @@ impl CodeEditorPanel {
             }
             // Draw the caret (the moving head) as a 2px vertical bar.
             let (head_line, head_col) = byte_to_line_col(cursor.head, &buffer);
-            if head_line >= geometry.first_line && head_line < end_line {
+            if let Some(y) = y_for(head_line) {
                 let x = x_for(head_col);
-                let y = y_for(head_line);
                 let caret = egui::Rect::from_min_max(
                     egui::pos2(x, y),
                     egui::pos2(x + 2.0, y + geometry.line_height),
@@ -8558,9 +8637,8 @@ impl CodeEditorPanel {
         if !preedit.is_empty() {
             let primary = cursors.primary();
             let (head_line, head_col) = byte_to_line_col(primary.head, &buffer);
-            if head_line >= geometry.first_line && head_line < end_line {
+            if let Some(y) = y_for(head_line) {
                 let x = x_for(head_col);
-                let y = y_for(head_line);
                 // Lay out the preedit in the editor's monospace font so it matches the code glyphs.
                 let font = egui::FontId::monospace(MONO_FONT_SIZE);
                 let galley = painter.layout_no_wrap(preedit.clone(), font, caret_color);
@@ -8662,11 +8740,18 @@ impl CodeEditorPanel {
         glyph_width: f32,
     ) -> Option<egui::Pos2> {
         let g = (*self.row_geometry.lock().unwrap_or_else(|e| e.into_inner()))?;
-        if line < g.first_line {
-            return None;
-        }
+        // FOLD-AWARE painted row offset (MT-054 Wave-B fix — the same `line - first_line` contiguity
+        // bug the overlays had): find `line` among the painted window's buffer lines, so the returned
+        // pixel is the row egui ACTUALLY painted the line at, bounded above AND below (a fold-hidden
+        // or off-window line returns `None` — there is no on-screen pixel for it).
+        let visible_range = self.last_visible_range();
+        let row_offset = {
+            let mut set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
+            (visible_range.start..visible_range.end)
+                .position(|v| set.visible_line_to_buffer_line(v) == line)?
+        };
         let x = g.left + col as f32 * glyph_width + glyph_width * 0.25;
-        let y = g.top + (line - g.first_line) as f32 * g.line_height + g.line_height * 0.5;
+        let y = g.top + row_offset as f32 * g.line_height + g.line_height * 0.5;
         Some(egui::pos2(x, y))
     }
 
@@ -8693,10 +8778,19 @@ impl CodeEditorPanel {
         if geometry.line_height <= 0.0 || glyph_width <= 0.0 {
             return None;
         }
-        // Line = first_line + floor((y - top) / line_height), clamped to the document.
+        // FOLD-AWARE (MT-054 Wave-B fix): the clicked ROW maps to a buffer line through the SAME
+        // fold-filtered visible map the painter used — `first_line + row` lands on a HIDDEN line when
+        // a fold is inside the window. The clicked row's visible index is the painted window's start
+        // plus the row offset; the fold map resolves it to the real buffer line (clamping past the
+        // visible document to its last line, then to the buffer).
         let rel_y = (pos.y - geometry.top).max(0.0);
-        let line = (geometry.first_line + (rel_y / geometry.line_height).floor() as usize)
-            .min(total_lines.saturating_sub(1));
+        let row = (rel_y / geometry.line_height).floor() as usize;
+        let visible_idx = self.last_visible_range().start + row;
+        let line = {
+            let mut set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
+            set.visible_line_to_buffer_line(visible_idx)
+        }
+        .min(total_lines.saturating_sub(1));
         // Column = round((x - left) / glyph_width), clamped to >= 0; line_col_to_byte clamps to the
         // line length.
         let rel_x = (pos.x - geometry.left).max(0.0);

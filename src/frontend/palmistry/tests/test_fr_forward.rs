@@ -1,10 +1,16 @@
 //! Integration proof for the MT-093 recovery-time FLIGHT-RECORDER FORWARDER (Master Spec v02.196 §6.13.7).
 //!
 //! Drives the REAL production `palmistry::fr_forward` + `palmistry::survivor_store` types. Proves:
-//! - AC-013-3 (FR FORWARD, reuse-via-API): against a LOCAL STUB server that accepts the survivor-faithful
-//!   body at the EXACT verified route `POST /api/flight_recorder/runtime_chat_event`, a forward succeeds
-//!   and the record is marked forwarded IDEMPOTENTLY (no double-forward). The stub asserts the exact route
-//!   + that the body is the typed-allowlist survivor shape (no free text).
+//! - AC-013-3 — SATISFIED ONLY UNDER THE AC-013-4 BLOCKER (MT-093 remediation relabel, HONEST status):
+//!   the stub-backed forward test below proves the forward MECHANISM (route path, marked-forwarded
+//!   idempotency, typed-allowlist body) against a stub that models the FUTURE WP-KERNEL-016 survivor
+//!   ingestion shape (`hsk.palmistry.survivor_forward@0.1`). It does NOT prove the LIVE Flight Recorder
+//!   accepts a survivor forward — it verifiably CANNOT: the real `runtime_chat_event` route's closed
+//!   `RuntimeChatEventV0_1` schema (deny_unknown_fields, closed `type` enum) would reject this body
+//!   with a 400, which is exactly the verified `FrSchemaCompat::Incompatible` verdict production bakes
+//!   in via `FrForwarder::for_existing_fr`. Until WP-KERNEL-016 lands the ingestion shape, production
+//!   forwarding is PERMANENTLY short-circuited by the typed AC-013-4 blocker (records stay local +
+//!   pending) — the honest, contract-sanctioned outcome, not a defect in this suite.
 //! - AC-013-4 (HONEST BLOCKER): forwarding into the EXISTING (verified-incompatible) chat-event route
 //!   returns the typed `FrForwardBlocker::SchemaIncompatible` — NOT a faked success; the record stays
 //!   local + pending; the FR is untouched. An ABSENT route returns `RouteAbsent`; a REJECTING route
@@ -169,9 +175,13 @@ fn freeze_record() -> SurvivorRecord {
 
 #[test]
 fn faithful_forward_posts_verified_route_and_body_then_marks_forwarded_idempotently() {
-    // AC-013-3: against a stub that ACCEPTS the survivor-faithful body at the EXACT verified route, a
-    // forward (compat = Compatible) succeeds, the body is the typed-allowlist survivor shape, and the
-    // record is marked forwarded idempotently.
+    // AC-013-3 (RELABELED — satisfied ONLY under the AC-013-4 blocker; see the file header): against a
+    // stub that ACCEPTS the survivor-faithful body at the EXACT verified route path, a forward
+    // (compat = Compatible) succeeds, the body is the typed-allowlist survivor shape, and the record is
+    // marked forwarded idempotently. The stub models the FUTURE WP-KERNEL-016 ingestion shape; the
+    // LIVE FR's closed RuntimeChatEventV0_1 schema would 400 this body (deny_unknown_fields), which is
+    // why production runs behind FrSchemaCompat::Incompatible until WP-016 lands. This test proves the
+    // forward MECHANISM is correct + live the instant that gap closes — not that the live FR accepts it.
     let (base_url, rx, handle) = spawn_stub(200);
     let forwarder = FrForwarder::with_compat(&base_url, FrSchemaCompat::Compatible);
 

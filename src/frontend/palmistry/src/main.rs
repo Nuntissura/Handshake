@@ -1002,7 +1002,7 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
     let crash_captured = crash_handler.captured_flag();
     let crash_thread_id = crash_handler.faulting_thread_id_handle();
     let crash_write_error = crash_handler.write_error_handle();
-    let crash_socket = crash_socket_path(&config.control_socket);
+    let crash_socket = crash_capture::crash_socket_path(&config.control_socket);
     // The minidumper `Server::run` `shutdown` flag uses INVERTED polarity from our `run` flag: minidumper
     // STOPS when its flag is `true`, whereas our `run` is `true` while the watcher is ALIVE. Passing `run`
     // directly would make the crash server return IMMEDIATELY at startup (the CrashContext-driven RICH
@@ -1187,28 +1187,10 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
     Ok(())
 }
 
-/// Derive the DEDICATED minidumper crash-socket path from the control-socket base name. The Embark
-/// `minidumper` IPC uses its OWN socket, distinct from the interprocess control socket, so the two
-/// channels never collide. On EVERY platform (including Windows 10+), minidumper binds an AF_UNIX
-/// (`PF_UNIX` / `SOCK_STREAM`) socket whose address is a real FILESYSTEM PATH in `sun_path` — NOT a
-/// `\\.\pipe\` named pipe (verified from the minidumper 0.10 source: `ipc/windows.rs` uses `sockaddr_un`
-/// with a 108-byte `sun_path`). So the crash socket is a short `.sock` file under the OS temp dir on all
-/// platforms. The path must fit `sun_path` (108 bytes), so the base token is truncated to keep it short.
-/// The CLIENT derives the SAME path with the SAME rule so they rendezvous.
-pub fn crash_socket_path(control_socket: &str) -> String {
-    crash_socket_path_for_token(&crash_capture::safe_session_token(control_socket))
-}
-
-/// Build the minidumper crash-socket filesystem path for an already-sanitized token. Truncates the token
-/// so the full path stays within the AF_UNIX `sun_path` 108-byte limit (the temp-dir prefix + suffix
-/// leave well under 108 bytes for a ~40-char token).
-fn crash_socket_path_for_token(token: &str) -> String {
-    let short: String = token.chars().take(40).collect();
-    std::env::temp_dir()
-        .join(format!("hsk-crash-{short}.sock"))
-        .to_string_lossy()
-        .into_owned()
-}
+// NOTE (MT-092/MT-094 remediation): `crash_socket_path` MOVED to the LIBRARY crate
+// (`palmistry::crash_capture::crash_socket_path`) so the handshake-native launcher's mirrored
+// derivation can be pinned EQUAL by a cross-crate wire test. The binary imports it via the
+// `crash_capture` re-use below (see `run_watcher`).
 
 /// Why the control accept loop terminated. Returned to the loop's `on_exit` callback so the caller owns
 /// the side effects (request a shutdown, record a fault) instead of the loop hard-coding them — which is

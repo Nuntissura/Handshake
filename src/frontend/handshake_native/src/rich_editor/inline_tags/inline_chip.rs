@@ -110,6 +110,32 @@ pub struct TagEdgePayload {
     pub edges: Vec<TagEdge>,
 }
 
+/// WP-KERNEL-012 MT-058 (tag-edge save hook): the typed blocker key gating the LIVE
+/// `POST /loom/edges` dispatch of a queued [`TagEdgeIntent`]. The verified backend tags an edge
+/// into a per-canonical `tag_hub` BLOCK (`target_block_id`), not a name string, and hub resolution
+/// (find-or-create the hub block id for a canonical tag) is a backend-managed step that needs a
+/// live managed PostgreSQL (NEEDS_MANAGED_RESOURCE_PROOF). Until that resolution surface exists,
+/// intents are QUEUED (never silently POSTed) with this key naming what unblocks dispatch.
+pub const TAG_EDGE_DISPATCH_BLOCKER: &str = "tag_hub_block_id_resolution";
+
+/// WP-KERNEL-012 MT-058 (tag-edge save hook): a queued intent to persist a document's deduped
+/// tag-edge payload, captured at the LIVE save path (`RichEditorState::request_save_for_host` —
+/// the Ctrl+S / host-menu / pane-save funnel), so MC-004 "fires only at document commit/save"
+/// actually fires. The payload is the [`build_tag_edge_payload`] inline+property union for the
+/// document version the save dispatched. Dispatch stays gated on [`TAG_EDGE_DISPATCH_BLOCKER`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TagEdgeIntent {
+    /// The rich document the edges tag FROM (`source_block_id` side of `POST /loom/edges`).
+    pub document_id: String,
+    /// The `doc_version` the dispatching save sent as `expected_version` (provenance: which
+    /// content snapshot this tag set was unioned from).
+    pub doc_version: u64,
+    /// The deduped inline+property tag union (one edge per distinct canonical — AC-005/MC-004).
+    pub payload: TagEdgePayload,
+    /// The typed blocker key gating the live POST ([`TAG_EDGE_DISPATCH_BLOCKER`]).
+    pub dispatch_blocked_on: &'static str,
+}
+
 impl TagEdgePayload {
     /// The distinct canonical identities in this payload (the hub set the document tags into).
     pub fn canonical_set(&self) -> Vec<String> {

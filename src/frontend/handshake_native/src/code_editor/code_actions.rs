@@ -689,6 +689,11 @@ fn emit_menu_accesskit(ctx: &egui::Context, state: &CodeActionState, instance: &
 /// [`CodeActionController::has_actions_on_line`] is true for `line` (AC-003). The glyph is the amber
 /// lightbulb `U+1F4A1`; if the active font lacks it, the painter still draws the colored mark so the
 /// affordance is never an invisible no-op.
+/// The lightbulb glyph's point size (also the interactive target's core square). Public to the crate so
+/// the panel can anchor the bulb's CENTER far enough inside the gutter strip that the glyph never clips
+/// off the panel's left edge (MT-049 Wave-B visual-defect fix).
+pub(crate) const LIGHTBULB_GLYPH_SIZE: f32 = 13.0;
+
 pub fn draw_lightbulb(
     ui: &mut egui::Ui,
     line: usize,
@@ -696,7 +701,7 @@ pub fn draw_lightbulb(
     instance: &str,
 ) -> egui::Response {
     let color = lightbulb_color(ui.visuals());
-    let glyph_size = 13.0;
+    let glyph_size = LIGHTBULB_GLYPH_SIZE;
     // A small click target centered on the glyph.
     let rect = egui::Rect::from_center_size(pos, egui::vec2(glyph_size + 2.0, glyph_size + 2.0));
     let id = ui

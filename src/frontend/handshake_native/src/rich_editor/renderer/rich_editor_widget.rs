@@ -164,6 +164,24 @@ pub struct RichEditorState {
     /// between requests so steady-state frames do no scroll work. This is the editor's EXISTING scroll
     /// surface (the `rich-editor-scroll` ScrollArea), NOT a second scroll mechanism (RISK-002 / MC-002).
     pub pending_scroll_block: Option<Vec<usize>>,
+    /// WP-KERNEL-012 MT-020 (inline-atom undo rewire): `(before, after)` content_json snapshot pairs
+    /// for doc mutations made by the popup/prompt/dialog INSERT paths this frame (wikilink confirm,
+    /// tag commit, embed/transclusion/manual prompt confirm, code-ref select). These paths run either
+    /// BEFORE the per-frame `doc_before` snapshot (the popup key handlers) or AFTER the frame-input
+    /// diff (the render-phase prompt/dialog confirms), so the frame diff in `apply_frame_input` never
+    /// sees them — without this, a confirmed atom insert was invisible to the MT-035 unified undo bus
+    /// and a real Ctrl+Z could not remove it. [`RichEditorWidget::show`] drains the pairs at frame end
+    /// through the SAME [`RichEditorWidget::record_rich_edit_undo`] the typed-edit path uses (one undo
+    /// authority, no second stack).
+    pub pending_bus_undo: Vec<(serde_json::Value, serde_json::Value)>,
+    /// WP-KERNEL-012 MT-058 (tag-edge save hook): the queued tag-edge intent captured by the LIVE save
+    /// path ([`RichEditorState::request_save_for_host`] — the Ctrl+S / host-menu / pane-save funnel).
+    /// Carries the deduped inline+property tag union ([`RichEditorState::build_tag_edge_payload_for_save`])
+    /// for the document version the save dispatched. Latest-wins (a newer save's tag set supersedes an
+    /// older queued one). The actual `POST /loom/edges` dispatch stays GATED on the existing tag_hub
+    /// block-id typed blocker ([`crate::rich_editor::inline_tags::TAG_EDGE_DISPATCH_BLOCKER`]) — the
+    /// intent is queued, never silently POSTed.
+    pub pending_tag_edge_intent: Option<crate::rich_editor::inline_tags::TagEdgeIntent>,
 }
 
 impl RichEditorState {
@@ -241,6 +259,8 @@ impl RichEditorState {
             undo_batch_before: None,
             editor_actions: None,
             pending_scroll_block: None,
+            pending_bus_undo: Vec::new(),
+            pending_tag_edge_intent: None,
         }
     }
 
@@ -367,9 +387,34 @@ impl RichEditorState {
     pub fn request_save_for_host(&mut self) -> bool {
         let content =
             crate::rich_editor::document_model::doc_json::to_content_json_value(&self.doc);
+        // WP-KERNEL-012 MT-058 (tag-edge save hook): build the deduped inline+property tag union at
+        // the DOCUMENT COMMIT/SAVE point (MC-004 — fires here, never per keystroke) BEFORE borrowing
+        // the save manager mutably. Computed unconditionally-cheap (a doc walk); only queued when the
+        // save actually dispatches below.
+        let tag_payload = self.build_tag_edge_payload_for_save();
         if let Some(save) = self.save.as_mut() {
+            // A save already in flight will make `request_save` a no-op (MC-002) — mirror that guard
+            // so a swallowed save request does not queue a tag-edge intent for content that never
+            // dispatched.
+            let dispatched = !save.is_saving();
+            let document_id = save.document_id().to_owned();
+            let doc_version = save.doc_version;
             save.set_pending_local_content(content.clone());
             save.request_save(content);
+            if dispatched {
+                // MT-058: queue the tag-edge intent for THIS save (latest-wins). Dispatch of the
+                // actual `POST /loom/edges` stays gated on the tag_hub block-id typed blocker
+                // (`TAG_EDGE_DISPATCH_BLOCKER`) — hub resolution is a backend-managed step, so the
+                // intent is queued for the future dispatcher, never silently POSTed here.
+                self.pending_tag_edge_intent =
+                    Some(crate::rich_editor::inline_tags::TagEdgeIntent {
+                        document_id,
+                        doc_version,
+                        payload: tag_payload,
+                        dispatch_blocked_on:
+                            crate::rich_editor::inline_tags::TAG_EDGE_DISPATCH_BLOCKER,
+                    });
+            }
             true
         } else {
             false
@@ -1041,6 +1086,19 @@ impl RichEditorWidget {
                 surface
             })
             .inner;
+
+        // WP-KERNEL-012 MT-020 (inline-atom undo rewire): record any popup/prompt/dialog atom inserts
+        // made THIS frame on the MT-035 unified undo bus. Those paths mutate the doc either before the
+        // frame's `doc_before` snapshot (the popup Enter handlers) or after the frame-input diff (the
+        // render-phase prompt confirm / code-ref select / row clicks), so `apply_frame_input`'s diff
+        // never sees them — this drain routes them through the SAME `record_rich_edit_undo` the typed-
+        // edit path uses, so a real Ctrl+Z removes a confirmed wikilink/embed/transclusion/code-ref/tag
+        // atom (one undo authority, never a second stack).
+        let pending_atom_undo: Vec<(serde_json::Value, serde_json::Value)> =
+            state.pending_bus_undo.drain(..).collect();
+        for (before, after) in pending_atom_undo {
+            Self::record_rich_edit_undo(&mut state, &bus_for_undo, &state_arc, before, after);
+        }
 
         // MT-035 (E5 — unified undo): now that the per-frame state guard is dropped, route any decoded
         // Ctrl+Z / Ctrl+Y chord through the shared bus (POLICY-1). The bus entry's restore closure
@@ -2082,15 +2140,39 @@ impl RichEditorWidget {
                     });
                     if let Some((leaf_path, trigger_start, link)) = confirmed {
                         let caret_char = Self::caret_char_offset(state);
-                        let RichEditorState { doc, selection, .. } = state;
-                        confirm::confirm_wikilink(
-                            doc,
-                            selection,
-                            &leaf_path,
-                            trigger_start,
-                            caret_char,
-                            link,
-                        );
+                        // MT-020: snapshot around the confirm so the insert lands on the MT-035
+                        // unified undo bus (this handler runs BEFORE the frame's `doc_before`
+                        // capture, so the frame diff cannot see it).
+                        let before =
+                            crate::rich_editor::document_model::doc_json::to_content_json_value(
+                                &state.doc,
+                            );
+                        let inserted = {
+                            let RichEditorState {
+                                doc,
+                                undo,
+                                selection,
+                                actor_id,
+                                ..
+                            } = state;
+                            confirm::confirm_wikilink(
+                                doc,
+                                undo,
+                                selection,
+                                &leaf_path,
+                                trigger_start,
+                                caret_char,
+                                link,
+                                actor_id.as_str(),
+                            )
+                        };
+                        if inserted {
+                            let after =
+                                crate::rich_editor::document_model::doc_json::to_content_json_value(
+                                    &state.doc,
+                                );
+                            state.pending_bus_undo.push((before, after));
+                        }
                     }
                     // Close the popup whether or not a result was selected (Enter on an empty popup
                     // just closes it; the typed `[[` text is left as plain text).
@@ -2100,13 +2182,21 @@ impl RichEditorWidget {
                     // Cancel: remove the `[[query` trigger text and close (AC: Escape closes + removes).
                     if let Some(ac) = state.wikilink_autocomplete.take() {
                         let caret_char = Self::caret_char_offset(state);
-                        let RichEditorState { doc, selection, .. } = state;
+                        let RichEditorState {
+                            doc,
+                            undo,
+                            selection,
+                            actor_id,
+                            ..
+                        } = state;
                         confirm::cancel_wikilink(
                             doc,
+                            undo,
                             selection,
                             &ac.leaf_path,
                             ac.trigger_start_char,
                             caret_char,
+                            actor_id.as_str(),
                         );
                     }
                 }
@@ -2255,13 +2345,21 @@ impl RichEditorWidget {
                     // Cancel: remove the `#query` trigger text and close the menu.
                     if let Some(ac) = state.tag_autocomplete.take() {
                         let caret_char = Self::caret_char_offset(state);
-                        let RichEditorState { doc, selection, .. } = state;
+                        let RichEditorState {
+                            doc,
+                            undo,
+                            selection,
+                            actor_id,
+                            ..
+                        } = state;
                         crate::rich_editor::wikilinks::confirm::cancel_wikilink(
                             doc,
+                            undo,
                             selection,
                             &ac.leaf_path,
                             ac.trigger_start_char,
                             caret_char,
+                            actor_id.as_str(),
                         );
                     }
                 }
@@ -2309,16 +2407,34 @@ impl RichEditorWidget {
         let leaf_path = ac.leaf_path.clone();
         let trigger_start = ac.trigger_start_char;
         let caret_char = Self::caret_char_offset(state);
-        {
-            let RichEditorState { doc, selection, .. } = state;
+        // MT-020: snapshot around the commit so the tag-atom insert lands on the MT-035 unified
+        // undo bus (the Enter path runs BEFORE the frame's `doc_before` capture and the click path
+        // runs in the render phase — the frame diff sees neither).
+        let before =
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+        let inserted = {
+            let RichEditorState {
+                doc,
+                undo,
+                selection,
+                actor_id,
+                ..
+            } = state;
             crate::rich_editor::wikilinks::confirm::confirm_wikilink(
                 doc,
+                undo,
                 selection,
                 &leaf_path,
                 trigger_start,
                 caret_char,
                 link,
-            );
+                actor_id.as_str(),
+            )
+        };
+        if inserted {
+            let after =
+                crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+            state.pending_bus_undo.push((before, after));
         }
         state.tag_autocomplete = None;
     }
@@ -3456,20 +3572,33 @@ impl RichEditorWidget {
                 symbol_entity_id,
                 display_name,
             } => {
-                let RichEditorState {
-                    doc,
-                    selection,
-                    undo,
-                    actor_id,
-                    ..
-                } = state;
-                let mut ctx = SlashExecContext {
-                    doc,
-                    history: undo,
-                    selection,
-                    actor_id: actor_id.as_str(),
+                // MT-020: snapshot around the code-ref insert so it lands on the MT-035 unified
+                // undo bus (this runs in the render phase, after the frame-input diff).
+                let before =
+                    crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+                let inserted = {
+                    let RichEditorState {
+                        doc,
+                        selection,
+                        undo,
+                        actor_id,
+                        ..
+                    } = state;
+                    let mut ctx = SlashExecContext {
+                        doc,
+                        history: undo,
+                        selection,
+                        actor_id: actor_id.as_str(),
+                    };
+                    insert_code_ref_atom(&mut ctx, &symbol_entity_id, &display_name)
                 };
-                insert_code_ref_atom(&mut ctx, &symbol_entity_id, &display_name);
+                if inserted {
+                    let after =
+                        crate::rich_editor::document_model::doc_json::to_content_json_value(
+                            &state.doc,
+                        );
+                    state.pending_bus_undo.push((before, after));
+                }
                 state.code_symbol_search = None;
             }
         }
@@ -3624,8 +3753,34 @@ impl RichEditorWidget {
 
         if let Some((leaf_path, trigger_start, link)) = confirmed {
             let caret_char = Self::caret_char_offset(state);
-            let RichEditorState { doc, selection, .. } = state;
-            confirm::confirm_wikilink(doc, selection, &leaf_path, trigger_start, caret_char, link);
+            // MT-020: snapshot around the click-confirm so the insert lands on the MT-035 unified
+            // undo bus (this runs in the render phase, after the frame-input diff).
+            let before =
+                crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+            let inserted = {
+                let RichEditorState {
+                    doc,
+                    undo,
+                    selection,
+                    actor_id,
+                    ..
+                } = state;
+                confirm::confirm_wikilink(
+                    doc,
+                    undo,
+                    selection,
+                    &leaf_path,
+                    trigger_start,
+                    caret_char,
+                    link,
+                    actor_id.as_str(),
+                )
+            };
+            if inserted {
+                let after =
+                    crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+                state.pending_bus_undo.push((before, after));
+            }
             state.wikilink_autocomplete = None;
         }
     }
@@ -3735,7 +3890,14 @@ impl RichEditorWidget {
                 SlashPromptOutcome::Confirm => {
                     let mut confirm_state = prompt.clone();
                     confirm_state.input = input;
-                    let _inserted = {
+                    // MT-020: snapshot around the prompt confirm so an embed/transclusion/manual
+                    // insert lands on the MT-035 unified undo bus (this runs in the render phase,
+                    // after the frame-input diff — the diff cannot see it).
+                    let before =
+                        crate::rich_editor::document_model::doc_json::to_content_json_value(
+                            &state.doc,
+                        );
+                    let inserted = {
                         let RichEditorState {
                             doc,
                             selection,
@@ -3751,6 +3913,13 @@ impl RichEditorWidget {
                         };
                         confirm_prompt(&mut ctx, &confirm_state)
                     };
+                    if inserted {
+                        let after =
+                            crate::rich_editor::document_model::doc_json::to_content_json_value(
+                                &state.doc,
+                            );
+                        state.pending_bus_undo.push((before, after));
+                    }
                     // Whether or not the insert happened (blank input is a no-op), close the surface on
                     // confirm so a blank confirm dismisses cleanly.
                     state.slash_menu = None;

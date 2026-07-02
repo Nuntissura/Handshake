@@ -44,11 +44,12 @@ fn find_palmistry_binary() -> Option<PathBuf> {
     } else {
         "palmistry"
     };
+    // MT-094 remediation: discovery previously listed `palmistry-target/{debug,release}` first — a
+    // layout that never existed (builds land in the shared `handshake-cargo-target`). Point at the
+    // REAL layout.
     for base in [
-        "../../../../Handshake_Artifacts/palmistry-target/debug",
-        "../../../../Handshake_Artifacts/palmistry-target/release",
-        "../../../../Handshake_Artifacts/target/debug",
-        "../../../../Handshake_Artifacts/target/release",
+        "../../../../Handshake_Artifacts/handshake-cargo-target/debug",
+        "../../../../Handshake_Artifacts/handshake-cargo-target/release",
     ] {
         let p = Path::new(base).join(bin);
         if p.is_file() {

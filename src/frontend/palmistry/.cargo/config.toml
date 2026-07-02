@@ -6,8 +6,12 @@
 # and Handshake_Artifacts lives at
 #   <Handshake Worktrees>/Handshake_Artifacts
 # so we climb FOUR levels: palmistry -> frontend -> src -> wtc-native-editors-v1 -> <Handshake Worktrees>.
-# (Same depth as the handshake_native crate one level up, which also uses FOUR `../`; the diag_ring crate
-# is one level deeper and uses FIVE. Verified by resolving the absolute path before committing — it lands
-# exactly on <Handshake Worktrees>/Handshake_Artifacts/palmistry-target.) NO repo-local target/.
+#
+# MT-094 remediation: this used to point at `Handshake_Artifacts/palmistry-target`, but that layout
+# NEVER materialized — real builds run from the worktree root (repo-root `.cargo/config.toml`), so
+# palmistry artifacts actually land in `Handshake_Artifacts/handshake-cargo-target/debug/`. The stale
+# sibling dir meant a cwd-inside-the-crate build created a SECOND cold target dir and the test
+# binary-discovery fallbacks pointed at a directory that did not exist. Point at the REAL shared
+# layout so every invocation (worktree root or crate dir) resolves to the same artifacts.
 [build]
-target-dir = "../../../../Handshake_Artifacts/palmistry-target"
+target-dir = "../../../../Handshake_Artifacts/handshake-cargo-target"

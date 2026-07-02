@@ -109,10 +109,16 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 # (Win32_UI_WindowsAndMessaging is already enabled in handshake-native) so the dependency graph stays
 # consistent. (minidumper/minidump-writer/crash-context are added in MT-092, NOT here.)
 [target.'cfg(windows)'.dependencies]
+# MT-091 remediation adds Win32_System_LibraryLoader (GetModuleHandleW) + Win32_Graphics_Gdi
+# (WNDCLASSW carries an HBRUSH, so windows-sys gates it behind the Gdi feature) for the LIVE
+# hung-window probe test's child window host (tests/test_freeze_detect.rs registers + creates a REAL
+# top-level window in a re-exec'd child process, pumps, then blocks its pump).
 windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
+    "Win32_Graphics_Gdi",
     "Win32_Storage_FileSystem",
     "Win32_System_Threading",
+    "Win32_System_LibraryLoader",
     "Win32_UI_WindowsAndMessaging",
 ] }
 

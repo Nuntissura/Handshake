@@ -394,6 +394,19 @@ object = "0.36"
 # version across [dependencies] and [dev-dependencies]) — no duplicate family (AC-006-5). This dev-dep
 # declaration is kept so the perf suite's intent stays documented; both point at the one locked 0.33.1.
 sysinfo = "0.33"
+# WP-KERNEL-012 MT-092/MT-093/MT-094 remediation: the palmistry LIBRARY as a DEV-ONLY dependency so the
+# cross-crate contract tests exercise BOTH real implementations instead of hand-mirrored copies:
+# - the crash-socket WIRE test pins `diagnostics::crash_socket_path` == `palmistry::crash_capture::
+#   crash_socket_path` (the §6.13.6 rendezvous derivation; test_crash_client_install.rs), and
+# - the survivor-record GOLDEN-FILE round-trip test writes through the REAL `palmistry::survivor_store`
+#   and reads through this crate's `diagnostics::survivor_forward` (the §6.13.7 cross-crate file schema;
+#   test_survivor_forward.rs).
+# RUNTIME stance unchanged: the launcher still shares NO runtime dependency edge with palmistry (the
+# control wire is a mirrored serde shape pinned by tests); this edge exists ONLY for `tests/`. Palmistry's
+# own deps (handshake-diag-ring path dep, interprocess, minidumper, minidump-writer, crash-handler,
+# serde/serde_json, tracing, dirs, reqwest rustls, uuid, chrono) are already in this crate's locked graph
+# on the same version lines, so no new dependency family is introduced.
+palmistry = { path = "../palmistry" }
 
 # WP-KERNEL-012 MT-074 (E10 other-pillar interop proof suite): the contract mandates registering the
 # suite as an explicit [[test]] with harness = true (the default libtest harness — the suite uses #[test]

@@ -162,6 +162,9 @@ impl Win32HungWindowProbe {
 #[cfg(windows)]
 impl HungWindowProbe for Win32HungWindowProbe {
     fn probe(&self) -> ProbeResult {
+        use windows_sys::Win32::Foundation::{
+            GetLastError, SetLastError, ERROR_INVALID_WINDOW_HANDLE,
+        };
         use windows_sys::Win32::UI::WindowsAndMessaging::{
             SendMessageTimeoutW, SMTO_ABORTIFHUNG, SMTO_BLOCK, WM_NULL,
         };
@@ -172,6 +175,10 @@ impl HungWindowProbe for Win32HungWindowProbe {
         };
 
         let mut result: usize = 0;
+        // Clear the thread's last-error first: SendMessageTimeoutW is documented NOT to set a last
+        // error on a plain timeout on every Windows version, so a stale error code from an earlier
+        // call must not masquerade as this call's failure reason.
+        unsafe { SetLastError(0) };
         // SAFETY: `hwnd` was resolved from a live EnumWindows match (or is re-resolved each call). WM_NULL
         // is a no-op message that mutates nothing. The timeout is bounded so the call cannot block the
         // poll thread indefinitely (RISK-011-4); SMTO_ABORTIFHUNG returns immediately if the system
@@ -188,9 +195,23 @@ impl HungWindowProbe for Win32HungWindowProbe {
             )
         };
         // SendMessageTimeoutW returns nonzero on success (the window processed the message in time) and
-        // 0 on failure/timeout. A zero return on this benign WM_NULL means the pump did not service the
-        // message within the bounded timeout => not responding (the standard Task-Manager check).
+        // 0 on failure/timeout. MT-091 remediation: a zero return CONFLATES two very different cases —
+        //
+        //   (a) the call TIMED OUT / the system flags the window hung => the pump is stuck
+        //       (the standard Task-Manager "Not responding" signal), and
+        //   (b) the call itself FAILED because the cached HWND no longer names a live window
+        //       (Handshake's window was DESTROYED — e.g. the process died or recreated its window).
+        //
+        // Case (b) must NOT corroborate a freeze: a destroyed window is "cannot corroborate"
+        // (RISK-011-5), exactly like never having found a window. Distinguish via GetLastError:
+        // ERROR_INVALID_WINDOW_HANDLE => drop the stale cached HWND, re-resolve immediately (so a
+        // recreated window is picked up by the NEXT probe), and report WindowNotFound for THIS probe.
         if ret == 0 {
+            let err = unsafe { GetLastError() };
+            if err == ERROR_INVALID_WINDOW_HANDLE {
+                *self.hwnd.borrow_mut() = resolve_top_level_hwnd(self.pid);
+                return ProbeResult::WindowNotFound;
+            }
             ProbeResult::NotResponding
         } else {
             ProbeResult::Responding

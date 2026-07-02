@@ -248,8 +248,8 @@ pub use rename::{
     CODE_EDITOR_RENAME_NO_LSP_BANNER_AUTHOR_ID, NO_LSP_BANNER_TEXT,
 };
 pub use render_decorations::{
-    bracket_pair_colors, depth_color_index, find_matching_bracket, indent_guide_x, indent_level_of,
-    BracketMatch, BRACKET_SCAN_CAP_BYTES,
+    bracket_pair_colors, bracket_pair_colors_in_segments, depth_color_index, find_matching_bracket,
+    indent_guide_x, indent_level_of, BracketMatch, BRACKET_SCAN_CAP_BYTES,
 };
 pub use signature_help::{
     active_parameter_from_commas, render_signature_popup, signature_from_code_nav_symbol,

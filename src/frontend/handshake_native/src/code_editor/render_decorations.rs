@@ -255,6 +255,51 @@ pub fn bracket_pair_colors(
     out
 }
 
+/// Like [`bracket_pair_colors`] but over a list of sorted, non-overlapping byte SEGMENTS — the visible
+/// rows' byte ranges of the painted window (MT-054/MT-005 fold-aware decorations, Wave-B fix). Bytes
+/// BETWEEN the segments (fold-hidden lines) are never scanned, so:
+///
+///   1. no hidden bracket is ever assigned a color (nothing to ghost-paint onto a visible row), and
+///   2. the per-frame cost is O(visible bytes) even when a huge folded region sits inside the window.
+///
+/// The shared depth counter carries ACROSS the segments — the colorization treats the hidden text as
+/// absent, the same window-relative depth semantics [`bracket_pair_colors`] documents (depth 0 at the
+/// window start). Passing one segment covering the whole window is exactly [`bracket_pair_colors`].
+///
+/// Pure over a borrowed buffer; no mutation.
+pub fn bracket_pair_colors_in_segments(
+    buffer: &TextBuffer,
+    segments: &[Range<usize>],
+    palette: &[Color32],
+) -> Vec<(Range<usize>, Color32)> {
+    if palette.is_empty() {
+        return Vec::new();
+    }
+    let len = buffer.len_bytes();
+    let mut out: Vec<(Range<usize>, Color32)> = Vec::new();
+    // The SAME shared-depth coloring walk as `bracket_pair_colors`, continued across segments.
+    let mut depth: usize = 0;
+    for seg in segments {
+        let start = seg.start.min(len);
+        let end = seg.end.min(len).max(start);
+        let text = buffer.byte_slice_to_string(start..end);
+        for (i, &b) in text.as_bytes().iter().enumerate() {
+            if BracketKind::opening(b).is_some() {
+                let color = palette[depth % palette.len()];
+                let abs = start + i;
+                out.push((abs..abs + 1, color));
+                depth += 1;
+            } else if BracketKind::closing(b).is_some() {
+                depth = depth.saturating_sub(1);
+                let color = palette[depth % palette.len()];
+                let abs = start + i;
+                out.push((abs..abs + 1, color));
+            }
+        }
+    }
+    out
+}
+
 /// The depth-to-color INDEX for a bracket at `depth` given a palette of `palette_len` colors
 /// (`depth % palette_len`). Exposed for unit tests that assert the index assignment without building an
 /// egui palette. Returns 0 for an empty palette (defensive — never a modulo-by-zero).

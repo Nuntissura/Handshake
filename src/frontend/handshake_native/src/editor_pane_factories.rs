@@ -336,14 +336,43 @@ impl PaneFactory for RichEditorPaneMount {
         // Thread session context BEFORE the inner render, so the first live frame already has the
         // embed + wikilink context wired (AC-079-2).
         self.wire_if_needed();
-        // Delegate to the EXISTING rich factory render: it installs the unified-undo pane id, publishes
-        // selection to the shared bus, registers the rich command set, and runs the editor widget —
-        // the real per-frame consumers MT-031/035 already prove. The mount adds session threading +
-        // the pending_events drain; it does not re-implement editor logic.
-        self.inner.render(ui, ctx);
+        // WP-KERNEL-012 MT-055 REMEDIATION (reading mode reachable in the mounted editor): render the
+        // Edit|Reading segmented toggle in the mounted editor CHROME (above the editor body), persist the
+        // choice per document in the egui-persisted `ReadingModeStore`, and pass `store.get(document_id)`
+        // into the widget's read-only flag. The store key is the open document's content id (per-document
+        // isolation — RISK-004/MC-004); a fresh Notes pane with no document yet keys on its stable pane id
+        // so the toggle is still operable there without leaking state onto a later real document.
+        let doc_key = ctx
+            .record
+            .content_id
+            .as_deref()
+            .filter(|id| !id.trim().is_empty())
+            .map(|id| id.to_owned())
+            .unwrap_or_else(|| format!("pane:{}", ctx.record.pane_id));
+        let mut store = crate::rich_editor::reading_mode::reading_mode_store(ui.ctx());
+        let mode = crate::rich_editor::reading_mode::view_mode_toggle(ui, &doc_key, &mut store);
+        crate::rich_editor::reading_mode::write_reading_mode_store(ui.ctx(), &store);
+        if mode.is_read_only() {
+            // Reading view: render the SAME shared state through the widget's read-only branch (MT-055's
+            // `with_read_only` path — no second renderer). The editable inner-factory render is skipped
+            // this frame: reading mode applies no edit dispatch, so the per-frame bus command
+            // registration/selection publish (an editable-surface concern) honestly pauses with it.
+            crate::rich_editor::renderer::rich_editor_widget::RichEditorWidget::new(Arc::clone(
+                &self.state,
+            ))
+            .with_read_only(true)
+            .show(ui);
+        } else {
+            // Delegate to the EXISTING rich factory render: it installs the unified-undo pane id,
+            // publishes selection to the shared bus, registers the rich command set, and runs the editor
+            // widget — the real per-frame consumers MT-031/035 already prove. The mount adds session
+            // threading + the pending_events drain; it does not re-implement editor logic.
+            self.inner.render(ui, ctx);
+        }
         // DRAIN + route (AC-079-5): the editor enqueued any WikilinkActivated/BacklinkActivated/
         // TagActivated this frame; move them to the shell's outbound queue so the shell routes them to
-        // the nav bus after the pane host. No event is left unrouted.
+        // the nav bus after the pane host. No event is left unrouted (reading mode keeps link chips
+        // interactive, so the drain runs in both branches).
         self.drain_events();
     }
 
@@ -449,11 +478,15 @@ impl PaneFactory for CanvasBoardPaneMount {
     }
 }
 
-/// WP-KERNEL-012 MT-080 (GROUP A / MT-021/060): the live GRAPH-view pane factory. Registered over
-/// `PaneType::KernelDcc` (a shell surface currently rendering a placeholder — the graph view docks here as
-/// the knowledge-graph surface). Wraps the existing [`crate::graph::graph_view::LoomGraphView`] and renders
-/// it each frame; any [`crate::graph::graph_view::GraphEvent`] (notably `DepthChanged`) is pushed into a
-/// shared outbound queue the shell drains to re-query the depth-parameterized graph-search (AC-080-3).
+/// WP-KERNEL-012 MT-080 REMEDIATION (PaneType collision fix): the live GRAPH-view pane factory. Now
+/// registered over its OWN key `PaneType::Placeholder("Graph View")` — NOT `PaneType::KernelDcc`. The old
+/// KernelDcc registration hijacked the quick-switcher WP/MT navigation (open_work_packet / open_micro_task
+/// open `KernelDcc` tabs with `WP:`/`MT:` content ids) by rendering the generic graph view with the WP/MT
+/// id ignored. KernelDcc now falls back to the honest content-aware placeholder (which SHOWS the WP/MT id)
+/// and the graph view opens via its own operator route (`view.graph` palette command / VIEW menu). Wraps
+/// the existing [`crate::graph::graph_view::LoomGraphView`] and renders it each frame; any
+/// [`crate::graph::graph_view::GraphEvent`] (notably `DepthChanged`) is pushed into a shared outbound
+/// queue the shell drains to re-query the depth-parameterized graph-search (AC-080-3).
 pub struct GraphViewPaneMount {
     view: Arc<Mutex<crate::graph::graph_view::LoomGraphView>>,
     palette: SharedPalette,
@@ -476,7 +509,7 @@ impl GraphViewPaneMount {
 
 impl PaneFactory for GraphViewPaneMount {
     fn pane_type(&self) -> PaneType {
-        PaneType::KernelDcc
+        PaneType::Placeholder(GRAPH_VIEW_PANE_LABEL.to_owned())
     }
 
     fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
@@ -499,10 +532,14 @@ impl PaneFactory for GraphViewPaneMount {
     }
 }
 
-/// WP-KERNEL-012 MT-080 (GROUP A / MT-062): the live OUTGOING-LINKS side pane. Registered over
-/// `PaneType::LoomBlock` (the Loom-knowledge surface the pane registers under, `loom.outgoing_links`).
-/// Wraps the existing [`crate::rich_editor::wikilinks::outgoing_links_panel::OutgoingLinksPanel`]; an
-/// `on_open(NavTarget)` click is pushed into a shared outbound queue the shell routes to the MT-030 nav bus.
+/// WP-KERNEL-012 MT-080 REMEDIATION (PaneType collision fix): the live OUTGOING-LINKS side pane. Now
+/// registered over its OWN key `PaneType::Placeholder("Outgoing Links")` — NOT `PaneType::LoomBlock`. The
+/// old LoomBlock registration made EVERY loom-block open (quick-switcher hit, wikilink chip, search result)
+/// render the same content-blind OutgoingLinksPanel instead of block-appropriate content, hijacking
+/// navigation. LoomBlock now falls back to the honest content-aware placeholder (which SHOWS the block id)
+/// and the outgoing-links pane opens via its own operator route. Wraps the existing
+/// [`crate::rich_editor::wikilinks::outgoing_links_panel::OutgoingLinksPanel`]; an `on_open(NavTarget)`
+/// click is pushed into a shared outbound queue the shell routes to the MT-030 nav bus.
 pub struct OutgoingLinksPaneMount {
     panel: Arc<Mutex<crate::rich_editor::wikilinks::outgoing_links_panel::OutgoingLinksPanel>>,
     palette: SharedPalette,
@@ -525,7 +562,7 @@ impl OutgoingLinksPaneMount {
 
 impl PaneFactory for OutgoingLinksPaneMount {
     fn pane_type(&self) -> PaneType {
-        PaneType::LoomBlock
+        PaneType::Placeholder(OUTGOING_LINKS_PANE_LABEL.to_owned())
     }
 
     fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
@@ -639,18 +676,34 @@ pub struct DailyJournalPaneMount {
     state: Arc<Mutex<crate::graph::daily_journal_panel::DailyJournalState>>,
     palette: SharedPalette,
     events: Arc<Mutex<Vec<crate::graph::daily_journal_panel::DailyJournalEvent>>>,
+    /// WP-KERNEL-012 MT-019 REMEDIATION (journal EDITING surface folded into the LoomDailyJournal pane
+    /// host): the shared MT-019 journal panel state (`JournalStore` + embedded rich editor + 3s
+    /// auto-save). `None` until the shell binds it on the first frame with a live runtime + workspace
+    /// (the store's production backend spawns off-thread loads/saves) — the honest unbound state renders
+    /// a disclosure line, never a fake editor.
+    journal: SharedJournalPanel,
 }
+
+/// The one-slot shared cell holding the BOUND MT-019 journal panel state (`None` until the shell binds
+/// the production store). The inner `Arc<Mutex<JournalPanelState>>` is the exact handle
+/// [`crate::rich_editor::daily_notes::journal_panel::JournalPanelWidget`] renders through, so the mount
+/// and any test drive the SAME state across frames.
+pub type SharedJournalPanel = Arc<
+    Mutex<Option<Arc<Mutex<crate::rich_editor::daily_notes::journal_panel::JournalPanelState>>>>,
+>;
 
 impl DailyJournalPaneMount {
     pub fn new(
         state: Arc<Mutex<crate::graph::daily_journal_panel::DailyJournalState>>,
         palette: SharedPalette,
         events: Arc<Mutex<Vec<crate::graph::daily_journal_panel::DailyJournalEvent>>>,
+        journal: SharedJournalPanel,
     ) -> Self {
         Self {
             state,
             palette,
             events,
+            journal,
         }
     }
 }
@@ -669,6 +722,31 @@ impl PaneFactory for DailyJournalPaneMount {
                 if let Ok(mut q) = self.events.lock() {
                     q.push(event);
                 }
+            }
+        }
+        // MT-019: the journal EDITING surface (open/create today's note + embedded editor + auto-save),
+        // folded below the MT-067 calendar-interop header. The JournalPanelWidget drives its own store
+        // drain / edit-detection / auto-save each frame. Rendered only once the shell bound the
+        // production store (runtime + workspace available); until then an honest disclosure renders.
+        let journal = self
+            .journal
+            .lock()
+            .ok()
+            .and_then(|slot| slot.as_ref().map(Arc::clone));
+        match journal {
+            Some(journal_state) => {
+                crate::rich_editor::daily_notes::journal_panel::JournalPanelWidget::new(
+                    journal_state,
+                )
+                .show(ui);
+            }
+            None => {
+                ui.label(
+                    egui::RichText::new(
+                        "Journal editor binds when a workspace and runtime are active.",
+                    )
+                    .color(palette.text_subtle),
+                );
             }
         }
     }
@@ -707,6 +785,603 @@ impl PaneFactory for ManualPaneMount {
         let palette = palette_of(&self.palette);
         if let Ok(mut state) = self.state.lock() {
             crate::manual_pane::ManualPane::new(&self.registry, &mut state, &palette).show(ui);
+        }
+    }
+
+    fn accesskit_role(&self) -> accesskit::Role {
+        accesskit::Role::Region
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 E11 remediation wave (lane W1 — shell host wiring): the ORPHAN-WIDGET mounts.
+//
+// The 2026-07-02 per-MT drift audit found a class of widget-proven surfaces with NO host mount and NO
+// operator open route (MT-022 folder tree, MT-023 tags, MT-024 sidebar/pins, MT-025/059 wiki page,
+// MT-027 block collections, MT-056 outline, MT-036 flight recorder, MT-009 diff/merge). Each mount below
+// follows the exact MT-079/080 shared-cell pattern: the shell owns the SAME `Arc<Mutex<_>>` state the
+// registered factory renders, plus a shared outbound event queue the shell drains + routes each frame.
+// Every mount is keyed on its OWN `PaneType::Placeholder(<label>)` key (the established side-pane keying:
+// Relevant Memory / Stage) so no mount collides with a content-addressed navigation PaneType.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+/// Stable pane-key labels for the Placeholder-keyed side panes (single source of truth shared by the
+/// factory registrations, the `view.*` open commands in `app.rs`, and the route kittests).
+pub const OUTGOING_LINKS_PANE_LABEL: &str = "Outgoing Links";
+pub const GRAPH_VIEW_PANE_LABEL: &str = "Graph View";
+pub const TAGS_PANE_LABEL: &str = "Tags";
+pub const SIDEBAR_PANE_LABEL: &str = "Sidebar";
+pub const BLOCK_COLLECTIONS_PANE_LABEL: &str = "Block Collections";
+pub const OUTLINE_PANE_LABEL: &str = "Outline";
+pub const WIKI_PAGE_PANE_LABEL: &str = "Wiki Page";
+pub const FOLDER_TREE_PANE_LABEL: &str = "Folders";
+pub const DIFF_MERGE_PANE_LABEL: &str = "Diff Merge";
+pub const RELEVANT_MEMORY_PANE_LABEL: &str = "Relevant Memory";
+pub const STAGE_PANE_LABEL: &str = "Stage";
+
+/// The `PaneType` key for a Placeholder-keyed side pane label (convenience shared by app + tests).
+pub fn placeholder_pane_type(label: &str) -> PaneType {
+    PaneType::Placeholder(label.to_owned())
+}
+
+// ── MT-023: Tags panel + Tag Hub ─────────────────────────────────────────────────────────────────────
+
+/// One drained tags-pane event: either a list-panel event or a hub-page event (the two MT-023 widgets
+/// share one mounted pane; the hub opens over the list when the host consumes `OpenTag`).
+#[derive(Debug, Clone)]
+pub enum TagsPaneEvent {
+    Panel(crate::graph::tags_panel::TagsPanelEvent),
+    Hub(crate::graph::tags_panel::TagHubEvent),
+    /// The operator pressed the "All tags" back affordance while a hub was open: the host clears the
+    /// bound hub (pure UI state — no backend call).
+    BackToList,
+}
+
+/// WP-KERNEL-012 MT-023 REMEDIATION: the live TAGS side pane (list + hub). Registered over
+/// `PaneType::Placeholder("Tags")`. Renders the bound [`crate::graph::tags_panel::LoomTagHubPanel`] when
+/// one is open, else the [`crate::graph::tags_panel::LoomTagsPanel`] list; every widget event is pushed
+/// into the shared outbound queue the shell routes to the MT-023 `LoomTagClient` (fetch/open/tag-edge).
+pub struct TagsPaneMount {
+    tags: Arc<Mutex<crate::graph::tags_panel::LoomTagsPanel>>,
+    hub: Arc<Mutex<Option<crate::graph::tags_panel::LoomTagHubPanel>>>,
+    palette: SharedPalette,
+    events: Arc<Mutex<Vec<TagsPaneEvent>>>,
+}
+
+impl TagsPaneMount {
+    pub fn new(
+        tags: Arc<Mutex<crate::graph::tags_panel::LoomTagsPanel>>,
+        hub: Arc<Mutex<Option<crate::graph::tags_panel::LoomTagHubPanel>>>,
+        palette: SharedPalette,
+        events: Arc<Mutex<Vec<TagsPaneEvent>>>,
+    ) -> Self {
+        Self {
+            tags,
+            hub,
+            palette,
+            events,
+        }
+    }
+}
+
+impl PaneFactory for TagsPaneMount {
+    fn pane_type(&self) -> PaneType {
+        PaneType::Placeholder(TAGS_PANE_LABEL.to_owned())
+    }
+
+    fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
+        let palette = palette_of(&self.palette);
+        let mut out: Option<TagsPaneEvent> = None;
+        let hub_open = self.hub.lock().map(|h| h.is_some()).unwrap_or(false);
+        if hub_open {
+            // Back affordance so the operator is never stuck on a hub page (stable AccessKit address).
+            let back = ui.button(egui::RichText::new("< All tags").color(palette.text));
+            ui.ctx().accesskit_node_builder(back.id, |node| {
+                node.set_author_id("tags.back-to-list".to_owned());
+            });
+            if back.clicked() {
+                out = Some(TagsPaneEvent::BackToList);
+            }
+            if let Ok(mut hub) = self.hub.lock() {
+                if let Some(hub) = hub.as_mut() {
+                    if let Some(ev) = hub.show(ui, &palette) {
+                        out = Some(TagsPaneEvent::Hub(ev));
+                    }
+                }
+            }
+        } else if let Ok(mut tags) = self.tags.lock() {
+            if let Some(ev) = tags.show(ui, &palette) {
+                out = Some(TagsPaneEvent::Panel(ev));
+            }
+        }
+        if let Some(ev) = out {
+            if let Ok(mut q) = self.events.lock() {
+                q.push(ev);
+            }
+        }
+    }
+}
+
+// ── MT-024: Sidebar (pins / favorites / backlinks / unlinked / breadcrumbs) ──────────────────────────
+
+/// WP-KERNEL-012 MT-024 REMEDIATION: the live SIDEBAR pane. Registered over
+/// `PaneType::Placeholder("Sidebar")`. Wraps the existing
+/// [`crate::graph::sidebar_panel::LoomSidebarPanel`]; every [`crate::graph::sidebar_panel::SidebarEvent`]
+/// is pushed into the shared outbound queue the shell routes to the `LoomSidebarClient` (two-call pin
+/// removal, unfavorite PATCH, section re-fetch) + the `ShellEvent::BookmarkRemoved` emission.
+pub struct SidebarPaneMount {
+    panel: Arc<Mutex<crate::graph::sidebar_panel::LoomSidebarPanel>>,
+    palette: SharedPalette,
+    events: Arc<Mutex<Vec<crate::graph::sidebar_panel::SidebarEvent>>>,
+}
+
+impl SidebarPaneMount {
+    pub fn new(
+        panel: Arc<Mutex<crate::graph::sidebar_panel::LoomSidebarPanel>>,
+        palette: SharedPalette,
+        events: Arc<Mutex<Vec<crate::graph::sidebar_panel::SidebarEvent>>>,
+    ) -> Self {
+        Self {
+            panel,
+            palette,
+            events,
+        }
+    }
+}
+
+impl PaneFactory for SidebarPaneMount {
+    fn pane_type(&self) -> PaneType {
+        PaneType::Placeholder(SIDEBAR_PANE_LABEL.to_owned())
+    }
+
+    fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
+        let palette = palette_of(&self.palette);
+        let event = match self.panel.lock() {
+            Ok(mut p) => p.show(ui, &palette),
+            Err(_) => None,
+        };
+        if let Some(ev) = event {
+            if let Ok(mut q) = self.events.lock() {
+                q.push(ev);
+            }
+        }
+    }
+}
+
+// ── MT-027: Block Collections (table / kanban / calendar) ────────────────────────────────────────────
+
+/// WP-KERNEL-012 MT-027 REMEDIATION: the live BLOCK-COLLECTIONS pane. Registered over
+/// `PaneType::Placeholder("Block Collections")`. Wraps the existing
+/// [`crate::graph::block_collection_view::BlockCollectionView`]; every
+/// [`crate::graph::block_collection_view::BlockViewEvent`] (from the `show` return AND the MT-042 swarm
+/// drain) is pushed into the shared outbound queue the shell routes to the `BlockViewClient`.
+pub struct BlockCollectionPaneMount {
+    view: Arc<Mutex<crate::graph::block_collection_view::BlockCollectionView>>,
+    palette: SharedPalette,
+    events: Arc<Mutex<Vec<crate::graph::block_collection_view::BlockViewEvent>>>,
+}
+
+impl BlockCollectionPaneMount {
+    pub fn new(
+        view: Arc<Mutex<crate::graph::block_collection_view::BlockCollectionView>>,
+        palette: SharedPalette,
+        events: Arc<Mutex<Vec<crate::graph::block_collection_view::BlockViewEvent>>>,
+    ) -> Self {
+        Self {
+            view,
+            palette,
+            events,
+        }
+    }
+}
+
+impl PaneFactory for BlockCollectionPaneMount {
+    fn pane_type(&self) -> PaneType {
+        PaneType::Placeholder(BLOCK_COLLECTIONS_PANE_LABEL.to_owned())
+    }
+
+    fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
+        let palette = palette_of(&self.palette);
+        let mut drained: Vec<crate::graph::block_collection_view::BlockViewEvent> = Vec::new();
+        if let Ok(mut view) = self.view.lock() {
+            if let Some(ev) = view.show(ui, &palette) {
+                drained.push(ev);
+            }
+            // MT-042 swarm dispatches the single Option return cannot carry.
+            drained.extend(view.drain_knowledge_events());
+        }
+        if !drained.is_empty() {
+            if let Ok(mut q) = self.events.lock() {
+                q.extend(drained);
+            }
+        }
+    }
+}
+
+// ── MT-056: Outline / table-of-contents side pane ────────────────────────────────────────────────────
+
+/// WP-KERNEL-012 MT-056 REMEDIATION: the live OUTLINE side pane. Registered over
+/// `PaneType::Placeholder("Outline")`. Wraps the existing
+/// [`crate::rich_editor::outline_panel::OutlinePanel`] over the SAME mounted rich-editor state the Notes
+/// pane renders, so heading clicks scroll the REAL mounted document (the panel stages the scroll target
+/// on the shared state itself — no outbound queue needed).
+pub struct OutlinePaneMount {
+    panel: Arc<Mutex<crate::rich_editor::outline_panel::OutlinePanel>>,
+    rich_state: Arc<Mutex<RichEditorState>>,
+}
+
+impl OutlinePaneMount {
+    pub fn new(
+        panel: Arc<Mutex<crate::rich_editor::outline_panel::OutlinePanel>>,
+        rich_state: Arc<Mutex<RichEditorState>>,
+    ) -> Self {
+        Self { panel, rich_state }
+    }
+}
+
+impl PaneFactory for OutlinePaneMount {
+    fn pane_type(&self) -> PaneType {
+        PaneType::Placeholder(OUTLINE_PANE_LABEL.to_owned())
+    }
+
+    fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
+        if let Ok(mut panel) = self.panel.lock() {
+            // Sync the outline from the live document FIRST (cheap hash-guarded rebuild), then render.
+            // The sync borrow is dropped before `show` re-locks the state for the click path.
+            {
+                let state = match self.rich_state.lock() {
+                    Ok(s) => Some(s),
+                    Err(_) => None,
+                };
+                if let Some(state) = state {
+                    panel.sync(&state);
+                }
+            }
+            panel.show(ui, &self.rich_state);
+        }
+    }
+}
+
+// ── MT-025/059: Loom wiki-projection page pane ───────────────────────────────────────────────────────
+
+/// A host request drained from the wiki pane: the shell maps each to the verified `LoomWikiClient`
+/// routes (GET load / POST overlays / POST regenerate) and re-delivers into the bound panel.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WikiPaneRequest {
+    /// A (re)load is needed for `projection_id` (first bind, Retry, or after a save/regenerate).
+    Load { projection_id: String },
+    /// The Save button was pressed with `annotation` (the verified overlay-annotation write).
+    Save {
+        projection_id: String,
+        annotation: String,
+    },
+    /// The Rebuild button was pressed (`POST /loom/wiki/{id}/regenerate`).
+    Regenerate { projection_id: String },
+}
+
+/// WP-KERNEL-012 MT-025/059 REMEDIATION: the live WIKI-PAGE pane. Registered over its OWN key
+/// `PaneType::Placeholder("Wiki Page")` — `open_wiki_page` now routes wiki projection ids HERE instead of
+/// feeding them into the rich-document loader (the audited nav misroute). The mount binds one
+/// [`crate::graph::wiki_page_panel::LoomWikiPagePanel`] per open projection id (rebinding when the tab's
+/// `content_id` changes) and pushes load/save/regenerate requests into the shared outbound queue.
+pub struct WikiPagePaneMount {
+    /// The bound panel + its projection id (`None` until a wiki tab with a content id renders).
+    bound: Arc<Mutex<Option<(String, crate::graph::wiki_page_panel::LoomWikiPagePanel)>>>,
+    session: SharedSessionContext,
+    palette: SharedPalette,
+    requests: Arc<Mutex<Vec<WikiPaneRequest>>>,
+}
+
+impl WikiPagePaneMount {
+    pub fn new(
+        bound: Arc<Mutex<Option<(String, crate::graph::wiki_page_panel::LoomWikiPagePanel)>>>,
+        session: SharedSessionContext,
+        palette: SharedPalette,
+        requests: Arc<Mutex<Vec<WikiPaneRequest>>>,
+    ) -> Self {
+        Self {
+            bound,
+            session,
+            palette,
+            requests,
+        }
+    }
+
+    fn push_request(&self, req: WikiPaneRequest) {
+        if let Ok(mut q) = self.requests.lock() {
+            q.push(req);
+        }
+    }
+}
+
+impl PaneFactory for WikiPagePaneMount {
+    fn pane_type(&self) -> PaneType {
+        PaneType::Placeholder(WIKI_PAGE_PANE_LABEL.to_owned())
+    }
+
+    fn render(&self, ui: &mut egui::Ui, ctx: &PaneRenderContext) {
+        let palette = palette_of(&self.palette);
+        let projection_id = ctx
+            .record
+            .content_id
+            .as_deref()
+            .filter(|id| !id.trim().is_empty())
+            .map(|id| id.to_owned());
+        let Some(projection_id) = projection_id else {
+            // Honest empty state: a wiki pane with no projection bound (no fake page).
+            ui.label(
+                egui::RichText::new("No wiki page open. Open one via the quick switcher.")
+                    .color(palette.text_subtle),
+            );
+            return;
+        };
+        let workspace_id = self
+            .session
+            .lock()
+            .map(|s| s.workspace_id.clone())
+            .unwrap_or_default();
+        if let Ok(mut bound) = self.bound.lock() {
+            let needs_rebind = bound
+                .as_ref()
+                .map(|(bound_id, _)| bound_id != &projection_id)
+                .unwrap_or(true);
+            if needs_rebind {
+                *bound = Some((
+                    projection_id.clone(),
+                    crate::graph::wiki_page_panel::LoomWikiPagePanel::new(
+                        workspace_id,
+                        projection_id.clone(),
+                    ),
+                ));
+                // First bind: request the real GET load (the shell fires the LoomWikiClient fetch).
+                self.push_request(WikiPaneRequest::Load {
+                    projection_id: projection_id.clone(),
+                });
+            }
+            if let Some((_, panel)) = bound.as_mut() {
+                use crate::graph::wiki_page_panel::WikiPageEvent;
+                if let Some(event) = panel.show(ui, &palette) {
+                    match event {
+                        WikiPageEvent::Save { annotation } => {
+                            self.push_request(WikiPaneRequest::Save {
+                                projection_id: projection_id.clone(),
+                                annotation,
+                            });
+                        }
+                        WikiPageEvent::Rebuild => {
+                            self.push_request(WikiPaneRequest::Regenerate {
+                                projection_id: projection_id.clone(),
+                            });
+                        }
+                        WikiPageEvent::Retry => {
+                            self.push_request(WikiPaneRequest::Load {
+                                projection_id: projection_id.clone(),
+                            });
+                        }
+                        // Edit/Cancel are local panel state (observability-only events).
+                        WikiPageEvent::EditBegan | WikiPageEvent::Cancel => {}
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ── MT-022: Loom folder tree pane ────────────────────────────────────────────────────────────────────
+
+/// WP-KERNEL-012 MT-022 REMEDIATION: the live FOLDER-TREE pane. Registered over
+/// `PaneType::Placeholder("Folders")`. Wraps the existing [`crate::graph::folder_tree::LoomFolderTree`];
+/// every [`crate::graph::folder_tree::FolderTreeEvent`] (lazy-fetch expand, recolor, open, retry) is
+/// pushed into the shared outbound queue the shell routes to the `LoomFolderClient`.
+pub struct FolderTreePaneMount {
+    tree: Arc<Mutex<crate::graph::folder_tree::LoomFolderTree>>,
+    palette: SharedPalette,
+    events: Arc<Mutex<Vec<crate::graph::folder_tree::FolderTreeEvent>>>,
+}
+
+impl FolderTreePaneMount {
+    pub fn new(
+        tree: Arc<Mutex<crate::graph::folder_tree::LoomFolderTree>>,
+        palette: SharedPalette,
+        events: Arc<Mutex<Vec<crate::graph::folder_tree::FolderTreeEvent>>>,
+    ) -> Self {
+        Self {
+            tree,
+            palette,
+            events,
+        }
+    }
+}
+
+impl PaneFactory for FolderTreePaneMount {
+    fn pane_type(&self) -> PaneType {
+        PaneType::Placeholder(FOLDER_TREE_PANE_LABEL.to_owned())
+    }
+
+    fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
+        let palette = palette_of(&self.palette);
+        let event = match self.tree.lock() {
+            Ok(mut t) => t.show(ui, &palette),
+            Err(_) => None,
+        };
+        if let Some(ev) = event {
+            if let Ok(mut q) = self.events.lock() {
+                q.push(ev);
+            }
+        }
+    }
+}
+
+// ── MT-009: Diff / merge editor pane (own key — no CodeSymbol collision) ─────────────────────────────
+
+/// WP-KERNEL-012 MT-009 REMEDIATION: the live DIFF/MERGE pane, registered over its OWN key
+/// `PaneType::Placeholder("Diff Merge")`. The widget's own `DiffEditorPaneFactory::pane_type()` returns
+/// `PaneType::CodeSymbol`, which would REPLACE the mounted code editor if registered directly — this
+/// mount gives the diff surface its own registry key instead (the factory-map key routes rendering; the
+/// inner `pane_type()` is never used for routing here). The slot holds the currently-open
+/// [`crate::code_editor::DiffEditorPanel`] (set by the shell's open-diff/open-merge routes); an empty
+/// slot renders an honest empty state, never a fake diff.
+pub struct DiffMergePaneMount {
+    slot: Arc<Mutex<Option<Arc<crate::code_editor::DiffEditorPanel>>>>,
+    palette: SharedPalette,
+}
+
+impl DiffMergePaneMount {
+    pub fn new(
+        slot: Arc<Mutex<Option<Arc<crate::code_editor::DiffEditorPanel>>>>,
+        palette: SharedPalette,
+    ) -> Self {
+        Self { slot, palette }
+    }
+}
+
+impl PaneFactory for DiffMergePaneMount {
+    fn pane_type(&self) -> PaneType {
+        PaneType::Placeholder(DIFF_MERGE_PANE_LABEL.to_owned())
+    }
+
+    fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
+        let palette = palette_of(&self.palette);
+        let panel = self.slot.lock().ok().and_then(|s| s.clone());
+        match panel {
+            Some(panel) => {
+                panel.show(ui);
+            }
+            None => {
+                let resp = ui.label(
+                    egui::RichText::new(
+                        "No diff or merge open. Open one from a conflict dialog or the palette.",
+                    )
+                    .color(palette.text_subtle),
+                );
+                ui.ctx().accesskit_node_builder(resp.id, |node| {
+                    node.set_author_id("diff-merge-empty".to_owned());
+                });
+            }
+        }
+    }
+
+    fn accesskit_role(&self) -> accesskit::Role {
+        accesskit::Role::GenericContainer
+    }
+}
+
+// ── MT-036: Flight Recorder observability pane ───────────────────────────────────────────────────────
+
+/// The one-slot delivery cell a spawned `GET /flight_recorder` fetch resolves into; doubles as the
+/// pane's [`crate::flight_recorder_pane::FlightRecorderQuery`] impl (the pane's `load_now` reads the
+/// resolved value off the frame thread — never blocking).
+#[derive(Clone, Default)]
+pub struct FlightRecorderFetchCell {
+    cell: Arc<Mutex<Option<Result<Vec<crate::flight_recorder_pane::FlightRecorderRow>, String>>>>,
+}
+
+impl FlightRecorderFetchCell {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Whether a fetch result (ok or err) has been delivered.
+    pub fn is_resolved(&self) -> bool {
+        self.cell.lock().map(|c| c.is_some()).unwrap_or(false)
+    }
+
+    /// Deliver a fetch result (called by the spawned off-thread task).
+    pub fn deliver(
+        &self,
+        result: Result<Vec<crate::flight_recorder_pane::FlightRecorderRow>, String>,
+    ) {
+        if let Ok(mut c) = self.cell.lock() {
+            *c = Some(result);
+        }
+    }
+}
+
+impl crate::flight_recorder_pane::FlightRecorderQuery for FlightRecorderFetchCell {
+    fn rows(&self) -> Result<Vec<crate::flight_recorder_pane::FlightRecorderRow>, String> {
+        match self.cell.lock() {
+            Ok(c) => match c.as_ref() {
+                Some(result) => result.clone(),
+                None => Err("flight recorder fetch not resolved yet".to_owned()),
+            },
+            Err(_) => Err("flight recorder cell poisoned".to_owned()),
+        }
+    }
+}
+
+/// Parse the `GET /flight_recorder` JSON array body into the pane rows (the reduced projection the
+/// pane renders: event_id / event_type / actor_id / timestamp). Pure so a unit test asserts the shape.
+pub fn flight_recorder_rows_from_json(
+    body: &serde_json::Value,
+) -> Result<Vec<crate::flight_recorder_pane::FlightRecorderRow>, String> {
+    let arr = body
+        .as_array()
+        .ok_or_else(|| "flight recorder response is not a JSON array".to_owned())?;
+    Ok(arr
+        .iter()
+        .map(|e| crate::flight_recorder_pane::FlightRecorderRow {
+            event_id: e
+                .get("event_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_owned(),
+            action: e
+                .get("event_type")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_owned(),
+            actor_id: e
+                .get("actor_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_owned(),
+            ts_utc: e
+                .get("timestamp")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_owned(),
+        })
+        .collect())
+}
+
+/// WP-KERNEL-012 MT-036 REMEDIATION: the live FLIGHT-RECORDER pane, registered over the REAL
+/// `PaneType::FlightRecorder` key (the existing `flightrecorder.open` palette command + RUN menu entry
+/// already open that key — mounting the real factory makes that operator route render the real pane).
+/// The mount signals visibility through `load_requested` so the shell fires ONE `GET /flight_recorder`
+/// per open (the production `FlightRecorderQuery` impl over the verified route) and calls the pane's
+/// `load_now` when the fetch cell resolves.
+pub struct FlightRecorderPaneMount {
+    pane: Arc<Mutex<crate::flight_recorder_pane::FlightRecorderPane>>,
+    palette: SharedPalette,
+    /// Set true on the first render (the pane became visible) so the shell fires the fetch once.
+    load_requested: Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl FlightRecorderPaneMount {
+    pub fn new(
+        pane: Arc<Mutex<crate::flight_recorder_pane::FlightRecorderPane>>,
+        palette: SharedPalette,
+        load_requested: Arc<std::sync::atomic::AtomicBool>,
+    ) -> Self {
+        Self {
+            pane,
+            palette,
+            load_requested,
+        }
+    }
+}
+
+impl PaneFactory for FlightRecorderPaneMount {
+    fn pane_type(&self) -> PaneType {
+        PaneType::FlightRecorder
+    }
+
+    fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
+        self.load_requested
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+        let palette = palette_of(&self.palette);
+        if let Ok(pane) = self.pane.lock() {
+            pane.show(ui, &palette);
         }
     }
 

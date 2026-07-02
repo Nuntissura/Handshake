@@ -8,13 +8,27 @@ use handshake_native::quiet_mode::focus_guard;
 
 // WP-KERNEL-012 MT-092 (CLIENT side of §6.13.6 crash detection). handshake-native is the CLIENT in the
 // Embark out-of-process crash pipeline; Palmistry (the separate watcher process) is the SERVER/writer.
-// The env var name the MT-094 launcher uses to tell the CLIENT which crash socket Palmistry is listening
-// on. When present, the crash-handler callback connects a `minidumper::Client` to it and, on an unhandled
-// OS exception, hands the `crash_context::CrashContext` to Palmistry so the EXTERNAL writer dumps this
-// process from outside (the crashing process must NOT dump itself — §6.13.6). When ABSENT (no watcher
-// this run), the crash-handler is still installed but its callback no-ops the dump request — the MT-083
-// in-process panic hook + a future watcher attach still cover the death modes.
+//
+// HOW THE CLIENT FINDS THE SOCKET (MT-092/MT-094 remediation): in PRODUCTION the crash-socket path is
+// DERIVED, not injected — `diagnostics::crash_socket_path(control_socket)` mirrors palmistry's exact
+// derivation rule (pinned equal by a cross-crate wire test), and `main()` arms the client AFTER the
+// MT-094 launcher has spawned Palmistry (whose crash server binds that same derived path). This env var
+// is an explicit OVERRIDE seam only (tests / operator config): when set, it wins over the derivation
+// and the client connects EARLY at handler-install time. It is set by no production code path.
+//
+// When no client is armed (no watcher this run), the crash-handler is still installed but its callback
+// no-ops the dump request — the MT-083 in-process panic hook + Palmistry's post-mortem floor still
+// cover the death modes.
 const ENV_CRASH_SOCKET: &str = "HANDSHAKE_CRASH_SOCK";
+
+/// The process-global MT-092 minidumper CLIENT slot. The OS exception handler is installed EARLY in
+/// `main()` (so a startup crash is covered), but in production the crash socket only EXISTS after the
+/// MT-094 launcher spawns Palmistry (whose crash server binds the derived path) — so the client is
+/// armed LATE via [`arm_crash_client_late`] and the crash callback reads THIS slot at crash time.
+/// `OnceLock` is the right primitive for a compromised-context read: `get()` after initialization is a
+/// lock-free atomic load (no mutex a dead thread could hold).
+static CRASH_CLIENT: std::sync::OnceLock<std::sync::Arc<minidumper::Client>> =
+    std::sync::OnceLock::new();
 
 /// The minidumper user-message kind the CLIENT uses to report the faulting thread id to Palmistry ahead
 /// of the dump request (mirrors `palmistry::crash_capture::MSG_KIND_FAULTING_THREAD_ID`). minidumper does
@@ -82,22 +96,23 @@ fn handle_cli_flags() -> Option<i32> {
 /// Build the [`crash_handler::CrashEvent`] that, on an unhandled OS exception, signals Palmistry (the
 /// minidumper SERVER) to write a minidump of THIS process OUT-OF-PROCESS. The callback does the MINIMUM
 /// in the crashing process (§6.13.6): report the faulting thread id, then `request_dump` — the EXTERNAL
-/// writer does the heavy dump. If `client` is `None` (no watcher this run) the callback is a no-op dump
-/// request that still returns cleanly so the exception propagates to the default handler (the panic/abort
-/// path is unaffected; the MT-083 panic hook covers the Rust-panic death mode separately).
+/// writer does the heavy dump. The client is read from the process-global [`CRASH_CLIENT`] slot AT
+/// CRASH TIME (a lock-free `OnceLock::get`), so a client armed LATE (after the MT-094 launcher brought
+/// Palmistry up — [`arm_crash_client_late`]) is used by a handler installed EARLY. If no client was
+/// ever armed (no watcher this run) the callback is a no-op dump request that still returns cleanly so
+/// the exception propagates to the default handler (the panic/abort path is unaffected; the MT-083
+/// panic hook covers the Rust-panic death mode separately).
 ///
 /// SAFETY: `make_crash_event` is `unsafe` because `on_crash` runs in a compromised post-exception
-/// context. The callback is written to do as little as possible (a single `request_dump` IPC send) per
-/// the crash-handler safety guidance — no allocation-heavy work, no locks that could be held by a dead
-/// thread.
+/// context. The callback is written to do as little as possible (an atomic slot read + a single
+/// `request_dump` IPC send) per the crash-handler safety guidance — no allocation-heavy work, no locks
+/// that could be held by a dead thread (`OnceLock::get` never blocks once set).
 #[allow(unsafe_code)]
-fn make_crash_event(
-    client: Option<std::sync::Arc<minidumper::Client>>,
-) -> Box<dyn crash_handler::CrashEvent> {
+fn make_crash_event() -> Box<dyn crash_handler::CrashEvent> {
     unsafe {
         crash_handler::make_crash_event(
-            move |cc: &crash_handler::CrashContext| -> crash_handler::CrashEventResult {
-                let handled = match &client {
+            |cc: &crash_handler::CrashContext| -> crash_handler::CrashEventResult {
+                let handled = match CRASH_CLIENT.get() {
                     Some(client) => {
                         // Report the faulting thread id first (typed 8-byte LE u64, never text) so
                         // Palmistry's crash record can name it, then request the out-of-process dump.
@@ -111,7 +126,7 @@ fn make_crash_event(
                         // process (§6.13.6). Returns Ok on a successful out-of-process dump.
                         client.request_dump(cc).is_ok()
                     }
-                    // No watcher socket this run: do not attempt a dump (nothing is listening). Return
+                    // No client armed this run: do not attempt a dump (nothing is listening). Return
                     // not-handled so the default abort/unwind still runs — the death is not swallowed.
                     None => false,
                 };
@@ -121,51 +136,53 @@ fn make_crash_event(
     }
 }
 
-/// Install the MT-092 CLIENT crash handler EARLY in `main()` (§6.13.6). If the MT-094 launcher set
-/// [`ENV_CRASH_SOCKET`], connect a `minidumper::Client` to Palmistry's crash socket so an unhandled OS
-/// exception is dumped OUT-OF-PROCESS; otherwise install the handler with no client (a no-op dump request
-/// that still lets the default handler run). Returns the attached [`crash_handler::CrashHandler`] (kept
-/// alive for the process lifetime) so the OS exception handler stays installed, or `None` if attaching
-/// the OS handler failed (logged; non-fatal — the MT-083 panic hook still covers Rust panics).
+/// Install the MT-092 CLIENT crash handler EARLY in `main()` (§6.13.6) so even a STARTUP crash is
+/// covered. The OS exception handler is attached immediately; the minidumper CLIENT that gives it an
+/// out-of-process dump path is normally armed LATER by [`arm_crash_client_late`] (once the MT-094
+/// launcher has brought Palmistry — and therefore the derived crash socket — up). If the
+/// [`ENV_CRASH_SOCKET`] override seam is set (tests / operator config), the client is connected + armed
+/// EARLY right here instead. Returns the attached [`crash_handler::CrashHandler`] (kept alive for the
+/// process lifetime) so the OS exception handler stays installed, or `None` if attaching the OS handler
+/// failed (logged; non-fatal — the MT-083 panic hook still covers Rust panics).
 ///
 /// This COMPLEMENTS the MT-083 in-process panic hook installed just above: the panic hook catches Rust
 /// `panic!`s (an orderly unwind/abort with a backtrace), while THIS catches a hard unhandled OS exception
 /// / Windows SEH (an access violation, illegal instruction, stack overflow — a death the Rust panic
 /// machinery never sees). Together they cover both death modes (AC-012-7); neither is silently uncovered.
 fn install_crash_client() -> Option<crash_handler::CrashHandler> {
-    let client = match std::env::var(ENV_CRASH_SOCKET) {
-        Ok(socket) if !socket.trim().is_empty() => {
+    // The explicit OVERRIDE seam (tests / operator config): a supplied socket wins over the production
+    // derive-late path and is connected immediately.
+    if let Ok(socket) = std::env::var(ENV_CRASH_SOCKET) {
+        if !socket.trim().is_empty() {
             match minidumper::Client::with_name(minidumper::SocketName::path(&socket)) {
                 Ok(c) => {
+                    let _ = CRASH_CLIENT.set(std::sync::Arc::new(c));
                     tracing::info!(
                         crash_socket = %socket,
-                        "MT-092 crash client connected to Palmistry (out-of-process minidump armed)"
+                        "MT-092 crash client connected via the {ENV_CRASH_SOCKET} override seam \
+                         (out-of-process minidump armed early)"
                     );
-                    Some(std::sync::Arc::new(c))
                 }
                 Err(err) => {
-                    // The watcher may not have bound its crash socket yet, or is absent. Non-fatal: the
-                    // handler still installs (no-op dump) and the MT-083 panic hook covers Rust panics.
+                    // The override names a socket nothing is listening on (yet). Non-fatal: the handler
+                    // still installs (no-op dump) and the late-arm step may still connect the derived path.
                     tracing::warn!(
                         %err,
                         crash_socket = %socket,
-                        "MT-092 crash client could not connect to Palmistry; installing the OS exception \
-                         handler WITHOUT an out-of-process dump path this run"
+                        "MT-092 crash client could not connect to the {ENV_CRASH_SOCKET} override socket; \
+                         installing the OS exception handler unarmed (the late-arm step may still connect)"
                     );
-                    None
                 }
             }
         }
-        _ => {
-            tracing::debug!(
-                "no {ENV_CRASH_SOCKET} set; installing the OS exception handler without a watcher dump \
-                 path (MT-094 supplies the socket when a watcher is launched)"
-            );
-            None
-        }
-    };
+    } else {
+        tracing::debug!(
+            "no {ENV_CRASH_SOCKET} override; the crash client arms LATE against the derived crash \
+             socket once the MT-094 launcher has brought Palmistry up"
+        );
+    }
 
-    match crash_handler::CrashHandler::attach(make_crash_event(client)) {
+    match crash_handler::CrashHandler::attach(make_crash_event()) {
         Ok(handler) => {
             tracing::info!(
                 "MT-092 OS exception handler installed (Windows SEH / unix signals) — complements the \
@@ -177,6 +194,61 @@ fn install_crash_client() -> Option<crash_handler::CrashHandler> {
             tracing::warn!(%err, "failed to attach the OS exception handler (MT-092); Rust panics are \
                  still covered by the MT-083 panic hook");
             None
+        }
+    }
+}
+
+/// How long [`arm_crash_client_late`] retries connecting to Palmistry's derived crash socket. The
+/// launcher's bounded handshake has normally completed by the time this runs (so the crash server is
+/// already bound); the retry window only covers the small startup race where the control-socket ACK is
+/// served before the crash server binds. Bounded so a missing/failed watcher can never stall startup.
+const CRASH_CLIENT_ARM_DEADLINE: std::time::Duration = std::time::Duration::from_secs(3);
+/// Backoff between crash-socket connect attempts during the late-arm window.
+const CRASH_CLIENT_ARM_RETRY: std::time::Duration = std::time::Duration::from_millis(100);
+
+/// LATE-ARM the MT-092 minidumper CLIENT (the §6.13.6 rendezvous, MT-092/MT-094 remediation): connect
+/// to the crash socket the launched Palmistry's crash server bound — the path DERIVED from the control
+/// socket by the shared rule (`diagnostics::crash_socket_path`, mirrored by
+/// `palmistry::crash_capture::crash_socket_path`, pinned equal by a cross-crate wire test) — and store
+/// the client into the process-global [`CRASH_CLIENT`] slot the EARLY-installed exception handler reads
+/// at crash time. Bounded retries cover the bind race; every failure path degrades gracefully (the
+/// handler stays installed unarmed; Palmistry's post-mortem floor still records a crash).
+///
+/// No-op if a client is already armed (the [`ENV_CRASH_SOCKET`] override seam connected early).
+fn arm_crash_client_late(crash_socket: &str) {
+    if CRASH_CLIENT.get().is_some() {
+        tracing::debug!("MT-092 crash client already armed (override seam); skipping the late-arm step");
+        return;
+    }
+    let deadline = std::time::Instant::now() + CRASH_CLIENT_ARM_DEADLINE;
+    let mut attempts = 0u32;
+    loop {
+        attempts += 1;
+        match minidumper::Client::with_name(minidumper::SocketName::path(crash_socket)) {
+            Ok(c) => {
+                let _ = CRASH_CLIENT.set(std::sync::Arc::new(c));
+                tracing::info!(
+                    crash_socket,
+                    attempts,
+                    "MT-092 crash client connected to Palmistry's derived crash socket \
+                     (out-of-process minidump armed, §6.13.6)"
+                );
+                return;
+            }
+            Err(err) => {
+                if std::time::Instant::now() >= deadline {
+                    tracing::warn!(
+                        %err,
+                        crash_socket,
+                        attempts,
+                        "MT-092 crash client could not connect to Palmistry's derived crash socket \
+                         within the bounded arm window; running WITHOUT an out-of-process dump path \
+                         this session (Palmistry's post-mortem floor still records a crash)"
+                    );
+                    return;
+                }
+                std::thread::sleep(CRASH_CLIENT_ARM_RETRY);
+            }
         }
     }
 }
@@ -361,13 +433,16 @@ fn main() -> eframe::Result<()> {
     diagnostics::install_panic_hook(crash_dir, &process_session_id);
 
     // WP-KERNEL-012 MT-092 (CLIENT side, §6.13.6): install the OS exception handler (Windows SEH / unix
-    // signals) so an UNHANDLED hard OS exception (access violation, illegal instruction, stack overflow)
-    // is dumped OUT-OF-PROCESS by Palmistry — the crashing process cannot reliably dump itself. This
-    // COMPLEMENTS the MT-083 Rust-panic hook installed just above: panics unwind/abort with a backtrace;
-    // OS exceptions never reach the panic machinery, so both death modes are covered (AC-012-7). The
-    // returned handler is held alive for the whole process lifetime (`_crash_handler`); dropping it would
-    // detach the OS handler. When no watcher socket is set (HANDSHAKE_CRASH_SOCK, supplied by MT-094),
-    // the handler still installs but does not request a dump (nothing is listening) — non-fatal.
+    // signals) EARLY so an UNHANDLED hard OS exception (access violation, illegal instruction, stack
+    // overflow) during STARTUP is already covered. This COMPLEMENTS the MT-083 Rust-panic hook installed
+    // just above: panics unwind/abort with a backtrace; OS exceptions never reach the panic machinery, so
+    // both death modes are covered (AC-012-7). The returned handler is held alive for the whole process
+    // lifetime (`_crash_handler`); dropping it would detach the OS handler. The minidumper CLIENT that
+    // gives the handler an out-of-process dump path is armed LATER (`arm_crash_client_late`, below) once
+    // the MT-094 launcher has brought Palmistry — and therefore the DERIVED crash socket — up; the
+    // HANDSHAKE_CRASH_SOCK env var is an explicit override seam only (tests / operator config), set by no
+    // production code path. Until a client is armed the handler does not request a dump (nothing is
+    // listening) — non-fatal.
     let _crash_handler = install_crash_client();
 
     tracing_subscriber::fmt()
@@ -407,6 +482,16 @@ fn main() -> eframe::Result<()> {
             None
         }
     };
+
+    // WP-KERNEL-012 MT-092/MT-094 remediation — LATE-ARM the crash CLIENT (§6.13.6 rendezvous): now
+    // that Palmistry is up (its crash server binds the crash socket DERIVED from the control socket by
+    // the shared rule), connect the minidumper client to the handle's derived crash-socket path and
+    // store it in the slot the EARLY-installed exception handler reads at crash time. Bounded — a
+    // slow/failed connect degrades to an unarmed handler (Palmistry's post-mortem floor still records a
+    // crash) and never stalls startup. Skipped when the watcher was not launched (nothing listening).
+    if let Some(handle) = &palmistry {
+        arm_crash_client_late(handle.crash_socket());
+    }
 
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()

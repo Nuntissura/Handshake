@@ -16,21 +16,21 @@
 //!        so the widget activates the MT-015 autocomplete state at the caret,
 //!      - `InsertTemplate` -> parse the const DocJson snippet and insert its blocks.
 //!
-//! ## Transactionality split (KERNEL_BUILDER gate impl note)
+//! ## Transactionality (MT-020 inline-atom undo rewire)
 //!
-//! `SetBlock` and `InsertNode(block)` go through the MT-011 transaction system (atomic +
-//! undoable). The embed/transclusion/manual atom inserts reuse the MT-014/MT-015 inline-atom
-//! DIRECT-children-mutation pattern (`Child::HsLink` / `Child::Transclusion`), which is NOT
-//! a transform `Step` (MT-011 has no inline-atom insert step, and `transform.rs` is out of
-//! this MT's `allowed_paths`). The KERNEL_BUILDER gate explicitly carries that
-//! transform-completeness fix to MT-020; MT-016 reuses the existing atom-insert logic as-is.
+//! EVERY insert path here goes through the MT-011 transaction system (atomic + undoable):
+//! `SetBlock` and `InsertNode(block)` via `Step::InsertNode`, and the embed/transclusion/
+//! code-ref inline-atom inserts via the MT-020 `Step::InsertInlineChild` (the transform-
+//! completeness fix the KERNEL_BUILDER gate carried from MT-015/MT-016 to MT-020). An atom
+//! insert pushes ONE receipt onto the caller's `UndoManager`, so Ctrl+Z removes the atom (and
+//! its trailing caret-host leaf) exactly — no direct children mutation bypasses the undo system.
 //!
 //! The trigger-text removal is ALWAYS a transactional `DeleteText` (it edits a text leaf, a
-//! shape MT-011 fully supports), so the `/`+filter removal is undoable even for the atom paths.
+//! shape MT-011 fully supports), so the `/`+filter removal is undoable for every path.
 
 use crate::rich_editor::document_model::history::UndoManager;
 use crate::rich_editor::document_model::node::{
-    BlockNode, Child, HsLinkNode, NodeKind, TransclusionNode,
+    BlockNode, Child, HsLinkNode, NodeKind, TextLeaf, TransclusionNode,
 };
 use crate::rich_editor::document_model::position::DocPosition;
 use crate::rich_editor::document_model::selection::Selection;
@@ -313,13 +313,12 @@ fn insert_blocks_after_caret(ctx: &mut SlashExecContext<'_>, blocks: Vec<BlockNo
     }
 }
 
-// ── inline-atom inserts (MT-014 / MT-015 reuse — direct children mutation) ───────────────
+// ── inline-atom inserts (MT-020 rewire: transactional Step::InsertInlineChild) ───────────
 
 /// Insert a CKC media-embed `hsLink` atom (the MT-014 node shape: `ref_kind` ∈
 /// {images,slideshow,album,video}, `ref_value` = the asset id(s)) as an inline atom after the
-/// caret's text leaf, reusing the MT-015 `confirm`-style direct-children insert. The atom is
-/// NOT transactional (MT-011 has no inline-atom step; carried to MT-020), but the trigger-text
-/// removal already was. Returns `true` when inserted.
+/// caret's text leaf, via the transactional [`insert_inline_atom`] (MT-020: atomic + undoable,
+/// like the trigger-text removal before it). Returns `true` when inserted.
 fn insert_embed_atom(ctx: &mut SlashExecContext<'_>, kind: EmbedKind, ref_value: &str) -> bool {
     let link = HsLinkNode::new(kind.ref_kind(), ref_value.to_string(), String::new());
     insert_inline_atom(ctx, Child::HsLink(link))
@@ -356,7 +355,11 @@ pub fn insert_code_ref_atom(
 /// Insert `atom` (an `hsLink` or `loomTransclusion` inline atom) immediately AFTER the caret's
 /// text leaf, mirroring `wikilinks::confirm::confirm_wikilink`'s insert mechanics (a paragraph
 /// holds a flat list of text runs + inline atoms; insert as a sibling, then ensure a trailing
-/// text leaf hosts the caret). Returns `true` when inserted.
+/// text leaf hosts the caret). MT-020 rewire: the insert (plus the optional trailing caret-host
+/// leaf) is ONE transactional [`Step::InsertInlineChild`] batch applied via [`apply_transaction`]
+/// and pushed onto `ctx.history`, so Ctrl+Z removes the atom exactly — the direct children
+/// mutation that bypassed the undo manager is gone. Returns `true` when inserted (on any
+/// transform/schema failure the doc is rolled back untouched and nothing is pushed).
 fn insert_inline_atom(ctx: &mut SlashExecContext<'_>, atom: Child) -> bool {
     let Selection::Text { head, .. } = ctx.selection.clone() else {
         return false;
@@ -364,31 +367,46 @@ fn insert_inline_atom(ctx: &mut SlashExecContext<'_>, atom: Child) -> bool {
     let Some((leaf_idx, parent_path)) = head.path.split_last() else {
         return false;
     };
-    let Some(parent) = block_at_mut(ctx.doc, parent_path) else {
-        return false;
+    // Pre-state facts: the caret leaf must exist; the child CURRENTLY following it decides whether
+    // a trailing caret-host text leaf is needed (the same rule confirm_wikilink uses).
+    let needs_trailing = {
+        let Some(parent) = block_at(ctx.doc, parent_path) else {
+            return false;
+        };
+        if *leaf_idx >= parent.children.len() {
+            return false;
+        }
+        parent
+            .children
+            .get(*leaf_idx + 1)
+            .map(|c| c.as_text().is_none())
+            .unwrap_or(true)
     };
-    if *leaf_idx >= parent.children.len() {
-        return false;
-    }
     let insert_at = *leaf_idx + 1;
-    parent.children.insert(insert_at, atom);
-    // Ensure a trailing text leaf hosts the caret (the same rule confirm_wikilink uses).
     let trailing_idx = insert_at + 1;
-    let needs_trailing = parent
-        .children
-        .get(trailing_idx)
-        .map(|c| c.as_text().is_none())
-        .unwrap_or(true);
+    let mut steps = vec![Step::InsertInlineChild {
+        parent_path: parent_path.to_vec(),
+        index: insert_at,
+        child: atom,
+    }];
     if needs_trailing {
-        parent.children.insert(
-            trailing_idx,
-            Child::Text(crate::rich_editor::document_model::node::TextLeaf::new("")),
-        );
+        steps.push(Step::InsertInlineChild {
+            parent_path: parent_path.to_vec(),
+            index: trailing_idx,
+            child: Child::Text(TextLeaf::new("")),
+        });
     }
-    let mut caret_path = parent_path.to_vec();
-    caret_path.push(trailing_idx);
-    *ctx.selection = Selection::caret(DocPosition::new(caret_path, 0));
-    true
+    let tx = Transaction::new(steps, ActorKind::Operator, ctx.actor_id);
+    match apply_transaction(ctx.doc, tx) {
+        Ok(receipt) => {
+            ctx.history.push(receipt);
+            let mut caret_path = parent_path.to_vec();
+            caret_path.push(trailing_idx);
+            *ctx.selection = Selection::caret(DocPosition::new(caret_path, 0));
+            true
+        }
+        Err(_) => false,
+    }
 }
 
 /// Insert `text` at the caret transactionally (used by `OpenWikilinkAutocomplete` to type the
@@ -517,15 +535,6 @@ fn block_at<'a>(doc: &'a BlockNode, path: &[usize]) -> Option<&'a BlockNode> {
     let mut node = doc;
     for &idx in path {
         node = node.children.get(idx)?.as_block()?;
-    }
-    Some(node)
-}
-
-/// Resolve a block `path` to a mutable block reference (empty path = the doc root).
-fn block_at_mut<'a>(doc: &'a mut BlockNode, path: &[usize]) -> Option<&'a mut BlockNode> {
-    let mut node = doc;
-    for &idx in path {
-        node = node.children.get_mut(idx)?.as_block_mut()?;
     }
     Some(node)
 }
@@ -811,6 +820,54 @@ mod tests {
             .find_map(Child::as_transclusion)
             .expect("transclusion atom");
         assert_eq!(t.ref_value, "block-77");
+    }
+
+    #[test]
+    fn inline_atom_inserts_are_one_undoable_receipt_each() {
+        // MT-020 rewire: an embed / transclusion / code-ref atom insert pushes ONE receipt whose
+        // undo removes the atom AND its trailing caret-host leaf, restoring the exact pre-insert
+        // doc (no direct children mutation bypasses the undo manager).
+        // Embed:
+        let (mut doc, mut undo, mut sel) = fixture("before", 6);
+        let before = doc.clone();
+        let prompt = SlashPrompt {
+            kind: SlashPromptKind::Embed(EmbedKind::Image),
+            input: "asset-9".into(),
+        };
+        assert!(confirm_prompt(
+            &mut ctx(&mut doc, &mut undo, &mut sel),
+            &prompt
+        ));
+        assert_eq!(undo.len(), 1, "the embed insert pushed ONE receipt");
+        assert!(undo.undo(&mut doc).unwrap());
+        assert_eq!(doc, before, "undo restores the exact pre-embed doc");
+
+        // Transclusion:
+        let (mut doc, mut undo, mut sel) = fixture("x", 1);
+        let before = doc.clone();
+        let prompt = SlashPrompt {
+            kind: SlashPromptKind::Transclusion,
+            input: "block-3".into(),
+        };
+        assert!(confirm_prompt(
+            &mut ctx(&mut doc, &mut undo, &mut sel),
+            &prompt
+        ));
+        assert_eq!(undo.len(), 1, "the transclusion insert pushed ONE receipt");
+        assert!(undo.undo(&mut doc).unwrap());
+        assert_eq!(doc, before, "undo restores the exact pre-transclusion doc");
+
+        // Code-ref:
+        let (mut doc, mut undo, mut sel) = fixture("fn ", 3);
+        let before = doc.clone();
+        assert!(insert_code_ref_atom(
+            &mut ctx(&mut doc, &mut undo, &mut sel),
+            "SYM-1",
+            "parse_config",
+        ));
+        assert_eq!(undo.len(), 1, "the code-ref insert pushed ONE receipt");
+        assert!(undo.undo(&mut doc).unwrap());
+        assert_eq!(doc, before, "undo restores the exact pre-code-ref doc");
     }
 
     #[test]

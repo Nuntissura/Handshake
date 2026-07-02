@@ -185,6 +185,35 @@ pub fn safe_session_token(session_id: &str) -> String {
         .collect()
 }
 
+/// Derive the DEDICATED minidumper crash-socket path from the control-socket base name. The Embark
+/// `minidumper` IPC uses its OWN socket, distinct from the interprocess control socket, so the two
+/// channels never collide. On EVERY platform (including Windows 10+), minidumper binds an AF_UNIX
+/// (`PF_UNIX` / `SOCK_STREAM`) socket whose address is a real FILESYSTEM PATH in `sun_path` — NOT a
+/// `\\.\pipe\` named pipe (verified from the minidumper 0.10 source: `ipc/windows.rs` uses `sockaddr_un`
+/// with a 108-byte `sun_path`). So the crash socket is a short `.sock` file under the OS temp dir on all
+/// platforms. The path must fit `sun_path` (108 bytes), so the base token is truncated to keep it short.
+///
+/// THE RENDEZVOUS RULE (MT-092/MT-094): the CLIENT (handshake-native,
+/// `diagnostics::crash_socket_path`) derives the SAME path with the SAME rule from the SAME
+/// `--control-socket` base name so the two processes rendezvous with no extra configuration. The two
+/// derivations are pinned EQUAL by a cross-crate wire test
+/// (handshake_native/tests/test_crash_client_install.rs). Lives in the LIBRARY crate (moved from the
+/// binary's `main.rs`) so both the binary and the cross-crate tests import ONE implementation.
+pub fn crash_socket_path(control_socket: &str) -> String {
+    crash_socket_path_for_token(&safe_session_token(control_socket))
+}
+
+/// Build the minidumper crash-socket filesystem path for an already-sanitized token. Truncates the token
+/// so the full path stays within the AF_UNIX `sun_path` 108-byte limit (the temp-dir prefix + suffix
+/// leave well under 108 bytes for a ~40-char token).
+fn crash_socket_path_for_token(token: &str) -> String {
+    let short: String = token.chars().take(40).collect();
+    std::env::temp_dir()
+        .join(format!("hsk-crash-{short}.sock"))
+        .to_string_lossy()
+        .into_owned()
+}
+
 /// The LOCAL minidump file path for a session, written as a sibling of the ring file:
 /// `<ring_dir>/palmistry-crash-<session>.dmp`. A `.dmp` is the field-standard minidump extension the
 /// `minidump` reader expects. LOCAL filesystem only — never a URL (§6.13.8).
@@ -513,6 +542,28 @@ mod tests {
             bytes.len() > 1024,
             "a real minidump is non-trivial, got {} bytes",
             bytes.len()
+        );
+
+        // MT-092 remediation: VALIDATE the dump with the `minidump` READER (AC-012-1) so this
+        // un-ignored roundtrip proves the shipped handler writes a WELL-FORMED minidump — not just a
+        // non-trivial byte blob. (The reader-validated proofs in tests/test_crash_capture.rs are
+        // #[ignore]d opt-in real-host runs; this in-crate parse keeps reader validation in the
+        // default `cargo test` lane.)
+        let dump = minidump::Minidump::read(bytes.as_slice())
+            .expect("the shipped handler's dump must parse as a well-formed minidump");
+        let threads = dump
+            .get_stream::<minidump::MinidumpThreadList>()
+            .expect("the minidump must carry a thread list (the crashing thread)");
+        assert!(
+            !threads.threads.is_empty(),
+            "the dump must contain at least one thread"
+        );
+        let modules = dump
+            .get_stream::<minidump::MinidumpModuleList>()
+            .expect("the minidump must carry a module list (loaded modules)");
+        assert!(
+            modules.iter().next().is_some(),
+            "the dump must list at least one loaded module"
         );
 
         let _ = std::fs::remove_file(&dump_path);

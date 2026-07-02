@@ -550,9 +550,52 @@ function greet(name) {
         let mut hl = rust_highlighter();
         let first = hl.highlight(b"fn a() {}");
         assert!(!first.is_empty());
-        // Second call reuses the cached tree (no panic, still produces spans).
+        // Second call after an edit (no panic, still produces spans).
         let second = hl.highlight(b"fn a() { let x = 1; }");
         assert!(second.iter().any(|s| s.scope == HighlightScope::Keyword));
+    }
+
+    /// MT-001 Wave-B remediation (RED->GREEN): re-highlighting an EDITED source must return exactly
+    /// the spans a from-scratch parse of that source returns. The pre-fix code handed the cached
+    /// `old_tree` to `Parser::parse` WITHOUT `Tree::edit` — a tree-sitter contract violation that can
+    /// reuse stale nodes at stale byte offsets on the panel's primary edit path (fold regions and the
+    /// outline derive from the SAME tree, so a wrong tree corrupts those too — the MT-050 post-format
+    /// 'fn ain(' outline shape).
+    #[test]
+    fn edit_then_rehighlight_matches_fresh_parse() {
+        let mut hl = rust_highlighter();
+        let v1 = "fn main() { let x = 1; }\n";
+        let _ = hl.highlight(v1.as_bytes());
+
+        // A whole-document rewrite: every byte offset shifts (the formatter / set_text worst case).
+        let v2 = "// leading comment\nfn other(name: &str) -> usize {\n    name.len()\n}\n";
+        let edited_spans = hl.highlight(v2.as_bytes());
+
+        let mut fresh = rust_highlighter();
+        let fresh_spans = fresh.highlight(v2.as_bytes());
+        assert_eq!(
+            edited_spans, fresh_spans,
+            "spans after an edit must equal a fresh parse of the edited source"
+        );
+
+        // Outline-integrity corollary (MT-050 note): the cached tree must cover the edited source
+        // exactly — the outline + fold providers walk this same tree.
+        let root_end = hl.tree().expect("tree cached").root_node().end_byte();
+        assert_eq!(
+            root_end,
+            v2.len(),
+            "the cached tree's root must span the edited source exactly"
+        );
+
+        // And a smaller in-place edit (insert bytes mid-document) must also match a fresh parse.
+        let v3 = "// leading comment\nfn other(name: &str) -> usize {\n    let n = name.len();\n    n\n}\n";
+        let edited_spans3 = hl.highlight(v3.as_bytes());
+        let mut fresh3 = rust_highlighter();
+        assert_eq!(
+            edited_spans3,
+            fresh3.highlight(v3.as_bytes()),
+            "spans after a mid-document insert must equal a fresh parse"
+        );
     }
 
     #[test]

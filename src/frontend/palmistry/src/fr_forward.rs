@@ -166,11 +166,20 @@ pub fn survivor_marker(record: &SurvivorRecord) -> String {
     )
 }
 
+/// WP-KERNEL-016 SEAM — PRODUCTION-DEAD BY DESIGN (MT-093 remediation label). NO production path calls
+/// this: `FrForwarder::forward` posts the survivor-faithful body ([`build_survivor_forward_body`]) on a
+/// Compatible route and returns the typed [`FrForwardBlocker::SchemaIncompatible`] BEFORE any post on
+/// the existing (Incompatible) chat-event route — so a degraded chat-event post is never sent and this
+/// builder is deliberately unreachable in the shipped composition. It is KEPT (not deleted) as the
+/// documented seam pinning the EXACT verified `RuntimeChatEventV0_1` key set the closed route accepts
+/// (`runtime_chat_event_body_has_only_verified_keys` asserts it), so when WP-KERNEL-016 designs the
+/// survivor ingestion shape the closed-schema evidence stays executable in-repo. If WP-016 chooses a
+/// different bridge, DELETE this fn + its test in that WP.
+///
 /// Build the EXACT verified `RuntimeChatEventV0_1` body for forwarding `record`, carrying ONLY the typed
-/// survivor fields the CLOSED schema can hold (the identity marker in `message_id`; the typed counters
-/// fold into the only numeric-carrying place the closed schema offers — see below). This is the wire
-/// seam (the body shape the AC-013-3 stub asserts matches the real FR), kept SEPARATE from the network
-/// post so a unit test can assert every required key + the deny_unknown_fields constraint with no IO.
+/// survivor fields the CLOSED schema can hold (the identity marker in `message_id`). Kept SEPARATE from
+/// the network post so a unit test can assert every required key + the deny_unknown_fields constraint
+/// with no IO.
 ///
 /// What the closed schema CAN carry of the survivor record:
 /// - `message_id` = the typed [`survivor_marker`] (kind + opaque session) — the survivor identity.

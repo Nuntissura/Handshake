@@ -30,7 +30,8 @@
 //!   (the deduped convergence edge builder — AC-005).
 //!
 //! Everything REUSES the WP-011 shell + the MT-011/012/015 editor primitives: the `hsLink` atom +
-//! `confirm_wikilink` insert (no new model step), the theme palette for chip colors (no hardcoded hex),
+//! `confirm_wikilink` insert (transactional `Step::InsertInlineChild` + undo receipt per the MT-020
+//! rewire — no tag-specific model step), the theme palette for chip colors (no hardcoded hex),
 //! the `accessibility/*` live AccessKit emission, and the VERIFIED `LoomTagClient` tag-hub list + loom
 //! edges API (PostgreSQL/EventLedger only — no SQLite, no backend rewrite).
 
@@ -39,7 +40,7 @@ pub mod parser;
 
 pub use inline_chip::{
     build_tag_edge_payload, inline_tag_author_id, is_tag_link, menu_item_to_hs_link, tag_from_link,
-    tag_menu_items, TagActivated, TagAutocompleteState, TagEdge, TagEdgePayload, TagMenuItem,
-    TAG_REF_KIND,
+    tag_menu_items, TagActivated, TagAutocompleteState, TagEdge, TagEdgeIntent, TagEdgePayload,
+    TagMenuItem, TAG_EDGE_DISPATCH_BLOCKER, TAG_REF_KIND,
 };
 pub use parser::{normalize_tag, open_tag_query, parse_inline_tags, tag_to_hs_link, Tag, TagToken};

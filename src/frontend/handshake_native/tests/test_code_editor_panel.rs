@@ -391,10 +391,14 @@ fn large_file_frame_time() {
 
     // Write the bench JSON to the EXTERNAL artifact root ONLY (AC-006). `pass` reflects the budget in
     // an optimized build; in a debug build it records budget_pass but the test gate is the
-    // virtualization invariant (see below).
+    // virtualization invariant (see below). PROFILE-SCOPED FILENAME (MT-002 Wave-B remediation): the
+    // debug and release runs write to DIFFERENT files, so an ordinary debug `cargo test` can never
+    // clobber the archived `--release` proof artifact again (the audit found a debug run had
+    // overwritten the release gate's pass:true JSON).
     let ext_dir = external_artifact_dir("wp-kernel-012-mt-002");
     let _ = std::fs::create_dir_all(&ext_dir);
-    let bench_path = ext_dir.join("MT-002-bench.json");
+    let profile = if optimized { "release" } else { "debug" };
+    let bench_path = ext_dir.join(format!("MT-002-bench-{profile}.json"));
     let json = format!(
         "{{\n  \"frames\": 60,\n  \"buffer_lines\": {},\n  \"frame_lines_rendered\": {},\n  \
          \"median_frame_ms\": {:.4},\n  \"mean_frame_ms\": {:.4},\n  \"max_frame_ms\": {:.4},\n  \
@@ -651,4 +655,106 @@ fn code_editor_panel_mounts_through_pane_registry() {
     println!(
         "PASS: CodeEditorPanel mounts through the existing WP-011 PaneHostWidget (pane registry)"
     );
+}
+
+// ── MT-054 ROW-PITCH UNIT + MT-007 gutter/body alignment (Wave-B remediation) ─────────────────────
+
+/// The one-unit invariant the Wave-B audit found broken: the PAINTED row pitch (the actual egui label
+/// rects, row to row) must equal the geometry unit (`RowGeometry.line_height`) that `show_rows`, the
+/// gutter, the cursor overlay, and every decoration stride by. Pre-fix, painted rows were
+/// `ui.horizontal` blocks floored at `spacing.interact_size.y` (18.0) while the geometry unit was
+/// `text_style_height(Monospace)` (~15.1) — ~2.9px/row divergence (ghost brackets, gutter drift).
+///
+/// Deterministic (no GPU): plain-text lines render as exactly ONE "line N" label per row, so the
+/// AccessKit label rects ARE the painted glyph rows. `screen_pos_for_line_col` exposes the overlay/
+/// decoration/gutter y mapping. Asserting they coincide row-for-row (tight, sub-pixel) is the
+/// "decoration y == painted glyph y" proof — and the MT-007 tightened gutter/body alignment
+/// assertion, because the gutter paints at the SAME `RowGeometry` unit (`gutter_breakpoint_pos_for_line`
+/// is that exact mapping).
+#[test]
+fn painted_row_pitch_equals_geometry_unit_and_gutter_rows() {
+    let mut doc = String::new();
+    for n in 0..12 {
+        doc.push_str(&format!("line {n}\n"));
+    }
+    let panel = Arc::new(CodeEditorPanel::new(&doc, "txt"));
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(480.0, 320.0))
+        .build_ui(move |ui| {
+            panel_ui.show(ui);
+        });
+    harness.run();
+    harness.run();
+
+    // The PAINTED glyph rows: the label rect for each row (plain text -> one label per row).
+    let tops: Vec<f32> = (0..10)
+        .map(|n| harness.get_by_label(&format!("line {n}")).rect().top())
+        .collect();
+
+    // 1) Uniform painted pitch, row to row (no cumulative drift).
+    let pitch = tops[1] - tops[0];
+    assert!(pitch > 1.0, "sane painted row pitch (got {pitch})");
+    for (i, w) in tops.windows(2).enumerate() {
+        let p = w[1] - w[0];
+        assert!(
+            (p - pitch).abs() < 0.05,
+            "MT-054: painted row pitch must be uniform — rows {i}->{} pitch {p:.3} vs {pitch:.3}",
+            i + 1
+        );
+    }
+
+    // 2) The geometry unit (what show_rows/gutter/overlays/decorations stride by) EQUALS the painted
+    //    pitch. `screen_pos_for_line_col` returns row centers on the RowGeometry unit.
+    let gw = panel
+        .measured_glyph_width()
+        .expect("glyph width measured after a frame");
+    let c0 = panel
+        .screen_pos_for_line_col(0, 0, gw)
+        .expect("line 0 on screen");
+    let c1 = panel
+        .screen_pos_for_line_col(1, 0, gw)
+        .expect("line 1 on screen");
+    let unit = c1.y - c0.y;
+    assert!(
+        (unit - pitch).abs() < 0.05,
+        "MT-054 ONE-UNIT invariant: geometry line_height {unit:.3} must equal the painted row pitch \
+         {pitch:.3} (pre-fix: 15.1 vs 18.0-class divergence)"
+    );
+
+    // 3) Decoration y == painted glyph y, PER ROW (not just the stride): the geometry row top must
+    //    equal the painted label top for every row.
+    for (n, top) in tops.iter().enumerate() {
+        let center = panel
+            .screen_pos_for_line_col(n, 0, gw)
+            .unwrap_or_else(|| panic!("line {n} on screen"))
+            .y;
+        let geometry_top = center - unit * 0.5;
+        assert!(
+            (geometry_top - top).abs() < 0.1,
+            "MT-054: decoration/overlay row top ({geometry_top:.3}) == painted glyph row top \
+             ({top:.3}) for row {n}"
+        );
+    }
+
+    // 4) MT-007 TIGHT gutter/body alignment: the gutter's row-N center must equal the painted body
+    //    row-N center within a quarter pixel (the pre-fix drift was ~1.3 rows over 10 lines — the old
+    //    pixel tests sampled too generous a band to catch it).
+    for n in 0..10 {
+        let g = panel
+            .gutter_breakpoint_pos_for_line(n)
+            .unwrap_or_else(|| panic!("gutter row for line {n} painted"));
+        let body_center = harness
+            .get_by_label(&format!("line {n}"))
+            .rect()
+            .center()
+            .y;
+        assert!(
+            (g.y - body_center).abs() < 0.25,
+            "MT-007: gutter row {n} center y {:.3} must align with painted body row center {body_center:.3}",
+            g.y
+        );
+    }
+
+    assert_no_local_test_output();
 }

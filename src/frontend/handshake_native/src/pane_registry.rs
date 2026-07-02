@@ -461,6 +461,38 @@ pub fn register_daily_journal_pane(
     pane_id
 }
 
+/// WP-KERNEL-012 MT-056 REMEDIATION (E2 — outline/TOC): the stable pane id under which the rich-editor
+/// Outline pane ([`crate::rich_editor::outline_panel::OutlinePanel`]) docks in the shell. A fixed dotted
+/// key (NOT a per-instance `pane-a`-style id) so the shell can `dock`/`show` the pane and a swarm agent
+/// can address it deterministically. The pane is a Notes-adjacent knowledge surface, so its record uses
+/// the existing `PaneType::Placeholder("Outline")` key (the established side-pane keying — no new
+/// `PaneType` variant is forked); the STABLE ADDRESS is this pane id string plus the panel's own AccessKit
+/// container id `rich-editor-outline`.
+pub const OUTLINE_PANE_ID: &str = "rich.outline";
+
+/// Register the WP-KERNEL-012 MT-056 Outline pane into `registry` under the stable [`OUTLINE_PANE_ID`]
+/// (`"rich.outline"`), bound to the active `document_id` content (the document whose headings are
+/// outlined) for `project_id`. Re-registering keeps the already-assigned AccessKit node id (see
+/// [`PaneRegistry::insert`]), so an agent that targeted the pane does not lose its handle when the active
+/// document changes. Returns the pane id for convenience.
+pub fn register_outline_pane(
+    registry: &mut PaneRegistry,
+    project_id: impl Into<String>,
+    document_id: Option<String>,
+) -> PaneId {
+    let pane_id: PaneId = Arc::from(OUTLINE_PANE_ID);
+    registry.insert(PaneRecord::new(
+        pane_id.clone(),
+        PaneType::Placeholder("Outline".to_owned()),
+        project_id,
+        document_id,
+        LockState::Unlocked,
+        DirtyState::Clean,
+        PaneAuthority::System,
+    ));
+    pane_id
+}
+
 /// Context handed to a `PaneFactory::render`. Carries the egui id base for the pane and the project
 /// id; a real `BackendClient` handle will be threaded through here once concrete surfaces are built
 /// (MT-006+). Kept as an explicit struct now so adding the backend handle later is a field add, not
@@ -518,6 +550,15 @@ impl PaneFactory for PlaceholderPaneFactory {
             ui.add_space(8.0);
             ui.label(ctx.record.pane_type.label());
             ui.small(ctx.record.pane_id.as_ref());
+            // WP-KERNEL-012 MT-080 REMEDIATION (honest surfaces): show the CONTENT the pane was opened
+            // on (e.g. a quick-switcher `WP:{id}` / `MT:{id}` hit or a Loom block id) so a navigation
+            // that lands on a not-yet-built surface visibly carries its target instead of silently
+            // ignoring it (the audited "WP/MT id ignored" drift class).
+            if let Some(content_id) = ctx.record.content_id.as_deref() {
+                if !content_id.trim().is_empty() {
+                    ui.small(content_id);
+                }
+            }
         });
     }
 }

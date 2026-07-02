@@ -640,6 +640,96 @@ fn cross_process_out_of_process_minidump_via_shipped_handler() {
 }
 
 // ===================================================================================================
+// MT-092/MT-094 remediation — the §6.13.6 CRASH-SOCKET RENDEZVOUS, proven LIVE and UN-IGNORED.
+//
+// The audited defect: the crash client never armed in production (HANDSHAKE_CRASH_SOCK set nowhere),
+// so Palmistry's minidumper server waited forever for a client that never connected. The fix derives
+// the crash socket from the control socket on BOTH sides. This test proves the LAUNCHED palmistry
+// binary's crash server actually BINDS the derived socket and a CLIENT CONNECTS to it — the exact
+// `minidumper::Client::with_name(SocketName::path(..))` call handshake-native's late-arm step makes.
+// UN-IGNORED: a connect is a plain socket accept — no simulate_exception, no cross-thread
+// request_dump — so none of the known minidumper-IPC hang modes apply; every wait is bounded.
+// ===================================================================================================
+
+#[test]
+fn launched_client_connects_to_launched_crash_server_via_derived_socket() {
+    assert_no_local_artifact_dir();
+
+    let tag = unique_tag("rendezvous");
+    let (ring_path, _ring) = make_ring(&tag);
+    let control_socket = format!("hsk-palm-{tag}");
+
+    // BOTH sides derive the crash socket from the SAME control-socket base name. This is the REAL
+    // library derivation the launched binary uses (and the one handshake-native mirrors — pinned equal
+    // by the cross-crate wire test in handshake_native/tests/test_crash_client_install.rs).
+    let crash_socket = palmistry::crash_capture::crash_socket_path(&control_socket);
+    let _crash_sock_guard = FileGuard(PathBuf::from(&crash_socket));
+    let surv = ring_path
+        .parent()
+        .unwrap()
+        .join(format!("palmistry-survivor-{}.json", safe_token(&tag)));
+    let _surv_guard = FileGuard(surv);
+
+    let mut parent = ChildGuard::new(spawn_dummy_parent());
+    let mut watcher = ChildGuard::new(spawn_palmistry(
+        parent.id(),
+        &tag,
+        &ring_path,
+        &control_socket,
+    ));
+
+    // LATE-ARM connect with bounded retries — the same shape as production (`arm_crash_client_late`):
+    // the server binds the derived path during palmistry startup, so a fresh spawn needs a short
+    // retry window. A connect success IS the rendezvous proof.
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let mut last_err: Option<std::io::Error> = None;
+    let client = loop {
+        match minidumper::Client::with_name(minidumper::SocketName::path(&crash_socket)) {
+            Ok(c) => break Some(c),
+            Err(err) => {
+                // minidumper::Error is not io::Error; keep a readable trace of the last failure.
+                last_err = Some(std::io::Error::other(format!("{err}")));
+                if Instant::now() >= deadline {
+                    break None;
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            }
+        }
+    };
+    let client = client.unwrap_or_else(|| {
+        kill_child(watcher.child_mut());
+        let stderr = stderr_after_exit(watcher.child_mut());
+        panic!(
+            "the launched client must connect to the launched palmistry crash server on the DERIVED \
+             socket '{crash_socket}' (the §6.13.6 rendezvous); last error: {last_err:?}; palmistry \
+             stderr: {stderr}"
+        )
+    });
+    // Connected: the rendezvous holds. Disconnect (no dump requested — that IPC path is the opt-in
+    // real-host proof) and shut the watcher down cleanly.
+    drop(client);
+
+    let ack = send_control(
+        &control_socket,
+        r#"{"type":"Shutdown"}"#,
+        Duration::from_secs(10),
+    );
+    match ack {
+        Ok(reply) => assert!(reply.contains("Ack"), "expected Ack to Shutdown, got: {reply}"),
+        Err(err) => {
+            // Tolerate a lost ack only if the watcher still exits cleanly (same policy as the
+            // clean-shutdown test above).
+            let code = wait_for_exit(watcher.child_mut(), Duration::from_secs(2));
+            assert_eq!(code, Some(0), "shutdown ack failed and the watcher did not exit 0: {err}");
+        }
+    }
+    let code = wait_for_exit(watcher.child_mut(), Duration::from_secs(5));
+    assert_eq!(code, Some(0), "clean Shutdown after the rendezvous must exit 0");
+
+    kill_child(parent.child_mut());
+}
+
+// ===================================================================================================
 // AC-012-2 / PT-012-B — CLEAN SHUTDOWN IS NOT A CRASH (real palmistry binary).
 // A Shutdown BEFORE the parent exit => NO crash record + NO minidump.
 // ===================================================================================================

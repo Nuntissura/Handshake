@@ -104,7 +104,8 @@ impl DiagnosticsRecorder {
 
     /// Record one event. NON-BLOCKING + PANIC-FREE: pushes into the bounded buffer (drop-oldest on
     /// overflow, never grows, never blocks the caller longer than the short buffer lock) AND writes the
-    /// MT-081 ring if a writer is installed (the ring writer is itself wait-free by design).
+    /// MT-081 ring if a writer is installed (the ring writer is itself wait-free by design). The ring
+    /// write happens UNDER the same buffer mutex — see the serialization note in the body.
     ///
     /// A poisoned buffer mutex is RECOVERED via `into_inner` rather than unwrapped, so a panic in some
     /// unrelated holder of the lock can never propagate a poison panic into a diagnostics call on the
@@ -120,14 +121,24 @@ impl DiagnosticsRecorder {
             self.dropped.fetch_add(1, Ordering::Relaxed);
         }
         guard.push_back(event);
-        // Drop the buffer lock BEFORE touching the ring so the (wait-free) ring write never holds the
-        // buffer lock, keeping the contended section minimal.
-        drop(guard);
 
         // Shared-memory ring (what Palmistry reads). Silent no-op when no writer is installed.
+        //
+        // RING-WRITE SERIALIZATION (MT-082 remediation): the ring write happens WHILE STILL HOLDING
+        // the buffer mutex. The MT-081 `DiagRingWriter` is a SINGLE-PRODUCER seqlock ring (Relaxed
+        // `write_index` load + non-atomic payload copy) — but `record()` callers are multi-threaded
+        // in production since MT-105 (the watchdog poll thread emits `StalledOperation`) and MT-083
+        // (the panic hook records from the panicking thread), concurrent with the UI thread's
+        // SlowFrame/ResourceSample/Backend* emits. Two unserialized `record()` calls funneled into
+        // the SPSC writer can interleave a slot's odd/even seq such that a reader ACCEPTS a torn
+        // record — and are a plain Rust data race (UB). Holding the already-taken buffer mutex
+        // across the (wait-free, short, bounded) ring write restores the single-producer discipline
+        // at zero additional lock cost. The heartbeat slot deliberately stays lock-free: it is
+        // UI-thread-only and touches disjoint header fields (see [`Self::heartbeat`]).
         if let Some(writer) = &self.writer {
             writer.write(event);
         }
+        drop(guard);
     }
 
     /// Publish the heartbeat slot (MT-084). Called from the UI thread every egui frame.

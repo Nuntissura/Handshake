@@ -343,7 +343,123 @@ const APP_COMMANDS: &[AppCommand] = &[
         stable_id: "hs-activity-palette-open-document",
         disabled: false,
     },
+    // ── WP-KERNEL-012 E11 remediation wave: the OPERATOR OPEN ROUTES for the previously orphaned side
+    // panes (2026-07-02 drift audit). Each `view.*` id maps to a real `dispatch_palette_action` arm that
+    // opens the named pane on the active work surface through the SAME `open_content_on_active_pane`
+    // primitive every other open route uses. No fake commands: every id below has a mounted factory.
+    AppCommand {
+        id: CMD_VIEW_RELEVANT_MEMORY,
+        kind: CommandKind::App,
+        label: "View: Relevant Memory",
+        description: "Open the FEMS Relevant Memory side pane on the active work surface.",
+        keywords: &["view", "memory", "fems", "relevant", "pane", "pillar 12"],
+        stable_id: "hs-view-palette-relevant-memory",
+        disabled: false,
+    },
+    AppCommand {
+        id: CMD_VIEW_STAGE,
+        kind: CommandKind::App,
+        label: "View: Stage",
+        description: "Open the Stage pane (the route-to-Stage round-trip surface with the embed-back action).",
+        keywords: &["view", "stage", "pane", "interop", "pillar 17"],
+        stable_id: "hs-view-palette-stage",
+        disabled: false,
+    },
+    AppCommand {
+        id: CMD_VIEW_TAGS,
+        kind: CommandKind::App,
+        label: "View: Tags",
+        description: "Open the Loom tags panel (tag list + tag hub pages).",
+        keywords: &["view", "tags", "tag", "hub", "loom", "pane"],
+        stable_id: "hs-view-palette-tags",
+        disabled: false,
+    },
+    AppCommand {
+        id: CMD_VIEW_SIDEBAR,
+        kind: CommandKind::App,
+        label: "View: Pins & Backlinks Sidebar",
+        description: "Open the Loom sidebar (pins, favorites, backlinks, unlinked mentions, breadcrumbs).",
+        keywords: &["view", "sidebar", "pins", "favorites", "backlinks", "unlinked", "loom", "pane"],
+        stable_id: "hs-view-palette-sidebar",
+        disabled: false,
+    },
+    AppCommand {
+        id: CMD_VIEW_BLOCK_COLLECTIONS,
+        kind: CommandKind::App,
+        label: "View: Block Collections",
+        description: "Open the block-collections view (table / kanban / calendar over Loom blocks).",
+        keywords: &["view", "collections", "blocks", "table", "kanban", "calendar", "pane"],
+        stable_id: "hs-view-palette-block-collections",
+        disabled: false,
+    },
+    AppCommand {
+        id: CMD_VIEW_OUTLINE,
+        kind: CommandKind::App,
+        label: "View: Outline",
+        description: "Open the document outline (table of contents) beside the rich editor.",
+        keywords: &["view", "outline", "toc", "headings", "document", "pane"],
+        stable_id: "hs-view-palette-outline",
+        disabled: false,
+    },
+    AppCommand {
+        id: CMD_VIEW_GRAPH,
+        kind: CommandKind::App,
+        label: "View: Graph",
+        description: "Open the knowledge graph view on the active work surface.",
+        keywords: &["view", "graph", "knowledge", "backlinks", "loom", "pane"],
+        stable_id: "hs-view-palette-graph",
+        disabled: false,
+    },
+    AppCommand {
+        id: CMD_VIEW_FOLDERS,
+        kind: CommandKind::App,
+        label: "View: Folders",
+        description: "Open the Loom folder tree (lazy-loaded folders with color swatches).",
+        keywords: &["view", "folders", "folder", "tree", "loom", "pane"],
+        stable_id: "hs-view-palette-folders",
+        disabled: false,
+    },
+    AppCommand {
+        id: CMD_VIEW_OUTGOING_LINKS,
+        kind: CommandKind::App,
+        label: "View: Outgoing Links",
+        description: "Open the outgoing-links side pane for the active document.",
+        keywords: &["view", "outgoing", "links", "wikilinks", "pane"],
+        stable_id: "hs-view-palette-outgoing-links",
+        disabled: false,
+    },
+    AppCommand {
+        id: CMD_VIEW_JOURNAL,
+        kind: CommandKind::App,
+        label: "View: Daily Journal",
+        description: "Open the daily journal pane (calendar chip + today's note editor with auto-save).",
+        keywords: &["view", "journal", "daily", "note", "today", "pane"],
+        stable_id: "hs-view-palette-journal",
+        disabled: false,
+    },
+    AppCommand {
+        id: CMD_VIEW_DIFF_MERGE,
+        kind: CommandKind::App,
+        label: "View: Diff / Merge Editor",
+        description: "Open the diff/merge editor pane (renders the currently opened diff or an honest empty state).",
+        keywords: &["view", "diff", "merge", "conflict", "compare", "pane"],
+        stable_id: "hs-view-palette-diff-merge",
+        disabled: false,
+    },
 ];
+
+// ── WP-KERNEL-012 E11 remediation wave: stable `view.*` open-command ids ─────────────────────────────
+pub const CMD_VIEW_RELEVANT_MEMORY: &str = "view.relevant-memory";
+pub const CMD_VIEW_STAGE: &str = "view.stage";
+pub const CMD_VIEW_TAGS: &str = "view.tags";
+pub const CMD_VIEW_SIDEBAR: &str = "view.sidebar";
+pub const CMD_VIEW_BLOCK_COLLECTIONS: &str = "view.block-collections";
+pub const CMD_VIEW_OUTLINE: &str = "view.outline";
+pub const CMD_VIEW_GRAPH: &str = "view.graph";
+pub const CMD_VIEW_FOLDERS: &str = "view.folders";
+pub const CMD_VIEW_OUTGOING_LINKS: &str = "view.outgoing-links";
+pub const CMD_VIEW_JOURNAL: &str = "view.journal";
+pub const CMD_VIEW_DIFF_MERGE: &str = "view.diff-merge";
 
 // ── WP-KERNEL-012 MT-069 (E11 menu wire-up): the editor FILE/EDIT/GO menu + palette command ids ──────
 //

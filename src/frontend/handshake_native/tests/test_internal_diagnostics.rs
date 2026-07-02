@@ -8,9 +8,12 @@
 //!   in-process AND a SEPARATELY-constructed `DiagRingReader::open` on the SAME backing file reads them
 //!   back — proving `record()` writes the shared-memory ring (what Palmistry maps).
 //! - AC-002-2 / PT-002-B (`record_is_nonblocking_panic_free_under_stress`): many threads hammer
-//!   `record()` thousands of times against a recorder whose buffer is far smaller than the write count;
-//!   no panic, no deadlock, the buffer stays `<= BUFFER_CAP`, and `dropped_count` accounts for every
-//!   shed event (writes == survivors + dropped).
+//!   `record()` thousands of times against a WRITER-INSTALLED recorder (the production shape since
+//!   MT-105/MT-083 made record() multi-threaded) whose buffer is far smaller than the write count;
+//!   no panic, no deadlock, the buffer stays `<= BUFFER_CAP`, `dropped_count` accounts for every
+//!   shed event (writes == survivors + dropped), AND a concurrent `DiagRingReader` on the same
+//!   backing file accepts ZERO torn records — proving the recorder serializes the multi-producer
+//!   funnel into the single-producer MT-081 ring writer.
 //! - AC-002-3 / PT (`record_degrades_gracefully_with_no_writer`): with NO writer installed, `record()`
 //!   still buffers in-process and never errors/panics (the headless/test path).
 //! - AC-002-4 / PT-002-C (`live_startup_marker_is_recorded`): a kittest drives the REAL `HandshakeApp`
@@ -124,23 +127,89 @@ fn record_writes_ring_and_buffer() {
 
 // ── AC-002-2 / PT-002-B: non-blocking + panic-free + bounded + dropped accounting under stress ────
 
+/// A "sealed" marker whose u64 payload fields are all DERIVED from the sequence id, so a reader can
+/// verify each accepted record is internally self-consistent. A torn record — bytes mixed from TWO
+/// different events — breaks at least one derivation with overwhelming probability, because every
+/// producer writes a globally unique `seq` and every derived field differs per `seq`.
+const SEAL_XOR: u64 = 0xA5A5_A5A5_A5A5_A5A5;
+const SEAL_MUL: u64 = 0x9E37_79B9_7F4A_7C15;
+
+fn sealed_marker(seq: u64) -> DiagEvent {
+    DiagEvent::generic(
+        DiagEventCode::Other,
+        DiagPhase::Tick,
+        DiagSeverity::Info,
+        seq,                        // thread_id mirrors seq too
+        seq,                        // sequence_id
+        seq,                        // counter_a
+        seq ^ SEAL_XOR,             // counter_b
+        seq.wrapping_mul(SEAL_MUL), // metric_micros
+        seq,                        // timestamp_nanos
+    )
+}
+
+/// True iff `e` is a self-consistent sealed marker (all derived fields match its sequence_id).
+fn is_consistent_sealed(e: &DiagEvent) -> bool {
+    let seq = e.sequence_id;
+    e.event_code == DiagEventCode::Other.as_u16()
+        && e.thread_id == seq
+        && e.counter_a == seq
+        && e.counter_b == (seq ^ SEAL_XOR)
+        && e.metric_micros == seq.wrapping_mul(SEAL_MUL)
+        && e.timestamp_nanos == seq
+}
+
 #[test]
 fn record_is_nonblocking_panic_free_under_stress() {
-    // This test proves the RECORDER'S in-process buffer side is panic-free + bounded + correctly
-    // accounted under heavy multi-thread contention (the canonical "diagnostics from many call sites"
-    // case). It therefore uses an `in_process_only()` (writer-less) recorder DELIBERATELY:
+    // MT-082 remediation: this stress test now runs against a WRITER-INSTALLED recorder. Production
+    // `record()` callers ARE multi-threaded since MT-105 (the watchdog poll thread emits
+    // StalledOperation) and MT-083 (the panic hook records from the panicking thread), concurrent
+    // with the UI thread — so the recorder must funnel those producers into the SINGLE-PRODUCER
+    // MT-081 `DiagRingWriter` safely. The recorder serializes ring writes by holding its buffer
+    // mutex across `writer.write(event)`; this test proves the result: concurrent producers, a
+    // live `DiagRingReader` on the same backing file, and ZERO torn records accepted by the reader.
     //
-    // The MT-081 `DiagRingWriter` is documented SINGLE-PRODUCER (Relaxed write_index + a non-atomic
-    // `copy_nonoverlapping` of the payload). Sharing one writer across 8 concurrent `record()` callers
-    // would be a genuine data race / UB on the ring, even though the buffer-side assertions below would
-    // still pass. Production never does this (the UI thread is the sole writer), so exercising the
-    // multi-producer ring path here would test UB we never ship. The ring WRITE path is proven
-    // separately and correctly by `record_writes_ring_and_buffer` (AC-002-1) with a single producer.
-    let recorder = Arc::new(DiagnosticsRecorder::in_process_only());
+    // Torn-record detection: every event is a `sealed_marker` whose payload fields are all derived
+    // from its (globally unique) sequence id. The seqlock reader retries/skips mid-write slots by
+    // design; the assertion here is that every record it ACCEPTS is internally self-consistent —
+    // i.e. the odd/even slot-seq protocol was never corrupted by two racing writers interleaving.
+    let path = temp_ring_path("stress");
+    let _ = std::fs::remove_file(&path);
+
+    let writer = DiagRingWriter::create(&path, DEFAULT_CAPACITY).expect("create ring writer");
+    let recorder = Arc::new(DiagnosticsRecorder::with_writer(writer));
 
     let threads = 8usize;
     let per_thread = 5_000u64;
     let total = threads as u64 * per_thread;
+
+    // Concurrent READER: polls the ring while the producers hammer it, asserting every accepted
+    // record is self-consistent (zero torn records). Runs until the producers finish.
+    let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let reader_stop = Arc::clone(&stop);
+    let reader_path = path.clone();
+    let reader_handle = std::thread::spawn(move || -> (u64, u64) {
+        let reader =
+            DiagRingReader::open(&reader_path).expect("open ring reader on the same backing file");
+        let mut accepted: u64 = 0;
+        let mut torn: u64 = 0;
+        while !reader_stop.load(std::sync::atomic::Ordering::Relaxed) {
+            for e in reader.read_last_n(DEFAULT_CAPACITY) {
+                accepted += 1;
+                if !is_consistent_sealed(&e) {
+                    torn += 1;
+                }
+            }
+        }
+        // One final full pass after the producers stopped (quiescent ring).
+        for e in reader.read_last_n(DEFAULT_CAPACITY) {
+            accepted += 1;
+            if !is_consistent_sealed(&e) {
+                torn += 1;
+            }
+        }
+        (accepted, torn)
+    });
 
     let handles: Vec<_> = (0..threads)
         .map(|t| {
@@ -148,8 +217,8 @@ fn record_is_nonblocking_panic_free_under_stress() {
             std::thread::spawn(move || {
                 for i in 0..per_thread {
                     // record() must never panic and never deadlock, even with the buffer long since
-                    // full (per_thread * threads >> BUFFER_CAP).
-                    rec.record(marker(t as u64 * per_thread + i));
+                    // full (per_thread * threads >> BUFFER_CAP) and the ring wrapping many times.
+                    rec.record(sealed_marker(t as u64 * per_thread + i));
                 }
             })
         })
@@ -157,6 +226,19 @@ fn record_is_nonblocking_panic_free_under_stress() {
     for h in handles {
         h.join().expect("no thread panicked inside record()");
     }
+    stop.store(true, std::sync::atomic::Ordering::Relaxed);
+    let (accepted, torn) = reader_handle.join().expect("reader thread never panics");
+
+    // ZERO torn records accepted by the seqlock reader across the whole concurrent run.
+    assert_eq!(
+        torn, 0,
+        "reader must accept zero torn records under concurrent multi-producer record() \
+         ({torn} torn of {accepted} accepted)"
+    );
+    assert!(
+        accepted > 0,
+        "the concurrent reader must have observed records while producers ran"
+    );
 
     // Buffer stayed bounded.
     let snap = recorder.snapshot_last_n(BUFFER_CAP * 4);
@@ -178,9 +260,17 @@ fn record_is_nonblocking_panic_free_under_stress() {
         dropped > 0,
         "with total >> cap, some events must have been shed"
     );
+    // The buffer survivors are sealed markers too (the same serialized record() path fed both).
+    for e in &snap {
+        assert!(
+            is_consistent_sealed(e),
+            "in-process buffer must never hold a torn record (seq {})",
+            e.sequence_id
+        );
+    }
 
     drop(recorder);
-    // No ring backing file is created here (writer-less recorder), so there is nothing to remove.
+    let _ = std::fs::remove_file(&path);
     assert_no_local_artifact_dir();
 }
 
