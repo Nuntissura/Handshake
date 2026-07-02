@@ -6761,7 +6761,7 @@ impl HandshakeApp {
                             let staged =
                                 crate::interop::InteractionBus::with_try_lock(&bus, |b| {
                                     b.register_open_locus_ref_command();
-                                    crate::interop::locus_interop::dispatch_locus_ref_open(
+                                    crate::interop::cross_ref::dispatch_locus_ref_open(
                                         ctx, b, &event,
                                     );
                                     b.take_pending_locus_ref()
@@ -7750,9 +7750,13 @@ impl HandshakeApp {
     /// results back into the mounted view.
     fn drive_collections_pane(&mut self, ctx: &egui::Context, workspace: &str) {
         use crate::graph::block_collection_view::BlockViewEvent;
-        let sec = &self.editor_mounts.secondary;
 
-        let events: Vec<BlockViewEvent> = sec
+        // Extract the queued events with a SCOPED borrow (not a function-long `sec` binding): the
+        // OpenBlock arm below routes through `open_content_on_active_pane(&mut self)`, which must not
+        // overlap an outstanding immutable borrow of `self.editor_mounts` (E0502 otherwise).
+        let events: Vec<BlockViewEvent> = self
+            .editor_mounts
+            .secondary
             .collection_events
             .lock()
             .map(|mut q| std::mem::take(&mut *q))
@@ -7841,7 +7845,9 @@ impl HandshakeApp {
         }
 
         // A resolved mutation re-queries the definition + results (the re-query is truth — the local
-        // lane/sort state is never mutated directly).
+        // lane/sort state is never mutated directly). Re-borrow AFTER the event loop (the loop above
+        // takes `&mut self` on OpenBlock).
+        let sec = &self.editor_mounts.secondary;
         if let Some(result) = sec
             .collection_op_cell
             .lock()

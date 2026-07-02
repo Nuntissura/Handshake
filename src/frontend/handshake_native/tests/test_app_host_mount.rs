@@ -349,3 +349,105 @@ fn rich_pending_events_drain_and_route() {
         "AC-079-5: the rich pane's pending_events was DRAINED by the live render (routed to the nav bus)"
     );
 }
+
+// ── WP-KERNEL-012 MT-055 REMEDIATION: reading mode is REACHABLE in the MOUNTED editor ──────────────────
+
+/// The Edit|Reading segmented toggle renders in the MOUNTED Notes pane's chrome (stable author_ids in
+/// the live app tree), and clicking the Reading segment through the REAL AccessKit dispatch path flips
+/// the mounted editor into reading mode (the Reading segment reads toggled/selected — the state a
+/// no-context swarm agent reads). The 2026-07-02 audit found `view_mode_toggle` had zero production
+/// callers (reading mode unreachable); this proves the mounted path, not a widget harness.
+#[test]
+fn reading_mode_toggle_reachable_and_flips_in_mounted_editor() {
+    use handshake_native::rich_editor::reading_mode::{
+        TOGGLE_CONTAINER_AUTHOR_ID, TOGGLE_EDIT_AUTHOR_ID, TOGGLE_READING_AUTHOR_ID,
+    };
+
+    let (app, _rt) = editor_shell();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(3);
+
+    // The toggle chrome renders in the LIVE mounted Notes pane (operator-reachable, not kittest-only).
+    let ids = live_author_ids(&harness);
+    for id in [
+        TOGGLE_CONTAINER_AUTHOR_ID,
+        TOGGLE_EDIT_AUTHOR_ID,
+        TOGGLE_READING_AUTHOR_ID,
+    ] {
+        assert!(
+            ids.contains(id),
+            "MT-055: the mounted Notes pane chrome carries the view-mode toggle node '{id}'; got {:?}",
+            ids.iter().filter(|i| i.starts_with("rich-reading")).collect::<Vec<_>>()
+        );
+    }
+
+    // Click the READING segment via the real AccessKit action dispatch (the same out-of-process path a
+    // swarm agent / operator assistive tech uses).
+    let reading_node_id = harness
+        .root()
+        .children_recursive()
+        .find(|n| n.accesskit_node().author_id() == Some(TOGGLE_READING_AUTHOR_ID))
+        .expect("reading segment present")
+        .accesskit_node()
+        .id();
+    harness.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action: egui::accesskit::Action::Click,
+            target: reading_node_id,
+            data: None,
+        },
+    ));
+    harness.run_steps(3);
+
+    // The Reading segment is now the toggled/selected one (the persisted per-document mode flipped and
+    // the mounted pane re-rendered through the read-only branch).
+    let reading_node = harness
+        .root()
+        .children_recursive()
+        .find(|n| n.accesskit_node().author_id() == Some(TOGGLE_READING_AUTHOR_ID))
+        .expect("reading segment still present after the flip");
+    assert_eq!(
+        reading_node.accesskit_node().toggled(),
+        Some(egui::accesskit::Toggled::True),
+        "MT-055: clicking Reading flips the mounted editor's view mode (the segment reads toggled)"
+    );
+    let edit_node = harness
+        .root()
+        .children_recursive()
+        .find(|n| n.accesskit_node().author_id() == Some(TOGGLE_EDIT_AUTHOR_ID))
+        .expect("edit segment still present after the flip");
+    assert_ne!(
+        edit_node.accesskit_node().toggled(),
+        Some(egui::accesskit::Toggled::True),
+        "MT-055: the Edit segment is no longer the active mode after the flip"
+    );
+}
+
+// ── WP-KERNEL-012 MT-041 REMEDIATION: the canonical editor action nodes exist in the LIVE app tree ─────
+
+/// The ONE shared `EditorActionRegistry` is installed on the MOUNTED code + rich panes at mount build,
+/// so the canonical `editor.code.*` / `editor.rich.*` AccessKit action nodes are present in the LIVE app
+/// tree — the 2026-07-02 audit found `install_editor_action_registry` had zero production callers, so
+/// these nodes existed ONLY in kittest harnesses. This drives the real shell, not a widget harness.
+#[test]
+fn editor_action_nodes_present_in_live_shell_tree() {
+    let (app, _rt) = editor_shell();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(4);
+
+    let ids = live_author_ids(&harness);
+    assert!(
+        ids.contains("editor.code.save"),
+        "MT-041: the LIVE app tree carries the canonical 'editor.code.save' action node (registry \
+         installed at mount, not kittest-only); got editor.* subset {:?}",
+        ids.iter().filter(|i| i.starts_with("editor.")).collect::<Vec<_>>()
+    );
+    assert!(
+        ids.contains("editor.rich.save"),
+        "MT-041: the LIVE app tree carries the canonical 'editor.rich.save' action node; got editor.* \
+         subset {:?}",
+        ids.iter().filter(|i| i.starts_with("editor.")).collect::<Vec<_>>()
+    );
+}

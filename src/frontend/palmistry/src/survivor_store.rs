@@ -32,6 +32,19 @@
 //! record and, on Windows, never a remove-before-replace gap. The store reads ALL existing records on
 //! startup (`load_existing`), so a Palmistry restart between capture and forward does not lose a pending
 //! forward (AC-013-1 / AC-013-5).
+//!
+//! # Retention (MT-093 remediation note — honest current policy)
+//!
+//! The store NEVER auto-deletes a record. Forwarded records stay on disk as the local audit trail, and a
+//! PENDING (never-drained) record persists indefinitely: production forwarding is short-circuited by the
+//! contract-sanctioned AC-013-4 typed blocker (`FrForwardBlocker::SchemaIncompatible` — the existing FR
+//! `runtime_chat_event` route cannot carry the survivor shape) until WP-KERNEL-016 lands a survivor
+//! ingestion shape, so every captured record currently accumulates as `forwarded:false`. Growth is
+//! BOUNDED BY EVENT RATE, not by time: one small JSON file per confirmed freeze / crash / child-stall
+//! EDGE (edge-triggered detectors, never per poll tick), so a healthy install writes nothing and even a
+//! crash-looping install writes one record per death. Pruning/compaction policy (age- or count-based) is
+//! deliberately NOT invented here — it is a WP-KERNEL-016 decision alongside the ingestion shape, when
+//! "forwarded" becomes reachable and forwarded records become safe to expire.
 
 use std::fs;
 use std::path::{Path, PathBuf};

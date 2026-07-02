@@ -22,7 +22,8 @@
 //!
 //! A replace targets a [`scanner::FindMatch`]'s `(node_path, char_start..char_end)` rope range via the
 //! MT-011 [`Step::DeleteText`] + [`Step::InsertText`] pair — these are proper undoable steps (this is
-//! TEXT replace, not the inline-atom-insert gap carried to MT-020). [`replace_one`] issues ONE atomic
+//! TEXT replace; inline-atom inserts are ALSO undoable now via the MT-020 `Step::InsertInlineChild`
+//! rewire). [`replace_one`] issues ONE atomic
 //! [`Transaction`] (single Ctrl+Z) then the caller advances; [`replace_all`] issues ONE Transaction
 //! with all step pairs sorted DESCENDING by `(node_path, char_start)` so earlier positions do not
 //! drift as later replacements shorten/lengthen the rope (MC-001).

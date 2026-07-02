@@ -32,7 +32,7 @@ use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
 
 use handshake_native::code_editor::gutter::{
-    DiagnosticSeverity, Gutter, GutterConfig, GutterMarkerKind,
+    fold_triangle_glyph, DiagnosticSeverity, Gutter, GutterConfig, GutterMarkerKind,
 };
 use handshake_native::code_editor::{CodeEditorPanel, GutterMarker};
 
@@ -457,6 +457,99 @@ fn gutter_fold_click_toggles_fold() {
         !folded_rows.contains(&1),
         "AC-006: after the fold click, body line 1 is no longer painted; got {folded_rows:?}"
     );
+}
+
+// ── MC-001: runtime gutter-widen e2e (Wave-B remediation — previously deferred) ───────────────────
+
+#[test]
+fn gutter_widens_at_runtime_when_line_count_crosses_digit_boundaries() {
+    // MC-001 e2e: the gutter width is recomputed EVERY FRAME from the LIVE line count (not cached at
+    // mount), so growing the buffer at runtime from 9 lines (1 digit) to 10000 lines (5 digits) must
+    // push the text column right by exactly 4 digit columns — and shrinking back must narrow it again.
+    // Observed through the live panel: `screen_pos_for_line_col(0, 0)` x is the text-column left edge,
+    // which sits at the gutter strip's right edge.
+    let panel = Arc::new(CodeEditorPanel::new(&"x\n".repeat(9), "txt"));
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(640.0, 400.0))
+        .build_ui(move |ui| {
+            panel_ui.show(ui);
+        });
+    harness.run();
+    harness.run();
+    let gw = panel
+        .measured_glyph_width()
+        .expect("glyph width measured after a frame");
+    let x_small = panel
+        .screen_pos_for_line_col(0, 0, gw)
+        .expect("line 0 on screen (9-line buffer)")
+        .x;
+
+    // Grow the LIVE buffer across four digit boundaries (9 -> 10000 lines) and re-render.
+    panel.set_text(&"y\n".repeat(10_000));
+    harness.run();
+    harness.run();
+    let x_big = panel
+        .screen_pos_for_line_col(0, 0, gw)
+        .expect("line 0 on screen (10000-line buffer)")
+        .x;
+    assert!(
+        (x_big - x_small - 4.0 * gw).abs() < 0.5,
+        "MC-001: growing 9 -> 10000 lines at runtime widens the gutter by exactly 4 digit columns \
+         (text left moved {:.2}px, expected {:.2}px)",
+        x_big - x_small,
+        4.0 * gw
+    );
+
+    // And back down: the width is live, not high-watermark — shrinking narrows the gutter again.
+    panel.set_text(&"z\n".repeat(9));
+    harness.run();
+    harness.run();
+    let x_back = panel
+        .screen_pos_for_line_col(0, 0, gw)
+        .expect("line 0 on screen (back to 9 lines)")
+        .x;
+    assert!(
+        (x_back - x_small).abs() < 0.5,
+        "MC-001: shrinking back to 9 lines restores the original gutter width \
+         (text left {x_back:.2} vs original {x_small:.2})"
+    );
+}
+
+// ── MC-002: fold-triangle glyph CI test (Wave-B remediation — previously deferred) ────────────────
+
+#[test]
+fn gutter_fold_triangle_glyph_matches_font_coverage_and_is_never_tofu() {
+    // MC-002: `fold_triangle_glyph` must return the Unicode triangle exactly when the active
+    // monospace font can render it, the ASCII fallback otherwise — and whichever it returns must
+    // itself be renderable (never a tofu box). Checked live against the same monospace family the
+    // gutter paints with (glyph COVERAGE is a property of the font family, not the point size).
+    let mut harness = Harness::builder().build_ui(|ui| {
+        let font = egui::FontId::monospace(13.0);
+        for is_open in [true, false] {
+            let (unicode_str, unicode_ch, ascii) = if is_open {
+                ("\u{25BC}", '\u{25BC}', "v")
+            } else {
+                ("\u{25B6}", '\u{25B6}', ">")
+            };
+            let glyph = fold_triangle_glyph(ui, is_open);
+            let font_has_unicode = ui.fonts_mut(|f| f.has_glyph(&font, unicode_ch));
+            let expected = if font_has_unicode { unicode_str } else { ascii };
+            assert_eq!(
+                glyph, expected,
+                "MC-002: fold triangle (is_open={is_open}) must be the Unicode glyph iff the \
+                 monospace font covers it (font_has_unicode={font_has_unicode})"
+            );
+            // Never tofu: the returned glyph is renderable in the gutter's monospace family.
+            let ch = glyph.chars().next().expect("non-empty glyph");
+            assert!(
+                ui.fonts_mut(|f| f.has_glyph(&font, ch)),
+                "MC-002: the returned fold glyph {glyph:?} must be renderable — never a tofu box"
+            );
+        }
+    });
+    // The closure runs on `run()`; any assertion failure inside it panics the test here.
+    harness.run();
 }
 
 /// A plain Primary click (press + release) at `pos`.

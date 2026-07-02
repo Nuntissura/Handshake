@@ -77,21 +77,17 @@ pub fn block_galley_cursor(
 }
 
 /// The number of galley chars an inline child contributes to `line_layout::layout_block`'s plain
-/// text. A text run contributes its char count; an `hsLink` atom contributes its display label
-/// (`label` or `refKind:refValue`); a transclusion contributes its `⟢ {ref}` label; a (schema-illegal
+/// text. A text run contributes its char count; an `hsLink` atom contributes its CHIP label
+/// (`inline_view::chip_label` — the MT-068 glyph-overlap fix made the layout reserve the chip's true
+/// text, decorations included); a transclusion contributes its `⟢ {ref}` label; a (schema-illegal
 /// here) block child contributes nothing. MUST mirror `line_layout::layout_block` exactly so the
 /// galley cursor index lines up with the laid-out glyphs.
 fn inline_child_galley_len(child: &Child) -> usize {
     match child {
         Child::Text(t) => t.text.len_chars(),
-        Child::HsLink(l) => {
-            let label = if l.label.is_empty() {
-                format!("{}:{}", l.ref_kind, l.ref_value)
-            } else {
-                l.label.clone()
-            };
-            label.chars().count()
-        }
+        Child::HsLink(l) => crate::rich_editor::wikilinks::inline_view::chip_label(l)
+            .chars()
+            .count(),
         Child::Transclusion(t) => format!("⟢ {}", t.ref_value).chars().count(),
         Child::Block(_) => 0,
     }

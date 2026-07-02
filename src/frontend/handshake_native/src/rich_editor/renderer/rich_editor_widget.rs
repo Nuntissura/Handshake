@@ -2458,12 +2458,22 @@ impl RichEditorWidget {
     /// like a wikilink / media embed (AC-2) — never an invented `atelier_embed` node the backend would
     /// drop on save. When the selection is not a text caret (e.g. an empty doc), the atom is appended to
     /// the first paragraph's content so a drop is never a silent no-op.
+    ///
+    /// MT-020 (inline-atom undo rewire): the WHOLE drop (leaf split + atom insert + trailing caret-host
+    /// leaf) is ONE atomic transaction ([`Step::DeleteText`] + [`Step::InsertInlineChild`] +
+    /// `InsertText`/`InsertInlineChild` for the tail) whose receipt is pushed onto `state.undo`, and the
+    /// `(before, after)` content_json pair is queued on `pending_bus_undo` so the MT-035 unified undo bus
+    /// records it — a real Ctrl+Z removes the dropped embed exactly (the drop ran inside the render
+    /// closure, invisible to the frame-input diff). No direct children mutation bypasses the undo system.
     pub fn insert_atelier_embed_at_caret(
         state: &mut RichEditorState,
         link: crate::rich_editor::document_model::node::HsLinkNode,
     ) -> bool {
         use crate::rich_editor::document_model::node::{Child, TextLeaf};
         use crate::rich_editor::document_model::position::DocPosition;
+        use crate::rich_editor::document_model::transform::{
+            apply_transaction, ActorKind, Step, Transaction,
+        };
 
         // Resolve the caret leaf path + offset, or fall back to the first inline-content block.
         let (leaf_path, caret_char) = match &state.selection {
@@ -2481,22 +2491,17 @@ impl RichEditorWidget {
             return false;
         };
 
-        // Split the caret leaf into head `[0, caret_char)` + tail `[caret_char, end)` so the atom lands at
-        // the exact drop position. The tail (when the caret is mid-leaf) becomes the caret-host leaf. When
-        // the caret is NOT on a text leaf (e.g. on an atom), there is no split (`None`) and the atom is
-        // inserted after that child.
-        let tail_text: Option<String> = {
-            let mut node = &mut state.doc;
-            for &idx in parent_path {
-                match node.children.get_mut(idx).and_then(Child::as_block_mut) {
-                    Some(b) => node = b,
-                    None => return false,
-                }
+        // Pre-state facts (read-only): the caret leaf's split point + tail text, and whether the child
+        // after the atom will be a text leaf (the caret-host rule confirm_wikilink uses). The split tail
+        // `[caret_char, end)` moves after the atom so the atom lands at the exact drop position.
+        let (tail_text, needs_new_trailing, split_range) = {
+            let Some(parent) = Self::block_at_path(&state.doc, parent_path) else {
+                return false;
+            };
+            if *leaf_idx >= parent.children.len() {
+                return false;
             }
-            match node
-                .children
-                .get_mut(*leaf_idx)
-                .and_then(Child::as_text_mut)
+            let (tail, split_range) = match parent.children.get(*leaf_idx).and_then(Child::as_text)
             {
                 Some(leaf) => {
                     let len = leaf.text.len_chars();
@@ -2504,59 +2509,87 @@ impl RichEditorWidget {
                     if split < len {
                         let full = leaf.text.to_string();
                         let tail: String = full.chars().skip(split).collect();
-                        leaf.text.remove(split, len);
-                        Some(tail)
+                        (Some(tail), Some((split, len)))
                     } else {
-                        None
+                        (None, None)
                     }
                 }
-                None => None,
-            }
+                None => (None, None),
+            };
+            let needs_new_trailing = parent
+                .children
+                .get(*leaf_idx + 1)
+                .map(|c| c.as_text().is_none())
+                .unwrap_or(true);
+            (tail, needs_new_trailing, split_range)
         };
 
-        // Re-resolve the parent block (the borrow above ended) and insert the atom after the caret leaf.
-        let mut node = &mut state.doc;
-        for &idx in parent_path {
-            match node.children.get_mut(idx).and_then(Child::as_block_mut) {
-                Some(b) => node = b,
-                None => return false,
-            }
-        }
-        if *leaf_idx >= node.children.len() {
-            return false;
-        }
+        // Build the ONE transaction: tail removal from the caret leaf, atom insert, tail re-host.
         let insert_at = *leaf_idx + 1;
-        node.children.insert(insert_at, Child::HsLink(link));
-
-        // The caret host is the leaf immediately after the atom: the split tail (if any) or a fresh empty
-        // leaf so the caret has a text position to land on (the caret model needs trailing inline text).
         let trailing_idx = insert_at + 1;
         let trailing_text = tail_text.unwrap_or_default();
-        let needs_new_trailing = node
-            .children
-            .get(trailing_idx)
-            .map(|c| c.as_text().is_none())
-            .unwrap_or(true);
+        let mut steps = Vec::with_capacity(3);
+        if let Some((split, len)) = split_range {
+            steps.push(Step::DeleteText {
+                path: leaf_path.to_vec(),
+                start: split,
+                end: len,
+            });
+        }
+        steps.push(Step::InsertInlineChild {
+            parent_path: parent_path.to_vec(),
+            index: insert_at,
+            child: Child::HsLink(link),
+        });
         if needs_new_trailing {
-            node.children
-                .insert(trailing_idx, Child::Text(TextLeaf::new(&trailing_text)));
+            // No text leaf follows the atom: the tail (or a fresh empty leaf) becomes the caret host.
+            steps.push(Step::InsertInlineChild {
+                parent_path: parent_path.to_vec(),
+                index: trailing_idx,
+                child: Child::Text(TextLeaf::new(&trailing_text)),
+            });
         } else if !trailing_text.is_empty() {
-            if let Some(leaf) = node
-                .children
-                .get_mut(trailing_idx)
-                .and_then(Child::as_text_mut)
-            {
-                leaf.text.insert(0, &trailing_text);
+            // A text leaf already follows (now at trailing_idx after the atom insert): prepend the tail.
+            let mut tail_leaf_path = parent_path.to_vec();
+            tail_leaf_path.push(trailing_idx);
+            steps.push(Step::InsertText {
+                path: tail_leaf_path,
+                char_offset: 0,
+                text: trailing_text,
+            });
+        }
+
+        // Apply atomically + record on BOTH undo authorities: the model-level UndoManager receipt and the
+        // MT-035 unified bus snapshot pair (drained at frame end through `record_rich_edit_undo`).
+        let before = crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+        let tx = Transaction::new(steps, ActorKind::Operator, state.actor_id.as_str());
+        match apply_transaction(&mut state.doc, tx) {
+            Ok(receipt) => {
+                state.undo.push(receipt);
+                let after =
+                    crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+                state.pending_bus_undo.push((before, after));
+                // Mark the document dirty so the embed is persisted on the next save (AC-2 round-trip).
+                if let Some(save) = state.save.as_mut() {
+                    save.mark_dirty();
+                }
+                let mut caret_path = parent_path.to_vec();
+                caret_path.push(trailing_idx);
+                state.selection = Selection::caret(DocPosition::new(caret_path, 0));
+                true
             }
+            Err(_) => false, // rolled back — the doc is untouched, nothing is on either undo surface.
         }
-        // Mark the document dirty so the embed is persisted on the next save (AC-2 round-trip).
-        if let Some(save) = state.save.as_mut() {
-            save.mark_dirty();
+    }
+
+    /// Resolve a block `path` (child indices from the doc root) to a block node (read-only; used by the
+    /// transactional insert paths to gather pre-state facts before building steps).
+    fn block_at_path<'a>(doc: &'a BlockNode, path: &[usize]) -> Option<&'a BlockNode> {
+        let mut node = doc;
+        for &idx in path {
+            node = node.children.get(idx)?.as_block()?;
         }
-        let mut caret_path = parent_path.to_vec();
-        caret_path.push(trailing_idx);
-        state.selection = Selection::caret(DocPosition::new(caret_path, 0));
-        true
+        Some(node)
     }
 
     /// The path + end-offset of the first inline-content block's last text leaf, for an embed dropped when
@@ -2774,8 +2807,11 @@ impl RichEditorWidget {
         };
 
         let rect = chip_rect_for_span(spec.local_start, spec.local_end, origin);
-        // Paint the chip background (rounded) then the label text in the chip text color, on top of
-        // the painter-drawn label (so the chip reads as a pill). Colors are theme tokens (CONTROL-4).
+        // Paint the chip background (rounded) then the label text in the chip text color. MT-068:
+        // the underlying galley run for this atom is laid out as EXACTLY this label and painted
+        // TRANSPARENT (AtomPaint::ChipCovered), so the pill + this text are the ONLY visible glyphs
+        // — the chip consumes the atom's layout space and no doubled glyph runs can stick out
+        // around it. Colors are theme tokens (CONTROL-4).
         let painter = ui.painter();
         painter.rect_filled(rect, 4.0, spec.bg);
         painter.text(

@@ -908,3 +908,61 @@ fn first_hs_link(content_json: &serde_json::Value) -> Option<(String, String)> {
     }
     walk(content_json)
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 MT-020 (inline-atom undo rewire) — the CKC/Atelier drag-in insert is TRANSACTIONAL:
+// the whole drop (caret-leaf split + atom insert + tail re-host) is ONE receipt on the model
+// UndoManager AND one queued (before, after) pair for the MT-035 unified bus. One undo restores the
+// exact pre-drop doc — the drop path can no longer bypass the undo system by direct child mutation.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn mt020_atelier_drop_insert_is_one_undoable_transaction() {
+    use handshake_native::rich_editor::document_model::doc_json::to_content_json_value;
+
+    let mut state = RichEditorState::demo();
+    let before_doc = state.doc.clone();
+    let before_json = to_content_json_value(&state.doc);
+    let undo_before = state.undo.len();
+
+    let link = DragPayload::AtelierRef(AtelierRef::new(
+        "char-undo",
+        AtelierItemKind::Character,
+        "Mira",
+    ))
+    .to_hs_link()
+    .expect("AtelierRef -> hsLink");
+    assert!(
+        RichEditorWidget::insert_atelier_embed_at_caret(&mut state, link),
+        "the transactional embed insert succeeds"
+    );
+    assert_ne!(state.doc, before_doc, "the drop mutated the doc");
+
+    // ONE model-level receipt (atomic: split + atom + tail — not three separate entries).
+    assert_eq!(
+        state.undo.len(),
+        undo_before + 1,
+        "MT-020: the whole drop is ONE UndoManager receipt"
+    );
+    // The unified-bus pair is queued for the frame-end drain (the drop runs inside the render
+    // closure, invisible to the frame-input diff — this pair is how it reaches the MT-035 bus).
+    assert_eq!(
+        state.pending_bus_undo.len(),
+        1,
+        "MT-020: the drop queued its (before, after) pair for the unified undo bus"
+    );
+    assert_eq!(
+        state.pending_bus_undo[0].0, before_json,
+        "the queued 'before' snapshot is the exact pre-drop doc"
+    );
+
+    // One model-level undo restores the EXACT pre-drop doc (split + atom + tail all invert).
+    assert!(
+        state.undo.undo(&mut state.doc).expect("undo applies"),
+        "the receipt undoes"
+    );
+    assert_eq!(
+        state.doc, before_doc,
+        "MT-020: one undo restored the exact pre-drop doc (no split residue, no atom)"
+    );
+}

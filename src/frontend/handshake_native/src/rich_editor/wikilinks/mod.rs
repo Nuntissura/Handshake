@@ -8,8 +8,10 @@
 //!
 //! - A wikilink is the EXISTING MT-011 inline atom
 //!   [`crate::rich_editor::document_model::node::HsLinkNode`] (`Child::HsLink`), NOT a
-//!   `Mark::Wikilink`. Autocomplete confirm inserts it via `InsertNode`, never `AddMark`. The MT-014
-//!   media embeds already render from this same `hsLink` node by `ref_kind` — one unified dispatch.
+//!   `Mark::Wikilink`. Autocomplete confirm inserts it as ONE atomic transaction via the MT-020
+//!   `Step::InsertInlineChild` (receipt pushed on the `UndoManager` — Ctrl+Z removes it), never
+//!   `AddMark`. The MT-014 media embeds already render from this same `hsLink` node by `ref_kind`
+//!   — one unified dispatch.
 //! - A transclusion is the `loomTransclusion` inline atom
 //!   ([`crate::rich_editor::document_model::node::TransclusionNode`] / `Child::Transclusion`),
 //!   carrying `ref_value` (the backend block id), matching the REAL `LoomTransclusionView.tsx`

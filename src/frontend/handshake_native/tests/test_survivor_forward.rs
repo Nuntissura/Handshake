@@ -105,6 +105,156 @@ fn seam_reads_durable_survivor_records_typed_newest_first() {
     );
 }
 
+/// MT-093 remediation — the GOLDEN-FILE CROSS-CRATE ROUND-TRIP (the §6.13.7 file contract, pinned by
+/// BOTH real implementations instead of hand-mirrored fixtures).
+///
+/// The audited defect: the durable survivor-record schema was hand-mirrored in this crate
+/// (`SurvivorRecordOnDisk`) with NO shared schema and no test driving both real sides — the reader's
+/// untagged `kind` fallback shows drift already happened once (flat `"kind":"Freeze"` fixtures vs the
+/// live tagged `"kind":{"kind":"Freeze"}` serde shape). This test closes that gap WITHOUT coupling the
+/// two binaries at runtime (the §6.13 lifecycle-inversion stance keeps them file-decoupled):
+///
+/// - WRITE through the REAL `palmistry::survivor_store::SurvivorStore` (the palmistry crate is a
+///   dev-dependency here for exactly this) — a freeze, a CrashContext-minidump crash, and a child-stall
+///   record, with the freeze marked forwarded through the real idempotent flag path;
+/// - PIN the on-disk GOLDEN SHAPE (schema_version vocabulary + the LIVE tagged `kind` object) from the
+///   raw JSON bytes, so a serde-shape change on the writer side fails HERE, not silently in the panel;
+/// - READ back through the REAL `handshake_native::diagnostics::read_survivor_records` and assert every
+///   typed-allowlist field survived the crate boundary.
+///
+/// A schema drift on EITHER side now fails this test instead of silently rendering `Other`/defaults in
+/// the Tier-3 panel.
+#[test]
+fn golden_cross_crate_roundtrip_real_store_writes_native_reader_reads() {
+    use palmistry::child_stall::{ChildStallReasonCode, ChildStallReport};
+    use palmistry::crash_capture::{CrashDetection, CrashRecord};
+    use palmistry::freeze_detect::FreezeReport;
+    use palmistry::survivor_store::{SurvivorProbeResult, SurvivorRecord, SurvivorStore};
+
+    let dir = temp_dir("golden-roundtrip");
+    let _g = DirGuard(dir.clone());
+
+    let mut store = SurvivorStore::open(&dir).expect("open the REAL palmistry survivor store");
+
+    // 1) FREEZE — through the real MT-091 report type; marked forwarded through the real flag path.
+    let freeze = SurvivorRecord::from_freeze(
+        "sess-golden-freeze",
+        4242,
+        &FreezeReport {
+            stale_ms: 6543,
+            last_heartbeat_counter: 77,
+            last_heartbeat_ts_nanos: 77_000,
+        },
+        3,
+        SurvivorProbeResult::NotResponding,
+    );
+    let freeze_event_code = freeze.event_code;
+    let freeze_path = store.put(freeze).expect("persist the freeze record");
+    assert!(
+        store
+            .mark_forwarded(&freeze_path)
+            .expect("mark the freeze forwarded"),
+        "the freeze record must be known to the store"
+    );
+
+    // 2) CRASH — the rich CrashContext-minidump case, with a LOCAL dump path reference.
+    let dump_path = dir.join("palmistry-crash-sess-golden-crash.dmp");
+    let crash = SurvivorRecord::from_crash(&CrashRecord {
+        session_id: "sess-golden-crash".to_owned(),
+        detection: CrashDetection::CrashContextMinidump,
+        crash_event_code: 8,
+        process_id: 7,
+        faulting_thread_id: 99,
+        exit_code: None,
+        last_heartbeat_counter: 9,
+        last_heartbeat_ts_nanos: 9_000,
+        last_event_count: 1,
+        minidump_path: Some(dump_path.clone()),
+        recorded_at_unix_ms: 0,
+    });
+    store.put(crash).expect("persist the crash record");
+
+    // 3) CHILD-STALL — through the real MT-106 report type.
+    let stall = SurvivorRecord::from_child_stall(
+        "sess-golden-child",
+        4242,
+        &ChildStallReport {
+            child_pid: 333,
+            child_session_id: 90,
+            stale_ms: 6100,
+            last_progress_counter: 5,
+            last_progress_ts_nanos: 777,
+            reason_code: ChildStallReasonCode::ProgressStaleWhileAlive,
+        },
+        2,
+    );
+    store.put(stall).expect("persist the child-stall record");
+
+    // GOLDEN-SHAPE PIN (the writer side): the raw on-disk JSON carries the fixed schema-version
+    // vocabulary and the LIVE serde shape for the typed kind — an OBJECT with its own `"kind"` tag
+    // (`"kind":{"kind":"Freeze"}`), the exact shape whose earlier drift motivated this remediation.
+    let raw = std::fs::read_to_string(&freeze_path).expect("read the raw freeze record bytes");
+    let json: serde_json::Value = serde_json::from_str(&raw).expect("the record is valid JSON");
+    assert_eq!(
+        json["schema_version"], "hsk.palmistry.survivor@0.1",
+        "the on-disk schema-version vocabulary is the golden contract"
+    );
+    assert_eq!(
+        json["kind"]["kind"], "Freeze",
+        "the LIVE tagged kind shape ('kind' is an object carrying its own tag) is the golden contract \
+         the native reader's Tagged variant decodes; a writer-side serde change must fail here"
+    );
+    assert_eq!(json["forwarded"], true, "mark_forwarded persisted durably");
+
+    // READ back through the REAL native reader (the panel's projection path).
+    let views = read_survivor_records(&dir);
+    assert_eq!(views.len(), 3, "all three real records decode");
+
+    let freeze_view = views
+        .iter()
+        .find(|v| v.kind == PalmistrySurvivorKind::Freeze)
+        .expect("the freeze record decodes to the typed Freeze kind (NOT Other) across the boundary");
+    assert_eq!(freeze_view.session_id, "sess-golden-freeze");
+    assert_eq!(freeze_view.process_id, 4242);
+    assert_eq!(freeze_view.event_code, freeze_event_code);
+    assert_eq!(freeze_view.stale_ms, 6543);
+    assert_eq!(freeze_view.exit_code, None);
+    assert_eq!(freeze_view.minidump_path, None);
+    assert!(
+        freeze_view.forwarded,
+        "the idempotent forwarded flag survives the crate boundary"
+    );
+
+    let crash_view = views
+        .iter()
+        .find(|v| v.kind == PalmistrySurvivorKind::Crash)
+        .expect("the crash record decodes to the typed Crash kind across the boundary");
+    assert_eq!(crash_view.session_id, "sess-golden-crash");
+    assert_eq!(crash_view.process_id, 7);
+    assert_eq!(crash_view.event_code, 8);
+    assert_eq!(crash_view.exit_code, None);
+    assert_eq!(
+        crash_view.minidump_path.as_deref(),
+        Some(dump_path.to_string_lossy().as_ref()),
+        "the LOCAL minidump path reference survives the crate boundary (a path string, never bytes)"
+    );
+    assert!(!crash_view.forwarded, "the crash record stays pending");
+
+    let stall_view = views
+        .iter()
+        .find(|v| v.kind == PalmistrySurvivorKind::ChildStall)
+        .expect("the child-stall record decodes to the typed ChildStall kind across the boundary");
+    assert_eq!(stall_view.session_id, "sess-golden-child");
+    assert_eq!(stall_view.stale_ms, 6100);
+    assert_eq!(stall_view.child_process_id, Some(333));
+    assert_eq!(stall_view.child_session_id, Some(90));
+    assert_eq!(stall_view.last_progress_counter, Some(5));
+    assert_eq!(stall_view.last_progress_ts_nanos, Some(777));
+    assert_eq!(stall_view.child_stall_reason_code, Some(1));
+
+    assert_no_local_artifact_dir();
+}
+
 #[test]
 fn panel_tier3_section_populates_from_forwarded_records() {
     // AC-013-6 (the panel reading a forwarded record): drive the live DiagnosticsPanel widget with a

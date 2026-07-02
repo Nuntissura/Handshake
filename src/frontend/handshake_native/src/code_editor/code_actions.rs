@@ -683,17 +683,17 @@ fn emit_menu_accesskit(ctx: &egui::Context, state: &CodeActionState, instance: &
     }
 }
 
+/// The lightbulb glyph's point size (also the interactive target's core square). Public to the crate so
+/// the panel can anchor the bulb's CENTER far enough inside the gutter strip that the glyph never clips
+/// off the panel's left edge (MT-049 Wave-B visual-defect fix).
+pub(crate) const LIGHTBULB_GLYPH_SIZE: f32 = 13.0;
+
 /// Draw the gutter lightbulb glyph on `line` at `pos` (theme-aware — RISK / CONTROL-4) and emit its
 /// `Role::Button` AccessKit node `code_editor_quickfix_lightbulb_{line}` (pane-scoped — RISK-004 / MC-004),
 /// returning the clickable [`egui::Response`] (the caller opens the menu on a click). Only called when
 /// [`CodeActionController::has_actions_on_line`] is true for `line` (AC-003). The glyph is the amber
 /// lightbulb `U+1F4A1`; if the active font lacks it, the painter still draws the colored mark so the
 /// affordance is never an invisible no-op.
-/// The lightbulb glyph's point size (also the interactive target's core square). Public to the crate so
-/// the panel can anchor the bulb's CENTER far enough inside the gutter strip that the glyph never clips
-/// off the panel's left edge (MT-049 Wave-B visual-defect fix).
-pub(crate) const LIGHTBULB_GLYPH_SIZE: f32 = 13.0;
-
 pub fn draw_lightbulb(
     ui: &mut egui::Ui,
     line: usize,

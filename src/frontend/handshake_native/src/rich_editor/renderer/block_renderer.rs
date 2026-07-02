@@ -220,7 +220,17 @@ fn paint_inline_block(
     // base (Hebrew/Arabic) takes the bidi-reordered + right-aligned path.
     let bidi = line_layout::layout_block_bidi(block, palette, wrap_width, bold_available);
     if !bidi.base.is_rtl() {
-        let layout = line_layout::layout_block(block, palette, wrap_width, bold_available);
+        // WP-KERNEL-012 MT-068 (chip glyph-overlap fix): the TOP-LEVEL paragraph/heading paint is the
+        // path `paint_one_wikilink_chip` overlays, so hsLink atom runs lay out ChipCovered
+        // (transparent — the chip's pill + label are the only visible glyphs over the exact span).
+        // Nested list/quote/code/table content keeps `layout_block` (Visible) — no chip overlay there.
+        let layout = line_layout::layout_block_atoms(
+            block,
+            palette,
+            wrap_width,
+            bold_available,
+            line_layout::AtomPaint::ChipCovered,
+        );
         let galley = painter.layout_job(layout.job);
         let height = galley.rect.height();
         // Paint the shaped text. `fallback_color` is the theme text color (only used for

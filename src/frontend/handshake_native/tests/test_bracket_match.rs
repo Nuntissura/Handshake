@@ -15,8 +15,8 @@
 use std::path::{Path, PathBuf};
 
 use handshake_native::code_editor::{
-    bracket_pair_colors, depth_color_index, find_matching_bracket, BracketMatch, TextBuffer,
-    BRACKET_SCAN_CAP_BYTES,
+    bracket_pair_colors, bracket_pair_colors_in_segments, depth_color_index, find_matching_bracket,
+    BracketMatch, TextBuffer, BRACKET_SCAN_CAP_BYTES,
 };
 use handshake_native::theme::HsTheme;
 
@@ -186,6 +186,52 @@ fn bracket_pair_colors_empty_palette_is_safe() {
         bracket_pair_colors(&buf, 0..2, &[]).is_empty(),
         "empty palette -> no colors, no panic"
     );
+}
+
+// ── MT-054/MT-005 Wave-B: fold-aware segment variant ───────────────────────────────────────────────
+
+#[test]
+fn bracket_pair_colors_in_segments_single_segment_matches_whole_window() {
+    // One segment covering the whole window is EXACTLY bracket_pair_colors (documented contract).
+    let palette = HsTheme::Dark.palette().bracket_pair_palette;
+    let buf = TextBuffer::new("([{x}])");
+    let whole = bracket_pair_colors(&buf, 0..buf.len_bytes(), &palette);
+    let seg = bracket_pair_colors_in_segments(&buf, &[0..buf.len_bytes()], &palette);
+    assert_eq!(
+        seg, whole,
+        "single whole-window segment must equal bracket_pair_colors"
+    );
+}
+
+#[test]
+fn bracket_pair_colors_in_segments_skips_hidden_bytes_and_carries_depth() {
+    // Three "lines": a( \n b(){}() \n )c — folding away the middle line (bytes 3..11) must (1) color
+    // NO bracket from the hidden segment (nothing to ghost-paint onto visible rows — the Wave-B leak),
+    // and (2) carry the depth ACROSS the gap as if the hidden text were absent, so the visible ')' on
+    // the last line still closes the visible '(' from the first line at depth 0.
+    let palette = HsTheme::Dark.palette().bracket_pair_palette;
+    let src = "a(\nb(){}()\n)c";
+    let buf = TextBuffer::new(src);
+    // Visible segments: line 0 (bytes 0..3, incl. '\n') and line 2 (bytes 11..13). Line 1 is hidden.
+    let colors = bracket_pair_colors_in_segments(&buf, &[0..3, 11..13], &palette);
+    let colored_bytes: Vec<usize> = colors.iter().map(|(r, _)| r.start).collect();
+    assert_eq!(
+        colored_bytes,
+        vec![1, 11],
+        "only the visible '(' (byte 1) and ')' (byte 11) are colored — no hidden-line bracket leaks"
+    );
+    assert_eq!(
+        colors[0].1, palette[0],
+        "visible '(' opens at window depth 0 -> palette[0]"
+    );
+    assert_eq!(
+        colors[1].1, palette[0],
+        "visible ')' closes the visible '(' at depth 0 (depth carries across the hidden segment)"
+    );
+
+    // Bounds safety: segments past the buffer end are clamped, never a panic.
+    let clamped = bracket_pair_colors_in_segments(&buf, &[100..200], &palette);
+    assert!(clamped.is_empty(), "out-of-range segment -> empty, no panic");
 }
 
 // ── AC-007: render/decoration only — no buffer mutation in the MT-054 source files ──────────────────

@@ -569,3 +569,216 @@ fn mc006_repeated_tag_renders_valid_non_colliding_tree() {
         "MC-006: both #rust occurrences emit a distinct `inline-tag-rust` node (got {tag_nodes})"
     );
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 MT-020 — LIVE-WIDGET undo-after-insert (tag commit path): a real `#ru` keystroke
+// decode opens the LIVE menu, a real Enter commits the tag atom, and a REAL Ctrl+Z through the
+// mounted widget removes the atom and restores the exact pre-commit doc (the `#ru` trigger text)
+// via the MT-035 unified undo bus; a second Ctrl+Z unwinds the typing too.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn mt020_live_tag_commit_undo_restores_pre_insert_doc() {
+    use handshake_native::interop::interaction_bus::InteractionBus;
+    use handshake_native::pane_registry::PaneId;
+
+    let doc = BlockNode::doc(vec![BlockNode::with_children(
+        NodeKind::Paragraph,
+        vec![Child::Text(TextLeaf::new(""))],
+    )]);
+    let rich_pane: PaneId = Arc::from("pane-mt020-tag");
+    let state = Arc::new(std::sync::Mutex::new({
+        let mut st = RichEditorState::new(doc);
+        st.set_tag_list(vec!["rust".to_owned()]);
+        st.undo_pane_id = Some(rich_pane.clone());
+        st
+    }));
+    let state_for_ui = Arc::clone(&state);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(520.0, 280.0))
+        .build_ui(move |ui| {
+            RichEditorWidget::new(Arc::clone(&state_for_ui)).show(ui);
+        });
+    harness.run();
+    {
+        let root = harness.root();
+        let surface = root
+            .children_recursive()
+            .find(|n| n.accesskit_node().author_id() == Some("rich-editor-surface"))
+            .expect("the editor surface node carries author_id 'rich-editor-surface'");
+        surface.focus();
+    }
+    harness.step();
+    harness.step();
+
+    // REAL keystroke decode: `#ru` opens the LIVE tag menu.
+    harness.event(egui::Event::Text("#ru".into()));
+    harness.step();
+    harness.step();
+    {
+        let st = state.lock().unwrap();
+        assert!(st.tag_autocomplete.is_some(), "the `#` trigger opened");
+        assert_eq!(st.block_plain_text(0).as_deref(), Some("#ru"));
+    }
+    // Break the 500ms undo-coalescing window so the commit records its OWN bus entry.
+    std::thread::sleep(std::time::Duration::from_millis(600));
+    let pre_insert_json = {
+        let st = state.lock().unwrap();
+        handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.doc)
+    };
+
+    // REAL Enter commits the top row ('rust') through the live key handler.
+    harness.key_press(egui::Key::Enter);
+    harness.step();
+    harness.step();
+    {
+        let st = state.lock().unwrap();
+        assert!(st.tag_autocomplete.is_none(), "the menu closed on commit");
+        let inline = st.collect_inline_tags();
+        assert!(
+            inline.iter().any(|t| Tag::new(t).canonical() == "rust"),
+            "the LIVE doc gained a committed #rust tag atom (got {inline:?})"
+        );
+    }
+    let bus = InteractionBus::get_or_init(&harness.ctx);
+    let depth = InteractionBus::with_try_lock(&bus, |b| b.local_undo_count(&rich_pane))
+        .expect("bus lock");
+    assert_eq!(
+        depth, 2,
+        "MT-020: the tag commit recorded its own unified-bus entry (typing + commit)"
+    );
+
+    // REAL Ctrl+Z: the atom goes; the doc equals the exact pre-commit doc (`#ru` restored).
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Z);
+    harness.step();
+    harness.step();
+    {
+        let st = state.lock().unwrap();
+        assert!(
+            st.collect_inline_tags().is_empty(),
+            "MT-020: Ctrl+Z removed the committed tag atom"
+        );
+        let now_json =
+            handshake_native::rich_editor::document_model::doc_json::to_content_json_value(
+                &st.doc,
+            );
+        assert_eq!(
+            now_json, pre_insert_json,
+            "MT-020: undo restored the EXACT pre-commit doc (the `#ru` trigger text)"
+        );
+    }
+
+    // A second Ctrl+Z unwinds the typing itself.
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Z);
+    harness.step();
+    harness.step();
+    {
+        let st = state.lock().unwrap();
+        assert_eq!(
+            st.block_plain_text(0).as_deref(),
+            Some(""),
+            "undo #2 removed the `#ru` typing — the stack unwinds in order"
+        );
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 MT-058 — the tag-edge SAVE HOOK: `build_tag_edge_payload_for_save` is called from the
+// REAL save path (`request_save_for_host` — the Ctrl+S / host-menu / pane-save funnel) and the edge
+// intent is QUEUED (dispatch stays gated on the tag_hub block-id typed blocker). MC-004: fires only
+// at document commit/save (and only when the save actually dispatched), never per keystroke.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+/// A no-op save backend for the headless SaveManager (the queue test never resolves the HTTP call —
+/// the queued intent is captured synchronously at dispatch time).
+struct NoopSaveBackend;
+impl handshake_native::rich_editor::save::save_manager::SaveBackend for NoopSaveBackend {
+    fn save_document(
+        &self,
+        _id: &str,
+        _c: serde_json::Value,
+        _v: u64,
+    ) -> handshake_native::rich_editor::save::save_manager::SaveFuture {
+        Box::pin(async move {
+            Err(
+                handshake_native::rich_editor::save::save_manager::SaveError::Network(
+                    "noop test backend".into(),
+                ),
+            )
+        })
+    }
+}
+
+#[test]
+fn mt058_request_save_for_host_queues_tag_edge_intent() {
+    use handshake_native::rich_editor::inline_tags::TAG_EDGE_DISPATCH_BLOCKER;
+    use handshake_native::rich_editor::save::save_manager::{SaveManager, SaveState};
+
+    // A doc with a committed inline #rust atom + property tags ['Rust', 'design'] (the dedupe case).
+    let doc = doc_with_tag_chip("rust");
+    let mut state = RichEditorState::new(doc);
+    state.properties = Some(make_properties_with_tags(&["Rust", "design"]));
+    state.save = Some(SaveManager::new(Arc::new(NoopSaveBackend), None, "KRD-1", 7));
+    assert!(
+        state.pending_tag_edge_intent.is_none(),
+        "no intent before any save (MC-004: never per keystroke)"
+    );
+
+    // The REAL save funnel queues the intent for the dispatched save.
+    assert!(state.request_save_for_host(), "the save dispatched");
+    let intent = state
+        .pending_tag_edge_intent
+        .clone()
+        .expect("MT-058: the save path queued a tag-edge intent");
+    assert_eq!(intent.document_id, "KRD-1");
+    assert_eq!(intent.doc_version, 7, "provenance: the dispatching version");
+    assert_eq!(
+        intent.dispatch_blocked_on, TAG_EDGE_DISPATCH_BLOCKER,
+        "dispatch stays gated on the tag_hub block-id typed blocker (never silently POSTed)"
+    );
+    // The payload is the DEDUPED inline+property union: rust (inline #rust + property 'Rust' -> ONE
+    // edge) + design.
+    assert_eq!(intent.payload.len(), 2, "rust (deduped) + design");
+    assert_eq!(
+        intent
+            .payload
+            .edges
+            .iter()
+            .filter(|e| e.canonical == "rust")
+            .count(),
+        1,
+        "AC-005/MC-004: inline #rust + property 'Rust' converge to exactly one edge"
+    );
+    assert!(
+        intent.payload.canonical_set().contains(&"design".to_owned()),
+        "the property-only tag is in the union"
+    );
+
+    // MC-002 mirror: while the first save is IN FLIGHT, a second request is a swallowed no-op and
+    // must NOT queue an intent for content that never dispatched.
+    state.pending_tag_edge_intent = None;
+    assert!(
+        state.save.as_ref().unwrap().is_saving(),
+        "the first save is in flight"
+    );
+    assert!(state.request_save_for_host(), "save context still present");
+    assert!(
+        state.pending_tag_edge_intent.is_none(),
+        "MT-058: a swallowed (in-flight-guarded) save queues NO intent"
+    );
+
+    // Latest-wins: once the save slot frees, a new dispatched save's tag set supersedes.
+    state.save.as_mut().unwrap().state = SaveState::Idle;
+    if let Some(props) = state.properties.as_mut() {
+        props.add_tag("extra");
+    }
+    assert!(state.request_save_for_host());
+    let intent2 = state
+        .pending_tag_edge_intent
+        .clone()
+        .expect("the fresh dispatch re-queued");
+    assert!(
+        intent2.payload.canonical_set().contains(&"extra".to_owned()),
+        "latest-wins: the newer save's tag union supersedes the older queued intent"
+    );
+}

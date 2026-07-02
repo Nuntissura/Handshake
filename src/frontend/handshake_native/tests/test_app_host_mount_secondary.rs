@@ -89,9 +89,23 @@ fn secondary_shell() -> (HandshakeApp, tokio::runtime::Runtime) {
         &app,
         &[
             ("pane-a", PaneType::AtelierEditor), // canvas board
-            ("pane-b", PaneType::KernelDcc),     // graph view
-            ("pane-c", PaneType::LoomBlock),     // outgoing links
-            ("pane-d", PaneType::UserManual),    // manual
+            // REMEDIATION (MT-080 PaneType collisions): the graph view + outgoing-links panes now own
+            // their OWN Placeholder keys — the old KernelDcc/LoomBlock registrations hijacked
+            // content-addressed navigation (every loom-block open rendered the links panel; WP/MT quick-
+            // switcher hits rendered a content-blind graph). The re-type targets the NEW honest keys.
+            (
+                "pane-b",
+                handshake_native::editor_pane_factories::placeholder_pane_type(
+                    handshake_native::editor_pane_factories::GRAPH_VIEW_PANE_LABEL,
+                ),
+            ), // graph view
+            (
+                "pane-c",
+                handshake_native::editor_pane_factories::placeholder_pane_type(
+                    handshake_native::editor_pane_factories::OUTGOING_LINKS_PANE_LABEL,
+                ),
+            ), // outgoing links
+            ("pane-d", PaneType::UserManual), // manual
         ],
     );
     (app, runtime)
@@ -562,5 +576,220 @@ fn code_text_setvalue_dispatch_mutates_buffer() {
         panel.buffer().to_string(),
         "new swarm contents",
         "AC-080-6: a swarm Action::SetValue dispatched at the code text node replaced the whole buffer"
+    );
+}
+
+// ═══ WP-KERNEL-012 E11 remediation wave (lane W1): the `view.*` OPERATOR OPEN ROUTES ═══════════════════
+//
+// The 2026-07-02 drift audit found the AC-080-1 mounted-LIVE proof injected pane types programmatically
+// (the retype harness), which does not evidence OPERATOR reachability — and the side panes had NO
+// menu/palette/drawer/navigator arm at all. These proofs re-prove reachability through the REAL operator
+// route: the command-palette `view.*` rows dispatch through the SAME `dispatch_palette_action` arm a
+// clicked/Enter-run palette row reaches, and the pane's REAL widget subtree (stable AccessKit author_ids)
+// renders on the active work surface — NOT via retype injection.
+
+/// Collect every live AccessKit node carrying an author_id: `(author_id, is_disabled)`.
+fn live_author_nodes_flat(harness: &Harness<'_, HandshakeApp>) -> Vec<(String, bool)> {
+    let mut found = Vec::new();
+    for node in harness.root().children_recursive() {
+        let ak = node.accesskit_node();
+        if let Some(author_id) = ak.author_id() {
+            found.push((author_id.to_owned(), ak.is_disabled()));
+        }
+    }
+    found
+}
+
+/// A live, runtime-injected shell with the DEFAULT seeded panes (no retype injection): the operator
+/// route proofs open every pane through the palette dispatch arm only.
+fn operator_shell() -> (HandshakeApp, tokio::runtime::Runtime) {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("build multi-thread runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_string(),
+        db_status: "ok".to_string(),
+        migration_version: Some(1),
+    }));
+    app.set_runtime_handle(runtime.handle().clone());
+    (app, runtime)
+}
+
+/// Every `view.*` open route is a REAL, ENABLED command-palette row (the operator-discoverable surface),
+/// addressable by its stable `command-palette.option.{stable_id}` author_id.
+#[test]
+fn view_open_routes_are_enabled_palette_rows() {
+    let (app, _rt) = operator_shell();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+    harness.state_mut().open_command_palette();
+    harness.run_steps(2);
+
+    let nodes = live_author_nodes_flat(&harness);
+    for stable_id in [
+        "hs-view-palette-relevant-memory",
+        "hs-view-palette-stage",
+        "hs-view-palette-tags",
+        "hs-view-palette-sidebar",
+        "hs-view-palette-block-collections",
+        "hs-view-palette-outline",
+        "hs-view-palette-graph",
+        "hs-view-palette-folders",
+        "hs-view-palette-outgoing-links",
+        "hs-view-palette-journal",
+        "hs-view-palette-diff-merge",
+    ] {
+        let row_author = format!("command-palette.option.{stable_id}");
+        let row = nodes
+            .iter()
+            .find(|(a, _)| a == &row_author)
+            .unwrap_or_else(|| {
+                panic!(
+                    "operator route: the '{row_author}' palette row is missing: {:?}",
+                    nodes
+                        .iter()
+                        .filter(|(a, _)| a.starts_with("command-palette.option.hs-view"))
+                        .collect::<Vec<_>>()
+                )
+            });
+        assert!(
+            !row.1,
+            "operator route: the '{row_author}' palette row is ENABLED (a dead disabled row is not an \
+             open route)"
+        );
+    }
+}
+
+/// Dispatching each `view.*` palette command through the REAL palette dispatch arm opens the pane on the
+/// active work surface and the pane's REAL widget subtree renders (stable author_ids in the live tree) —
+/// the AC-080-1 re-proof via the operator route, NOT retype injection.
+#[test]
+fn view_commands_open_real_pane_subtrees_via_operator_route() {
+    use handshake_native::command_registry::{
+        CMD_VIEW_BLOCK_COLLECTIONS, CMD_VIEW_DIFF_MERGE, CMD_VIEW_GRAPH, CMD_VIEW_JOURNAL,
+        CMD_VIEW_OUTLINE, CMD_VIEW_RELEVANT_MEMORY, CMD_VIEW_STAGE, CMD_VIEW_TAGS,
+    };
+    use handshake_native::fems::relevant_memory_panel::RELEVANT_MEMORY_PANEL_AUTHOR_ID;
+    use handshake_native::graph::DAILY_JOURNAL_PANEL_AUTHOR_ID;
+    use handshake_native::graph::MODE_LOCAL_AUTHOR_ID;
+    use handshake_native::stage_pane::STAGE_PANE_AUTHOR_ID;
+
+    let (app, _rt) = operator_shell();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+
+    // (command id, the pane's REAL-subtree author_id that must render after the operator open).
+    let routes: &[(&str, &str)] = &[
+        (CMD_VIEW_RELEVANT_MEMORY, RELEVANT_MEMORY_PANEL_AUTHOR_ID),
+        (CMD_VIEW_STAGE, STAGE_PANE_AUTHOR_ID),
+        (CMD_VIEW_TAGS, "tags.search"),
+        (CMD_VIEW_BLOCK_COLLECTIONS, "bcv.new-view"),
+        (CMD_VIEW_OUTLINE, "rich-editor-outline"),
+        (CMD_VIEW_GRAPH, MODE_LOCAL_AUTHOR_ID),
+        (CMD_VIEW_JOURNAL, DAILY_JOURNAL_PANEL_AUTHOR_ID),
+        (CMD_VIEW_DIFF_MERGE, "diff-merge-empty"),
+    ];
+    for (cmd, subtree_author_id) in routes {
+        let fired = harness.state_mut().dispatch_palette_action_for_test(cmd);
+        assert!(
+            fired,
+            "operator route: '{cmd}' dispatched through the palette arm produced an observable open"
+        );
+        harness.run_steps(3);
+        let ids = live_author_ids(&harness);
+        assert!(
+            ids.contains(*subtree_author_id),
+            "operator route: after '{cmd}' the pane's REAL subtree ('{subtree_author_id}') renders in \
+             the live tree; got {:?}",
+            ids.iter().collect::<Vec<_>>()
+        );
+    }
+}
+
+/// The Folders + Sidebar + Outgoing-Links `view.*` routes open their panes as REAL shell tabs on the
+/// active work surface (tab-open proof — these panes render backend-fed rows only, so their honest
+/// no-data first frame carries no unconditional chrome author_id to probe; the tab hosting the pane type
+/// is the open-route evidence, and their widget subtrees are proven by their own widget suites).
+#[test]
+fn view_commands_open_folders_sidebar_outgoing_links_tabs() {
+    use handshake_native::command_registry::{
+        CMD_VIEW_FOLDERS, CMD_VIEW_OUTGOING_LINKS, CMD_VIEW_SIDEBAR,
+    };
+    use handshake_native::editor_pane_factories::{
+        placeholder_pane_type, FOLDER_TREE_PANE_LABEL, OUTGOING_LINKS_PANE_LABEL,
+        SIDEBAR_PANE_LABEL,
+    };
+
+    let (app, _rt) = operator_shell();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+
+    let routes: &[(&str, PaneType)] = &[
+        (
+            CMD_VIEW_FOLDERS,
+            placeholder_pane_type(FOLDER_TREE_PANE_LABEL),
+        ),
+        (CMD_VIEW_SIDEBAR, placeholder_pane_type(SIDEBAR_PANE_LABEL)),
+        (
+            CMD_VIEW_OUTGOING_LINKS,
+            placeholder_pane_type(OUTGOING_LINKS_PANE_LABEL),
+        ),
+    ];
+    for (cmd, pane_type) in routes {
+        let fired = harness.state_mut().dispatch_palette_action_for_test(cmd);
+        assert!(
+            fired,
+            "operator route: '{cmd}' dispatched through the palette arm produced an observable open"
+        );
+        harness.run_steps(2);
+        let hosts_tab = harness
+            .state_mut()
+            .tab_bar_states_mut()
+            .values()
+            .any(|bar| bar.tabs.iter().any(|t| &t.pane_type == pane_type));
+        assert!(
+            hosts_tab,
+            "operator route: after '{cmd}' a live shell tab hosts {pane_type:?}"
+        );
+    }
+}
+
+// ═══ MT-080 PaneType-collision regression: content-addressed nav is NO LONGER hijacked ═════════════════
+
+/// A `PaneType::LoomBlock` navigation target renders the honest content-aware placeholder (carrying its
+/// block content id), NOT the outgoing-links side panel; a `PaneType::KernelDcc` WP/MT hit renders the
+/// honest placeholder, NOT a content-blind graph view. The audited hijack: singleton side-pane factories
+/// registered over content-addressed navigation keys swallowed every loom-block / WP / MT open.
+#[test]
+fn loom_block_and_kernel_dcc_navigation_is_not_hijacked() {
+    use handshake_native::graph::MODE_LOCAL_AUTHOR_ID;
+    use handshake_native::rich_editor::wikilinks::outgoing_links_panel::PANEL_AUTHOR_ID as OUTGOING_PANEL_AUTHOR_ID;
+
+    let (app, _rt) = operator_shell();
+    retype_panes(
+        &app,
+        &[
+            ("pane-a", PaneType::LoomBlock),
+            ("pane-b", PaneType::KernelDcc),
+        ],
+    );
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(3);
+    let ids = live_author_ids(&harness);
+    assert!(
+        !ids.contains(OUTGOING_PANEL_AUTHOR_ID),
+        "collision regression: a LoomBlock pane must NOT render the outgoing-links panel \
+         ('{OUTGOING_PANEL_AUTHOR_ID}') — the content-blind hijack is retired"
+    );
+    assert!(
+        !ids.contains(MODE_LOCAL_AUTHOR_ID),
+        "collision regression: a KernelDcc pane must NOT render the graph view ('{MODE_LOCAL_AUTHOR_ID}') \
+         — the content-blind hijack is retired"
     );
 }

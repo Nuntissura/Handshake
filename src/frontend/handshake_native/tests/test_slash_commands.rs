@@ -520,3 +520,175 @@ fn block_plain_text(state: &Arc<Mutex<RichEditorState>>, idx: usize) -> String {
         })
         .unwrap_or_default()
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 MT-020 — LIVE-WIDGET undo-after-insert for the slash-surface atom paths. Each path
+// drives the REAL mounted widget (prompt Enter confirm / code-ref row click), then a REAL Ctrl+Z
+// keystroke; the inserted atom must be gone and the doc must equal the exact pre-insert doc — the
+// insert landed on the MT-035 unified undo bus, not a parallel stack.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+/// Focus the editor surface AND set the pane id so widget edits record on the unified bus.
+fn mt020_state(pane: &str) -> Arc<Mutex<RichEditorState>> {
+    let doc = BlockNode::doc(vec![BlockNode::paragraph("")]);
+    let state = Arc::new(Mutex::new(RichEditorState::new(doc)));
+    {
+        let mut st = state.lock().unwrap();
+        st.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
+        st.undo_pane_id = Some(Arc::from(pane));
+    }
+    state
+}
+
+fn pre_insert_json(state: &Arc<Mutex<RichEditorState>>) -> serde_json::Value {
+    let st = state.lock().unwrap();
+    handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.doc)
+}
+
+fn assert_undo_restores(
+    harness: &mut Harness<()>,
+    state: &Arc<Mutex<RichEditorState>>,
+    before: &serde_json::Value,
+    label: &str,
+) {
+    // Re-focus the editor surface first: the prompt/dialog interaction may have moved egui focus,
+    // and the Ctrl+Z chord decode runs on the FOCUSED editor input path.
+    focus_editor(harness);
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Z);
+    harness.step();
+    harness.step();
+    let st = state.lock().unwrap();
+    let para = st.doc.children[0].as_block().unwrap();
+    assert!(
+        para.children
+            .iter()
+            .all(|c| c.as_hs_link().is_none() && c.as_transclusion().is_none()),
+        "MT-020 ({label}): Ctrl+Z removed the inserted atom"
+    );
+    let now =
+        handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.doc);
+    assert_eq!(
+        &now, before,
+        "MT-020 ({label}): undo restored the EXACT pre-insert doc"
+    );
+}
+
+#[test]
+fn mt020_live_embed_prompt_confirm_undo_restores_pre_insert_doc() {
+    let state = mt020_state("pane-mt020-embed");
+    {
+        let mut st = state.lock().unwrap();
+        let mut menu = SlashMenuState::open(vec![0, 0], 0);
+        let mut prompt = SlashPrompt::new(SlashPromptKind::Embed(EmbedKind::Image));
+        prompt.input = "asset-undo".to_string();
+        menu.prompt = Some(prompt);
+        st.slash_menu = Some(menu);
+    }
+    let mut harness = editor_harness_cpu(Arc::clone(&state), egui::vec2(600.0, 400.0));
+    harness.step();
+    focus_editor(&mut harness);
+    let before = pre_insert_json(&state);
+
+    // A REAL Enter confirms the prompt through the live render (the render-phase insert path the
+    // frame-input diff cannot see — the pending_bus_undo drain must carry it to the bus).
+    harness.key_press(egui::Key::Enter);
+    harness.step();
+    harness.step();
+    {
+        let st = state.lock().unwrap();
+        let para = st.doc.children[0].as_block().unwrap();
+        let atom = para
+            .children
+            .iter()
+            .find_map(Child::as_hs_link)
+            .expect("the confirmed embed inserted an hsLink atom");
+        assert_eq!(atom.ref_value, "asset-undo");
+    }
+    assert_undo_restores(&mut harness, &state, &before, "embed prompt");
+}
+
+#[test]
+fn mt020_live_transclusion_prompt_confirm_undo_restores_pre_insert_doc() {
+    let state = mt020_state("pane-mt020-transclusion");
+    {
+        let mut st = state.lock().unwrap();
+        let mut menu = SlashMenuState::open(vec![0, 0], 0);
+        let mut prompt = SlashPrompt::new(SlashPromptKind::Transclusion);
+        prompt.input = "block-undo".to_string();
+        menu.prompt = Some(prompt);
+        st.slash_menu = Some(menu);
+    }
+    let mut harness = editor_harness_cpu(Arc::clone(&state), egui::vec2(600.0, 400.0));
+    harness.step();
+    focus_editor(&mut harness);
+    let before = pre_insert_json(&state);
+
+    harness.key_press(egui::Key::Enter);
+    harness.step();
+    harness.step();
+    {
+        let st = state.lock().unwrap();
+        let para = st.doc.children[0].as_block().unwrap();
+        let atom = para
+            .children
+            .iter()
+            .find_map(Child::as_transclusion)
+            .expect("the confirmed prompt inserted a loomTransclusion atom");
+        assert_eq!(atom.ref_value, "block-undo");
+    }
+    assert_undo_restores(&mut harness, &state, &before, "transclusion prompt");
+}
+
+#[test]
+fn mt020_live_code_ref_select_undo_restores_pre_insert_doc() {
+    use handshake_native::code_editor::code_nav::CodeSymbolNavProjection;
+    use handshake_native::rich_editor::slash_commands::code_symbol_search::CodeSymbolSearchState;
+    use handshake_native::rich_editor::slash_commands::code_symbol_result_author_id;
+
+    let state = mt020_state("pane-mt020-coderef");
+    {
+        let mut st = state.lock().unwrap();
+        let mut dialog = CodeSymbolSearchState::open("ws-test", None);
+        dialog.query = "parse".to_string();
+        dialog.results = vec![CodeSymbolNavProjection {
+            symbol_entity_id: "SYM-undo-1".into(),
+            display_name: "parse_config".into(),
+            symbol_kind: "function".into(),
+            ..Default::default()
+        }];
+        st.code_symbol_search = Some(dialog);
+    }
+    let mut harness = editor_harness_cpu(Arc::clone(&state), egui::vec2(700.0, 480.0));
+    harness.step();
+    focus_editor(&mut harness);
+    let before = pre_insert_json(&state);
+
+    // A REAL click on the LIVE result row (the AccessKit ListItem the swarm/kittest targets) selects
+    // the symbol -> the render-phase insert_code_ref_atom path runs.
+    {
+        let target = code_symbol_result_author_id("SYM-undo-1");
+        let root = harness.root();
+        let row = root
+            .children_recursive()
+            .find(|n| n.accesskit_node().author_id() == Some(target.as_str()))
+            .expect("the code-symbol result row is in the live tree");
+        row.click();
+    }
+    harness.step();
+    harness.step();
+    {
+        let st = state.lock().unwrap();
+        assert!(
+            st.code_symbol_search.is_none(),
+            "selecting a symbol closes the dialog"
+        );
+        let para = st.doc.children[0].as_block().unwrap();
+        let atom = para
+            .children
+            .iter()
+            .find_map(Child::as_hs_link)
+            .expect("the selection inserted a code hsLink atom");
+        assert_eq!(atom.ref_value, "SYM-undo-1");
+    }
+    assert_undo_restores(&mut harness, &state, &before, "code-ref select");
+}

@@ -12,11 +12,13 @@
 //! `comment`, `number`, `function`, `type`, `operator`) is the standard tree-sitter highlight
 //! capture set, so the queries here are a minimal subset of each grammar's own `highlights.scm`.
 //!
-//! ## Incremental re-parse (implementation note 2 / RISK perf)
+//! ## Full re-parse, NOT incremental (MT-001 Wave-B correctness fix)
 //!
-//! [`Highlighter`] caches the previous `Tree`. After the first parse, [`highlight`](Highlighter::highlight)
-//! passes `Some(&old_tree)` to `Parser::parse`, so an edit re-parses in O(edit) rather than
-//! re-parsing the whole document.
+//! [`Highlighter`] caches the previous `Tree` for [`tree`](Highlighter::tree) consumers (folding,
+//! outline) but does NOT hand it to `Parser::parse`: tree-sitter's incremental contract requires
+//! `Tree::edit(InputEdit)` for every edit before reuse, and this API receives only the full new
+//! source. Reusing an un-edited tree can return wrong trees/spans. Every call is a full parse;
+//! O(edit) incremental re-parse is a deferred follow-up gated on the caller supplying `InputEdit`s.
 //!
 //! ## Send + Sync `Language` (RISK-005)
 //!
@@ -329,9 +331,10 @@ impl Default for LanguageRegistry {
 pub struct Highlighter {
     parser: Parser,
     query: Query,
-    /// Cached previous parse tree; passed to `Parser::parse` for O(edit) incremental re-parse, and
-    /// exposed via [`tree`](Highlighter::tree) so MT-005 folding can derive fold regions from the SAME
-    /// syntax tree (no second parse).
+    /// Cached previous parse tree, exposed via [`tree`](Highlighter::tree) so MT-005 folding can
+    /// derive fold regions from the SAME syntax tree (no second parse). NOT handed back to
+    /// `Parser::parse` — see [`highlight`](Highlighter::highlight) (MT-001 Wave-B: an un-edited old
+    /// tree violates the tree-sitter incremental contract and can produce wrong spans).
     old_tree: Option<Tree>,
     /// The stable language-family id ([`language_id_for_extension`]) this highlighter parses, so a
     /// consumer that needs the language (folding's foldable-node table — MT-005) can read it off the
@@ -381,11 +384,18 @@ impl Highlighter {
         self.language_id
     }
 
-    /// Parse `source` (UTF-8 bytes) and return its highlight spans in source order. The previous tree
-    /// is reused for incremental re-parse (implementation note 2); the new tree is cached for the
-    /// next call. Returns an empty `Vec` (never panics) if the parse fails.
+    /// Parse `source` (UTF-8 bytes) and return its highlight spans in source order. The parse is a
+    /// FULL parse (`old_tree` is NOT handed to `Parser::parse`): tree-sitter's incremental-reparse
+    /// contract requires every edit to be applied to the old tree via `Tree::edit(InputEdit)` first,
+    /// and this API only receives the full new source — no edit deltas — so a reused un-edited tree
+    /// can silently return WRONG trees/spans (stale nodes at stale byte offsets) on the panel's
+    /// primary edit path (MT-001 Wave-B remediation; fold regions and the outline derive from this
+    /// same tree, so a wrong tree corrupts those too). Incremental re-parse returns only when the
+    /// caller can supply `InputEdit`s (tracked as MT-001 deferred perf follow-up). The new tree is
+    /// still cached for [`tree`](Highlighter::tree) consumers. Returns an empty `Vec` (never panics)
+    /// if the parse fails.
     pub fn highlight(&mut self, source: &[u8]) -> Vec<HighlightSpan> {
-        let tree = match self.parser.parse(source, self.old_tree.as_ref()) {
+        let tree = match self.parser.parse(source, None) {
             Some(t) => t,
             None => return Vec::new(),
         };
@@ -546,7 +556,7 @@ function greet(name) {
     }
 
     #[test]
-    fn incremental_reparse_after_caching_old_tree() {
+    fn rehighlight_after_edit_still_produces_spans() {
         let mut hl = rust_highlighter();
         let first = hl.highlight(b"fn a() {}");
         assert!(!first.is_empty());

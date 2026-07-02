@@ -1,10 +1,14 @@
 //! Inline wikilink chip rendering + the editor-event enqueue (WP-KERNEL-012 MT-015).
 //!
 //! A wikilink is the `hsLink` inline atom ([`HsLinkNode`]). This module renders it as a colored,
-//! rounded, clickable chip overlaid on the paragraph's egui [`epaint::Galley`] glyph positions
-//! (MT-012's layout engine — NOT cosmic-text), at the chip's char span. Clicking enqueues a
-//! [`EditorEvent::WikilinkActivated`] into `RichEditorState.pending_events` for the WP-011 shell to
-//! drain + route (E11/MT-069 host wiring) — this MT does NOT route it.
+//! rounded, clickable chip over the paragraph's egui [`epaint::Galley`] glyph positions
+//! (MT-012's layout engine — NOT cosmic-text), at the chip's char span. Per the MT-068
+//! glyph-overlap fix, the galley LAYS OUT exactly [`chip_label`]'s text for the atom and (on the
+//! chip-covered top-level paint path) paints that run TRANSPARENT — the chip CONSUMES the atom's
+//! text layout space and its pill + label are the only visible glyphs, so no doubled runs can stick
+//! out around the chip. Clicking enqueues a [`EditorEvent::WikilinkActivated`] into
+//! `RichEditorState.pending_events` for the WP-011 shell to drain + route (E11/MT-069 host wiring)
+//! — this MT does NOT route it.
 //!
 //! ## Chip color (theme tokens only — CONTROL-4, no hardcoded hex)
 //!

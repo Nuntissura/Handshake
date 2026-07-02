@@ -273,11 +273,15 @@ fn code_action_lightbulb_on_diagnostic_screenshot() {
 
     // The lightbulb glyph is painted in the gutter in the theme's amber `warn_fg_color`. Proof: render the
     // frame, save the PNG to the EXTERNAL artifact root, and confirm the gutter drew amber-ish pixels
-    // (warn_fg_color is a yellow/amber: r high, g high, b low) on the diagnostic row.
+    // (warn_fg_color is a yellow/amber: r high, g high, b low) on the diagnostic row — AND that those
+    // pixels sit strictly INSIDE the gutter strip (MT-049 Wave-B remediation: the old anchor clipped
+    // the glyph half off the panel's left edge, and this check counted amber without checking WHERE).
     match harness.render() {
         Ok(image) => {
             let (w, h) = (image.width(), image.height());
             let raw = image.as_raw();
+            let is_amber =
+                |r: i32, g: i32, b: i32, a: u8| a != 0 && r > 150 && g > 110 && b < r - 40 && b < g;
             // Count amber-dominant pixels (the lightbulb): r high, g moderately high, b clearly lower.
             let mut amber = 0usize;
             let mut i = 0usize;
@@ -288,17 +292,82 @@ fn code_action_lightbulb_on_diagnostic_screenshot() {
                     raw[i + 2] as i32,
                     raw[i + 3],
                 );
-                if a != 0 && r > 150 && g > 110 && b < r - 40 && b < g {
+                if is_amber(r, g, b, a) {
                     amber += 1;
                 }
                 i += 4;
             }
+
+            // POSITION (MT-049 Wave-B): the amber bulb pixels on the diagnostic row's y band must
+            // start strictly inside the gutter strip. Pre-fix, the glyph CENTER sat ~4.7px from the
+            // panel edge, so the CENTER_CENTER-drawn ~13px glyph was cut by the clip rect and the
+            // visible amber began EXACTLY at the strip's left edge; post-fix there is a background
+            // margin before the first amber column. Scan only the gutter strip's x-span on row 0's
+            // band so syntax-colored code glyphs can never pollute the box.
+            let ppp = harness.ctx.pixels_per_point();
+            let gutter = panel
+                .last_gutter_rect()
+                .expect("gutter rect captured after a frame");
+            let gw = panel
+                .measured_glyph_width()
+                .expect("glyph width measured after a frame");
+            let c0 = panel
+                .screen_pos_for_line_col(0, 0, gw)
+                .expect("line 0 on screen");
+            let c1 = panel
+                .screen_pos_for_line_col(1, 0, gw)
+                .expect("line 1 on screen");
+            let lh = c1.y - c0.y;
+            let x0 = ((gutter.left() - 2.0) * ppp).round().max(0.0) as u32;
+            let x1 = ((gutter.right() * ppp).round() as u32).min(w - 1);
+            let y0 = ((c0.y - lh) * ppp).round().max(0.0) as u32;
+            let y1 = (((c0.y + lh) * ppp).round() as u32).min(h - 1);
+            let mut bulb_min_x: Option<u32> = None;
+            let mut bulb_max_x: Option<u32> = None;
+            for y in y0..=y1 {
+                for x in x0..=x1 {
+                    let px = image.get_pixel(x, y).0;
+                    if is_amber(px[0] as i32, px[1] as i32, px[2] as i32, px[3]) {
+                        bulb_min_x = Some(bulb_min_x.map_or(x, |m: u32| m.min(x)));
+                        bulb_max_x = Some(bulb_max_x.map_or(x, |m: u32| m.max(x)));
+                    }
+                }
+            }
+            let (bulb_min_x, bulb_max_x) = (
+                bulb_min_x.expect("amber bulb pixels present in the gutter band"),
+                bulb_max_x.expect("amber bulb pixels present in the gutter band"),
+            );
+            let bulb_left_pt = bulb_min_x as f32 / ppp;
+            let bulb_right_pt = bulb_max_x as f32 / ppp;
+            assert!(
+                bulb_left_pt >= gutter.left() + 1.0,
+                "MT-049: the lightbulb's leftmost amber pixel ({bulb_left_pt:.1}pt) must sit strictly \
+                 inside the gutter strip (left edge {:.1}pt) — amber starting AT the edge means the \
+                 glyph is clipped off the panel again",
+                gutter.left()
+            );
+            assert!(
+                bulb_right_pt <= gutter.right(),
+                "MT-049: the lightbulb stays inside the gutter strip (right edge {:.1}pt), not over \
+                 the code text; got rightmost amber at {bulb_right_pt:.1}pt",
+                gutter.right()
+            );
+            assert!(
+                (bulb_max_x - bulb_min_x) as f32 / ppp >= 4.0,
+                "MT-049: the visible amber span ({}px) is a whole glyph, not a clipped sliver",
+                bulb_max_x - bulb_min_x
+            );
+
             let ext_dir = external_artifact_dir("wp-kernel-012-mt-049");
             let _ = std::fs::create_dir_all(&ext_dir);
             let png_path = ext_dir.join("MT-049-lightbulb.png");
             let saved = image.save(&png_path).is_ok();
             println!(
-                "PT-003 code_action_lightbulb screenshot: {w}x{h}, amber_pixels={amber}, saved={saved} ({})",
+                "PT-003 code_action_lightbulb screenshot: {w}x{h}, amber_pixels={amber}, \
+                 bulb_x=({bulb_left_pt:.1}..{bulb_right_pt:.1})pt inside gutter \
+                 ({:.1}..{:.1})pt, saved={saved} ({})",
+                gutter.left(),
+                gutter.right(),
                 png_path.display()
             );
             assert!(

@@ -709,3 +709,253 @@ fn real_transclusion_and_backlinks_against_live_backend() {
         Err(e) => panic!("PT real backlinks failed (backend up + document seeded?): {e}"),
     }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 MT-068 — chip glyph-overlap fix: the laid-out atom span IS the chip label.
+// The Wave-B audit's locus PNG showed doubled/garbled glyph runs around inline chips because the
+// galley laid out `label`/`refKind:refValue` while the chip span/label math used `chip_label` (the
+// `? …`/`⎘ …`/`(unresolved)` decorated text) — the spans disagreed, so underlying glyphs stuck out
+// around the pill. These tests pin the single-span authority: layout text == chip label, span math
+// (`block_galley_cursor`) == chip label, and the chip-covered paint mode reserves the space with a
+// TRANSPARENT run (the chip paints the only visible glyphs).
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn mt068_atom_layout_consumes_chip_label_space() {
+    use handshake_native::rich_editor::renderer::line_layout::{
+        layout_block, layout_block_atoms, AtomPaint,
+    };
+    use handshake_native::rich_editor::wikilinks::inline_view::chip_label;
+    use handshake_native::theme::HsTheme;
+
+    // The audit's case: an UNRESOLVED locus ref whose chip label ("? WP-KERNEL-012 (unresolved)")
+    // differs from both its raw label ("") and its refKind:refValue fallback.
+    let mut locus = HsLinkNode::new("locus", "wp/WP-KERNEL-012", "");
+    locus.resolved = false;
+    let label = chip_label(&locus);
+    let block = BlockNode::with_children(
+        NodeKind::Paragraph,
+        vec![
+            Child::Text(TextLeaf::new("see ")),
+            Child::HsLink(locus.clone()),
+            Child::Text(TextLeaf::new(" after")),
+        ],
+    );
+    let palette = HsTheme::Dark.palette();
+
+    // 1) The laid-out plain text carries EXACTLY the chip label for the atom (one span authority).
+    let layout = layout_block(&block, &palette, 800.0, false);
+    assert_eq!(
+        layout.plain_text,
+        format!("see {label} after"),
+        "MT-068: the galley lays out the chip's true text so the chip consumes the layout space"
+    );
+
+    // 2) The find/replace span math agrees (the shared galley-cursor mirror): the leaf AFTER the
+    //    atom starts at 'see '(4) + chip-label chars — not at the raw-label length.
+    use handshake_native::rich_editor::find_replace::highlight_layer::block_galley_cursor;
+    let expected = 4 + label.chars().count();
+    assert_eq!(
+        block_galley_cursor(&block, 2, 0),
+        Some(expected),
+        "MT-068: span math counts the chip label ({} chars), keeping chip rects + highlight \
+         cursors aligned with the laid-out glyphs",
+        label.chars().count()
+    );
+
+    // 3) Chip-covered paint mode: the atom's section paints TRANSPARENT (the chip pill + its own
+    //    label are the only visible glyphs — no doubled runs), while Visible mode (nested contexts
+    //    with no chip overlay) keeps the run visible. Metrics/plain text identical between modes.
+    let covered = layout_block_atoms(&block, &palette, 800.0, false, AtomPaint::ChipCovered);
+    assert_eq!(covered.plain_text, layout.plain_text, "identical metrics");
+    assert_eq!(covered.job.sections.len(), 3, "three runs: text, atom, text");
+    assert_eq!(
+        covered.job.sections[1].format.color,
+        egui::Color32::TRANSPARENT,
+        "MT-068: the chip-covered atom run reserves space but paints nothing"
+    );
+    assert_ne!(
+        layout.job.sections[1].format.color,
+        egui::Color32::TRANSPARENT,
+        "Visible mode (nested list/quote/table content) still paints the atom label"
+    );
+
+    // 4) The resolved-tag regression guard: a committed tag atom's laid-out text is its label
+    //    ("#rust") in BOTH the old and new schemes — the fix must not shift tag chip spans.
+    let tag = HsLinkNode::new("tag", "rust", "#rust");
+    assert_eq!(chip_label(&tag), "#rust", "resolved tag label unchanged");
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 MT-020 — LIVE-WIDGET undo-after-insert (wikilink confirm path): a real `[[` keystroke
+// decode opens the popup, a real Enter confirms the staged result into an hsLink atom, and a REAL
+// Ctrl+Z through the mounted widget removes the atom and restores the exact pre-insert doc (trigger
+// text included) via the MT-035 unified undo bus. Also proves the insert→type→undo→undo ORDERING:
+// undo #1 removes the typed text, undo #2 removes the atom, undo #3 removes the trigger typing.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn mt020_live_wikilink_confirm_undo_restores_pre_insert_doc_and_ordering() {
+    use handshake_native::interop::interaction_bus::InteractionBus;
+    use handshake_native::pane_registry::PaneId;
+    use handshake_native::rich_editor::wikilinks::autocomplete::SearchPhase;
+
+    let doc = BlockNode::doc(vec![BlockNode::with_children(
+        NodeKind::Paragraph,
+        vec![Child::Text(TextLeaf::new(""))],
+    )]);
+    let rich_pane: PaneId = Arc::from("pane-mt020-wikilink");
+    let state = Arc::new(std::sync::Mutex::new({
+        let mut st = RichEditorState::new(doc).with_wikilink_runtime(headless_runtime(
+            Err(WikilinkError::NotFound("none".into())),
+            Ok(BacklinksResponse {
+                source_document_id: "DOC-1".into(),
+                backlinks: vec![],
+            }),
+            vec![],
+        ));
+        st.undo_pane_id = Some(rich_pane.clone());
+        st
+    }));
+    let state_for_ui = Arc::clone(&state);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(600.0, 320.0))
+        .build_ui(move |ui| {
+            RichEditorWidget::new(Arc::clone(&state_for_ui)).show(ui);
+        });
+    harness.run();
+    {
+        let root = harness.root();
+        let surface = root
+            .children_recursive()
+            .find(|n| n.accesskit_node().author_id() == Some("rich-editor-surface"))
+            .expect("the editor surface node carries author_id 'rich-editor-surface'");
+        surface.focus();
+    }
+    harness.step();
+    harness.step();
+
+    // 1) REAL keystroke decode: type `[[Hi` — the popup opens with query "Hi".
+    harness.event(egui::Event::Text("[[Hi".into()));
+    harness.step();
+    harness.step();
+    {
+        let st = state.lock().unwrap();
+        assert!(
+            st.wikilink_autocomplete.is_some(),
+            "typing `[[` opens the autocomplete popup"
+        );
+        assert_eq!(st.block_plain_text(0).as_deref(), Some("[[Hi"));
+    }
+    // Break the 500ms undo-coalescing window so the CONFIRM records a FRESH bus entry (the batcher
+    // coalesces rapid edits into one undo — deliberate; the ordering proof needs distinct entries).
+    std::thread::sleep(std::time::Duration::from_millis(600));
+
+    // 2) Stage the search delivery (the headless runtime has no tokio to resolve the fetch; staging
+    //    the Ready phase reproduces the post-delivery state the drain would produce), then a REAL
+    //    Enter confirms the selected row through the live key handler.
+    {
+        let mut st = state.lock().unwrap();
+        let ac = st.wikilink_autocomplete.as_mut().expect("popup open");
+        ac.phase = SearchPhase::Ready(vec![WikilinkResult {
+            block_id: "BLK-9".into(),
+            title: "Hit One".into(),
+            content_type: "note".into(),
+            highlight: String::new(),
+        }]);
+    }
+    let pre_insert_json = {
+        let st = state.lock().unwrap();
+        handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.doc)
+    };
+    harness.key_press(egui::Key::Enter);
+    harness.step();
+    harness.step();
+    {
+        let st = state.lock().unwrap();
+        assert!(st.wikilink_autocomplete.is_none(), "confirm closes popup");
+        let para = st.doc.children[0].as_block().unwrap();
+        let atom = para
+            .children
+            .iter()
+            .find_map(Child::as_hs_link)
+            .expect("the confirm inserted an hsLink atom");
+        assert_eq!(atom.ref_value, "BLK-9");
+        assert!(
+            !st.block_plain_text(0).unwrap_or_default().contains("[[Hi"),
+            "the `[[Hi` trigger text was removed by the confirm"
+        );
+    }
+    // The confirm recorded on the UNIFIED bus (2 entries: the typing + the confirm).
+    let bus = InteractionBus::get_or_init(&harness.ctx);
+    let depth = InteractionBus::with_try_lock(&bus, |b| b.local_undo_count(&rich_pane))
+        .expect("bus lock");
+    assert_eq!(
+        depth, 2,
+        "MT-020: the atom insert recorded its own bus entry (typing + confirm)"
+    );
+
+    // 3) ORDERING: type more text AFTER the insert (its own entry after the window)...
+    std::thread::sleep(std::time::Duration::from_millis(600));
+    harness.event(egui::Event::Text("tail".into()));
+    harness.step();
+    harness.step();
+    {
+        let st = state.lock().unwrap();
+        assert!(
+            st.block_plain_text(0).unwrap_or_default().contains("tail"),
+            "the post-insert typing landed"
+        );
+    }
+
+    // 4) Undo #1 (REAL Ctrl+Z): the typed text goes, the atom STAYS (ordering).
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Z);
+    harness.step();
+    harness.step();
+    {
+        let st = state.lock().unwrap();
+        assert!(
+            !st.block_plain_text(0).unwrap_or_default().contains("tail"),
+            "undo #1 removed the typed text"
+        );
+        let para = st.doc.children[0].as_block().unwrap();
+        assert!(
+            para.children.iter().any(|c| c.as_hs_link().is_some()),
+            "undo #1 did NOT remove the atom (insert-type-undo-undo ordering)"
+        );
+    }
+
+    // 5) Undo #2: the ATOM goes; the doc equals the exact pre-insert doc (trigger text restored).
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Z);
+    harness.step();
+    harness.step();
+    {
+        let st = state.lock().unwrap();
+        let para = st.doc.children[0].as_block().unwrap();
+        assert!(
+            para.children.iter().all(|c| c.as_hs_link().is_none()),
+            "undo #2 removed the inserted atom"
+        );
+        let now_json =
+            handshake_native::rich_editor::document_model::doc_json::to_content_json_value(
+                &st.doc,
+            );
+        assert_eq!(
+            now_json, pre_insert_json,
+            "MT-020: undo restored the EXACT pre-insert doc (trigger text `[[Hi` included)"
+        );
+    }
+
+    // 6) Undo #3: the trigger typing goes too — back to the empty paragraph.
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Z);
+    harness.step();
+    harness.step();
+    {
+        let st = state.lock().unwrap();
+        assert_eq!(
+            st.block_plain_text(0).as_deref(),
+            Some(""),
+            "undo #3 removed the typed trigger — the full stack unwinds in order"
+        );
+    }
+}

@@ -202,11 +202,12 @@ pub fn text_format_for_run(
 ///
 /// `plain_text` is the concatenation of every inline child's contributed text in the
 /// SAME order the job appends sections, so a char offset into `plain_text` is exactly
-/// the `CCursor.index` for the galley. An `hsLink` inline atom contributes its display
-/// label so it is visible AND occupies caret positions consistent with the model's
-/// "atom = size 1" rule is intentionally NOT applied to the visible text (an atom shows
-/// its label); the caret layer treats text-leaf offsets only, which is the MT-012
-/// vertical-slice scope (wikilink caret interplay is MT-015).
+/// the `CCursor.index` for the galley. An `hsLink` inline atom contributes its CHIP
+/// label (`inline_view::chip_label` — the MT-068 glyph-overlap fix: the layout reserves
+/// the chip's true text, decorations included) so it occupies the chip's real span; the
+/// model's "atom = size 1" rule is intentionally NOT applied to the laid-out text. The
+/// caret layer treats text-leaf offsets only, which is the MT-012 vertical-slice scope
+/// (wikilink caret interplay is MT-015).
 pub struct BlockLayout {
     /// The styled job to hand to `painter.layout_job` / `ui.fonts(|f| f.layout_job(..))`.
     pub job: LayoutJob,
@@ -215,11 +216,29 @@ pub struct BlockLayout {
     pub plain_text: String,
 }
 
+/// How an `hsLink` atom's laid-out label run is painted (WP-KERNEL-012 MT-068 chip
+/// glyph-overlap fix). The laid-out TEXT is `chip_label` in BOTH modes (one span
+/// authority — chip rects, find/replace cursors, and caret rows all agree); only the
+/// glyph COLOR differs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AtomPaint {
+    /// Paint the atom's label glyphs normally (nested list/quote/code/table content —
+    /// contexts with NO chip overlay, where a transparent run would make the atom
+    /// invisible).
+    Visible,
+    /// Reserve the layout space but paint the run transparent: the chip painter
+    /// (`paint_one_wikilink_chip`) draws the only visible pill + label over the exact
+    /// span, so the underlying glyphs can never double up around the chip.
+    ChipCovered,
+}
+
 /// Build a [`BlockLayout`] for an inline-content block (`paragraph`, `heading`,
 /// `code_block`). Iterates the block's inline children, appending one [`LayoutJob`]
-/// section per text run (with its mark-derived [`TextFormat`]) and the display label
-/// for each `hsLink` atom. `wrap_width` bounds the line wrap (the available content
-/// width in points); `0.0` disables wrapping.
+/// section per text run (with its mark-derived [`TextFormat`]) and the CHIP label
+/// (`inline_view::chip_label`) for each `hsLink` atom. `wrap_width` bounds the line
+/// wrap (the available content width in points); `0.0` disables wrapping. Atom runs
+/// paint visibly ([`AtomPaint::Visible`]); the chip-covered paint path uses
+/// [`layout_block_atoms`].
 ///
 /// Empty-block control (red-team RISK-5 / RISK empty TextLeaf): a block with no inline
 /// children, or whose only child is a zero-length text leaf, still produces a job
@@ -232,6 +251,21 @@ pub fn layout_block(
     palette: &HsPalette,
     wrap_width: f32,
     bold_available: bool,
+) -> BlockLayout {
+    layout_block_atoms(block, palette, wrap_width, bold_available, AtomPaint::Visible)
+}
+
+/// [`layout_block`] with an explicit [`AtomPaint`] mode (MT-068): the top-level
+/// paragraph/heading paint path passes [`AtomPaint::ChipCovered`] so the chip overlay is
+/// the ONLY visible rendering of an `hsLink` atom; every other caller (nested contexts,
+/// span math, plain-text derivation) keeps [`AtomPaint::Visible`] via [`layout_block`].
+/// Metrics are IDENTICAL between modes (color does not affect layout).
+pub fn layout_block_atoms(
+    block: &BlockNode,
+    palette: &HsPalette,
+    wrap_width: f32,
+    bold_available: bool,
+    atom_paint: AtomPaint,
 ) -> BlockLayout {
     let style = block_style(block);
     let mut job = LayoutJob::default();
@@ -247,15 +281,23 @@ pub fn layout_block(
                 plain.push_str(&text);
             }
             Child::HsLink(link) => {
-                // Show the atom's display label (or `refKind:refValue` when blank, the
-                // React default) in the accent/link style so a wikilink is visible in
-                // the vertical slice. The full interactive wikilink is MT-015.
-                let label = if link.label.is_empty() {
-                    format!("{}:{}", link.ref_kind, link.ref_value)
-                } else {
-                    link.label.clone()
-                };
-                let fmt = text_format_for_run(
+                // WP-KERNEL-012 MT-068 (chip glyph-overlap fix): lay out EXACTLY the text the chip
+                // painter shows (`chip_label` — including the `? `/`(unresolved)`/code/locus glyph
+                // decorations), so the atom CONSUMES the chip's true layout space and the chip rect
+                // covers the whole span. Before this, the galley laid out `label`/`refKind:refValue`
+                // while the chip span/label math used `chip_label`, so the two glyph runs doubled up
+                // and stuck out around the pill (the Wave-B audit's garbled-chip defect).
+                //
+                // In [`AtomPaint::ChipCovered`] contexts (top-level paragraphs/headings, where
+                // `paint_one_wikilink_chip` overlays the pill) the run is painted TRANSPARENT: the
+                // layout reserves the space (wrapping, caret rows, chip-span hit tests all see it)
+                // while the ONLY visible glyphs are the chip's own. `Color32::TRANSPARENT` is
+                // structural ("paint nothing"), not a theme-color literal — the visible chip colors
+                // stay theme tokens in `chip_colors`. In [`AtomPaint::Visible`] contexts (nested
+                // list/quote/code/table content, which has NO chip overlay) the label paints
+                // normally in the link style so the atom never becomes invisible.
+                let label = crate::rich_editor::wikilinks::inline_view::chip_label(link);
+                let mut fmt = text_format_for_run(
                     &[Mark::Link {
                         href: String::new(),
                     }],
@@ -263,6 +305,9 @@ pub fn layout_block(
                     palette,
                     bold_available,
                 );
+                if atom_paint == AtomPaint::ChipCovered {
+                    fmt.color = egui::Color32::TRANSPARENT;
+                }
                 job.append(&label, 0.0, fmt);
                 plain.push_str(&label);
             }

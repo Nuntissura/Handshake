@@ -15,7 +15,7 @@ use std::sync::{
 };
 use std::time::{Duration, Instant};
 
-use egui_kittest::kittest::NodeT;
+use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
@@ -85,6 +85,7 @@ impl NotesMockServer {
                 content_json: paragraph_doc(INITIAL_TEXT),
                 doc_version: 7,
                 title: "MT-099 note".to_owned(),
+                draft_text: None,
             },
         );
         docs.insert(
@@ -93,6 +94,7 @@ impl NotesMockServer {
                 content_json: paragraph_doc(SECOND_INITIAL_TEXT),
                 doc_version: 13,
                 title: "MT-099 second note".to_owned(),
+                draft_text: None,
             },
         );
         let state = Arc::new(Mutex::new(ServerState { docs }));
@@ -176,6 +178,17 @@ impl NotesMockServer {
         doc.doc_version = doc_version;
     }
 
+    /// WP-KERNEL-012 MT-020: stage a persisted draft for `document_id` so the NEXT `GET /draft`
+    /// (e.g. on a second open) serves a non-null draft based on the current server version.
+    fn set_document_draft(&self, document_id: &str, text: &str) {
+        let mut state = self.state.lock().unwrap();
+        let doc = state
+            .docs
+            .get_mut(document_id)
+            .expect("test document exists");
+        doc.draft_text = Some(text.to_owned());
+    }
+
     fn shutdown(self) -> Vec<RecordedRequest> {
         self.stop.store(true, Ordering::SeqCst);
         let _ = TcpStream::connect(self.base_url.strip_prefix("http://").unwrap_or(""));
@@ -188,6 +201,10 @@ struct ServerDocState {
     content_json: serde_json::Value,
     doc_version: u64,
     title: String,
+    /// WP-KERNEL-012 MT-020 (draft recovery): when set, `GET /draft` serves a NON-NULL persisted
+    /// draft with this paragraph text, based on the CURRENT `doc_version` (the offerable shape the
+    /// client re-checks defensively). `None` -> `draft: null` (the pre-existing MT-099 behavior).
+    draft_text: Option<String>,
 }
 
 struct ServerState {
@@ -225,13 +242,24 @@ fn route_request(
             let Some(doc) = state.docs.get(&document_id) else {
                 return missing_document_response(&document_id);
             };
+            // MT-020 draft recovery: serve the staged draft (offerable shape — based on the CURRENT
+            // doc_version, carrying content) when one is set, else the pre-existing `draft: null`.
+            let draft = match &doc.draft_text {
+                Some(text) => serde_json::json!({
+                    "base_doc_version": doc.doc_version,
+                    "base_content_sha256": "mock-sha",
+                    "draft_content_sha256": "mock-draft-sha",
+                    "content_json": paragraph_doc(text)
+                }),
+                None => serde_json::Value::Null,
+            };
             (
                 "HTTP/1.1 200 OK",
                 serde_json::json!({
                     "rich_document_id": document_id,
                     "current_doc_version": doc.doc_version,
                     "current_content_sha256": "mock-sha",
-                    "draft": null
+                    "draft": draft
                 }),
             )
         }
@@ -888,4 +916,144 @@ fn text_from_doc(value: &serde_json::Value) -> String {
         .as_str()
         .unwrap_or("")
         .to_owned()
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 MT-020 — APP-LEVEL draft recovery proof (the remediation's missing half): the MT-099
+// mock serves a NON-NULL draft on the SECOND open, and the recovery flows through the MOUNTED pane —
+// the `draft-recovery-banner` appears in the live tree and clicking `draft-restore` loads the draft
+// content into the mounted editor. This is the operator-visible crash-recovery path, not a
+// state-level unit assertion.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+const DRAFT_TEXT: &str = "MT-020 recovered draft note";
+
+fn find_author_node_exists(harness: &Harness<'_, HandshakeApp>, author_id: &str) -> bool {
+    harness
+        .root()
+        .children_recursive()
+        .any(|n| n.accesskit_node().author_id() == Some(author_id))
+}
+
+fn wait_for_author_node(
+    harness: &mut Harness<'_, HandshakeApp>,
+    author_id: &str,
+    timeout: Duration,
+) {
+    let deadline = Instant::now() + timeout;
+    while Instant::now() < deadline {
+        harness.step();
+        if find_author_node_exists(harness, author_id) {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    panic!("timed out waiting for AccessKit node author_id={author_id:?} in the mounted app tree");
+}
+
+#[test]
+fn draft_recovery_banner_restores_draft_through_mounted_pane_on_second_open() {
+    let _wgpu_guard = wgpu_guard();
+    let server = NotesMockServer::spawn();
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .expect("tokio runtime");
+    let mut app = ok_app();
+    app.set_backend_base_url_for_test(&server.base_url, runtime.handle().clone());
+
+    // FIRST open: no draft exists (`draft: null`) — no recovery banner may appear.
+    assert!(
+        matches!(app.open_document(DOC_ID), NavDispatchOutcome::Opened { .. }),
+        "first open routes through ShellNavigator"
+    );
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1180.0, 760.0))
+        .wgpu()
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    wait_for_text(&mut harness, INITIAL_TEXT, Duration::from_secs(5));
+    // Let the first draft GET land, then assert NO banner (draft was null).
+    wait_for_requests(
+        &server,
+        |requests| {
+            requests
+                .iter()
+                .any(|r| r.method == "GET" && r.path == format!("/knowledge/documents/{DOC_ID}/draft"))
+        },
+        Duration::from_secs(5),
+    );
+    harness.step();
+    harness.step();
+    assert!(
+        !find_author_node_exists(&harness, "draft-recovery-banner"),
+        "no draft on first open -> no recovery banner"
+    );
+
+    // Stage a persisted draft server-side (the crash-recovery scenario: unsaved edits survived),
+    // then reopen the SAME document — the second open's fresh GET /draft serves it non-null.
+    server.set_document_draft(DOC_ID, DRAFT_TEXT);
+    assert!(
+        matches!(
+            harness.state_mut().open_document(DOC_ID),
+            NavDispatchOutcome::Opened { .. }
+        ),
+        "second open routes through ShellNavigator again"
+    );
+
+    // The mounted pane shows the 'Draft recovery' banner (the operator-visible AC surface).
+    wait_for_author_node(&mut harness, "draft-recovery-banner", Duration::from_secs(5));
+    assert!(
+        find_author_node_exists(&harness, "draft-restore"),
+        "the banner offers the Restore-draft button"
+    );
+    assert!(
+        find_author_node_exists(&harness, "draft-discard"),
+        "the banner offers the Discard button"
+    );
+
+    // Restore THROUGH the mounted pane: activate the live "Restore draft" button via an
+    // AccessKit Click ACTION targeted at its node id (the deterministic route a swarm agent / AT
+    // client uses; the shell repaints continuously in this harness, so `run()`-settled pointer
+    // clicks are unavailable — the action request reaches `Response::clicked` directly).
+    let restore_id = harness.get_by_label("Restore draft").accesskit_node().id();
+    harness.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action: egui::accesskit::Action::Click,
+            target: restore_id,
+            data: None,
+        },
+    ));
+    harness.step();
+    harness.step();
+
+    // The mounted editor now carries the DRAFT content (recovered in-progress edits).
+    wait_for_text(&mut harness, DRAFT_TEXT, Duration::from_secs(5));
+
+    // The restored draft is UNSAVED recovered work -> the banner is gone and the doc is dirty
+    // (a later Ctrl+S persists it); the restore itself must not silently canonical-save.
+    harness.step();
+    assert!(
+        !find_author_node_exists(&harness, "draft-recovery-banner"),
+        "restoring dismisses the banner"
+    );
+
+    let requests = server.shutdown();
+    let draft_path = format!("/knowledge/documents/{DOC_ID}/draft");
+    let draft_gets = requests
+        .iter()
+        .filter(|r| r.method == "GET" && r.path == draft_path)
+        .count();
+    assert!(
+        draft_gets >= 2,
+        "both opens issued a draft GET (got {draft_gets}); requests={requests:?}"
+    );
+    let saves = requests
+        .iter()
+        .filter(|r| r.method == "PUT" && r.path == format!("/knowledge/documents/{DOC_ID}/save"))
+        .count();
+    assert_eq!(
+        saves, 0,
+        "restoring a draft must NOT canonical-save by itself (the operator saves explicitly)"
+    );
 }
