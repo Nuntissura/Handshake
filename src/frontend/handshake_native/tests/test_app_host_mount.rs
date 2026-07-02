@@ -350,6 +350,98 @@ fn rich_pending_events_drain_and_route() {
     );
 }
 
+// ── WP-KERNEL-012 W3 / MT-070+MT-057: the code pane's 'Create note from link' HOST drain ───────────────
+
+/// Confirming 'Create note from link' on the MOUNTED code pane's REAL context menu routes the staged
+/// `[[title]]` through the SHELL drain (`drive_editor_mounts`) into the MT-057 create path
+/// (`WikilinkRuntime::dispatch_create_note` on the mounted rich state) — NOT a panel-side manual drain.
+/// The R2 audit found `take_pending_create_note_link` had ZERO product callers: the confirmed entry
+/// staged the intent and the shell silently dropped it. This proof drives the live `app.ui` frame loop,
+/// so a green run means the host consumed the intent (the panel's staged slot is empty WITHOUT this test
+/// taking it) and the SAME wikilink runtime the rich editor's chip-click uses holds the in-flight create
+/// (the `POST /knowledge/documents` dispatch fired, duplicate-guarded — MC-001). The live PG round-trip
+/// stays NEEDS_MANAGED_RESOURCE_PROOF; the host wiring is the proven part.
+#[test]
+fn code_pane_create_note_from_link_routes_through_host_drain() {
+    use handshake_native::code_editor::panel::CODE_EDITOR_CONTEXT_SURFACE_AUTHOR_ID;
+
+    let (app, _rt) = editor_shell();
+    let code_panel = app.mounted_code_panel();
+    let rich_state = app.mounted_rich_state();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    // Several frames so the mounts wire: the rich pane's wikilink runtime binds workspace + runtime +
+    // the production create backend (set_wikilink_context) — the target of the host route.
+    harness.run_steps(3);
+
+    // Put a `[[wikilink]]` under the caret on the SAME mounted panel the code pane renders.
+    let snippet = "// see [[Design Notes]]\n";
+    code_panel.set_text(snippet);
+    code_panel.set_single_cursor(snippet.find("Design").expect("snippet link") + 2);
+    harness.run_steps(1);
+    assert_eq!(
+        code_panel.wikilink_under_cursor().as_deref(),
+        Some("Design Notes"),
+        "the caret sits on the [[Design Notes]] wikilink in the MOUNTED code pane"
+    );
+
+    // Open the editor-body context menu via the REAL right-click path and confirm the entry.
+    harness
+        .root()
+        .children_recursive()
+        .find(|n| {
+            n.accesskit_node().author_id().as_deref() == Some(CODE_EDITOR_CONTEXT_SURFACE_AUTHOR_ID)
+        })
+        .expect("the mounted code pane's context surface node is live")
+        .click_secondary();
+    harness.run_steps(2);
+    harness
+        .root()
+        .children_recursive()
+        .find(|n| {
+            n.accesskit_node().author_id().as_deref() == Some("ctx-menu.ctxmenu-editor-create-note")
+        })
+        .expect("the open menu's 'Create note from link' item is live")
+        .click();
+    // The pane render confirms the entry (stages the intent) and the SAME frame's
+    // `drive_editor_mounts` (after the pane host) drains + dispatches it. Poll ONE frame at a time,
+    // checking BETWEEN frames: the dispatch lands at a frame's END (the drain runs after the pane
+    // host), while the in-flight guard can only clear DURING a later frame's rich render (after the
+    // off-thread outcome lands) — so a per-step check deterministically observes the in-flight create.
+    let mut create_in_flight = false;
+    for _ in 0..5 {
+        harness.run_steps(1);
+        if rich_state
+            .lock()
+            .unwrap()
+            .wikilinks
+            .is_creating("Design Notes")
+        {
+            create_in_flight = true;
+            break;
+        }
+    }
+    // The host routed the title into the MT-057 create path: the mounted rich state's wikilink runtime
+    // held the in-flight create for the normalized title (the dispatch fired — not a silent drop).
+    assert!(
+        create_in_flight,
+        "W3/R2: the HOST drain routed the staged title into WikilinkRuntime::dispatch_create_note \
+         (the create for '[[Design Notes]]' went in flight on the SAME runtime the rich chip-click uses)"
+    );
+    // The staged intent is GONE from the panel — the HOST consumed it, not this test.
+    assert_eq!(
+        code_panel.take_pending_create_note_link(),
+        None,
+        "W3/R2: the panel's staged create-note intent was drained by the SHELL (drive_editor_mounts), \
+         not by panel-side manual draining"
+    );
+    println!(
+        "PASS W3/R2: 'Create note from link' on the mounted code pane routes through the host drain \
+         into the MT-057 create path"
+    );
+}
+
 // ── WP-KERNEL-012 MT-055 REMEDIATION: reading mode is REACHABLE in the MOUNTED editor ──────────────────
 
 /// The Edit|Reading segmented toggle renders in the MOUNTED Notes pane's chrome (stable author_ids in

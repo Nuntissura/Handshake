@@ -4292,6 +4292,24 @@ impl HandshakeApp {
         Arc::clone(&self.editor_mounts.secondary.canvas_events)
     }
 
+    /// WP-KERNEL-012 W3 (MT-026 remediation): the Arc-shared canvas BOARD state behind the mounted
+    /// canvas pane (the wire-capture proofs seed `visual_edges`/workspace on the SAME board the host
+    /// routing reads, e.g. the RemoveEdge visual-vs-semantic route split).
+    pub fn mounted_canvas_board(
+        &self,
+    ) -> Arc<Mutex<crate::graph::canvas_board::LoomCanvasBoard>> {
+        Arc::clone(&self.editor_mounts.secondary.canvas_board)
+    }
+
+    /// WP-KERNEL-012 W3 (MT-026 remediation): how many canvas mutation op cells are currently
+    /// in flight (pushed by `route_canvas_events`, consumed by the feed drain when resolved). The
+    /// wire-capture proofs park the runtime so dispatched ops stay in flight, making this an exact
+    /// count of the host dispatches an event batch produced — a drained-queue assertion alone cannot
+    /// distinguish "routed to a dispatch" from "swallowed by a dead catch-all" (the W2 audit finding).
+    pub fn canvas_op_cells_in_flight(&self) -> usize {
+        self.canvas_op_cells.len()
+    }
+
     /// WP-KERNEL-012 MT-080: the Arc-shared graph view behind the MOUNTED graph pane (the AC-080-3 proof
     /// puts the view in Local mode + enqueues a `DepthChanged` and asserts the depth re-query carries the
     /// new backlink_depth).
@@ -7151,7 +7169,13 @@ impl HandshakeApp {
     ///    `WikilinkActivated` / `BacklinkActivated` -> open the document/block; `TagActivated` -> open the
     ///    tag hub. No event is left unrouted.
     ///
-    /// A snapshot-capture pass must NOT consume either channel (the real frame owns the drain), so both
+    /// 3. **Code pane create-note-from-link** (W3 / MT-070+MT-057). The code editor's confirmed
+    ///    'Create note from link' context-menu entry staged the `[[title]]` under the caret; the shell
+    ///    drains it (`take_pending_create_note_link`) and routes it into the MT-057
+    ///    `WikilinkRuntime::dispatch_create_note` on the mounted rich state — the SAME create path the
+    ///    rich editor's chip click uses (no forked second create path).
+    ///
+    /// A snapshot-capture pass must NOT consume these channels (the real frame owns the drain), so all
     /// are skipped while `capturing_snapshot`. All bus access is via `with_try_lock` so it never blocks
     /// the egui frame thread (HBR-QUIET).
     fn drive_editor_mounts(&mut self, ctx: &egui::Context) {
@@ -7357,6 +7381,34 @@ impl HandshakeApp {
                     // (MT-057 dispatch_create_note); the shell does not double-handle it here.
                 }
             }
+        }
+
+        // ── 3. Code pane 'Create note from link' (WP-KERNEL-012 W3 / MT-070+MT-057): the HOST drain ──
+        // The code editor's context-menu confirm staged the `[[title]]` under the caret
+        // (`CodeEditorPanel::stage_create_note_from_link`); previously `take_pending_create_note_link`
+        // had ZERO product callers, so the confirmed entry silently dropped the intent (the R2 audit
+        // finding). Drain it here and route the title into the SAME MT-057 create path the rich
+        // editor's chip-click uses: the mounted rich state's `WikilinkRuntime::dispatch_create_note`
+        // (the off-thread `POST /knowledge/documents` via the MT-037 binding, duplicate-in-flight
+        // guarded — MC-001; the outcome lands in the create cell the mounted rich render drains, which
+        // also inserts the new title into the shared resolver index). No second create path is forked.
+        if let Some(title) = self.editor_mounts.code_panel.take_pending_create_note_link() {
+            let dispatched = self
+                .editor_mounts
+                .rich_state
+                .lock()
+                .map(|mut state| state.wikilinks.dispatch_create_note(&title))
+                .unwrap_or(false);
+            if !dispatched {
+                // Honest non-dispatch: either a duplicate create for this title is already in flight
+                // (the MC-001 guard — benign) or the wikilink runtime has no backend/runtime bound yet.
+                // Surface a typed status instead of a silent drop (the same nav-status surface the
+                // quick switcher uses; no second status mechanism).
+                self.quick_switcher_nav_status = Some(format!(
+                    "Create note '{title}': not dispatched (already in flight, or no workspace/runtime bound)"
+                ));
+            }
+            ctx.request_repaint();
         }
 
         // ── WP-KERNEL-012 MT-008 REMEDIATION: LSP document sync (didOpen on load / didChange on edit) ─
@@ -8612,32 +8664,66 @@ impl HandshakeApp {
         }
     }
 
-    /// WP-KERNEL-012 MT-080 (AC-080-2 / MT-061): map each drained [`crate::graph::canvas_board::CanvasEvent`]
-    /// to the EXISTING `CanvasBoardClient` mutation + re-fetch (the live PATCH round-trip is gated
-    /// `NEEDS_MANAGED_RESOURCE_PROOF` — it needs a live PG board). A `ResizePlacement` PATCHes `{w,h}`; an
-    /// `AssignSection` PATCHes `{group_id}` (or clears it); both re-fetch the board so the persisted geometry
-    /// replaces the optimistic in-flight value. An `EditTextCard`/`TextCardEditBlocked` has NO bindable
-    /// persistence route — it stays the honest typed blocker (the canvas card-edit endpoint is absent), never
-    /// a faked write. Other events (place/remove/open) route through their existing paths or are no-ops here.
+    /// WP-KERNEL-012 MT-080 (AC-080-2 / MT-061) + W3 REMEDIATION (MT-026): map EVERY drained
+    /// [`crate::graph::canvas_board::CanvasEvent`] mutation kind to its EXISTING verified
+    /// `CanvasBoardClient` builder + the shared op-cell/re-fetch drain (the live round-trips are gated
+    /// `NEEDS_MANAGED_RESOURCE_PROOF` — they need a live PG board). The full wiring:
+    ///
+    /// - `ResizePlacement` -> `PATCH .../canvas-placements/:id {w,h}`;
+    /// - `AssignSection` -> the same placement PATCH with `{group_id}` (`Some`) / `{clear_group:true}` (`None`);
+    /// - `PlaceBlock` -> `POST .../canvas-boards/:cb/placements {placed_block_id,x,y,w,h}` (default
+    ///   [`crate::graph::canvas_board::DEFAULT_CARD_W`]x[`DEFAULT_CARD_H`](crate::graph::canvas_board::DEFAULT_CARD_H)
+    ///   geometry — the drop/toolbar event carries only x/y, matching the React drop default);
+    /// - `AddCard` -> `POST .../canvas-boards/:cb/cards {title,body,x,y,w,h}`;
+    /// - `Group` -> ONE placement PATCH `{group_id}` PER member id (the backend groups per placement);
+    /// - `RemovePlacement` -> `DELETE .../canvas-placements/:id` (source block KEPT — reference, not copy);
+    /// - `SemanticEdge` -> `POST /loom/edges {edge_type:"mention"}` (a REAL loom edge between BLOCKS);
+    /// - `VisualEdgeAdded` -> `POST .../canvas-boards/:cb/visual-edges` (board-local, between PLACEMENTS);
+    /// - `RemoveEdge` -> `DELETE /loom/canvas-visual-edges/:id` when the id is one of the board's own
+    ///   `visual_edges`, else `DELETE /loom/edges/:id` (a semantic loom edge — the MT-042 host contract:
+    ///   "routes it through the E6 loom client (semantic edge) or removes the board-local visual edge");
+    /// - `ViewportChanged` -> `PUT .../canvas-boards/:cb/viewport {board_state:{schema_id,pan_x,pan_y,zoom}}`
+    ///   (fired on pan/zoom RELEASE only — the widget debounces, never per frame);
+    /// - `NodeMenu` -> the MT-070 navigation bus (`node_navigation_target` -> `dispatch`) — not a backend op;
+    /// - `TextCardEditBlocked` -> the HONEST typed blocker surfaced on the board status (the card-edit
+    ///   route is verified ABSENT: the cards endpoint is create-only and `PUT /knowledge/documents/:id/save`
+    ///   is unbound) — never a faked write.
+    ///
+    /// Every dispatched mutation keeps its op cell in `canvas_op_cells` so the feed drain
+    /// (`drive_graph_and_canvas_feeds`) reads the RESULT and re-fetches the board on resolve: on `Ok` the
+    /// persisted values replace the optimistic ones; on `Err` the SAME re-fetch is the ROLLBACK to server
+    /// truth (+ the typed failure lands on the board's error surface).
     fn route_canvas_events(
         &mut self,
         events: Vec<crate::graph::canvas_board::CanvasEvent>,
         ctx: &egui::Context,
     ) {
-        use crate::graph::canvas_board::CanvasEvent;
+        use crate::graph::canvas_board::{CanvasEvent, DEFAULT_CARD_H, DEFAULT_CARD_W};
         let Some(rt) = self.runtime_handle.clone() else {
             return; // No runtime: a headless shell cannot dispatch off-thread mutations (graceful no-op).
         };
         let client = crate::backend_client::CanvasBoardClient::production(rt);
-        let workspace_id = match self.editor_mounts.secondary.canvas_board.lock() {
-            Ok(b) => b.workspace_id.clone(),
-            Err(_) => return,
-        };
+        let (workspace_id, canvas_block_id, visual_edge_ids) =
+            match self.editor_mounts.secondary.canvas_board.lock() {
+                Ok(b) => (
+                    b.workspace_id.clone(),
+                    b.canvas_block_id.clone(),
+                    b.visual_edges
+                        .iter()
+                        .map(|e| e.visual_edge_id.clone())
+                        .collect::<std::collections::HashSet<String>>(),
+                ),
+                Err(_) => return,
+            };
         let mut dispatched_any = false;
         for event in events {
-            let spec = match event {
+            // Each event maps to ZERO OR MORE mutation specs (a Group PATCHes one placement per member;
+            // NodeMenu/TextCardEditBlocked dispatch nothing). Exhaustive match — a future CanvasEvent
+            // kind fails compilation here instead of silently draining into a dead catch-all (the W2
+            // audit finding this remediation closes).
+            let specs: Vec<crate::backend_client::RequestSpec> = match event {
                 CanvasEvent::ResizePlacement { placement_id, w, h } => {
-                    Some(client.resize_request(&workspace_id, &placement_id, w as f64, h as f64))
+                    vec![client.resize_request(&workspace_id, &placement_id, w as f64, h as f64)]
                 }
                 // WP-KERNEL-012 MT-070: a confirmed canvas-node context-menu entry routes through the
                 // MT-070 navigation bus (`node_navigation_target` -> `dispatch`) — not a backend op.
@@ -8645,22 +8731,96 @@ impl HandshakeApp {
                     block_id, action, ..
                 } => {
                     self.route_node_menu_action(ctx, action, &block_id, None);
-                    None
+                    vec![]
                 }
                 CanvasEvent::AssignSection {
                     placement_id,
                     group_id,
-                } => Some(match group_id {
+                } => vec![match group_id {
                     Some(gid) => client.group_request(&workspace_id, &placement_id, &gid),
                     None => client.clear_group_request(&workspace_id, &placement_id),
-                }),
-                // The remaining canvas events keep their existing handling (open/select route to the active
-                // pane open path; place/remove are owned by their own MT-026 paths). EditTextCard /
-                // TextCardEditBlocked have no bindable card-body persistence route -> honest typed blocker,
-                // surfaced by the pane, never a faked write here.
-                _ => None,
+                }],
+                CanvasEvent::PlaceBlock {
+                    placed_block_id,
+                    x,
+                    y,
+                } => vec![client.place_block_request(
+                    &workspace_id,
+                    &canvas_block_id,
+                    &placed_block_id,
+                    x as f64,
+                    y as f64,
+                    DEFAULT_CARD_W as f64,
+                    DEFAULT_CARD_H as f64,
+                )],
+                CanvasEvent::AddCard { title, x, y } => vec![client.create_card_request(
+                    &workspace_id,
+                    &canvas_block_id,
+                    &title,
+                    x as f64,
+                    y as f64,
+                    DEFAULT_CARD_W as f64,
+                    DEFAULT_CARD_H as f64,
+                )],
+                CanvasEvent::Group {
+                    placement_ids,
+                    group_id,
+                } => placement_ids
+                    .iter()
+                    .map(|pid| client.group_request(&workspace_id, pid, &group_id))
+                    .collect(),
+                CanvasEvent::RemovePlacement { placement_id } => {
+                    vec![client.remove_placement_request(&workspace_id, &placement_id)]
+                }
+                CanvasEvent::SemanticEdge {
+                    source_block_id,
+                    target_block_id,
+                } => vec![client.semantic_edge_request(
+                    &workspace_id,
+                    &source_block_id,
+                    &target_block_id,
+                )],
+                CanvasEvent::VisualEdgeAdded {
+                    from_placement_id,
+                    to_placement_id,
+                } => vec![client.visual_edge_request(
+                    &workspace_id,
+                    &canvas_block_id,
+                    &from_placement_id,
+                    &to_placement_id,
+                )],
+                CanvasEvent::RemoveEdge { edge_id } => {
+                    // A board-local visual edge (the id is in the board's own visual_edges projection)
+                    // deletes via the canvas visual-edge route; anything else is a semantic loom edge.
+                    if visual_edge_ids.contains(&edge_id) {
+                        vec![client.remove_visual_edge_request(&workspace_id, &edge_id)]
+                    } else {
+                        vec![client.remove_semantic_edge_request(&workspace_id, &edge_id)]
+                    }
+                }
+                CanvasEvent::ViewportChanged { pan_x, pan_y, zoom } => vec![client
+                    .viewport_request(&workspace_id, &canvas_block_id, pan_x, pan_y, zoom)],
+                CanvasEvent::TextCardEditBlocked {
+                    placement_id,
+                    attempted_route,
+                    required_route,
+                    ..
+                } => {
+                    // MT-061 CONTRACT-MANDATED typed blocker: the card-edit persistence route is
+                    // verified ABSENT (the cards endpoint is create-only; the real save route is
+                    // unbound). Surface it on the board's own status surface so the blocked commit is
+                    // operator-perceivable — NEVER a faked write.
+                    if let Ok(mut board) = self.editor_mounts.secondary.canvas_board.lock() {
+                        board.status = format!(
+                            "Text-card edit NOT persisted (typed blocker, {placement_id}): \
+                             attempted {attempted_route}; requires {required_route}"
+                        );
+                    }
+                    ctx.request_repaint();
+                    vec![]
+                }
             };
-            if let Some(spec) = spec {
+            for spec in specs {
                 // MT-026 REMEDIATION: keep the op cell so the RESULT is read (previously a throwaway
                 // cell — a failed PATCH was indistinguishable from a success and the optimistic value
                 // stuck). The feed drain (`drive_graph_and_canvas_feeds`) re-fetches the board when the

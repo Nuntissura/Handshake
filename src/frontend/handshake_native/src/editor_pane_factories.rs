@@ -426,8 +426,11 @@ fn palette_of(cell: &SharedPalette) -> HsPalette {
 pub struct CanvasBoardPaneMount {
     board: Arc<Mutex<crate::graph::canvas_board::LoomCanvasBoard>>,
     palette: SharedPalette,
-    /// The outbound queue of canvas events the shell drains each frame (the move/resize/section/edit-card
-    /// gestures the host turns into real PATCH/POST via the MT-026 `CanvasBoardClient`).
+    /// The outbound queue of canvas events the shell drains each frame. W3 (MT-026 remediation): the
+    /// host (`route_canvas_events`) now maps EVERY mutation kind — place/card/resize/move-section/
+    /// group/remove-placement/semantic-edge/visual-edge/remove-edge/viewport — to its verified
+    /// `CanvasBoardClient` request + tracked op cell (re-fetch reconcile on Ok, rollback on Err);
+    /// `NodeMenu` routes to the MT-070 nav bus and `TextCardEditBlocked` stays the honest typed blocker.
     events: Arc<Mutex<Vec<crate::graph::canvas_board::CanvasEvent>>>,
 }
 

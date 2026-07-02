@@ -1,17 +1,32 @@
-# WP-KERNEL-012 MT-089 — redirect the build target-dir to the EXTERNAL artifact root (CX-212E) so this
-# crate NEVER creates a repo-local `target/` folder inside the worktree.
+# WP-KERNEL-012 MT-089/MT-094 (history) + wave-3 P3 MAX_PATH harness fix — keep ALL build
+# artifacts in the EXTERNAL artifact root (CX-212E):
+#   <Handshake Worktrees>/Handshake_Artifacts/handshake-cargo-target
 #
-# Path depth: this crate dir is
-#   <Handshake Worktrees>/wtc-native-editors-v1/src/frontend/palmistry
-# and Handshake_Artifacts lives at
-#   <Handshake Worktrees>/Handshake_Artifacts
-# so we climb FOUR levels: palmistry -> frontend -> src -> wtc-native-editors-v1 -> <Handshake Worktrees>.
+# WHY THIS FILE NO LONGER SETS `[build] target-dir` (wave-3 P3, LNK1104 fix):
+# This file used to set a crate-relative override:
+#     target-dir = "../../../../Handshake_Artifacts/handshake-cargo-target"
+# Cargo resolves config-file paths relative to the directory containing the `.cargo` folder and
+# does NOT normalize the `..` segments, so the MSVC linker received the UNRESOLVED base
+#     <...>\wtc-native-editors-v1\src\frontend\palmistry\..\..\..\..\Handshake_Artifacts\handshake-cargo-target
+# (~150 chars before `debug\deps\<unit>-<hash>` / incremental suffixes). New long unit hashes
+# pushed final link paths past the 260-char MAX_PATH limit -> LNK1104.
 #
-# MT-094 remediation: this used to point at `Handshake_Artifacts/palmistry-target`, but that layout
-# NEVER materialized — real builds run from the worktree root (repo-root `.cargo/config.toml`), so
-# palmistry artifacts actually land in `Handshake_Artifacts/handshake-cargo-target/debug/`. The stale
-# sibling dir meant a cwd-inside-the-crate build created a SECOND cold target dir and the test
-# binary-discovery fallbacks pointed at a directory that did not exist. Point at the REAL shared
-# layout so every invocation (worktree root or crate dir) resolves to the same artifacts.
-[build]
-target-dir = "../../../../Handshake_Artifacts/handshake-cargo-target"
+# THE FIX (drive-agnostic [CX-109]: no machine-local absolute path may be committed here):
+# 1) The crate-local override is intentionally REMOVED. Cargo merges `.cargo/config.toml` files
+#    from every parent of the invocation cwd, so a build run with cwd anywhere inside this crate
+#    now inherits the WORKTREE-ROOT `.cargo/config.toml`:
+#        target-dir = "../Handshake_Artifacts/handshake-cargo-target"
+#    That value resolves relative to the WORKTREE ROOT (a single `..`, ~40 fewer unresolved
+#    chars), landing in the SAME shared external target dir. MT-089 intent holds (no repo-local
+#    `target/` is ever created) and MT-094 intent holds (crate-dir and worktree-root builds share
+#    one artifact layout).
+# 2) SHORTEST-PATH CONVENTION (validated by the WP-KERNEL-012 wave-2 D2 coder): for fully
+#    resolved short linker paths, set the environment variable
+#        CARGO_TARGET_DIR=<absolute-path-to>/Handshake_Artifacts/handshake-cargo-target
+#    before invoking cargo. The env var takes precedence over every config-file `target-dir`.
+#    The repo justfile already pins this location (via `--target-dir {{CARGO_TARGET_DIR}}` on its
+#    recipes and an absolute-resolved CARGO_TARGET_DIR env for `tauri dev`). Machine-local
+#    absolute paths belong in the environment / operator-local config, never committed here.
+#
+# DO NOT re-add a crate-relative `target-dir` in this file — it reintroduces the LNK1104
+# MAX_PATH failure on long unit hashes.

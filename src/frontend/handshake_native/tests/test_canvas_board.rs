@@ -829,6 +829,62 @@ fn client_place_block_body() {
     );
     assert_eq!(body.get("x").and_then(|x| x.as_f64()), Some(100.0));
     assert_eq!(body.get("y").and_then(|x| x.as_f64()), Some(200.0));
+    // W3 (MT-026 remediation) wire-capture: the host's PlaceBlock arm passes the widget default
+    // geometry (the drop/toolbar event carries only x/y — React DEFAULT_CARD_W/H), and the placement
+    // POST body carries it.
+    assert_eq!(
+        body.get("w").and_then(|x| x.as_f64()),
+        Some(DEFAULT_CARD_W as f64)
+    );
+    assert_eq!(
+        body.get("h").and_then(|x| x.as_f64()),
+        Some(DEFAULT_CARD_H as f64)
+    );
+}
+
+/// W3 (MT-026 remediation) wire-capture: the `AddCard` host arm's `create_card_request` builder —
+/// `POST .../canvas-boards/:cb/cards` with `{title, body:"", x, y, w, h}` (the verified
+/// `create_canvas_card` shape; `body` is the empty string a fresh text card starts with).
+#[test]
+fn client_create_card_body() {
+    let c = test_client();
+    let spec = c.create_card_request("ws1", "cb1", "Card W3", 40.0, 40.0, 200.0, 120.0);
+    assert_eq!(
+        spec.url,
+        "http://127.0.0.1:37501/workspaces/ws1/loom/canvas-boards/cb1/cards"
+    );
+    let body = spec.body.unwrap();
+    assert_eq!(body.get("title").and_then(|x| x.as_str()), Some("Card W3"));
+    assert_eq!(body.get("body").and_then(|x| x.as_str()), Some(""));
+    assert_eq!(body.get("x").and_then(|x| x.as_f64()), Some(40.0));
+    assert_eq!(body.get("y").and_then(|x| x.as_f64()), Some(40.0));
+    assert_eq!(body.get("w").and_then(|x| x.as_f64()), Some(200.0));
+    assert_eq!(body.get("h").and_then(|x| x.as_f64()), Some(120.0));
+}
+
+/// W3 (MT-026 remediation) wire-capture: the `RemoveEdge` host arm's route SPLIT — a board-local
+/// visual-edge id deletes via the verified `DELETE .../loom/canvas-visual-edges/:id`
+/// (`remove_canvas_visual_edge` in `handshake_core` `api/loom.rs`); a semantic loom-edge id via the
+/// existing `DELETE .../loom/edges/:id`. Both DELETEs are bodyless.
+#[test]
+fn client_remove_edge_visual_vs_semantic_routes() {
+    let c = test_client();
+    let vis = c.remove_visual_edge_request("ws1", "ve-1");
+    assert_eq!(
+        vis.url,
+        "http://127.0.0.1:37501/workspaces/ws1/loom/canvas-visual-edges/ve-1"
+    );
+    assert!(vis.body.is_none(), "visual-edge DELETE is bodyless");
+    let sem = c.remove_semantic_edge_request("ws1", "edge-9");
+    assert_eq!(
+        sem.url,
+        "http://127.0.0.1:37501/workspaces/ws1/loom/edges/edge-9"
+    );
+    assert!(sem.body.is_none(), "semantic-edge DELETE is bodyless");
+    assert_ne!(
+        vis.url, sem.url,
+        "the two RemoveEdge routes are distinct backend surfaces"
+    );
 }
 
 #[test]

@@ -443,6 +443,109 @@ fn canvas_clear_group_sends_backend_accepted_clear_body() {
     );
 }
 
+// ── WP-KERNEL-012 W3 / MT-026 remediation: EVERY canvas mutation kind maps to a HOST dispatch ─────────
+
+/// Wire-capture of the FULL `route_canvas_events` mutation wiring (the W2 audit found only
+/// ResizePlacement/AssignSection wired; PlaceBlock / AddCard / Group / RemovePlacement / SemanticEdge /
+/// VisualEdgeAdded / RemoveEdge / ViewportChanged drained into a dead catch-all). A PARKED
+/// current-thread runtime is injected: `Handle::spawn` queues the off-thread mutations but nothing
+/// polls them, so every dispatched op's result cell stays IN FLIGHT — `canvas_op_cells_in_flight()` is
+/// then an exact, race-free count of the host dispatches the event batch produced. A drained-queue
+/// assertion alone cannot distinguish "routed to a real dispatch" from "swallowed by the catch-all",
+/// which is exactly the defect this proof pins. The RemoveEdge split is proven on the SAME mounted
+/// board the host reads: a seeded board-local visual-edge id routes to the visual-edge DELETE, an
+/// unknown id to the semantic loom-edge DELETE (both dispatch — 2 cells). The live PG round-trips stay
+/// NEEDS_MANAGED_RESOURCE_PROOF; the URL/body shapes are pinned by the `test_canvas_board` builder
+/// proofs the host routes through.
+#[test]
+fn canvas_mutation_events_map_to_host_dispatches_with_op_cells() {
+    use handshake_native::graph::canvas_board::VisualEdge;
+    use handshake_native::graph::CanvasEvent;
+
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("build parked current-thread runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_string(),
+        db_status: "ok".to_string(),
+        migration_version: Some(1),
+    }));
+    app.set_runtime_handle(runtime.handle().clone());
+    retype_panes(&mut app, &[("pane-a", PaneType::AtelierEditor)]);
+    let canvas_events = app.mounted_canvas_events();
+    let board = app.mounted_canvas_board();
+    // Seed ONE board-local visual edge so the RemoveEdge visual-vs-semantic route split reads it from
+    // the SAME board state the host routing locks. (The parked runtime never delivers the initial
+    // board fetch, so the seed is never overwritten mid-test.)
+    board.lock().unwrap().visual_edges.push(VisualEdge {
+        visual_edge_id: "ve-w3".into(),
+        from_placement_id: "p-1".into(),
+        to_placement_id: "p-2".into(),
+    });
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+    let baseline = harness.state().canvas_op_cells_in_flight();
+
+    {
+        let mut q = canvas_events.lock().unwrap();
+        // The four MUST-capture kinds (PlaceBlock / AddCard / RemovePlacement / ViewportChanged) …
+        q.push(CanvasEvent::PlaceBlock {
+            placed_block_id: "blk-w3".into(),
+            x: 60.0,
+            y: 90.0,
+        });
+        q.push(CanvasEvent::AddCard {
+            title: "Card W3".into(),
+            x: 40.0,
+            y: 40.0,
+        });
+        q.push(CanvasEvent::RemovePlacement {
+            placement_id: "p-w3".into(),
+        });
+        q.push(CanvasEvent::ViewportChanged {
+            pan_x: 12.0,
+            pan_y: -8.0,
+            zoom: 1.5,
+        });
+        // … plus the remaining wired kinds (shape-asserted through the same builder helpers).
+        q.push(CanvasEvent::Group {
+            placement_ids: vec!["p-1".into(), "p-2".into()],
+            group_id: "grp-w3".into(),
+        });
+        q.push(CanvasEvent::SemanticEdge {
+            source_block_id: "blk-a".into(),
+            target_block_id: "blk-b".into(),
+        });
+        q.push(CanvasEvent::VisualEdgeAdded {
+            from_placement_id: "p-1".into(),
+            to_placement_id: "p-2".into(),
+        });
+        q.push(CanvasEvent::RemoveEdge {
+            edge_id: "ve-w3".into(), // seeded board-local visual edge -> visual-edge DELETE
+        });
+        q.push(CanvasEvent::RemoveEdge {
+            edge_id: "loom-edge-9".into(), // NOT a board visual edge -> semantic loom-edge DELETE
+        });
+    }
+    harness.run_steps(1);
+
+    assert!(
+        canvas_events.lock().unwrap().is_empty(),
+        "the host drained the full canvas mutation batch (drive_secondary_mounts -> route_canvas_events)"
+    );
+    let dispatched = harness.state().canvas_op_cells_in_flight() - baseline;
+    // 1 (PlaceBlock) + 1 (AddCard) + 1 (RemovePlacement) + 1 (ViewportChanged) + 2 (Group of 2
+    // placements: one PATCH per member) + 1 (SemanticEdge) + 1 (VisualEdgeAdded) + 2 (RemoveEdge x2).
+    assert_eq!(
+        dispatched, 10,
+        "W3/W2: EVERY drained canvas mutation kind mapped to a real CanvasBoardClient dispatch with a \
+         tracked op cell (none swallowed by a catch-all)"
+    );
+    println!("PASS W3/W2: 9 canvas mutation events -> {dispatched} host dispatches with op cells");
+}
+
 // ── PT-080-B / AC-080-5: outgoing-links click routes to the nav bus ───────────────────────────────────
 
 #[test]

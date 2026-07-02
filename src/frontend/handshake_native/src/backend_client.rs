@@ -2598,6 +2598,24 @@ impl CanvasBoardClient {
         }
     }
 
+    /// Pure request builder for `DELETE /loom/canvas-visual-edges/:visual_edge_id`
+    /// (removeCanvasVisualEdge) — removes a BOARD-LOCAL visual edge by id (WP-KERNEL-012 W3 / MT-026
+    /// remediation: the `CanvasEvent::RemoveEdge` host route for an edge id the board's `visual_edges`
+    /// projection owns; the VERIFIED backend twin is `remove_canvas_visual_edge` in `handshake_core`
+    /// `api/loom.rs`, route `/workspaces/:ws/loom/canvas-visual-edges/:visual_edge_id`). A RemoveEdge
+    /// whose id is NOT a board visual edge routes to
+    /// [`remove_semantic_edge_request`](Self::remove_semantic_edge_request) instead.
+    pub fn remove_visual_edge_request(&self, workspace_id: &str, visual_edge_id: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Delete,
+            url: format!(
+                "{}/workspaces/{}/loom/canvas-visual-edges/{}",
+                self.base_url, workspace_id, visual_edge_id
+            ),
+            body: None,
+        }
+    }
+
     /// Pure request builder for `POST .../canvas-boards/:block_id/visual-edges` (addCanvasVisualEdge).
     pub fn visual_edge_request(
         &self,
