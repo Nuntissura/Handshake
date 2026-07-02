@@ -15,7 +15,7 @@ use thiserror::Error;
 use tokio::{
     sync::{
         mpsc::{self, error::TrySendError, Receiver, Sender},
-        Mutex,
+        Mutex, Notify,
     },
     task::JoinHandle,
     time::{self, MissedTickBehavior},
@@ -204,6 +204,14 @@ pub struct ProcessLedgerWriter {
     overflow_count: Arc<AtomicU64>,
     flush_failed_rows: Arc<AtomicU64>,
     capacity: usize,
+    /// WP-1 MT-013 (F1 graceful shutdown): fired by [`Self::begin_close`] to tell
+    /// the spawned `run_writer` loop to stop accepting new rows, flush everything
+    /// already queued (including a just-enqueued embedded-model STOP row), and
+    /// terminate so its `JoinHandle` resolves. Signalling via `Notify` (rather
+    /// than dropping every `Sender` clone) lets shutdown drain deterministically
+    /// even though a `LedgerBatcher` clone is still held alive inside
+    /// `AppState.llm_client`.
+    close_notify: Arc<Notify>,
 }
 
 impl ProcessLedgerWriter {
@@ -219,6 +227,7 @@ impl ProcessLedgerWriter {
         let degraded = Arc::new(AtomicBool::new(false));
         let overflow_count = Arc::new(AtomicU64::new(0));
         let flush_failed_rows = Arc::new(AtomicU64::new(0));
+        let close_notify = Arc::new(Notify::new());
         let writer = Self {
             sender,
             overflow_sink: Arc::clone(&overflow_sink),
@@ -226,6 +235,7 @@ impl ProcessLedgerWriter {
             overflow_count: Arc::clone(&overflow_count),
             flush_failed_rows: Arc::clone(&flush_failed_rows),
             capacity: config.capacity,
+            close_notify: Arc::clone(&close_notify),
         };
         let join = tokio::spawn(run_writer(
             receiver,
@@ -235,6 +245,7 @@ impl ProcessLedgerWriter {
             degraded,
             overflow_count,
             flush_failed_rows,
+            close_notify,
         ));
         (writer, join)
     }
@@ -266,6 +277,9 @@ impl ProcessLedgerWriter {
             overflow_count: Arc::new(AtomicU64::new(0)),
             flush_failed_rows: Arc::clone(&flush_failed_rows),
             capacity: config.capacity,
+            // The manual drain path runs no `run_writer` task, so this signal is
+            // never awaited; it exists only to satisfy the struct shape.
+            close_notify: Arc::new(Notify::new()),
         };
         let drain = ProcessLedgerDrain {
             receiver: Mutex::new(receiver),
@@ -282,6 +296,15 @@ impl ProcessLedgerWriter {
 
     pub fn append_stop(&self, event: ProcessStop) -> Result<(), ProcessLedgerError> {
         self.enqueue(LedgerEvent::Stop(event))
+    }
+
+    /// WP-1 MT-013 (F1 graceful shutdown): signal the spawned writer loop to
+    /// close. The loop closes its receiving half (no more rows accepted), drains
+    /// everything already buffered to the store, then returns so its `JoinHandle`
+    /// resolves. Idempotent and safe to call from any `LedgerBatcher` clone; a
+    /// no-op for the manual-drain writer (which runs no loop).
+    pub fn begin_close(&self) {
+        self.close_notify.notify_one();
     }
 
     pub fn is_degraded(&self) -> bool {
@@ -381,6 +404,7 @@ async fn run_writer(
     degraded: Arc<AtomicBool>,
     overflow_count: Arc<AtomicU64>,
     flush_failed_rows: Arc<AtomicU64>,
+    close_notify: Arc<Notify>,
 ) -> Result<(), ProcessLedgerError> {
     let mut ticker = time::interval_at(
         time::Instant::now() + config.flush_interval,
@@ -422,6 +446,16 @@ async fn run_writer(
                         record_flush_failure(&flush_failed_rows, &batch, &error);
                     }
                 }
+            }
+            _ = close_notify.notified() => {
+                // WP-1 MT-013 (F1 graceful shutdown): close the receiving half so
+                // no further rows are accepted, then let the `recv()` branch drain
+                // everything already buffered (it returns each buffered row and
+                // finally `None`, which breaks the loop into the final flush
+                // below). This reuses the existing drain+flush path so the
+                // embedded-model STOP row is durably persisted before the pool is
+                // torn down at shutdown.
+                receiver.close();
             }
         }
     }

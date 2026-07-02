@@ -8,7 +8,9 @@ use handshake_core::swarm_orchestration::model_lane::ModelLaneStore;
 use handshake_core::user_manual::seed::ensure_seeded;
 use handshake_core::user_manual::store::UserManualStore;
 use handshake_core::user_manual::{
-    model_lane_behavior_coverage_matrix, verify_model_lane_behavior_coverage, DiagnosticTierPosture,
+    embedded_model_behavior_coverage_matrix, model_lane_behavior_coverage_matrix,
+    verify_embedded_model_behavior_coverage, verify_model_lane_behavior_coverage,
+    DiagnosticTierPosture,
 };
 use sqlx::postgres::PgPoolOptions;
 use std::collections::BTreeSet;
@@ -161,4 +163,107 @@ async fn mixed_model_lane_behaviors_have_manual_coverage() {
         mixed.follow_up_ref.is_some(),
         "Palmistry deferred posture must carry a follow-up ref"
     );
+}
+
+/// WP-1 MT-013 (AC#5): the embedded-model lifecycle ledger + fail-closed/
+/// embedding Flight Recorder behaviors have first-class UserManual coverage rows
+/// backed by real seeded pages/tools, with the MT-013 HBR-INT-009 posture
+/// (Flight Recorder WIRED; internal_diagnostics + Palmistry DEFERRED-with-reason).
+#[tokio::test]
+async fn embedded_model_behaviors_have_manual_coverage() {
+    let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
+        panic!(
+            "PostgreSQL unavailable for embedded_model_behaviors_have_manual_coverage: \
+             UserManual behavior coverage proof requires live PostgreSQL/EventLedger"
+        );
+    };
+    ensure_seeded(&pg.db)
+        .await
+        .expect("seed UserManual behavior coverage corpus");
+
+    let manual_store = UserManualStore::new(&pg.db);
+    let pages = manual_store
+        .list_pages(None, None, 1_000)
+        .await
+        .expect("read UserManual pages");
+    let tools = manual_store
+        .list_tool_entries(None, None, 1_000)
+        .await
+        .expect("read UserManual tools");
+
+    let matrix = embedded_model_behavior_coverage_matrix();
+    let behavior_ids = matrix
+        .iter()
+        .map(|row| row.behavior_id)
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        behavior_ids,
+        BTreeSet::from([
+            "wp1.embedded_model.ledger_start",
+            "wp1.embedded_model.ledger_stop",
+            "wp1.llm.fail_closed_fr",
+            "wp1.llm.embedding_fr",
+        ]),
+        "MT-013 embedded-model behavior coverage matrix must stay exact"
+    );
+    assert_eq!(
+        behavior_ids.len(),
+        matrix.len(),
+        "behavior coverage matrix must not contain duplicate behavior_id rows"
+    );
+
+    for row in &matrix {
+        assert_eq!(
+            row.internal_diagnostics_posture,
+            DiagnosticTierPosture::DeferredWithReason,
+            "{} internal_diagnostics must be DEFERRED-with-reason for MT-013 (NOT Wired like MT-011)",
+            row.behavior_id
+        );
+        assert_eq!(
+            row.palmistry_posture,
+            DiagnosticTierPosture::DeferredWithReason,
+            "{} Palmistry must be DEFERRED-with-reason",
+            row.behavior_id
+        );
+        assert!(
+            row.deferred_reason.is_some(),
+            "{} DEFERRED tiers require a deferred_reason",
+            row.behavior_id
+        );
+        assert!(
+            row.follow_up_ref
+                .is_some_and(|value| value.starts_with("palmistry://wp1/embedded-model/")),
+            "{} DEFERRED tiers require an embedded-model Palmistry follow-up ref",
+            row.behavior_id
+        );
+        assert!(
+            row.schema_id.is_none(),
+            "{} is not a ModelLane schema-registry row",
+            row.behavior_id
+        );
+    }
+
+    let tool_ids = matrix
+        .iter()
+        .map(|row| row.tool_id)
+        .collect::<BTreeSet<_>>();
+    assert!(
+        tool_ids.contains("embedded_model_ledger_tests"),
+        "ledger behaviors must point at the embedded_model_ledger_tests proof suite"
+    );
+    assert!(
+        tool_ids.contains("llm_client_local_routing_tests"),
+        "FR behaviors must point at the llm_client_local_routing_tests proof suite"
+    );
+
+    verify_embedded_model_behavior_coverage(&matrix, &pages, &tools).unwrap_or_else(|errors| {
+        panic!(
+            "embedded-model behavior coverage gaps:\n{}",
+            errors
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join("\n")
+        )
+    });
 }

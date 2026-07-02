@@ -910,6 +910,56 @@ async fn local_embedding_error_emits_fr_error_event() {
     assert_eq!(events[0].trace_id, trace_id);
 }
 
+#[tokio::test]
+async fn disabled_client_embedding_emits_fr_event_at_call_time() {
+    // WP-1 MT-013 (F2): the trait-default `embedding()` returns
+    // EmbeddingUnsupported WITHOUT an FR event — a silent path reachable when the
+    // default lane delegates a non-UUIDv7 embed id to the DisabledLlmClient
+    // fallback. The override must emit a CALL-TIME FR event before returning.
+    let recorder = Arc::new(CapturingRecorder::default());
+    let disabled = DisabledLlmClient::new_recorded(
+        "unknown".to_string(),
+        "HSK-LOCAL-DISABLED: test disabled".to_string(),
+        recorder.clone(),
+    );
+
+    // Construction alone MUST NOT emit — proves call-time, not construction-time.
+    assert_eq!(
+        recorder.events().len(),
+        0,
+        "DisabledLlmClient construction must not emit a Flight Recorder event"
+    );
+
+    let trace_id = uuid::Uuid::now_v7();
+    let err = disabled
+        .embedding(EmbeddingRequest::new(
+            trace_id,
+            "embed me".into(),
+            "nomic-embed-text".into(),
+        ))
+        .await
+        .expect_err("disabled embedding must fail closed with EmbeddingUnsupported");
+    assert!(
+        matches!(err, LlmError::EmbeddingUnsupported),
+        "disabled embedding must return the typed EmbeddingUnsupported error, got {err:?}"
+    );
+
+    let events = recorder.events();
+    assert_eq!(
+        events.len(),
+        1,
+        "the disabled embedding call must emit exactly one CALL-TIME FR event"
+    );
+    assert!(matches!(
+        events[0].event_type,
+        FlightRecorderEventType::LlmInference
+    ));
+    assert_eq!(events[0].payload["error_kind"], "embedding_disabled");
+    assert_eq!(events[0].payload["token_usage"]["total_tokens"], 0);
+    assert!(events[0].payload["reason"].is_string());
+    assert_eq!(events[0].trace_id, trace_id);
+}
+
 #[test]
 fn llm_routing_surface_stays_engine_agnostic() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));

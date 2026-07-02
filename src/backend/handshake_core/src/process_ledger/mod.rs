@@ -16,17 +16,20 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-pub use batcher::{LedgerBatcher, LedgerBatcherConfig, NoopOverflowSink};
+pub use batcher::{
+    drain_and_join_ledger_writer, LedgerBatcher, LedgerBatcherConfig, LedgerDrainJoinOutcome,
+    NoopOverflowSink,
+};
 pub use idempotency::{
     ApplyOutcome, IdempotencyKey, IdempotencyLedger, IdempotencyLedgerError, IdempotentApply,
     SideEffectKind,
 };
 pub use overflow::{cap_metadata_jsonb, cap_metadata_value, MetadataCapOutcome};
 pub use reclaim::{
-    reclaim_handle, spawn_staleness_reclaim_task, KillError, KillOutcome, Reclaim,
-    ReclaimProcessStore, ReclaimReport, ReclaimStopWriter, ReclaimTrigger, ReclaimableProcess,
-    ReclaimedProcess, SandboxKill, StaleSessionSource, StalenessReclaimConfig,
-    POSTGRES_ACTIVE_RECLAIM_QUERY_SQL,
+    reclaim_handle, reclaim_pidless_embedded_orphans, spawn_staleness_reclaim_task, KillError,
+    KillOutcome, Reclaim, ReclaimProcessStore, ReclaimReport, ReclaimStopWriter, ReclaimTrigger,
+    ReclaimableProcess, ReclaimedProcess, SandboxKill, StaleSessionSource, StalenessReclaimConfig,
+    POSTGRES_ACTIVE_RECLAIM_QUERY_SQL, POSTGRES_PIDLESS_EMBEDDED_ORPHAN_RECLAIM_SQL,
 };
 pub use restart_resume::{
     OperatorDecisionRequest, OrphanReclaimInfo, RestartResumeOrchestrator, ResumableSession,

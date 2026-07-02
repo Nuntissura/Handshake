@@ -36,6 +36,12 @@ async fn main() {
 async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let addr: SocketAddr = ([127, 0, 0, 1], 37501).into();
 
+    // WP-1 MT-013 (F1 hard-crash reconcile): capture the boot timestamp BEFORE
+    // any embedded-model ProcessOwnershipLedger START row is written this run, so
+    // the pid-less orphan reclaim sweep below can safely close only rows started
+    // by a PRIOR (crashed) process and never this boot's own live row.
+    let boot_started_at = chrono::Utc::now();
+
     logging::init_logging();
 
     let cors = CorsLayer::new()
@@ -81,6 +87,32 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         write_startup_recovery_report(&restart_report)?;
         return Ok(());
     }
+
+    // WP-1 MT-013 (F1 hard-crash reconcile): close stale pid-less, session-less
+    // in-process embedded-model orphan rows left open by a prior kill -9 /
+    // power-loss. These carry parent_session_id=NULL + os_pid=NULL, so neither
+    // the session-scoped restart-resume reclaim above nor the swarm reclaim can
+    // EVER match them. Bounded to rows started before this process booted so the
+    // START row this run is about to write (init_llm_client below) is untouched.
+    // A sweep failure is logged but never aborts startup.
+    match handshake_core::process_ledger::reclaim_pidless_embedded_orphans(
+        &control_plane.postgres_pool,
+        boot_started_at,
+    )
+    .await
+    {
+        Ok(closed) => tracing::info!(
+            target: "handshake_core::process_ledger",
+            orphans_closed = closed,
+            "pid-less embedded-model orphan reclaim sweep complete"
+        ),
+        Err(err) => tracing::warn!(
+            target: "handshake_core::process_ledger",
+            error = %err,
+            "pid-less embedded-model orphan reclaim sweep failed"
+        ),
+    }
+
     let storage = control_plane.database.clone();
     let recorder = init_flight_recorder().await?;
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
@@ -96,11 +128,16 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let process_ledger_store = Arc::new(PostgresProcessLedgerStore::new(
         control_plane.postgres_pool.clone(),
     ));
-    let (process_ledger, _process_ledger_writer) = LedgerBatcher::spawn(
+    let (process_ledger, process_ledger_writer) = LedgerBatcher::spawn(
         process_ledger_store,
         Arc::new(NoopOverflowSink),
         LedgerBatcherConfig::default(),
     );
+    // WP-1 MT-013 (F1 graceful shutdown): keep a clone of the ledger handle so
+    // the shutdown path can close+drain the background writer. `process_ledger`
+    // itself is moved into the LlmClient (which owns the embedded-model STOP
+    // seam); `LedgerBatcher::begin_close` works from any clone.
+    let process_ledger_close = process_ledger.clone();
     let llm_client = init_llm_client(flight_recorder.clone(), Some(process_ledger)).await;
     let capability_registry = Arc::new(CapabilityRegistry::new());
     let session_registry = Arc::new(workflows::SessionRegistry::new(
@@ -225,23 +262,84 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!(target: "handshake_core", listen_addr = %addr, "handshake_core started");
 
     let listener = TcpListener::bind(addr).await?;
-    let serve_result = axum::serve(listener, app).await;
+    // WP-1 MT-013 (F1 graceful shutdown): serve WITH a graceful-shutdown signal.
+    // Without this, a Ctrl-C / SIGTERM OS-kills the process and the shutdown
+    // sequence below (embedded-model STOP emit + ledger drain) never runs. On a
+    // signal, `serve` resolves cleanly and we run the ordered teardown:
+    // shutdown seam -> bounded ledger drain -> managed PostgreSQL stop.
+    let serve_result = axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await;
 
-    // WP-1 MT-013: emit the embedded-model ProcessOwnershipLedger STOP row via
-    // the LlmClient shutdown seam BEFORE stopping the managed cluster, so the
-    // STOP write still has a live pool to flush into. No-op for non-embedded
-    // clients (the default when no local model is configured). The background
-    // ledger writer flushes best-effort; unflushed rows are recovered by the
-    // restart-resume/reclaim pass (a pid-less row has no OS-kill target).
+    // 1) Emit the embedded-model ProcessOwnershipLedger STOP row via the
+    //    LlmClient shutdown seam. No-op for non-embedded clients (the default
+    //    when no local model is configured). This enqueues the STOP into the
+    //    ledger batcher; it is NOT yet durably flushed.
     state.llm_client.shutdown();
 
-    // Best-effort teardown when the serve loop ends: stop the cluster only if
-    // Handshake started it (adopted/external clusters are left untouched).
+    // 2) BOUNDED drain-and-join: close the ledger writer channel and await the
+    //    background writer's JoinHandle (with a timeout) so the just-enqueued
+    //    STOP row is flushed to PostgreSQL BEFORE the managed cluster stops.
+    //    Ordering is load-bearing: shutdown -> drain -> pg stop. If the drain
+    //    times out, the pid-less STOP is recovered by the boot-time orphan
+    //    reclaim sweep on next start (a pid-less row has no OS-kill target).
+    let drain_outcome = handshake_core::process_ledger::drain_and_join_ledger_writer(
+        &process_ledger_close,
+        process_ledger_writer,
+        std::time::Duration::from_secs(5),
+    )
+    .await;
+    tracing::info!(
+        target: "handshake_core::process_ledger",
+        outcome = ?drain_outcome,
+        "embedded-model ledger drain-and-join at shutdown"
+    );
+
+    // 3) Best-effort teardown: stop the cluster only if Handshake started it
+    //    (adopted/external clusters are left untouched).
     if let Err(err) = managed_pg.stop().await {
         tracing::warn!(target: "handshake_core::managed_postgres", error = %err, "managed PostgreSQL stop failed at shutdown");
     }
     serve_result?;
     Ok(())
+}
+
+/// WP-1 MT-013 (F1 graceful shutdown): resolves on the first OS shutdown signal
+/// so `axum::serve(...).with_graceful_shutdown(...)` returns cleanly, letting the
+/// ordered teardown (embedded-model STOP emit + ledger drain + PostgreSQL stop)
+/// run instead of being OS-killed mid-flight. Awaits Ctrl-C on all platforms and
+/// SIGTERM additionally on Unix.
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        if let Err(err) = tokio::signal::ctrl_c().await {
+            tracing::error!(target: "handshake_core", error = %err, "failed to install Ctrl-C handler");
+            // If the handler cannot be installed, never resolve on this arm.
+            std::future::pending::<()>().await;
+        }
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+            Ok(mut sigterm) => {
+                sigterm.recv().await;
+            }
+            Err(err) => {
+                tracing::error!(target: "handshake_core", error = %err, "failed to install SIGTERM handler");
+                std::future::pending::<()>().await;
+            }
+        }
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {}
+        _ = terminate => {}
+    }
+
+    tracing::info!(target: "handshake_core", "shutdown signal received; beginning graceful shutdown");
 }
 
 fn startup_recovery_only_requested() -> bool {

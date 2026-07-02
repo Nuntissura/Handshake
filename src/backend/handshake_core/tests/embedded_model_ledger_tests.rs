@@ -30,10 +30,14 @@ use handshake_core::{
         TokenStream,
     },
     process_ledger::{
-        LedgerBatcher, LedgerBatcherConfig, LedgerEvent, NoopOverflowSink, ProcessEngineKind,
-        ProcessLedgerError, ProcessLedgerStore, ProcessStart, ProcessStop,
+        drain_and_join_ledger_writer, reclaim_pidless_embedded_orphans, LedgerBatcher,
+        LedgerBatcherConfig, LedgerDrainJoinOutcome, LedgerEvent, NoopOverflowSink,
+        ProcessEngineKind, ProcessLedgerError, ProcessLedgerStore, ProcessStart, ProcessStop,
     },
 };
+use sqlx::Connection;
+use std::time::Duration;
+use tokio::sync::OnceCell;
 
 /// A Flight Recorder sink that discards events (the ledger seam under test does
 /// not emit Flight Recorder events).
@@ -317,4 +321,263 @@ async fn shutdown_seam_is_idempotent_single_stop_row() {
         1,
         "repeated shutdown + Drop safety-net must emit exactly one STOP row (idempotent)"
     );
+}
+
+/// WP-1 MT-013 (F1a): the graceful-shutdown SEQUENCE — shutdown seam emits the
+/// STOP, then a bounded close + drain-and-join over the REAL spawned background
+/// writer (the production main.rs path, NOT the manual drain) — flushes the STOP
+/// row to the store. This proves the STOP genuinely reaches durable storage at
+/// shutdown, not just that the seam enqueues it.
+#[tokio::test]
+async fn graceful_shutdown_sequence_flushes_stop_through_background_writer() {
+    let store = Arc::new(InMemoryLedgerStore::default());
+    let (ledger, writer_join) = LedgerBatcher::spawn(
+        store.clone(),
+        Arc::new(NoopOverflowSink),
+        LedgerBatcherConfig::default(),
+    );
+    // Clone kept for the shutdown close signal; the original is moved into the
+    // client (which owns the embedded-model STOP seam), mirroring main.rs.
+    let ledger_close = ledger.clone();
+
+    let model_id = ModelId::new_v7();
+    let llama: Arc<dyn ModelRuntime> = Arc::new(NoopRuntime::new());
+    let candle: Arc<dyn ModelRuntime> = Arc::new(NoopRuntime::new());
+    let fallback: Arc<dyn LlmClient> = Arc::new(DisabledLlmClient::new(
+        "embedded-fallback".to_string(),
+        "no external fallback".to_string(),
+    ));
+    let recorder: Arc<dyn FlightRecorder> = Arc::new(NoopRecorder);
+
+    let client = assemble_local_runtime_client(
+        embedded_registration(model_id),
+        llama,
+        candle,
+        fallback,
+        recorder,
+        8192,
+        Some(ledger),
+    )
+    .expect("assemble embedded local runtime client with ledger");
+
+    // Graceful-shutdown SEQUENCE step 1: the shutdown seam enqueues the STOP row.
+    client.shutdown();
+
+    // Step 2: bounded drain-and-join closes the writer channel and awaits the
+    // background writer, flushing START + STOP to the store before teardown.
+    let outcome =
+        drain_and_join_ledger_writer(&ledger_close, writer_join, Duration::from_secs(5)).await;
+    assert!(
+        matches!(outcome, LedgerDrainJoinOutcome::Flushed),
+        "graceful-shutdown drain-and-join must flush cleanly, got {outcome:?}"
+    );
+
+    let starts = store.starts();
+    assert_eq!(
+        starts.len(),
+        1,
+        "the embedded START row must be flushed by the background writer at shutdown"
+    );
+    let stops = store.stops();
+    assert_eq!(
+        stops.len(),
+        1,
+        "the shutdown seam's STOP row must be flushed by the background writer's drain-and-join"
+    );
+    assert_eq!(
+        stops[0].process_uuid,
+        model_id.as_uuid(),
+        "flushed STOP row must correlate to the embedded model's START via process_uuid"
+    );
+    assert_eq!(
+        stops[0].os_pid, None,
+        "flushed STOP row must remain pid-less"
+    );
+
+    // `client` still holds a LedgerBatcher clone; dropping it after the writer
+    // already terminated must be a no-op (begin_close is idempotent; the Drop
+    // STOP safety net is a no-op after the explicit shutdown).
+    drop(client);
+}
+
+// ===========================================================================
+// WP-1 MT-013 (F1b): hard-crash orphan reconcile. A kill -9 / power-loss leaves
+// the pid-less, session-less embedded START row open forever; both session-
+// scoped reclaim paths filter on parent_session_id, so they can NEVER match it.
+// The boot-time sweep closes exactly those orphans. This proof uses REAL
+// PostgreSQL (Handshake-managed cluster) and FAILS (never skips) if it cannot
+// connect.
+// ===========================================================================
+
+static MANAGED_PG: OnceCell<
+    handshake_core::managed_postgres::ManagedPostgres,
+> = OnceCell::const_new();
+
+async fn managed_pg_base_url() -> String {
+    let managed = MANAGED_PG
+        .get_or_init(|| async {
+            handshake_core::managed_postgres::ManagedPostgres::ensure_running(
+                handshake_core::managed_postgres::ManagedPostgresConfig::from_env(),
+            )
+            .await
+            .expect(
+                "Handshake-managed PostgreSQL must start for the embedded orphan-reconcile proof",
+            )
+        })
+        .await;
+    managed.database_url()
+}
+
+async fn orphan_reclaim_schema_pool() -> sqlx::PgPool {
+    let base_url = managed_pg_base_url().await;
+    let mut conn = sqlx::PgConnection::connect(&base_url)
+        .await
+        .expect("connect Handshake-managed postgres");
+    let schema = format!("mt013_{}", uuid::Uuid::now_v7().simple());
+    sqlx::query(&format!(r#"CREATE SCHEMA "{schema}""#))
+        .execute(&mut conn)
+        .await
+        .expect("create isolated schema");
+    drop(conn);
+    let sep = if base_url.contains('?') { "&" } else { "?" };
+    let schema_url = format!("{base_url}{sep}options=-csearch_path%3D{schema}");
+    let pool = sqlx::PgPool::connect(&schema_url)
+        .await
+        .expect("connect isolated schema");
+    sqlx::raw_sql(include_str!(
+        "../migrations/0021_kernel_process_lifecycle.sql"
+    ))
+    .execute(&pool)
+    .await
+    .expect("apply kernel_process_lifecycle migration");
+    pool
+}
+
+async fn insert_lifecycle_row(
+    pool: &sqlx::PgPool,
+    process_uuid: uuid::Uuid,
+    os_pid: Option<i64>,
+    parent_session_id: Option<&str>,
+    engine_kind: &str,
+    started_at: chrono::DateTime<Utc>,
+    stopped_at: Option<chrono::DateTime<Utc>>,
+) {
+    sqlx::query(
+        r#"
+        INSERT INTO kernel_process_lifecycle
+            (process_uuid, os_pid, parent_session_id, engine_kind, started_at, stopped_at, owner_role)
+        VALUES ($1, $2, $3, $4, $5, $6, 'handshake-embedded-default')
+        "#,
+    )
+    .bind(process_uuid)
+    .bind(os_pid)
+    .bind(parent_session_id)
+    .bind(engine_kind)
+    .bind(started_at)
+    .bind(stopped_at)
+    .execute(pool)
+    .await
+    .expect("insert kernel_process_lifecycle row");
+}
+
+#[tokio::test]
+async fn hard_crash_pidless_embedded_orphan_is_reconciled_on_boot() {
+    let pool = orphan_reclaim_schema_pool().await;
+    let cutoff = Utc::now();
+    let past = cutoff - chrono::Duration::hours(1);
+
+    // The kill -9 orphan: session-less, pid-less, embedded (candle), open,
+    // started before this boot. This is the ONLY row the sweep must close.
+    let orphan = uuid::Uuid::now_v7();
+    insert_lifecycle_row(&pool, orphan, None, None, "candle", past, None).await;
+
+    // Controls that MUST survive the sweep:
+    // (a) pid-ful — has an OS-kill target; not our pid-less lane.
+    let pidful = uuid::Uuid::now_v7();
+    insert_lifecycle_row(&pool, pidful, Some(4321), None, "candle", past, None).await;
+    // (b) session-scoped — reclaimable by the existing session sweep.
+    let session_scoped = uuid::Uuid::now_v7();
+    insert_lifecycle_row(&pool, session_scoped, None, Some("SR-abc"), "candle", past, None).await;
+    // (c) non-embedded engine — not a regular-model runtime engine.
+    let non_embedded = uuid::Uuid::now_v7();
+    insert_lifecycle_row(&pool, non_embedded, None, None, "mechanical_job", past, None).await;
+    // (d) already stopped — excluded by `stopped_at IS NULL`.
+    let already_stopped = uuid::Uuid::now_v7();
+    insert_lifecycle_row(
+        &pool,
+        already_stopped,
+        None,
+        None,
+        "candle",
+        past,
+        Some(cutoff - chrono::Duration::minutes(30)),
+    )
+    .await;
+    // (e) started AFTER the boot cutoff — this boot's own live row.
+    let this_boot = uuid::Uuid::now_v7();
+    insert_lifecycle_row(
+        &pool,
+        this_boot,
+        None,
+        None,
+        "candle",
+        cutoff + chrono::Duration::hours(1),
+        None,
+    )
+    .await;
+
+    let closed = reclaim_pidless_embedded_orphans(&pool, cutoff)
+        .await
+        .expect("pid-less embedded orphan reclaim sweep");
+    assert_eq!(
+        closed, 1,
+        "exactly the one session-less/pid-less/embedded/open/pre-cutoff orphan must be closed"
+    );
+
+    // The orphan is now closed with the boot-reclaim stop_reason + sentinel exit.
+    let (orphan_stopped, orphan_reason, orphan_exit): (
+        Option<chrono::DateTime<Utc>>,
+        Option<String>,
+        Option<i32>,
+    ) = sqlx::query_as(
+        "SELECT stopped_at, stop_reason, exit_code FROM kernel_process_lifecycle WHERE process_uuid = $1",
+    )
+    .bind(orphan)
+    .fetch_one(&pool)
+    .await
+    .expect("read reconciled orphan row");
+    assert!(
+        orphan_stopped.is_some(),
+        "the orphan row must be closed (stopped_at set) by the boot reclaim sweep"
+    );
+    assert_eq!(
+        orphan_reason.as_deref(),
+        Some("orphan_reclaim_pidless_embedded_boot"),
+        "the orphan row must carry the boot-reclaim stop_reason"
+    );
+    assert_eq!(
+        orphan_exit,
+        Some(-1),
+        "the orphan row must carry the sentinel reclaim exit_code"
+    );
+
+    // Every control row remains open — the sweep is precise.
+    for (label, id) in [
+        ("pidful", pidful),
+        ("session_scoped", session_scoped),
+        ("non_embedded", non_embedded),
+        ("this_boot", this_boot),
+    ] {
+        let stopped: Option<chrono::DateTime<Utc>> = sqlx::query_scalar(
+            "SELECT stopped_at FROM kernel_process_lifecycle WHERE process_uuid = $1",
+        )
+        .bind(id)
+        .fetch_one(&pool)
+        .await
+        .expect("read control row");
+        assert!(
+            stopped.is_none(),
+            "control row {label} must NOT be closed by the pid-less embedded orphan reclaim sweep"
+        );
+    }
 }

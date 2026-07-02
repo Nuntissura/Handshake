@@ -163,7 +163,7 @@ axum = { version = "0.7", features = ["ws"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = { package = "yaml_serde", version = "0.10" }
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "sync", "time", "io-util"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "sync", "time", "io-util", "signal"] }
 tower-http = { version = "0.6", features = ["cors"] }
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "postgres", "macros", "migrate", "chrono", "uuid", "json"] }
 uuid = { version = "1", features = ["v4", "v7", "fast-rng", "serde"] }

@@ -188,6 +188,7 @@ fn seed_pages() -> Vec<NewUserManualPage> {
         page_model_lane_diagnostics(),
         page_model_lane_navigation(),
         page_model_lane_validation_harness(),
+        page_embedded_model_lifecycle_ledger(),
         page_usermanual_surface(),
         page_failure_modes_and_recovery(),
         page_repair_queues_and_staleness(),
@@ -223,6 +224,7 @@ fn page_manual_toc() -> NewUserManualPage {
         "model-lane-diagnostics",
         "model-lane-navigation",
         "model-lane-validation-harness",
+        "embedded-model-lifecycle-ledger",
         "usermanual-surface",
         "failure-modes-and-recovery",
         "repair-queues-and-staleness",
@@ -1149,6 +1151,107 @@ fn page_model_lane_schema() -> NewUserManualPage {
             NewManualAnchor {
                 anchor_kind: "test",
                 anchor_value: "model_lane_schema_pg_tests".into(),
+                http_method: "",
+            },
+        ],
+    }
+}
+
+fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
+    NewUserManualPage {
+        slug: "embedded-model-lifecycle-ledger".into(),
+        title: "Embedded Model Lifecycle Ledger & Fail-Closed Observability".into(),
+        page_kind: "surface_guide",
+        audience: "model_and_operator",
+        spec_anchors: vec!["3.6.2".into(), "4.6.1".into(), "4.2.3.2".into()],
+        sections: vec![
+            section(
+                "purpose",
+                "What this surface is",
+                "When a local model is configured, the default LlmClient loads the model \
+                 in-process through the embedded ModelRuntime (Candle CPU baseline / llama.cpp \
+                 opt-in). This library load spawns no OS process, so master-spec §3.6.2 clause (1) \
+                 (child of a SandboxAdapter, no bare std::process::Command) is satisfied \
+                 vacuously; the ENFORCED obligation is clause (2): a ProcessOwnershipLedger START \
+                 row on load and a matching STOP row on unload (§4.6.1), written to the same \
+                 `kernel_process_lifecycle` table the swarm factory uses. Because there is no OS \
+                 process, the START row is honestly pid-less (`os_pid = NULL`) and keyed on the \
+                 model's minted UUIDv7 `process_uuid`; a synthetic pid is forbidden.",
+            ),
+            section(
+                "workflows",
+                "Load, shutdown, and the STOP seam",
+                "On load, `EmbeddedModelProcess::record_load` emits the START row and returns an \
+                 ownership handle held by the LlmClient. The runtime is held behind \
+                 `Arc<dyn ModelRuntime>` and never has `unload(&mut self)` called on it, so the \
+                 STOP row is emitted through an explicit app-shutdown seam instead: \
+                 `LlmClient::shutdown` -> `EmbeddedModelProcess::shutdown` (idempotent; a Drop \
+                 safety-net also fires it). The binary wires `axum::serve(...).with_graceful_ \
+                 shutdown(...)` on Ctrl-C/SIGTERM, then runs an ordered teardown: emit STOP -> \
+                 bounded ledger drain-and-join (flush the STOP to PostgreSQL) -> stop the managed \
+                 cluster. Without the graceful-shutdown handler the process would be OS-killed and \
+                 the STOP would never fire.",
+            ),
+            section(
+                "recovery",
+                "Hard-crash orphan reconcile",
+                "A kill -9 / power-loss still leaves the START row open (`stopped_at IS NULL`). \
+                 That orphan is session-less (`parent_session_id IS NULL`) and pid-less \
+                 (`os_pid IS NULL`), so neither the session-scoped restart-resume reclaim nor the \
+                 swarm reclaim (both filter on `parent_session_id = $session`) can EVER match it. \
+                 On the next boot, `reclaim_pidless_embedded_orphans` closes exactly those \
+                 orphans — session-less AND pid-less AND `engine_kind IN ('llamacpp','candle')` \
+                 AND still open AND started before this process booted — setting `stopped_at`, a \
+                 sentinel `exit_code`, and `stop_reason = 'orphan_reclaim_pidless_embedded_boot'`. \
+                 The boot cutoff guarantees this boot's own live row is never swept. \
+                 HBR-INT-009 posture: Flight Recorder / EventLedger is WIRED (ProcessOwnershipLedger \
+                 rows + per-call Flight Recorder events); internal_diagnostics is \
+                 DEFERRED-with-reason and Palmistry is DEFERRED-with-reason (both integrated from \
+                 WP-KERNEL-012/016 worktrees; they observe these records without becoming their \
+                 authority).",
+            ),
+            section(
+                "safety",
+                "Fail-closed and embedding Flight Recorder events",
+                "Master-spec §4.2.3.2(3): every LlmClient call emits a Flight Recorder event — \
+                 the error/disabled paths too. On the default lane a fail-closed \
+                 `DisabledLlmClient::completion` emits a zeroed-usage `llm_inference` FR event \
+                 (error_kind `llm_disabled`) at CALL TIME, never at construction. The embedding \
+                 lane is likewise Flight-Recorder-correlatable: \
+                 `LocalModelRuntimeLlmClient::embedding` emits `data_embedding_computed` on \
+                 success and an error FR event on failure, and the previously-silent \
+                 `DisabledLlmClient::embedding` fallback now emits a call-time FR event \
+                 (error_kind `embedding_disabled`) before returning EmbeddingUnsupported. \
+                 Embeddings carry no TokenUsage, so the embedding FR event is a product extension \
+                 of the §4.2.3.2(3)/§11.5 correlatable-call discipline, not a literal MUST.",
+            ),
+            section(
+                "run_commands",
+                "Proof commands",
+                "Exact Rust proof targets: \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests` \
+                 (embedded load emits pid-less START keyed on the minted UUIDv7; the graceful- \
+                 shutdown sequence flushes the STOP through the background writer; the hard-crash \
+                 orphan-reconcile sweep closes a stale pid-less embedded START); \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_client_local_routing_tests` \
+                 (fail-closed and embedding Flight Recorder events on every call path, including \
+                 DisabledLlmClient::embedding). These exercise real PostgreSQL/EventLedger for the \
+                 orphan-reconcile leg; there is no SQLite or mock fallback.",
+            ),
+        ],
+        anchors: vec![
+            page_link("manual-toc"),
+            spec_anchor("3.6.2"),
+            spec_anchor("4.6.1"),
+            spec_anchor("4.2.3.2"),
+            NewManualAnchor {
+                anchor_kind: "test",
+                anchor_value: "embedded_model_ledger_tests".into(),
+                http_method: "",
+            },
+            NewManualAnchor {
+                anchor_kind: "test",
+                anchor_value: "llm_client_local_routing_tests".into(),
                 http_method: "",
             },
         ],
@@ -4001,6 +4104,115 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         ],
         origin: "wp1_model_lane".into(),
         content_hash: mixed_model_lane_validation_tool_hash,
+        manual_version: USER_MANUAL_VERSION.into(),
+    });
+
+    // WP-1 MT-013 (AC#5): tool entries backing the embedded-model lifecycle
+    // ledger + fail-closed/embedding Flight Recorder behavior coverage rows.
+    let embedded_model_ledger_tool_hash = sha256_hex(
+        &serde_json::to_string(&json!({
+            "id": "embedded_model_ledger_tests",
+            "name": "Embedded model ProcessOwnershipLedger START/STOP + orphan-reconcile proof",
+            "status": "wired",
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests",
+            "manual_version": USER_MANUAL_VERSION,
+        }))
+        .expect("embedded model ledger tool serializes"),
+    );
+    tools.push(UserManualToolEntry {
+        tool_id: "embedded_model_ledger_tests".into(),
+        page_id: None,
+        name: "Embedded model ProcessOwnershipLedger START/STOP + orphan-reconcile proof".into(),
+        status: "wired".into(),
+        ipc_channel: None,
+        tauri_command: None,
+        cli_flag: Some(
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests".into(),
+        ),
+        http_route: None,
+        http_method: String::new(),
+        description:
+            "Exact Rust proof targets for the embedded-model ProcessOwnershipLedger obligation: pid-less START on load keyed on the minted UUIDv7, the graceful-shutdown STOP flushed through the background writer, and the boot-time hard-crash reconcile sweep that closes stale session-less/pid-less embedded orphans."
+                .into(),
+        expected_input:
+            "test-utils feature enabled; in-process no-op ModelRuntime for the load/shutdown legs; real Handshake-managed PostgreSQL (127.0.0.1:5544) or POSTGRES_TEST_URL isolated schema for the orphan-reconcile leg."
+                .into(),
+        expected_output:
+            "A single pid-less ProcessOwnershipLedger START row (os_pid=NULL, process_uuid == model UUIDv7), a matching STOP row emitted via the LlmClient::shutdown seam and flushed by the background writer's drain-and-join, and an orphan-reconcile sweep that closes only session-less/pid-less/embedded/open rows started before the boot cutoff."
+                .into(),
+        schema_fields: vec![
+            "EmbeddedModelProcess::record_load".into(),
+            "EmbeddedModelProcess::shutdown".into(),
+            "LlmClient::shutdown".into(),
+            "drain_and_join_ledger_writer".into(),
+            "reclaim_pidless_embedded_orphans".into(),
+            "kernel_process_lifecycle".into(),
+        ],
+        common_errors: vec![
+            "missing_start_row".into(),
+            "missing_stop_row".into(),
+            "synthetic_pid_forbidden".into(),
+            "orphan_not_reconciled".into(),
+        ],
+        recovery_steps: vec![
+            "If the STOP row is missing after shutdown, confirm axum::serve is wired with_graceful_shutdown and the drain-and-join runs before managed PostgreSQL stop.".into(),
+            "If an orphan persists, run reclaim_pidless_embedded_orphans on boot with a cutoff after the orphan's started_at and before this boot's START.".into(),
+        ],
+        origin: "wp1_mt013_embedded_model".into(),
+        content_hash: embedded_model_ledger_tool_hash,
+        manual_version: USER_MANUAL_VERSION.into(),
+    });
+
+    let llm_local_routing_tool_hash = sha256_hex(
+        &serde_json::to_string(&json!({
+            "id": "llm_client_local_routing_tests",
+            "name": "LlmClient fail-closed + embedding Flight Recorder proof",
+            "status": "wired",
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_client_local_routing_tests",
+            "manual_version": USER_MANUAL_VERSION,
+        }))
+        .expect("llm local routing tool serializes"),
+    );
+    tools.push(UserManualToolEntry {
+        tool_id: "llm_client_local_routing_tests".into(),
+        page_id: None,
+        name: "LlmClient fail-closed + embedding Flight Recorder proof".into(),
+        status: "wired".into(),
+        ipc_channel: None,
+        tauri_command: None,
+        cli_flag: Some(
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_client_local_routing_tests".into(),
+        ),
+        http_route: None,
+        http_method: String::new(),
+        description:
+            "Exact Rust proof targets for master-spec §4.2.3.2(3) Flight Recorder emission on EVERY LlmClient call path: fail-closed DisabledLlmClient::completion and ::embedding, local completion error branches, and the embedding lane (success + error) — all emitted at CALL TIME, never at construction."
+                .into(),
+        expected_input:
+            "test-utils feature enabled; a capturing FlightRecorder; configurable in-process ModelRuntime and a recorder-wired DisabledLlmClient fallback."
+                .into(),
+        expected_output:
+            "One Flight Recorder event per call: zeroed-usage llm_inference events (error_kind llm_disabled / llm_error / embedding_disabled) on error/disabled paths and data_embedding_computed on embedding success; no construction-time emission."
+                .into(),
+        schema_fields: vec![
+            "DisabledLlmClient::completion".into(),
+            "DisabledLlmClient::embedding".into(),
+            "LocalModelRuntimeLlmClient::embedding".into(),
+            "emit_llm_call_error_event".into(),
+            "FlightRecorderEventType::LlmInference".into(),
+            "FlightRecorderEventType::DataEmbeddingComputed".into(),
+        ],
+        common_errors: vec![
+            "missing_fr_event_on_error_path".into(),
+            "construction_time_emit_false_green".into(),
+            "embedding_unsupported_silent".into(),
+        ],
+        recovery_steps: vec![
+            "If an error path emits no FR event, route it through emit_llm_call_error_event at call time.".into(),
+            "If DisabledLlmClient::embedding is silent, confirm the ::embedding override emits before returning EmbeddingUnsupported.".into(),
+        ],
+        origin: "wp1_mt013_embedded_model".into(),
+        content_hash: llm_local_routing_tool_hash,
         manual_version: USER_MANUAL_VERSION.into(),
     });
 

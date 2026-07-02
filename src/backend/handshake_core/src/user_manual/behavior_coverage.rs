@@ -270,6 +270,164 @@ pub fn model_lane_behavior_coverage_matrix() -> Vec<BehaviorCoverageRow> {
     ]
 }
 
+/// WP-1 MT-013 (AC#5 + HBR-INT-009): UserManual behavior coverage for the
+/// embedded-model ProcessOwnershipLedger START/STOP lifecycle and the
+/// fail-closed / embedding Flight Recorder emission behaviors.
+///
+/// Unlike [`model_lane_behavior_coverage_matrix`], these rows record
+/// `internal_diagnostics` as DEFERRED-with-reason (MT-013 does not wire the
+/// native internal-diagnostics tier for the embedded-model lifecycle; that lands
+/// with WP-KERNEL-012/016), so they use [`verify_embedded_model_behavior_coverage`]
+/// rather than the model-lane verifier (which requires internal_diagnostics
+/// WIRED). Flight Recorder / EventLedger is WIRED; Palmistry is DEFERRED-with-
+/// reason (external watcher lands from its own worktree).
+pub fn embedded_model_behavior_coverage_matrix() -> Vec<BehaviorCoverageRow> {
+    const DEFERRED_REASON: &str =
+        "MT-013 wires Flight Recorder/EventLedger only; the native internal_diagnostics tier and \
+         the external Palmistry watcher for the embedded-model lifecycle are integrated from \
+         WP-KERNEL-012/016 worktrees and must observe these ProcessOwnershipLedger / Flight \
+         Recorder rows without becoming their authority.";
+    vec![
+        BehaviorCoverageRow {
+            behavior_id: "wp1.embedded_model.ledger_start",
+            schema_id: None,
+            event_family: "kernel_process_lifecycle_start",
+            runtime_surface_id: "EmbeddedModelProcess::record_load",
+            user_manual_slug: "embedded-model-lifecycle-ledger",
+            tool_id: "embedded_model_ledger_tests",
+            eventledger_flight_recorder_path: "kernel_process_lifecycle:embedded_model_start",
+            internal_diagnostics_posture: DiagnosticTierPosture::DeferredWithReason,
+            palmistry_posture: DiagnosticTierPosture::DeferredWithReason,
+            deferred_reason: Some(DEFERRED_REASON),
+            follow_up_ref: Some("palmistry://wp1/embedded-model/ledger-start"),
+        },
+        BehaviorCoverageRow {
+            behavior_id: "wp1.embedded_model.ledger_stop",
+            schema_id: None,
+            event_family: "kernel_process_lifecycle_stop",
+            runtime_surface_id: "LlmClient::shutdown -> EmbeddedModelProcess::shutdown",
+            user_manual_slug: "embedded-model-lifecycle-ledger",
+            tool_id: "embedded_model_ledger_tests",
+            eventledger_flight_recorder_path: "kernel_process_lifecycle:embedded_model_stop",
+            internal_diagnostics_posture: DiagnosticTierPosture::DeferredWithReason,
+            palmistry_posture: DiagnosticTierPosture::DeferredWithReason,
+            deferred_reason: Some(DEFERRED_REASON),
+            follow_up_ref: Some("palmistry://wp1/embedded-model/ledger-stop"),
+        },
+        BehaviorCoverageRow {
+            behavior_id: "wp1.llm.fail_closed_fr",
+            schema_id: None,
+            event_family: "llm_inference",
+            runtime_surface_id: "DisabledLlmClient::completion",
+            user_manual_slug: "embedded-model-lifecycle-ledger",
+            tool_id: "llm_client_local_routing_tests",
+            eventledger_flight_recorder_path: "flight_recorder:llm_inference_fail_closed",
+            internal_diagnostics_posture: DiagnosticTierPosture::DeferredWithReason,
+            palmistry_posture: DiagnosticTierPosture::DeferredWithReason,
+            deferred_reason: Some(DEFERRED_REASON),
+            follow_up_ref: Some("palmistry://wp1/embedded-model/fail-closed-fr"),
+        },
+        BehaviorCoverageRow {
+            behavior_id: "wp1.llm.embedding_fr",
+            schema_id: None,
+            event_family: "data_embedding_computed",
+            runtime_surface_id: "LocalModelRuntimeLlmClient::embedding / DisabledLlmClient::embedding",
+            user_manual_slug: "embedded-model-lifecycle-ledger",
+            tool_id: "llm_client_local_routing_tests",
+            eventledger_flight_recorder_path: "flight_recorder:data_embedding_computed",
+            internal_diagnostics_posture: DiagnosticTierPosture::DeferredWithReason,
+            palmistry_posture: DiagnosticTierPosture::DeferredWithReason,
+            deferred_reason: Some(DEFERRED_REASON),
+            follow_up_ref: Some("palmistry://wp1/embedded-model/embedding-fr"),
+        },
+    ]
+}
+
+/// Verifies the WP-1 MT-013 embedded-model behavior coverage rows against the
+/// seeded UserManual pages/tools and the MT-013 HBR-INT-009 posture:
+/// Flight Recorder / EventLedger WIRED (path present and points at a real
+/// durable surface), internal_diagnostics + Palmistry DEFERRED-with-reason
+/// (reason + follow_up_ref required).
+pub fn verify_embedded_model_behavior_coverage(
+    rows: &[BehaviorCoverageRow],
+    pages: &[UserManualPage],
+    tools: &[UserManualToolEntry],
+) -> Result<(), Vec<BehaviorCoverageError>> {
+    let page_slugs = pages
+        .iter()
+        .map(|page| page.slug.as_str())
+        .collect::<BTreeSet<_>>();
+    let tool_ids = tools
+        .iter()
+        .map(|tool| tool.tool_id.as_str())
+        .collect::<BTreeSet<_>>();
+
+    let mut errors = Vec::new();
+    for row in rows {
+        if !page_slugs.contains(row.user_manual_slug) {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: format!("UserManual page {} missing", row.user_manual_slug),
+            });
+        }
+        if !tool_ids.contains(row.tool_id) {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: format!("UserManual tool {} missing", row.tool_id),
+            });
+        }
+        // FR/EventLedger WIRED: the path must be present and reference a real
+        // durable surface (the ProcessOwnershipLedger table or the Flight
+        // Recorder), not an empty placeholder.
+        let path = row.eventledger_flight_recorder_path.trim();
+        if path.is_empty()
+            || !(path.contains("kernel_process_lifecycle") || path.contains("flight_recorder"))
+        {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: "EventLedger/FlightRecorder evidence path missing or not WIRED to a durable surface".to_owned(),
+            });
+        }
+        // MT-013 posture: internal_diagnostics DEFERRED-with-reason.
+        if row.internal_diagnostics_posture != DiagnosticTierPosture::DeferredWithReason {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: format!(
+                    "internal_diagnostics posture must be DEFERRED-with-reason for MT-013, got {}",
+                    row.internal_diagnostics_posture.as_str()
+                ),
+            });
+        }
+        // MT-013 posture: Palmistry DEFERRED-with-reason.
+        if row.palmistry_posture != DiagnosticTierPosture::DeferredWithReason {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: format!(
+                    "Palmistry posture must be DEFERRED-with-reason for MT-013, got {}",
+                    row.palmistry_posture.as_str()
+                ),
+            });
+        }
+        // Any DEFERRED-with-reason tier requires a reason + a follow-up ref.
+        if (row.internal_diagnostics_posture == DiagnosticTierPosture::DeferredWithReason
+            || row.palmistry_posture == DiagnosticTierPosture::DeferredWithReason)
+            && (row.deferred_reason.is_none() || row.follow_up_ref.is_none())
+        {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: "DEFERRED-with-reason tiers require deferred_reason and follow_up_ref"
+                    .to_owned(),
+            });
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
 pub fn verify_model_lane_behavior_coverage(
     rows: &[BehaviorCoverageRow],
     schema_registry: &[ModelLaneSchemaRegistryRow],

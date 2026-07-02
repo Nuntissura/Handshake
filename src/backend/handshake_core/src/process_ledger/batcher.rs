@@ -76,6 +76,51 @@ impl LedgerBatcher {
     pub fn record_stop(&self, event: ProcessStop) -> Result<(), ProcessLedgerError> {
         self.writer.append_stop(event)
     }
+
+    /// WP-1 MT-013 (F1 graceful shutdown): signal the spawned background writer
+    /// to stop accepting new rows, flush everything already queued, and
+    /// terminate so its `JoinHandle` resolves. Callable from any clone. Pair with
+    /// [`drain_and_join_ledger_writer`] (or await the `JoinHandle` directly) to
+    /// bound the flush.
+    pub fn begin_close(&self) {
+        self.writer.begin_close();
+    }
+}
+
+/// Outcome of the bounded graceful-shutdown drain-and-join for the process
+/// ledger's background writer (WP-1 MT-013 F1).
+#[derive(Debug)]
+pub enum LedgerDrainJoinOutcome {
+    /// The writer flushed all queued rows and terminated cleanly within the
+    /// timeout.
+    Flushed,
+    /// The writer terminated but its final flush surfaced a store error (rows may
+    /// be recovered by the boot-time reclaim sweep on next start).
+    WriterError(ProcessLedgerError),
+    /// The writer task panicked or was cancelled.
+    JoinError,
+    /// The writer did not terminate within the timeout (rows may be recovered by
+    /// the boot-time reclaim sweep on next start).
+    TimedOut,
+}
+
+/// WP-1 MT-013 (F1 graceful shutdown): close `ledger`'s writer channel and await
+/// the spawned writer's `JoinHandle` under a bounded `timeout`, so a
+/// just-enqueued embedded-model STOP row is durably flushed to PostgreSQL BEFORE
+/// the managed cluster is stopped. Returns the terminal outcome; never blocks
+/// past `timeout`.
+pub async fn drain_and_join_ledger_writer(
+    ledger: &LedgerBatcher,
+    writer_join: JoinHandle<Result<(), ProcessLedgerError>>,
+    timeout: Duration,
+) -> LedgerDrainJoinOutcome {
+    ledger.begin_close();
+    match tokio::time::timeout(timeout, writer_join).await {
+        Ok(Ok(Ok(()))) => LedgerDrainJoinOutcome::Flushed,
+        Ok(Ok(Err(error))) => LedgerDrainJoinOutcome::WriterError(error),
+        Ok(Err(_join_error)) => LedgerDrainJoinOutcome::JoinError,
+        Err(_elapsed) => LedgerDrainJoinOutcome::TimedOut,
+    }
 }
 
 #[derive(Clone, Default)]

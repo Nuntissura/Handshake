@@ -477,6 +477,26 @@ impl LlmClient for DisabledLlmClient {
         Err(LlmError::ProviderError(self.reason.clone()))
     }
 
+    /// WP-1 MT-013 (F2): the default `embedding()` trait impl returns
+    /// `EmbeddingUnsupported` WITHOUT emitting a Flight Recorder event. That path
+    /// is reachable on the default lane: `LocalModelRuntimeLlmClient::embedding`
+    /// delegates any non-UUIDv7 embed id to this fallback DisabledLlmClient, so
+    /// the silent trait-default return would leave the embedding call
+    /// Flight-Recorder-invisible — the same false-green the `completion` override
+    /// closes. Emit the CALL-TIME FR event here (reusing `emit_llm_call_error_event`
+    /// with an `embedding_disabled` kind) BEFORE returning the typed error.
+    async fn embedding(&self, req: EmbeddingRequest) -> Result<EmbeddingResponse, LlmError> {
+        emit_llm_call_error_event(
+            &self.flight_recorder,
+            req.trace_id,
+            &req.model_id,
+            "embedding_disabled",
+            &self.reason,
+        )
+        .await;
+        Err(LlmError::EmbeddingUnsupported)
+    }
+
     fn profile(&self) -> &ModelProfile {
         &self.profile
     }

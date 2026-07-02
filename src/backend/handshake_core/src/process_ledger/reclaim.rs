@@ -70,6 +70,58 @@ RETURNING
     k.metadata_jsonb::text AS metadata_jsonb
 "#;
 
+/// WP-1 MT-013 (F1 hard-crash reconcile): SQL that closes stale, session-less,
+/// pid-less in-process embedded-model orphan rows on boot.
+///
+/// The default embedded `LlmClient` load path writes a ProcessOwnershipLedger
+/// START row for the in-process Candle/llama.cpp *library* load. That row is
+/// deliberately `os_pid IS NULL` (no OS process exists) and
+/// `parent_session_id IS NULL` (not owned by any resumable session). On a
+/// graceful shutdown the STOP seam closes it. On a hard crash (kill -9 /
+/// power-loss) it is left open forever, because BOTH session-scoped reclaim
+/// paths — [`restart_resume`](super::restart_resume)'s `reclaim_orphans` and the
+/// swarm reclaim ([`POSTGRES_ACTIVE_RECLAIM_QUERY_SQL`]) — filter on
+/// `parent_session_id = $session`, so neither can EVER match a session-less row.
+///
+/// This boot sweep closes exactly those orphans, and ONLY those:
+///   * `parent_session_id IS NULL` — session-less (not a resumable-session child);
+///   * `os_pid IS NULL` — pid-less in-process load (no OS-kill target);
+///   * `engine_kind IN ('llamacpp','candle')` — the embedded regular-model set
+///     ([`ProcessEngineKind::is_regular_model_runtime_engine`]);
+///   * `stopped_at IS NULL` — still open;
+///   * `started_at < $1` — started BEFORE this process booted, so the sweep can
+///     never close the current boot's own not-yet-written START row nor a
+///     concurrently-starting instance's live row.
+///
+/// It does NOT invent a parallel table — it reconciles the same
+/// `kernel_process_lifecycle` rows the session-scoped reclaim leaves behind.
+pub const POSTGRES_PIDLESS_EMBEDDED_ORPHAN_RECLAIM_SQL: &str = r#"
+UPDATE kernel_process_lifecycle
+SET stopped_at = now(),
+    exit_code = COALESCE(exit_code, -1),
+    stop_reason = COALESCE(stop_reason, 'orphan_reclaim_pidless_embedded_boot')
+WHERE parent_session_id IS NULL
+  AND os_pid IS NULL
+  AND stopped_at IS NULL
+  AND engine_kind IN ('llamacpp', 'candle')
+  AND started_at < $1
+"#;
+
+/// Runs [`POSTGRES_PIDLESS_EMBEDDED_ORPHAN_RECLAIM_SQL`] and returns the number
+/// of orphan rows closed. `started_before` MUST be a timestamp captured at
+/// process boot, BEFORE the default `LlmClient` writes its own embedded START
+/// row, so the current boot's live row is never swept.
+pub async fn reclaim_pidless_embedded_orphans(
+    pool: &sqlx::PgPool,
+    started_before: DateTime<Utc>,
+) -> Result<u64, ProcessLedgerError> {
+    let result = sqlx::query(POSTGRES_PIDLESS_EMBEDDED_ORPHAN_RECLAIM_SQL)
+        .bind(started_before)
+        .execute(pool)
+        .await?;
+    Ok(result.rows_affected())
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ReclaimTrigger {
