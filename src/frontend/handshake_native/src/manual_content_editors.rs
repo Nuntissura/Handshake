@@ -444,7 +444,17 @@ may carry link-scoped source_path_ref/source_url_ref through POST /atelier/media
 so the same image asset can belong to different albums without losing per-link provenance. Inspect \
 atelier-ckc-selected-album-ref, atelier-ckc-selected-media-ref, atelier-ckc-selected-folder-ref, \
 atelier-ckc-selected-source-url-ref, and atelier-ckc-selected-media-status before reusing a selected image \
-in another pillar. Edit image notes in atelier-ckc-media-notes-editor and image tags in \
+in another pillar. The selected-image viewer atelier-ckc-media-viewer now shows the REAL decoded linked \
+image, not a placeholder tile: when the selected media row is a canonical atelier://media/<uuid> asset the \
+panel fetches its bytes at runtime through GET /atelier/media-assets/<uuid>/bytes (the same fail-closed \
+ArtifactStore byte route the Posekit source viewport uses) and decodes them into the viewer. The viewer \
+node value reports media_image=loaded dimensions=WxH when real bytes are present, media_image=empty with an \
+explicit empty-state message when nothing is loaded yet, and media_image=decode_error on a bad decode — it \
+never paints fabricated bytes. Watch atelier-ckc-media-image-status for the fetch state: no linked image \
+selected, an unresolvable ref, backend offline, fetching, loaded (N bytes), a cache hit, or a fetch failure; \
+on any failure the viewer keeps its explicit empty state. Decoded images are cached per asset, and the \
+default/demo selection at first render fires ZERO backend byte-fetch requests — only a user-driven selection \
+change fetches. Edit image notes in atelier-ckc-media-notes-editor and image tags in \
 atelier-ckc-media-tags-editor, then click atelier-ckc-media-save. These image notes and image tags are \
 stored on media metadata and must stay separate from the character sheet notes in \
 atelier-ckc-sheet-editor. The matching backend routes are GET/POST \

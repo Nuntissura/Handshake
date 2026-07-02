@@ -131,6 +131,7 @@ pub const ATELIER_CKC_BOOK_LEFT_MEDIA_AUTHOR_ID: &str = "atelier-ckc-book-left-m
 pub const ATELIER_CKC_BOOK_MIDDLE_AUTHOR_ID: &str = "atelier-ckc-book-middle";
 pub const ATELIER_CKC_BOOK_RIGHT_SHEET_AUTHOR_ID: &str = "atelier-ckc-book-right-sheet";
 pub const ATELIER_CKC_MEDIA_VIEWER_AUTHOR_ID: &str = "atelier-ckc-media-viewer";
+pub const ATELIER_CKC_MEDIA_IMAGE_STATUS_AUTHOR_ID: &str = "atelier-ckc-media-image-status";
 pub const ATELIER_CKC_MODE_SHEET_AUTHOR_ID: &str = "atelier-ckc-mode-sheet";
 pub const ATELIER_CKC_MODE_STORY_AUTHOR_ID: &str = "atelier-ckc-mode-story";
 pub const ATELIER_CKC_MODE_NOTES_AUTHOR_ID: &str = "atelier-ckc-mode-notes";
@@ -388,6 +389,8 @@ struct PoseSourceImageCache {
 
 /// What the left (source-image) viewport should paint this frame — a real decoded texture, an
 /// explicit decode error, or an explicit empty state. There is deliberately no "fake tile" variant.
+/// Reused by the CKC linked-media viewer (MT-010 de-scaffold) — the two viewports paint identical
+/// states (real texture / empty / decode error).
 enum PoseSourceRender {
     Empty,
     Loaded {
@@ -396,6 +399,26 @@ enum PoseSourceRender {
         height: usize,
     },
     DecodeError(String),
+}
+
+/// MT-010 de-scaffold: decode cache for CKC linked-media images, keyed by media-asset UUID so the
+/// selected-image viewer paints the REAL decoded image (never a placeholder tile) and re-selecting a
+/// previously fetched asset repaints instantly without a refetch. Each entry mirrors
+/// [`PoseSourceImageCache`] (bytes + hash + texture + dims + error) and is decoded/uploaded lazily on
+/// first paint. Interior-mutable so the `&self` render path can (re)upload a texture when bytes change.
+#[derive(Default)]
+struct CkcMediaImageCache {
+    entries: BTreeMap<String, CkcMediaImageEntry>,
+}
+
+/// One cached CKC linked-media image (per asset). Mirrors [`PoseSourceImageCache`] field-for-field.
+#[derive(Default)]
+struct CkcMediaImageEntry {
+    bytes: Option<Vec<u8>>,
+    hash: Option<u64>,
+    texture: Option<egui::TextureHandle>,
+    dims: Option<(usize, usize)>,
+    error: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -2367,6 +2390,17 @@ struct AtelierPanelState {
     ckc_sheet_artifact_reuse_ref: String,
     ckc_media_save_pending: bool,
     ckc_selected_media_key: Option<String>,
+    /// MT-010 CKC linked-media image byte fetch (mirrors the MT-043 Posekit source-image fields).
+    /// `ckc_media_loaded_ref` is the trimmed media ref we last acted on (so a fetch fires once per
+    /// selection change, not every frame); `ckc_media_fetch_seq` mints monotonic request ids;
+    /// `ckc_active_media_fetch` is the in-flight id so a stale response for a superseded selection is
+    /// ignored; `ckc_media_fetch_asset` is the asset UUID that in-flight fetch targets (used to key the
+    /// decode cache when bytes arrive); `ckc_media_image_status` is the human/Argus-readable load state.
+    ckc_media_fetch_seq: u64,
+    ckc_active_media_fetch: Option<u64>,
+    ckc_media_fetch_asset: Option<String>,
+    ckc_media_loaded_ref: Option<String>,
+    ckc_media_image_status: String,
     ckc_selected_album_collection_id: Option<String>,
     ckc_album_create_name: String,
     ckc_album_create_notes: String,
@@ -2517,6 +2551,11 @@ impl Default for AtelierPanelState {
             ckc_sheet_artifact_reuse_ref: String::new(),
             ckc_media_save_pending: false,
             ckc_selected_media_key: None,
+            ckc_media_fetch_seq: 0,
+            ckc_active_media_fetch: None,
+            ckc_media_fetch_asset: None,
+            ckc_media_loaded_ref: None,
+            ckc_media_image_status: "No linked image loaded.".to_owned(),
             ckc_selected_album_collection_id: None,
             ckc_album_create_name: "Reference album".to_owned(),
             ckc_album_create_notes: String::new(),
@@ -4734,6 +4773,13 @@ pub struct AtelierPanel {
     ckc_media_album_items_cell: AtelierCkcMediaAlbumItemsCell,
     ckc_media_album_page_cell: AtelierCkcMediaAlbumItemsCell,
     ckc_media_notes_cell: AtelierCkcMediaNotesCell,
+    /// MT-010 one-slot delivery cell for a fetched CKC linked-media image byte payload (drained each
+    /// frame and fed to [`AtelierPanel::set_ckc_media_image_bytes`]). Reuses the MT-043
+    /// `AtelierPoseSourceBytesCell` shape `(request_id, Result<bytes, err>)`.
+    ckc_media_bytes_cell: AtelierPoseSourceBytesCell,
+    /// MT-010 per-asset decode cache for the CKC linked-media viewer (mirrors `pose_source_image`).
+    /// Interior-mutable so the `&self` render path can (re)upload a texture when the bytes change.
+    ckc_media_image: Mutex<CkcMediaImageCache>,
     ckc_character_document_cell: AtelierCkcCharacterDocumentCell,
     ckc_story_card_cell: AtelierCkcStoryCardCell,
     ckc_story_beat_cell: AtelierCkcStoryBeatCell,
@@ -4795,6 +4841,8 @@ impl AtelierPanel {
             ckc_media_album_items_cell: Arc::new(Mutex::new(None)),
             ckc_media_album_page_cell: Arc::new(Mutex::new(None)),
             ckc_media_notes_cell: Arc::new(Mutex::new(None)),
+            ckc_media_bytes_cell: Arc::new(Mutex::new(None)),
+            ckc_media_image: Mutex::new(CkcMediaImageCache::default()),
             ckc_character_document_cell: Arc::new(Mutex::new(None)),
             ckc_story_card_cell: Arc::new(Mutex::new(None)),
             ckc_story_beat_cell: Arc::new(Mutex::new(None)),
@@ -5746,6 +5794,231 @@ impl AtelierPanel {
         client.fetch_media_asset_bytes(&asset_id, request_id, self.pose_source_bytes_cell.clone());
     }
 
+    // ── MT-010 CKC linked-media image byte fetch (mirrors the MT-043 Posekit source-image path) ──────
+
+    /// Drain a delivered CKC linked-media byte payload (if any) and feed it to the per-asset decode
+    /// cache. On success the real bytes go to [`set_ckc_media_image_bytes`] (decoded/uploaded on the next
+    /// paint → `media_image=loaded`); on failure the entry is cleared to the explicit empty state — never
+    /// a fabricated placeholder. A response whose request id no longer matches the in-flight fetch (a
+    /// superseded selection) is dropped so a late reply cannot overwrite a newer image.
+    fn drain_ckc_media_bytes_backend(&self) {
+        let delivered = self
+            .ckc_media_bytes_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        let Some((request_id, result)) = delivered else {
+            return;
+        };
+        let mut set_bytes: Option<Vec<u8>> = None;
+        let mut clear_asset = false;
+        let mut asset_id: Option<String> = None;
+        if let Ok(mut state) = self.state.lock() {
+            if state.ckc_active_media_fetch != Some(request_id) {
+                // Stale response for a selection that has since changed; ignore it.
+                return;
+            }
+            state.ckc_active_media_fetch = None;
+            asset_id = state.ckc_media_fetch_asset.take();
+            match result {
+                Ok(bytes) => {
+                    state.ckc_media_image_status = format!(
+                        "Loaded real linked image bytes from ArtifactStore ({} bytes).",
+                        bytes.len()
+                    );
+                    set_bytes = Some(bytes);
+                }
+                Err(err) => {
+                    state.ckc_media_image_status = format!(
+                        "Linked image fetch failed (kept explicit empty state, no placeholder): {err}"
+                    );
+                    clear_asset = true;
+                }
+            }
+        }
+        // Apply to the decode cache OUTSIDE the state lock (set_ckc_media_image_bytes locks the separate
+        // ckc_media_image mutex; keeping the two locks non-overlapping avoids any ordering coupling).
+        let Some(asset_id) = asset_id else {
+            return;
+        };
+        if let Some(bytes) = set_bytes {
+            self.set_ckc_media_image_bytes(&asset_id, Some(bytes));
+        } else if clear_asset {
+            self.set_ckc_media_image_bytes(&asset_id, None);
+        }
+    }
+
+    /// Supply (or clear) the raw bytes of one CKC linked-media asset in the per-asset decode cache. Real
+    /// image bytes (PNG/JPEG/WebP/GIF) are decoded and uploaded lazily on the next paint. Passing `None`
+    /// removes the asset's cached entry so its viewer returns to the explicit empty state. This is the
+    /// seam the backend byte fetch (and tests) use to feed real bytes in.
+    fn set_ckc_media_image_bytes(&self, asset_id: &str, bytes: Option<Vec<u8>>) {
+        if let Ok(mut cache) = self.ckc_media_image.lock() {
+            match bytes {
+                Some(bytes) => {
+                    let entry = cache.entries.entry(asset_id.to_owned()).or_default();
+                    if entry.bytes.as_deref() != Some(bytes.as_slice()) {
+                        entry.bytes = Some(bytes);
+                        // Force a re-decode/upload on the next paint.
+                        entry.hash = None;
+                        entry.texture = None;
+                        entry.dims = None;
+                        entry.error = None;
+                    }
+                }
+                None => {
+                    cache.entries.remove(asset_id);
+                }
+            }
+        }
+    }
+
+    /// Whether the per-asset decode cache already holds real bytes for `asset_id` (so a re-selection can
+    /// repaint from cache instead of firing another backend byte fetch).
+    fn ckc_media_asset_is_cached(&self, asset_id: &str) -> bool {
+        self.ckc_media_image
+            .lock()
+            .ok()
+            .map(|cache| {
+                cache
+                    .entries
+                    .get(asset_id)
+                    .map(|entry| entry.bytes.is_some())
+                    .unwrap_or(false)
+            })
+            .unwrap_or(false)
+    }
+
+    /// When the selected CKC linked-media image changes, resolve it and (if it is a native ArtifactStore
+    /// media asset and a backend client is present) dispatch a one-shot off-thread byte fetch. Fires at
+    /// most once per distinct selection (guarded by `ckc_media_loaded_ref`) so the immediate-mode render
+    /// loop does not spam the backend; a cached asset repaints without a refetch. An empty or
+    /// non-resolvable selection clears the viewer to its explicit empty state instead of fetching. Never
+    /// blocks the render thread and never fabricates bytes.
+    ///
+    /// INVARIANT (mirrors the MT-043 regression fix): the panel NEVER auto-fetches the initial/default
+    /// selection. A backend byte fetch fires ONLY for a selection the user actively changed to AFTER the
+    /// CKC tab first rendered. So opening the panel in its default/demo state — where the seeded first
+    /// linked image is a resolvable `atelier://media/<uuid>` ref — emits ZERO backend byte-fetch requests
+    /// (no spurious startup GET, and it can never consume a single-shot test mock reserved for another
+    /// request). A real user-driven selection change still fetches + loads on the next sync.
+    fn sync_ckc_media_fetch(&self, state: &mut AtelierPanelState, selected_index: usize) {
+        let selected_media_key = state.ckc_selected_media_key.clone();
+        let selected_media_ref = state.ckc_characters.get(selected_index).and_then(|character| {
+            character
+                .selected_or_first_media_location(selected_media_key.as_deref())
+                .map(|(album_idx, member_idx)| {
+                    character.media_albums[album_idx].members[member_idx]
+                        .media_ref
+                        .trim()
+                        .to_owned()
+                })
+        });
+        let current_ref = selected_media_ref.unwrap_or_default();
+        if state.ckc_media_loaded_ref.as_deref() == Some(current_ref.as_str()) {
+            return;
+        }
+        // First observation of the selection (panel just initialized / CKC first shown): record it as the
+        // baseline and DO NOT fetch. The default/demo selection never triggers a backend request; only a
+        // subsequent user change does.
+        let first_observation = state.ckc_media_loaded_ref.is_none();
+        state.ckc_media_loaded_ref = Some(current_ref.clone());
+        state.ckc_active_media_fetch = None;
+        state.ckc_media_fetch_asset = None;
+        if first_observation {
+            return;
+        }
+
+        if current_ref.is_empty() {
+            state.ckc_media_image_status = "No linked image selected.".to_owned();
+            return;
+        }
+        let Some(asset_id) = parse_media_asset_id_from_ref(&current_ref) else {
+            state.ckc_media_image_status = format!(
+                "Linked media ref is not a resolvable ArtifactStore asset (expected atelier://media/<uuid>): {current_ref}"
+            );
+            return;
+        };
+        // Per-asset cache hit: repaint from the already-fetched bytes, no refetch.
+        if self.ckc_media_asset_is_cached(&asset_id) {
+            state.ckc_media_image_status =
+                format!("Loaded linked image from cache for asset {asset_id}.");
+            return;
+        }
+        let Some(client) = self.ckc_client.as_ref() else {
+            state.ckc_media_image_status =
+                "Backend offline; cannot fetch linked image bytes (explicit empty state)."
+                    .to_owned();
+            return;
+        };
+        state.ckc_media_fetch_seq = state.ckc_media_fetch_seq.saturating_add(1);
+        let request_id = state.ckc_media_fetch_seq;
+        state.ckc_active_media_fetch = Some(request_id);
+        state.ckc_media_fetch_asset = Some(asset_id.clone());
+        state.ckc_media_image_status = format!("Fetching linked image bytes for {current_ref} ...");
+        client.fetch_media_asset_bytes(&asset_id, request_id, self.ckc_media_bytes_cell.clone());
+    }
+
+    /// Decode + upload the cached bytes for one CKC linked-media asset into a GPU texture (once per byte
+    /// change) and report what the media viewer should paint. Real bytes → `Loaded`; a decode failure →
+    /// an explicit `DecodeError`; no asset / no bytes → `Empty`. Never returns a fabricated placeholder.
+    fn prepare_ckc_media_render(
+        &self,
+        ctx: &egui::Context,
+        asset_id: Option<&str>,
+    ) -> PoseSourceRender {
+        let Some(asset_id) = asset_id else {
+            return PoseSourceRender::Empty;
+        };
+        let Ok(mut cache) = self.ckc_media_image.lock() else {
+            return PoseSourceRender::Empty;
+        };
+        let Some(entry) = cache.entries.get_mut(asset_id) else {
+            return PoseSourceRender::Empty;
+        };
+        let Some(bytes) = entry.bytes.clone() else {
+            return PoseSourceRender::Empty;
+        };
+        let hash = stable_bytes_hash(&bytes);
+        let needs_decode =
+            entry.hash != Some(hash) || (entry.texture.is_none() && entry.error.is_none());
+        if needs_decode {
+            match image::load_from_memory(&bytes) {
+                Ok(dynamic) => {
+                    let rgba = dynamic.to_rgba8();
+                    let (w, h) = (rgba.width() as usize, rgba.height() as usize);
+                    let color = egui::ColorImage::from_rgba_unmultiplied([w, h], rgba.as_raw());
+                    let handle = ctx.load_texture(
+                        format!("atelier-ckc-media-image-{asset_id}"),
+                        color,
+                        egui::TextureOptions::LINEAR,
+                    );
+                    entry.texture = Some(handle);
+                    entry.dims = Some((w, h));
+                    entry.error = None;
+                    entry.hash = Some(hash);
+                }
+                Err(err) => {
+                    entry.texture = None;
+                    entry.dims = None;
+                    entry.error = Some(err.to_string());
+                    entry.hash = Some(hash);
+                }
+            }
+        }
+        if let Some(err) = entry.error.clone() {
+            return PoseSourceRender::DecodeError(err);
+        }
+        match (entry.texture.clone(), entry.dims) {
+            (Some(texture), Some((width, height))) => PoseSourceRender::Loaded {
+                texture,
+                width,
+                height,
+            },
+            _ => PoseSourceRender::Empty,
+        }
+    }
+
     fn drain_contact_sheet_export_backend(&self) {
         let export_result = self
             .ingest_contact_export_cell
@@ -5966,6 +6239,9 @@ impl AtelierPanel {
     fn show_ckc(&self, ui: &mut egui::Ui, palette: &HsPalette) {
         self.ensure_ckc_load_requested();
         self.drain_ckc_backend();
+        // MT-010: deliver any fetched linked-media image bytes to the decode cache BEFORE preparing the
+        // render so freshly-arrived bytes paint the same frame.
+        self.drain_ckc_media_bytes_backend();
         let Ok(mut state) = self.state.lock() else {
             return;
         };
@@ -5979,6 +6255,9 @@ impl AtelierPanel {
             .ckc_selected_index
             .min(state.ckc_characters.len().saturating_sub(1));
         state.ckc_selected_index = selected_index;
+        // MT-010: when the selected linked-media image changed, (re)dispatch the byte fetch or clear to
+        // the explicit empty state. First observation of the default/demo selection never fetches.
+        self.sync_ckc_media_fetch(&mut state, selected_index);
         let book_response = ui
             .scope_builder(
                 egui::UiBuilder::new().id_salt(egui::Id::new(ATELIER_CKC_BOOK_LAYOUT_AUTHOR_ID)),
@@ -6143,6 +6422,7 @@ impl AtelierPanel {
                 let album_link_pending = state.ckc_album_link_pending;
                 let album_page_pending = state.ckc_album_page_pending;
                 let album_status = state.ckc_album_status.clone();
+                let media_image_status = state.ckc_media_image_status.clone();
                 let mut album_create_name = std::mem::take(&mut state.ckc_album_create_name);
                 let mut album_create_notes = std::mem::take(&mut state.ckc_album_create_notes);
                 let mut album_create_tags = std::mem::take(&mut state.ckc_album_create_tags);
@@ -6181,6 +6461,7 @@ impl AtelierPanel {
                         album_link_pending,
                         album_page_pending,
                         &album_status,
+                        &media_image_status,
                         &mut album_create_name,
                         &mut album_create_notes,
                         &mut album_create_tags,
@@ -8566,6 +8847,7 @@ impl AtelierPanel {
         album_link_pending: bool,
         album_page_pending: bool,
         album_status: &str,
+        media_image_status: &str,
         album_create_name: &mut String,
         album_create_notes: &mut String,
         album_create_tags: &mut String,
@@ -8745,15 +9027,33 @@ impl AtelierPanel {
                 let member = &album.members[member_idx];
                 ckc_media_occurrence_key(&album.collection_id, &member.asset_id)
             });
-        let viewer_response = ui
-            .vertical(|ui| {
-                ui.label(egui::RichText::new("Selected image preview").color(palette.text));
-                if let Some((album_idx, member_idx)) =
-                    character.selected_or_first_media_location(resolved_selection.as_deref())
-                {
-                    let album = &character.media_albums[album_idx];
-                    let member = &album.members[member_idx];
-                    let preview_label = format!(
+        // MT-010 de-scaffold: resolve the selected linked-media ref to a media-asset UUID and prepare the
+        // REAL decoded texture from the per-asset cache BEFORE painting the viewer, so the same frame
+        // shows the actual image (or an explicit empty/error state) instead of the old placeholder tile.
+        let selected_media_render_ref = character
+            .selected_or_first_media_location(resolved_selection.as_deref())
+            .map(|(album_idx, member_idx)| {
+                character.media_albums[album_idx].members[member_idx]
+                    .media_ref
+                    .clone()
+            });
+        let selected_media_asset_id = selected_media_render_ref
+            .as_deref()
+            .and_then(parse_media_asset_id_from_ref);
+        let media_render = self.prepare_ckc_media_render(ui.ctx(), selected_media_asset_id.as_deref());
+        let viewer_inner = ui.vertical(|ui| {
+            ui.label(egui::RichText::new("Selected image preview").color(palette.text));
+            if let Some((album_idx, member_idx)) =
+                character.selected_or_first_media_location(resolved_selection.as_deref())
+            {
+                let album = &character.media_albums[album_idx];
+                let member = &album.members[member_idx];
+                // Paint the REAL decoded linked image (or an explicit empty/error state) — never a
+                // fabricated placeholder tile.
+                let (state_token, detail) =
+                    draw_ckc_media_image(ui, palette, member.media_ref.as_str(), &media_render);
+                ui.label(
+                    egui::RichText::new(format!(
                         "{}\n{}\n{}",
                         member.display_label,
                         member
@@ -8764,47 +9064,54 @@ impl AtelierPanel {
                             .source_url_ref
                             .as_deref()
                             .unwrap_or("no source_url_ref")
-                    );
-                    let desired_size = egui::vec2(ui.available_width().max(160.0), 116.0);
-                    let (rect, _) = ui.allocate_exact_size(desired_size, egui::Sense::hover());
-                    ui.painter()
-                        .rect_filled(rect, 4.0, palette.surface.linear_multiply(1.12));
-                    ui.painter().rect_stroke(
-                        rect,
-                        4.0,
-                        egui::Stroke::new(1.0, palette.border),
-                        egui::StrokeKind::Inside,
-                    );
-                    ui.painter().text(
-                        rect.center(),
-                        egui::Align2::CENTER_CENTER,
-                        preview_label,
-                        egui::FontId::proportional(13.0),
-                        palette.text,
-                    );
-                    ui.label(
-                        egui::RichText::new(format!(
-                            "album: {} | status: {}",
-                            album.name,
-                            member.review_status.as_deref().unwrap_or("unreviewed")
-                        ))
+                    ))
+                    .color(palette.text_subtle),
+                );
+                ui.label(
+                    egui::RichText::new(format!(
+                        "album: {} | status: {}",
+                        album.name,
+                        member.review_status.as_deref().unwrap_or("unreviewed")
+                    ))
+                    .color(palette.text_subtle),
+                );
+                (state_token, detail)
+            } else {
+                ui.label(
+                    egui::RichText::new("No linked image selected for this character.")
                         .color(palette.text_subtle),
-                    );
-                } else {
-                    ui.label(
-                        egui::RichText::new("No linked image selected for this character.")
-                            .color(palette.text_subtle),
-                    );
-                }
-            })
-            .response;
-        emit_node(
+                );
+                ("empty", "dimensions=none".to_owned())
+            }
+        });
+        let viewer_response = viewer_inner.response;
+        let (media_state_token, media_detail) = viewer_inner.inner;
+        // Keep ATELIER_CKC_MEDIA_VIEWER_AUTHOR_ID stable but enrich its value so Argus can read whether
+        // the viewer painted a real image (media_image=loaded dimensions=WxH), the empty state, or a
+        // decode error — the viewer node alone previously carried no load state.
+        let viewer_node_label = format!(
+            "CKC selected image preview and source refs media_image={media_state_token} {media_detail}"
+        );
+        emit_value_node(
             ui.ctx(),
             viewer_response.id,
             accesskit::Role::Group,
             ATELIER_CKC_MEDIA_VIEWER_AUTHOR_ID,
-            "CKC selected image preview and source refs",
-            false,
+            &viewer_node_label,
+            &viewer_node_label,
+        );
+        // MT-010: explicit linked-image byte-fetch status node (mirrors atelier-pose-source-status) —
+        // distinguishes an unset selection, an unresolvable ref, backend offline, a pending fetch, a
+        // load, a cache hit, and a fetch failure, which the viewer node alone cannot.
+        let media_status_response =
+            ui.label(egui::RichText::new(media_image_status).color(palette.text_subtle));
+        emit_value_node(
+            ui.ctx(),
+            media_status_response.id,
+            accesskit::Role::Label,
+            ATELIER_CKC_MEDIA_IMAGE_STATUS_AUTHOR_ID,
+            "CKC linked image byte-fetch status",
+            media_image_status,
         );
         let (
             selected_album_ref,
@@ -10969,6 +11276,69 @@ fn draw_pose_source_view(
     );
 }
 
+/// MT-010 de-scaffold: paint the CKC linked-media viewer for the selected image. Mirrors
+/// [`draw_pose_source_view`] — it shows the REAL decoded image texture when bytes are available and
+/// otherwise an honest empty state, or an explicit decode-error state; it never fabricates a stand-in
+/// tile. The media bytes arrive via [`AtelierPanel::set_ckc_media_image_bytes`]. Returns
+/// `(state_token, detail)` (loaded/dimensions, decode_error/error, or empty) so the caller can carry the
+/// load state on the stable `atelier-ckc-media-viewer` node value for Argus.
+fn draw_ckc_media_image(
+    ui: &mut egui::Ui,
+    palette: &HsPalette,
+    media_ref: &str,
+    render: &PoseSourceRender,
+) -> (&'static str, String) {
+    let height = 200.0;
+    let width = ui.available_width().max(160.0);
+    let (rect, _response) =
+        ui.allocate_exact_size(egui::vec2(width, height), egui::Sense::hover());
+    let painter = ui.painter_at(rect);
+    painter.rect_filled(rect, 4.0, palette.surface);
+    painter.rect_stroke(
+        rect,
+        4.0,
+        egui::Stroke::new(1.0, palette.border),
+        egui::StrokeKind::Inside,
+    );
+    match render {
+        PoseSourceRender::Loaded {
+            texture,
+            width: w,
+            height: h,
+        } => {
+            let image_rect = fit_rect_preserving_aspect(rect.shrink(8.0), *w as f32, *h as f32);
+            let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
+            painter.image(texture.id(), image_rect, uv, egui::Color32::WHITE);
+            ("loaded", format!("dimensions={w}x{h}"))
+        }
+        PoseSourceRender::DecodeError(err) => {
+            painter.text(
+                rect.center(),
+                egui::Align2::CENTER_CENTER,
+                "Linked image could not be decoded",
+                egui::FontId::proportional(13.0),
+                palette.text_subtle,
+            );
+            ("decode_error", format!("error={err}"))
+        }
+        PoseSourceRender::Empty => {
+            let message = if media_ref.trim().is_empty() {
+                "No linked image selected"
+            } else {
+                "No decoded image for this ref yet (awaiting linked-media bytes)"
+            };
+            painter.text(
+                rect.center(),
+                egui::Align2::CENTER_CENTER,
+                message,
+                egui::FontId::proportional(13.0),
+                palette.text_subtle,
+            );
+            ("empty", "dimensions=none".to_owned())
+        }
+    }
+}
+
 /// Right viewport: paints the REAL OpenPose keypoints carried in `openpose_json` — the SAME structure
 /// the export produces (the backend export result when one exists, else the live offline-preview
 /// keypoints from [`posekit_openpose_json`]). Mirrors the backend `render_posekit_openpose_png`
@@ -12351,6 +12721,171 @@ mod tests {
                 state.pose_source_status.contains("Fetching source image bytes"),
                 "a dispatched fetch must record a pending status; got {}",
                 state.pose_source_status
+            );
+        }
+    }
+
+    /// MT-010 core proof (mirrors MT-043's `posekit_source_viewport_displays_real_decoded_image`): a
+    /// CKC linked-media selection whose bytes are delivered through the fetch cell drives the media
+    /// viewer to a real decoded texture (`media_image=loaded`) at the exact decoded dimensions — the
+    /// de-scaffolded viewer paints the actual image, not a placeholder tile. Byte transport is simulated
+    /// at the delivery cell so the test needs no live backend.
+    #[test]
+    fn ckc_media_viewer_displays_real_decoded_image() {
+        let panel = AtelierPanel::new(
+            empty_side_panel(),
+            Arc::new(Mutex::new(LoomCanvasBoard::new("ws-test", "canvas-1"))),
+            Arc::new(Mutex::new(Vec::<CanvasEvent>::new())),
+        );
+        let asset_id = "018f7848-1111-7000-9000-00000000b001".to_owned();
+        let png = encode_test_png(7, 5);
+
+        // Simulate an in-flight fetch (request id 9) for `asset_id` whose real PNG bytes just arrived.
+        {
+            let mut state = panel.state.lock().expect("panel state");
+            state.ckc_active_media_fetch = Some(9);
+            state.ckc_media_fetch_asset = Some(asset_id.clone());
+        }
+        *panel
+            .ckc_media_bytes_cell
+            .lock()
+            .expect("ckc media bytes cell") = Some((9, Ok(png.clone())));
+
+        panel.drain_ckc_media_bytes_backend();
+
+        // The drain must have fed the real bytes into the per-asset decode cache and recorded a load.
+        {
+            let state = panel.state.lock().expect("panel state");
+            assert_eq!(state.ckc_active_media_fetch, None);
+            assert!(
+                state
+                    .ckc_media_image_status
+                    .contains("Loaded real linked image"),
+                "expected a load status, got {}",
+                state.ckc_media_image_status
+            );
+        }
+
+        // Preparing the render for that asset must yield a REAL decoded texture at the PNG's dimensions.
+        let ctx = egui::Context::default();
+        match panel.prepare_ckc_media_render(&ctx, Some(asset_id.as_str())) {
+            PoseSourceRender::Loaded { width, height, .. } => {
+                assert_eq!(
+                    (width, height),
+                    (7, 5),
+                    "CKC media viewer must decode the real linked image dimensions"
+                );
+            }
+            PoseSourceRender::DecodeError(err) => {
+                panic!("media viewer must decode real PNG bytes, got decode error: {err}")
+            }
+            PoseSourceRender::Empty => {
+                panic!("media viewer must show the real image, not the empty state")
+            }
+        }
+    }
+
+    /// MT-010 fetch-failure guard: a failed byte fetch clears the asset to the explicit empty state and
+    /// records a failure status — it never fabricates a loaded image.
+    #[test]
+    fn ckc_media_viewer_fetch_failure_keeps_explicit_empty_state() {
+        let panel = AtelierPanel::new(
+            empty_side_panel(),
+            Arc::new(Mutex::new(LoomCanvasBoard::new("ws-test", "canvas-1"))),
+            Arc::new(Mutex::new(Vec::<CanvasEvent>::new())),
+        );
+        let asset_id = "018f7848-1111-7000-9000-00000000b003".to_owned();
+        {
+            let mut state = panel.state.lock().expect("panel state");
+            state.ckc_active_media_fetch = Some(3);
+            state.ckc_media_fetch_asset = Some(asset_id.clone());
+        }
+        *panel
+            .ckc_media_bytes_cell
+            .lock()
+            .expect("ckc media bytes cell") = Some((3, Err("backend 404".to_owned())));
+
+        panel.drain_ckc_media_bytes_backend();
+
+        {
+            let state = panel.state.lock().expect("panel state");
+            assert!(
+                state.ckc_media_image_status.contains("fetch failed"),
+                "expected a failure status, got {}",
+                state.ckc_media_image_status
+            );
+        }
+        let ctx = egui::Context::default();
+        match panel.prepare_ckc_media_render(&ctx, Some(asset_id.as_str())) {
+            PoseSourceRender::Empty => {}
+            PoseSourceRender::Loaded { .. } => {
+                panic!("a failed fetch must not fabricate a loaded image")
+            }
+            PoseSourceRender::DecodeError(err) => {
+                panic!("a failed fetch must yield empty state, not decode error: {err}")
+            }
+        }
+    }
+
+    /// MT-010 regression guard (mirrors MT-043's first-observation guard): the FIRST observation of the
+    /// CKC media selection (panel init / CKC first shown) must NOT dispatch a backend byte fetch — even
+    /// though the seeded/default first linked image is a resolvable `atelier://media/<uuid>` ref — so
+    /// opening the panel emits zero backend requests and can never consume a single-shot test mock. A
+    /// subsequent USER change of the selected image DOES dispatch a fetch (runtime image-load preserved).
+    /// Uses a dead backend address so the (second) dispatch spawns harmlessly; assertions are on
+    /// synchronous state, not the network.
+    #[test]
+    fn ckc_media_viewer_default_selection_never_fetches_user_change_does() {
+        let runtime = tokio::runtime::Runtime::new().expect("test runtime");
+        let panel = AtelierPanel::with_client(
+            empty_side_panel(),
+            Arc::new(Mutex::new(LoomCanvasBoard::new("ws-test", "canvas-1"))),
+            Arc::new(Mutex::new(Vec::<CanvasEvent>::new())),
+            Some(AtelierClient::new(
+                "http://127.0.0.1:65535",
+                runtime.handle().clone(),
+            )),
+        );
+        {
+            let mut state = panel.state.lock().expect("panel state");
+            // Seed the demo characters (with_client clears them) so a resolvable default selection exists.
+            state.ckc_characters = seeded_ckc_characters();
+            state.ckc_selected_index = 0;
+            state.ckc_selected_media_key = None;
+            assert!(
+                state.ckc_media_loaded_ref.is_none(),
+                "precondition: media selection never synced yet"
+            );
+            panel.sync_ckc_media_fetch(&mut state, 0);
+            assert!(
+                state.ckc_media_loaded_ref.is_some(),
+                "first sync must record the default selection as the baseline"
+            );
+            assert_eq!(
+                state.ckc_active_media_fetch, None,
+                "first observation must NOT dispatch a byte-fetch, even for a resolvable default image"
+            );
+        }
+        {
+            let mut state = panel.state.lock().expect("panel state");
+            // The user selects a DIFFERENT resolvable linked image (second album's member) → fetch fires.
+            let next_key = {
+                let character = &state.ckc_characters[0];
+                let album = &character.media_albums[1];
+                ckc_media_occurrence_key(&album.collection_id, &album.members[0].asset_id)
+            };
+            state.ckc_selected_media_key = Some(next_key);
+            panel.sync_ckc_media_fetch(&mut state, 0);
+            assert!(
+                state.ckc_active_media_fetch.is_some(),
+                "a user-changed resolvable selection must dispatch a byte-fetch"
+            );
+            assert!(
+                state
+                    .ckc_media_image_status
+                    .contains("Fetching linked image bytes"),
+                "a dispatched fetch must record a pending status; got {}",
+                state.ckc_media_image_status
             );
         }
     }

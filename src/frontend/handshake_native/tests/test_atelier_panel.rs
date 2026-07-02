@@ -1237,6 +1237,13 @@ fn ckc_roundtrip_route_kind(request_line: &str) -> Option<&'static str> {
         {
             Some("save_notes_tags")
         }
+        // MT-013/010: the CKC media viewer now loads the selected member's real image via the
+        // MT-043 byte-fetch route, so this GET is an expected part of the linked-media flow.
+        ("GET", path)
+            if path.starts_with("/atelier/media-assets/") && path.ends_with("/bytes") =>
+        {
+            Some("fetch_media_bytes")
+        }
         _ => None,
     }
 }
