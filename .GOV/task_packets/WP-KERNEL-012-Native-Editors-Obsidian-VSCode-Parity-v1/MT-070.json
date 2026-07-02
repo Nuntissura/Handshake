@@ -14,7 +14,7 @@
   "title": "E11-MT-070-WireEditorContextMenusAndNavigationBus",
   "group": "E11",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-02T03:58:41Z",
+  "updated_at_utc": "2026-07-02T14:27:29Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-070.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -52,7 +52,12 @@
       "src/frontend/handshake_native/src/navigation_bus.rs",
       "src/frontend/handshake_native/src/lib.rs",
       "src/frontend/handshake_native/tests/test_context_menu_surfaces.rs",
-      "src/frontend/handshake_native/tests/test_navigation_bus.rs"
+      "src/frontend/handshake_native/tests/test_navigation_bus.rs",
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/src/graph/canvas_board.rs",
+      "src/frontend/handshake_native/src/graph/loom_graph.rs",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/tests/test_editor_body_context_menu.rs"
     ],
     "forbidden_paths": [
       "app/src/** (legacy React, reference only)",
@@ -96,7 +101,8 @@
     ],
     "binds_backend_api": [
       "NONE (dispatch only) — this MT binds existing in-process editor-action handlers and the pane registry/command bus; the only backend touch is indirect via the already-bound MT-008 code-nav handler. No new or direct backend API calls."
-    ]
+    ],
+    "allowed_paths_amendment": "2026-07-02 KERNEL_BUILDER: resolved the recorded allowed-paths-vs-scope conflict (BLOCKER-MT-070-ALLOWED-PATHS-VS-SCOPE) by adding the consumer call-site files the scope always mandated (panel.rs editor-body menu, canvas_board.rs/loom_graph.rs node menus, app.rs nav-bus consumption, new kittest bin)."
   },
   "hbr_obligations": [
     "HBR-VIS",
@@ -146,6 +152,7 @@
     "proofs": "AC-070-1..9 + PT-070-1..6 PASS (AC-070-9/PT-070-6 PASS_WITH_DEVIATION); 5 nav-unit + 3 nav-integration + 24 context-menu (11 new) + 33 lib + regression (code_actions 7, rename 11, formatting 14, context_menu 13, quick_switcher 4) green; clippy clean. Dispatch-only MT (no screenshot).",
     "steers_held": "navigation_bus.rs DELEGATES to the MT-030 quick_switcher::ShellNavigator (NOT forked; quick_switcher.rs untouched - AC-070-3 already satisfied by MT-079, verified+reconciled). context_menu_surfaces.rs EDITED (WP-011 ContextMenu builder reused, no new infra). Context menus bind REAL handlers: Rename(MT-048)/QuickFix(MT-049)/Format(MT-050)/Peek(MT-008)/Create-note(MT-057) - captured as real EditorBodyMenuAction. TYPE-ENFORCED no-dead-handler (action enums have NO placeholder variant; disabled-not-dead-enabled). dispatch pane-not-found -> Err(NavError::PaneNotFound), never panics. AccessKit ids REUSE the existing code_actions.rs consts (CODE_EDITOR_CTX_RENAME_SYMBOL/QUICK_FIX/FORMAT_SELECTION/GOTODEF) - no parallel scheme.",
     "deviations_honest": "(1) AC-070-9: the menu-popup CONTAINER is a foreground Area/GenericContainer not Role::Menu (the WP-011 context_menu.rs primitive emits addressability on the ITEMS not the container; forcing Role::Menu would FORK the out-of-scope WP-011 primitive) - the items ARE Role::MenuItem (swarm-addressable, intent met). (2) the contract assumed command_bus.dispatch_command(editor.rename_symbol) + register_nav_handler/registry.focus/pane.reveal, but the LIVE baseline is a static AppCommand catalog + the ShellNavigator - the agent RECONCILED to the real types (EditorBodyMenuAction enum + ShellNavigator dispatch), binding to the REAL API not the assumed one.",
-    "waiver_granted": "context_menu_surfaces.rs (EDIT) + navigation_bus.rs (new, delegates to ShellNavigator) + lib.rs + tests in allowed_paths."
+    "waiver_granted": "context_menu_surfaces.rs (EDIT) + navigation_bus.rs (new, delegates to ShellNavigator) + lib.rs + tests in allowed_paths.",
+    "overstatement_correction": "2026-07-02 KERNEL_BUILDER: the original AC-070-1..9 PASS claim was an overstatement - at that time the menu layer had zero product call sites (wave-B audit). Wave-2 remediation landed the real consumers: R2 wired the editor-body 5-entry menu call site in panel.rs; W2 wired the canvas/loom node menus and made them the first product navigation_bus::dispatch consumers (proven by test_menu_wireup 17/0 + test_navigation_bus 4/0 + host-mount bins). STILL OPEN: scroll-to-byte reveal seam (NavigationTarget.byte_offset ignored) and the create-note-from-link host drain (wave-3 W3 in flight). AC-070 verdicts remain PENDING official validation."
   }
 }
