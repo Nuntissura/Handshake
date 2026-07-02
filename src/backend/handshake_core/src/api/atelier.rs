@@ -17,7 +17,7 @@
 
 use axum::{
     extract::{Path, Query, State},
-    http::{HeaderMap, StatusCode},
+    http::{header, HeaderMap, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
@@ -87,7 +87,7 @@ use crate::atelier::{
 };
 use crate::storage::artifacts::{
     artifact_root_dir, artifact_root_rel, artifact_store_root, read_artifact_manifest,
-    resolve_workspace_root, validate_artifact_content_hash, write_file_artifact,
+    read_file_artifact, resolve_workspace_root, validate_artifact_content_hash, write_file_artifact,
     ArtifactClassification, ArtifactLayer, ArtifactManifest, ArtifactPayloadKind,
 };
 use crate::storage::EntityRef;
@@ -154,6 +154,10 @@ pub fn routes(state: AppState) -> Router {
         .route(
             "/atelier/media-assets/:asset_id/notes-tags",
             post(update_media_notes_tags),
+        )
+        .route(
+            "/atelier/media-assets/:asset_id/bytes",
+            get(get_media_asset_bytes),
         )
         .route("/atelier/ckc/search", post(search_ckc))
         .route("/atelier/ckc/tag-notes", post(upsert_ckc_tag_note))
@@ -2693,6 +2697,120 @@ async fn update_media_notes_tags(
         source_path_ref: final_source_path_ref,
         source_url_ref: final_source_url_ref,
     }))
+}
+
+/// Parse a native ArtifactStore payload handle
+/// (`artifact://.handshake/artifacts/<layer>/<uuid>/payload`) into its `(layer, artifact_id)`. Mirrors
+/// the media/pose sidecar parsers exactly; kept local because those are private to their modules. Any
+/// other shape (filesystem path, URL, `.GOV` path, wrong segment count, bad layer/uuid) is a hard
+/// validation error so the byte route fails closed on a non-native ref.
+fn parse_media_artifact_payload_ref(
+    artifact_ref: &str,
+) -> Result<(ArtifactLayer, Uuid), AtelierError> {
+    let body = artifact_ref.strip_prefix("artifact://.handshake/artifacts/").ok_or_else(|| {
+        AtelierError::Validation(
+            "media artifact_ref must be artifact://.handshake/artifacts/<layer>/<uuid>/payload".into(),
+        )
+    })?;
+    let payload_body = body.strip_suffix("/payload").ok_or_else(|| {
+        AtelierError::Validation(
+            "media artifact_ref must end in /payload for a single-file source asset".into(),
+        )
+    })?;
+    let parts: Vec<&str> = payload_body.split('/').collect();
+    if parts.len() != 2 {
+        return Err(AtelierError::Validation(
+            "media artifact_ref must be artifact://.handshake/artifacts/<layer>/<uuid>/payload".into(),
+        ));
+    }
+    let layer = match parts[0] {
+        "L1" => ArtifactLayer::L1,
+        "L2" => ArtifactLayer::L2,
+        "L3" => ArtifactLayer::L3,
+        "L4" => ArtifactLayer::L4,
+        other => {
+            return Err(AtelierError::Validation(format!(
+                "unsupported ArtifactStore layer in media artifact_ref: {other}"
+            )));
+        }
+    };
+    let artifact_id = Uuid::parse_str(parts[1]).map_err(|err| {
+        AtelierError::Validation(format!("invalid ArtifactStore artifact id in media artifact_ref: {err}"))
+    })?;
+    Ok((layer, artifact_id))
+}
+
+/// Normalize a stored content hash to bare lowercase 64-hex for equality comparison. Media rows may
+/// store `sha256:<hex>` while ArtifactStore manifests store bare hex; normalizing both lets the byte
+/// route prove the DAM record and the ArtifactStore manifest agree before serving bytes.
+fn normalize_content_hash_for_match(content_hash: &str) -> String {
+    content_hash
+        .trim()
+        .strip_prefix("sha256:")
+        .unwrap_or_else(|| content_hash.trim())
+        .to_ascii_lowercase()
+}
+
+/// GET /atelier/media-assets/:asset_id/bytes — return the raw source-asset image bytes for a DAM media
+/// asset, read from the native ArtifactStore payload the asset's `artifact_ref` points at, with the
+/// asset's stored MIME as `Content-Type`. This is the byte-fetch route MT-014's Posekit left viewport
+/// consumes to display the REAL decoded source image (closing the empty-state blocker).
+///
+/// Fail-closed, never fabricated: a missing asset is 404; a non-native/malformed `artifact_ref`, a
+/// missing/dir payload, a payload-vs-manifest hash/size mismatch, or a manifest-vs-DAM content-hash
+/// mismatch is a hard error, never a partial or empty 200 body. Storage authority is PostgreSQL for the
+/// DAM row and the native ArtifactStore for the bytes — no SQLite, no filesystem guessing.
+async fn get_media_asset_bytes(
+    State(state): State<AppState>,
+    Path(asset_id): Path<Uuid>,
+) -> Result<Response, (StatusCode, Json<ErrorResponse>)> {
+    let store = atelier_store(&state);
+    let row = sqlx::query(
+        r#"SELECT artifact_ref, mime, content_hash
+           FROM atelier_media_asset
+           WHERE asset_id = $1"#,
+    )
+    .bind(asset_id)
+    .fetch_optional(store.pool())
+    .await
+    .map_err(internal_error)?
+    .ok_or_else(|| atelier_error(AtelierError::NotFound(format!("media asset_id={asset_id}"))))?;
+
+    let artifact_ref: String = row.get("artifact_ref");
+    let mime: String = row.get("mime");
+    let dam_content_hash: String = row.get("content_hash");
+
+    let (layer, artifact_id) = parse_media_artifact_payload_ref(&artifact_ref).map_err(atelier_error)?;
+    let workspace_root = resolve_workspace_root().map_err(internal_error)?;
+
+    // Cross-check: the ArtifactStore manifest content_hash must equal the DAM row content_hash (the two
+    // are bound at media-write time; re-verify here so a drifted/corrupt row can never serve mismatched
+    // bytes). This is defense-in-depth on top of read_file_artifact's payload-vs-manifest validation.
+    let manifest = read_artifact_manifest(&workspace_root, layer, artifact_id).map_err(internal_error)?;
+    if normalize_content_hash_for_match(&manifest.content_hash)
+        != normalize_content_hash_for_match(&dam_content_hash)
+    {
+        tracing::error!(
+            target: "handshake_core::atelier",
+            %asset_id,
+            "media artifact content_hash mismatch between DAM row and ArtifactStore manifest"
+        );
+        return Err(internal_error(
+            "media artifact content_hash mismatch between DAM row and ArtifactStore manifest",
+        ));
+    }
+
+    // Read the verified payload bytes (fail-closed on missing payload or payload-vs-manifest drift).
+    let bytes = read_file_artifact(&workspace_root, layer, artifact_id).map_err(internal_error)?;
+
+    // application/octet-stream by default from Vec<u8>; override with the DAM-authoritative MIME so the
+    // frontend decodes the real image type. A non-encodable MIME degrades to octet-stream rather than
+    // failing the response.
+    let mut response = bytes.into_response();
+    let content_type = HeaderValue::from_str(mime.trim())
+        .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream"));
+    response.headers_mut().insert(header::CONTENT_TYPE, content_type);
+    Ok(response)
 }
 
 fn parse_ckc_search_modes(

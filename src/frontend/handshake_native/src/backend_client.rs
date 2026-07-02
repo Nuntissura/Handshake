@@ -849,6 +849,28 @@ async fn get_json(
         .map_err(|e| AppError::Parse(e.to_string()))
 }
 
+/// GET raw bytes (not JSON) from `url`, e.g. an ArtifactStore source-image payload. Fail-closed: a
+/// non-success status is an error, never a fabricated body. Used by the MT-043 Posekit source-image
+/// byte fetch. Carries a 10s per-request timeout so a slow/half-open backend cannot hang the worker.
+async fn get_bytes(client: &reqwest::Client, url: &str) -> Result<Vec<u8>, AppError> {
+    let resp = client
+        .get(url)
+        .timeout(Duration::from_secs(10))
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    if !resp.status().is_success() {
+        return Err(AppError::Http(format!(
+            "GET non-success status {}",
+            resp.status()
+        )));
+    }
+    resp.bytes()
+        .await
+        .map(|bytes| bytes.to_vec())
+        .map_err(|e| AppError::Http(e.to_string()))
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // MT-023 (C6) off-thread client for the bottom-drawer stash-shelf card data.
 //
@@ -5869,6 +5891,12 @@ pub type AtelierCkcExportCell = Arc<Mutex<Option<Result<AtelierSheetExportRow, S
 pub type AtelierPosekitExportCell =
     Arc<Mutex<Option<(u64, Result<AtelierPosekitExportRow, String>)>>>;
 
+/// One-slot delivery cell for a fetched Posekit source-image byte payload (MT-043). The spawned task
+/// writes `(request_id, Ok(bytes))` on success or `(request_id, Err(detail))` on failure; the egui UI
+/// thread drains it next frame and feeds the bytes to `AtelierPanel::set_pose_source_image_bytes` so the
+/// left viewport shows the REAL decoded source image, keeping the explicit empty/error state on failure.
+pub type AtelierPoseSourceBytesCell = Arc<Mutex<Option<(u64, Result<Vec<u8>, String>)>>>;
+
 /// One-slot delivery cell for backend-generated contact-sheet SVG exports.
 pub type AtelierContactSheetExportCell =
     Arc<Mutex<Option<(u64, Result<AtelierContactSheetExportRow, String>)>>>;
@@ -7807,6 +7835,39 @@ impl AtelierClient {
     }
 
     /// Export the current Posekit state through the backend Rust generator and ArtifactStore writer.
+    /// Pure request builder for `GET /atelier/media-assets/{asset_id}/bytes` (MT-043 Posekit source
+    /// image). `asset_id` is a media-asset UUID string (the `PoseRig.source_asset_id` the Posekit left
+    /// viewport resolves from `atelier://media/<uuid>`). Kept as a pure builder so a unit test can assert
+    /// the exact URL without a live backend, matching the other `*_request` builders.
+    pub fn media_asset_bytes_request(&self, asset_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/atelier/media-assets/{}/bytes", self.base_url, asset_id),
+            query: vec![],
+        }
+    }
+
+    /// Fetch the raw source-image bytes for a media asset off-thread and deliver them into `cell`. On
+    /// success the cell carries `(request_id, Ok(bytes))`; on any transport/status failure it carries
+    /// `(request_id, Err(detail))` so the Posekit viewport keeps its explicit empty/error state rather
+    /// than a fabricated placeholder. Follows the MT-020 off-thread shape: spawn on the app runtime,
+    /// never block the egui render thread (HBR-QUIET).
+    pub fn fetch_media_asset_bytes(
+        &self,
+        asset_id: &str,
+        request_id: u64,
+        cell: AtelierPoseSourceBytesCell,
+    ) {
+        let spec = self.media_asset_bytes_request(asset_id);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_bytes(&client, &spec.url).await.map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((request_id, result));
+            }
+        });
+    }
+
     pub fn export_posekit_openpose(
         &self,
         source_ref: &str,

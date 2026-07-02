@@ -3449,3 +3449,89 @@ async fn atelier_identity_crop_artifact_links_profile_version_and_manifest() {
         "only the first successful crop registration emits an event"
     );
 }
+
+/// MT-043 core proof: the source-asset byte-fetch route returns the EXACT bytes stored in the native
+/// ArtifactStore for a media asset, with the DAM-authoritative MIME as Content-Type. This is the
+/// endpoint the Posekit left viewport consumes to display the real decoded source image (closing the
+/// MT-014 empty-state blocker). Also proves fail-closed 404 on an unknown asset id — never an empty
+/// 200 body. Skips (does not fail) when Handshake-managed PostgreSQL binaries are unavailable.
+#[tokio::test]
+async fn atelier_media_asset_bytes_route_returns_exact_stored_source_bytes() {
+    let Some(url) = atelier_pg_support::database_url().await else {
+        eprintln!(
+            "SKIP atelier_media_asset_bytes_route_returns_exact_stored_source_bytes: PostgreSQL unavailable"
+        );
+        return;
+    };
+    // Writes a real ArtifactStore payload AND sets HANDSHAKE_WORKSPACE_ROOT for this process — the same
+    // root the byte route resolves via resolve_workspace_root().
+    let source_artifact =
+        atelier_pg_support::write_native_media_artifact(b"mt-043-posekit-source-image");
+    let store = connected_store(&url).await;
+    let media = store
+        .materialize_media_asset(&NewMediaAsset {
+            content_hash: source_artifact.content_hash.clone(),
+            mime: "image/png".to_string(),
+            byte_len: source_artifact.byte_len,
+            source_provenance: Some("mt-043 posekit source asset".to_string()),
+            artifact_ref: source_artifact.artifact_ref.clone(),
+        })
+        .await
+        .expect("materialize pose source asset");
+
+    let state = user_manual_support::app_state_for(&url).await;
+    let (base, server) = user_manual_support::start_server(atelier_api::routes(state)).await;
+
+    let response = reqwest::Client::new()
+        .get(format!("{base}/atelier/media-assets/{}/bytes", media.asset_id))
+        .send()
+        .await
+        .expect("send media-asset bytes route request");
+    let status = response.status();
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
+    let body = response
+        .bytes()
+        .await
+        .expect("read media-asset bytes response");
+
+    // Fail-closed 404 for an unknown asset id (reuse a fresh server so the abort ordering is simple).
+    let missing_state = user_manual_support::app_state_for(&url).await;
+    let (missing_base, missing_server) =
+        user_manual_support::start_server(atelier_api::routes(missing_state)).await;
+    let missing = reqwest::Client::new()
+        .get(format!(
+            "{missing_base}/atelier/media-assets/{}/bytes",
+            Uuid::new_v4()
+        ))
+        .send()
+        .await
+        .expect("send missing media-asset bytes request");
+    let missing_status = missing.status();
+
+    server.abort();
+    missing_server.abort();
+
+    assert!(
+        status.is_success(),
+        "media-asset bytes route must return success, got {status}"
+    );
+    assert_eq!(
+        content_type.as_deref(),
+        Some("image/png"),
+        "Content-Type must be the DAM-authoritative MIME"
+    );
+    assert_eq!(
+        body.as_ref(),
+        source_artifact.stored_payload.as_slice(),
+        "byte route must return the EXACT stored ArtifactStore payload bytes"
+    );
+    assert_eq!(
+        missing_status.as_u16(),
+        404,
+        "unknown media asset must fail closed with 404, never an empty 200 body"
+    );
+}

@@ -1048,6 +1048,39 @@ pub mod artifacts {
         Ok(manifest)
     }
 
+    /// Read the raw payload bytes of a single-file artifact, fail-closed on a missing payload or a
+    /// content-hash / size mismatch against the manifest. This is the byte-fetch READ counterpart to
+    /// [`write_file_artifact`]: it reuses the same manifest-vs-payload validation as
+    /// [`validate_artifact_content_hash`] (file case) but returns the verified bytes so a runtime
+    /// surface (e.g. the Posekit source-image viewport, MT-014/MT-043) can display the REAL stored
+    /// image. Directory (bundle) artifacts are rejected here — this reader serves the single `payload`
+    /// file case only; callers needing bundle bytes must enumerate the payload directory themselves.
+    /// Never returns a fabricated or partial body: any hash/size drift is a hard [`ArtifactError`].
+    pub fn read_file_artifact(
+        workspace_root: &Path,
+        layer: ArtifactLayer,
+        artifact_id: Uuid,
+    ) -> Result<Vec<u8>, ArtifactError> {
+        let manifest = read_artifact_manifest(workspace_root, layer, artifact_id)?;
+        let artifact_root = artifact_root_dir(workspace_root, layer, artifact_id);
+
+        let payload_path = artifact_root.join("payload");
+        let meta = fs::metadata(&payload_path)?;
+        if !meta.is_file() {
+            // A directory (bundle) payload, symlink, or other non-file target is not a byte-servable
+            // single-file artifact. Fail closed rather than guessing a body.
+            return Err(ArtifactError::InvalidRelPath {
+                path: payload_path.to_string_lossy().to_string(),
+            });
+        }
+
+        let bytes = fs::read(&payload_path)?;
+        if sha256_hex(&bytes) != manifest.content_hash || bytes.len() as u64 != manifest.size_bytes {
+            return Err(ArtifactError::ContentHashMismatch);
+        }
+        Ok(bytes)
+    }
+
     pub fn validate_artifact_content_hash(
         workspace_root: &Path,
         layer: ArtifactLayer,

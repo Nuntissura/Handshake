@@ -24,9 +24,9 @@ use crate::backend_client::{
     AtelierCkcTagNoteRow, AtelierCkcTemplateCell, AtelierClient, AtelierContactSheetExportCell,
     AtelierContactSheetExportRow, AtelierContactSheetItem, AtelierFacialIngestAnalysisCell,
     AtelierFacialIngestAnalysisRow, AtelierIntakeClassificationCell,
-    AtelierIntakeClassificationDecision, AtelierItemRow, AtelierPosekitExportCell,
-    AtelierPosekitExportRow, AtelierSheetExportRow, AtelierSheetFieldSuggestionRow,
-    AtelierSheetVersionRow,
+    AtelierIntakeClassificationDecision, AtelierItemRow, AtelierPoseSourceBytesCell,
+    AtelierPosekitExportCell, AtelierPosekitExportRow, AtelierSheetExportRow,
+    AtelierSheetFieldSuggestionRow, AtelierSheetVersionRow,
 };
 use crate::editor_pane_factories::SharedPalette;
 use crate::graph::canvas_board::{
@@ -188,6 +188,7 @@ pub const ATELIER_POSE_FRAMING_PADDING_BOTTOM_AUTHOR_ID: &str =
 pub const ATELIER_POSE_FRAMING_PADDING_LEFT_AUTHOR_ID: &str = "atelier-pose-framing-padding-left";
 pub const ATELIER_POSE_FRAMING_READOUT_AUTHOR_ID: &str = "atelier-pose-framing-readout";
 pub const ATELIER_POSE_SOURCE_REF_AUTHOR_ID: &str = "atelier-pose-source-ref";
+pub const ATELIER_POSE_SOURCE_STATUS_AUTHOR_ID: &str = "atelier-pose-source-status";
 pub const ATELIER_POSE_RIG_ID_AUTHOR_ID: &str = "atelier-pose-rig-id";
 pub const ATELIER_POSE_STATE_READOUT_AUTHOR_ID: &str = "atelier-pose-state-readout";
 pub const ATELIER_POSE_SPLIT_VIEW_AUTHOR_ID: &str = "atelier-pose-split-view";
@@ -2429,6 +2430,14 @@ struct AtelierPanelState {
     pose_active_export_request: Option<u64>,
     pose_export_status: String,
     pose_last_export: Option<PosekitExportSnapshot>,
+    /// MT-043 Posekit source-image byte fetch. `pose_source_loaded_ref` is the trimmed source ref we
+    /// last acted on (so a fetch fires once per ref change, not every frame); `pose_source_fetch_seq`
+    /// mints monotonic request ids; `pose_active_source_fetch` is the in-flight id so a stale response
+    /// for a superseded ref is ignored; `pose_source_status` is the human/Argus-readable load state.
+    pose_source_fetch_seq: u64,
+    pose_active_source_fetch: Option<u64>,
+    pose_source_loaded_ref: Option<String>,
+    pose_source_status: String,
     ingest_decision: IngestDecision,
     ingest_dataset_ref: String,
     ingest_character_ref: String,
@@ -2580,6 +2589,10 @@ impl Default for AtelierPanelState {
             pose_active_export_request: None,
             pose_export_status: "No Posekit OpenPose export requested.".to_owned(),
             pose_last_export: None,
+            pose_source_fetch_seq: 0,
+            pose_active_source_fetch: None,
+            pose_source_loaded_ref: None,
+            pose_source_status: "No source image loaded.".to_owned(),
             ingest_decision: IngestDecision::Unsure,
             ingest_dataset_ref: "dataset://atelier/inbox".to_owned(),
             ingest_character_ref: "atelier://character/mira-demo".to_owned(),
@@ -4728,6 +4741,9 @@ pub struct AtelierPanel {
     ckc_search_cell: AtelierCkcSearchCell,
     ckc_tag_note_cell: AtelierCkcTagNoteCell,
     pose_export_cell: AtelierPosekitExportCell,
+    /// MT-043 one-slot delivery cell for the fetched Posekit source-image bytes (drained each frame and
+    /// fed to [`AtelierPanel::set_pose_source_image_bytes`]).
+    pose_source_bytes_cell: AtelierPoseSourceBytesCell,
     /// Decode cache for the Posekit source image (left viewport). Interior-mutable so the `&self`
     /// render path can (re)upload the texture when the bytes change.
     pose_source_image: Mutex<PoseSourceImageCache>,
@@ -4786,6 +4802,7 @@ impl AtelierPanel {
             ckc_search_cell: Arc::new(Mutex::new(None)),
             ckc_tag_note_cell: Arc::new(Mutex::new(None)),
             pose_export_cell: Arc::new(Mutex::new(None)),
+            pose_source_bytes_cell: Arc::new(Mutex::new(None)),
             pose_source_image: Mutex::new(PoseSourceImageCache::default()),
             ingest_contact_export_cell: Arc::new(Mutex::new(None)),
             ingest_facial_analysis_cell: Arc::new(Mutex::new(None)),
@@ -5626,6 +5643,107 @@ impl AtelierPanel {
                 }
             }
         }
+    }
+
+    /// MT-043: drain a delivered Posekit source-image byte payload (if any) and feed it to the source
+    /// viewport. On success the real bytes go to [`set_pose_source_image_bytes`] (decoded/uploaded next
+    /// frame → `source_image=loaded`); on failure the image is cleared to the explicit empty state —
+    /// never a fabricated placeholder. A response whose request id no longer matches the in-flight fetch
+    /// (a superseded source ref) is dropped so a late reply cannot overwrite a newer source.
+    fn drain_pose_source_bytes_backend(&self) {
+        let delivered = self
+            .pose_source_bytes_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        let Some((request_id, result)) = delivered else {
+            return;
+        };
+        let mut clear_image = false;
+        let mut set_bytes: Option<Vec<u8>> = None;
+        if let Ok(mut state) = self.state.lock() {
+            if state.pose_active_source_fetch != Some(request_id) {
+                // Stale response for a source ref that has since changed; ignore it.
+                return;
+            }
+            state.pose_active_source_fetch = None;
+            match result {
+                Ok(bytes) => {
+                    state.pose_source_status = format!(
+                        "Loaded real source image bytes from ArtifactStore ({} bytes).",
+                        bytes.len()
+                    );
+                    set_bytes = Some(bytes);
+                }
+                Err(err) => {
+                    state.pose_source_status = format!(
+                        "Source image fetch failed (kept explicit empty state, no placeholder): {err}"
+                    );
+                    clear_image = true;
+                }
+            }
+        }
+        // Apply to the decode cache OUTSIDE the state lock (set_pose_source_image_bytes locks the
+        // separate pose_source_image mutex; keeping the two locks non-overlapping avoids any ordering
+        // coupling).
+        if let Some(bytes) = set_bytes {
+            self.set_pose_source_image_bytes(Some(bytes));
+        } else if clear_image {
+            self.set_pose_source_image_bytes(None);
+        }
+    }
+
+    /// MT-043: when the Posekit source ref changes, resolve it and (if it is a native ArtifactStore
+    /// media asset and a backend client is present) dispatch a one-shot off-thread byte fetch. Fires at
+    /// most once per distinct ref (guarded by `pose_source_loaded_ref`) so the immediate-mode render loop
+    /// does not spam the backend. An empty or non-resolvable ref clears the viewport to its explicit
+    /// empty state instead of fetching. Never blocks the render thread and never fabricates bytes.
+    ///
+    /// INVARIANT (MT-043 regression fix): the panel NEVER auto-fetches the initial/default source ref.
+    /// A backend byte-fetch fires ONLY for a ref the user actively changed to AFTER the Posekit tab
+    /// first rendered. So opening the panel in its default/demo state — or any first render, on any tab —
+    /// emits ZERO backend byte-fetch requests (no spurious startup GET, and it can never consume a
+    /// single-shot test mock reserved for another request). A real user-set `atelier://media/<uuid>`
+    /// still fetches + loads on the next sync after the edit.
+    fn sync_pose_source_fetch(&self, state: &mut AtelierPanelState) {
+        let trimmed = state.pose_source_ref.trim().to_owned();
+        if state.pose_source_loaded_ref.as_deref() == Some(trimmed.as_str()) {
+            return;
+        }
+        // First observation of the source ref (panel just initialized / Posekit first shown): record it
+        // as the baseline and DO NOT fetch. The default/demo ref never triggers a backend request; only
+        // a subsequent user edit does. The decode cache is left untouched (default = explicit empty
+        // viewport), so the first render performs no image or network work.
+        let first_observation = state.pose_source_loaded_ref.is_none();
+        state.pose_source_loaded_ref = Some(trimmed.clone());
+        state.pose_active_source_fetch = None;
+        if first_observation {
+            return;
+        }
+
+        // A user changed the ref: drop any stale image so a changed ref never lingers under old bytes.
+        self.set_pose_source_image_bytes(None);
+
+        if trimmed.is_empty() {
+            state.pose_source_status = "No source image set.".to_owned();
+            return;
+        }
+        let Some(asset_id) = parse_media_asset_id_from_ref(&trimmed) else {
+            state.pose_source_status = format!(
+                "Source ref is not a resolvable ArtifactStore media asset (expected atelier://media/<uuid>): {trimmed}"
+            );
+            return;
+        };
+        let Some(client) = self.ckc_client.as_ref() else {
+            state.pose_source_status =
+                "Backend offline; cannot fetch source image bytes (explicit empty state).".to_owned();
+            return;
+        };
+        state.pose_source_fetch_seq = state.pose_source_fetch_seq.saturating_add(1);
+        let request_id = state.pose_source_fetch_seq;
+        state.pose_active_source_fetch = Some(request_id);
+        state.pose_source_status = format!("Fetching source image bytes for {trimmed} ...");
+        client.fetch_media_asset_bytes(&asset_id, request_id, self.pose_source_bytes_cell.clone());
     }
 
     fn drain_contact_sheet_export_backend(&self) {
@@ -9252,10 +9370,15 @@ impl AtelierPanel {
 
     fn show_posekit(&self, ui: &mut egui::Ui, palette: &HsPalette) {
         self.drain_posekit_export_backend();
+        // MT-043: deliver any fetched source-image bytes to the decode cache BEFORE preparing the render
+        // so freshly-arrived bytes paint the same frame.
+        self.drain_pose_source_bytes_backend();
         let source_render = self.prepare_pose_source_render(ui.ctx());
         let Ok(mut state) = self.state.lock() else {
             return;
         };
+        // MT-043: when the source ref changed, (re)dispatch the byte fetch or clear to empty state.
+        self.sync_pose_source_fetch(&mut state);
         ui.horizontal(|ui| {
             ui.label(egui::RichText::new("Source image").color(palette.text));
             let source = ui.text_edit_singleline(&mut state.pose_source_ref);
@@ -9287,6 +9410,19 @@ impl AtelierPanel {
             ATELIER_POSE_STATE_READOUT_AUTHOR_ID,
             "Posekit current pose state",
             &readout,
+        );
+        // MT-043: source-image byte-fetch status (distinguishes an unset ref, an unresolvable ref, a
+        // pending fetch, a load, and a fetch failure — the source viewport node alone cannot).
+        let source_status = state.pose_source_status.clone();
+        let source_status_response =
+            ui.label(egui::RichText::new(&source_status).color(palette.text_subtle));
+        emit_value_node(
+            ui.ctx(),
+            source_status_response.id,
+            accesskit::Role::Label,
+            ATELIER_POSE_SOURCE_STATUS_AUTHOR_ID,
+            "Posekit source image byte-fetch status",
+            &source_status,
         );
         ui.add_space(4.0);
         ui.horizontal(|ui| {
@@ -10739,6 +10875,18 @@ fn palette_of(cell: &SharedPalette) -> HsPalette {
 ///
 /// MT-014 de-scaffold: the previous implementation painted a hash-derived colour tile plus a
 /// procedural 3D skeleton, neither bound to the actual source asset. This now displays the decoded
+/// MT-043: resolve a Posekit source ref to a media-asset UUID string for the byte-fetch route. Only a
+/// canonical single-segment `atelier://media/<uuid>` ref resolves; the demo placeholder, padded refs,
+/// multi-segment paths, and any non-UUID tail return `None` so an unresolvable source keeps the explicit
+/// empty state instead of firing a byte fetch. Mirrors the backend `parse_media_asset_ref` shape.
+fn parse_media_asset_id_from_ref(source_ref: &str) -> Option<String> {
+    let id = source_ref.strip_prefix("atelier://media/")?;
+    if id.is_empty() || id.contains('/') {
+        return None;
+    }
+    Uuid::parse_str(id).ok().map(|uuid| uuid.to_string())
+}
+
 /// source-image texture when bytes are available and otherwise an honest empty state — it never
 /// fabricates a stand-in. Source bytes arrive via [`AtelierPanel::set_pose_source_image_bytes`].
 fn draw_pose_source_view(
@@ -12021,5 +12169,189 @@ mod tests {
             "Waiting for live CKC database load"
         );
         assert!(state.ckc_tag_note_scope_ref.is_empty());
+    }
+
+    /// Encode a real, decodable RGBA PNG in-memory (round-trips through the `image` crate exactly like
+    /// the runtime decode path) so the source-viewport test proves a genuine decode, not a stub.
+    fn encode_test_png(width: u32, height: u32) -> Vec<u8> {
+        let mut img = image::RgbaImage::new(width, height);
+        for pixel in img.pixels_mut() {
+            *pixel = image::Rgba([200, 40, 40, 255]);
+        }
+        let mut buf = std::io::Cursor::new(Vec::new());
+        image::DynamicImage::ImageRgba8(img)
+            .write_to(&mut buf, image::ImageFormat::Png)
+            .expect("encode test source PNG");
+        buf.into_inner()
+    }
+
+    #[test]
+    fn parse_media_asset_id_from_ref_resolves_only_canonical_media_ref() {
+        let uuid = "11111111-2222-3333-4444-555555555555";
+        assert_eq!(
+            parse_media_asset_id_from_ref(&format!("atelier://media/{uuid}")),
+            Some(uuid.to_owned()),
+            "a canonical atelier://media/<uuid> ref must resolve to the asset id"
+        );
+        // The seeded demo placeholder and non-UUID / multi-segment refs must NOT resolve, so an
+        // unresolvable source keeps the explicit empty state instead of firing a byte fetch.
+        assert_eq!(
+            parse_media_asset_id_from_ref("atelier://media/mira-demo/pose-source.png"),
+            None
+        );
+        assert_eq!(parse_media_asset_id_from_ref(""), None);
+        assert_eq!(
+            parse_media_asset_id_from_ref("source://legacy/posekit/workspace/history-tab"),
+            None
+        );
+    }
+
+    /// MT-043 core proof (reuses the MT-014 `PoseSourceRender` harness): a resolvable source whose bytes
+    /// are delivered through the fetch cell drives the left viewport to a real decoded texture
+    /// (`source_image=loaded`) with the exact decoded dimensions — closing the MT-014 empty-state
+    /// blocker. Byte transport is simulated at the delivery cell so the test needs no live backend.
+    #[test]
+    fn posekit_source_viewport_displays_real_decoded_image() {
+        let panel = AtelierPanel::new(
+            empty_side_panel(),
+            Arc::new(Mutex::new(LoomCanvasBoard::new("ws-test", "canvas-1"))),
+            Arc::new(Mutex::new(Vec::<CanvasEvent>::new())),
+        );
+        let png = encode_test_png(7, 5);
+
+        // Simulate an in-flight fetch (request id 9) whose real PNG bytes have just been delivered.
+        {
+            let mut state = panel.state.lock().expect("panel state");
+            state.pose_active_source_fetch = Some(9);
+        }
+        *panel
+            .pose_source_bytes_cell
+            .lock()
+            .expect("pose source bytes cell") = Some((9, Ok(png.clone())));
+
+        panel.drain_pose_source_bytes_backend();
+
+        // The drain must have fed the real bytes into the decode cache and recorded a load status.
+        {
+            let state = panel.state.lock().expect("panel state");
+            assert_eq!(state.pose_active_source_fetch, None);
+            assert!(
+                state.pose_source_status.contains("Loaded real source image"),
+                "expected a load status, got {}",
+                state.pose_source_status
+            );
+        }
+
+        // Preparing the render must yield a REAL decoded texture at the PNG's dimensions — never Empty.
+        let ctx = egui::Context::default();
+        match panel.prepare_pose_source_render(&ctx) {
+            PoseSourceRender::Loaded { width, height, .. } => {
+                assert_eq!(
+                    (width, height),
+                    (7, 5),
+                    "left viewport must decode the real source image dimensions"
+                );
+            }
+            PoseSourceRender::DecodeError(err) => {
+                panic!("source viewport must decode real PNG bytes, got decode error: {err}")
+            }
+            PoseSourceRender::Empty => {
+                panic!("source viewport must show the real image, not the empty state")
+            }
+        }
+    }
+
+    #[test]
+    fn posekit_source_fetch_failure_keeps_explicit_empty_state() {
+        let panel = AtelierPanel::new(
+            empty_side_panel(),
+            Arc::new(Mutex::new(LoomCanvasBoard::new("ws-test", "canvas-1"))),
+            Arc::new(Mutex::new(Vec::<CanvasEvent>::new())),
+        );
+        {
+            let mut state = panel.state.lock().expect("panel state");
+            state.pose_active_source_fetch = Some(3);
+        }
+        *panel
+            .pose_source_bytes_cell
+            .lock()
+            .expect("pose source bytes cell") = Some((3, Err("backend 404".to_owned())));
+
+        panel.drain_pose_source_bytes_backend();
+
+        {
+            let state = panel.state.lock().expect("panel state");
+            assert!(
+                state.pose_source_status.contains("fetch failed"),
+                "expected a failure status, got {}",
+                state.pose_source_status
+            );
+        }
+        let ctx = egui::Context::default();
+        match panel.prepare_pose_source_render(&ctx) {
+            PoseSourceRender::Empty => {}
+            PoseSourceRender::Loaded { .. } => {
+                panic!("a failed fetch must not fabricate a loaded image")
+            }
+            PoseSourceRender::DecodeError(err) => {
+                panic!("a failed fetch must yield empty state, not decode error: {err}")
+            }
+        }
+    }
+
+    /// MT-043 regression guard: the FIRST observation of the source ref (panel init / Posekit first
+    /// shown) must NOT dispatch a backend byte-fetch — even for a resolvable `atelier://media/<uuid>`
+    /// ref — so opening the panel emits zero backend requests and can never consume a single-shot test
+    /// mock. A subsequent USER change to a resolvable ref DOES dispatch a fetch (runtime image-load
+    /// preserved). Uses a dead backend address so the (second) dispatch spawns harmlessly and never
+    /// hits a live server; the assertions are on synchronous state, not the network.
+    #[test]
+    fn posekit_first_source_observation_never_fetches_user_change_does() {
+        let runtime = tokio::runtime::Runtime::new().expect("test runtime");
+        let panel = AtelierPanel::with_client(
+            empty_side_panel(),
+            Arc::new(Mutex::new(LoomCanvasBoard::new("ws-test", "canvas-1"))),
+            Arc::new(Mutex::new(Vec::<CanvasEvent>::new())),
+            Some(AtelierClient::new(
+                "http://127.0.0.1:65535",
+                runtime.handle().clone(),
+            )),
+        );
+        let first_ref = "atelier://media/11111111-2222-3333-4444-555555555555".to_owned();
+        {
+            let mut state = panel.state.lock().expect("panel state");
+            // A RESOLVABLE ref present at first render must still NOT auto-fetch.
+            state.pose_source_ref = first_ref.clone();
+            assert!(
+                state.pose_source_loaded_ref.is_none(),
+                "precondition: source ref never synced yet"
+            );
+            panel.sync_pose_source_fetch(&mut state);
+            assert_eq!(
+                state.pose_source_loaded_ref.as_deref(),
+                Some(first_ref.as_str()),
+                "first sync must record the ref as the baseline"
+            );
+            assert_eq!(
+                state.pose_active_source_fetch, None,
+                "first observation must NOT dispatch a byte-fetch, even for a resolvable ref"
+            );
+        }
+        {
+            let mut state = panel.state.lock().expect("panel state");
+            // The user changes to a DIFFERENT resolvable asset → a fetch IS dispatched.
+            state.pose_source_ref =
+                "atelier://media/22222222-3333-4444-5555-666666666666".to_owned();
+            panel.sync_pose_source_fetch(&mut state);
+            assert!(
+                state.pose_active_source_fetch.is_some(),
+                "a user-changed resolvable ref must dispatch a byte-fetch (runtime image-load preserved)"
+            );
+            assert!(
+                state.pose_source_status.contains("Fetching source image bytes"),
+                "a dispatched fetch must record a pending status; got {}",
+                state.pose_source_status
+            );
+        }
     }
 }
