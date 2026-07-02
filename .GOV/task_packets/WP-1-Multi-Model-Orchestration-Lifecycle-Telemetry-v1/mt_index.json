@@ -260,18 +260,18 @@
     },
     {
       "mt_id": "MT-014",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "depends_on": [
         "MT-003"
       ],
       "summary": "Shared/enumerable/labeled default-LlmClient model registry (UUIDv7->display_name) for MT-008 labeling, MT-012 picker, Work Profiles provider_ref resolution; + LoomSearchV2 embedding-model contract (degrade-not-error on 768-dim mismatch). DEFERRED_FROM_MT-003 2026-07-01.",
       "unlocks": "Unlocks local-model labeling in diagnostics, enumeration in the operator picker, Work Profiles resolution, and crash-free Loom reindex on embedding-dim mismatch.",
       "blocks": [],
-      "proof_status": "NOT_RUN",
-      "hbr_status": "PENDING",
-      "pre_implementation_adversarial_review_status": "NOT_RUN",
-      "post_implementation_adversarial_review_status": "NOT_RUN",
-      "adversarial_findings_status": "NOT_RUN"
+      "proof_status": "PASS_MT014_2026-07-02_REGISTRY_4_LOOM_7_PROVIDER_REF_8_KERNEL_WP_4_ALL_GREEN_IMPL_97618d35_HIGH1_WIRED_cb2fd516_MED1_SELECTION_AUDIT_DEFERRED_MT012_AC4b_DEFERRED_MT016",
+      "hbr_status": "PASS_MT014_REGISTRY_LOOM_RESOLVER_HARDENED",
+      "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
+      "post_implementation_adversarial_review_status": "DONE_2026-07-02_task_a8285d2bd49d98916_HIGH1_FIXED_MED1_DEFERRED_MT012",
+      "adversarial_findings_status": "APPLIED_HIGH1_WIRED_MED1_DEFERRED_MT012"
     },
     {
       "mt_id": "MT-015",

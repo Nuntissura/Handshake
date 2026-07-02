@@ -16,25 +16,25 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-003"
     ],
     "blocks": [],
     "active": false,
     "validator_verdict": "PENDING",
-    "claimed_by": null,
-    "claimed_at_utc": null,
-    "ready_for_validation_by": null,
-    "ready_for_validation_at_utc": null,
+    "claimed_by": "KERNEL_BUILDER-20260701-190732",
+    "claimed_at_utc": "2026-07-02T16:45:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
+    "ready_for_validation_at_utc": "2026-07-02T18:12:13Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "NOT_RUN",
-    "hbr_status": "PENDING",
-    "pre_implementation_adversarial_review_status": "NOT_RUN",
-    "post_implementation_adversarial_review_status": "NOT_RUN",
-    "adversarial_findings_status": "NOT_RUN"
+    "proof_status": "PASS_MT014_2026-07-02: shared model registry + Loom dim-degrade + provider_ref resolver. Impl 97618d35 + HIGH-1 wiring cb2fd516. Proofs all green, independently re-proven: model_catalog_tests 4/4 (enumeration reachable from AppState, single registry, stable cross-session sha256 anchor + per-boot UUIDv7, empty/unknown sentinel, selection-decision FR event primitive); work_profile_provider_ref_tests 8/8 (resolver wired into validate_routes - Unknown rejected LIVE, ollama->local_runtime migrated + surfaced FR-EVT-PROFILE via validate_and_migrate_work_profiles load path, canonical passes); loom_search_v2_tests 7/7 (DimMismatch degrade-not-error on reindex AND search, no 400, typed reason + FR event both paths, real managed PG 1319s); kernel_work_profiles 4/4 regression. Post-impl review (task a8285d2bd49d98916): HIGH-1 unwired-resolver FIXED (cb2fd516); MED-1 selection-audit event ships as a primitive DEFERRED to MT-012 (wires it on operator model-pick, already in MT-012 contract); MED-2 (reindex degrade surfaced only via FR event under recorder outage), MED-3 (dim proof pg_or_skip-gated but RAN vs real PG here), LOW-1/2/3 disclosed-acceptable. AC-4b (dedicated embedding model) deferred to MT-016. False production_factory-registry premise NOT chased; MT-008/012 not reworked.",
+    "hbr_status": "PASS_HBR_INT_MAN_FOR_MT014_REGISTRY_LOOM_RESOLVER_HARDENED",
+    "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
+    "post_implementation_adversarial_review_status": "DONE_2026-07-02_task_a8285d2bd49d98916_HIGH1_FIXED_cb2fd516_MED1_DEFERRED_MT012_MED2_MED3_LOW_DISCLOSED",
+    "adversarial_findings_status": "APPLIED_HIGH1_RESOLVER_WIRED_MED1_SELECTION_AUDIT_DEFERRED_MT012"
   },
   "scope": {
     "summary": "Make the default LlmClient's embedded model registry shared, enumerable, and labeled (UUIDv7 -> display_name/base_model_tag) so downstream pillars can name and list the local model, and give LoomSearchV2 a real embedding-model contract that degrades (not hard-errors) on dimension mismatch.",
