@@ -16,25 +16,25 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "depends_on": [
       "MT-003"
     ],
     "blocks": [],
     "active": false,
     "validator_verdict": "PENDING",
-    "claimed_by": null,
-    "claimed_at_utc": null,
-    "ready_for_validation_by": null,
-    "ready_for_validation_at_utc": null,
+    "claimed_by": "KERNEL_BUILDER-20260701-190732",
+    "claimed_at_utc": "2026-07-02T18:12:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
+    "ready_for_validation_at_utc": "2026-07-02T20:27:00Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "NOT_RUN",
-    "hbr_status": "PENDING",
-    "pre_implementation_adversarial_review_status": "NOT_RUN",
-    "post_implementation_adversarial_review_status": "NOT_RUN",
-    "adversarial_findings_status": "NOT_RUN"
+    "proof_status": "PASS_MT013_2026-07-02: embedded ModelRuntime ProcessOwnershipLedger START/STOP + FR-on-error/embedding. Impl 4a5232e5 + hardening 8f510ba9. Proofs all green, independently re-proven: embedded_model_ledger_tests 4/4 (START via real production assemble_local_runtime_client seam, os_pid=None honest pid-less row, process_uuid=minted UUIDv7, display_name from MT-014 catalog; STOP now GENUINELY fires - graceful-shutdown signal (ctrl_c/SIGTERM) -> serve resolves -> llm_client.shutdown() -> drain_and_join_ledger_writer -> managed_pg.stop(); hard-crash pid-less/session-less orphan reconciled by boot sweep reclaim_pidless_embedded_orphans (started_at<boot); idempotent single STOP; NON-skippable, 0 ignored); llm_client_local_routing_tests 14/14 (FR at CALL TIME on all completion error branches + embedding success/error + DisabledLlmClient completion AND embedding; call-twice=2-events proves not construction-time); user_manual_behavior_coverage_tests 2/2 (AC#5: 4 embedded-model behavior rows FR=WIRED / internal_diagnostics=DeferredWithReason / palmistry=DeferredWithReason + seeded page embedded-model-lifecycle-ledger); llm_default_boot_resolution 4/4 regression. Post-impl review (task a35d38d8c6c523baa) caught a REAL false-green: STOP seam unreachable on signal-kill + disclosed reclaim provably useless for pid-less/session-less orphan -> FIXED (8f510ba9). Boxing clause(1) vacuous per 3.6.2 (in-process load, no spawn). Real-Candle-weights e2e (UUIDv7 mint from real weights) needs an operator live-run (candle-runtime-engine feature). Incidentally repaired a pre-existing MT-014 seed origin_check regression via migration 0343 (restored MT-011 coverage).",
+    "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT013_LEDGER_STARTSTOP_FR_HARDENED",
+    "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
+    "post_implementation_adversarial_review_status": "DONE_2026-07-02_task_a35d38d8c6c523baa_F1_STOP_FALSE_GREEN_FIXED_8f510ba9_F2_EMBEDDING_FR_FIXED_F3_AC5_DONE",
+    "adversarial_findings_status": "APPLIED_F1_GRACEFUL_SHUTDOWN_STOP_PLUS_ORPHAN_RECONCILE_F2_EMBEDDING_FR_F3_USERMANUAL_COVERAGE"
   },
   "scope": {
     "summary": "Embedded ModelRuntime real-load conformance hardening: box the default embedded-model load path under a SandboxAdapter and emit ProcessOwnershipLedger START/STOP rows, and emit a Flight Recorder event on the DisabledLlmClient / fail-closed error paths, all validated with a REAL Candle model load.",

@@ -245,18 +245,18 @@
     },
     {
       "mt_id": "MT-013",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
       "depends_on": [
         "MT-003"
       ],
       "summary": "Embedded ModelRuntime real-load conformance: box the default embedded model-load path under a SandboxAdapter + emit ProcessOwnershipLedger START/STOP (master-spec 3.6.2/4.6.1), and emit Flight Recorder on DisabledLlmClient/fail-closed paths (4.2.3.2(3)); validated with a REAL Candle load. DEFERRED_FROM_MT-003 2026-07-01.",
       "unlocks": "Closes the master-spec 3.6.2/4.6.1 HARD boxing/ledger gap on the default embedded local model path and the FR-on-error gap.",
       "blocks": [],
-      "proof_status": "NOT_RUN",
-      "hbr_status": "PENDING",
-      "pre_implementation_adversarial_review_status": "NOT_RUN",
-      "post_implementation_adversarial_review_status": "NOT_RUN",
-      "adversarial_findings_status": "NOT_RUN"
+      "proof_status": "PASS_MT013_2026-07-02_LEDGER_4_FR_ROUTING_14_USERMANUAL_COV_2_BOOT_4_ALL_GREEN_IMPL_4a5232e5_HARDENING_8f510ba9_STOP_FALSE_GREEN_FIXED_GRACEFUL_SHUTDOWN_PLUS_ORPHAN_RECONCILE_AC5_DONE_REAL_CANDLE_E2E_NEEDS_OPERATOR_LIVERUN_ALSO_REPAIRED_MT014_SEED_REGRESSION_0343",
+      "hbr_status": "PASS_MT013_LEDGER_STARTSTOP_FR_HARDENED",
+      "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
+      "post_implementation_adversarial_review_status": "DONE_2026-07-02_task_a35d38d8c6c523baa_F1_STOP_FIXED_F2_F3_DONE",
+      "adversarial_findings_status": "APPLIED_F1_STOP_GRACEFUL_SHUTDOWN_ORPHAN_RECONCILE_F2_EMBEDDING_FR_F3_AC5"
     },
     {
       "mt_id": "MT-014",
