@@ -5,6 +5,7 @@
 //! hidden provider memory or prompt-only state.
 
 mod knowledge_pg_support;
+mod model_lane_cloud_support;
 
 use std::sync::Arc;
 
@@ -774,6 +775,30 @@ async fn seed_run_with_messages(store: &ModelLaneStore) {
         .record_run(sample_run())
         .await
         .expect("record MT-005 run");
+
+    // Cloud lanes fail closed unless durable ProjectionPlan/ConsentReceipt
+    // authority already exists (spec 4.3.9.2.5, CX-MM-007). Seed the cloud
+    // lane's authority before recording it, matching the identity that
+    // `sample_lane("lane-cloud", Cloud, ...)` stamps.
+    model_lane_cloud_support::seed_cloud_lane_authority(
+        store,
+        model_lane_cloud_support::CloudLaneAuthoritySpec {
+            run_id: "run-mt005",
+            lane_id: "lane-cloud",
+            model_session_id: "model-session-lane-cloud",
+            provider_kind: ModelLaneProviderKind::OpenAi.as_str(),
+            requested_model_id: "model://mt005/lane-cloud",
+            projection_plan_id: "projection-plan://lane-cloud",
+            consent_receipt_id: "consent://lane-cloud",
+            event_ledger_stream_id: "mlane-stream-run-mt005",
+            work_packet_id: "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+            micro_task_id: "MT-005",
+            task_board_id: "task-board://wp-1",
+            owner_session: "KERNEL_BUILDER-MT005",
+        },
+    )
+    .await;
+
     for lane in [
         sample_lane(
             "lane-local",
