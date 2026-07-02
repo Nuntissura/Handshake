@@ -1281,6 +1281,39 @@ struct FacialReviewCommandResponse<T: Serialize> {
     receipt_artifact: FacialCommandArtifactResponse,
 }
 
+/// MT-031: durable Facial command *outcome* envelope. Where the generic
+/// `FacialReviewCommandResponse<T>` only models the succeeded path, this
+/// non-generic envelope models every post-context outcome of a Facial command —
+/// `succeeded`, `degraded`, `blocked`, and `error` — and is always returned at
+/// HTTP 200 so models can recover from command-level failures without scraping
+/// generic transport error bodies.
+///
+/// A `succeeded` body stays field-compatible with the generic envelope: the top
+/// level carries the same `schema_id`/`command`/`status`/`actor`/`result`/
+/// `result_artifact`/`receipt_ref`/`receipt_artifact` fields in the same order,
+/// and the three failure fields (`error`, `degraded_reasons`, `recovery_hint`) are
+/// skipped when empty/none so they never appear on a success. For `blocked`/`error`
+/// the `result` is JSON null and `result_artifact` is omitted, but a durable
+/// receipt (`receipt_ref` + `receipt_artifact`) is ALWAYS written.
+#[derive(Debug, Serialize)]
+struct FacialCommandOutcomeResponse {
+    schema_id: String,
+    command: String,
+    status: String,
+    actor: String,
+    result: serde_json::Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    result_artifact: Option<FacialCommandArtifactResponse>,
+    receipt_ref: String,
+    receipt_artifact: FacialCommandArtifactResponse,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    degraded_reasons: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    recovery_hint: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
 struct FacialReviewSessionResult {
     session: FacialReviewSessionArtifact,
@@ -5095,14 +5128,17 @@ async fn build_facial_review_montage(
     )
 }
 
-/// POST /atelier/facial/review/export — build a non-destructive LoRA dataset export manifest.
+/// POST /atelier/facial/review/export — build a non-destructive LoRA dataset export
+/// manifest, returning a durable Facial command *outcome* envelope (MT-031). Every
+/// post-context outcome (`blocked`/`degraded`/`error`/`succeeded`) is returned at
+/// HTTP 200 with a persisted receipt so models can recover without scraping generic
+/// transport errors. Pre-context failures (missing actor header, unresolvable
+/// session/decision artifact refs) remain bare HTTP 4xx `ErrorResponse` transport
+/// errors on purpose — they are not command-level outcomes.
 async fn build_facial_review_export(
     headers: HeaderMap,
     Json(payload): Json<FacialReviewExportApiRequest>,
-) -> Result<
-    Json<FacialReviewCommandResponse<FacialReviewExportManifest>>,
-    (StatusCode, Json<ErrorResponse>),
-> {
+) -> Result<Json<FacialCommandOutcomeResponse>, (StatusCode, Json<ErrorResponse>)> {
     let actor = calling_actor(&headers)?;
     let session: FacialReviewSessionArtifact = read_facial_json_artifact_as(
         &payload.session_artifact_ref,
@@ -5114,7 +5150,48 @@ async fn build_facial_review_export(
     )?;
     let discovered_decisions = discover_facial_review_decisions(&session.session_id)?;
     let decisions = merge_facial_review_decisions(discovered_decisions, provided_decisions);
-    let manifest = build_review_export_manifest(
+    let sources = artifact_handles_from_refs(
+        &[
+            std::slice::from_ref(&payload.session_artifact_ref),
+            payload.decision_artifact_refs.as_slice(),
+        ]
+        .concat(),
+    );
+    let allow_partial = payload.allow_partial.unwrap_or(false);
+
+    // Deterministic BLOCKED pre-check: mirror the domain's undecided guard here so a
+    // refusal becomes a durable, parser-visible command envelope instead of the
+    // domain's opaque Err string. `effective_decision_receipts` keys decisions by
+    // `stable_image_id`, so presence in this set is exactly "decided".
+    let decided_stable_ids: HashSet<&str> = decisions
+        .iter()
+        .map(|decision| decision.stable_image_id.as_str())
+        .collect();
+    let undecided = session
+        .items
+        .iter()
+        .any(|item| !decided_stable_ids.contains(item.stable_image_id.as_str()));
+    if !allow_partial && undecided {
+        return facial_review_command_outcome(
+            "atelier.facial.review.export",
+            &actor,
+            "blocked",
+            None,
+            None,
+            None,
+            Some("undecided_items_block_export".to_owned()),
+            Some(
+                "Undecided items remain: record a decision for every item via \
+                 POST /atelier/facial/review/decisions, or re-run export with \
+                 allow_partial=true to intentionally export a partial dataset."
+                    .to_owned(),
+            ),
+            Vec::new(),
+            &sources,
+        );
+    }
+
+    let manifest: FacialReviewExportManifest = match build_review_export_manifest(
         &session,
         &decisions,
         BuildFacialReviewExportRequest {
@@ -5124,28 +5201,100 @@ async fn build_facial_review_export(
                 .unwrap_or_else(|| Utc::now().to_rfc3339()),
             dataset_name: payload.dataset_name,
             repeats: payload.repeats.unwrap_or(10),
-            allow_partial: payload.allow_partial.unwrap_or(false),
+            allow_partial,
             output_root_ref: payload.output_root_ref,
         },
-    )
-    .map_err(|err| atelier_error(AtelierError::Validation(err)))?;
-    let sources = artifact_handles_from_refs(
-        &[
-            std::slice::from_ref(&payload.session_artifact_ref),
-            payload.decision_artifact_refs.as_slice(),
-        ]
-        .concat(),
-    );
-    let manifest_artifact_payload = manifest.clone();
-    facial_review_command_response(
-        "atelier.facial.review.export",
-        &actor,
-        FACIAL_REVIEW_EXPORT_SCHEMA_ID,
-        "atelier-facial-review-export.json",
-        &manifest_artifact_payload,
-        manifest,
-        &sources,
-    )
+    ) {
+        Ok(manifest) => manifest,
+        Err(_domain_detail) => {
+            // ERROR outcome: never leak the raw domain string — emit a STABLE code.
+            return facial_review_command_outcome(
+                "atelier.facial.review.export",
+                &actor,
+                "error",
+                None,
+                None,
+                None,
+                Some("export_command_failed".to_owned()),
+                Some(
+                    "Export could not be built. Verify dataset_name (no whitespace or \
+                     slashes), repeats, output_root_ref, and the session/decision refs, \
+                     then re-run export. Read the receipt for the persisted failure."
+                        .to_owned(),
+                ),
+                Vec::new(),
+                &sources,
+            );
+        }
+    };
+
+    // DEGRADED vs SUCCEEDED classification: a partial export (undecided skipped) or
+    // any export problems (rejected/hold/duplicate skipped) is a degraded outcome.
+    let undecided_count = manifest
+        .funnel
+        .get("undecided")
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(0);
+    let is_degraded = undecided_count > 0 || !manifest.problems.is_empty();
+    let manifest_value = serde_json::to_value(&manifest).map_err(internal_error)?;
+    if is_degraded {
+        let mut degraded_reasons = Vec::new();
+        if undecided_count > 0 {
+            degraded_reasons.push(format!("undecided_items_skipped:{undecided_count}"));
+        }
+        // Problems are pre-sorted by category in the domain; group them into stable
+        // `<problem>:<count>` reasons. `undecided_skipped` is already represented by
+        // `undecided_items_skipped:N`, so it is not double-counted here.
+        let mut problem_counts: Vec<(String, usize)> = Vec::new();
+        for problem in &manifest.problems {
+            if problem.problem == "undecided_skipped" {
+                continue;
+            }
+            match problem_counts
+                .iter_mut()
+                .find(|(name, _)| name == &problem.problem)
+            {
+                Some((_, count)) => *count += 1,
+                None => problem_counts.push((problem.problem.clone(), 1)),
+            }
+        }
+        for (problem, count) in problem_counts {
+            degraded_reasons.push(format!("{problem}:{count}"));
+        }
+        if degraded_reasons.is_empty() {
+            degraded_reasons.push("export_degraded".to_owned());
+        }
+        facial_review_command_outcome(
+            "atelier.facial.review.export",
+            &actor,
+            "degraded",
+            Some(FACIAL_REVIEW_EXPORT_SCHEMA_ID),
+            Some("atelier-facial-review-export.json"),
+            Some(manifest_value),
+            None,
+            Some(
+                "Export succeeded but some items were skipped (undecided/rejected/hold/\
+                 duplicate). Review the funnel and problems, adjust decisions, and re-run \
+                 export if a complete dataset is required."
+                    .to_owned(),
+            ),
+            degraded_reasons,
+            &sources,
+        )
+    } else {
+        facial_review_command_outcome(
+            "atelier.facial.review.export",
+            &actor,
+            "succeeded",
+            Some(FACIAL_REVIEW_EXPORT_SCHEMA_ID),
+            Some("atelier-facial-review-export.json"),
+            Some(manifest_value),
+            None,
+            None,
+            Vec::new(),
+            &sources,
+        )
+    }
 }
 
 fn facial_command_routes() -> Vec<FacialCommandRoute> {
@@ -5307,6 +5456,117 @@ where
         result_artifact,
         receipt_ref: receipt_artifact.artifact_ref.clone(),
         receipt_artifact,
+    }))
+}
+
+/// MT-031: build a durable Facial command *outcome* envelope for any post-context
+/// status (`succeeded`/`degraded`/`blocked`/`error`) at HTTP 200. A result artifact
+/// is written only when a result payload is present (succeeded/degraded); for
+/// `blocked`/`error` there is no result artifact. A durable receipt is ALWAYS
+/// written through ArtifactStore under the reused `FACIAL_API_COMMAND_RECEIPT_SCHEMA_ID`,
+/// carrying status + actor + command + optional error/recovery_hint/degraded_reasons
+/// + source refs, so a model can read the failure back through the existing
+/// `GET /atelier/facial/artifacts/read` surface instead of scraping transport errors.
+/// Mirrors the MT-029 success path exactly: PostgreSQL/ArtifactStore authority only —
+/// no SQLite, no new table, no EventLedger write.
+#[allow(clippy::too_many_arguments)]
+fn facial_review_command_outcome(
+    command: &str,
+    actor: &str,
+    status: &str,
+    result_schema_id: Option<&str>,
+    result_file_name: Option<&str>,
+    result_payload: Option<serde_json::Value>,
+    error: Option<String>,
+    recovery_hint: Option<String>,
+    degraded_reasons: Vec<String>,
+    source_artifact_refs: &[ArtifactHandle],
+) -> Result<Json<FacialCommandOutcomeResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let result_artifact = match (&result_payload, result_schema_id, result_file_name) {
+        (Some(payload), Some(schema_id), Some(file_name)) => Some(write_facial_json_artifact(
+            payload,
+            schema_id,
+            file_name,
+            actor,
+            command,
+            source_artifact_refs,
+        )?),
+        _ => None,
+    };
+    let mut receipt_map = serde_json::Map::new();
+    receipt_map.insert(
+        "schema_id".to_owned(),
+        serde_json::json!(FACIAL_API_COMMAND_RECEIPT_SCHEMA_ID),
+    );
+    receipt_map.insert("command".to_owned(), serde_json::json!(command));
+    receipt_map.insert("status".to_owned(), serde_json::json!(status));
+    receipt_map.insert("actor".to_owned(), serde_json::json!(actor));
+    receipt_map.insert(
+        "actor_ref".to_owned(),
+        serde_json::json!(format!("actor://sha256/{}", text_hash(actor))),
+    );
+    receipt_map.insert(
+        "created_at_utc".to_owned(),
+        serde_json::json!(Utc::now().to_rfc3339()),
+    );
+    if let Some(schema_id) = result_schema_id {
+        receipt_map.insert("result_schema_id".to_owned(), serde_json::json!(schema_id));
+    }
+    if let Some(artifact) = &result_artifact {
+        receipt_map.insert(
+            "result_artifact_ref".to_owned(),
+            serde_json::json!(artifact.artifact_ref),
+        );
+        receipt_map.insert(
+            "result_manifest_ref".to_owned(),
+            serde_json::json!(artifact.manifest_ref),
+        );
+        receipt_map.insert(
+            "result_content_hash".to_owned(),
+            serde_json::json!(artifact.content_hash),
+        );
+    }
+    if let Some(error) = &error {
+        receipt_map.insert("error".to_owned(), serde_json::json!(error));
+    }
+    if let Some(recovery_hint) = &recovery_hint {
+        receipt_map.insert("recovery_hint".to_owned(), serde_json::json!(recovery_hint));
+    }
+    if !degraded_reasons.is_empty() {
+        receipt_map.insert(
+            "degraded_reasons".to_owned(),
+            serde_json::json!(degraded_reasons),
+        );
+    }
+    receipt_map.insert(
+        "result".to_owned(),
+        result_payload.clone().unwrap_or(serde_json::Value::Null),
+    );
+    let receipt_payload = serde_json::Value::Object(receipt_map);
+    let mut receipt_sources = source_artifact_refs.to_vec();
+    if let Some(artifact) = &result_artifact {
+        receipt_sources.push(facial_command_artifact_handle(artifact));
+    }
+    let receipt_artifact = write_facial_json_artifact(
+        &receipt_payload,
+        FACIAL_API_COMMAND_RECEIPT_SCHEMA_ID,
+        "atelier-facial-command-receipt.json",
+        actor,
+        command,
+        &receipt_sources,
+    )?;
+    Ok(Json(FacialCommandOutcomeResponse {
+        schema_id: FACIAL_API_COMMAND_RESPONSE_SCHEMA_ID.to_owned(),
+        command: command.to_owned(),
+        status: status.to_owned(),
+        actor: actor.to_owned(),
+        result: result_payload.unwrap_or(serde_json::Value::Null),
+        result_artifact,
+        receipt_ref: receipt_artifact.artifact_ref.clone(),
+        receipt_artifact,
+        error,
+        degraded_reasons,
+        recovery_hint,
     }))
 }
 

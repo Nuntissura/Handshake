@@ -449,3 +449,375 @@ async fn atelier_facial_command_routes_round_trip_artifact_backed_review_flow() 
 
     server.abort();
 }
+
+/// MT-031: the Facial export command must return DURABLE, model-usable command
+/// *outcome* envelopes (blocked/degraded/error/succeeded) at HTTP 200 with persisted
+/// receipt artifacts, while pre-context failures stay bare HTTP 4xx transport errors.
+#[tokio::test]
+async fn facial_command_failure_envelopes_are_durable() {
+    let Some(url) = atelier_pg_support::database_url().await else {
+        eprintln!("SKIP facial_command_failure_envelopes_are_durable: PostgreSQL unavailable");
+        return;
+    };
+    let _workspace_root = atelier_pg_support::test_artifact_workspace_root();
+    let store = connected_store(&url).await;
+    let batch_id = seed_intake_batch(&store).await;
+
+    let state = user_manual_support::app_state_for(&url).await;
+    let (base, server) = user_manual_support::start_server(atelier_api::routes(state)).await;
+    let client = reqwest::Client::new();
+
+    // One shard so a single claim exposes all 3 seeded items (deterministic decide set).
+    let session_response: Value = actor(
+        client.post(format!(
+            "{base}/atelier/intake/batches/{batch_id}/facial/review/session"
+        )),
+        "mt-031-agent",
+    )
+    .json(&json!({
+        "profile": "quality+dedupe+identity+review",
+        "shard_count": 1,
+        "claim_ttl_seconds": 600
+    }))
+    .send()
+    .await
+    .expect("send session request")
+    .json()
+    .await
+    .expect("parse session response");
+    let session_artifact_ref = session_response["result_artifact"]["artifact_ref"]
+        .as_str()
+        .expect("session artifact ref")
+        .to_owned();
+    assert_artifact_ref(&session_artifact_ref);
+
+    let claim_response: Value = actor(
+        client.post(format!("{base}/atelier/facial/review/claims")),
+        "mt-031-agent",
+    )
+    .json(&json!({
+        "session_artifact_ref": session_artifact_ref,
+        "existing_claim_artifact_refs": [],
+        "decision_artifact_refs": [],
+        "shard": 0
+    }))
+    .send()
+    .await
+    .expect("send claim request")
+    .json()
+    .await
+    .expect("parse claim response");
+    let claim_artifact_ref = claim_response["result_artifact"]["artifact_ref"]
+        .as_str()
+        .expect("claim artifact ref")
+        .to_owned();
+    let item_ids: Vec<String> = claim_response["result"]["work_items"]
+        .as_array()
+        .expect("claim work items")
+        .iter()
+        .map(|item| {
+            item["item_id"]
+                .as_str()
+                .expect("claimed item id")
+                .to_owned()
+        })
+        .collect();
+    assert_eq!(
+        item_ids.len(),
+        3,
+        "single-shard claim must expose all 3 seeded items"
+    );
+
+    // Record exactly ONE decision -> 1 decided, 2 undecided across the session.
+    let decision_response: Value = actor(
+        client.post(format!("{base}/atelier/facial/review/decisions")),
+        "mt-031-agent",
+    )
+    .json(&json!({
+        "session_artifact_ref": session_artifact_ref,
+        "claim_artifact_ref": claim_artifact_ref,
+        "item_id": item_ids[0],
+        "decision": "pass",
+        "reason": "clean identity and usable quality",
+        "tags": ["keeper"]
+    }))
+    .send()
+    .await
+    .expect("send decision request")
+    .json()
+    .await
+    .expect("parse decision response");
+    let first_decision_ref = decision_response["result_artifact"]["artifact_ref"]
+        .as_str()
+        .expect("decision artifact ref")
+        .to_owned();
+
+    // ── BLOCKED: allow_partial=false while undecided items remain -> HTTP-200 envelope.
+    let blocked_http = actor(
+        client.post(format!("{base}/atelier/facial/review/export")),
+        "mt-031-agent",
+    )
+    .json(&json!({
+        "session_artifact_ref": session_artifact_ref,
+        "decision_artifact_refs": [first_decision_ref],
+        "dataset_name": "mt-031-blocked",
+        "repeats": 10,
+        "allow_partial": false,
+        "output_root_ref": "artifact://atelier/exports/mt-031"
+    }))
+    .send()
+    .await
+    .expect("send blocked export request");
+    assert_eq!(
+        blocked_http.status().as_u16(),
+        200,
+        "a blocked export is an HTTP-200 command envelope, not a transport error"
+    );
+    let blocked: Value = blocked_http.json().await.expect("parse blocked envelope");
+    assert_eq!(
+        blocked["schema_id"],
+        json!("hsk.atelier.facial_api.command_response@1")
+    );
+    assert_eq!(blocked["status"], json!("blocked"));
+    assert_eq!(blocked["error"], json!("undecided_items_block_export"));
+    assert_eq!(blocked["actor"], json!("mt-031-agent"));
+    assert!(
+        blocked["recovery_hint"]
+            .as_str()
+            .map(|hint| !hint.trim().is_empty())
+            .unwrap_or(false),
+        "blocked envelope must carry a non-empty recovery_hint"
+    );
+    assert!(
+        blocked["result_artifact"].is_null(),
+        "blocked envelope must NOT promise a result artifact"
+    );
+    let blocked_receipt_ref = blocked["receipt_ref"]
+        .as_str()
+        .expect("blocked receipt_ref");
+    assert_artifact_ref(blocked_receipt_ref);
+    assert_artifact_ref(
+        blocked["receipt_artifact"]["artifact_ref"]
+            .as_str()
+            .expect("blocked receipt artifact ref"),
+    );
+    // Read the receipt back through the existing Facial artifact reader -> durable + attributable.
+    let blocked_receipt: Value = client
+        .get(format!("{base}/atelier/facial/artifacts/read"))
+        .query(&[("artifact_ref", blocked_receipt_ref)])
+        .send()
+        .await
+        .expect("send blocked receipt read")
+        .json()
+        .await
+        .expect("parse blocked receipt read");
+    assert_eq!(blocked_receipt["payload"]["status"], json!("blocked"));
+    assert_eq!(blocked_receipt["payload"]["actor"], json!("mt-031-agent"));
+    assert_eq!(
+        blocked_receipt["payload"]["error"],
+        json!("undecided_items_block_export")
+    );
+
+    // ── DEGRADED: allow_partial=true with undecided items -> HTTP-200 degraded + both artifacts.
+    let degraded_http = actor(
+        client.post(format!("{base}/atelier/facial/review/export")),
+        "mt-031-agent",
+    )
+    .json(&json!({
+        "session_artifact_ref": session_artifact_ref,
+        "decision_artifact_refs": [first_decision_ref],
+        "dataset_name": "mt-031-degraded",
+        "repeats": 10,
+        "allow_partial": true,
+        "output_root_ref": "artifact://atelier/exports/mt-031"
+    }))
+    .send()
+    .await
+    .expect("send degraded export request");
+    assert_eq!(
+        degraded_http.status().as_u16(),
+        200,
+        "a degraded export is an HTTP-200 command envelope"
+    );
+    let degraded: Value = degraded_http.json().await.expect("parse degraded envelope");
+    assert_eq!(degraded["status"], json!("degraded"));
+    let degraded_reasons = degraded["degraded_reasons"]
+        .as_array()
+        .expect("degraded_reasons array");
+    assert!(
+        !degraded_reasons.is_empty(),
+        "degraded envelope must carry non-empty degraded_reasons"
+    );
+    assert!(
+        degraded_reasons.iter().any(|reason| reason
+            .as_str()
+            .map(|value| value.starts_with("undecided_items_skipped:"))
+            .unwrap_or(false)),
+        "degraded_reasons must name the skipped undecided items"
+    );
+    assert_eq!(
+        degraded["result"]["schema_id"],
+        json!("hsk.atelier.facial_review.export@1")
+    );
+    assert_artifact_ref(
+        degraded["result_artifact"]["artifact_ref"]
+            .as_str()
+            .expect("degraded result artifact ref"),
+    );
+    assert_artifact_ref(
+        degraded["receipt_artifact"]["artifact_ref"]
+            .as_str()
+            .expect("degraded receipt artifact ref"),
+    );
+
+    // ── ERROR: allow_partial=true but a bad dataset_name -> HTTP-200 error envelope, STABLE code only.
+    let error_http = actor(
+        client.post(format!("{base}/atelier/facial/review/export")),
+        "mt-031-agent",
+    )
+    .json(&json!({
+        "session_artifact_ref": session_artifact_ref,
+        "decision_artifact_refs": [first_decision_ref],
+        "dataset_name": "bad/name",
+        "repeats": 10,
+        "allow_partial": true,
+        "output_root_ref": "artifact://atelier/exports/mt-031"
+    }))
+    .send()
+    .await
+    .expect("send error export request");
+    assert_eq!(
+        error_http.status().as_u16(),
+        200,
+        "a command-level error is an HTTP-200 envelope, not a transport error"
+    );
+    let error_env: Value = error_http.json().await.expect("parse error envelope");
+    assert_eq!(error_env["status"], json!("error"));
+    let error_code = error_env["error"]
+        .as_str()
+        .expect("error envelope must carry a stable error code");
+    assert!(!error_code.trim().is_empty(), "error code must be non-empty");
+    assert!(
+        !error_code.contains('/') && !error_code.contains(' '),
+        "error code must be a stable code, never the raw domain string, got {error_code}"
+    );
+    assert!(
+        error_env["result_artifact"].is_null(),
+        "error envelope must NOT promise a result artifact"
+    );
+    assert_artifact_ref(
+        error_env["receipt_artifact"]["artifact_ref"]
+            .as_str()
+            .expect("error receipt artifact ref"),
+    );
+
+    // ── SUCCEEDED guard: decide the remaining 2 items -> clean success, NO degraded_reasons.
+    for item_id in item_ids.iter().skip(1) {
+        let _decided: Value = actor(
+            client.post(format!("{base}/atelier/facial/review/decisions")),
+            "mt-031-agent",
+        )
+        .json(&json!({
+            "session_artifact_ref": session_artifact_ref,
+            "claim_artifact_ref": claim_artifact_ref,
+            "item_id": item_id,
+            "decision": "pass",
+            "reason": "clean identity and usable quality",
+            "tags": ["keeper"]
+        }))
+        .send()
+        .await
+        .expect("send remaining decision request")
+        .json()
+        .await
+        .expect("parse remaining decision response");
+    }
+    let succeeded_http = actor(
+        client.post(format!("{base}/atelier/facial/review/export")),
+        "mt-031-agent",
+    )
+    .json(&json!({
+        "session_artifact_ref": session_artifact_ref,
+        "decision_artifact_refs": [],
+        "dataset_name": "mt-031-succeeded",
+        "repeats": 10,
+        "allow_partial": false,
+        "output_root_ref": "artifact://atelier/exports/mt-031"
+    }))
+    .send()
+    .await
+    .expect("send succeeded export request");
+    assert_eq!(succeeded_http.status().as_u16(), 200);
+    let succeeded: Value = succeeded_http
+        .json()
+        .await
+        .expect("parse succeeded envelope");
+    assert_eq!(
+        succeeded["status"],
+        json!("succeeded"),
+        "an all-decided export must be a clean success"
+    );
+    assert!(
+        succeeded
+            .get("degraded_reasons")
+            .and_then(Value::as_array)
+            .map(|reasons| reasons.is_empty())
+            .unwrap_or(true),
+        "a succeeded envelope must not carry degraded_reasons"
+    );
+    assert!(
+        succeeded.get("error").map(Value::is_null).unwrap_or(true),
+        "a succeeded envelope must not carry an error"
+    );
+    assert_eq!(
+        succeeded["result"]["schema_id"],
+        json!("hsk.atelier.facial_review.export@1")
+    );
+    assert_artifact_ref(
+        succeeded["result_artifact"]["artifact_ref"]
+            .as_str()
+            .expect("succeeded result artifact ref"),
+    );
+
+    // ── TRANSPORT DOC: pre-context failures stay bare HTTP 4xx, NOT command envelopes.
+    let no_actor = client
+        .post(format!("{base}/atelier/facial/review/export"))
+        .json(&json!({
+            "session_artifact_ref": session_artifact_ref,
+            "decision_artifact_refs": [],
+            "dataset_name": "mt-031-no-actor",
+            "repeats": 10,
+            "allow_partial": true,
+            "output_root_ref": "artifact://atelier/exports/mt-031"
+        }))
+        .send()
+        .await
+        .expect("send export without actor header");
+    assert!(
+        no_actor.status().is_client_error(),
+        "missing actor header must stay a transport 4xx, got {}",
+        no_actor.status()
+    );
+    let bad_ref = actor(
+        client.post(format!("{base}/atelier/facial/review/export")),
+        "mt-031-agent",
+    )
+    .json(&json!({
+        "session_artifact_ref": "file:///tmp/unsafe.json",
+        "decision_artifact_refs": [],
+        "dataset_name": "mt-031-bad-ref",
+        "repeats": 10,
+        "allow_partial": true,
+        "output_root_ref": "artifact://atelier/exports/mt-031"
+    }))
+    .send()
+    .await
+    .expect("send export with unresolvable session ref");
+    assert!(
+        bad_ref.status().is_client_error(),
+        "unresolvable session artifact ref must stay a transport 4xx, got {}",
+        bad_ref.status()
+    );
+
+    server.abort();
+}

@@ -7594,10 +7594,12 @@ impl AtelierPanel {
         }
     }
 
-    /// MT-030: drain ANY review command response (session/claim/decision/status/montage/export). On a
-    /// live `succeeded` envelope it captures the produced artifact ref into the matching lineage field
-    /// (so the model can chain the next command) and renders the shared receipt/degraded readout; on the
-    /// `Err` path it surfaces the backend HTTP error text honestly — never a fabricated success.
+    /// MT-030/MT-031: drain ANY review command response (session/claim/decision/status/montage/export).
+    /// On a `succeeded` envelope it captures the produced artifact ref into the matching lineage field
+    /// (so the model can chain the next command); a `degraded`/`blocked`/`error` Ok(row) outcome envelope
+    /// (MT-031) carries no result artifact, so the lineage captures no-op and the primary status line is
+    /// rendered honestly from `row.status` + error code + recovery hint. The `Err` path surfaces the
+    /// backend transport/parse error honestly. The primary status line never fabricates success.
     fn drain_facial_command_backend(&self) {
         let command_result = self
             .ingest_facial_command_cell
@@ -7649,13 +7651,30 @@ impl AtelierPanel {
                         } else {
                             row.degraded_reasons.join("|")
                         };
-                        state.ingest_status = format!(
-                            "Facial review command succeeded: command={} status={} receipt_ref={} degraded_reasons={}",
-                            row.command,
-                            row.status,
-                            row.receipt_ref.as_deref().unwrap_or("<none>"),
-                            degraded
-                        );
+                        let receipt_ref = row.receipt_ref.as_deref().unwrap_or("<none>");
+                        let recovery_hint = row.recovery_hint.as_deref().unwrap_or("<none>");
+                        let error = row.error.as_deref().unwrap_or("<none>");
+                        // MT-031: the parser now returns Ok(row) for succeeded/degraded/blocked/error
+                        // outcome envelopes (blocked/degraded/error used to arrive as Err). Branch on
+                        // row.status so the primary status line is HONEST — it must never say
+                        // "succeeded" for a blocked/degraded/error outcome. The accurate
+                        // facial_command_receipt readout above is unchanged.
+                        state.ingest_status = match row.status.as_str() {
+                            "succeeded" => format!(
+                                "Facial review command succeeded: command={} status={} receipt_ref={} degraded_reasons={}",
+                                row.command, row.status, receipt_ref, degraded
+                            ),
+                            "degraded" => format!(
+                                "Facial review command DEGRADED: command={} status=degraded receipt_ref={} degraded_reasons={} recovery_hint={}",
+                                row.command, receipt_ref, degraded, recovery_hint
+                            ),
+                            // blocked | error (and, defensively, any non-success status): an honest
+                            // FAILURE line carrying the stable status + error code + recovery hint.
+                            _ => format!(
+                                "Facial review command {}: command={} status={} error={} recovery_hint={} receipt_ref={}",
+                                row.status, row.command, row.status, error, recovery_hint, receipt_ref
+                            ),
+                        };
                     }
                     Err(err) => {
                         state.facial_command_receipt = format!("facial_command_error={err}");

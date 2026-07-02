@@ -643,7 +643,12 @@ atelier-ingest-facial-decision-record, replay queue status with atelier-ingest-f
 build a montage tile map with atelier-ingest-facial-montage-build, and build a non-destructive export \
 lineage manifest with atelier-ingest-facial-export-build. Every review command returns the shared \
 hsk.atelier.facial_api.command_response@1 envelope; inspect atelier-ingest-facial-command-receipt for \
-command, status, receipt_ref, result_artifact_ref, degraded_reasons, and recovery_hint, and \
+command, status, receipt_ref, result_artifact_ref, degraded_reasons, recovery_hint, and error. As of \
+MT-031 the export command returns durable HTTP-200 command outcome envelopes for its failure paths too \
+(status blocked when undecided items remain without allow_partial, degraded on a partial/problem export, \
+error on a build failure), each carrying a read-backable receipt + recovery_hint so a model can recover \
+from a command failure instead of scraping a generic HTTP error; transport HTTP 4xx stays reserved for \
+pre-context failures (missing actor / bad body / unresolvable artifact ref). Inspect \
 atelier-ingest-facial-review-refs for the accumulated session/claim/decision lineage refs. Review \
 status/decision replays are non-destructive and never mutate source images. Real \
 expanded intake rows are exposed as atelier-ingest-item-{stable_item_id}; per-item triage buttons are \
@@ -2176,7 +2181,7 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             crate::atelier_panel::ATELIER_INGEST_FACIAL_COMMAND_RECEIPT_AUTHOR_ID,
             "Inspect Facial review command receipt",
             "argus.inspect",
-            "argus.inspect reads the last review command envelope: command, status, receipt_ref, result_artifact_ref, degraded_reasons, recovery_hint, and error (blocked/degraded paths arrive as backend HTTP errors, never a fabricated success).",
+            "argus.inspect reads the last review command OUTCOME envelope: command, status (succeeded/degraded/blocked/error), receipt_ref, result_artifact_ref, degraded_reasons, recovery_hint, and error. Facial export failures (undecided-blocked, degraded partials, build errors) return a durable HTTP-200 command envelope with a read-backable receipt + recovery_hint so a model can recover; transport HTTP 4xx is reserved for pre-context failures (missing actor / bad body / bad artifact ref).",
         ),
     ] {
         rows.push(AgentToolRow {

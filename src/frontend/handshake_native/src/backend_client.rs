@@ -5913,9 +5913,14 @@ pub type AtelierFacialFeatureListCell =
 
 /// One-slot delivery cell for ANY Facial review command response (session/claim/decision/status/
 /// montage/export). All six routes return the shared `hsk.atelier.facial_api.command_response@1`
-/// envelope, so one cell type + one dispatch method carries every review command. `Ok(row)` is a live
-/// `status="succeeded"` envelope (which may still carry `degraded_reasons`); `Err(detail)` is the
-/// backend's HTTP error text for blocked/degraded/error command paths (no fabricated success).
+/// envelope, so one cell type + one dispatch method carries every review command. `Ok(row)` is a
+/// parsed command *outcome* envelope: `status` is one of `succeeded`/`degraded`/`blocked`/`error`,
+/// each carrying a durable `receipt_ref`. As of MT-031 the export command returns those durable
+/// blocked/degraded/error outcome envelopes at HTTP 200 (failures are parser-visible with a
+/// read-backable receipt + recovery_hint, not scraped from transport errors); the other review
+/// commands still return `succeeded` envelopes or bare HTTP transport errors until MT-044 extends
+/// outcome-envelope wrapping to them. `Err(detail)` is a transport/parse failure, including the
+/// pre-context HTTP 4xx cases (missing actor, bad body, unresolvable artifact ref).
 pub type AtelierFacialCommandCell =
     Arc<Mutex<Option<(u64, Result<AtelierFacialCommandResponseRow, String>)>>>;
 
@@ -8320,10 +8325,12 @@ impl AtelierClient {
     /// Dispatch ONE prebuilt Facial review command [`ActorRequestSpec`] (session/claim/decision/status/
     /// montage/export) off the UI thread and deliver the shared command-response envelope. The panel
     /// builds the spec with the matching `facial_review_*_actor_request` builder (so the exact verified
-    /// route + actor header + body are asserted in the builder tests), then hands it here. A live
-    /// `status="succeeded"` envelope delivers `Ok(row)` (with any `degraded_reasons` preserved); every
-    /// blocked/degraded/error path delivers `Err(detail)` from the backend's HTTP error body — no
-    /// fabricated success, no silent no-op.
+    /// route + actor header + body are asserted in the builder tests), then hands it here. A parsed
+    /// command *outcome* envelope delivers `Ok(row)` with `status` one of succeeded/degraded/blocked/
+    /// error and a durable `receipt_ref` (MT-031: the export command returns blocked/degraded/error as
+    /// HTTP-200 outcome envelopes, so a failed export is parser-visible with a read-backable receipt and
+    /// recovery_hint rather than a scraped error). `Err(detail)` is a transport/parse failure, including
+    /// the pre-context HTTP 4xx cases (missing actor header, bad body, unresolvable artifact ref).
     pub fn dispatch_facial_review_command(
         &self,
         spec: ActorRequestSpec,
@@ -10193,9 +10200,16 @@ fn parse_atelier_facial_command_response_row(
         .ok_or_else(|| AppError::Parse("Facial command response missing command".to_owned()))?;
     let status = json_required_nonempty_string(row, "status")
         .ok_or_else(|| AppError::Parse("Facial command response missing status".to_owned()))?;
-    if status != "succeeded" {
+    // MT-031: the backend now returns durable command *outcome* envelopes at HTTP 200
+    // for every post-context status. Accept the four backend-produced statuses and
+    // reject any unknown status so the parser can never invent a status the backend
+    // cannot produce.
+    if !matches!(
+        status.as_str(),
+        "succeeded" | "degraded" | "blocked" | "error"
+    ) {
         return Err(AppError::Parse(format!(
-            "unsupported live Facial command response status {status}; backend currently returns HTTP errors for non-success command paths"
+            "unsupported Facial command response status {status}; backend produces succeeded/degraded/blocked/error envelopes"
         )));
     }
     let actor = json_required_nonempty_string(row, "actor")
@@ -10218,11 +10232,6 @@ fn parse_atelier_facial_command_response_row(
         .get("receipt_artifact")
         .filter(|value| value.is_object())
         .and_then(parse_atelier_facial_command_artifact_row);
-    if result_artifact.is_none() || receipt_artifact.is_none() || receipt_ref.is_none() {
-        return Err(AppError::Parse(
-            "successful Facial command response missing result/receipt artifacts".to_owned(),
-        ));
-    }
     let degraded_reasons = row
         .get("degraded_reasons")
         .and_then(|value| value.as_array())
@@ -10236,11 +10245,39 @@ fn parse_atelier_facial_command_response_row(
     let error = row
         .get("error")
         .and_then(|value| value.as_str())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
         .map(ToOwned::to_owned);
     let recovery_hint = row
         .get("recovery_hint")
         .and_then(|value| value.as_str())
         .map(ToOwned::to_owned);
+    // A durable receipt is promised for EVERY backend-produced status, so
+    // receipt_ref + receipt_artifact are always required. Result artifacts are only
+    // promised for succeeded/degraded; blocked/error instead carry a non-empty stable
+    // error code (their result is optional / JSON null).
+    if receipt_ref.is_none() || receipt_artifact.is_none() {
+        return Err(AppError::Parse(format!(
+            "Facial command response status {status} missing durable receipt_ref/receipt_artifact"
+        )));
+    }
+    match status.as_str() {
+        "succeeded" | "degraded" => {
+            if result_artifact.is_none() {
+                return Err(AppError::Parse(format!(
+                    "Facial command response status {status} missing result_artifact"
+                )));
+            }
+        }
+        "blocked" | "error" => {
+            if error.is_none() {
+                return Err(AppError::Parse(format!(
+                    "Facial command response status {status} missing stable error code"
+                )));
+            }
+        }
+        _ => unreachable!("status validated to the four backend outcomes above"),
+    }
     Ok(AtelierFacialCommandResponseRow {
         schema_id,
         command,
@@ -11391,72 +11428,145 @@ mod tests {
     }
 
     #[test]
-    fn atelier_facial_command_response_parser_accepts_only_live_success_envelopes() {
-        let artifact = serde_json::json!({
+    fn atelier_facial_command_response_parser_accepts_backend_outcome_envelopes() {
+        // MT-031: the backend now produces durable outcome envelopes at HTTP 200 for
+        // succeeded/degraded/blocked/error. The parser must accept all four (paired with
+        // the correct required artifacts) and reject anything the backend cannot produce.
+        let result_artifact = serde_json::json!({
             "artifact_ref": "artifact://.handshake/artifacts/L1/018f7848-1111-7000-9000-00000000f029/payload",
             "manifest_ref": "artifact://.handshake/artifacts/L1/018f7848-1111-7000-9000-00000000f029/artifact.json",
             "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             "byte_len": 256,
             "mime": "application/json",
-            "file_name": "atelier-facial-review-session.json"
+            "file_name": "atelier-facial-review-export.json"
         });
+        let receipt_artifact = serde_json::json!({
+            "artifact_ref": "artifact://.handshake/artifacts/L1/018f7848-1111-7000-9000-00000000f030/payload",
+            "manifest_ref": "artifact://.handshake/artifacts/L1/018f7848-1111-7000-9000-00000000f030/artifact.json",
+            "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "byte_len": 512,
+            "mime": "application/json",
+            "file_name": "atelier-facial-command-receipt.json"
+        });
+        let receipt_ref =
+            "artifact://.handshake/artifacts/L1/018f7848-1111-7000-9000-00000000f030/payload";
+
+        // SUCCEEDED: result + receipt required -> parses Ok.
         let success = serde_json::json!({
             "schema_id": "hsk.atelier.facial_api.command_response@1",
             "command": "atelier.facial.review.session.create",
             "status": "succeeded",
-            "actor": "facial-agent-029",
+            "actor": "facial-agent-031",
             "result": {"session": {"schema_id": "hsk.atelier.facial_review.session@1"}},
-            "result_artifact": artifact,
-            "receipt_ref": "artifact://.handshake/artifacts/L1/018f7848-1111-7000-9000-00000000f030/payload",
-            "receipt_artifact": {
-                "artifact_ref": "artifact://.handshake/artifacts/L1/018f7848-1111-7000-9000-00000000f030/payload",
-                "manifest_ref": "artifact://.handshake/artifacts/L1/018f7848-1111-7000-9000-00000000f030/artifact.json",
-                "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-                "byte_len": 512,
-                "mime": "application/json",
-                "file_name": "atelier-facial-command-receipt.json"
-            }
+            "result_artifact": result_artifact.clone(),
+            "receipt_ref": receipt_ref,
+            "receipt_artifact": receipt_artifact.clone()
         });
         let parsed = parse_atelier_facial_command_response_row(&success).expect("success parses");
         assert_eq!(parsed.status, "succeeded");
         assert!(parsed.result_artifact.is_some());
         assert!(parsed.receipt_artifact.is_some());
 
-        let mut unsupported = success.clone();
-        unsupported["status"] = serde_json::json!("degraded");
-        unsupported["degraded_reasons"] = serde_json::json!(["arcface_model_not_configured"]);
-        assert!(
-            parse_atelier_facial_command_response_row(&unsupported).is_err(),
-            "backend command routes currently produce success envelopes or HTTP errors, not degraded envelopes"
+        // DEGRADED: result + receipt + degraded_reasons -> now parses Ok.
+        let degraded = serde_json::json!({
+            "schema_id": "hsk.atelier.facial_api.command_response@1",
+            "command": "atelier.facial.review.export",
+            "status": "degraded",
+            "actor": "facial-agent-031",
+            "result": {"schema_id": "hsk.atelier.facial_review.export@1"},
+            "result_artifact": result_artifact.clone(),
+            "receipt_ref": receipt_ref,
+            "receipt_artifact": receipt_artifact.clone(),
+            "degraded_reasons": ["undecided_items_skipped:2"],
+            "recovery_hint": "Record decisions for all items or accept the partial dataset."
+        });
+        let parsed_degraded =
+            parse_atelier_facial_command_response_row(&degraded).expect("degraded parses");
+        assert_eq!(parsed_degraded.status, "degraded");
+        assert_eq!(
+            parsed_degraded.degraded_reasons,
+            vec!["undecided_items_skipped:2".to_owned()]
         );
+        assert!(parsed_degraded.result_artifact.is_some());
+        assert!(parsed_degraded.receipt_artifact.is_some());
 
+        // BLOCKED: receipt + non-empty error, result optional/absent -> now parses Ok.
         let blocked = serde_json::json!({
             "schema_id": "hsk.atelier.facial_api.command_response@1",
             "command": "atelier.facial.review.export",
             "status": "blocked",
-            "actor": "facial-agent-029",
+            "actor": "facial-agent-031",
             "result": null,
+            "receipt_ref": receipt_ref,
+            "receipt_artifact": receipt_artifact.clone(),
             "error": "undecided_items_block_export",
-            "recovery_hint": "Build status and pass allow_partial only when intentional."
+            "recovery_hint": "Record a decision for every item, or re-run with allow_partial=true."
         });
-        assert!(parse_atelier_facial_command_response_row(&blocked).is_err());
+        let parsed_blocked =
+            parse_atelier_facial_command_response_row(&blocked).expect("blocked parses");
+        assert_eq!(parsed_blocked.status, "blocked");
+        assert_eq!(
+            parsed_blocked.error.as_deref(),
+            Some("undecided_items_block_export")
+        );
+        assert!(parsed_blocked.result_artifact.is_none());
+        assert!(parsed_blocked.receipt_artifact.is_some());
 
+        // ERROR: receipt + non-empty stable error code -> now parses Ok.
         let error = serde_json::json!({
             "schema_id": "hsk.atelier.facial_api.command_response@1",
-            "command": "atelier.facial.artifacts.read",
+            "command": "atelier.facial.review.export",
             "status": "error",
-            "actor": "facial-agent-029",
+            "actor": "facial-agent-031",
             "result": null,
-            "error": "artifact_not_found"
+            "receipt_ref": receipt_ref,
+            "receipt_artifact": receipt_artifact.clone(),
+            "error": "export_command_failed"
         });
-        assert!(parse_atelier_facial_command_response_row(&error).is_err());
+        let parsed_error = parse_atelier_facial_command_response_row(&error).expect("error parses");
+        assert_eq!(parsed_error.status, "error");
+        assert_eq!(parsed_error.error.as_deref(), Some("export_command_failed"));
 
-        let mut missing_receipt = success;
-        missing_receipt
+        // NEGATIVE: an unknown status is rejected (parser never invents a backend status).
+        let mut unknown = success.clone();
+        unknown["status"] = serde_json::json!("mystery");
+        assert!(
+            parse_atelier_facial_command_response_row(&unknown).is_err(),
+            "an unknown status must be rejected"
+        );
+
+        // NEGATIVE: blocked missing receipt_artifact -> Err (a durable receipt is always promised).
+        let mut blocked_missing_receipt = blocked.clone();
+        blocked_missing_receipt
             .as_object_mut()
             .expect("object")
             .remove("receipt_artifact");
-        assert!(parse_atelier_facial_command_response_row(&missing_receipt).is_err());
+        assert!(
+            parse_atelier_facial_command_response_row(&blocked_missing_receipt).is_err(),
+            "a blocked envelope without receipt_artifact must be rejected"
+        );
+
+        // NEGATIVE: blocked missing the error code -> Err.
+        let mut blocked_missing_error = blocked;
+        blocked_missing_error
+            .as_object_mut()
+            .expect("object")
+            .remove("error");
+        assert!(
+            parse_atelier_facial_command_response_row(&blocked_missing_error).is_err(),
+            "a blocked envelope without a stable error code must be rejected"
+        );
+
+        // NEGATIVE: succeeded missing the receipt -> Err.
+        let mut succeeded_missing_receipt = success;
+        succeeded_missing_receipt
+            .as_object_mut()
+            .expect("object")
+            .remove("receipt_artifact");
+        assert!(
+            parse_atelier_facial_command_response_row(&succeeded_missing_receipt).is_err(),
+            "a succeeded envelope without a receipt must be rejected"
+        );
     }
 
     #[test]

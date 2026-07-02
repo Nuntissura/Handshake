@@ -4698,6 +4698,31 @@ fn facial_review_session_command_response() -> serde_json::Value {
     })
 }
 
+/// MT-031: a durable BLOCKED command outcome envelope as it now arrives at HTTP 200 (blocked/degraded/
+/// error used to arrive as HTTP errors). `result` is null and there is NO `result_artifact`; the durable
+/// receipt + a stable `error` code + a `recovery_hint` are what the model recovers from. Used to prove
+/// the drain renders an HONEST failure status line rather than the pre-MT-031 hardcoded "succeeded".
+fn facial_review_blocked_command_response() -> serde_json::Value {
+    serde_json::json!({
+        "schema_id": "hsk.atelier.facial_api.command_response@1",
+        "command": "atelier.facial.review.export",
+        "status": "blocked",
+        "actor": "facial-agent-031",
+        "result": null,
+        "receipt_ref": "artifact://.handshake/artifacts/facial-review-export-receipt/payload",
+        "receipt_artifact": {
+            "artifact_ref": "artifact://.handshake/artifacts/facial-review-export-receipt/payload",
+            "manifest_ref": "artifact://.handshake/artifacts/facial-review-export-receipt/manifest",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "byte_len": 384,
+            "mime": "application/json",
+            "file_name": "atelier-facial-review-command-receipt.json"
+        },
+        "error": "undecided_items_block_export",
+        "recovery_hint": "Record a decision for every item, or re-run export with allow_partial=true."
+    })
+}
+
 /// MT-030 client-level proof: the six Facial review command builders (session/claim/decision/status/
 /// montage/export) plus the capability registry read target the EXACT verified backend routes and every
 /// POST command carries the `x-hsk-actor-id` actor attribution header.
@@ -4965,6 +4990,84 @@ fn facial_ingest_full_backbone_is_argus_steerable() {
     assert!(
         refs.contains("session_ref=artifact://.handshake/artifacts/facial-review-session/payload"),
         "the session artifact ref must be captured for command chaining; got {refs}"
+    );
+}
+
+/// MT-031 regression lock: a non-success Ok(row) outcome envelope (blocked) must drive the primary
+/// ingest status line to an HONEST failure line — it must never render "succeeded". Before MT-031,
+/// blocked/degraded/error arrived as `Err`; the parser now returns Ok(row), so the drain's Ok arm must
+/// branch on `row.status` instead of hardcoding success. This locks that regression closed.
+#[test]
+fn facial_review_blocked_command_status_line_is_honest_not_succeeded() {
+    use handshake_native::atelier_panel::{
+        ATELIER_INGEST_FACIAL_SESSION_START_AUTHOR_ID, ATELIER_INGEST_MODE_FACIAL_REVIEW_AUTHOR_ID,
+    };
+
+    let (base_url, server) =
+        spawn_posekit_export_server(facial_review_blocked_command_response());
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("Facial blocked-envelope proof runtime");
+    let client =
+        AtelierClient::new_with_actor_id(base_url, runtime.handle().clone(), "facial-agent-031");
+    let mut harness = build_panel_harness_with_client(egui::vec2(900.0, 1800.0), client);
+    harness.run();
+
+    let mut channel = ActionChannel::new();
+    // Enter the INGEST tab, then the Facial review sub-mode.
+    argus_click_on_harness(&mut harness, &mut channel, ATELIER_TAB_INGEST_AUTHOR_ID);
+    argus_click_on_harness(
+        &mut harness,
+        &mut channel,
+        ATELIER_INGEST_MODE_FACIAL_REVIEW_AUTHOR_ID,
+    );
+    harness.run();
+
+    // Dispatch a review command; the mock backend answers with a BLOCKED outcome envelope at HTTP 200.
+    argus_click_on_harness(
+        &mut harness,
+        &mut channel,
+        ATELIER_INGEST_FACIAL_SESSION_START_AUTHOR_ID,
+    );
+    let _captured = server.join().expect("Facial blocked mock server joins");
+
+    // Poll the drain until the blocked outcome reaches the primary status line (the pre-drain
+    // "Dispatching …" line does not carry the error code).
+    let status = (0..40)
+        .find_map(|_| {
+            harness.run();
+            let snapshot = snapshot_harness(&mut harness);
+            let status = snapshot
+                .find_by_author_id(ATELIER_INGEST_STATUS_AUTHOR_ID)
+                .and_then(|node| node.value.as_deref())
+                .unwrap_or_default()
+                .to_owned();
+            if status.contains("error=undecided_items_block_export") {
+                Some(status)
+            } else {
+                std::thread::sleep(std::time::Duration::from_millis(25));
+                None
+            }
+        })
+        .expect("blocked outcome must reach the ingest status line");
+
+    assert!(
+        status.contains("blocked"),
+        "status line must name the blocked status; got {status}"
+    );
+    assert!(
+        status.contains("undecided_items_block_export"),
+        "status line must carry the stable error code; got {status}"
+    );
+    assert!(
+        status.contains("recovery_hint="),
+        "status line must carry the recovery hint; got {status}"
+    );
+    assert!(
+        !status.contains("succeeded"),
+        "REGRESSION: a blocked outcome must never render as succeeded; got {status}"
     );
 }
 
