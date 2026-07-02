@@ -215,9 +215,15 @@ fn main_arms_the_crash_client_after_palmistry_launch() {
     let launch_idx = main_code
         .find("launch_palmistry_or_degrade")
         .expect("main.rs must call the Palmistry launcher");
+    // The CALL SITE, not the `fn arm_crash_client_late(...)` definition: main.rs legitimately defines
+    // the helper ABOVE `main()` (file order), so a naive `find` would match the definition and assert
+    // against source positions that say nothing about the runtime call order. Skip any occurrence whose
+    // preceding code token is `fn`.
     let arm_idx = main_code
-        .find("arm_crash_client_late(")
-        .expect("main.rs must call arm_crash_client_late (the §6.13.6 late-connect step)");
+        .match_indices("arm_crash_client_late(")
+        .map(|(i, _)| i)
+        .find(|&i| !main_code[..i].trim_end().ends_with("fn"))
+        .expect("main.rs must CALL arm_crash_client_late (the §6.13.6 late-connect step)");
     assert!(
         arm_idx > launch_idx,
         "the crash client must arm AFTER the Palmistry launch (the crash server binds the derived \

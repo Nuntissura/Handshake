@@ -804,11 +804,60 @@ pub struct HandshakeApp {
     /// frame content is routed in (so "Route to Stage" is observable, not a silent no-op). A future
     /// affordance / pane-close action can flip it back.
     stage_panel_open: bool,
-    /// WP-KERNEL-012 MT-036 REMEDIATION: true once the shell installed the ONE native-editor event
-    /// emitter on the shared InteractionBus (previously `set_event_emitter` had ZERO production callers,
-    /// so every LIVE emit call site was a guaranteed no-op). Installed at the first frame where a
-    /// runtime + workspace are bound.
-    event_emitter_installed: bool,
+    /// WP-KERNEL-012 MT-036 REMEDIATION (workspace-rebind hardened): the workspace id the ONE
+    /// native-editor event emitter is currently installed FOR on the shared InteractionBus (previously
+    /// `set_event_emitter` had ZERO production callers, so every LIVE emit call site was a guaranteed
+    /// no-op; then a plain `bool` latch left the emitter bound to a STALE workspace after a workspace
+    /// switch). `None` until the first frame with a bound runtime + workspace; re-keyed (emitter
+    /// re-installed with the new workspace) whenever the active workspace drifts from this bound value.
+    event_emitter_bound_ws: Option<String>,
+    /// WP-KERNEL-012 MT-019/067 REMEDIATION (workspace-rebind): the workspace the journal EDITING
+    /// surface (`JournalPanelState` + production `JournalStore`) is currently bound to. A workspace
+    /// switch drifts this from the active workspace and the journal store is re-bound (previously the
+    /// bind was a one-shot `is_none()` latch — stale store after a workspace change).
+    journal_bound_ws: Option<String>,
+    /// WP-KERNEL-012 MT-067 REMEDIATION (workspace-rebind): the workspace the one-shot calendar-interop
+    /// fetch last ran FOR. Re-fires on workspace drift (previously a per-shell `AtomicBool` — the
+    /// calendar stayed keyed to the FIRST workspace forever).
+    calendar_fetched_ws: Option<String>,
+    /// WP-KERNEL-012 MT-021 REMEDIATION: the workspace the mounted graph view's INITIAL `views/all`
+    /// fetch ran for (`None` until the graph pane first renders with a live runtime). Re-keyed on
+    /// workspace drift so a workspace switch re-feeds the graph.
+    graph_fetched_ws: Option<String>,
+    /// WP-KERNEL-012 MT-021/060 REMEDIATION: the ONE delivery cell every mounted-graph fetch (initial
+    /// `views/all`, ModeChanged re-fetch, DepthChanged re-query) resolves into. The per-frame feed
+    /// drain applies a delivered `Ok` via `LoomGraphView::set_graph` (which clears `loading`) and an
+    /// `Err` as the view's typed error label — the deliver path that was previously an explicit typed
+    /// carry (results were dispatched into throwaway cells and discarded).
+    graph_data_cell: crate::backend_client::LoomGraphCell,
+    /// WP-KERNEL-012 MT-026 REMEDIATION: the workspace the mounted canvas board's INITIAL
+    /// `getCanvasBoard` fetch ran for. Re-keyed on workspace drift.
+    canvas_fetched_ws: Option<String>,
+    /// WP-KERNEL-012 MT-026 REMEDIATION: the ONE delivery cell canvas-board fetches (initial load +
+    /// every post-mutation reconcile/rollback re-fetch) resolve into; the per-frame feed drain applies
+    /// a delivered board via `LoomCanvasBoard::set_board`.
+    canvas_data_cell: crate::backend_client::CanvasBoardCell,
+    /// WP-KERNEL-012 MT-026 REMEDIATION: the in-flight canvas mutation (PATCH/POST/DELETE) result
+    /// cells. Each frame the feed drain reads the RESOLVED ones (previously the results were dispatched
+    /// into throwaway cells and never read): `Ok(())` reconciles by re-fetching the board; `Err` logs
+    /// the typed failure AND re-fetches the board — the ROLLBACK that replaces the optimistic in-widget
+    /// value with server truth (never a silently-kept fake success).
+    canvas_op_cells: Vec<crate::backend_client::CanvasBoardOpCell>,
+    /// WP-KERNEL-012 MT-021/042 REMEDIATION: the in-flight GRAPH edge-mutation (`POST /loom/edges` /
+    /// `DELETE /loom/edges/:id`) result cells. On resolve: `Ok` re-fetches the graph so the mutated
+    /// edge set replaces the rendered one; `Err` logs the typed failure and ALSO re-fetches (rollback
+    /// to server truth).
+    graph_op_cells: Vec<crate::backend_client::CanvasBoardOpCell>,
+    /// WP-KERNEL-012 MT-062 REMEDIATION: the outgoing links extracted from the ACTIVE document's
+    /// `content_json` on the document-LOAD path (off the render path — extraction runs once per load,
+    /// never per frame). Re-bucketed against the live wikilink resolver index whenever the index grows
+    /// (see `outgoing_links_index_watermark`).
+    outgoing_links_raw: Vec<crate::rich_editor::wikilinks::outgoing_links_panel::OutgoingLink>,
+    /// WP-KERNEL-012 MT-062 REMEDIATION: the `(title_count, alias_count)` of the wikilink resolver
+    /// index the raw outgoing links were last bucketed against. `None` forces a re-bucket (a fresh
+    /// document load); a grown index (the MT-057 seed enumeration landing) re-buckets so links resolve
+    /// once the index is fed.
+    outgoing_links_index_watermark: Option<(usize, usize)>,
 }
 
 /// MT-024 LOCAL drawer-action intents (no backend): the most recent Promote / SendToPane signal a swarm
@@ -1059,8 +1108,6 @@ struct SecondaryMountHandles {
 
     /// MT-019: the bound journal editing panel (None until runtime + workspace bind).
     journal_slot: crate::editor_pane_factories::SharedJournalPanel,
-    /// MT-067: one calendar-interop fetch per journal-pane visibility (events + activity spans).
-    calendar_fetched: std::sync::atomic::AtomicBool,
 
     /// MT-042: the ONE shared knowledge AccessKit action registry installed on every mounted knowledge
     /// pane (canvas / graph / block collections).
@@ -1525,7 +1572,6 @@ fn install_secondary_mounts(
         fr_fetch_started: std::sync::atomic::AtomicBool::new(false),
         fr_delivered: std::sync::atomic::AtomicBool::new(false),
         journal_slot,
-        calendar_fetched: std::sync::atomic::AtomicBool::new(false),
         knowledge_registry,
     }
 }
@@ -2048,7 +2094,17 @@ impl HandshakeApp {
             atelier_panel_open: false,
             stage_pane: stage_pane_shared,
             stage_panel_open: false,
-            event_emitter_installed: false,
+            event_emitter_bound_ws: None,
+            journal_bound_ws: None,
+            calendar_fetched_ws: None,
+            graph_fetched_ws: None,
+            graph_data_cell: Arc::new(Mutex::new(None)),
+            canvas_fetched_ws: None,
+            canvas_data_cell: Arc::new(Mutex::new(None)),
+            canvas_op_cells: Vec::new(),
+            graph_op_cells: Vec::new(),
+            outgoing_links_raw: Vec::new(),
+            outgoing_links_index_watermark: None,
         };
         app.spawn_mcp_server();
         // WP-KERNEL-012 MT-082 (D2 — internal_diagnostics): the REQUIRED LIVE call site (AC-002-4 / the
@@ -2534,7 +2590,17 @@ impl HandshakeApp {
             atelier_panel_open: false,
             stage_pane: stage_pane_shared,
             stage_panel_open: false,
-            event_emitter_installed: false,
+            event_emitter_bound_ws: None,
+            journal_bound_ws: None,
+            calendar_fetched_ws: None,
+            graph_fetched_ws: None,
+            graph_data_cell: Arc::new(Mutex::new(None)),
+            canvas_fetched_ws: None,
+            canvas_data_cell: Arc::new(Mutex::new(None)),
+            canvas_op_cells: Vec::new(),
+            graph_op_cells: Vec::new(),
+            outgoing_links_raw: Vec::new(),
+            outgoing_links_index_watermark: None,
         }
     }
 
@@ -3962,6 +4028,29 @@ impl HandshakeApp {
         state.draft = Some(draft);
         state.set_embed_context(self.active_project_id.clone(), runtime.clone());
         state.set_wikilink_context(self.active_project_id.clone(), document_id.clone(), runtime);
+        drop(state);
+        // WP-KERNEL-012 MT-062 REMEDIATION: the outgoing-links RESOLVER-INDEX FEED, driven from the
+        // document-LOAD path (off the render path — extraction runs once per load, never per frame).
+        // Extract every outgoing link from the freshly loaded `content_json`, bind the panel to the
+        // document, and force a re-bucket against the live wikilink resolver index (the per-frame feed
+        // in `drive_graph_and_canvas_feeds` re-buckets again whenever the index grows, so links resolve
+        // once the MT-057 seed enumeration lands).
+        let links = crate::rich_editor::wikilinks::outgoing_links_panel::extract_outgoing_links(
+            &doc.content_json,
+        );
+        if let Ok(mut panel) = self.editor_mounts.secondary.outgoing_links.lock() {
+            panel.active_document_id = Some(document_id.clone());
+            panel.active_block_id = None;
+            // Seed the panel with the honest UNBUCKETED state (all unresolved) so the pane is never
+            // stale-populated from a previous document; the watermark reset below re-buckets on the
+            // next feed pass with the live index.
+            panel.resolved = Vec::new();
+            panel.unresolved = links.clone();
+            panel.loading = false;
+            panel.error = None;
+        }
+        self.outgoing_links_raw = links;
+        self.outgoing_links_index_watermark = None;
         self.rich_doc_loaded_id = Some(document_id);
         self.rich_doc_loaded_version = Some(doc_version);
         Ok(())
@@ -7275,6 +7364,9 @@ impl HandshakeApp {
 
         // ── WP-KERNEL-012 MT-080: drain the SECONDARY mounted panes' outbound event queues ────────────
         self.drive_secondary_mounts(ctx);
+
+        // ── WP-KERNEL-012 MT-021/026/060/062 REMEDIATION: the graph/canvas/outgoing-links data feeds ──
+        self.drive_graph_and_canvas_feeds(ctx);
     }
 
     /// WP-KERNEL-012 MT-080 (E11 host-mount, part 2): drain the SECONDARY mounted panes' outbound event
@@ -8433,7 +8525,6 @@ impl HandshakeApp {
     /// (events-for-today + activity spans) applying `set_calendar_unavailable` on the typed
     /// `EndpointUnavailable` blocker.
     fn drive_journal_and_calendar(&mut self, ctx: &egui::Context, workspace: &str) {
-        let sec = &self.editor_mounts.secondary;
         let journal_visible = self.any_tab_of_type(&PaneType::LoomDailyJournal);
         if !journal_visible {
             return;
@@ -8441,13 +8532,18 @@ impl HandshakeApp {
         let Some(rt) = self.runtime_handle.clone() else {
             return; // headless: the pane renders its honest unbound disclosure.
         };
+        let journal_slot = Arc::clone(&self.editor_mounts.secondary.journal_slot);
+        let daily_journal_state = Arc::clone(&self.editor_mounts.secondary.daily_journal);
 
-        // Bind the MT-019 editing surface once (open/create today's note through the production store).
-        let needs_bind = sec
-            .journal_slot
+        // Bind the MT-019 editing surface (open/create today's note through the production store).
+        // WORKSPACE-REBIND (MT-036 staleness remediation): keyed by the ACTIVE workspace, not a
+        // one-shot `is_none()` latch — a workspace switch drifts `journal_bound_ws` from `workspace`
+        // and the store is re-bound so the journal never keeps writing into the stale workspace.
+        let needs_bind = journal_slot
             .lock()
             .map(|slot| slot.is_none())
-            .unwrap_or(false);
+            .unwrap_or(false)
+            || self.journal_bound_ws.as_deref() != Some(workspace);
         if needs_bind {
             let store = crate::rich_editor::daily_notes::journal_store::JournalStore::production(
                 workspace.to_owned(),
@@ -8457,20 +8553,21 @@ impl HandshakeApp {
             let mut state =
                 crate::rich_editor::daily_notes::journal_panel::JournalPanelState::new(store, nav);
             state.open_current();
-            if let Ok(mut slot) = sec.journal_slot.lock() {
+            if let Ok(mut slot) = journal_slot.lock() {
                 *slot = Some(Arc::new(Mutex::new(state)));
             }
+            self.journal_bound_ws = Some(workspace.to_owned());
             ctx.request_repaint();
         }
 
-        // MT-067: ONE calendar-interop fetch per shell (events for today + the linked activity spans);
-        // the ABSENT /calendar/events route resolves to the typed EndpointUnavailable blocker and the
-        // pane renders its operator-visible unavailable empty-state (previously unreachable).
-        if !sec
-            .calendar_fetched
-            .swap(true, std::sync::atomic::Ordering::Relaxed)
-        {
-            let state = Arc::clone(&sec.daily_journal);
+        // MT-067: ONE calendar-interop fetch per WORKSPACE (events for today + the linked activity
+        // spans); the ABSENT /calendar/events route resolves to the typed EndpointUnavailable blocker
+        // and the pane renders its operator-visible unavailable empty-state (previously unreachable).
+        // WORKSPACE-REBIND (MT-036 staleness remediation): keyed by the active workspace (previously a
+        // per-shell AtomicBool — the calendar stayed bound to the FIRST workspace forever).
+        if self.calendar_fetched_ws.as_deref() != Some(workspace) {
+            self.calendar_fetched_ws = Some(workspace.to_owned());
+            let state = daily_journal_state;
             let ws = workspace.to_owned();
             let repaint = ctx.clone();
             rt.spawn(async move {
@@ -8532,9 +8629,8 @@ impl HandshakeApp {
             return; // No runtime: a headless shell cannot dispatch off-thread mutations (graceful no-op).
         };
         let client = crate::backend_client::CanvasBoardClient::production(rt);
-        let (workspace_id, canvas_block_id) = match self.editor_mounts.secondary.canvas_board.lock()
-        {
-            Ok(b) => (b.workspace_id.clone(), b.canvas_block_id.clone()),
+        let workspace_id = match self.editor_mounts.secondary.canvas_board.lock() {
+            Ok(b) => b.workspace_id.clone(),
             Err(_) => return,
         };
         let mut dispatched_any = false;
@@ -8542,6 +8638,14 @@ impl HandshakeApp {
             let spec = match event {
                 CanvasEvent::ResizePlacement { placement_id, w, h } => {
                     Some(client.resize_request(&workspace_id, &placement_id, w as f64, h as f64))
+                }
+                // WP-KERNEL-012 MT-070: a confirmed canvas-node context-menu entry routes through the
+                // MT-070 navigation bus (`node_navigation_target` -> `dispatch`) — not a backend op.
+                CanvasEvent::NodeMenu {
+                    block_id, action, ..
+                } => {
+                    self.route_node_menu_action(ctx, action, &block_id, None);
+                    None
                 }
                 CanvasEvent::AssignSection {
                     placement_id,
@@ -8557,36 +8661,40 @@ impl HandshakeApp {
                 _ => None,
             };
             if let Some(spec) = spec {
+                // MT-026 REMEDIATION: keep the op cell so the RESULT is read (previously a throwaway
+                // cell — a failed PATCH was indistinguishable from a success and the optimistic value
+                // stuck). The feed drain (`drive_graph_and_canvas_feeds`) re-fetches the board when the
+                // op resolves: on `Ok` the persisted geometry/group replaces the optimistic value; on
+                // `Err` the SAME re-fetch is the rollback to server truth (+ the typed failure is
+                // logged).
                 let cell: crate::backend_client::CanvasBoardOpCell =
                     std::sync::Arc::new(std::sync::Mutex::new(None));
-                client.dispatch(spec, cell);
+                client.dispatch(spec, std::sync::Arc::clone(&cell));
+                self.canvas_op_cells.push(cell);
                 dispatched_any = true;
             }
         }
         if dispatched_any {
-            // Re-fetch the board so a 2xx PATCH's persisted geometry/group replaces the optimistic value.
-            let cell: crate::backend_client::CanvasBoardCell =
-                std::sync::Arc::new(std::sync::Mutex::new(None));
-            client.fetch_board(&workspace_id, &canvas_block_id, cell);
             ctx.request_repaint();
         }
     }
 
-    /// WP-KERNEL-012 MT-080 (AC-080-3 / MT-060): map each drained
-    /// [`crate::graph::graph_view::GraphEvent`] to the EXISTING graph paths. A `DepthChanged { depth }`
-    /// re-fires the depth-parameterized `graph-search` (`fetch_local_with_depth`) carrying the NEW
-    /// `backlink_depth` (NO new endpoint). An `OpenNode`/`SelectNode` opens the block on the active pane.
-    ///
-    /// Deliver-path honesty (RISK-080-2 / Spec-Realism Gate): this MT does NOT yet have a per-frame
-    /// graph-cell drain that calls [`crate::graph::graph_view::LoomGraphView::set_graph`] on the mounted
-    /// pane, so the dispatched re-query's result is NOT delivered back into the rendered graph-view state
-    /// this run — the live fetch + the re-populate are both gated `NEEDS_MANAGED_RESOURCE_PROOF` and the
-    /// deliver loop is an explicit typed carry for a follow-on run. BECAUSE there is no deliver path to
-    /// clear it, the host deliberately does NOT set `graph_view.loading = true` here: the widget's loading
-    /// overlay requests a repaint every frame while `loading` is true (graph_view.rs render path) on the
-    /// contract that "the host clears loading when the fetch resolves" — a contract this run cannot honor,
-    /// so animating it would be a perpetual idle-repaint trap. The pane stays idle-neutral until the
-    /// deliver path lands; the re-query is still dispatched (the event is consumed, not dropped).
+    /// WP-KERNEL-012 MT-080 (AC-080-3) + MT-021/060 REMEDIATION: map each drained
+    /// [`crate::graph::graph_view::GraphEvent`] to the EXISTING graph paths, now with a LIVE deliver
+    /// loop. A `DepthChanged { depth }` re-fires the depth-parameterized `graph-search`
+    /// (`fetch_local_with_depth`) carrying the NEW `backlink_depth` (NO new endpoint) into the SHARED
+    /// `graph_data_cell` the per-frame feed drain (`drive_graph_and_canvas_feeds`) applies via
+    /// [`crate::graph::graph_view::LoomGraphView::set_graph`] — the deliver path that was previously an
+    /// explicit typed carry (results were dispatched into throwaway cells and discarded). Because the
+    /// deliver path now clears `loading`, the host DOES set `graph_view.loading = true` on each
+    /// dispatched re-query (the widget's loading overlay is no longer a perpetual-repaint trap).
+    /// `ModeChanged` re-fetches for the new mode (`views/all` for Global; the focused/selected block's
+    /// `graph-search` neighbourhood for Local); `AddEdge`/`RemoveEdge` run the REAL semantic-edge
+    /// mutations (`POST /loom/edges` / `DELETE /loom/edges/:id`) with result cells the feed drain reads
+    /// (Ok AND Err both re-fetch the graph — reconcile/rollback to server truth). An
+    /// `OpenNode`/`SelectNode` opens the block on the active pane. The live PG round-trips remain
+    /// `NEEDS_MANAGED_RESOURCE_PROOF` (they need a live board/graph in PostgreSQL); the host wiring is
+    /// the proven part.
     fn route_graph_events(
         &mut self,
         events: Vec<crate::graph::graph_view::GraphEvent>,
@@ -8613,29 +8721,464 @@ impl HandshakeApp {
                     if let (Some((ws, block_id, title)), Some(rt)) =
                         (focus, self.runtime_handle.clone())
                     {
-                        // Dispatch the depth re-query (the event is CONSUMED, not dropped) BUT do NOT set
-                        // `graph_view.loading = true`: there is no per-frame deliver path that calls
-                        // `set_graph` to clear it this run (see the fn docstring), and the widget's loading
-                        // overlay requests a repaint every frame while `loading` is true on the contract
-                        // that the host clears it on resolve. Setting it here with no deliver path would be
-                        // a perpetual idle-repaint trap (the MT-015 backlinks-spinner regression class), so
-                        // the pane stays idle-neutral. The live fetch + the re-populate are gated
-                        // NEEDS_MANAGED_RESOURCE_PROOF; the cell is the gated sink (drained once the deliver
-                        // path lands as a follow-on typed carry).
+                        // MT-060 REMEDIATION: the re-query now resolves into the SHARED graph_data_cell
+                        // the feed drain delivers into `set_graph` (previously a throwaway cell — the
+                        // result was discarded). loading=true is safe now: set_graph / the error arm
+                        // clears it when the fetch resolves.
+                        if let Ok(mut view) = self.editor_mounts.secondary.graph_view.lock() {
+                            view.loading = true;
+                            view.error = None;
+                        }
                         let client = crate::backend_client::LoomGraphClient::production(rt);
-                        let cell: crate::backend_client::LoomGraphCell =
-                            std::sync::Arc::new(std::sync::Mutex::new(None));
-                        client.fetch_local_with_depth(&ws, &block_id, &title, depth, cell);
+                        client.fetch_local_with_depth(
+                            &ws,
+                            &block_id,
+                            &title,
+                            depth,
+                            Arc::clone(&self.graph_data_cell),
+                        );
                         ctx.request_repaint();
                     }
+                }
+                GraphEvent::ModeChanged { to_global } => {
+                    // MT-021 REMEDIATION: the mode toggle re-fetches for the NEW mode (previously
+                    // consumed by the catch-all — the toggle never re-fed the graph).
+                    let Some(rt) = self.runtime_handle.clone() else {
+                        continue; // headless: no off-thread fetch to dispatch (graceful no-op).
+                    };
+                    let client = crate::backend_client::LoomGraphClient::production(rt);
+                    if to_global {
+                        let ws = self
+                            .editor_mounts
+                            .secondary
+                            .graph_view
+                            .lock()
+                            .map(|v| v.workspace_id.clone())
+                            .unwrap_or_default();
+                        if ws.is_empty() {
+                            continue; // not yet bound to a workspace: nothing addressable to fetch.
+                        }
+                        if let Ok(mut view) = self.editor_mounts.secondary.graph_view.lock() {
+                            view.loading = true;
+                            view.error = None;
+                        }
+                        client.fetch_global(&ws, Arc::clone(&self.graph_data_cell));
+                        ctx.request_repaint();
+                    } else {
+                        // Entering Local needs a focused block: the SELECTED node supplies it (the
+                        // widget stays Global when no focus exists — its own documented no-op contract;
+                        // the host surfaces nothing fake).
+                        let focus = self
+                            .editor_mounts
+                            .secondary
+                            .graph_view
+                            .lock()
+                            .ok()
+                            .and_then(|v| {
+                                let selected = v.selected.clone()?;
+                                let title = v
+                                    .nodes
+                                    .iter()
+                                    .find(|n| n.block_id == selected)
+                                    .map(|n| n.title.clone())?;
+                                Some((v.workspace_id.clone(), selected, title))
+                            });
+                        if let Some((ws, block_id, title)) = focus {
+                            if let Ok(mut view) = self.editor_mounts.secondary.graph_view.lock() {
+                                view.mode = GraphMode::Local {
+                                    block_id: block_id.clone(),
+                                    title: title.clone(),
+                                };
+                                view.loading = true;
+                                view.error = None;
+                            }
+                            client.fetch_local(
+                                &ws,
+                                &block_id,
+                                &title,
+                                Arc::clone(&self.graph_data_cell),
+                            );
+                            ctx.request_repaint();
+                        }
+                    }
+                }
+                GraphEvent::AddEdge {
+                    source_block_id,
+                    target_block_id,
+                } => {
+                    // MT-042/021 REMEDIATION: a swarm `graph.add-edge` runs the REAL semantic-edge
+                    // create (`POST /loom/edges`); the result cell is read by the feed drain, which
+                    // re-fetches the graph on resolve (reconcile on Ok, rollback-to-server-truth on Err).
+                    self.dispatch_graph_edge_mutation(ctx, |client, ws| {
+                        client.semantic_edge_request(ws, &source_block_id, &target_block_id)
+                    });
+                }
+                GraphEvent::RemoveEdge { edge_id } => {
+                    self.dispatch_graph_edge_mutation(ctx, |client, ws| {
+                        client.remove_semantic_edge_request(ws, &edge_id)
+                    });
                 }
                 GraphEvent::OpenNode { block_id } | GraphEvent::SelectNode { block_id } => {
                     self.open_content_on_active_pane(PaneType::LoomBlock, Some(block_id));
                     ctx.request_repaint();
                 }
-                // ModeChanged/Relayout/AddEdge/RemoveEdge keep their existing handling (mode re-fetch /
-                // layout reset / edge mutation) owned by the graph-view's own paths; no extra host route.
-                _ => {}
+                GraphEvent::NodeMenu { block_id, action } => {
+                    // WP-KERNEL-012 MT-070: a confirmed graph-node context-menu entry routes through
+                    // the MT-070 navigation bus (`node_navigation_target` -> `dispatch`).
+                    self.route_node_menu_action(ctx, action, &block_id, None);
+                }
+                // Relayout is owned by the widget (positions reset in place); no host route needed.
+                GraphEvent::Relayout => {}
+            }
+        }
+    }
+
+    /// WP-KERNEL-012 MT-070 REMEDIATION: the LIVE `navigation_bus::dispatch` consumer — feed a
+    /// confirmed canvas/loom node context-menu action through
+    /// [`crate::context_menu_surfaces::node_navigation_target`] into
+    /// [`crate::navigation_bus::dispatch`] on the live shell (the `HandshakeApp` IS the
+    /// `ShellNavigator`, so the blanket `NavHandler` impl reveals through the real mounted panes).
+    /// Previously both the MT-070 node menus and `navigation_bus::dispatch` had ZERO product call
+    /// sites. A typed [`crate::navigation_bus::NavError`] lands on the SAME nav-status surface the
+    /// quick switcher uses (no second status mechanism); it never panics.
+    fn route_node_menu_action(
+        &mut self,
+        ctx: &egui::Context,
+        action: crate::context_menu_surfaces::NodeMenuAction,
+        node_id: &str,
+        note_id: Option<&str>,
+    ) {
+        // The clicked node's pane: the active pane when known (the graph/canvas pane the operator
+        // right-clicked in), else a stable diagnostic id (the pane id on the target is diagnostic
+        // context for `PaneNotFound`; the reveal itself resolves by node id).
+        let pane_id: crate::pane_registry::PaneId = self
+            .active_pane
+            .clone()
+            .unwrap_or_else(|| std::sync::Arc::from("editor-node-menu"));
+        match crate::context_menu_surfaces::node_navigation_target(action, &pane_id, node_id, note_id)
+        {
+            Some(target) => match crate::navigation_bus::dispatch(self, &target) {
+                Ok(()) => self.quick_switcher_nav_status = None,
+                Err(err) => self.quick_switcher_nav_status = Some(err.message()),
+            },
+            None => {
+                // CreateNoteFromLink (or an OpenNote with no note id): not a navigation to an EXISTING
+                // target. The node surfaces render those entries DISABLED (no note id / unresolved link
+                // is carried on graph/canvas node payloads), so reaching here is defensive — surface a
+                // typed status rather than a silent no-op.
+                self.quick_switcher_nav_status =
+                    Some("node menu: no navigable target for this entry".to_owned());
+            }
+        }
+        ctx.request_repaint();
+    }
+
+    /// WP-KERNEL-012 MT-021/042 REMEDIATION: dispatch one semantic-edge mutation built by `build`
+    /// against the graph's workspace, tracking the result cell in `graph_op_cells` so the feed drain
+    /// reads the outcome (never a throwaway cell).
+    fn dispatch_graph_edge_mutation(
+        &mut self,
+        ctx: &egui::Context,
+        build: impl FnOnce(
+            &crate::backend_client::CanvasBoardClient,
+            &str,
+        ) -> crate::backend_client::RequestSpec,
+    ) {
+        let Some(rt) = self.runtime_handle.clone() else {
+            return; // headless: no off-thread mutation to dispatch (graceful no-op).
+        };
+        let ws = self
+            .editor_mounts
+            .secondary
+            .graph_view
+            .lock()
+            .map(|v| v.workspace_id.clone())
+            .unwrap_or_default();
+        if ws.is_empty() {
+            return; // not yet bound to a workspace: nothing addressable to mutate.
+        }
+        let client = crate::backend_client::CanvasBoardClient::production(rt);
+        let spec = build(&client, &ws);
+        let cell: crate::backend_client::CanvasBoardOpCell =
+            std::sync::Arc::new(std::sync::Mutex::new(None));
+        client.dispatch(spec, std::sync::Arc::clone(&cell));
+        self.graph_op_cells.push(cell);
+        ctx.request_repaint();
+    }
+
+    /// WP-KERNEL-012 MT-021/026/060/062 REMEDIATION: the per-frame DATA FEED for the mounted graph +
+    /// canvas panes and the outgoing-links panel — the deliver half that was previously an explicit
+    /// typed carry (fetches were dispatched into throwaway cells; the mounted widgets never received a
+    /// byte of backend data).
+    ///
+    /// - **Graph** (MT-021/060): fires the INITIAL `views/all` fetch (per-workspace, on first Graph-View
+    ///   pane visibility with a live runtime), drains the shared `graph_data_cell` into
+    ///   [`LoomGraphView::set_graph`](crate::graph::graph_view::LoomGraphView::set_graph) (Ok) or the
+    ///   view's typed error label (Err), and reads resolved edge-mutation results (re-fetching the graph
+    ///   for the current mode — reconcile on Ok, rollback-to-server-truth on Err).
+    /// - **Canvas** (MT-026): fires the INITIAL `getCanvasBoard` fetch (per-workspace, on first canvas
+    ///   pane visibility), drains the board cell into
+    ///   [`LoomCanvasBoard::set_board`](crate::graph::canvas_board::LoomCanvasBoard::set_board) (which
+    ///   also reconciles optimistic resize/move state), and reads resolved PATCH/POST results —
+    ///   re-fetching the board on BOTH Ok (persisted values replace optimistic ones) and Err (the
+    ///   ROLLBACK: server truth replaces the optimistic value; the typed failure lands on the board's
+    ///   error surface).
+    /// - **Outgoing links** (MT-062): re-buckets the load-path-extracted raw links against the live
+    ///   wikilink resolver index whenever the index grows (the MT-057 seed enumeration landing), so
+    ///   links resolve without any per-frame extraction walk.
+    ///
+    /// The live PostgreSQL round-trips remain `NEEDS_MANAGED_RESOURCE_PROOF` (they need a live
+    /// workspace/graph/board); this host wiring is the proven part. HBR-QUIET: all IO is off-thread;
+    /// this drain only takes locks + swaps cells.
+    fn drive_graph_and_canvas_feeds(&mut self, ctx: &egui::Context) {
+        use crate::graph::graph_view::GraphMode;
+        if self.capturing_snapshot {
+            return;
+        }
+        let workspace = if self.active_project_id.is_empty() {
+            DEFAULT_PROJECT_ID.to_owned()
+        } else {
+            self.active_project_id.clone()
+        };
+
+        // ── Graph: INITIAL fetch (per-workspace) when the Graph View pane is visible ─────────────────
+        let graph_type = crate::editor_pane_factories::placeholder_pane_type(
+            crate::editor_pane_factories::GRAPH_VIEW_PANE_LABEL,
+        );
+        if self.any_tab_of_type(&graph_type)
+            && self.graph_fetched_ws.as_deref() != Some(workspace.as_str())
+        {
+            if let Some(rt) = self.runtime_handle.clone() {
+                // Fetch for the view's CURRENT mode (a pre-set Local focus is respected; the default
+                // fresh view is Global -> `views/all`).
+                let mode = self
+                    .editor_mounts
+                    .secondary
+                    .graph_view
+                    .lock()
+                    .map(|mut view| {
+                        view.workspace_id = workspace.clone();
+                        view.loading = true;
+                        view.error = None;
+                        view.mode.clone()
+                    })
+                    .unwrap_or(GraphMode::Global);
+                let client = crate::backend_client::LoomGraphClient::production(rt);
+                match mode {
+                    GraphMode::Global => {
+                        client.fetch_global(&workspace, Arc::clone(&self.graph_data_cell));
+                    }
+                    GraphMode::Local { block_id, title } => {
+                        client.fetch_local(
+                            &workspace,
+                            &block_id,
+                            &title,
+                            Arc::clone(&self.graph_data_cell),
+                        );
+                    }
+                }
+                self.graph_fetched_ws = Some(workspace.clone());
+                ctx.request_repaint();
+            }
+        }
+
+        // ── Graph: drain the shared data cell -> set_graph (the deliver loop) ────────────────────────
+        let delivered = self.graph_data_cell.lock().ok().and_then(|mut c| c.take());
+        if let Some(result) = delivered {
+            if let Ok(mut view) = self.editor_mounts.secondary.graph_view.lock() {
+                match result {
+                    Ok(data) => view.set_graph(data.nodes, data.edges),
+                    Err(msg) => {
+                        view.loading = false;
+                        view.error = Some(msg);
+                    }
+                }
+            }
+            ctx.request_repaint();
+        }
+
+        // ── Graph: read resolved edge-mutation results -> re-fetch (reconcile / rollback) ────────────
+        if !self.graph_op_cells.is_empty() {
+            let mut unresolved = Vec::new();
+            let mut resolved_any = false;
+            for cell in std::mem::take(&mut self.graph_op_cells) {
+                match cell.lock().ok().and_then(|mut c| c.take()) {
+                    Some(Ok(())) => resolved_any = true,
+                    Some(Err(msg)) => {
+                        tracing::warn!(
+                            "graph edge mutation failed (re-fetching = rollback to server truth): {msg}"
+                        );
+                        resolved_any = true;
+                    }
+                    None => unresolved.push(cell),
+                }
+            }
+            self.graph_op_cells = unresolved;
+            if resolved_any {
+                if let Some(rt) = self.runtime_handle.clone() {
+                    let refetch = self.editor_mounts.secondary.graph_view.lock().ok().map(|v| {
+                        (
+                            v.workspace_id.clone(),
+                            v.mode.clone(),
+                            v.controls.link_depth,
+                        )
+                    });
+                    if let Some((ws, mode, depth)) = refetch {
+                        if !ws.is_empty() {
+                            let client = crate::backend_client::LoomGraphClient::production(rt);
+                            match mode {
+                                GraphMode::Global => {
+                                    client.fetch_global(&ws, Arc::clone(&self.graph_data_cell));
+                                }
+                                GraphMode::Local { block_id, title } => {
+                                    client.fetch_local_with_depth(
+                                        &ws,
+                                        &block_id,
+                                        &title,
+                                        depth,
+                                        Arc::clone(&self.graph_data_cell),
+                                    );
+                                }
+                            }
+                            ctx.request_repaint();
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Canvas: INITIAL getCanvasBoard fetch (per-workspace) when the canvas pane is visible ─────
+        if self.any_tab_of_type(&PaneType::AtelierEditor)
+            && self.canvas_fetched_ws.as_deref() != Some(workspace.as_str())
+        {
+            if let Some(rt) = self.runtime_handle.clone() {
+                let canvas_block_id = self
+                    .editor_mounts
+                    .secondary
+                    .canvas_board
+                    .lock()
+                    .ok()
+                    .map(|mut b| {
+                        // WORKSPACE-REBIND: key the board to the ACTIVE workspace (the canvas block id
+                        // stays the stable per-workspace default until a specific canvas is opened).
+                        b.workspace_id = workspace.clone();
+                        b.error = None;
+                        b.canvas_block_id.clone()
+                    });
+                if let Some(canvas_block_id) = canvas_block_id {
+                    let client = crate::backend_client::CanvasBoardClient::production(rt);
+                    client.fetch_board(
+                        &workspace,
+                        &canvas_block_id,
+                        Arc::clone(&self.canvas_data_cell),
+                    );
+                    self.canvas_fetched_ws = Some(workspace.clone());
+                    ctx.request_repaint();
+                }
+            }
+        }
+
+        // ── Canvas: drain the board cell -> set_board (applies initial load + every reconcile) ───────
+        let delivered = self.canvas_data_cell.lock().ok().and_then(|mut c| c.take());
+        if let Some(result) = delivered {
+            if let Ok(mut board) = self.editor_mounts.secondary.canvas_board.lock() {
+                match result {
+                    Ok(data) => {
+                        board.set_board(
+                            data.placements,
+                            data.visual_edges,
+                            egui::Vec2::new(data.pan_x, data.pan_y),
+                            data.zoom,
+                        );
+                        board.error = None;
+                    }
+                    Err(msg) => {
+                        // Typed error on the board's own surface (rendered as "Canvas error: …").
+                        board.error = Some(msg);
+                    }
+                }
+            }
+            ctx.request_repaint();
+        }
+
+        // ── Canvas: read resolved mutation results -> re-fetch (reconcile Ok / ROLLBACK Err) ─────────
+        if !self.canvas_op_cells.is_empty() {
+            let mut unresolved = Vec::new();
+            let mut resolved_any = false;
+            for cell in std::mem::take(&mut self.canvas_op_cells) {
+                match cell.lock().ok().and_then(|mut c| c.take()) {
+                    Some(Ok(())) => resolved_any = true,
+                    Some(Err(msg)) => {
+                        tracing::warn!(
+                            "canvas mutation failed (re-fetching board = rollback of the optimistic value): {msg}"
+                        );
+                        if let Ok(mut board) = self.editor_mounts.secondary.canvas_board.lock() {
+                            board.error = Some(msg);
+                        }
+                        resolved_any = true;
+                    }
+                    None => unresolved.push(cell),
+                }
+            }
+            self.canvas_op_cells = unresolved;
+            if resolved_any {
+                if let Some(rt) = self.runtime_handle.clone() {
+                    let board_key = self
+                        .editor_mounts
+                        .secondary
+                        .canvas_board
+                        .lock()
+                        .ok()
+                        .map(|b| (b.workspace_id.clone(), b.canvas_block_id.clone()));
+                    if let Some((ws, canvas_block_id)) = board_key {
+                        if !ws.is_empty() {
+                            let client = crate::backend_client::CanvasBoardClient::production(rt);
+                            client.fetch_board(
+                                &ws,
+                                &canvas_block_id,
+                                Arc::clone(&self.canvas_data_cell),
+                            );
+                            ctx.request_repaint();
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Outgoing links (MT-062): re-bucket the load-path links when the resolver index grows ─────
+        if !self.outgoing_links_raw.is_empty() {
+            let watermark = self
+                .editor_mounts
+                .rich_state
+                .lock()
+                .ok()
+                .map(|s| {
+                    (
+                        s.wikilinks.resolver_index.title_count(),
+                        s.wikilinks.resolver_index.alias_count(),
+                    )
+                })
+                .unwrap_or((0, 0));
+            if self.outgoing_links_index_watermark != Some(watermark) {
+                let (resolved, unresolved) = {
+                    let state = self
+                        .editor_mounts
+                        .rich_state
+                        .lock()
+                        .unwrap_or_else(|p| p.into_inner());
+                    crate::rich_editor::wikilinks::outgoing_links_panel::bucket_links(
+                        self.outgoing_links_raw.clone(),
+                        &state.wikilinks.resolver_index,
+                    )
+                };
+                if let Ok(mut panel) = self.editor_mounts.secondary.outgoing_links.lock() {
+                    panel.resolved = resolved;
+                    panel.unresolved = unresolved;
+                    panel.loading = false;
+                    panel.error = None;
+                }
+                self.outgoing_links_index_watermark = Some(watermark);
+                ctx.request_repaint();
             }
         }
     }
@@ -10305,7 +10848,13 @@ impl HandshakeApp {
                     // FlightRecorderPane) — a typed, observable blocker, never a fake emit. The
                     // FlightRecorderPane is rebuilt over the SAME fetch cell with the emitter's ring so
                     // the pane EXPLAINS emit failures (the MT-036 empty-state contract).
-                    if !self.event_emitter_installed {
+                    //
+                    // WORKSPACE-REBIND (MT-036 staleness remediation): the install is keyed by the
+                    // ACTIVE workspace, not a one-shot bool — when the operator switches workspace the
+                    // bound ws drifts from the active one and the emitter is RE-installed for the new
+                    // workspace (the old emitter would otherwise attribute every native-editor event to
+                    // the stale workspace forever).
+                    if self.event_emitter_bound_ws.as_deref() != Some(ws.as_str()) {
                         let emitter = crate::event_emitter::NativeEditorEventEmitter::production(
                             ws.clone(),
                             self.rich_doc_base_url.clone(),
@@ -10332,7 +10881,7 @@ impl HandshakeApp {
                                     pane.load_now();
                                 }
                             }
-                            self.event_emitter_installed = true;
+                            self.event_emitter_bound_ws = Some(ws.clone());
                         }
                     }
                 }

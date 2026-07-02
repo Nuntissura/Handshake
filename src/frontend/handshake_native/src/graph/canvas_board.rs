@@ -436,6 +436,16 @@ pub enum CanvasEvent {
     /// WP-KERNEL-012 MT-042: remove an edge by id — a swarm `canvas.remove-edge` dispatch. The host
     /// routes it through the E6 loom client (semantic edge) or removes the board-local visual edge.
     RemoveEdge { edge_id: String },
+    /// WP-KERNEL-012 MT-070: a CONFIRMED entry of the MT-070 node context menu
+    /// ([`crate::context_menu_surfaces::show_node_menu`]) on a canvas placement. The host feeds the
+    /// action through [`crate::context_menu_surfaces::node_navigation_target`] into
+    /// [`crate::navigation_bus::dispatch`] (the MT-070 click-through). `block_id` is the placed Loom
+    /// block (the node's stable navigable id); empty for a free-text card with no placed block.
+    NodeMenu {
+        placement_id: String,
+        block_id: String,
+        action: crate::context_menu_surfaces::NodeMenuAction,
+    },
 }
 
 /// The board widget state. Held by the host pane, mutated in place by [`LoomCanvasBoard::show`]. Pan,
@@ -505,6 +515,11 @@ pub struct LoomCanvasBoard {
     /// itself drives the registry, so any host that renders the board gets a populated AccessKit tree +
     /// consumed dispatch with no extra calls.
     pending_knowledge_events: Vec<CanvasEvent>,
+    /// WP-KERNEL-012 MT-070: the placement under the pointer at the most recent RIGHT-click, driving the
+    /// MT-070 node context menu ([`crate::context_menu_surfaces::show_node_menu`]). `Some(placement_id)`
+    /// while the node menu is attached to that placement; `None` after a right-click over empty canvas
+    /// (no menu) or once a menu action is confirmed.
+    ctx_menu_placement: Option<String>,
 }
 
 impl LoomCanvasBoard {
@@ -535,6 +550,7 @@ impl LoomCanvasBoard {
             knowledge_registry: None,
             toolbar_control_ids: std::collections::HashMap::new(),
             pending_knowledge_events: Vec::new(),
+            ctx_menu_placement: None,
         }
     }
 
@@ -1149,6 +1165,44 @@ impl LoomCanvasBoard {
                     self.selected.clear();
                     self.edge_from = None;
                 }
+            }
+        }
+
+        // ── WP-KERNEL-012 MT-070: node context menu (the MT-070 `show_node_menu` layer, LIVE call
+        // site). A RIGHT-click over a placement attaches the 3-entry node menu (Open Note / Reveal
+        // Node / Create note from link) to the canvas response; a right-click over empty canvas
+        // detaches it (no menu). A confirmed enabled entry emits [`CanvasEvent::NodeMenu`], which the
+        // host feeds through `node_navigation_target` -> `navigation_bus::dispatch` (the click-through
+        // wiring that previously had ZERO product call sites). Availability is honest: a placement's
+        // node id is its PLACED BLOCK (Reveal Node); no backing note id or unresolved link is carried
+        // inline, so those entries render disabled with their disclosed reason — never a dead handler.
+        if canvas_resp.secondary_clicked() {
+            self.ctx_menu_placement = canvas_resp
+                .interact_pointer_pos()
+                .map(|screen| self.screen_to_canvas(screen, origin))
+                .and_then(|p| self.placement_at_canvas(p))
+                .map(|idx| self.placements[idx].placement_id.clone());
+        }
+        if let Some(pid) = self.ctx_menu_placement.clone() {
+            if let Some(card) = self.placements.iter().find(|c| c.placement_id == pid) {
+                let block_id = card.placed_block_id.clone();
+                let availability = crate::context_menu_surfaces::NodeMenuAvailability {
+                    has_note: false,
+                    has_node_id: !block_id.is_empty(),
+                    unresolved_link: false,
+                };
+                if let Some(action) =
+                    crate::context_menu_surfaces::show_node_menu(&canvas_resp, availability)
+                {
+                    event = Some(CanvasEvent::NodeMenu {
+                        placement_id: pid,
+                        block_id,
+                        action,
+                    });
+                    self.ctx_menu_placement = None;
+                }
+            } else {
+                self.ctx_menu_placement = None; // placement vanished on a reload — drop the stale menu.
             }
         }
 

@@ -451,3 +451,53 @@ fn editor_action_nodes_present_in_live_shell_tree() {
         ids.iter().filter(|i| i.starts_with("editor.")).collect::<Vec<_>>()
     );
 }
+
+// ── WP-KERNEL-012 MT-008 REMEDIATION: the shell's typed LSP attach state ───────────────────────────
+
+/// Binding a runtime handle runs the REAL LSP discovery+attach for the mounted code pane. The result
+/// is TYPED and honest either way: `Attached { command }` when rust-analyzer exists on THIS host's
+/// PATH (the panel then carries a CONFIGURED production `LspClient`, spawned lazily on first didOpen),
+/// or the typed `Absent { language_id, probed_command }` when it does not (the panel keeps its
+/// graceful disabled client — never a fake). What it must NEVER be after a runtime bind is
+/// `NotProbed` — the live path always probes.
+#[test]
+fn lsp_attach_state_is_typed_after_runtime_bind() {
+    use handshake_native::app::LspAttachState;
+    let (app, _rt) = editor_shell();
+    let panel = app.mounted_code_panel();
+    match app.lsp_attach_state() {
+        LspAttachState::Attached { command } => {
+            assert!(
+                !command.is_empty(),
+                "MT-008: Attached carries the resolved launch command"
+            );
+            assert!(
+                panel.lsp_client().is_configured(),
+                "MT-008: an Attached shell installed a CONFIGURED LspClient on the mounted panel"
+            );
+            println!("MT-008 attach state: Attached via '{command}' (rust-analyzer on this host)");
+        }
+        LspAttachState::Absent {
+            language_id,
+            probed_command,
+        } => {
+            assert_eq!(language_id, "rust", "the mounted code pane's language");
+            assert_eq!(
+                probed_command, "rust-analyzer",
+                "MT-008: the typed absent-state names WHAT was probed"
+            );
+            assert!(
+                !panel.lsp_client().is_configured(),
+                "MT-008: an Absent shell leaves the graceful DISABLED client (never a fake config)"
+            );
+            println!(
+                "MT-008 attach state: typed Absent (no '{probed_command}' on this host's PATH) — \
+                 honest disabled-LSP path"
+            );
+        }
+        LspAttachState::NotProbed => panic!(
+            "MT-008: after set_runtime_handle the shell must have PROBED (Attached or typed Absent), \
+             never NotProbed"
+        ),
+    }
+}

@@ -225,6 +225,117 @@ fn diagnostics_section_renders_live_in_app_tree_and_screenshot() {
     assert_no_local_artifact_dir();
 }
 
+// ── MT-087 remediation: the SCROLLED/TALLER panel screenshot (below-the-fold sections visible) ─────
+
+/// The wave-2 MT-087 remediation screenshot: the 900x800 default viewport clips the lower Diagnostics
+/// sections (events list + Tier-3 Palmistry empty-state) behind the settings scroll area, so the first
+/// screenshot alone cannot show the whole panel. This proof drives the SAME live app + surfacing path in
+/// a TALLER viewport (900x1500) — the settings scroll area then lays the full Diagnostics section out
+/// without clipping — asserts the below-the-fold nodes (events + palmistry sections) really are in the
+/// live AccessKit tree, and saves the full-panel PNG to the MT-087 external artifact leaf
+/// (`wp-kernel-012-mt-087`). Absent a wgpu adapter the PNG is recorded as an honest non-fatal note (the
+/// AccessKit full-panel proof stands).
+#[test]
+fn diagnostics_section_tall_viewport_full_panel_screenshot() {
+    let _g = wgpu_guard();
+    let mut harness: Harness<HandshakeApp> = Harness::builder()
+        .with_size(egui::vec2(900.0, 1500.0))
+        .wgpu()
+        .build_eframe(|cc| HandshakeApp::new(cc));
+
+    open_diagnostics_section(&mut harness);
+
+    // The FULL panel subtree — including the sections a shorter viewport pushes below the fold — is in
+    // the live tree: container, heartbeat, frame, resource, events, and the Tier-3 Palmistry section.
+    let ids = live_author_ids(&harness);
+    for id in [
+        DIAGNOSTICS_PANEL_AUTHOR_ID,
+        DIAGNOSTICS_HEARTBEAT_AUTHOR_ID,
+        DIAGNOSTICS_FRAME_AUTHOR_ID,
+        DIAGNOSTICS_RESOURCE_AUTHOR_ID,
+        DIAGNOSTICS_EVENTS_AUTHOR_ID,
+        DIAGNOSTICS_PALMISTRY_AUTHOR_ID,
+    ] {
+        assert!(
+            ids.contains(id),
+            "MT-087 tall-viewport proof: the full panel subtree must carry '{id}'; got the \
+             diagnostics-ish subset {:?}",
+            ids.iter()
+                .filter(|i| i.contains("diagnostics"))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    match harness.render() {
+        Ok(image) => {
+            let (w, h) = (image.width(), image.height());
+            assert!(w > 0 && h > 0, "tall render is non-empty");
+            let ext_dir = external_artifact_dir("wp-kernel-012-mt-087");
+            let _ = std::fs::create_dir_all(&ext_dir);
+            let png_path = ext_dir.join("MT-087-diagnostics-panel-tall-full.png");
+            let saved = image.save(&png_path).is_ok();
+            let abs = std::fs::canonicalize(&png_path).unwrap_or(png_path.clone());
+            println!(
+                "MT-087 tall/scrolled diagnostics-panel screenshot: {w}x{h}, saved={saved} ({})",
+                abs.display()
+            );
+            assert!(
+                saved,
+                "the tall full-panel screenshot PNG saved to the external MT-087 leaf"
+            );
+        }
+        Err(e) => {
+            println!(
+                "BLOCKER(non-fatal): MT-087 tall-panel screenshot render unavailable (no wgpu \
+                 adapter): {e}. The full-panel AccessKit subtree proof above passed; the PNG is a \
+                 GPU-host item."
+            );
+        }
+    }
+
+    // SCROLLED capture: the settings dialog caps its own body height, so the events + Tier-3 Palmistry
+    // sections sit below its internal scroll even in the tall viewport. Wheel-scroll the dialog body
+    // down (the same real input path an operator uses), then save the second, scrolled PNG showing the
+    // below-the-fold sections.
+    harness.event(egui::Event::PointerMoved(egui::pos2(450.0, 750.0)));
+    harness.step();
+    for _ in 0..12 {
+        harness.event(egui::Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Line,
+            delta: egui::vec2(0.0, -4.0),
+            modifiers: egui::Modifiers::default(),
+        });
+        harness.step();
+    }
+    match harness.render() {
+        Ok(image) => {
+            let ext_dir = external_artifact_dir("wp-kernel-012-mt-087");
+            let _ = std::fs::create_dir_all(&ext_dir);
+            let png_path = ext_dir.join("MT-087-diagnostics-panel-tall-scrolled.png");
+            let saved = image.save(&png_path).is_ok();
+            let abs = std::fs::canonicalize(&png_path).unwrap_or(png_path.clone());
+            println!(
+                "MT-087 SCROLLED diagnostics-panel screenshot: {}x{}, saved={saved} ({})",
+                image.width(),
+                image.height(),
+                abs.display()
+            );
+            assert!(
+                saved,
+                "the scrolled panel screenshot PNG saved to the external MT-087 leaf"
+            );
+        }
+        Err(e) => {
+            println!(
+                "BLOCKER(non-fatal): MT-087 scrolled-panel screenshot render unavailable (no wgpu \
+                 adapter): {e}."
+            );
+        }
+    }
+
+    assert_no_local_artifact_dir();
+}
+
 // ── PT-007-B / AC-007-2: the panel projects live heartbeat + frame-time + events from the globals ──
 
 #[test]
@@ -308,8 +419,48 @@ fn panel_projects_live_heartbeat_frame_and_events() {
 
 // ── PT-007-C / AC-007-4/5: Tier-3 Palmistry honest empty-state + AccessKit ids + no spinner ────────
 
+/// Restore-on-drop guard for the survivor-store override env (set BEFORE the app is built, restored when
+/// the test ends). Wave-2 MT-087 remediation: the Tier-3 section projects the REAL per-user survivor
+/// store (`read_default_survivor_records`), and on a real host that store legitimately holds records from
+/// earlier Palmistry captures — so the EMPTY-STATE contract (AC-007-4) must be proven against a scoped
+/// FRESH store dir, not against whatever the host accumulated. The override env is the same production
+/// seam (`HANDSHAKE_PALMISTRY_SURVIVOR_DIR`) the watcher launch uses; this is a real empty store read,
+/// not a faked projection.
+struct SurvivorDirGuard {
+    previous: Option<std::ffi::OsString>,
+}
+
+impl SurvivorDirGuard {
+    fn set_to_fresh_empty_dir(label: &str) -> Self {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let dir = std::env::temp_dir().join(format!(
+            "hsk-mt087-empty-survivors-{label}-{}-{nanos}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).expect("create the scoped empty survivor dir");
+        let previous = std::env::var_os(diagnostics::ENV_PALMISTRY_SURVIVOR_DIR);
+        std::env::set_var(diagnostics::ENV_PALMISTRY_SURVIVOR_DIR, &dir);
+        Self { previous }
+    }
+}
+
+impl Drop for SurvivorDirGuard {
+    fn drop(&mut self) {
+        match &self.previous {
+            Some(v) => std::env::set_var(diagnostics::ENV_PALMISTRY_SURVIVOR_DIR, v),
+            None => std::env::remove_var(diagnostics::ENV_PALMISTRY_SURVIVOR_DIR),
+        }
+    }
+}
+
 #[test]
 fn tier3_palmistry_empty_state_and_accesskit_ids_present() {
+    // Scope the Tier-3 store to a fresh EMPTY dir so the empty-state contract is deterministic on a
+    // real host whose per-user store already holds genuine survivor records (see SurvivorDirGuard).
+    let _survivor_dir = SurvivorDirGuard::set_to_fresh_empty_dir("tier3-empty");
     let mut harness: Harness<HandshakeApp> =
         Harness::builder().build_eframe(|cc| HandshakeApp::new(cc));
     open_diagnostics_section(&mut harness);

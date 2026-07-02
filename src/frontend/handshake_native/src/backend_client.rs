@@ -2587,6 +2587,17 @@ impl CanvasBoardClient {
         }
     }
 
+    /// Pure request builder for `DELETE /loom/edges/:edge_id` (deleteLoomEdge) — removes a semantic
+    /// Loom edge by id (WP-KERNEL-012 MT-042/021 REMEDIATION: the `GraphEvent::RemoveEdge` host route;
+    /// the VERIFIED backend twin is `delete_loom_edge` in `handshake_core` `api/loom.rs`).
+    pub fn remove_semantic_edge_request(&self, workspace_id: &str, edge_id: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Delete,
+            url: format!("{}/{}", self.edges_url(workspace_id), edge_id),
+            body: None,
+        }
+    }
+
     /// Pure request builder for `POST .../canvas-boards/:block_id/visual-edges` (addCanvasVisualEdge).
     pub fn visual_edge_request(
         &self,

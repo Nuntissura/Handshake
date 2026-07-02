@@ -86,7 +86,7 @@ fn secondary_shell() -> (HandshakeApp, tokio::runtime::Runtime) {
     }));
     app.set_runtime_handle(runtime.handle().clone());
     retype_panes(
-        &app,
+        &mut app,
         &[
             ("pane-a", PaneType::AtelierEditor), // canvas board
             // REMEDIATION (MT-080 PaneType collisions): the graph view + outgoing-links panes now own
@@ -111,20 +111,32 @@ fn secondary_shell() -> (HandshakeApp, tokio::runtime::Runtime) {
     (app, runtime)
 }
 
-/// Re-type the fixed seeded panes to the given `(pane_id, pane_type)` set.
-fn retype_panes(app: &HandshakeApp, panes: &[(&str, PaneType)]) {
-    let registry = app.pane_registry();
-    let mut guard = registry.lock().expect("registry");
+/// Re-type the fixed seeded panes to the given `(pane_id, pane_type)` set — BOTH the registry records
+/// AND the tab bars. The shell syncs each pane's registry record FROM its ACTIVE TAB every frame
+/// (MT-099 `sync`), so a registry-only re-type is overwritten by the fresh-default editor tabs on the
+/// first frame and the split would render the default editors instead of the fixture's panes.
+fn retype_panes(app: &mut HandshakeApp, panes: &[(&str, PaneType)]) {
+    {
+        let registry = app.pane_registry();
+        let mut guard = registry.lock().expect("registry");
+        for (id, ty) in panes {
+            guard.insert(PaneRecord::new(
+                PaneId::from(*id),
+                ty.clone(),
+                DEFAULT_PROJECT_ID,
+                None,
+                LockState::Unlocked,
+                DirtyState::Clean,
+                PaneAuthority::System,
+            ));
+        }
+    }
+    let bars = app.tab_bar_states_mut();
     for (id, ty) in panes {
-        guard.insert(PaneRecord::new(
-            PaneId::from(*id),
-            ty.clone(),
-            DEFAULT_PROJECT_ID,
-            None,
-            LockState::Unlocked,
-            DirtyState::Clean,
-            PaneAuthority::System,
-        ));
+        if let Some(bar) = bars.get_mut(&PaneId::from(*id)) {
+            bar.tabs = vec![handshake_native::tab_bar::TabState::new(ty.clone())];
+            bar.active_index = 0;
+        }
     }
 }
 
@@ -213,9 +225,9 @@ fn secondary_panes_render_live_in_app_tree_and_screenshot() {
     let _ = screenshot_saved;
 
     // Second frame batch: the relevant-memory / Stage / daily-journal side panes (re-typed into the slots).
-    let (app2, _rt2) = secondary_shell();
+    let (mut app2, _rt2) = secondary_shell();
     retype_panes(
-        &app2,
+        &mut app2,
         &[
             (
                 "pane-a",
@@ -343,16 +355,33 @@ fn graph_depth_changed_requeries_with_new_backlink_depth() {
         events.lock().unwrap().is_empty(),
         "AC-080-3: the graph DepthChanged was DRAINED by the host (mapped to the depth re-query)"
     );
-    // Perf/hygiene (must-fix, the MT-015 backlinks-spinner regression class): the host has NO per-frame
-    // graph-cell deliver path to clear `loading`, so it must NOT animate the mounted pane on a gated depth
-    // re-query. Assert `loading` is false after the DepthChanged is consumed — if the host set
-    // `loading = true` with no deliver path, the widget would request a repaint every frame forever (a
-    // perpetual idle-repaint trap that a `harness.run()` would hit at max_steps). This is the assertion the
-    // drain-only check above cannot catch by construction.
+    // MT-060 REMEDIATION (the deliver path is LIVE): the host now sets `loading = true` on the depth
+    // re-query AND has the per-frame graph-cell drain that CLEARS it when the fetch resolves — so the
+    // MT-015 perpetual-spinner trap the old idle-neutral assertion guarded against is closed from the
+    // other side. With no backend on this host, the off-thread re-query resolves to a typed transport
+    // Err, which the deliver drain applies as the view's error label + `loading = false`. Poll bounded
+    // frames until the delivery lands, then assert the spinner CLEARED and the typed error SURFACED —
+    // runtime proof the deliver loop (previously a discarded throwaway cell) is live.
+    let mut delivered = false;
+    for _ in 0..100 {
+        harness.run_steps(2);
+        let v = graph_view2.lock().unwrap();
+        if !v.loading {
+            delivered = true;
+            assert!(
+                v.error.is_some(),
+                "MT-060 deliver path: with no live backend the re-query resolves to the TYPED error \
+                 surfaced on the view (never a silent discard)"
+            );
+            break;
+        }
+        drop(v);
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
     assert!(
-        !graph_view2.lock().unwrap().loading,
-        "must-fix(perf): the mounted graph pane is idle-neutral after a gated DepthChanged — the host does \
-         NOT set loading=true with no deliver path (no perpetual idle-repaint trap)"
+        delivered,
+        "MT-060 deliver path: the depth re-query's result was DELIVERED into the mounted view \
+         (loading cleared by the per-frame graph-cell drain — no perpetual spinner)"
     );
 }
 
@@ -467,7 +496,7 @@ fn relevant_memory_shows_endpoint_missing_empty_state() {
     }));
     app.set_runtime_handle(runtime.handle().clone());
     retype_panes(
-        &app,
+        &mut app,
         &[(
             "pane-a",
             PaneType::Placeholder("Relevant Memory".to_owned()),
@@ -770,9 +799,9 @@ fn loom_block_and_kernel_dcc_navigation_is_not_hijacked() {
     use handshake_native::graph::MODE_LOCAL_AUTHOR_ID;
     use handshake_native::rich_editor::wikilinks::outgoing_links_panel::PANEL_AUTHOR_ID as OUTGOING_PANEL_AUTHOR_ID;
 
-    let (app, _rt) = operator_shell();
+    let (mut app, _rt) = operator_shell();
     retype_panes(
-        &app,
+        &mut app,
         &[
             ("pane-a", PaneType::LoomBlock),
             ("pane-b", PaneType::KernelDcc),

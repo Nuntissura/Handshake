@@ -270,6 +270,15 @@ pub enum GraphEvent {
     /// MT-042: remove a Loom edge by id — a swarm `graph.remove-edge` dispatch. Host runs it via the E6
     /// loom client.
     RemoveEdge { edge_id: String },
+    /// WP-KERNEL-012 MT-070: a CONFIRMED entry of the MT-070 node context menu
+    /// ([`crate::context_menu_surfaces::show_node_menu`]) on a graph node. The host feeds the action
+    /// through [`crate::context_menu_surfaces::node_navigation_target`] into
+    /// [`crate::navigation_bus::dispatch`] (the MT-070 click-through). `block_id` is the clicked node's
+    /// stable Loom block id.
+    NodeMenu {
+        block_id: String,
+        action: crate::context_menu_surfaces::NodeMenuAction,
+    },
 }
 
 /// The widget's full state. Held by the host (the pane), mutated in place by [`LoomGraphView::show`].
@@ -329,6 +338,11 @@ pub struct LoomGraphView {
     /// from the render path (the must-fix anti-scaffolding fix): `show` itself drives the registry, so any
     /// host that renders the view gets a populated tree + consumed dispatch with no extra calls.
     pending_knowledge_events: Vec<GraphEvent>,
+    /// WP-KERNEL-012 MT-070: the node under the pointer at the most recent RIGHT-click, driving the
+    /// MT-070 node context menu ([`crate::context_menu_surfaces::show_node_menu`]). `Some(block_id)`
+    /// while the node menu is attached to that node; `None` after a right-click over empty canvas (no
+    /// menu) or once a menu action is confirmed.
+    ctx_menu_node: Option<String>,
 }
 
 impl Default for LoomGraphView {
@@ -355,6 +369,7 @@ impl Default for LoomGraphView {
             knowledge_registry: None,
             last_canvas_rect: None,
             pending_knowledge_events: Vec::new(),
+            ctx_menu_node: None,
         }
     }
 }
@@ -850,6 +865,38 @@ impl LoomGraphView {
                     self.selected = Some(block_id.clone());
                     event = Some(GraphEvent::OpenNode { block_id });
                 }
+            }
+        }
+
+        // ── WP-KERNEL-012 MT-070: node context menu (the MT-070 `show_node_menu` layer, LIVE call
+        // site). A RIGHT-click over a node attaches the 3-entry node menu (Open Note / Reveal Node /
+        // Create note from link) to the canvas response (and selects the node, so the menu visibly
+        // belongs to it); a right-click over empty canvas detaches it. A confirmed enabled entry emits
+        // [`GraphEvent::NodeMenu`], which the host feeds through `node_navigation_target` ->
+        // `navigation_bus::dispatch` (the click-through wiring that previously had ZERO product call
+        // sites). Availability is honest: a graph node's stable id is its Loom block id (Reveal Node);
+        // no backing note id or unresolved link is carried inline on the graph payload, so those
+        // entries render disabled with their disclosed reason — never a dead handler.
+        if canvas_resp.secondary_clicked() {
+            self.ctx_menu_node = canvas_resp
+                .interact_pointer_pos()
+                .and_then(|p| self.node_at_screen(p, center))
+                .map(|idx| self.nodes[idx].block_id.clone());
+            if let Some(id) = &self.ctx_menu_node {
+                self.selected = Some(id.clone());
+            }
+        }
+        if let Some(block_id) = self.ctx_menu_node.clone() {
+            let availability = crate::context_menu_surfaces::NodeMenuAvailability {
+                has_note: false,
+                has_node_id: !block_id.is_empty(),
+                unresolved_link: false,
+            };
+            if let Some(action) =
+                crate::context_menu_surfaces::show_node_menu(&canvas_resp, availability)
+            {
+                event = Some(GraphEvent::NodeMenu { block_id, action });
+                self.ctx_menu_node = None;
             }
         }
 

@@ -305,8 +305,62 @@ fn scenario3_backend_down_real_app_stays_responsive() {
 struct ScenarioVerdict {
     id: &'static str,
     name: &'static str,
-    verdict: &'static str,
-    proof: &'static str,
+    verdict: String,
+    proof: String,
+}
+
+/// DERIVE a real-host scenario verdict from the durable live-gate verdict artifact the palmistry-side
+/// live gate (`palmistry/tests/test_end_to_end_live.rs`) writes into the MT-096 `live/` artifact leaf —
+/// and writes ONLY after every assertion in that gate held on this host. The manifest verdict is thus a
+/// projection of an ACTUAL test outcome, never a hardcoded string:
+///
+/// - artifact present + `pass: true` + the exact expected scenario/gate/schema => `PASS`, with the proof
+///   naming the artifact it was derived from;
+/// - artifact absent/unreadable/mismatched => `NEEDS_REAL_HOST_PROOF`, with the honest default-half
+///   `fallback_proof` and the path where the live gate would have written its verdict.
+///
+/// Returns `(verdict, proof, Some(artifact_path) when derived from a real artifact)`.
+fn derive_live_gate_verdict(
+    out_dir: &Path,
+    file_name: &str,
+    scenario: &str,
+    gate: &str,
+    fallback_proof: &str,
+) -> (String, String, Option<String>) {
+    let path = out_dir.join("live").join(file_name);
+    let parsed: Option<serde_json::Value> = std::fs::read(&path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok());
+    match parsed {
+        Some(v)
+            if v["schema_version"] == "hsk.mt096.live_gate_verdict@0.1"
+                && v["scenario"] == scenario
+                && v["gate"] == gate
+                && v["pass"] == serde_json::Value::Bool(true) =>
+        {
+            let abs = path_display(&path);
+            (
+                "PASS".to_string(),
+                format!(
+                    "DERIVED from the live-gate verdict artifact {abs} (generated_at {}): the REAL \
+                     spawned palmistry.exe gate passed every assertion on this host; see the artifact \
+                     for the per-fact evidence paths",
+                    v["generated_at"].as_str().unwrap_or("<unknown>")
+                ),
+                Some(abs),
+            )
+        }
+        _ => (
+            "NEEDS_REAL_HOST_PROOF".to_string(),
+            format!(
+                "{fallback_proof}; no passing live-gate verdict artifact found at {} (the palmistry \
+                 live gate writes it only after every assertion holds — run \
+                 `cargo test --test test_end_to_end_live -- --ignored` on a real host)",
+                path.display()
+            ),
+            None,
+        ),
+    }
 }
 
 /// The MT-096 end-to-end PROOF MANIFEST (AC-016-5). Lists each scenario verdict, the whole-WP
@@ -320,7 +374,7 @@ struct ProofManifest {
     generated_at: String,
     scenarios: Vec<ScenarioVerdict>,
     three_tier_wiring: ThreeTierDiagnosticWiringRecord,
-    open_gates: Vec<&'static str>,
+    open_gates: Vec<String>,
     artifacts: Vec<String>,
     screenshot: Option<String>,
 }
@@ -349,20 +403,58 @@ fn scenario5_proof_manifest_and_diagnostics_panel_screenshot() {
     // on the REAL app. Default runs are AccessKit-only; the optional feature saves a PNG.
     let screenshot = capture_diagnostics_panel_screenshot(&out_dir);
 
-    // (3) The end-to-end proof manifest naming each scenario verdict + artifacts + honest gating.
+    // (3) The end-to-end proof manifest. The AC-016-1/AC-016-2 verdicts are DERIVED from the durable
+    // live-gate verdict artifacts the palmistry-side real-host gates write only on full success — an
+    // actual test outcome, never a hardcoded string (the wave-2 MT-096 remediation requirement).
+    let (freeze_verdict, freeze_proof, freeze_artifact) = derive_live_gate_verdict(
+        &out_dir,
+        "freeze_live_capture_verdict.json",
+        "AC-016-1",
+        "freeze_live_capture",
+        "default tests prove the real-app write-side heartbeat becomes stale on the live ring \
+         and the Palmistry detector/store half records freeze on a real ring; the spawned \
+         palmistry.exe freeze-capture run is a required real-host proof and is not \
+         counted as PASS without its verdict artifact",
+    );
+    let (crash_verdict, crash_proof, crash_artifact) = derive_live_gate_verdict(
+        &out_dir,
+        "crash_live_capture_verdict.json",
+        "AC-016-2",
+        "crash_live_capture",
+        "default tests prove the post-mortem floor crash record and clean-shutdown-no-crash \
+         gate; a real spawned-client crash with out-of-process minidump capture/validation is \
+         a required real-host proof and is not counted as PASS without its verdict artifact",
+    );
+
     let mut open_gates = vec![
         "FR-forward LIVE round-trip (MT-093 §6.13.7): needs a managed PostgreSQL/backend on \
-         127.0.0.1:37501; gated requires_pg; the kept-as-is route returns a typed blocker (AC-016-6).",
-        "LIVE cross-process real palmistry.exe freeze/crash CAPTURE: still required for AC-016-1/2; \
-         run a freshly built binary via HANDSHAKE_PALMISTRY_EXE and the ignored real-host proof, then \
-         update this manifest from the emitted artifact paths.",
+         127.0.0.1:37501; gated requires_pg; the kept-as-is route returns a typed blocker (AC-016-6)."
+            .to_string(),
     ];
+    if freeze_artifact.is_none() || crash_artifact.is_none() {
+        open_gates.push(
+            "LIVE cross-process real palmistry.exe freeze/crash CAPTURE: still required for AC-016-1/2; \
+             run `cargo test --test test_end_to_end_live -- --ignored` (palmistry crate) on a real host \
+             — its passing gates write the live/ verdict artifacts this manifest derives from."
+                .to_string(),
+        );
+    }
     if screenshot.is_none() {
         open_gates.push(
             "Diagnostics Panel PNG: default proof is AccessKit-only to avoid the Windows wgpu concurrency \
-             hazard; run with --features wgpu_screenshots for a fresh PNG and visually inspect it.",
+             hazard; run with --features wgpu_screenshots for a fresh PNG and visually inspect it."
+                .to_string(),
         );
     }
+
+    let mut artifacts = vec![
+        path_display(&evidence_path),
+        screenshot
+            .clone()
+            .unwrap_or_else(default_screenshot_artifact_status),
+    ];
+    artifacts.extend(freeze_artifact.clone());
+    artifacts.extend(crash_artifact.clone());
 
     let manifest = ProofManifest {
         schema_version: "hsk.mt096.end_to_end_proof_manifest@0.1",
@@ -373,52 +465,46 @@ fn scenario5_proof_manifest_and_diagnostics_panel_screenshot() {
             ScenarioVerdict {
                 id: "AC-016-1",
                 name: "FREEZE end-to-end",
-                verdict: "NEEDS_REAL_HOST_PROOF",
-                proof: "default tests prove the real-app write-side heartbeat becomes stale on the live ring \
-                        and the Palmistry detector/store half records freeze on a real ring; the spawned \
-                        palmistry.exe freeze-capture run is still a required real-host proof and is not \
-                        counted as PASS here",
+                verdict: freeze_verdict,
+                proof: freeze_proof,
             },
             ScenarioVerdict {
                 id: "AC-016-2",
                 name: "CRASH end-to-end",
-                verdict: "NEEDS_REAL_HOST_PROOF",
-                proof: "default tests prove the post-mortem floor crash record and clean-shutdown-no-crash \
-                        gate; a real spawned app crash with out-of-process minidump capture/validation is \
-                        still a required real-host proof and is not counted as PASS here",
+                verdict: crash_verdict,
+                proof: crash_proof,
             },
             ScenarioVerdict {
                 id: "AC-016-3",
                 name: "BACKEND-DOWN re-prove (2026-06-26 does not recur)",
-                verdict: "PASS",
+                verdict: "PASS".to_string(),
                 proof: "scenario3_backend_down_real_app_stays_responsive (real app, dead backend, \
-                        frames bounded + heartbeat advances)",
+                        frames bounded + heartbeat advances) — runs un-ignored in THIS same default \
+                        test binary, so a manifest from a green run reflects that actual outcome"
+                    .to_string(),
             },
             ScenarioVerdict {
                 id: "AC-016-4",
                 name: "TYPED-ALLOWLIST system-wide",
-                verdict: "REPRESENTATIVE_PASS_NEEDS_EMITTED_ARTIFACT_SCAN",
+                verdict: "REPRESENTATIVE_PASS_NEEDS_EMITTED_ARTIFACT_SCAN".to_string(),
                 proof: "test_three_tier_privacy_allowlist scans ring records plus representative \
                         survivor/crash/forward telemetry and opportunistically scans emitted survivors; \
                         full PASS requires mandatory nonzero emitted freeze/crash/forward artifact paths \
-                        from the real-host capstone",
+                        from the real-host capstone"
+                    .to_string(),
             },
             ScenarioVerdict {
                 id: "AC-016-6",
                 name: "HONEST GATING (FR-forward live half)",
-                verdict: "NEEDS_MANAGED_RESOURCE_PROOF",
+                verdict: "NEEDS_MANAGED_RESOURCE_PROOF".to_string(),
                 proof: "palmistry fr_forward_live_half_is_an_honest_typed_blocker_not_faked (typed blocker, \
-                        not faked); live round-trip needs managed PostgreSQL/backend",
+                        not faked); live round-trip needs managed PostgreSQL/backend"
+                    .to_string(),
             },
         ],
         three_tier_wiring: wiring,
         open_gates,
-        artifacts: vec![
-            path_display(&evidence_path),
-            screenshot
-                .clone()
-                .unwrap_or_else(default_screenshot_artifact_status),
-        ],
+        artifacts,
         screenshot: screenshot.clone(),
     };
 

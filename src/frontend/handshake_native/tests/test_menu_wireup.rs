@@ -33,7 +33,6 @@ use egui_kittest::Harness;
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
 use handshake_native::backend_client::HealthInfo;
-use handshake_native::code_editor::keymap::CodeEditorAction;
 use handshake_native::command_registry::{
     self, CommandKind, CMD_EDITOR_EDIT_REDO, CMD_EDITOR_EDIT_UNDO, CMD_EDITOR_FILE_SAVE,
     CMD_EDITOR_GO_TO_DEFINITION, CMD_WORKBENCH_QUICK_OPEN, EDITOR_GO_NAV_PENDING_IDS,
@@ -244,12 +243,15 @@ fn file_save_dispatches_editor_save_path() {
         rich_state.lock().unwrap().save_is_in_flight(),
         "FILE > Save reached the MT-020 SaveManager save entry (request_save -> SaveState::Saving)"
     );
-    // The code pane's Save channel ALSO carried the intent (observable to a swarm agent) — but this is the
-    // secondary observability marker, not the AC-004 proof (the SaveManager in-flight assertion above is).
+    // MT-069 REMEDIATION (Save SCOPING): with NO focused code pane, FILE > Save routes ONLY to the
+    // rich SaveManager — the code pane's Save channel is NOT pinged (pre-remediation Save
+    // unconditionally hit BOTH substrates, so a focused CODE pane's save silently saved the rich
+    // document too). The scoped behavior is the fix this asserts.
     assert_eq!(
         harness.state().last_editor_command(),
-        Some(&CodeEditorAction::Save),
-        "FILE > Save also pinged the code pane Save channel (dispatch observability)"
+        None,
+        "MT-069: FILE > Save with no focused code pane must NOT ping the code Save channel \
+         (save is scoped to the focused pane)"
     );
     // R6: the menu closed after the click.
     let nodes = live_author_nodes(&harness);
@@ -525,10 +527,18 @@ fn file_save_is_enabled_accesskit_node_with_wp011_author_id() {
     );
 }
 
-// ── AC-003: the GO-menu code-nav items render DISABLED (never fake-enabled) ─────────────────────────────
+// ── MT-069 REMEDIATION: the GO-menu code-nav items are LIVE (registered + enabled) ──────────────────────
 
+/// Pre-remediation these four items rendered DISABLED with a typed no-op (their owning commands were
+/// unregistered — the old AC-003 honest-pending state). MT-069 REMEDIATION registered the code-nav
+/// shell commands against the mounted panel, so with an editor pane mounted the GO items render
+/// ENABLED, the pending set is EMPTY, and the dispatcher no longer treats them as pending.
 #[test]
-fn go_nav_items_render_disabled_with_typed_no_op() {
+fn go_nav_items_render_enabled_and_registered() {
+    use handshake_native::command_registry::{
+        CMD_EDITOR_GO_TO_LINE, CMD_EDITOR_GO_TO_REFERENCES, CMD_EDITOR_GO_TO_SYMBOL,
+    };
+
     let (app, _rt) = editor_shell();
     let mut harness = shell_harness(app);
     harness.run_steps(3);
@@ -536,22 +546,32 @@ fn go_nav_items_render_disabled_with_typed_no_op() {
     harness.get_by_label("GO").click();
     harness.run();
     let nodes = live_author_nodes(&harness);
-    // The four contract-named GO-nav ids are present, addressable by their command id, and DISABLED (their
-    // owning command is not yet registered — AC-003).
-    for go_id in EDITOR_GO_NAV_PENDING_IDS {
+    // The four contract-named GO-nav ids are present, addressable by their stable command id, and
+    // ENABLED (their owning code-nav shell commands are registered — MT-069 remediation).
+    for go_id in [
+        CMD_EDITOR_GO_TO_DEFINITION,
+        CMD_EDITOR_GO_TO_REFERENCES,
+        CMD_EDITOR_GO_TO_SYMBOL,
+        CMD_EDITOR_GO_TO_LINE,
+    ] {
         let found = nodes
             .iter()
             .find(|(a, _, _)| a == go_id)
             .unwrap_or_else(|| panic!("GO-nav item {go_id} missing from open GO menu: {nodes:?}"));
         assert!(
-            found.2,
-            "GO-nav item {go_id} renders DISABLED (owner unregistered)"
+            !found.2,
+            "MT-069: GO-nav item {go_id} renders ENABLED (owner registered against the mounted panel)"
         );
     }
-    // The dispatcher recognizes them as pending (the typed logged no-op path, never a panic).
-    assert!(command_registry::is_go_nav_pending(
-        CMD_EDITOR_GO_TO_DEFINITION
-    ));
+    // No GO-nav id remains pending: the typed-pending set is empty and the dispatcher routes for real.
+    assert!(
+        EDITOR_GO_NAV_PENDING_IDS.is_empty(),
+        "MT-069: the GO-nav pending set is EMPTY (all owners registered)"
+    );
+    assert!(
+        !command_registry::is_go_nav_pending(CMD_EDITOR_GO_TO_DEFINITION),
+        "MT-069: Go to Definition is no longer a pending no-op"
+    );
 }
 
 // ── AC-005 / PT-004: the command-palette editor entries are now enabled + dispatch ─────────────────────
@@ -818,5 +838,180 @@ fn editor_menu_catalog_has_the_contract_ids() {
             "menu command id '{id}' present: {menu:?}"
         );
     }
-    assert_eq!(menu.len(), 22, "exactly 22 EditorMenu commands wired");
+    // MT-069 REMEDIATION: the original 22 plus the 9 GO code-navigation shell commands (definition /
+    // references / workspace-symbol / line / next+prev diagnostic / back / forward / symbol-in-file).
+    assert_eq!(menu.len(), 31, "exactly 31 EditorMenu commands wired");
+}
+
+// ── WP-KERNEL-012 MT-069 REMEDIATION: FILE > Export Document reaches the REAL export path ──────────────
+
+/// An Export Document menu click yields REAL EXPORT BYTES through the MT-020 export path
+/// (`export_document` -> the file-save sink -> `pending_file_save`), NOT a SaveManager save — the
+/// pre-remediation build silently routed the four Export items to the plain SaveManager save (the
+/// lying-enabled path). The kittest installs the synchronous `PathFileSaveSink` test sink (HBR-QUIET:
+/// no OS dialog) and clicks the menu item through the SAME out-of-process AccessKit path a swarm agent
+/// uses, then asserts the export bytes landed on disk and the MT-020 SaveManager state machine did NOT
+/// move.
+#[test]
+fn file_export_click_yields_export_bytes_not_save_manager_state() {
+    use handshake_native::rich_editor::save::conflict_ui::PathFileSaveSink;
+
+    let (mut app, _rt) = editor_shell();
+    let export_dir = external_artifact_dir("wp-kernel-012-mt-069").join("menu-export-sink");
+    let _ = std::fs::remove_dir_all(&export_dir);
+    app.set_export_save_sink_for_test(std::sync::Arc::new(PathFileSaveSink::new(&export_dir)));
+    let rich_state = app.mounted_rich_state();
+    let mut harness = shell_harness(app);
+    harness.run_steps(3);
+
+    assert!(
+        !rich_state.lock().unwrap().save_is_in_flight(),
+        "SaveManager idle before the export click"
+    );
+
+    // Open FILE, click Export Document as JSON by its stable author_id (the swarm-agent click path).
+    harness.get_by_label("FILE").click();
+    harness.run();
+    click_author_id(&mut harness, "menu.file.export-json");
+    harness.run_steps(2);
+
+    // The REAL export path ran: export bytes were written through the sink (export_document -> the
+    // FileSaveSink -> pending_file_save, drained by the editor's own poll on the next frame).
+    let entries: Vec<std::path::PathBuf> = std::fs::read_dir(&export_dir)
+        .map(|it| it.flatten().map(|e| e.path()).collect())
+        .unwrap_or_default();
+    assert_eq!(
+        entries.len(),
+        1,
+        "exactly one export written by the menu click: {entries:?}"
+    );
+    let bytes = std::fs::read(&entries[0]).expect("read export bytes");
+    assert!(
+        !bytes.is_empty(),
+        "the export click produced REAL export bytes (ProseMirror JSON), got an empty file at {:?}",
+        entries[0]
+    );
+    assert!(
+        entries[0]
+            .extension()
+            .map(|e| e == "json")
+            .unwrap_or(false),
+        "the NAMED format (Export as JSON) was honored: {:?}",
+        entries[0]
+    );
+
+    // NOT SaveManager state: the export click must NOT move the MT-020 SaveManager state machine (the
+    // pre-remediation behavior this test locks out).
+    assert!(
+        !rich_state.lock().unwrap().save_is_in_flight(),
+        "MT-069: an Export click must NOT dispatch a SaveManager save (the lying-enabled path)"
+    );
+
+    assert_no_local_artifact_dir();
+}
+
+// ── WP-KERNEL-012 MT-009 REMEDIATION: the operator route renders a REAL diff ────────────────────────────
+
+/// The palette `View: Diff / Merge` command (the operator route) CONSTRUCTS a real `DiffEditorPanel`
+/// into the mounted `diff_slot` from the two REAL conflict buffers (local vs server) and the
+/// Diff/Merge pane RENDERS it — pre-remediation, `diff_slot` was never populated, so the pane was a
+/// permanent empty state. The conflict is installed on the mounted document's OWN SaveManager state
+/// machine (the exact state a 409 save lands in), then the dispatch runs through the SAME
+/// `dispatch_palette_action` arm a palette Run reaches.
+#[test]
+fn palette_diff_merge_route_renders_real_diff_from_save_conflict() {
+    use handshake_native::command_registry::CMD_VIEW_DIFF_MERGE;
+    use handshake_native::rich_editor::save::save_manager::{RichDocLoad, SaveState};
+
+    let (app, _rt) = editor_shell();
+    let rich_state = app.mounted_rich_state();
+    let mut harness = shell_harness(app);
+    harness.run_steps(3);
+
+    // The mounted diff slot starts EMPTY (the pre-remediation permanent empty state).
+    assert!(
+        harness
+            .state()
+            .mounted_diff_slot()
+            .lock()
+            .unwrap()
+            .is_none(),
+        "diff_slot is empty before the operator route runs"
+    );
+
+    // Put the mounted document's SaveManager into a REAL save CONFLICT (the state a 409 lands in) —
+    // the two content trees below are the two REAL buffers the shell diffs. The fresh mount carries no
+    // SaveManager (it binds on document load), so the test installs the REAL production SaveManager
+    // type first — the shell reads the SAME `save.state` machine either way.
+    {
+        let mut state = rich_state.lock().unwrap();
+        if state.save.is_none() {
+            state.save = Some(
+                handshake_native::rich_editor::save::save_manager::SaveManager::new(
+                    std::sync::Arc::new(handshake_native::backend_client::RichDocSaveBackend::new(
+                        "http://127.0.0.1:1",
+                    )),
+                    None,
+                    "KRD-conflict-mt009",
+                    7,
+                ),
+            );
+        }
+        let save = state
+            .save
+            .as_mut()
+            .expect("the mounted rich state carries the MT-020 SaveManager");
+        save.state = SaveState::Conflict {
+            server: Box::new(RichDocLoad {
+                rich_document_id: "KRD-conflict-mt009".to_owned(),
+                doc_version: 7,
+                title: "conflicted-doc".to_owned(),
+                content_json: Some(serde_json::json!({
+                    "type": "doc",
+                    "content": [{ "type": "paragraph", "content": [
+                        { "type": "text", "text": "SERVER version of the paragraph" }
+                    ]}]
+                })),
+                updated_at: None,
+            }),
+            local_content: serde_json::json!({
+                "type": "doc",
+                "content": [{ "type": "paragraph", "content": [
+                    { "type": "text", "text": "LOCAL version of the paragraph" }
+                ]}]
+            }),
+        };
+    }
+
+    // THE OPERATOR ROUTE: dispatch the palette `View: Diff / Merge` command through the same
+    // production dispatcher a palette Run reaches.
+    let fired = harness
+        .state_mut()
+        .dispatch_palette_action_for_test(CMD_VIEW_DIFF_MERGE);
+    assert!(
+        fired,
+        "palette View: Diff/Merge dispatched an observable effect"
+    );
+    harness.run_steps(3);
+
+    // A REAL DiffEditorPanel was constructed into the mounted diff_slot from the conflict buffers…
+    assert!(
+        harness
+            .state()
+            .mounted_diff_slot()
+            .lock()
+            .unwrap()
+            .is_some(),
+        "MT-009: the operator route POPULATED diff_slot with a real DiffEditorPanel \
+         (pre-remediation it was never populated)"
+    );
+
+    // …and the Diff/Merge pane RENDERS it: the diff panel's stable author_id is live in the tree.
+    let ids = live_author_nodes(&harness);
+    assert!(
+        ids.iter().any(|(a, _, _)| a == "diff_editor_panel"),
+        "MT-009: a real diff RENDERS via the operator route (the 'diff_editor_panel' AccessKit node \
+         is live); got {} author nodes",
+        ids.len()
+    );
 }

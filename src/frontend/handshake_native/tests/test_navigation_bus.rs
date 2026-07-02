@@ -112,12 +112,14 @@ fn quick_switcher_target_routes_into_correct_pane_by_id() {
     );
 
     // AC-070-3: the bus routed the selection INTO the correct pane addressed by a STABLE id — the shell's
-    // `open_navigator_tab` set `active_pane` to the landing pane id. Assert the focused pane id equals the
-    // deterministic target pane id (the lowest tab-bar pane, "pane-a").
+    // `open_navigator_tab` set `active_pane` to the landing pane id. With no operator-focused pane, the
+    // navigator prefers the pane that already HOSTS the requested surface (`navigator_target_pane`), so a
+    // document/Notes open lands on the seeded Notes pane, "pane-b" (the re-typed rich editor) — routed by
+    // stable id, never duplicated into a second editor on the lowest pane.
     assert_eq!(
         app.active_pane().map(|p| p.as_ref()),
-        Some("pane-a"),
-        "the focused/active pane id after dispatch equals the target pane id (routed by stable id)",
+        Some("pane-b"),
+        "the focused/active pane id after dispatch equals the Notes-hosting pane id (routed by stable id)",
     );
 }
 
@@ -182,5 +184,55 @@ fn unknown_pane_focus_returns_pane_not_found_never_panics() {
     assert!(
         matches!(&reveal_err, Err(NavError::PaneNotFound { .. })),
         "RevealNode on a closed pane -> PaneNotFound, got {reveal_err:?}",
+    );
+}
+
+// ── WP-KERNEL-012 MT-070 REMEDIATION: the node context menu CONSUMES navigation_bus::dispatch ──────────
+
+/// A confirmed graph-node context-menu action (the MT-070 `show_node_menu` layer, now wired into the
+/// live graph/canvas widgets) drains through the host and routes through
+/// `node_navigation_target` -> `navigation_bus::dispatch` on the LIVE shell — the click-through wiring
+/// that previously had ZERO product call sites. The proof pushes the exact `GraphEvent::NodeMenu` the
+/// widget emits on a confirmed "Reveal Node" into the mounted graph pane's outbound queue, runs live
+/// frames, and asserts (1) the host DRAINED it and (2) the dispatch landed a LoomBlock tab carrying the
+/// node's stable block id (the `RevealNode` target reconciles to `open_loom_block`).
+#[test]
+fn graph_node_menu_action_dispatches_through_navigation_bus() {
+    use egui_kittest::Harness;
+    use handshake_native::context_menu_surfaces::NodeMenuAction;
+    use handshake_native::graph::graph_view::GraphEvent;
+
+    let app = editor_shell();
+    let events = app.editor_mounts_graph_events_for_test();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+
+    events.lock().unwrap().push(GraphEvent::NodeMenu {
+        block_id: "blk-node-menu-1".to_owned(),
+        action: NodeMenuAction::RevealNode,
+    });
+    harness.run_steps(2);
+
+    assert!(
+        events.lock().unwrap().is_empty(),
+        "MT-070: the NodeMenu event was DRAINED by the host (routed, not dropped)"
+    );
+    // The RevealNode target dispatched through the bus onto the live shell's open_loom_block seam:
+    // a LoomBlock tab carrying the node's stable block id now exists.
+    let landed = harness
+        .state_mut()
+        .tab_bar_states_mut()
+        .values()
+        .any(|bar| {
+            bar.tabs.iter().any(|tab| {
+                tab.pane_type == PaneType::LoomBlock
+                    && tab.content_id.as_deref() == Some("blk-node-menu-1")
+            })
+        });
+    assert!(
+        landed,
+        "MT-070: the confirmed node-menu RevealNode dispatched through navigation_bus::dispatch and \
+         landed a LoomBlock tab for the node's stable id"
     );
 }

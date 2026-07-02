@@ -469,6 +469,14 @@ fn tier3_artifacts_are_typed_allowlist_only() {
         "faulting_thread_id",
         "minidump_path",
         "captured_at_unix_ms",
+        // MT-106 CHILD-STALL extension — all typed numerics (pid, opaque session token, progress
+        // counters, a closed reason-code enum), no free text; asserted field-by-field by the fr_forward
+        // unit test `survivor_forward_body_carries_child_stall_fields`.
+        "child_process_id",
+        "child_session_id",
+        "last_progress_counter",
+        "last_progress_ts_nanos",
+        "child_stall_reason_code",
     ]
     .into_iter()
     .collect();

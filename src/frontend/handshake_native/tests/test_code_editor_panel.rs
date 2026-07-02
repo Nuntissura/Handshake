@@ -11,7 +11,8 @@
 //!
 //! MT-002 (new):
 //! - PT-002 / AC-002: `large_file_frame_time` renders a 100 000-line buffer for 60 frames and asserts
-//!   the per-frame budget; writes `MT-002-bench.json` to the EXTERNAL artifact root.
+//!   the per-frame budget; writes profile-scoped `MT-002-bench-{debug|release}.json` to the EXTERNAL
+//!   artifact root (the stale unsuffixed `MT-002-bench.json` is superseded on the first suffixed write).
 //! - PT-003 / AC-003 + AC-007: `scroll_mid_virtualizes` scrolls a 200-line buffer to line 100 and
 //!   proves `last_visible_range()` is egui's ACTUAL painted `row_range` by reconciling it against the
 //!   on-screen labels — every in-range line has a label, and the lines just outside the range (and
