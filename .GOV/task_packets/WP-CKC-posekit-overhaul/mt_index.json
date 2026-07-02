@@ -312,20 +312,24 @@
     },
     {
       "mt_id": "MT-031",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
+      "product_commit": "2c40f35f",
       "title": "Add durable Facial command degraded and error receipt envelopes",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-031.json",
       "product_edit_allowed": true,
       "started_at_utc": null,
-      "parallel_lane_note": "Follow-up from MT-029 post-review; backend must produce degraded/blocked/error command envelopes before frontend accepts them."
+      "parallel_lane_note": "Follow-up from MT-029 post-review; backend must produce degraded/blocked/error command envelopes before frontend accepts them.",
+      "reality": "Committed 2c40f35f (2026-07-03): durable Facial EXPORT command envelopes. New FacialCommandOutcomeResponse returned at HTTP 200 for blocked/degraded/error/succeeded, each with a read-backable ArtifactStore receipt (reused FACIAL_API_COMMAND_RECEIPT_SCHEMA_ID, content-hash validated, no SQLite/table/EventLedger). blocked=deterministic undecided-items pre-check + stable code + recovery_hint (no domain call); degraded=strict funnel-undecided||problems; error=stable code only (no raw domain string) + recovery_hint; succeeded byte-identical top-level. Frontend parser flipped to accept the 4 statuses (was succeeded-only). Post-review found+fixed 1 regression: MT-030's drain Ok-arm hardcoded 'succeeded' - now branches on row.status so non-succeeded renders an honest failure line. Manual updated. Proof: backend atelier_facial_api_tests 2/2 managed PG; parser 1/1; test_atelier_panel 34/1 (1=pre-existing MT-016 :2812=D5) incl. facial_review_blocked_command_status_line_is_honest_not_succeeded (locks the regression) + MT-030/MT-020 regressions clean; test_manual_pane_editors 14/14. GLOBAL-SCOPE-005 waiver: atelier_panel.rs (the drain fix this MT's parser flip caused) + manual (operator manual-update goal) beyond the contract allowed_paths. Deferred to MT-044 (D15): envelope-wrap the other 5 review commands + reject/hold-vs-degraded spec decision."
     },
     {
       "mt_id": "MT-032",
-      "status": "PENDING",
+      "status": "READY_FOR_VALIDATION",
+      "product_commit": "dba73d95",
       "title": "Harden CKC linked-media Argus readouts and actor controls",
       "contract_path": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-032.json",
       "product_edit_allowed": true,
       "started_at_utc": null,
+      "reality": "ALREADY IMPLEMENTED + committed dba73d95 (2026-07-01, ancestor of HEAD) 'Finish CKC linked media Argus hardening'; the contract status had drifted to PENDING (workflow-state drift, NOT a build task). Pre-impl scout + validation confirmed all base_scope present in clean/committed files: stable atelier-ckc-media-* + atelier-ckc-selected-*-ref author_ids (atelier_panel.rs:130-137), value-bearing emit_value_node readouts (not painted text), steerable actor TextInput threaded into album-create/link/notes-save + local-fallback status, empty-input/missing-album/degraded status text, manual rows (manual_content_editors.rs:519-529) + id-audit allowlist. Validated at HEAD post-MT-031: the 3 contract proof tests (argus_reads_structured_ckc_media_refs_and_actor_surface, argus_creates_and_links_ckc_media_with_actor_status, ckc_media_backend_requests_are_actor_attributed_and_persistence_routes) pass within test_atelier_panel 34/1 (only failure = pre-existing MT-016 :2812=D5); manual/id-audit via test_manual_pane_editors 14/14. No product build needed - status flip only. MT-032/MT-036 boundary: MT-032 owns selection-scoped singleton readouts + the global writer actor; per-row provenance is MT-036. Deferred to MT-044: server-side actor anti-spoof (backend).",
       "parallel_lane_note": "Follow-up from MT-010 review; captures selected media readouts, actor controls, and local fallback status hardening."
     },
     {
