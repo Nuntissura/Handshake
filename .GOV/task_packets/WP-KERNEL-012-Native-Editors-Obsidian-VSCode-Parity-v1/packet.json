@@ -12,7 +12,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "base_wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-02T03:53:43Z",
+  "updated_at_utc": "2026-07-02T04:08:05Z",
   "title": "Native Editors: Obsidian + VS Code parity + interconnection (Rust)",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
@@ -318,7 +318,8 @@
         "name": "Drift-audit re-scope + residual hardening (2026-07-02)",
         "mt_ids": [
           "MT-107",
-          "MT-108"
+          "MT-108",
+          "MT-109"
         ],
         "summary": "MT-107 re-scopes the backend launch-contract validator + managed-PG/artifact-root remediation that rode into recovery commit 3bf307a8 under MT-101 (forbidden-path breach disclosure per GLOBAL-SCOPE-005). MT-108 collects wave-A audit minors as a tracked residual-hardening backlog so approved-minor gaps are not lost."
       }
@@ -431,7 +432,8 @@
       "MT-105",
       "MT-106",
       "MT-107",
-      "MT-108"
+      "MT-108",
+      "MT-109"
     ],
     "active_id": "MT-101",
     "next_id": "WP_VALIDATION",
@@ -543,7 +545,8 @@
       "MT-105": "READY_FOR_VALIDATION",
       "MT-106": "CLAIMED",
       "MT-107": "CLAIMED",
-      "MT-108": "PENDING"
+      "MT-108": "PENDING",
+      "MT-109": "PENDING"
     },
     "kernel_builder_sequence_note": "KERNEL_BUILDER re-sequence 2026-06-24: the E8 proof capstones MT-044 (parity suite, depends_on 001-043+047-062), MT-045 (perf proof), MT-046 (interconnection proof) are DEFERRED to the END of the WP - they prove the whole editor set + most of their proofs need a live managed PostgreSQL (NEEDS_MANAGED_RESOURCE_PROOF). Build the remaining FEATURE MTs first in numeric order: E1-deepening 047-054, E2-deepening 055-059, E3-deepening 060-062, E9 063-065, E10 066-068+074, E11 host-mount 069-071 (the convergence point that mounts the editors live + clears the carry-forwards), E12 072-073, E13 i18n 075-078. THEN run the 044-046 capstones last for a truthful comprehensive parity manifest.",
     "wp_status": "IN_PROGRESS_DRIFT_AUDIT_REWORK",
@@ -575,7 +578,7 @@
     "contract_glob": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-*.json",
     "authoring_status": "AUTHORED",
     "authored_at_utc": "2026-06-21T00:00:00Z",
-    "authored_count": 80,
+    "authored_count": 81,
     "authored_via": "46 base via workflow wf_3d7b88d0-301 (2026-06-19); +28 expansion MT-047..MT-074 via workflow wf_01ae2073-72e (2026-06-21); +4 i18n MT-075..MT-078 (E13) authored directly by KERNEL_BUILDER 2026-06-22 (operator-ordered scope expansion, based on the existing MT template). All reviewed by KERNEL_BUILDER."
   },
   "packet_acceptance_matrix": {

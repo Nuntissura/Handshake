@@ -1,0 +1,126 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-109",
+  "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
+  "group": "R1",
+  "created_at_utc": "2026-07-02T04:08:05Z",
+  "updated_at_utc": "2026-07-02T04:08:05Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": null,
+    "status": "NOT_GENERATED_JSON_AUTHORITY",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [],
+    "blocks": [
+      "MT-036",
+      "MT-063",
+      "MT-064",
+      "MT-074"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING",
+    "remediation_appendage": "Build the backend routes that E5/E9/E10 native-editor work is typed-blocked on: (1) FR native-editor ingestion - extend api/flight_recorder.rs beyond the closed RuntimeChatEventV0_1 shape (deny_unknown_fields, 3-variant enum, hardcoded actor_id runtime_chat, UUID-only session_id) to accept a versioned native-editor event family covering NativeEditorAction kinds plus the 5 un-emitted interop kinds (STAGE_EMBED_BACK, CALENDAR_EVENT_BOUND, ACTIVITY_SPAN_CORRELATED, LOCUS_REF_RESOLVED, LOCUS_REVERSE_LOOKUP); (2) GET /memory/pack returning the REAL ace::MemoryPack shape (memory_id/memory_class/source_refs - the native client model must be aligned in the paired frontend change); (3) POST /memory/proposals review-gated intake (proposals land as pending review items, NEVER direct memory commits). All PostgreSQL/EventLedger-backed, no SQLite. Frontend pairing (emit variants + client model alignment + un-ignoring the gated E9 proofs) is wave-2 native work that this MT unblocks."
+  },
+  "scope": {
+    "summary": "Backend counterpart for the native editors WP: FR native-editor event ingestion, FEMS memory-pack read route, review-gated memory-proposal intake. Discovered by the 2026-07-02 drift audit as verified typed blockers behind MT-036 (event emitter has no ingestible backend shape), MT-063 (no /memory/pack route; client shape drift vs ace::MemoryPack), MT-064 (no /memory/proposals route), MT-074 (5 expected FR event kinds emitted by nothing and ingestible by nothing). Survivor-forward ingestion (MT-093) intentionally stays WP-KERNEL-016 scope - do not fold it in here.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/api/flight_recorder.rs",
+      "src/backend/handshake_core/src/api/mod.rs",
+      "src/backend/handshake_core/src/api/",
+      "src/backend/handshake_core/src/ace/",
+      "src/backend/handshake_core/src/storage/",
+      "src/backend/handshake_core/tests/"
+    ],
+    "forbidden_paths": [
+      "src/frontend/"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-109-1",
+        "text": "POST flight-recorder ingestion accepts a versioned native-editor event envelope (documented kind vocabulary incl. the 5 interop kinds) with typed rejection of unknown kinds/fields; events land in the FR authority store and are readable back via the existing GET route; idempotency on event_id; proven against real managed PostgreSQL."
+      },
+      {
+        "id": "AC-109-2",
+        "text": "GET /memory/pack returns the real ace::MemoryPack item shape; proven with a seeded pack against managed PostgreSQL; response shape asserted field-by-field so the native client alignment has a pinned contract."
+      },
+      {
+        "id": "AC-109-3",
+        "text": "POST /memory/proposals stores a review-gated proposal (document_id + selection-range + content-hash provenance required, fail-closed on missing provenance); a negative test proves proposals can NOT mutate memory directly; proven against managed PostgreSQL."
+      },
+      {
+        "id": "AC-109-4",
+        "text": "No SQLite anywhere; all durable writes through the PostgreSQL/EventLedger authority path; cargo check + targeted backend tests green."
+      }
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml <new fr ingestion tests> (managed PG auto-boot)",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml <memory pack + proposal route tests> (managed PG auto-boot)"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Backend routes only; the operator-visible surfaces (FR pane, relevant-memory pane, proposal dialog) are owned by the paired frontend MTs (MT-036/063/064) which this MT unblocks."
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "No operator-facing behavior change until the frontend pairing lands; manual entries for the composed flows are owned by the frontend MTs per their contracts."
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Widening the FR ingestion surface can weaken the typed-event discipline (free-text smuggling through new fields).",
+      "Memory-proposal intake could become a direct memory write path if the review gate is bypassed server-side.",
+      "Shape drift between ace::MemoryPack and the pinned AC-109-2 contract re-introduces the exact client decode failure the audit found."
+    ],
+    "minimum_controls": [
+      "deny_unknown_fields + closed kind vocabulary on the new envelope; free-text only in bounded, named fields.",
+      "Negative test: direct memory mutation via the proposals route must fail closed (AC-109-3).",
+      "Field-by-field response-shape assertion pinned in tests (AC-109-2) so frontend alignment has a stable contract."
+    ]
+  }
+}
