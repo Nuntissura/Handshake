@@ -1294,12 +1294,23 @@ fn moodboard_position(row: &serde_json::Value) -> (f32, f32) {
         .unwrap_or((40.0, 40.0))
 }
 
+/// WP-CKC MT-012 (F2): the minimum on-canvas render size the forward projection clamps moodboard
+/// element cards to (a valid `hsk.atelier.moodboard@1` element may store any `width`/`height`
+/// `exclusiveMinimum:0`, but a sub-minimum card would be unclickable/invisible on the board). The reverse
+/// projection ([`merge_moodboard_size`]) MUST mirror this clamp when deciding whether a size changed, so a
+/// stored 30x20 element that the board renders at 48x32 round-trips as a no-op instead of being silently
+/// GROWN to 48x32 on save. This projection floor is deliberately separate from the LIVE-resize floor
+/// (`canvas_board::MIN_CARD_W`=80 / `MIN_CARD_H`=48): the resize floor only bounds a drag gesture and never
+/// rewrites stored geometry on its own, whereas this floor governs the initial projection of stored sizes.
+const MOODBOARD_MIN_ELEMENT_W: f32 = 48.0;
+const MOODBOARD_MIN_ELEMENT_H: f32 = 32.0;
+
 fn moodboard_size(row: &serde_json::Value, fallback_w: f32, fallback_h: f32) -> (f32, f32) {
     row.get("size")
         .map(|size| {
             (
-                json_field_f32(size, "width", fallback_w).max(48.0),
-                json_field_f32(size, "height", fallback_h).max(32.0),
+                json_field_f32(size, "width", fallback_w).max(MOODBOARD_MIN_ELEMENT_W),
+                json_field_f32(size, "height", fallback_h).max(MOODBOARD_MIN_ELEMENT_H),
             )
         })
         .unwrap_or((fallback_w, fallback_h))
@@ -1485,6 +1496,139 @@ pub fn ckc_moodboard_json_to_canvas_projection(
         pan: egui::Vec2::ZERO,
         zoom: 1.0,
     })
+}
+
+/// WP-CKC MT-012 (FIX 1): overwrite `item.position` ONLY when the live f32 geometry differs from the
+/// stored value read back as f32. The forward projection cast each stored `f64` through `f32`, so an
+/// element that was NOT moved compares bit-equal here and its JSON number is left byte-untouched — that
+/// is what keeps a load -> edit-nothing -> save idempotent (identical `content_sha256`, backend dedup).
+fn merge_moodboard_position(item: &mut serde_json::Value, x: f32, y: f32) {
+    let stored = item.get("position");
+    let sx = stored
+        .and_then(|p| p.get("x"))
+        .and_then(serde_json::Value::as_f64);
+    let sy = stored
+        .and_then(|p| p.get("y"))
+        .and_then(serde_json::Value::as_f64);
+    if sx.map(|v| v as f32) == Some(x) && sy.map(|v| v as f32) == Some(y) {
+        return;
+    }
+    if let Some(obj) = item.as_object_mut() {
+        obj.insert(
+            "position".to_owned(),
+            serde_json::json!({ "x": x as f64, "y": y as f64 }),
+        );
+    }
+}
+
+/// WP-CKC MT-012 (FIX 1 + F2): precision-guarded merge of the `item.size` (`width`/`height`) box for
+/// image and shape elements. Compares the LIVE size against the stored size AFTER applying the SAME
+/// forward-projection floor ([`MOODBOARD_MIN_ELEMENT_W`]/[`MOODBOARD_MIN_ELEMENT_H`]) that produced the
+/// live value, so a stored sub-minimum element (e.g. 30x20 rendered at 48x32) compares equal and is left
+/// byte-untouched. Without mirroring the clamp, EVERY save would silently GROW such elements to the floor
+/// and change the content_sha256 (defeating the no-op dedup). A genuine resize still differs from the
+/// clamped-stored value and is written through.
+fn merge_moodboard_size(item: &mut serde_json::Value, w: f32, h: f32) {
+    let stored = item.get("size");
+    let sw = stored
+        .and_then(|p| p.get("width"))
+        .and_then(serde_json::Value::as_f64);
+    let sh = stored
+        .and_then(|p| p.get("height"))
+        .and_then(serde_json::Value::as_f64);
+    let unchanged = sw.map(|v| (v as f32).max(MOODBOARD_MIN_ELEMENT_W)) == Some(w)
+        && sh.map(|v| (v as f32).max(MOODBOARD_MIN_ELEMENT_H)) == Some(h);
+    if unchanged {
+        return;
+    }
+    if let Some(obj) = item.as_object_mut() {
+        obj.insert(
+            "size".to_owned(),
+            serde_json::json!({ "width": w as f64, "height": h as f64 }),
+        );
+    }
+}
+
+/// WP-CKC MT-012 (FIX 1): the REVERSE of [`ckc_moodboard_json_to_canvas_projection`]. Reads the LIVE
+/// moodboard [`LoomCanvasBoard`] and folds its per-element geometry (position for text; position + size
+/// for images/shapes) back onto `prev_snapshot_json`, which supplies every NON-visual field
+/// (schema_id, moodboard_id, canvas, layers, connectors, folders, guides, flags, style, history and —
+/// crucially — each image's ArtifactStore `source`/`asset_id`/`url` ref, per the MT-043
+/// `atelier://media/<uuid>` scheme, NEVER a Loom `placed_block_id`). Elements are matched by the
+/// `element_id` embedded in each placement id (`moodboard-{kind}-{element_id}`, see
+/// [`moodboard_element_placement_id`]); a placement with no matching element is ignored, and an element
+/// with no matching placement keeps its stored geometry (so an unopened/empty board never strips a
+/// snapshot).
+///
+/// A no-op save (nothing moved/resized) re-serializes byte-identically to the stored snapshot. This holds
+/// NOT because keys are sorted — the `handshake_native` crate resolves `serde_json` with the
+/// `preserve_order` feature (indexmap), so object keys keep INSERTION order — but by three invariants
+/// working together: (1) the backend hashes, stores, and returns the exact submitted `raw_json_text`
+/// bytes verbatim (`content_sha256` is over those bytes), and `prev_snapshot_json` is parsed from that
+/// text, so `preserve_order` reproduces its key order on re-`to_string`; (2) we emit COMPACT
+/// `serde_json::to_string` (no whitespace), matching every producer in this module
+/// (`local_ckc_moodboard_snapshot_json` and prior saves); (3) the f32 read-back guard
+/// ([`merge_moodboard_position`]) and the clamp-mirroring guard ([`merge_moodboard_size`]) leave an
+/// unedited element's numbers untouched, so no number is re-formatted. Together these make a no-op the
+/// same bytes -> same `content_sha256` -> backend dedup suppresses a redundant snapshot.
+///
+/// `pan`/`zoom` are intentionally NOT written back: `hsk.atelier.moodboard@1` has no viewport field
+/// (`additionalProperties:false`), so persisting them would make the snapshot fail Draft 2020-12
+/// validation; the forward projection re-centres the viewport on load.
+pub fn board_to_ckc_moodboard_json(
+    board: &LoomCanvasBoard,
+    prev_snapshot_json: &serde_json::Value,
+) -> String {
+    let mut out = prev_snapshot_json.clone();
+
+    // Index the live placements by their moodboard element_id, split by kind so text (position only)
+    // and image/shape (position + size) update the correct fields.
+    let mut text_pos: BTreeMap<String, (f32, f32)> = BTreeMap::new();
+    let mut boxed_geom: BTreeMap<String, (f32, f32, f32, f32)> = BTreeMap::new();
+    for card in &board.placements {
+        if let Some(element_id) = card.placement_id.strip_prefix("moodboard-text-") {
+            text_pos.insert(element_id.to_owned(), (card.x, card.y));
+        } else if let Some(element_id) = card.placement_id.strip_prefix("moodboard-image-") {
+            boxed_geom.insert(element_id.to_owned(), (card.x, card.y, card.w, card.h));
+        } else if let Some(element_id) = card.placement_id.strip_prefix("moodboard-shape-") {
+            boxed_geom.insert(element_id.to_owned(), (card.x, card.y, card.w, card.h));
+        }
+    }
+
+    if let Some(items) = out.get_mut("text").and_then(|v| v.as_array_mut()) {
+        for item in items {
+            let Some(element_id) = item
+                .get("element_id")
+                .and_then(serde_json::Value::as_str)
+                .map(ToOwned::to_owned)
+            else {
+                continue;
+            };
+            if let Some((x, y)) = text_pos.get(&element_id).copied() {
+                merge_moodboard_position(item, x, y);
+            }
+        }
+    }
+
+    for key in ["images", "shapes"] {
+        if let Some(items) = out.get_mut(key).and_then(|v| v.as_array_mut()) {
+            for item in items {
+                let Some(element_id) = item
+                    .get("element_id")
+                    .and_then(serde_json::Value::as_str)
+                    .map(ToOwned::to_owned)
+                else {
+                    continue;
+                };
+                if let Some((x, y, w, h)) = boxed_geom.get(&element_id).copied() {
+                    merge_moodboard_position(item, x, y);
+                    merge_moodboard_size(item, w, h);
+                }
+            }
+        }
+    }
+
+    serde_json::to_string(&out).unwrap_or_else(|_| prev_snapshot_json.to_string())
 }
 
 impl CkcSearchResultRecord {
@@ -2344,6 +2488,11 @@ fn apply_ckc_moodboard_snapshot_row(
             moodboard.latest_snapshot_ref = Some(row.moodboard_ref);
             moodboard.moodboard_name = row.moodboard_name;
             moodboard.body_raw_text = row.raw_json_text;
+            // WP-CKC MT-012 (F1): advance the tracked document version to the refreshed head so the NEXT
+            // save sends a fresh `expected_parent_version_id`. Without this, a
+            // `stale_moodboard_document_version` conflict + auto-refresh would leave `current_version_id`
+            // stale and every subsequent re-save would re-conflict forever (only a full re-open recovered).
+            moodboard.current_version_id = Some(row.document_version_id);
             return Ok((
                 Some(format!("Opened CKC moodboard snapshot {snapshot_id}")),
                 projection,
@@ -2420,6 +2569,13 @@ struct AtelierPanelState {
     ckc_moodboard_status: String,
     ckc_active_story_document_id: Option<String>,
     ckc_active_moodboard_document_id: Option<String>,
+    /// WP-CKC MT-012 (F3): set true when a `stale_moodboard_document_version` save conflict queued an
+    /// auto-refresh of the latest snapshot. While set, the NEXT latest-snapshot result is treated as a
+    /// conflict recovery: it refreshes `current_version_id`/`body_raw_text` (so the re-save carries a fresh
+    /// parent) but does NOT re-project onto the live board, so the operator's just-failed canvas edits are
+    /// preserved for a re-save (last-writer-wins after refresh). Cleared on the first result consumed, so a
+    /// normal open never mistakes itself for a recovery and no refetch loop can form.
+    ckc_moodboard_conflict_recovery: bool,
     ckc_character_notes_buffer: String,
     ckc_character_notes_source_key: Option<String>,
     ckc_character_notes_status: String,
@@ -2579,6 +2735,7 @@ impl Default for AtelierPanelState {
                     .to_owned(),
             ckc_active_story_document_id: None,
             ckc_active_moodboard_document_id: None,
+            ckc_moodboard_conflict_recovery: false,
             ckc_character_notes_buffer: String::new(),
             ckc_character_notes_source_key: None,
             ckc_character_notes_status:
@@ -4757,8 +4914,15 @@ fn ingest_item_decision(state: &AtelierPanelState, item: &AtelierItemRow) -> Ing
 pub struct AtelierPanel {
     state: Mutex<AtelierPanelState>,
     side_panel: Arc<Mutex<AtelierSidePanel>>,
-    canvas_board: Arc<Mutex<LoomCanvasBoard>>,
-    canvas_events: Arc<Mutex<Vec<CanvasEvent>>>,
+    /// WP-CKC MT-012 (FIX 2): the moodboard's OWN isolated canvas board. The app-wide shared Loom
+    /// singleton (created in `app.rs::install_secondary_mounts` and driven by the Loom canvas pane) is
+    /// deliberately NOT held here anymore: the moodboard used to render + `set_board` that shared board
+    /// and push its `CanvasEvent`s into the shared `canvas_events` queue, so its visual edits were routed
+    /// to the workspace `default-canvas` block (and dropped) instead of the `atelier_moodboard` snapshot,
+    /// and it clobbered the Loom pane. This board's ONLY persistence path is the snapshot
+    /// reverse-projection ([`board_to_ckc_moodboard_json`]) performed by "Save moodboard". De-singletoning
+    /// the whole app is out of scope (MT-022); this only stops the moodboard writing to the wrong store.
+    moodboard_board: Arc<Mutex<LoomCanvasBoard>>,
     ckc_client: Option<AtelierClient>,
     ckc_cell: AtelierCkcCell,
     ckc_create_cell: AtelierCkcCreateCell,
@@ -4809,8 +4973,11 @@ impl AtelierPanel {
 
     pub fn with_client(
         side_panel: Arc<Mutex<AtelierSidePanel>>,
-        canvas_board: Arc<Mutex<LoomCanvasBoard>>,
-        canvas_events: Arc<Mutex<Vec<CanvasEvent>>>,
+        // WP-CKC MT-012 (FIX 2): the shared Loom singleton + its event queue are still accepted for
+        // constructor-API stability (app.rs + the Loom pane still own/drive them), but the moodboard no
+        // longer touches them — it owns `moodboard_board` below. Bound to `_` so they are provably unused.
+        _canvas_board: Arc<Mutex<LoomCanvasBoard>>,
+        _canvas_events: Arc<Mutex<Vec<CanvasEvent>>>,
         ckc_client: Option<AtelierClient>,
     ) -> Self {
         let mut state = AtelierPanelState::default();
@@ -4825,8 +4992,13 @@ impl AtelierPanel {
         Self {
             state: Mutex::new(state),
             side_panel,
-            canvas_board,
-            canvas_events,
+            // WP-CKC MT-012 (FIX 2): a fresh board dedicated to the moodboard. The ids are moodboard-local
+            // (its cards reference `moodboard-*` element ids, not real Loom blocks), so it never addresses
+            // or persists into the shared Loom workspace/canvas block.
+            moodboard_board: Arc::new(Mutex::new(LoomCanvasBoard::new(
+                "atelier-ckc-moodboard",
+                "ckc-moodboard-canvas",
+            ))),
             ckc_client,
             ckc_cell: Arc::new(Mutex::new(None)),
             ckc_create_cell: Arc::new(Mutex::new(None)),
@@ -5478,6 +5650,10 @@ impl AtelierPanel {
             .ok()
             .and_then(|mut slot| slot.take());
         if let Some(result) = document_result {
+            // WP-CKC MT-012 (FIX 1): on an optimistic-concurrency conflict the moodboard head advanced
+            // under us; capture the document id to re-fetch AFTER releasing the state lock so the operator
+            // sees current backend state before re-saving (never a silent overwrite).
+            let mut moodboard_conflict_refresh_doc_id: Option<String> = None;
             if let Ok(mut state) = self.state.lock() {
                 match result {
                     Ok(row) => {
@@ -5503,12 +5679,46 @@ impl AtelierPanel {
                         state.ckc_error = None;
                     }
                     Err(err) => {
-                        state.ckc_story_status = format!("CKC story document save failed: {err}");
-                        state.ckc_moodboard_status =
-                            format!("CKC moodboard document save failed: {err}");
-                        state.ckc_error = Some(err);
+                        if err.contains("stale_moodboard_document_version") {
+                            // Typed conflict recovery: do NOT overwrite. Queue a refresh of the latest
+                            // snapshot for the active moodboard document and mark the next result as a
+                            // recovery so its consumer refreshes the tracked version WITHOUT clobbering the
+                            // operator's live canvas edits (F3).
+                            moodboard_conflict_refresh_doc_id = state
+                                .ckc_active_moodboard_document_id
+                                .clone()
+                                .filter(|id| !is_pending_ckc_document_id(id));
+                            state.ckc_moodboard_conflict_recovery =
+                                moodboard_conflict_refresh_doc_id.is_some();
+                            state.ckc_moodboard_status = if moodboard_conflict_refresh_doc_id.is_some()
+                            {
+                                "CKC moodboard save conflict (stale document version): your canvas edits \
+                                 are preserved; refreshing to the new head — click Save again to apply \
+                                 them over it"
+                                    .to_owned()
+                            } else {
+                                "CKC moodboard save conflict (stale document version): your edits were \
+                                 NOT overwritten; re-open the moodboard to refresh before saving"
+                                    .to_owned()
+                            };
+                            state.ckc_error = Some(err);
+                        } else {
+                            state.ckc_story_status =
+                                format!("CKC story document save failed: {err}");
+                            state.ckc_moodboard_status =
+                                format!("CKC moodboard document save failed: {err}");
+                            state.ckc_error = Some(err);
+                        }
                     }
                 }
+            }
+            if let (Some(client), Some(document_id)) =
+                (self.ckc_client.as_ref(), moodboard_conflict_refresh_doc_id)
+            {
+                client.fetch_ckc_latest_moodboard_snapshot(
+                    &document_id,
+                    self.ckc_moodboard_latest_cell.clone(),
+                );
             }
         }
 
@@ -5567,23 +5777,36 @@ impl AtelierPanel {
             .and_then(|mut slot| slot.take());
         if let Some(result) = moodboard_latest_result {
             if let Ok(mut state) = self.state.lock() {
+                // WP-CKC MT-012 (F3): consume the recovery flag exactly once, so at most one result is
+                // treated as a conflict recovery (a normal open never mistakes itself for one, and no
+                // refetch loop can form).
+                let conflict_recovery = state.ckc_moodboard_conflict_recovery;
+                state.ckc_moodboard_conflict_recovery = false;
                 match result {
                     Ok(row) => {
                         match apply_ckc_moodboard_snapshot_row(&mut state.ckc_characters, row) {
                             Ok((status, projection, snapshot_ref)) => {
                                 if status.is_some() {
-                                    match self.canvas_board.lock() {
-                                        Ok(mut board) => {
-                                            projection.apply_to_board(&mut board, &snapshot_ref);
-                                            state.ckc_moodboard_status = status.unwrap();
-                                            state.ckc_error = None;
-                                        }
-                                        Err(err) => {
-                                            state.ckc_moodboard_status =
-                                                format!("CKC moodboard canvas lock failed: {err}");
-                                            state.ckc_error =
-                                                Some(state.ckc_moodboard_status.clone());
-                                        }
+                                    if conflict_recovery {
+                                        // Refresh already advanced current_version_id + body_raw_text (via
+                                        // apply_ckc_moodboard_snapshot_row). Do NOT re-project onto the live
+                                        // board — that would clobber the operator's just-failed canvas edits.
+                                        // A re-save reverse-projects the preserved board over the new head.
+                                        let _ = (projection, snapshot_ref);
+                                        state.ckc_moodboard_status =
+                                            "CKC moodboard refreshed to the new head; your canvas edits \
+                                             are preserved — click Save again to apply them over it"
+                                                .to_owned();
+                                        state.ckc_error = None;
+                                    } else if let Ok(mut board) = self.moodboard_board.lock() {
+                                        projection.apply_to_board(&mut board, &snapshot_ref);
+                                        state.ckc_moodboard_status = status.unwrap();
+                                        state.ckc_error = None;
+                                    } else {
+                                        state.ckc_moodboard_status =
+                                            "CKC moodboard canvas lock failed".to_owned();
+                                        state.ckc_error =
+                                            Some(state.ckc_moodboard_status.clone());
                                     }
                                 } else {
                                     state.ckc_moodboard_status =
@@ -6900,20 +7123,22 @@ impl AtelierPanel {
         ui.separator();
         ui.heading(egui::RichText::new("Moodboard").color(palette.text));
         ui.add_space(4.0);
-        let mut event = None;
         let canvas_response = ui
             .scope_builder(
                 egui::UiBuilder::new()
                     .id_salt(egui::Id::new(ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID)),
                 |ui| {
-                    if let Ok(mut board) = self.canvas_board.lock() {
-                        event = board.show(ui, palette);
-                        let drained = board.drain_knowledge_events();
-                        if !drained.is_empty() {
-                            if let Ok(mut q) = self.canvas_events.lock() {
-                                q.extend(drained);
-                            }
-                        }
+                    // WP-CKC MT-012 (FIX 2): render the moodboard's OWN isolated board. Its interaction
+                    // events are intentionally DROPPED here rather than pushed into the shared
+                    // `canvas_events` queue that `app.rs::route_canvas_events` PATCHes onto the workspace
+                    // `default-canvas` block. `LoomCanvasBoard::show` mutates placement geometry IN PLACE
+                    // (drag/resize update `card.x/y/w/h` directly), so dropping the events loses no visual
+                    // state; the ONLY persistence path for the moodboard is the snapshot reverse-projection
+                    // performed by "Save moodboard" ([`board_to_ckc_moodboard_json`]). `drain_knowledge_events`
+                    // is still called to clear the board's per-frame swarm-dispatch queue.
+                    if let Ok(mut board) = self.moodboard_board.lock() {
+                        let _ = board.show(ui, palette);
+                        let _ = board.drain_knowledge_events();
                     }
                 },
             )
@@ -6926,11 +7151,6 @@ impl AtelierPanel {
             "Native CKC moodboard canvas surface",
             false,
         );
-        if let Some(ev) = event {
-            if let Ok(mut q) = self.canvas_events.lock() {
-                q.push(ev);
-            }
-        }
     }
 
     fn show_ckc_middle_work_panel(
@@ -7541,6 +7761,20 @@ impl AtelierPanel {
                             ),
                         );
                     }
+                    // WP-CKC MT-012 (FIX 1): the LIVE moodboard canvas is the source of truth on save.
+                    // Fold the isolated board's per-element geometry back onto the current snapshot JSON
+                    // (preserving every non-visual field + image ArtifactStore refs) BEFORE persisting, so
+                    // visual layout edits survive reload instead of being lost to the stale editor text. On
+                    // a no-op (nothing moved) this re-serializes byte-identically, so the backend
+                    // content_sha256 dedup suppresses a redundant snapshot. Invalid JSON is left untouched
+                    // for the validation gate immediately below to report.
+                    if let Ok(prev) =
+                        serde_json::from_str::<serde_json::Value>(&moodboard.body_raw_text)
+                    {
+                        if let Ok(board) = self.moodboard_board.lock() {
+                            moodboard.body_raw_text = board_to_ckc_moodboard_json(&board, &prev);
+                        }
+                    }
                     if let Err(err) =
                         ckc_moodboard_snapshot_to_canvas_projection(&moodboard.body_raw_text)
                     {
@@ -7595,7 +7829,7 @@ impl AtelierPanel {
                             .clone()
                             .unwrap_or_else(|| "pending-native-moodboard-snapshot".to_owned());
                         match apply_ckc_moodboard_snapshot_to_board(
-                            &self.canvas_board,
+                            &self.moodboard_board,
                             &moodboard.body_raw_text,
                             &latest_ref,
                         ) {
@@ -7676,7 +7910,7 @@ impl AtelierPanel {
                             .clone()
                             .unwrap_or_else(|| "pending-native-moodboard-snapshot".to_owned());
                         match apply_ckc_moodboard_snapshot_to_board(
-                            &self.canvas_board,
+                            &self.moodboard_board,
                             &moodboard.body_raw_text,
                             &latest_ref,
                         ) {

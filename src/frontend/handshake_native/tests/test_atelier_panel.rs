@@ -5623,3 +5623,225 @@ fn posekit_disabled_layer_warning_is_argus_visible() {
         "Argus-visible marker status must warn about stale disabled-layer edits; got {marker_status}"
     );
 }
+
+/// WP-CKC MT-012 (FIX 1) proof: a canvas move survives a save->reload round-trip through the reverse
+/// projection. Project a snapshot onto a board, simulate a canvas move (mutate a placement's x/y),
+/// serialize the LIVE board back to `hsk.atelier.moodboard@1` via `board_to_ckc_moodboard_json`, and
+/// assert the emitted JSON carries the MOVED coordinates while preserving every non-visual field and the
+/// image's ArtifactStore ref. Re-projecting that JSON must place the card at the moved coordinates —
+/// this is the "edits survive reload" proof. Also proves a no-op save is byte-identical (dedup-safe).
+#[test]
+fn ckc_moodboard_canvas_move_survives_reverse_projection_roundtrip() {
+    let layer_id = "11111111-1111-4111-8111-111111111111";
+    let text_id = "22222222-2222-4222-8222-222222222222";
+    let image_element_id = "33333333-3333-4333-8333-333333333333";
+    let image_asset_id = "44444444-4444-4444-8444-444444444444";
+    let snapshot = serde_json::json!({
+        "schema_id": "hsk.atelier.moodboard@1",
+        "schema_version": 1,
+        "moodboard_id": "55555555-5555-4555-8555-555555555555",
+        "name": "MT-012 reverse projection proof",
+        "description": "canvas move round-trip",
+        "canvas": { "width": 1600.0, "height": 1000.0, "background_color": "#101418" },
+        "layers": [{
+            "layer_id": layer_id, "name": "CKC moodboard", "order": 1,
+            "visible": true, "locked": false, "opacity": 1.0, "parent_layer_id": null
+        }],
+        "images": [{
+            "element_id": image_element_id, "layer_id": layer_id,
+            "asset_id": image_asset_id, "source": "local", "url": null,
+            "position": { "x": 120.0, "y": 80.0 }, "size": { "width": 640.0, "height": 480.0 },
+            "rotation": 0.0, "opacity": 1.0, "flags": {}
+        }],
+        "text": [{
+            "element_id": text_id, "layer_id": layer_id, "content": "warm backlight",
+            "font": "Inter", "font_size": 18.0, "color": "#f4f7fb",
+            "position": { "x": 80.0, "y": 80.0 }, "rotation": 0.0, "flags": {}
+        }],
+        "shapes": [], "connectors": [], "folders": [], "guides": [],
+        "flags": { "locked": false, "archived": false, "operator_reviewed": false },
+        "style": {
+            "dominant_colors": ["#101418"], "mood_keywords": ["ckc"],
+            "style_description": "proof", "suggested_presets": []
+        },
+        "history": [{
+            "history_id": "66666666-6666-4666-8666-666666666666",
+            "at": "2026-06-29T00:00:00Z", "actor": "mt-012-test",
+            "operation": "created", "summary": "seed"
+        }]
+    });
+
+    // Forward-project onto a fresh isolated board (mirrors the moodboard's own board).
+    let projection = handshake_native::atelier_panel::ckc_moodboard_json_to_canvas_projection(
+        &snapshot,
+    )
+    .expect("forward projection");
+    let mut board = LoomCanvasBoard::new("atelier-ckc-moodboard", "ckc-moodboard-canvas");
+    board.set_section_labels(projection.section_labels.clone());
+    board.set_board(
+        projection.placements.clone(),
+        projection.visual_edges.clone(),
+        projection.pan,
+        projection.zoom,
+    );
+
+    // No-op proof: an unedited board re-serializes byte-identically to the canonical snapshot (so the
+    // backend content_sha256 dedup suppresses a redundant snapshot on an edit-nothing save).
+    let canonical = serde_json::to_string(&snapshot).expect("canonical");
+    let noop = handshake_native::atelier_panel::board_to_ckc_moodboard_json(&board, &snapshot);
+    assert_eq!(
+        noop, canonical,
+        "no-op save must be byte-identical to the canonical snapshot"
+    );
+
+    // Simulate a canvas move of the image element.
+    let image_idx = board
+        .placements
+        .iter()
+        .position(|p| p.placement_id.starts_with("moodboard-image-"))
+        .expect("image placement present");
+    board.placements[image_idx].x = 512.0;
+    board.placements[image_idx].y = 336.0;
+
+    // Reverse-project the LIVE board back to the snapshot JSON.
+    let saved = handshake_native::atelier_panel::board_to_ckc_moodboard_json(&board, &snapshot);
+    let saved_value: serde_json::Value =
+        serde_json::from_str(&saved).expect("reverse projection emits valid JSON");
+
+    // The moved coordinates are reflected...
+    assert_eq!(saved_value["images"][0]["position"]["x"].as_f64(), Some(512.0));
+    assert_eq!(saved_value["images"][0]["position"]["y"].as_f64(), Some(336.0));
+    // ...size is untouched (only position moved)...
+    assert_eq!(saved_value["images"][0]["size"]["width"].as_f64(), Some(640.0));
+    assert_eq!(saved_value["images"][0]["size"]["height"].as_f64(), Some(480.0));
+    // ...the ArtifactStore ref (asset_id) is preserved, NOT a Loom placed_block_id...
+    assert_eq!(saved_value["images"][0]["asset_id"].as_str(), Some(image_asset_id));
+    assert_eq!(saved_value["images"][0]["source"].as_str(), Some("local"));
+    // ...the untouched text element keeps its position...
+    assert_eq!(saved_value["text"][0]["position"]["x"].as_f64(), Some(80.0));
+    assert_eq!(saved_value["text"][0]["position"]["y"].as_f64(), Some(80.0));
+    // ...and non-visual fields survive verbatim.
+    assert_eq!(saved_value["history"][0]["actor"].as_str(), Some("mt-012-test"));
+    assert_eq!(saved_value["style"]["mood_keywords"][0].as_str(), Some("ckc"));
+
+    // Re-project the saved JSON: the board now shows the MOVED coordinates ("edits survive reload").
+    let reprojected =
+        handshake_native::atelier_panel::ckc_moodboard_json_to_canvas_projection(&saved_value)
+            .expect("re-projection of saved snapshot");
+    let image = reprojected
+        .placements
+        .iter()
+        .find(|p| p.placement_id.starts_with("moodboard-image-"))
+        .expect("image placement re-projected");
+    assert_eq!(image.x, 512.0);
+    assert_eq!(image.y, 336.0);
+}
+
+/// WP-CKC MT-012 (F2/F5) proof: the reverse projection must NOT silently grow sub-minimum elements. The
+/// forward projection clamps element cards to 48x32 for rendering, but a valid `hsk.atelier.moodboard@1`
+/// element may store any width/height > 0. A no-op reverse must leave a stored 30x20 image (or 40x24
+/// shape) byte-untouched — not persist it at the 48x32 render floor (which would corrupt the size AND
+/// change content_sha256, defeating the dedup). Also proves a text-only move leaves images/shapes intact.
+#[test]
+fn ckc_moodboard_reverse_projection_preserves_submin_sizes_shapes_and_text_move() {
+    let layer_id = "11111111-1111-4111-8111-111111111111";
+    let text_id = "22222222-2222-4222-8222-222222222222";
+    let image_element_id = "33333333-3333-4333-8333-333333333333";
+    let image_asset_id = "44444444-4444-4444-8444-444444444444";
+    let shape_element_id = "77777777-7777-4777-8777-777777777777";
+    let snapshot = serde_json::json!({
+        "schema_id": "hsk.atelier.moodboard@1",
+        "schema_version": 1,
+        "moodboard_id": "55555555-5555-4555-8555-555555555555",
+        "name": "MT-012 sub-minimum proof",
+        "description": "sub-minimum element round-trip",
+        "canvas": { "width": 1600.0, "height": 1000.0, "background_color": "#101418" },
+        "layers": [{
+            "layer_id": layer_id, "name": "CKC moodboard", "order": 1,
+            "visible": true, "locked": false, "opacity": 1.0, "parent_layer_id": null
+        }],
+        // 30x20 is BELOW the 48x32 render floor: a valid schema element (exclusiveMinimum:0).
+        "images": [{
+            "element_id": image_element_id, "layer_id": layer_id,
+            "asset_id": image_asset_id, "source": "local", "url": null,
+            "position": { "x": 120.0, "y": 80.0 }, "size": { "width": 30.0, "height": 20.0 },
+            "rotation": 0.0, "opacity": 1.0, "flags": {}
+        }],
+        "text": [{
+            "element_id": text_id, "layer_id": layer_id, "content": "warm backlight",
+            "font": "Inter", "font_size": 18.0, "color": "#f4f7fb",
+            "position": { "x": 80.0, "y": 80.0 }, "rotation": 0.0, "flags": {}
+        }],
+        // 40x24 is also below the render floor.
+        "shapes": [{
+            "element_id": shape_element_id, "layer_id": layer_id, "shape_type": "rectangle",
+            "position": { "x": 200.0, "y": 200.0 }, "size": { "width": 40.0, "height": 24.0 },
+            "rotation": 0.0, "fill": "#222", "stroke": "#eee", "stroke_width": 1.0, "flags": {}
+        }],
+        "connectors": [], "folders": [], "guides": [],
+        "flags": { "locked": false, "archived": false, "operator_reviewed": false },
+        "style": {
+            "dominant_colors": ["#101418"], "mood_keywords": ["ckc"],
+            "style_description": "proof", "suggested_presets": []
+        },
+        "history": [{
+            "history_id": "66666666-6666-4666-8666-666666666666",
+            "at": "2026-06-29T00:00:00Z", "actor": "mt-012-test",
+            "operation": "created", "summary": "seed"
+        }]
+    });
+
+    let projection = handshake_native::atelier_panel::ckc_moodboard_json_to_canvas_projection(
+        &snapshot,
+    )
+    .expect("forward projection");
+    let mut board = LoomCanvasBoard::new("atelier-ckc-moodboard", "ckc-moodboard-canvas");
+    board.set_section_labels(projection.section_labels.clone());
+    board.set_board(
+        projection.placements.clone(),
+        projection.visual_edges.clone(),
+        projection.pan,
+        projection.zoom,
+    );
+    // The board renders the sub-minimum elements clamped to the 48x32 floor...
+    let image_idx = board
+        .placements
+        .iter()
+        .position(|p| p.placement_id.starts_with("moodboard-image-"))
+        .expect("image placement present");
+    assert_eq!(board.placements[image_idx].w, 48.0);
+    assert_eq!(board.placements[image_idx].h, 32.0);
+
+    // ...but a NO-OP reverse must leave the stored 30x20 / 40x24 sizes byte-untouched (RED against F2).
+    let noop = handshake_native::atelier_panel::board_to_ckc_moodboard_json(&board, &snapshot);
+    assert_eq!(
+        noop,
+        serde_json::to_string(&snapshot).expect("canonical"),
+        "a no-op reverse must not rewrite sub-minimum element sizes"
+    );
+    let noop_value: serde_json::Value = serde_json::from_str(&noop).expect("valid JSON");
+    assert_eq!(noop_value["images"][0]["size"]["width"].as_f64(), Some(30.0));
+    assert_eq!(noop_value["images"][0]["size"]["height"].as_f64(), Some(20.0));
+    assert_eq!(noop_value["shapes"][0]["size"]["width"].as_f64(), Some(40.0));
+    assert_eq!(noop_value["shapes"][0]["size"]["height"].as_f64(), Some(24.0));
+
+    // A TEXT-only move must move ONLY the text and leave the image + shape geometry untouched.
+    let text_idx = board
+        .placements
+        .iter()
+        .position(|p| p.placement_id.starts_with("moodboard-text-"))
+        .expect("text placement present");
+    board.placements[text_idx].x = 300.0;
+    board.placements[text_idx].y = 350.0;
+    let saved = handshake_native::atelier_panel::board_to_ckc_moodboard_json(&board, &snapshot);
+    let saved_value: serde_json::Value = serde_json::from_str(&saved).expect("valid JSON");
+    assert_eq!(saved_value["text"][0]["position"]["x"].as_f64(), Some(300.0));
+    assert_eq!(saved_value["text"][0]["position"]["y"].as_f64(), Some(350.0));
+    // image + shape untouched: sub-minimum sizes preserved, positions unchanged, shape_type preserved.
+    assert_eq!(saved_value["images"][0]["size"]["width"].as_f64(), Some(30.0));
+    assert_eq!(saved_value["images"][0]["position"]["x"].as_f64(), Some(120.0));
+    assert_eq!(saved_value["shapes"][0]["size"]["width"].as_f64(), Some(40.0));
+    assert_eq!(saved_value["shapes"][0]["size"]["height"].as_f64(), Some(24.0));
+    assert_eq!(saved_value["shapes"][0]["position"]["y"].as_f64(), Some(200.0));
+    assert_eq!(saved_value["shapes"][0]["shape_type"].as_str(), Some("rectangle"));
+}

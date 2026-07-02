@@ -415,6 +415,22 @@ atelier-ckc-moodboard-open target that document. Inspect atelier-ckc-moodboard-d
 atelier-ckc-moodboard-latest-ref, set native snapshot JSON in atelier-ckc-moodboard-editor, click \
 atelier-ckc-moodboard-save, inspect atelier-ckc-moodboard-canvas, then click \
 atelier-ckc-moodboard-open to reload the selected latest snapshot into the native canvas board. \
+The atelier-ckc-moodboard-canvas IS the moodboard edit surface: drag/resize elements directly on it \
+to arrange the visual layout. Clicking atelier-ckc-moodboard-save serializes the LIVE canvas layout \
+(each element's position and, for images/shapes, its size) back into the hsk.atelier.moodboard@1 \
+snapshot and records it to the atelier_moodboard PostgreSQL table + EventLedger \
+(MOODBOARD_SNAPSHOT_RECORDED), so those visual edits SURVIVE reload — re-opening the snapshot restores \
+the moved layout. A save that changed nothing is byte-identical and de-duplicated (no redundant \
+snapshot). Non-visual fields (layers, folders, guides, connectors, style, history) and each image's \
+ArtifactStore atelier://media/<uuid> ref are preserved across the save; positions/sizes are the only \
+overwritten fields. The moodboard canvas is its OWN board, DISTINCT from the shared Loom canvas pane: \
+moodboard edits never touch the workspace default-canvas block and never clobber the Loom pane, and \
+vice versa. If a save returns stale_moodboard_document_version (another writer advanced the head), the \
+save is NOT overwritten and your live canvas edits are PRESERVED (the board is not clobbered): the panel \
+refreshes the tracked version to the new head and asks you to click Save moodboard again, which \
+reverse-projects your preserved layout over the new head (last-writer-wins after refresh). Note (MT-012 \
+scope): only MOVING and RESIZING existing elements is persisted; adding a brand-new element or drawing a \
+connector directly on the canvas is not yet round-tripped by Save moodboard and is a named follow-on. \
 Story, sheet notes, image notes, tag \
 notes, and moodboards stay distinct but cross-linked; do not merge their storage or refs. Argus must \
 inspect/click/set_value the story and moodboard controls. If Argus cannot see or steer them, that is \
