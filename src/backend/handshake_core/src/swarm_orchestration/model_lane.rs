@@ -3515,24 +3515,50 @@ impl ModelLaneStore {
             &canonical_run.event_ledger_stream_id,
         )?;
         validate_recovery_checkpoint_record(&self.pool, &checkpoint).await?;
-        // Spec 4.3.9.2.5 + MT-007 acceptance: deterministic recovery replays UP TO
-        // the checkpoint's last_event_ledger_seq. Adjunct state (recovery events,
-        // payload/CRDT repairs, leases, MT status, cloud denials) recorded AFTER that
-        // boundary is post-checkpoint and MUST be excluded from the recovered run, or
-        // fail closed where the payload/CRDT contract requires; it is never silently
-        // folded in by treating the whole-stream high-watermark as the replay bound.
-        let recovery_bound_event_ledger_seq = checkpoint.last_event_ledger_seq;
+        // Spec 4.3.9.2.5 + MT-007 acceptance define a PER-KIND recovery boundary, not a
+        // single blunt cut at the checkpoint high-watermark. Neither "replay the whole
+        // stream high-watermark" nor "bound everything at the checkpoint" is correct.
+        //
+        // * CATCH UP (forward stream): "Replay MUST load the latest checkpoint, apply
+        //   EventLedger records AFTER that sequence in order." When the run's
+        //   coordinator-owned ModelLaneMessage stream genuinely advanced past the
+        //   checkpoint (a NEW message was committed), post-checkpoint forward state MUST
+        //   be replayed -- messages, recovery events, MT runtime status, and the payload
+        //   authority for those NEW messages/events catch up to the current stream
+        //   high-watermark. Absent real forward-message progress there is nothing to
+        //   catch up and the bound stays at the checkpoint.
+        // * EXCLUDE (current-state adjunct): lane leases and cloud-consent denials are
+        //   current-state markers, never forward replay input, so they stay bounded at
+        //   the checkpoint and post-checkpoint rows are excluded.
+        // * REJECT (repairs of already-checkpointed refs): a payload ref that was open
+        //   AT the checkpoint, and the CRDT base a recovery event replays against, MUST
+        //   have been satisfied at/before the checkpoint. A post-checkpoint artifact or
+        //   CRDT "repair" of such a checkpointed ref fails closed, so those two checks
+        //   stay bounded at the checkpoint.
+        let checkpoint_bound_event_ledger_seq = checkpoint.last_event_ledger_seq;
+        let forward_bound_event_ledger_seq = if has_post_checkpoint_forward_messages(
+            &self.pool,
+            run_id,
+            &checkpoint.event_ledger_stream_id,
+            checkpoint_bound_event_ledger_seq,
+        )
+        .await?
+        {
+            recovery_stream_high_watermark(&self.pool, &checkpoint.event_ledger_stream_id).await?
+        } else {
+            checkpoint_bound_event_ledger_seq
+        };
         let mut recovery_events = recovery_events_for_run(
             &self.pool,
             run_id,
             &checkpoint.event_ledger_stream_id,
-            recovery_bound_event_ledger_seq,
+            forward_bound_event_ledger_seq,
         )
         .await?;
         validate_recovery_event_stream(
             &self.pool,
             run_id,
-            recovery_bound_event_ledger_seq,
+            forward_bound_event_ledger_seq,
             &recovery_events,
         )
         .await?;
@@ -3540,7 +3566,8 @@ impl ModelLaneStore {
             &self.pool,
             run_id,
             &checkpoint,
-            recovery_bound_event_ledger_seq,
+            checkpoint_bound_event_ledger_seq,
+            forward_bound_event_ledger_seq,
             &recovery_events,
         )
         .await?;
@@ -3548,18 +3575,22 @@ impl ModelLaneStore {
             &self.pool,
             run_id,
             &checkpoint,
-            recovery_bound_event_ledger_seq,
+            checkpoint_bound_event_ledger_seq,
             &recovery_events,
         )
         .await?;
-        let replay =
-            replay_run_at_recovery_bound(&self.pool, run_id, &checkpoint, recovery_bound_event_ledger_seq)
-                .await?;
+        let replay = replay_run_at_recovery_bound(
+            &self.pool,
+            run_id,
+            &checkpoint,
+            forward_bound_event_ledger_seq,
+        )
+        .await?;
         validate_replay_message_payload_authority(
             &self.pool,
             run_id,
             &checkpoint,
-            recovery_bound_event_ledger_seq,
+            forward_bound_event_ledger_seq,
             &replay.messages,
         )
         .await?;
@@ -3568,7 +3599,7 @@ impl ModelLaneStore {
             &self.pool,
             run_id,
             &checkpoint.event_ledger_stream_id,
-            recovery_bound_event_ledger_seq,
+            checkpoint_bound_event_ledger_seq,
         )
         .await?;
         let now = Utc::now();
@@ -3600,14 +3631,14 @@ impl ModelLaneStore {
             &self.pool,
             run_id,
             &checkpoint.event_ledger_stream_id,
-            recovery_bound_event_ledger_seq,
+            checkpoint_bound_event_ledger_seq,
         )
         .await?;
         let mt_runtime_statuses = mt_runtime_statuses_for_run(
             &self.pool,
             run_id,
             &checkpoint.event_ledger_stream_id,
-            recovery_bound_event_ledger_seq,
+            forward_bound_event_ledger_seq,
         )
         .await?;
         Ok(ModelLaneRecoveredRun {
@@ -7694,6 +7725,60 @@ async fn latest_recovery_checkpoint(
     })
 }
 
+/// Current committed high-watermark (max global EventLedger `event_sequence`) for a
+/// ModelLaneRun stream. Used as the forward catch-up bound when the run advanced past
+/// its last checkpoint (spec 4.3.9.2.5: "apply EventLedger records after that sequence
+/// in order").
+async fn recovery_stream_high_watermark(
+    pool: &PgPool,
+    event_ledger_stream_id: &str,
+) -> ModelLaneResult<i64> {
+    let high_watermark: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COALESCE(MAX(event_sequence), 0)
+        FROM kernel_event_ledger
+        WHERE session_run_id = $1
+        "#,
+    )
+    .bind(event_ledger_stream_id)
+    .fetch_one(pool)
+    .await?;
+    Ok(high_watermark)
+}
+
+/// True when the coordinator-owned ModelLaneMessage stream genuinely advanced past the
+/// checkpoint (a NEW `model_lane_message` was committed after
+/// `checkpoint_bound_event_ledger_seq`). Only real forward-message progress triggers
+/// catch-up. Current-state adjunct writes recorded after a checkpoint with no new
+/// message (post-checkpoint leases, MT status, cloud denials) are NOT forward progress
+/// and stay excluded; this is what distinguishes a legitimate post-checkpoint catch-up
+/// from stale adjunct state.
+async fn has_post_checkpoint_forward_messages(
+    pool: &PgPool,
+    run_id: &str,
+    event_ledger_stream_id: &str,
+    checkpoint_bound_event_ledger_seq: i64,
+) -> ModelLaneResult<bool> {
+    let exists: bool = sqlx::query_scalar(
+        r#"
+        SELECT EXISTS (
+            SELECT 1
+            FROM kernel_event_ledger
+            WHERE aggregate_type = 'model_lane_message'
+              AND session_run_id = $2
+              AND payload->'record'->>'run_id' = $1
+              AND event_sequence > $3
+        )
+        "#,
+    )
+    .bind(run_id)
+    .bind(event_ledger_stream_id)
+    .bind(checkpoint_bound_event_ledger_seq)
+    .fetch_one(pool)
+    .await?;
+    Ok(exists)
+}
+
 async fn recovery_events_for_run(
     pool: &PgPool,
     run_id: &str,
@@ -7828,12 +7913,17 @@ async fn cloud_consent_denials_for_run(
         }
         let lane_id = required_json_text(&payload, "lane_id")?;
         let aggregate_id: String = row.try_get("aggregate_id")?;
-        require_equal(
-            "model_lane_cloud_consent_denial.aggregate_id",
-            &aggregate_id,
-            "payload.lane_id",
-            &lane_id,
-        )?;
+        // Fail closed when a cloud-consent-denial ledger row's aggregate_id was
+        // tampered off its own lane_id. Phrased as an "aggregate_id mismatch" for
+        // parity with event_payload_record's aggregate-id integrity diagnosis.
+        if aggregate_id != lane_id {
+            let failure = ModelLaneRecoveryFailureKind::MissingEventLedgerRow;
+            return Err(ModelLaneError::InvalidInput(format!(
+                "{} {} model_lane_cloud_consent_denial aggregate_id mismatch: ledger aggregate_id {aggregate_id}, payload lane_id {lane_id}",
+                failure.code(),
+                failure.as_str()
+            )));
+        }
         let failure_kind = required_json_text(&payload, "failure_kind")?;
         Ok(ModelLaneCloudConsentDenialRecord {
             event_id: row.try_get("event_id")?,
@@ -8608,20 +8698,36 @@ async fn validate_recovery_payload_refs(
     pool: &PgPool,
     run_id: &str,
     checkpoint: &ModelLaneRecoveryCheckpointRecord,
-    recovery_bound_event_ledger_seq: i64,
+    checkpoint_bound_event_ledger_seq: i64,
+    forward_bound_event_ledger_seq: i64,
     events: &[ModelLaneRecoveryEventRecord],
 ) -> ModelLaneResult<()> {
-    let mut refs = BTreeSet::new();
-    refs.extend(checkpoint.open_payload_refs.iter().cloned());
+    // Payload refs that were OPEN at the checkpoint MUST have been satisfied by
+    // ArtifactStore/EventLedger authority at/before the checkpoint. A post-checkpoint
+    // artifact "repair" of such an already-checkpointed ref fails closed, so these
+    // stay bounded at the checkpoint.
+    let checkpoint_refs: BTreeSet<String> = checkpoint.open_payload_refs.iter().cloned().collect();
+    validate_payload_authority_refs(
+        pool,
+        run_id,
+        checkpoint,
+        checkpoint_bound_event_ledger_seq,
+        checkpoint_refs,
+    )
+    .await?;
+    // Caught-up (post-checkpoint) recovery events reference NEW forward-stream payloads;
+    // their authority is validated at the forward catch-up bound so genuine post-checkpoint
+    // progress replays while checkpointed-ref repairs above still fail closed.
+    let mut forward_refs = BTreeSet::new();
     for event in events {
-        refs.extend(event.payload_refs.iter().cloned());
+        forward_refs.extend(event.payload_refs.iter().cloned());
     }
     validate_payload_authority_refs(
         pool,
         run_id,
         checkpoint,
-        recovery_bound_event_ledger_seq,
-        refs,
+        forward_bound_event_ledger_seq,
+        forward_refs,
     )
     .await
 }

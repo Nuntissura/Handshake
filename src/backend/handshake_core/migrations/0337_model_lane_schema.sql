@@ -127,7 +127,18 @@ CREATE TABLE IF NOT EXISTS model_lane_messages (
         CHECK (jsonb_typeof(record_json) = 'object')
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_model_lane_messages_event_seq
+-- event_ledger_seq mirrors kernel_event_ledger.event_sequence, a globally-unique
+-- BIGSERIAL. The mutable model_lane_messages row is a PROJECTION of EventLedger
+-- authority; its integrity against the ledger is enforced fail-closed at the
+-- application layer (validate_diagnostics_row_eventledger_authority /
+-- diagnostics_projection), which is the single source of row-vs-ledger truth and
+-- emits the typed drift diagnosis. A DB UNIQUE constraint here is redundant with the
+-- ledger's own uniqueness and would pre-empt that authoritative guard: a row-aliasing
+-- tamper (redirecting a mutable row onto another valid ledger event) must reach the
+-- projection so it can surface the "SQL row ... does not match kernel_event_ledger"
+-- diagnosis rather than being rejected opaquely by a DB unique violation. Kept as a
+-- plain index for replay/lookup performance.
+CREATE INDEX IF NOT EXISTS idx_model_lane_messages_event_seq
     ON model_lane_messages(event_ledger_seq);
 
 CREATE INDEX IF NOT EXISTS idx_model_lane_messages_stream_replay
