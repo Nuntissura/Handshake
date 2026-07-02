@@ -10,7 +10,7 @@
 //!   * a migration emits a surfaced FR-EVT-PROFILE Flight Recorder event, while
 //!     a canonical resolution records nothing.
 
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 use async_trait::async_trait;
 
@@ -18,8 +18,11 @@ use handshake_core::flight_recorder::{
     EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError,
 };
 use handshake_core::kernel::work_profiles::{
-    record_provider_ref_migration, resolve_provider_ref, CanonicalProviderRef,
-    ProviderRefResolution, PROVIDER_REF_MIGRATION_FR_EVENT,
+    record_provider_ref_migration, resolve_provider_ref, validate_and_migrate_work_profiles,
+    validate_work_profiles, CanonicalProviderRef, ProviderRefResolution,
+    WorkProfileActionRequestV1, WorkProfileAutonomyKnobsV1, WorkProfileLoadError,
+    WorkProfileReceiptV1, WorkProfileRegistryV1, WorkProfileRoleRouteV1, WorkProfileV1,
+    PROVIDER_REF_MIGRATION_FR_EVENT,
 };
 
 #[derive(Default)]
@@ -165,5 +168,150 @@ async fn mt014_provider_ref_canonical_resolution_records_no_event() {
     assert!(
         recorder.events().is_empty(),
         "only a real migration is recorded; canonical/unknown are no-ops"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// LIVE wiring proofs (MT-014 HIGH-1 remediation): run a real Work Profile
+// registry through the live validation / load path so the resolver is proven to
+// be enforced by production code, not just callable in isolation.
+// ---------------------------------------------------------------------------
+
+/// A minimal but fully valid Work Profile registry with a single CODER route
+/// whose `provider_ref` is `provider_ref`. Everything else is shaped to pass
+/// `validate_work_profiles`' structural/contract checks so the provider_ref
+/// outcome is the only variable under test.
+fn sample_registry(provider_ref: &str) -> WorkProfileRegistryV1 {
+    WorkProfileRegistryV1 {
+        schema_id: "hsk.kernel.work_profiles@1".to_string(),
+        registry_id: "wp-1-mt014-live".to_string(),
+        folded_stub_ids: vec!["WP-1-Work-Profiles-v1".to_string()],
+        profile_storage_ref: "profile-store://kernel/work-profiles".to_string(),
+        selected_profile_id: "profile-live-v1".to_string(),
+        profiles: vec![WorkProfileV1 {
+            profile_id: "profile-live-v1".to_string(),
+            profile_version: 1,
+            profile_id_is_immutable: true,
+            display_name: "Live Profile".to_string(),
+            role_routes: vec![WorkProfileRoleRouteV1 {
+                role_id: "CODER".to_string(),
+                model_ref: "model://local-coder".to_string(),
+                provider_ref: provider_ref.to_string(),
+                capability_profile_ref: "capability://coder".to_string(),
+            }],
+            autonomy: WorkProfileAutonomyKnobsV1 {
+                max_auto_actions: 1,
+                requires_operator_approval_for_promotion: true,
+                allow_parallel_agents: false,
+                allow_network: false,
+            },
+            created_at_utc: "2026-07-01T00:00:00Z".to_string(),
+        }],
+        profile_receipts: vec![WorkProfileReceiptV1 {
+            receipt_ref: "receipt://profile/action-claim".to_string(),
+            profile_id: "profile-live-v1".to_string(),
+            profile_version: 1,
+            action_request_id: "action-claim".to_string(),
+            event_ref: "FR-EVT-PROFILE-001-live".to_string(),
+        }],
+        action_requests: vec![WorkProfileActionRequestV1 {
+            action_request_id: "action-claim".to_string(),
+            action_id: "kernel.role_turn_isolation.project".to_string(),
+            role_id: "CODER".to_string(),
+            selected_profile_id: "profile-live-v1".to_string(),
+            selected_route_model_ref: "model://local-coder".to_string(),
+            receipt_ref: "receipt://profile/action-claim".to_string(),
+            job_metadata_work_profile_id: "profile-live-v1".to_string(),
+        }],
+        product_authority_refs: vec![
+            "kernel.action_catalog".to_string(),
+            "kernel.role_turn_isolation".to_string(),
+            "flight_recorder.profile_events".to_string(),
+            "kernel.workflow_transition_registry".to_string(),
+        ],
+        folded_source_refs: vec![
+            ".GOV/task_packets/stubs/WP-1-Work-Profiles-v1.contract.json".to_string(),
+        ],
+    }
+}
+
+#[tokio::test]
+async fn mt014_live_validate_and_migrate_migrates_ollama_and_surfaces_event() {
+    let recorder = CapturingRecorder::default();
+    let registry = sample_registry("ollama");
+
+    // `ollama` is a known migratable alias, so structural validation accepts it
+    // (it is not an Unknown dangle).
+    validate_work_profiles(&registry).expect("ollama route passes structural validation");
+
+    let migrated = validate_and_migrate_work_profiles(&registry, &recorder)
+        .await
+        .expect("ollama route migrates through the live load path");
+
+    // (a) the migrated provider_ref is APPLIED into the returned registry ...
+    assert_eq!(
+        migrated.profiles[0].role_routes[0].provider_ref, "local_runtime",
+        "the ollama provider_ref is migrated to local_runtime in the loaded registry"
+    );
+    // ... AND a surfaced FR-EVT-PROFILE migration event was emitted by the live
+    // path (not a silent in-place rewrite).
+    let events = recorder.events();
+    assert_eq!(events.len(), 1, "exactly one migration event is surfaced");
+    assert_eq!(events[0].payload["fr_event"], PROVIDER_REF_MIGRATION_FR_EVENT);
+    assert_eq!(events[0].payload["from"], "ollama");
+    assert_eq!(events[0].payload["to"], "local_runtime");
+    assert_eq!(events[0].payload["profile_id"], "profile-live-v1");
+    assert_eq!(events[0].payload["role_id"], "CODER");
+}
+
+#[tokio::test]
+async fn mt014_live_validate_rejects_unknown_provider_ref() {
+    let recorder = CapturingRecorder::default();
+    let registry = sample_registry("provider://coder");
+
+    // (b) the sync live validator rejects the Unknown dangle with a typed error
+    // instead of letting the non-empty check pass it.
+    let errors = validate_work_profiles(&registry)
+        .expect_err("an unknown provider_ref must fail validation, not silently pass");
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.field == "profiles.role_routes.provider_ref"),
+        "the rejection is a typed provider_ref validation error, got {errors:?}"
+    );
+
+    // The load path fails closed the same way and emits no migration event.
+    match validate_and_migrate_work_profiles(&registry, &recorder).await {
+        Err(WorkProfileLoadError::Validation(errors)) => assert!(
+            errors
+                .iter()
+                .any(|error| error.field == "profiles.role_routes.provider_ref"),
+            "load path rejects the unknown provider_ref, got {errors:?}"
+        ),
+        other => panic!("expected Validation rejection of unknown provider_ref, got {other:?}"),
+    }
+    assert!(
+        recorder.events().is_empty(),
+        "a rejected registry surfaces no migration event"
+    );
+}
+
+#[tokio::test]
+async fn mt014_live_validate_and_migrate_passes_canonical_provider_ref_unchanged() {
+    let recorder = CapturingRecorder::default();
+    let registry = sample_registry("local_runtime");
+
+    let loaded = validate_and_migrate_work_profiles(&registry, &recorder)
+        .await
+        .expect("a canonical provider_ref passes the live load path");
+
+    // (c) canonical passes through unchanged and emits no event.
+    assert_eq!(
+        loaded.profiles[0].role_routes[0].provider_ref, "local_runtime",
+        "a canonical provider_ref is unchanged by the load path"
+    );
+    assert!(
+        recorder.events().is_empty(),
+        "a canonical resolution surfaces no migration event"
     );
 }

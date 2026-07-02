@@ -294,6 +294,25 @@ fn validate_routes(errors: &mut Vec<WorkProfileValidationError>, profile: &WorkP
             "profiles.role_routes.provider_ref",
             &route.provider_ref,
         );
+        // MT-014: enforce the provider_ref resolver in the live validation path.
+        // A non-empty provider_ref that resolves to neither a canonical provider
+        // id nor a known migratable alias is an Unknown dangle and is rejected
+        // here (AC-3: "no silent dangle"). Canonical ids pass; the retired
+        // `ollama` alias resolves as a deterministic Migration (surfaced + applied
+        // by `validate_and_migrate_work_profiles`) and is not an error. Skip when
+        // empty so the require_non_empty check above owns the empty case.
+        if !route.provider_ref.trim().is_empty()
+            && matches!(
+                resolve_provider_ref(&route.provider_ref),
+                ProviderRefResolution::Unknown(_)
+            )
+        {
+            errors.push(WorkProfileValidationError {
+                field: "profiles.role_routes.provider_ref",
+                message:
+                    "provider_ref must resolve to a canonical provider id or a known migratable alias",
+            });
+        }
         require_non_empty(
             errors,
             "profiles.role_routes.capability_profile_ref",
@@ -517,18 +536,27 @@ fn contains_text(values: &[String], needle: &str) -> bool {
 }
 
 // ===========================================================================
-// WP-1 MT-014: Work Profiles `provider_ref` resolver.
+// WP-1 MT-014: Work Profiles `provider_ref` resolver (wired into live
+// validation).
 //
-// `WorkProfileRoleRouteV1.provider_ref` is a free String with only a non-empty
-// check today. MT-014 adds a resolver that validates a route's `provider_ref`
-// against the canonical provider id set (`local_runtime`, `openai_compat`,
-// mirroring `llm::registry::ProviderKind`) and migrates the retired `ollama`
-// daemon id to `local_runtime` deterministically. The migration is SURFACED via
-// an FR-EVT-PROFILE Flight Recorder event (mirroring the FR-EVT-PROFILE- receipt
-// convention) rather than being silently rewritten in place. This is an
-// additive surface consumers MAY adopt; it does not tighten the existing
-// `validate_work_profiles` pass (so already-authored profiles do not need
-// rework).
+// `WorkProfileRoleRouteV1.provider_ref` was a free String with only a non-empty
+// check. MT-014 adds a resolver that validates a route's `provider_ref` against
+// the canonical provider id set (`local_runtime`, `openai_compat`, mirroring
+// `llm::registry::ProviderKind`) and migrates the retired `ollama` daemon id to
+// `local_runtime` deterministically. The migration is SURFACED via an
+// FR-EVT-PROFILE Flight Recorder event (mirroring the FR-EVT-PROFILE- receipt
+// convention) rather than being silently rewritten in place.
+//
+// The resolver is ENFORCED by the live validation path (AC-3: "resolves or is
+// migrated deterministically, no silent dangle"):
+//   * `validate_work_profiles` invokes the resolver per role-route and REJECTS
+//     an unresolvable `Unknown` provider_ref with a typed
+//     `WorkProfileValidationError` (a canonical id passes; the `ollama` alias is
+//     a deterministic migration, not an error).
+//   * `validate_and_migrate_work_profiles` is the provider_ref-aware load path:
+//     it runs structural validation, then for each `ollama` route emits the
+//     surfaced FR-EVT-PROFILE event and APPLIES the migrated `local_runtime`
+//     provider_ref into the returned registry (never a silent in-place rewrite).
 // ===========================================================================
 
 /// Stable Flight Recorder event key for a surfaced provider_ref migration.
@@ -647,4 +675,78 @@ pub async fn record_provider_ref_migration(
         }),
     );
     recorder.record_event(event).await
+}
+
+/// A failure from the provider_ref-aware Work Profile load path (MT-014). Kept
+/// typed and distinct so a structural/contract failure is never conflated with
+/// an infrastructure failure to surface the migration audit event.
+#[derive(Debug)]
+pub enum WorkProfileLoadError {
+    /// The registry failed structural/contract validation. This includes an
+    /// unresolvable `provider_ref` dangle rejected by `validate_work_profiles`.
+    Validation(Vec<WorkProfileValidationError>),
+    /// A deterministic provider_ref migration could not be SURFACED to the
+    /// Flight Recorder. The load fails closed rather than applying an unsurfaced
+    /// (silent) rewrite.
+    Recorder(RecorderError),
+}
+
+/// Validates a Work Profile registry AND resolves every role-route `provider_ref`
+/// through the canonical provider contract, returning a registry whose
+/// provider_refs are all canonical (MT-014, AC-3: "resolves or is migrated
+/// deterministically, no silent dangle").
+///
+/// This is the live provider_ref-aware profile-load path:
+/// * structural/contract validation runs first (`validate_work_profiles`), which
+///   already rejects an unresolvable `Unknown` provider_ref;
+/// * each retired `ollama` alias is migrated to `local_runtime`, SURFACED via a
+///   real FR-EVT-PROFILE Flight Recorder event (`record_provider_ref_migration`)
+///   and then APPLIED to the returned registry — never a silent in-place rewrite;
+/// * canonical provider_refs pass through unchanged and emit no event.
+///
+/// A recorder failure fails the load (`WorkProfileLoadError::Recorder`) instead
+/// of applying an unsurfaced migration.
+pub async fn validate_and_migrate_work_profiles(
+    registry: &WorkProfileRegistryV1,
+    recorder: &dyn FlightRecorder,
+) -> Result<WorkProfileRegistryV1, WorkProfileLoadError> {
+    validate_work_profiles(registry).map_err(WorkProfileLoadError::Validation)?;
+
+    let mut migrated = registry.clone();
+    for profile in &mut migrated.profiles {
+        let profile_id = profile.profile_id.clone();
+        for route in &mut profile.role_routes {
+            let resolution = resolve_provider_ref(&route.provider_ref);
+            match &resolution {
+                ProviderRefResolution::Canonical(_) => {}
+                ProviderRefResolution::Migrated { to, .. } => {
+                    // Surface the migration BEFORE applying it, so an audit event
+                    // exists for every applied rewrite.
+                    record_provider_ref_migration(
+                        recorder,
+                        &profile_id,
+                        &route.role_id,
+                        &resolution,
+                    )
+                    .await
+                    .map_err(WorkProfileLoadError::Recorder)?;
+                    route.provider_ref = to.as_str().to_string();
+                }
+                ProviderRefResolution::Unknown(_) => {
+                    // Unreachable in practice: `validate_work_profiles` above
+                    // already rejects an Unknown provider_ref. Kept as a typed
+                    // fail-closed rather than a silent coerce, in case structural
+                    // validation is ever relaxed.
+                    return Err(WorkProfileLoadError::Validation(vec![
+                        WorkProfileValidationError {
+                            field: "profiles.role_routes.provider_ref",
+                            message:
+                                "provider_ref must resolve to a canonical provider id or a known migratable alias",
+                        },
+                    ]));
+                }
+            }
+        }
+    }
+    Ok(migrated)
 }
