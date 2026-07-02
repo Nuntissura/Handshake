@@ -7,7 +7,10 @@ use handshake_core::{
     llm::{LlmClient, boot::resolve_default_llm_client},
     logging,
     models::HealthResponse,
-    process_ledger::restart_resume::PostgresRestartResumeRunner,
+    process_ledger::{
+        restart_resume::PostgresRestartResumeRunner, LedgerBatcher, LedgerBatcherConfig,
+        NoopOverflowSink, PostgresProcessLedgerStore,
+    },
     storage::{
         self,
         retention::{Janitor, JanitorConfig},
@@ -82,7 +85,23 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let recorder = init_flight_recorder().await?;
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
     let diagnostics: Arc<dyn DiagnosticsStore> = recorder.clone();
-    let llm_client = init_llm_client(flight_recorder.clone()).await;
+
+    // WP-1 MT-013: ProcessOwnershipLedger writer for the in-process embedded
+    // model-load path. When a local model is configured, the default LlmClient
+    // load path emits a pid-less START row on load (master-spec §3.6.2 clause 2 /
+    // §4.6.1) and a STOP row at app shutdown through this batcher. Backed by the
+    // shared managed-PostgreSQL pool (the same `kernel_process_lifecycle` table
+    // the swarm factory writes to). The background writer task drains rows for
+    // the process lifetime; we hold its handle so it is not dropped early.
+    let process_ledger_store = Arc::new(PostgresProcessLedgerStore::new(
+        control_plane.postgres_pool.clone(),
+    ));
+    let (process_ledger, _process_ledger_writer) = LedgerBatcher::spawn(
+        process_ledger_store,
+        Arc::new(NoopOverflowSink),
+        LedgerBatcherConfig::default(),
+    );
+    let llm_client = init_llm_client(flight_recorder.clone(), Some(process_ledger)).await;
     let capability_registry = Arc::new(CapabilityRegistry::new());
     let session_registry = Arc::new(workflows::SessionRegistry::new(
         workflows::SessionSchedulerConfig::from_env(),
@@ -208,6 +227,14 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let listener = TcpListener::bind(addr).await?;
     let serve_result = axum::serve(listener, app).await;
 
+    // WP-1 MT-013: emit the embedded-model ProcessOwnershipLedger STOP row via
+    // the LlmClient shutdown seam BEFORE stopping the managed cluster, so the
+    // STOP write still has a live pool to flush into. No-op for non-embedded
+    // clients (the default when no local model is configured). The background
+    // ledger writer flushes best-effort; unflushed rows are recovered by the
+    // restart-resume/reclaim pass (a pid-less row has no OS-kill target).
+    state.llm_client.shutdown();
+
     // Best-effort teardown when the serve loop ends: stop the cluster only if
     // Handshake started it (adopted/external clusters are left untouched).
     if let Err(err) = managed_pg.stop().await {
@@ -316,8 +343,11 @@ async fn init_flight_recorder() -> Result<Arc<DuckDbFlightRecorder>, Box<dyn std
 /// never an auto-detected Ollama daemon. All resolution logic lives in
 /// [`resolve_default_llm_client`] (in `handshake_core::llm::boot`) so it is
 /// unit-testable from the integration test crate; this binary only delegates.
-async fn init_llm_client(flight_recorder: Arc<dyn FlightRecorder>) -> Arc<dyn LlmClient> {
-    resolve_default_llm_client(flight_recorder).await
+async fn init_llm_client(
+    flight_recorder: Arc<dyn FlightRecorder>,
+    ledger: Option<LedgerBatcher>,
+) -> Arc<dyn LlmClient> {
+    resolve_default_llm_client(flight_recorder, ledger).await
 }
 
 async fn health(State(state): State<AppState>) -> Json<HealthResponse> {

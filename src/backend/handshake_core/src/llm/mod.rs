@@ -5,6 +5,7 @@
 //! centralized observability via Flight Recorder.
 
 pub mod boot;
+pub mod embedded_ledger;
 pub mod guard;
 pub mod local_router;
 pub mod ollama;
@@ -13,7 +14,7 @@ pub mod registry;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 use unicode_normalization::UnicodeNormalization;
@@ -21,6 +22,10 @@ use uuid::Uuid;
 
 use std::sync::Arc;
 
+use crate::flight_recorder::{
+    EventFilter, FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
+    LlmInferenceEvent, LlmInferenceTokenUsage, RecorderError,
+};
 use crate::model_runtime::{CancellationToken, ModelCatalog};
 use crate::workflows::ModelSwapRequestV0_4;
 use guard::CloudEscalationBundleV0_4;
@@ -96,6 +101,16 @@ pub trait LlmClient: Send + Sync {
     fn model_catalog(&self) -> Option<Arc<ModelCatalog>> {
         None
     }
+
+    /// WP-1 MT-013 app-shutdown seam.
+    ///
+    /// The default embedded local client owns an in-process model whose runtime
+    /// is held behind `Arc<dyn ModelRuntime>` and therefore never has
+    /// `unload(&mut self)` called on it. This seam lets app shutdown emit the
+    /// ProcessOwnershipLedger STOP row for that model WITHOUT a direct
+    /// `unload()` call. The default implementation is a no-op for every client
+    /// that does not own an in-process embedded model.
+    fn shutdown(&self) {}
 }
 
 /// Request payload for LLM completion.
@@ -326,24 +341,139 @@ pub enum LlmError {
     EmbeddingUnsupported,
 }
 
+/// A Flight Recorder sink that discards events.
+///
+/// Used ONLY as the default sink for [`DisabledLlmClient::new`] so
+/// non-default-boot callers (bin fixtures, embedding-only tests) that construct
+/// a disabled client without a recorder still compile. The DEFAULT boot path
+/// (`llm::boot`) always constructs the disabled client via
+/// [`DisabledLlmClient::new_recorded`] with the REAL Flight Recorder, so the
+/// spec §4.2.3.2(3) "every call emits a Flight Recorder event" obligation holds
+/// on the default LLM path.
+#[derive(Debug, Default)]
+struct NoopFlightRecorder;
+
+#[async_trait]
+impl FlightRecorder for NoopFlightRecorder {
+    async fn record_event(&self, _event: FlightRecorderEvent) -> Result<(), RecorderError> {
+        Ok(())
+    }
+
+    async fn enforce_retention(&self) -> Result<u64, RecorderError> {
+        Ok(0)
+    }
+
+    async fn list_events(
+        &self,
+        _filter: EventFilter,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        Ok(Vec::new())
+    }
+}
+
+/// WP-1 MT-013 (spec §4.2.3.2(3)): emit a Flight Recorder event on a fail-closed
+/// / error LLM call path so "every LlmClient call emits a Flight Recorder event"
+/// holds on the error path too.
+///
+/// Reuses [`FlightRecorderEventType::LlmInference`] with a ZEROED token usage
+/// (there are no real tokens on an error/disabled call) plus an explicit
+/// `error_kind` + `reason` in the payload. It MUST be called at CALL TIME by the
+/// caller (inside `completion`/`embedding`), never at construction — a
+/// construction-time emit fires once at boot regardless of whether a call is
+/// ever made, which is a false-green.
+pub(crate) async fn emit_llm_call_error_event(
+    flight_recorder: &Arc<dyn FlightRecorder>,
+    trace_id: Uuid,
+    model_id: &str,
+    error_kind: &str,
+    reason: &str,
+) {
+    let base = LlmInferenceEvent {
+        event_type: "llm_inference".to_string(),
+        trace_id,
+        model_id: model_id.to_string(),
+        token_usage: LlmInferenceTokenUsage {
+            prompt_tokens: 0,
+            completion_tokens: 0,
+            total_tokens: 0,
+        },
+        prompt_hash: None,
+        response_hash: None,
+        latency_ms: None,
+    };
+    let mut payload = serde_json::to_value(&base).unwrap_or_else(|_| json!({}));
+    if let Value::Object(map) = &mut payload {
+        map.insert(
+            "error_kind".to_string(),
+            Value::String(error_kind.to_string()),
+        );
+        map.insert("reason".to_string(), Value::String(reason.to_string()));
+    }
+    let event = FlightRecorderEvent::new(
+        FlightRecorderEventType::LlmInference,
+        FlightRecorderActor::System,
+        trace_id,
+        payload,
+    )
+    .with_model_id(model_id);
+    if let Err(err) = flight_recorder.record_event(event).await {
+        tracing::warn!(
+            target: "handshake_core::llm",
+            error = %err,
+            trace_id = %trace_id,
+            error_kind,
+            "failed to record fail-closed/error llm Flight Recorder event"
+        );
+    }
+}
+
 /// LLM client used when the provider is unavailable at startup.
 pub struct DisabledLlmClient {
     reason: String,
     profile: ModelProfile,
+    flight_recorder: Arc<dyn FlightRecorder>,
 }
 
 impl DisabledLlmClient {
+    /// Backward-compatible constructor with a no-op Flight Recorder sink.
+    ///
+    /// Use [`Self::new_recorded`] on the default boot path so the fail-closed
+    /// `completion` emits a Flight Recorder event (spec §4.2.3.2(3)). This
+    /// no-op-sink form exists only for non-default callers (bin fixtures,
+    /// embedding-only tests) that are not "the default LLM path".
     pub fn new(model_id: String, reason: String) -> Self {
+        Self::new_recorded(model_id, reason, Arc::new(NoopFlightRecorder))
+    }
+
+    /// WP-1 MT-013: construct a disabled client whose fail-closed `completion`
+    /// emits a Flight Recorder event through `flight_recorder` at CALL TIME.
+    pub fn new_recorded(
+        model_id: String,
+        reason: String,
+        flight_recorder: Arc<dyn FlightRecorder>,
+    ) -> Self {
         Self {
             reason,
             profile: ModelProfile::new(model_id, 0),
+            flight_recorder,
         }
     }
 }
 
 #[async_trait]
 impl LlmClient for DisabledLlmClient {
-    async fn completion(&self, _req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+    async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+        // Spec §4.2.3.2(3): emit a Flight Recorder event on this fail-closed
+        // path too, at CALL TIME (here) — NOT at construction, which would fire
+        // once at boot regardless of whether any call is made (false-green).
+        emit_llm_call_error_event(
+            &self.flight_recorder,
+            req.trace_id,
+            &req.model_id,
+            "llm_disabled",
+            &self.reason,
+        )
+        .await;
         Err(LlmError::ProviderError(self.reason.clone()))
     }
 

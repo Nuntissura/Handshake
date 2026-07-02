@@ -30,7 +30,9 @@ use crate::model_runtime::{
     LoadSpec, ModelCapabilities, ModelCatalog, ModelRegistration, ModelRegistry, ModelRuntime,
     OperatorId, ProviderKind as RuntimeProviderKind, RuntimeBinding, SamplingParams,
 };
+use crate::process_ledger::LedgerBatcher;
 
+use super::embedded_ledger::EmbeddedModelProcess;
 use super::guard::CloudEscalationGuard;
 use super::local_router::{LocalModelRuntimeLlmClient, LocalRouter};
 use super::openai_compat::{ApiKey, OpenAiCompatAdapter};
@@ -50,6 +52,7 @@ const DEFAULT_OPENAI_COMPAT_MAX_CONTEXT_TOKENS: u32 = 8192;
 /// compat lane. Cloud-tier clients are wrapped in [`CloudEscalationGuard`].
 pub async fn resolve_default_llm_client(
     flight_recorder: Arc<dyn FlightRecorder>,
+    ledger: Option<LedgerBatcher>,
 ) -> Arc<dyn LlmClient> {
     let registry = match ProviderRegistry::from_env() {
         Ok(registry) => registry,
@@ -60,7 +63,11 @@ pub async fn resolve_default_llm_client(
                 error = %reason,
                 "LLM disabled (cannot load ProviderRegistry)"
             );
-            return Arc::new(DisabledLlmClient::new("unknown".to_string(), reason));
+            return Arc::new(DisabledLlmClient::new_recorded(
+                "unknown".to_string(),
+                reason,
+                Arc::clone(&flight_recorder),
+            ));
         }
     };
 
@@ -73,13 +80,19 @@ pub async fn resolve_default_llm_client(
                 error = %reason,
                 "LLM disabled (cannot resolve provider)"
             );
-            return Arc::new(DisabledLlmClient::new("unknown".to_string(), reason));
+            return Arc::new(DisabledLlmClient::new_recorded(
+                "unknown".to_string(),
+                reason,
+                Arc::clone(&flight_recorder),
+            ));
         }
     };
 
     let client: Arc<dyn LlmClient> = match resolved.kind {
         ProviderKind::LocalRuntime => {
-            build_default_local_client(&resolved, Arc::clone(&flight_recorder)).await
+            // Only the embedded local-runtime load path owns an in-process model,
+            // so the ProcessOwnershipLedger handle is threaded here (WP-1 MT-013).
+            build_default_local_client(&resolved, Arc::clone(&flight_recorder), ledger).await
         }
         ProviderKind::OpenAiCompat => {
             build_openai_compat_client(&resolved, Arc::clone(&flight_recorder))
@@ -96,7 +109,11 @@ pub async fn resolve_default_llm_client(
                     error = %reason,
                     "LLM disabled (cloud guard init failed)"
                 );
-                Arc::new(DisabledLlmClient::new("unknown".to_string(), reason))
+                Arc::new(DisabledLlmClient::new_recorded(
+                    "unknown".to_string(),
+                    reason,
+                    Arc::clone(&flight_recorder),
+                ))
             }
         }
     } else {
@@ -121,6 +138,7 @@ pub async fn resolve_default_llm_client(
 pub async fn build_default_local_client(
     resolved: &ResolvedProvider,
     flight_recorder: Arc<dyn FlightRecorder>,
+    ledger: Option<LedgerBatcher>,
 ) -> Arc<dyn LlmClient> {
     let Some(local) = resolved.local_model.as_ref() else {
         let reason =
@@ -131,7 +149,11 @@ pub async fn build_default_local_client(
             target: "handshake_core::llm",
             "LLM disabled (no embedded local model configured; no daemon fallback)"
         );
-        return Arc::new(DisabledLlmClient::new(resolved.model_id.clone(), reason));
+        return Arc::new(DisabledLlmClient::new_recorded(
+            resolved.model_id.clone(),
+            reason,
+            flight_recorder,
+        ));
     };
 
     let capabilities = default_local_capabilities(local.runtime_binding);
@@ -168,7 +190,11 @@ pub async fn build_default_local_client(
                 binding = %local.runtime_binding.adapter_id(),
                 "LLM disabled (embedded model load failed; no daemon fallback)"
             );
-            return Arc::new(DisabledLlmClient::new(resolved.model_id.clone(), reason));
+            return Arc::new(DisabledLlmClient::new_recorded(
+                resolved.model_id.clone(),
+                reason,
+                flight_recorder,
+            ));
         }
     };
 
@@ -188,10 +214,11 @@ pub async fn build_default_local_client(
     // provider, so a non-UUIDv7 model_id (which should never reach here for the
     // default lane) degrades to a typed DisabledLlmClient error rather than a
     // daemon.
-    let fallback: Arc<dyn LlmClient> = Arc::new(DisabledLlmClient::new(
+    let fallback: Arc<dyn LlmClient> = Arc::new(DisabledLlmClient::new_recorded(
         local.display_name.clone(),
         "HSK-LOCAL-FALLBACK: no external fallback configured for the embedded local model"
             .to_string(),
+        Arc::clone(&flight_recorder),
     ));
 
     match assemble_local_runtime_client(
@@ -199,8 +226,9 @@ pub async fn build_default_local_client(
         Arc::new(llama_runtime),
         Arc::new(candle_runtime),
         fallback,
-        flight_recorder,
+        Arc::clone(&flight_recorder),
         DEFAULT_LOCAL_MAX_CONTEXT_TOKENS,
+        ledger,
     ) {
         Ok(client) => Arc::new(client),
         Err(err) => {
@@ -210,7 +238,11 @@ pub async fn build_default_local_client(
                 error = %reason,
                 "LLM disabled (local model registration failed)"
             );
-            Arc::new(DisabledLlmClient::new(resolved.model_id.clone(), reason))
+            Arc::new(DisabledLlmClient::new_recorded(
+                resolved.model_id.clone(),
+                reason,
+                flight_recorder,
+            ))
         }
     }
 }
@@ -231,8 +263,15 @@ pub fn assemble_local_runtime_client(
     fallback: Arc<dyn LlmClient>,
     flight_recorder: Arc<dyn FlightRecorder>,
     max_context_tokens: u32,
+    ledger: Option<LedgerBatcher>,
 ) -> Result<LocalModelRuntimeLlmClient, LlmError> {
     let model_id = registration.model_id;
+    // WP-1 MT-013: capture the ProcessOwnershipLedger START-row inputs BEFORE
+    // `registration` is moved into the registry.
+    let runtime_binding = registration.runtime_binding;
+    let display_name = registration.base_model_tag.as_str().to_string();
+    let artifact_sha256 = hex::encode(registration.sha256);
+
     let mut registry = ModelRegistry::default();
     registry.register(registration).map_err(|err| {
         LlmError::ProviderError(format!("local model registration failed: {err}"))
@@ -255,13 +294,40 @@ pub fn assemble_local_runtime_client(
     let profile =
         ModelProfile::new(model_id.to_string(), max_context_tokens).with_streaming(true);
 
-    Ok(LocalModelRuntimeLlmClient::new(
-        router,
-        fallback,
-        flight_recorder,
-        profile,
-    )
-    .with_catalog(catalog))
+    let mut client =
+        LocalModelRuntimeLlmClient::new(router, fallback, flight_recorder, profile)
+            .with_catalog(catalog);
+
+    // WP-1 MT-013: emit the ProcessOwnershipLedger START row for the just-loaded
+    // in-process embedded model (master-spec §3.6.2 clause 2 / §4.6.1) and attach
+    // the ownership handle so the client owns the STOP-on-shutdown obligation.
+    // The row is pid-less (`os_pid = None`) because the in-process library load
+    // spawns no OS process. A ledger-emit failure is logged but does NOT fail
+    // client assembly — the model is already loaded and usable; the ownership
+    // record is auxiliary attribution, not a load prerequisite.
+    if let Some(ledger) = ledger {
+        match EmbeddedModelProcess::record_load(
+            ledger,
+            runtime_binding,
+            model_id,
+            &display_name,
+            Some(artifact_sha256),
+        ) {
+            Ok(embedded_process) => {
+                client = client.with_embedded_process(embedded_process);
+            }
+            Err(err) => {
+                tracing::warn!(
+                    target: "handshake_core::llm",
+                    error = %err,
+                    model_id = %model_id,
+                    "embedded model ProcessOwnershipLedger START emit failed; proceeding without ownership handle"
+                );
+            }
+        }
+    }
+
+    Ok(client)
 }
 
 /// Builds the retained, NON-authoritative external_compat OpenAI-compatible lane.

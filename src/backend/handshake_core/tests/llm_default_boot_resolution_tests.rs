@@ -243,7 +243,7 @@ async fn default_boot_with_no_local_model_returns_disabled_never_ollama_daemon()
     };
 
     let recorder = Arc::new(CapturingRecorder::default());
-    let client = build_default_local_client(&resolved, recorder).await;
+    let client = build_default_local_client(&resolved, recorder, None).await;
 
     // DisabledLlmClient fail-closed signature: zero context window + errored
     // completion carrying the fail-closed reason.
@@ -282,6 +282,7 @@ async fn default_local_runtime_client_profile_model_id_is_minted_uuid_v7_and_rou
         fallback.clone(),
         recorder,
         8192,
+        None,
     )
     .expect("assemble local runtime client");
 
@@ -329,6 +330,7 @@ async fn default_local_runtime_client_embedding_is_supported_via_model_runtime_e
         fallback.clone(),
         recorder,
         8192,
+        None,
     )
     .expect("assemble local runtime client");
 

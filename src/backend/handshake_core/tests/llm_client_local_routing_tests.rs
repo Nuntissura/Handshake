@@ -14,7 +14,8 @@ use handshake_core::{
     },
     llm::{
         local_router::{LocalModelRuntimeLlmClient, LocalRouter},
-        CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
+        CompletionRequest, CompletionResponse, DisabledLlmClient, EmbeddingRequest, LlmClient,
+        LlmError, ModelProfile, TokenUsage,
     },
     model_runtime::{
         BaseModelTag, CancellationToken, Embedding, FinishReason, GenPrompt, GenerateRequest,
@@ -530,6 +531,383 @@ async fn cancel_cancels_the_active_local_generate_request_token() {
         .expect("completion task joins")
         .expect("completion succeeds after release");
     assert_eq!(response.text, "partial");
+}
+
+// ===========================================================================
+// WP-1 MT-013: Flight Recorder emission on EVERY LlmClient call path
+// (spec §4.2.3.2(3)) — fail-closed/disabled, completion error branches, and the
+// embedding lane (success + error). Emitted at CALL TIME, never at construction.
+// ===========================================================================
+
+/// A `ModelRuntime` whose behavior is configurable per test: it can succeed with
+/// a fixed token stream, fail the generate stream, return a fixed embedding
+/// vector, or fail the embed call.
+struct ConfigurableRuntime {
+    tokens: Vec<GeneratedToken>,
+    fail_generate: bool,
+    embed_vector: Vec<f32>,
+    fail_embed: bool,
+    capabilities: ModelCapabilities,
+}
+
+impl ConfigurableRuntime {
+    fn generating(chunks: &[&str]) -> Self {
+        let tokens = chunks
+            .iter()
+            .enumerate()
+            .map(|(index, text)| GeneratedToken {
+                token_id: index as u32,
+                text: (*text).to_string(),
+                logprob: None,
+                finish_reason: (index + 1 == chunks.len()).then_some(FinishReason::Stop),
+            })
+            .collect();
+        Self {
+            tokens,
+            fail_generate: false,
+            embed_vector: Vec::new(),
+            fail_embed: false,
+            capabilities: ModelCapabilities::default(),
+        }
+    }
+
+    fn stream_error() -> Self {
+        Self {
+            tokens: Vec::new(),
+            fail_generate: true,
+            embed_vector: Vec::new(),
+            fail_embed: false,
+            capabilities: ModelCapabilities::default(),
+        }
+    }
+
+    fn embedding(vector: Vec<f32>) -> Self {
+        Self {
+            tokens: Vec::new(),
+            fail_generate: false,
+            embed_vector: vector,
+            fail_embed: false,
+            capabilities: ModelCapabilities::default(),
+        }
+    }
+
+    fn embed_error() -> Self {
+        Self {
+            tokens: Vec::new(),
+            fail_generate: false,
+            embed_vector: Vec::new(),
+            fail_embed: true,
+            capabilities: ModelCapabilities::default(),
+        }
+    }
+}
+
+#[async_trait]
+impl ModelRuntime for ConfigurableRuntime {
+    async fn load(
+        &mut self,
+        _spec: handshake_core::model_runtime::LoadSpec,
+    ) -> Result<ModelId, ModelRuntimeError> {
+        Ok(ModelId::new_v7())
+    }
+
+    async fn unload(&mut self, _id: ModelId) -> Result<(), ModelRuntimeError> {
+        Ok(())
+    }
+
+    fn generate(&self, _req: GenerateRequest) -> TokenStream {
+        if self.fail_generate {
+            let err: Result<GeneratedToken, ModelRuntimeError> =
+                Err(ModelRuntimeError::GenerateError("stream boom".to_string()));
+            return Box::pin(stream::iter(vec![err]));
+        }
+        let tokens = self.tokens.clone();
+        Box::pin(stream::iter(tokens.into_iter().map(Ok)))
+    }
+
+    async fn score(&self, _id: ModelId, _sequence: Vec<u32>) -> Result<Score, ModelRuntimeError> {
+        Ok(Score {
+            token_logprobs: Vec::new(),
+            mean_logprob: 0.0,
+        })
+    }
+
+    async fn embed(&self, _id: ModelId, _text: &str) -> Result<Embedding, ModelRuntimeError> {
+        if self.fail_embed {
+            return Err(ModelRuntimeError::EmbedError("embed boom".to_string()));
+        }
+        Ok(Embedding {
+            vector: self.embed_vector.clone(),
+        })
+    }
+
+    fn capabilities(&self, _id: ModelId) -> Result<&ModelCapabilities, ModelRuntimeError> {
+        Ok(&self.capabilities)
+    }
+
+    fn kv_cache(&self, _id: ModelId) -> Result<KvCacheHandle, ModelRuntimeError> {
+        Ok(KvCacheHandle::new("cfg-kv"))
+    }
+
+    fn lora_stack(&self, _id: ModelId) -> Result<LoraStackHandle, ModelRuntimeError> {
+        Ok(LoraStackHandle::new("cfg-lora"))
+    }
+
+    fn steering_hooks(&self, _id: ModelId) -> Result<SteeringHookHandle, ModelRuntimeError> {
+        Ok(SteeringHookHandle::new("cfg-steering"))
+    }
+
+    fn cancel(&self, token: CancellationToken) {
+        token.cancel();
+    }
+}
+
+/// Builds a local client whose registered (Candle) model routes to `candle`.
+fn candle_client(
+    model_id: ModelId,
+    candle: Arc<dyn ModelRuntime>,
+    recorder: Arc<CapturingRecorder>,
+    max_context_tokens: u32,
+) -> LocalModelRuntimeLlmClient {
+    let mut registry = ModelRegistry::default();
+    registry
+        .register(registration(model_id, RuntimeBinding::Candle))
+        .expect("register candle model");
+    let llama: Arc<dyn ModelRuntime> = Arc::new(RecordingRuntime::new("llama", &["x"]));
+    let router = LocalRouter::new(Arc::new(registry), llama, candle);
+    let fallback = Arc::new(RecordingFallbackClient::new("fallback"));
+    LocalModelRuntimeLlmClient::new(
+        router,
+        fallback,
+        recorder,
+        ModelProfile::new("local-router".to_string(), max_context_tokens).with_streaming(true),
+    )
+}
+
+#[tokio::test]
+async fn disabled_client_completion_emits_fr_event_at_call_time_each_call() {
+    let recorder = Arc::new(CapturingRecorder::default());
+    let disabled = DisabledLlmClient::new_recorded(
+        "unknown".to_string(),
+        "HSK-LOCAL-DISABLED: test disabled".to_string(),
+        recorder.clone(),
+    );
+
+    // Construction alone MUST NOT emit — proves call-time, not construction-time.
+    assert_eq!(
+        recorder.events().len(),
+        0,
+        "DisabledLlmClient construction must not emit a Flight Recorder event"
+    );
+
+    let trace_a = uuid::Uuid::now_v7();
+    let err_a = disabled
+        .completion(CompletionRequest::new(trace_a, "p".into(), "m".into()))
+        .await
+        .expect_err("disabled completion must fail closed");
+    assert!(matches!(err_a, LlmError::ProviderError(_)));
+
+    let trace_b = uuid::Uuid::now_v7();
+    let _ = disabled
+        .completion(CompletionRequest::new(trace_b, "p2".into(), "m2".into()))
+        .await
+        .expect_err("disabled completion must fail closed");
+
+    let events = recorder.events();
+    assert_eq!(
+        events.len(),
+        2,
+        "two disabled calls must emit two FR events (call-time, not once at construction)"
+    );
+    for event in &events {
+        assert!(matches!(
+            event.event_type,
+            FlightRecorderEventType::LlmInference
+        ));
+        assert_eq!(event.payload["error_kind"], "llm_disabled");
+        assert_eq!(event.payload["token_usage"]["total_tokens"], 0);
+        assert!(event.payload["reason"].is_string());
+    }
+    assert_eq!(events[0].trace_id, trace_a);
+    assert_eq!(events[1].trace_id, trace_b);
+}
+
+#[tokio::test]
+async fn local_completion_stream_error_emits_fr_error_event() {
+    let model_id = ModelId::new_v7();
+    let recorder = Arc::new(CapturingRecorder::default());
+    let candle: Arc<dyn ModelRuntime> = Arc::new(ConfigurableRuntime::stream_error());
+    let client = candle_client(model_id, candle, recorder.clone(), 8192);
+
+    let trace_id = uuid::Uuid::now_v7();
+    let err = client
+        .completion(CompletionRequest::new(
+            trace_id,
+            "boom".into(),
+            model_id.to_string(),
+        ))
+        .await
+        .expect_err("stream error must surface as LlmError");
+    assert!(matches!(err, LlmError::ProviderError(_)));
+
+    let events = recorder.events();
+    assert_eq!(
+        events.len(),
+        1,
+        "a completion stream error must emit exactly one FR event"
+    );
+    assert!(matches!(
+        events[0].event_type,
+        FlightRecorderEventType::LlmInference
+    ));
+    assert_eq!(events[0].payload["error_kind"], "llm_error");
+    assert_eq!(events[0].payload["token_usage"]["total_tokens"], 0);
+    assert_eq!(events[0].trace_id, trace_id);
+}
+
+#[tokio::test]
+async fn local_completion_budget_exceeded_emits_fr_error_event() {
+    let model_id = ModelId::new_v7();
+    let recorder = Arc::new(CapturingRecorder::default());
+    let candle: Arc<dyn ModelRuntime> = Arc::new(ConfigurableRuntime::generating(&["a", "b", "c"]));
+    let client = candle_client(model_id, candle, recorder.clone(), 8192);
+
+    let req = CompletionRequest::new(
+        uuid::Uuid::now_v7(),
+        "over budget".into(),
+        model_id.to_string(),
+    )
+    .with_max_tokens(1);
+    let err = client
+        .completion(req)
+        .await
+        .expect_err("budget exceeded must surface as LlmError");
+    assert!(matches!(err, LlmError::BudgetExceeded(_)));
+
+    let events = recorder.events();
+    assert_eq!(
+        events.len(),
+        1,
+        "budget-exceeded must emit the error FR event, not the success event"
+    );
+    assert!(matches!(
+        events[0].event_type,
+        FlightRecorderEventType::LlmInference
+    ));
+    assert_eq!(events[0].payload["error_kind"], "llm_error");
+}
+
+#[tokio::test]
+async fn local_completion_unregistered_model_emits_fr_error_event() {
+    let recorder = Arc::new(CapturingRecorder::default());
+    // Empty registry: a UUIDv7 id parses as local but resolves to "not
+    // registered" inside run_local_completion (the runtime-resolve error branch).
+    let registry = ModelRegistry::default();
+    let llama: Arc<dyn ModelRuntime> = Arc::new(RecordingRuntime::new("llama", &["x"]));
+    let candle: Arc<dyn ModelRuntime> = Arc::new(RecordingRuntime::new("candle", &["x"]));
+    let router = LocalRouter::new(Arc::new(registry), llama, candle);
+    let fallback = Arc::new(RecordingFallbackClient::new("fallback"));
+    let client = LocalModelRuntimeLlmClient::new(
+        router,
+        fallback,
+        recorder.clone(),
+        ModelProfile::new("local-router".to_string(), 8192),
+    );
+
+    let unregistered = ModelId::new_v7();
+    let trace_id = uuid::Uuid::now_v7();
+    let err = client
+        .completion(CompletionRequest::new(
+            trace_id,
+            "p".into(),
+            unregistered.to_string(),
+        ))
+        .await
+        .expect_err("unregistered model must fail");
+    assert!(matches!(err, LlmError::ProviderError(_)));
+
+    let events = recorder.events();
+    assert_eq!(
+        events.len(),
+        1,
+        "runtime-resolve error must emit exactly one FR event"
+    );
+    assert_eq!(events[0].payload["error_kind"], "llm_error");
+    assert_eq!(events[0].trace_id, trace_id);
+}
+
+#[tokio::test]
+async fn local_embedding_success_emits_data_embedding_computed_event() {
+    let model_id = ModelId::new_v7();
+    let recorder = Arc::new(CapturingRecorder::default());
+    let candle: Arc<dyn ModelRuntime> =
+        Arc::new(ConfigurableRuntime::embedding(vec![0.1, 0.2, 0.3]));
+    let client = candle_client(model_id, candle, recorder.clone(), 8192);
+
+    let trace_id = uuid::Uuid::now_v7();
+    let response = client
+        .embedding(EmbeddingRequest::new(
+            trace_id,
+            "embed me".into(),
+            model_id.to_string(),
+        ))
+        .await
+        .expect("embedding success");
+    assert_eq!(response.vector, vec![0.1, 0.2, 0.3]);
+
+    let events = recorder.events();
+    assert_eq!(
+        events.len(),
+        1,
+        "embedding success must emit exactly one FR event"
+    );
+    assert!(
+        matches!(
+            events[0].event_type,
+            FlightRecorderEventType::DataEmbeddingComputed
+        ),
+        "embedding success must reuse DataEmbeddingComputed, got {:?}",
+        events[0].event_type
+    );
+    assert_eq!(events[0].trace_id, trace_id);
+    assert_eq!(events[0].payload["embedding_dim"], 3);
+    // Embeddings carry NO TokenUsage (product-extension FR shape).
+    assert!(
+        events[0].payload.get("token_usage").is_none(),
+        "embedding FR event must not carry a token_usage field"
+    );
+}
+
+#[tokio::test]
+async fn local_embedding_error_emits_fr_error_event() {
+    let model_id = ModelId::new_v7();
+    let recorder = Arc::new(CapturingRecorder::default());
+    let candle: Arc<dyn ModelRuntime> = Arc::new(ConfigurableRuntime::embed_error());
+    let client = candle_client(model_id, candle, recorder.clone(), 8192);
+
+    let trace_id = uuid::Uuid::now_v7();
+    let err = client
+        .embedding(EmbeddingRequest::new(
+            trace_id,
+            "embed me".into(),
+            model_id.to_string(),
+        ))
+        .await
+        .expect_err("embed failure must surface as LlmError");
+    assert!(matches!(err, LlmError::ProviderError(_)));
+
+    let events = recorder.events();
+    assert_eq!(
+        events.len(),
+        1,
+        "embedding error must emit exactly one FR event"
+    );
+    assert!(matches!(
+        events[0].event_type,
+        FlightRecorderEventType::LlmInference
+    ));
+    assert_eq!(events[0].payload["error_kind"], "embedding_error");
+    assert_eq!(events[0].trace_id, trace_id);
 }
 
 #[test]

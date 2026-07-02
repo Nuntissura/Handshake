@@ -738,6 +738,14 @@ name = "llm_default_boot_resolution_tests"
 path = "tests/llm_default_boot_resolution_tests.rs"
 required-features = ["test-utils"]
 
+# WP-1 MT-013: NON-SKIPPABLE ProcessOwnershipLedger START/STOP proof for the
+# embedded-model load + shutdown seam. Engine-free (fakes, no PostgreSQL, no
+# candle/llama build) and intentionally has NO required-features, so it always
+# builds and runs and cannot silently skip.
+[[test]]
+name = "embedded_model_ledger_tests"
+path = "tests/embedded_model_ledger_tests.rs"
+
 [[test]]
 name = "model_lane_promotion_pg_tests"
 path = "tests/model_lane_promotion_pg_tests.rs"

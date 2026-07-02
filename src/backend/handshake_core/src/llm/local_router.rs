@@ -7,6 +7,7 @@ use std::{
 
 use async_trait::async_trait;
 use futures::StreamExt;
+use serde_json::json;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
@@ -26,8 +27,9 @@ use crate::{
 };
 
 use super::{
-    CompletionRequest, CompletionResponse, EmbeddingRequest, EmbeddingResponse, LlmClient,
-    LlmError, ModelProfile, TokenUsage,
+    embedded_ledger::EmbeddedModelProcess, emit_llm_call_error_event, CompletionRequest,
+    CompletionResponse, EmbeddingRequest, EmbeddingResponse, LlmClient, LlmError, ModelProfile,
+    TokenUsage,
 };
 
 #[derive(Clone)]
@@ -96,6 +98,14 @@ pub struct LocalModelRuntimeLlmClient {
     // `None` for clients constructed via `new` without a catalog (e.g. the
     // in-tree routing-test fleet), which preserves the legacy accessor contract.
     catalog: Option<Arc<ModelCatalog>>,
+    // WP-1 MT-013: ProcessOwnershipLedger ownership handle for the in-process
+    // embedded model this client's LocalRouter dispatches to. `Some` only for
+    // the default boot lane assembled with a ledger handle
+    // (`boot::assemble_local_runtime_client`). The STOP row is emitted via the
+    // [`Self::shutdown`] seam (and a `Drop` safety net inside the handle) — the
+    // runtime is held behind `Arc<dyn ModelRuntime>` and never has
+    // `unload(&mut self)` called on it, so we do NOT route STOP through unload.
+    embedded_process: Option<EmbeddedModelProcess>,
 }
 
 impl LocalModelRuntimeLlmClient {
@@ -114,7 +124,19 @@ impl LocalModelRuntimeLlmClient {
             capsule_injector: None,
             capsule_context_source: None,
             catalog: None,
+            embedded_process: None,
         }
+    }
+
+    /// WP-1 MT-013: attaches the ProcessOwnershipLedger ownership handle for the
+    /// in-process embedded model this client dispatches to. The boot assembler
+    /// (`boot::assemble_local_runtime_client`) passes the handle returned by
+    /// `EmbeddedModelProcess::record_load` (which already emitted the START
+    /// row), so the client owns the STOP-on-shutdown obligation for the loaded
+    /// model. Clients constructed without a ledger handle keep `None`.
+    pub fn with_embedded_process(mut self, embedded_process: EmbeddedModelProcess) -> Self {
+        self.embedded_process = Some(embedded_process);
+        self
     }
 
     /// Attaches the shared [`ModelCatalog`] enumeration/label surface (MT-014).
@@ -302,26 +324,64 @@ impl LocalModelRuntimeLlmClient {
             );
         }
     }
-}
 
-#[async_trait]
-impl LlmClient for LocalModelRuntimeLlmClient {
-    async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
-        let Some(model_id) = Self::parse_local_model_id(&req.model_id)? else {
-            return self.fallback.completion(req).await;
-        };
+    /// WP-1 MT-013: the embedding-lane Flight Recorder event.
+    ///
+    /// `embedding()` is a Handshake PRODUCT EXTENSION — it is NOT part of the
+    /// spec §4.2.3.1 `LlmClient` trait — so this emission is a product extension
+    /// of the §4.2.3.2(3)/§11.5 "correlatable model call" discipline, not a
+    /// literal §4.2.3.2(3) MUST. Reuses `DataEmbeddingComputed`; embeddings carry
+    /// NO `TokenUsage`, so a validator must not reject this event on "embeddings
+    /// have no TokenUsage".
+    async fn emit_embedding_computed_event(
+        &self,
+        req: &EmbeddingRequest,
+        embedding_dim: usize,
+        latency_ms: u64,
+    ) {
+        let payload = json!({
+            "type": "data_embedding_computed",
+            "trace_id": req.trace_id,
+            "model_id": req.model_id,
+            "embedding_dim": embedding_dim,
+            "latency_ms": latency_ms,
+        });
+        let event = FlightRecorderEvent::new(
+            FlightRecorderEventType::DataEmbeddingComputed,
+            FlightRecorderActor::Agent,
+            req.trace_id,
+            payload,
+        )
+        .with_model_id(&req.model_id);
+        if let Err(err) = self.flight_recorder.record_event(event).await {
+            tracing::warn!(
+                target: "handshake_core::llm",
+                error = %err,
+                trace_id = %req.trace_id,
+                "failed to record local embedding data_embedding_computed event"
+            );
+        }
+    }
 
+    /// Local-path completion dispatch. Emits the SUCCESS `llm_inference` event on
+    /// `Ok`; all error branches return `Err` so the caller (`completion`) emits
+    /// the CALL-TIME error event (see spec §4.2.3.2(3)).
+    async fn run_local_completion(
+        &self,
+        req: &CompletionRequest,
+        model_id: ModelId,
+    ) -> Result<CompletionResponse, LlmError> {
         let started = Instant::now();
         let runtime = self.router.resolve(model_id)?;
         let cancel = CancellationToken::new();
         self.active_tokens().insert(model_id, cancel.clone());
-        let generate_request = self.request_to_generate_request(&req, model_id, cancel);
+        let generate_request = self.request_to_generate_request(req, model_id, cancel);
         // MT-144: wire MemoryCapsule injection into the ModelRuntime generate
         // call path. On `Inject` the prompt is wrapped via
         // `attach_capsule_to_generate_request`; on `Skip` it is unchanged.
         // FR-EVT-CAPSULE-INJECTED is emitted inside `inject_for_call` itself.
         let (generate_request, _capsule_receipt) =
-            match self.apply_capsule_injection(&req, generate_request) {
+            match self.apply_capsule_injection(req, generate_request) {
                 Ok(pair) => pair,
                 Err(err) => {
                     self.active_tokens().remove(&model_id);
@@ -365,10 +425,71 @@ impl LlmClient for LocalModelRuntimeLlmClient {
             latency_ms: (started.elapsed().as_millis() as u64).max(1),
         };
 
-        self.emit_llm_inference_event(&req, &response.text, &response.usage, response.latency_ms)
+        self.emit_llm_inference_event(req, &response.text, &response.usage, response.latency_ms)
             .await;
 
         Ok(response)
+    }
+
+    /// Local-path embedding dispatch. All error branches (runtime resolve, embed
+    /// failure, empty-vector rejection) return `Err` so the caller (`embedding`)
+    /// emits the CALL-TIME error event. A genuinely empty vector is rejected,
+    /// never fabricated.
+    async fn run_local_embedding(
+        &self,
+        req: &EmbeddingRequest,
+        model_id: ModelId,
+    ) -> Result<EmbeddingResponse, LlmError> {
+        let started = Instant::now();
+        let runtime = self.router.resolve(model_id)?;
+        let embedding = runtime
+            .embed(model_id, &req.input)
+            .await
+            .map_err(Self::map_runtime_error)?;
+
+        if embedding.vector.is_empty() {
+            return Err(LlmError::ProviderError(format!(
+                "local ModelRuntime returned an empty embedding vector for {model_id}"
+            )));
+        }
+
+        Ok(EmbeddingResponse {
+            vector: embedding.vector,
+            model_id: req.model_id.clone(),
+            latency_ms: (started.elapsed().as_millis() as u64).max(1),
+        })
+    }
+}
+
+#[async_trait]
+impl LlmClient for LocalModelRuntimeLlmClient {
+    async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+        let Some(model_id) = Self::parse_local_model_id(&req.model_id)? else {
+            // Non-UUIDv7 id: delegate to the wrapped client, which emits its own
+            // Flight Recorder event (the default fallback is a recorder-wired
+            // DisabledLlmClient). Do NOT emit here — that would double-count.
+            return self.fallback.completion(req).await;
+        };
+
+        // Spec §4.2.3.2(3): EVERY call on the local path emits a Flight Recorder
+        // event. The success path emits `llm_inference` inside
+        // `run_local_completion`; every error branch (runtime resolve, capsule
+        // injection, stream error, budget-exceeded) emits a zeroed-usage
+        // `llm_inference` error event here, at CALL TIME (never at construction).
+        match self.run_local_completion(&req, model_id).await {
+            Ok(response) => Ok(response),
+            Err(err) => {
+                emit_llm_call_error_event(
+                    &self.flight_recorder,
+                    req.trace_id,
+                    &req.model_id,
+                    "llm_error",
+                    &err.to_string(),
+                )
+                .await;
+                Err(err)
+            }
+        }
     }
 
     /// MT-003 (WP-1) HIGH regression guard 2: wire `LlmClient::embedding()` to
@@ -385,27 +506,31 @@ impl LlmClient for LocalModelRuntimeLlmClient {
     /// zero-length embedding.
     async fn embedding(&self, req: EmbeddingRequest) -> Result<EmbeddingResponse, LlmError> {
         let Some(model_id) = Self::parse_local_model_id(&req.model_id)? else {
+            // Non-UUIDv7 id: delegate to the wrapped client (owns its emission).
             return self.fallback.embedding(req).await;
         };
 
-        let started = Instant::now();
-        let runtime = self.router.resolve(model_id)?;
-        let embedding = runtime
-            .embed(model_id, &req.input)
-            .await
-            .map_err(Self::map_runtime_error)?;
-
-        if embedding.vector.is_empty() {
-            return Err(LlmError::ProviderError(format!(
-                "local ModelRuntime returned an empty embedding vector for {model_id}"
-            )));
+        // WP-1 MT-013: the local embedding lane emits a Flight Recorder event on
+        // BOTH success and error (see `emit_embedding_computed_event` for the
+        // product-extension caveat). Emitted at CALL TIME.
+        match self.run_local_embedding(&req, model_id).await {
+            Ok(response) => {
+                self.emit_embedding_computed_event(&req, response.dim(), response.latency_ms)
+                    .await;
+                Ok(response)
+            }
+            Err(err) => {
+                emit_llm_call_error_event(
+                    &self.flight_recorder,
+                    req.trace_id,
+                    &req.model_id,
+                    "embedding_error",
+                    &err.to_string(),
+                )
+                .await;
+                Err(err)
+            }
         }
-
-        Ok(EmbeddingResponse {
-            vector: embedding.vector,
-            model_id: req.model_id,
-            latency_ms: (started.elapsed().as_millis() as u64).max(1),
-        })
     }
 
     fn cancel(&self, model_id: &str, token: CancellationToken) {
@@ -437,5 +562,23 @@ impl LlmClient for LocalModelRuntimeLlmClient {
     /// client was constructed without a catalog.
     fn model_catalog(&self) -> Option<Arc<ModelCatalog>> {
         self.catalog.clone()
+    }
+
+    /// WP-1 MT-013 app-shutdown seam: emit the ProcessOwnershipLedger STOP row
+    /// for the in-process embedded model this client owns. This is the seam app
+    /// shutdown drives instead of `ModelRuntime::unload(&mut self)` (which is
+    /// unreachable — the runtime is held behind `Arc<dyn ModelRuntime>`).
+    /// Idempotent: a no-op when no embedded process is owned, and the ownership
+    /// handle also emits STOP on `Drop` as a safety net.
+    fn shutdown(&self) {
+        if let Some(embedded_process) = &self.embedded_process {
+            if let Err(err) = embedded_process.shutdown("llm-client-shutdown") {
+                tracing::warn!(
+                    target: "handshake_core::llm",
+                    error = %err,
+                    "embedded model ProcessOwnershipLedger STOP on client shutdown failed"
+                );
+            }
+        }
     }
 }
